@@ -60,6 +60,13 @@ Before opening a pull request run `pnpm format:check`, `pnpm lint`, `pnpm check`
 CI runs the same. pnpm 12 only runs dependency build scripts listed under `allowBuilds` in
 `pnpm-workspace.yaml`; approve new ones with `pnpm approve-builds`.
 
+**Supply chain.** `pnpm-workspace.yaml` only lets in package versions that have been published for
+7 days (`minimumReleaseAge`), rejects versions with weaker provenance than earlier ones
+(`trustPolicy: no-downgrade`) and keeps transitive dependencies on the registry
+(`blockExoticSubdeps`). When `pnpm add` stops on a version that is too new, pick an older one or wait.
+For an urgent security fix, add the exact `name@version` to `minimumReleaseAgeExclude` with a comment
+saying why. Dependabot waits the same 7 days. Never weaken these settings to make an install pass.
+
 ## Stack decisions
 
 Don't swap these without updating `docs/brief.md` in the same pull request.

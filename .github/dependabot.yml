@@ -4,6 +4,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Matches minimumReleaseAge in pnpm-workspace.yaml; security updates are not delayed.
+    cooldown:
+      default-days: 7
     groups:
       actions:
         patterns: ['*']
@@ -12,6 +15,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Matches minimumReleaseAge in pnpm-workspace.yaml; security updates are not delayed.
+    cooldown:
+      default-days: 7
     groups:
       minor-and-patch:
         update-types: [minor, patch]
