@@ -6,7 +6,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | Milestone                  | Status      |
 | -------------------------- | ----------- |
 | M0 Claim the name          | Done        |
-| M1 Audio spike             | Next        |
+| M1 Audio spike             | In progress |
 | M2 Local library           | Not started |
 | M3 Add-on protocol and SDK | Not started |
 | M4 Downloads               | Not started |
@@ -35,7 +35,8 @@ v1.1.
 
 ## M1 Audio spike
 
-**Status:** next. The riskiest requirement, so it comes before any UI.
+**Status:** in progress. The riskiest requirement, so it comes before any UI. Test checklist and
+results: [`modules/audio/README.md`](../modules/audio/README.md).
 
 A bare Expo app (dev client) in `apps/app` with a Kotlin Expo module in `modules/audio` around a
 Media3 `MediaLibraryService`.

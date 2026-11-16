@@ -4,3 +4,5 @@ dist/
 apps/app/android/
 apps/app/ios/
 .expo/
+modules/*/android/build/
+modules/*/android/.gradle/

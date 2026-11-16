@@ -13,6 +13,7 @@ export default defineConfig([
     '**/.expo/',
     'apps/app/android/',
     'apps/app/ios/',
+    'modules/*/android/build/',
   ]),
   js.configs.recommended,
   tseslint.configs.strict,
