@@ -84,8 +84,7 @@ as Worker secrets. Register the Podcast Index API key before starting.
 
 **Status:** in progress. Design:
 [`superpowers/specs/2026-11-16-m4-downloads-design.md`](superpowers/specs/2026-11-16-m4-downloads-design.md).
-Built and unit-tested without a phone; the device checklist is in
-[`apps/app/README.md`](../apps/app/README.md#m4-device-checklist).
+Built in PR #14; open checks and follow-ups: [`m4-follow-ups.md`](m4-follow-ups.md).
 
 Background download service with Wi-Fi and charging rules, cover and metadata snapshots, and a
 storage overview.
@@ -96,8 +95,7 @@ storage overview.
 
 **Status:** in progress. Design:
 [`superpowers/specs/2026-11-16-m5-podcasts-design.md`](superpowers/specs/2026-11-16-m5-podcasts-design.md).
-Built and unit-tested without a phone; the device checklist is in
-[`apps/app/README.md`](../apps/app/README.md#m5-device-checklist).
+Built in PR #15; open checks and follow-ups: [`m5-follow-ups.md`](m5-follow-ups.md).
 
 RSS subscriptions, OPML import and export, auto-download rules per podcast, and the Up Next queue.
 
@@ -105,11 +103,8 @@ RSS subscriptions, OPML import and export, auto-download rules per podcast, and 
 
 ## M6 Web build
 
-**Status:** in progress. Design notes in [the brief](brief.md#web-build-m6). Streaming, saved
-places across reloads and a podcast through the local proxy work in a desktop browser (Chrome,
-`expo start --web`). Still to do: create the Pages project and the proxy's domain, then check
-the deployed app at `listen.lelap.app` (see the checklist in
-[`apps/app/README.md`](../apps/app/README.md#m6-web-checklist)).
+**Status:** in progress. Design notes in [the brief](brief.md#web-build-m6). Built in PR #16;
+setup, open checks and follow-ups: [`m6-follow-ups.md`](m6-follow-ups.md).
 
 react-native-web build, OPFS storage, the web audio adapter, and the feed and cover proxy.
 
