@@ -1,0 +1,165 @@
+import { browseCatalogs, type CatalogRef, fetchCatalog, genreOptions } from '@lelap/core';
+import type { MetaPreview } from '@lelap/sdk';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { fetcher, SHOWN_TYPES, useAddons } from '../../src/addons';
+import { MetaTile } from '../../src/components/MetaCard';
+import { openItem } from '../../src/navigation';
+
+const COLUMNS = 3;
+const GAP = 12;
+
+const keyOf = (ref: CatalogRef) => `${ref.addon.url} ${ref.catalog.type} ${ref.catalog.id}`;
+
+function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`rounded-full border px-3 py-1 ${active ? 'border-amber bg-amber' : 'border-line'}`}
+    >
+      <Text className={active ? 'text-ink' : 'text-soft'}>{label}</Text>
+    </Pressable>
+  );
+}
+
+export default function DiscoverScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const params = useLocalSearchParams<{ addon?: string; catalog?: string }>();
+  const addons = useAddons();
+  const catalogs = useMemo(() => browseCatalogs(addons, SHOWN_TYPES), [addons]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [genre, setGenre] = useState<string | null>(null);
+
+  // "More" on a Home row opens Discover on that catalog.
+  useEffect(() => {
+    const match = catalogs.find(
+      (ref) => ref.addon.url === params.addon && ref.catalog.id === params.catalog,
+    );
+    if (match) {
+      setSelected(keyOf(match));
+      setGenre(null);
+    }
+  }, [params.addon, params.catalog, catalogs]);
+
+  const current = catalogs.find((ref) => keyOf(ref) === selected) ?? catalogs[0];
+  const genres = current ? genreOptions(current.catalog) : [];
+  const tile = Math.floor((width - 32 - GAP * (COLUMNS - 1)) / COLUMNS);
+
+  const query = useInfiniteQuery({
+    queryKey: ['discover', current ? keyOf(current) : null, genre],
+    enabled: current !== undefined,
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => {
+      if (!current) return Promise.resolve<MetaPreview[]>([]);
+      const extra: Record<string, string> = {};
+      if (genre) extra.genre = genre;
+      if (pageParam > 0) extra.skip = String(pageParam);
+      return fetchCatalog(fetcher, current, extra);
+    },
+    getNextPageParam: (last, pages) =>
+      last.length === 0 ? undefined : pages.reduce((sum, page) => sum + page.length, 0),
+  });
+
+  // An add-on may repeat an item across pages; keys must be unique.
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    return (query.data?.pages.flat() ?? []).filter((m) => !seen.has(m.id) && seen.add(m.id));
+  }, [query.data]);
+
+  return (
+    <View className="flex-1 bg-night" style={{ paddingTop: insets.top + 12 }}>
+      <Text className="px-4 pb-3 text-3xl font-semibold text-paper">Discover</Text>
+      {catalogs.length === 0 ? (
+        <Text className="px-4 text-muted">
+          No catalogs to browse. Add-ons in Settings bring them.
+        </Text>
+      ) : (
+        <FlatList
+          key={COLUMNS}
+          data={items}
+          numColumns={COLUMNS}
+          keyExtractor={(m) => m.id}
+          columnWrapperStyle={{ gap: GAP, paddingHorizontal: 16 }}
+          contentContainerStyle={{ gap: 16, paddingBottom: 24 }}
+          onEndReachedThreshold={0.6}
+          onEndReached={() => {
+            if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
+          }}
+          ListHeaderComponent={
+            <View className="gap-3">
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}
+              >
+                {catalogs.map((ref) => (
+                  <Chip
+                    key={keyOf(ref)}
+                    label={
+                      catalogs.filter((r) => r.catalog.name === ref.catalog.name).length > 1
+                        ? `${ref.catalog.name} · ${ref.addon.manifest.name}`
+                        : ref.catalog.name
+                    }
+                    active={current !== undefined && keyOf(ref) === keyOf(current)}
+                    onPress={() => {
+                      setSelected(keyOf(ref));
+                      setGenre(null);
+                    }}
+                  />
+                ))}
+              </ScrollView>
+              {genres.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}
+                >
+                  <Chip label="All" active={genre === null} onPress={() => setGenre(null)} />
+                  {genres.map((g) => (
+                    <Chip
+                      key={g}
+                      label={g.charAt(0).toUpperCase() + g.slice(1)}
+                      active={genre === g}
+                      onPress={() => setGenre(g)}
+                    />
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          }
+          ListEmptyComponent={
+            query.isPending ? (
+              <ActivityIndicator color="#f5b041" className="pt-12" />
+            ) : (
+              <Text className="px-4 pt-12 text-center text-muted">
+                {query.isError
+                  ? `${current?.addon.manifest.name ?? 'The add-on'} did not answer. Pull Home down to try again.`
+                  : 'Nothing here.'}
+              </Text>
+            )
+          }
+          ListFooterComponent={
+            query.isFetchingNextPage ? <ActivityIndicator color="#f5b041" /> : undefined
+          }
+          renderItem={({ item }) => (
+            <MetaTile meta={item} width={tile} onPress={(meta) => openItem(router, meta)} />
+          )}
+        />
+      )}
+    </View>
+  );
+}

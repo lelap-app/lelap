@@ -1,21 +1,31 @@
 import { Image, Text, View } from 'react-native';
 
+/** A `file://` URI for a cover saved on the phone, else the add-on's cover URL. */
+export function coverUri(book: {
+  coverPath: string | null;
+  coverUrl?: string | null;
+}): string | null {
+  if (book.coverPath) return `file://${book.coverPath}`;
+  return book.coverUrl ?? null;
+}
+
 /** The cover, or a tile with the title's first letter when there is none. */
 export function BookCover({
-  path,
+  uri,
   title,
   size,
 }: {
-  path: string | null;
+  uri: string | null | undefined;
   title: string;
   size: number;
 }) {
-  if (path) {
+  if (uri) {
     return (
       <Image
-        source={{ uri: `file://${path}` }}
+        source={{ uri }}
+        accessibilityIgnoresInvertColors
         style={{ width: size, height: size }}
-        className="rounded-md"
+        className="rounded-md bg-raised"
       />
     );
   }

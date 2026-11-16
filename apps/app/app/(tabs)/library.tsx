@@ -3,6 +3,7 @@ import {
   type LibraryBook,
   type LibrarySort,
   listBooks,
+  removeStreamedBook,
   schema,
   setFinished,
 } from '@lelap/core';
@@ -11,13 +12,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BookRow } from '../src/components/BookRow';
-import { ContinueCard } from '../src/components/ContinueCard';
-import { MiniPlayer } from '../src/components/MiniPlayer';
-import { db } from '../src/db';
-import { playBook, useLibrary } from '../src/player';
-import { profileId } from '../src/profile';
-import { chooseFolder, scanLibrary } from '../src/scan';
+import { BookRow } from '../../src/components/BookRow';
+import { ContinueCard } from '../../src/components/ContinueCard';
+import { db } from '../../src/db';
+import { playBook, useLibrary } from '../../src/player';
+import { profileId } from '../../src/profile';
+import { chooseFolder, scanLibrary } from '../../src/scan';
 
 const SORTS: { key: LibrarySort; label: string }[] = [
   { key: 'recent', label: 'Recent' },
@@ -25,7 +25,7 @@ const SORTS: { key: LibrarySort; label: string }[] = [
   { key: 'author', label: 'Author' },
 ];
 
-export default function Library() {
+export default function LibraryScreen() {
   const { version, refresh } = useLibrary();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -82,7 +82,42 @@ export default function Library() {
     refresh();
   };
 
-  if (!root) {
+  const showActions = (book: LibraryBook) => {
+    const finish = {
+      text: book.finishedAt === null ? 'Mark as finished' : 'Mark as not finished',
+      onPress: () => toggleFinished(book),
+    };
+    if (book.source !== 'addon') {
+      toggleFinished(book);
+      return;
+    }
+    Alert.alert(book.title, undefined, [
+      finish,
+      {
+        text: 'Remove from library',
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert(
+            'Remove from library?',
+            'Your place and bookmarks in this book are removed too.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Remove',
+                style: 'destructive',
+                onPress: () => {
+                  removeStreamedBook(db, book.id);
+                  refresh();
+                },
+              },
+            ],
+          ),
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  if (!root && books.length === 0) {
     return (
       <View
         style={{ paddingTop: insets.top }}
@@ -91,7 +126,7 @@ export default function Library() {
         <Text className="text-center text-2xl font-semibold text-paper">Your audiobooks</Text>
         <Text className="text-center text-soft">
           Choose the folder on this phone that holds your audiobooks. Lelap plays them where they
-          are.
+          are. Books you play from Discover and Search appear here too.
         </Text>
         <Pressable
           onPress={() => void pick()}
@@ -124,6 +159,15 @@ export default function Library() {
                 <Text className="text-2xl text-muted">⚙</Text>
               </Pressable>
             </View>
+            {!root && (
+              <Pressable
+                onPress={() => void pick()}
+                className="mx-4 rounded-lg border border-line p-3 active:bg-raised"
+              >
+                <Text className="text-soft">Have audiobooks on this phone?</Text>
+                <Text className="mt-1 font-semibold text-amber">Choose your audiobooks folder</Text>
+              </Pressable>
+            )}
             {lostFolder && (
               <Pressable
                 onPress={() => void pick()}
@@ -156,14 +200,15 @@ export default function Library() {
         }
         ListEmptyComponent={
           scanning === null ? (
-            <Text className="px-4 pt-8 text-center text-muted">No audio files in {root.name}.</Text>
+            <Text className="px-4 pt-8 text-center text-muted">
+              {root ? `No audio files in ${root.name}.` : 'Nothing here yet.'}
+            </Text>
           ) : undefined
         }
         renderItem={({ item }) => (
-          <BookRow book={item} onOpen={(b) => void open(b)} onToggleFinished={toggleFinished} />
+          <BookRow book={item} onOpen={(b) => void open(b)} onLongPress={showActions} />
         )}
       />
-      <MiniPlayer />
     </View>
   );
 }

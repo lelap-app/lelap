@@ -1,7 +1,8 @@
 # apps/app
 
 The Lelap app: Expo (React Native) with Expo Router and NativeWind, for Android and later the web.
-Screens live in `app/` (Library, Player, Settings); the library logic and the database schema live
+Screens live in `app/`: Home, Discover, Search and Library as tabs, plus Player, item pages,
+Settings and Add-ons; the library logic and the database schema live
 in [`@lelap/core`](../../packages/core), playback in [`@lelap/audio`](../../modules/audio) and
 folder access in [`@lelap/library`](../../modules/library). See
 [`docs/brief.md`](../../docs/brief.md) and [`docs/roadmap.md`](../../docs/roadmap.md).
@@ -51,3 +52,33 @@ Before the week in airplane mode, on the phone with the `Audiobooks` folder. Res
 | 13  | **Airplane mode:** everything above with airplane mode on.                                                                                 |                                                                    |
 
 Then the real test: a week of daily listening in airplane mode without losing your place.
+
+## Add-ons while developing
+
+On first start the app installs the default add-ons from configuration: the LibriVox and Catalog
+add-ons on `catalog.<EXPO_PUBLIC_LELAP_DOMAIN>` (default `lelap.app`). To use the Worker running on
+your laptop instead, start it and forward its port to the phone:
+
+```sh
+pnpm --filter @lelap/catalog dev            # wrangler dev on port 8787
+adb reverse tcp:8787 tcp:8787
+EXPO_PUBLIC_LELAP_ADDONS=http://localhost:8787/librivox/manifest.json,http://localhost:8787/manifest.json pnpm dev:app
+```
+
+Defaults are installed only once; on a phone that already has them, add the local URLs in
+Settings → Add-ons.
+
+## M3 device checklist
+
+Against `wrangler dev` on the laptop. Results so far: Pixel 10 Pro XL, Android 17, 2026-11-16.
+
+| #   | Check                                                                                                                    | Result                                      |
+| --- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
+| 1   | **Home:** rows from LibriVox (New on LibriVox, Most listened) load with covers.                                          | Pass: both rows with covers                 |
+| 2   | **Search:** “secret garden” finds LibriVox recordings and Open Library works, in sections per add-on.                    | Pass: 4 LibriVox, 30 Open Library           |
+| 3   | **Play:** open a LibriVox book, Play. It starts within a few seconds, shows in the Library as Streaming.                 | Pass: streams, shows as Streaming           |
+| 4   | **Place:** listen into chapter 3, swipe the app away, reopen. Continue listening resumes there.                          | Pass: force-stopped in ch. 3, resumed there |
+| 5   | **Open Library item:** open a work found through the Catalog add-on; Play offers LibriVox recordings when there are.     | Pass: 4 recordings, Continue · 5 %          |
+| 6   | **Add-ons:** remove LibriVox in Settings → Add-ons, restart; it stays removed. Add it back by pasting its manifest URL.  |                                             |
+| 7   | **Offline:** in airplane mode Home shows no rows but local books still play; a streamed book reports that it can't load. |                                             |
+| 8   | **Remove:** long-press a streamed book → Remove from library. Local books only offer Mark as finished.                   |                                             |

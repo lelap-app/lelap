@@ -13,7 +13,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BookCover } from '../src/components/BookCover';
+import { BookCover, coverUri } from '../src/components/BookCover';
 import { BookmarksSheet } from '../src/components/BookmarksSheet';
 import { ChaptersSheet } from '../src/components/ChaptersSheet';
 import { Scrubber } from '../src/components/Scrubber';
@@ -152,7 +152,7 @@ export default function Player() {
       </Pressable>
 
       <View className="flex-1 items-center justify-center gap-5">
-        <BookCover path={detail.book.coverPath} title={detail.book.title} size={260} />
+        <BookCover uri={coverUri(detail.book)} title={detail.book.title} size={260} />
         <View className="items-center gap-1">
           <Text numberOfLines={2} className="text-center text-xl font-semibold text-paper">
             {detail.book.title}

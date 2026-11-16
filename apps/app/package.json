@@ -12,6 +12,8 @@
     "@lelap/audio": "workspace:*",
     "@lelap/core": "workspace:*",
     "@lelap/library": "workspace:*",
+    "@lelap/sdk": "workspace:*",
+    "@tanstack/react-query": "^5.107.1",
     "drizzle-orm": "^0.45.4",
     "expo": "~58.0.25",
     "expo-constants": "~58.0.16",
