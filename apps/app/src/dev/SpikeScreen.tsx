@@ -52,7 +52,7 @@ function Button({
   );
 }
 
-export function PlayerScreen() {
+export function SpikeScreen() {
   const [bookId, setBookId] = useState(DEFAULT_BOOK_ID);
   const [state, setState] = useState<PlayerState>(INITIAL_STATE);
   const [loading, setLoading] = useState(false);

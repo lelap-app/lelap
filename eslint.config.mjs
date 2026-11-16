@@ -23,4 +23,9 @@ export default defineConfig([
       globals: { ...globals.browser, ...globals.node },
     },
   },
+  {
+    // Babel, Metro and Tailwind load these CommonJS config files.
+    files: ['apps/app/*.config.js'],
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
 ]);

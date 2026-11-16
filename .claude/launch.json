@@ -6,6 +6,15 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@lelap/site", "dev"],
       "port": 4321
+    },
+    {
+      "name": "metro",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && pnpm --filter @lelap/app start"
+      ],
+      "port": 8081
     }
   ]
 }
