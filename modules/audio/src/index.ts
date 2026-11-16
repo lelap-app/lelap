@@ -6,6 +6,8 @@ export type PlayerState = {
   connected: boolean;
   playing: boolean;
   buffering: boolean;
+  bookTitle: string | null;
+  partTitle: string | null;
   /** -1 when nothing is loaded. */
   partIndex: number;
   partCount: number;
