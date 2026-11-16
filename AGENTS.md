@@ -32,11 +32,11 @@ status there when you start or finish one.
 
 ```
 apps/site       landing page for lelap.app (Astro, static)       → apps/site/AGENTS.md
-apps/app        Expo app for Android and web (planned)
+apps/app        Expo app for Android and web; M1 test screen for now
 packages/core   domain model, add-on client, sync (planned)
 packages/sdk    add-on SDK and protocol types (planned)
 services/       Hono services on Cloudflare Workers (planned)
-modules/        native Kotlin modules for the app (planned)
+modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer
 docs/brief.md   decisions, stack, infrastructure, v1.0 scope
 docs/roadmap.md milestones M0–M8, status, per-milestone resources, environments
 ```
@@ -49,6 +49,8 @@ Node 24 (`.nvmrc`) and pnpm via Corepack (`corepack enable`). Run from the root:
 | --------------------- | --------------- |
 | Install               | `pnpm install`  |
 | Landing page dev      | `pnpm dev:site` |
+| App on a phone        | `pnpm android`  |
+| App dev server        | `pnpm dev:app`  |
 | Build everything      | `pnpm build`    |
 | Type-check everything | `pnpm check`    |
 | Lint                  | `pnpm lint`     |

@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Lelap",
+    "slug": "lelap",
+    "scheme": "lelap",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#0d0e11",
+    "platforms": ["android"],
+    "android": {
+      "package": "app.lelap",
+      "adaptiveIcon": {
+        "backgroundColor": "#0d0e11",
+        "foregroundImage": "./assets/adaptive-icon.png"
+      }
+    }
+  }
+}

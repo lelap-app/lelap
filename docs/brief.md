@@ -9,7 +9,7 @@ change that makes it untrue.
 | ------------ | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | Name         | **Lelap**, Indonesian for deep, peaceful sleep                              | Short, ownable, neutral to English speakers; matching domain, GitHub and F-Droid names. |
 | Slogan       | “From first chapter to fast asleep.”                                        | Descriptor underneath: “The open player for audiobooks and podcasts.”                   |
-| Sleep timer  | Called **Lull** in the app                                                  |                                                                                         |
+| Sleep timer  | Called “Sleep timer”, no brand name                                         | Plain words beat a coined name; it was “Lull” until M1.                                 |
 | GitHub       | Organisation `lelap-app`, repository `lelap`; images on `ghcr.io/lelap-app` | `lelap` was taken.                                                                      |
 | Domain       | `lelap.app` only; developer docs at `lelap.app/docs`                        | Registered through Cloudflare Registrar, WHOIS redacted.                                |
 | Web app      | `listen.lelap.app`                                                          | Avoids `app.lelap.app`.                                                                 |
@@ -153,7 +153,7 @@ M0 to M8, their status, “done when” criteria and the Cloudflare resources ea
 ## v1.0 scope
 
 - **Player:** background playback, call ducking, speed per book, smart rewind, chapters, bookmarks,
-  Lull with fade and shake to extend.
+  sleep timer with fade and shake to extend.
 - **Library:** local files, background downloads, airplane mode, tags, playlists, smart lists,
   Up Next, RSS with OPML, full export.
 - **Add-ons:** protocol v1 (catalog, meta, stream, search), SDK, Catalog, LibriVox and WebDAV
