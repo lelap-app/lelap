@@ -1,0 +1,24 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'app.lelap.audio'
+version = '0.0.0'
+
+def media3Version = '1.11.1'
+
+android {
+  namespace 'app.lelap.audio'
+  defaultConfig {
+    versionCode 1
+    versionName '0.0.0'
+  }
+}
+
+dependencies {
+  implementation "androidx.media3:media3-exoplayer:$media3Version"
+  implementation "androidx.media3:media3-session:$media3Version"
+  implementation "androidx.media3:media3-datasource:$media3Version"
+  testImplementation 'junit:junit:4.13.2'
+}
