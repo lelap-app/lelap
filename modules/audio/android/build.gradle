@@ -21,4 +21,6 @@ dependencies {
   implementation "androidx.media3:media3-session:$media3Version"
   implementation "androidx.media3:media3-datasource:$media3Version"
   testImplementation 'junit:junit:4.13.2'
+  // Android's org.json is a stub in JVM unit tests.
+  testImplementation 'org.json:json:20240303'
 }

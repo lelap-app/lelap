@@ -13,6 +13,8 @@ const INITIAL_STATE: PlayerState = {
   connected: false,
   playing: false,
   buffering: false,
+  bookId: null,
+  fileLocation: null,
   bookTitle: null,
   partTitle: null,
   partIndex: -1,
@@ -72,8 +74,26 @@ export function PlayerScreen() {
     setMessage(null);
     try {
       const book = await fetchLibriVoxBook(bookId.trim());
-      await audio.load(book.title, book.parts);
-      await audio.play();
+      await audio.load(
+        {
+          bookId: `librivox-${bookId.trim()}`,
+          title: book.title,
+          author: null,
+          coverUri: null,
+          files: book.parts.map((p) => ({
+            uri: p.url,
+            location: p.url,
+            title: p.title,
+            durationMs: 0,
+          })),
+          chapters: [],
+          startIndex: 0,
+          startPositionMs: 0,
+          speed: 1,
+          pausedAt: null,
+        },
+        true,
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     } finally {
@@ -140,7 +160,15 @@ export function PlayerScreen() {
         <Text style={styles.text}>Duck on interruption (calls)</Text>
         <Switch
           value={state.duckOnInterruption}
-          onValueChange={(enabled) => run(audio.setDuckOnInterruption(enabled))}
+          onValueChange={(enabled) =>
+            run(
+              audio.setSettings({
+                duckOnInterruption: enabled,
+                skipIntervalMs: 30_000,
+                smartRewind: true,
+              }),
+            )
+          }
         />
       </View>
 

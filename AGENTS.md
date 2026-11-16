@@ -37,6 +37,7 @@ packages/core   domain model, library logic, Drizzle schema; add-on client and s
 packages/sdk    add-on SDK and protocol types (planned)
 services/       Hono services on Cloudflare Workers (planned)
 modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer
+modules/library Kotlin Expo module: folder access, tags and chapters for the local library
 docs/brief.md   decisions, stack, infrastructure, v1.0 scope
 docs/roadmap.md milestones M0–M8, status, per-milestone resources, environments
 ```
