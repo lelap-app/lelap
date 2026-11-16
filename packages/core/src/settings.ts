@@ -10,6 +10,8 @@ export const SettingsSchema = z.object({
   smartRewind: z.boolean().default(true),
   downloadOnWifiOnly: z.boolean().default(true),
   downloadWhileChargingOnly: z.boolean().default(false),
+  /** Offer beta versions of the Android app. */
+  betaUpdates: z.boolean().default(false),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

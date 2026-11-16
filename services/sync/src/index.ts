@@ -1,5 +1,5 @@
 import { createApp } from './app';
-import { d1Store } from './store';
+import { d1Store } from './d1';
 
 type Env = { DB: D1Database };
 

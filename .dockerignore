@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/dist-web
+**/.expo
+**/.wrangler
+apps/app/android
+apps/app/ios
+modules/*/android/build
+modules/*/android/.gradle
+.git

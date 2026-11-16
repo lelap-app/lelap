@@ -25,8 +25,8 @@ export default defineConfig([
     },
   },
   {
-    // Babel, Metro and Tailwind load these CommonJS config files.
-    files: ['apps/app/*.config.js'],
+    // Babel, Metro, Tailwind and Expo config plugins load these CommonJS files.
+    files: ['apps/app/*.config.js', 'apps/app/plugins/*.js'],
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
 ]);

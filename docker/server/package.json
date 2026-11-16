@@ -1,0 +1,24 @@
+{
+  "name": "@lelap/docker-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node entries for the services, for self-hosting with Docker.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@lelap/catalog": "workspace:*",
+    "@lelap/proxy": "workspace:*",
+    "@lelap/sync": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0"
+  }
+}

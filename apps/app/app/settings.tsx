@@ -11,6 +11,8 @@ import * as audio from '../src/platform/audio';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { LOCAL_FOLDERS } from '../src/platform/library';
+import { SELF_UPDATES } from '../src/platform/updater';
+import { checkForUpdate, installUpdate } from '../src/updates';
 import { chooseFolder, scanLibrary } from '../src/scan';
 
 const SKIP_SECONDS = [10, 15, 30, 45, 60];
@@ -32,6 +34,48 @@ function Row({
       </View>
       {children}
     </View>
+  );
+}
+
+/** Android: the installed version, the beta channel and a manual check. */
+function UpdateRows({
+  betaUpdates,
+  onBeta,
+}: {
+  betaUpdates: boolean;
+  onBeta: (v: boolean) => void;
+}) {
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const check = async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const release = await checkForUpdate();
+      if (!release) {
+        setStatus('Lelap is up to date.');
+        return;
+      }
+      setStatus(`Installing ${release.version}…`);
+      await installUpdate(release);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Updates</Text>
+      <Row label="Beta versions" detail="Try new versions before everyone else.">
+        <Switch value={betaUpdates} onValueChange={onBeta} />
+      </Row>
+      <Row label="Check for updates" {...(status ? { detail: status } : {})}>
+        <Pressable disabled={busy} onPress={() => void check()}>
+          <Text className={busy ? 'text-muted' : 'text-amber'}>{busy ? 'Checking…' : 'Check'}</Text>
+        </Pressable>
+      </Row>
+    </>
   );
 }
 
@@ -174,6 +218,10 @@ export default function SettingsScreen() {
             })}
           </View>
         </View>
+
+        {SELF_UPDATES && (
+          <UpdateRows betaUpdates={settings.betaUpdates} onBeta={(v) => update('betaUpdates', v)} />
+        )}
 
         {__DEV__ && LOCAL_FOLDERS && (
           <>

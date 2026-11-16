@@ -13,7 +13,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M5 Podcasts                | In progress |
 | M6 Web build               | In progress |
 | M7 Sync                    | In progress |
-| M8 Release pipeline        | Not started |
+| M8 Release pipeline        | In progress |
 | M9 Profiles (v1.1)         | Not started |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
@@ -129,6 +129,9 @@ first service with user data, so it introduces the staging environment (see Envi
 remembers its active profile locally.
 
 ## M8 Release pipeline
+
+**Status:** in progress. Built without a release run; setup, open checks and what is left
+(OTA bundles): [`m8-follow-ups.md`](m8-follow-ups.md).
 
 Release workflow on `v*` tags: signed APK, upload to R2 and GitHub Releases, `latest.json`, signed
 OTA bundles, multi-arch Docker images on `ghcr.io/lelap-app`, build provenance. In-app updater and

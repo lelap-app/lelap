@@ -1,0 +1,40 @@
+# Lelap's services for self-hosting. Put them behind HTTPS on your own domain (a reverse proxy
+# such as Caddy or Traefik) as listen., catalog., proxy. and sync.<your domain>, and build the web
+# image with LELAP_DOMAIN set to that domain. See docker/README.md.
+name: lelap
+
+services:
+  web:
+    image: ghcr.io/lelap-app/web:latest
+    build:
+      context: ..
+      dockerfile: docker/web.Dockerfile
+      args:
+        LELAP_DOMAIN: ${LELAP_DOMAIN:-lelap.app}
+    ports: ['8080:8080']
+    restart: unless-stopped
+
+  catalog:
+    image: ghcr.io/lelap-app/catalog:latest
+    environment:
+      # Optional: Podcast Index catalogs and podcast search.
+      PODCASTINDEX_KEY: ${PODCASTINDEX_KEY:-}
+      PODCASTINDEX_SECRET: ${PODCASTINDEX_SECRET:-}
+    ports: ['8787:8787']
+    restart: unless-stopped
+
+  proxy:
+    image: ghcr.io/lelap-app/proxy:latest
+    environment:
+      ALLOW_ORIGIN: ${WEB_ORIGIN:-*}
+    ports: ['8788:8788']
+    restart: unless-stopped
+
+  sync:
+    image: ghcr.io/lelap-app/sync:latest
+    volumes: ['sync-data:/data']
+    ports: ['8789:8789']
+    restart: unless-stopped
+
+volumes:
+  sync-data:
