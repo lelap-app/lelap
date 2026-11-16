@@ -1,0 +1,132 @@
+import { getSettings, schema, type Settings, setSetting } from '@lelap/core';
+import { useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { MiniPlayer } from '../src/components/MiniPlayer';
+import { db } from '../src/db';
+import * as audio from '../src/platform/audio';
+import { usePlayer } from '../src/player';
+import { profileId } from '../src/profile';
+import { chooseFolder, scanLibrary } from '../src/scan';
+
+const SKIP_SECONDS = [10, 15, 30, 45, 60];
+
+function Row({
+  label,
+  detail,
+  children,
+}: {
+  label: string;
+  detail?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <View className="flex-row items-center gap-4 border-b border-line py-4">
+      <View className="flex-1 gap-1">
+        <Text className="text-base text-paper">{label}</Text>
+        {detail !== undefined && <Text className="text-sm text-muted">{detail}</Text>}
+      </View>
+      {children}
+    </View>
+  );
+}
+
+export default function SettingsScreen() {
+  const { version, refresh } = usePlayer();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [settings, setSettings] = useState(() => getSettings(db, profileId));
+  const [scanning, setScanning] = useState(false);
+  // `version` is the signal to re-read the database.
+  const root = useMemo(() => db.select().from(schema.libraryRoots).get(), [version]);
+
+  const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
+    setSetting(db, profileId, key, value, Date.now());
+    const next = getSettings(db, profileId);
+    setSettings(next);
+    void audio.setSettings(next);
+  };
+
+  const rescan = async () => {
+    setScanning(true);
+    try {
+      const result = await scanLibrary();
+      if ('error' in result) Alert.alert('Cannot read the folder', 'Choose the folder again.');
+    } finally {
+      setScanning(false);
+      refresh();
+    }
+  };
+
+  return (
+    <View className="flex-1 bg-night">
+      <ScrollView
+        contentContainerStyle={{
+          paddingTop: insets.top + 8,
+          paddingHorizontal: 16,
+          paddingBottom: 24,
+        }}
+      >
+        <Pressable onPress={() => router.back()} hitSlop={12} className="self-start py-2">
+          <Text className="text-2xl text-muted">‹</Text>
+        </Pressable>
+        <Text className="pb-4 text-3xl font-semibold text-paper">Settings</Text>
+
+        <Text className="pt-2 text-xs uppercase tracking-wider text-muted">Library</Text>
+        <Row label="Audiobooks folder" detail={root?.name ?? 'Not chosen'}>
+          <Pressable onPress={() => void chooseFolder().then((ok) => ok && refresh())}>
+            <Text className="text-amber">Change</Text>
+          </Pressable>
+        </Row>
+        <Row label="Look for new and changed files">
+          <Pressable disabled={scanning || !root} onPress={() => void rescan()}>
+            <Text className={scanning ? 'text-muted' : 'text-amber'}>
+              {scanning ? 'Scanning…' : 'Rescan'}
+            </Text>
+          </Pressable>
+        </Row>
+
+        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Playback</Text>
+        <Row label="Duck on calls" detail="Lower the volume during calls instead of pausing.">
+          <Switch
+            value={settings.duckOnInterruption}
+            onValueChange={(v) => update('duckOnInterruption', v)}
+          />
+        </Row>
+        <Row label="Smart rewind" detail="Go back a few seconds when you resume after a pause.">
+          <Switch value={settings.smartRewind} onValueChange={(v) => update('smartRewind', v)} />
+        </Row>
+        <View className="gap-3 border-b border-line py-4">
+          <Text className="text-base text-paper">Skip interval</Text>
+          <Text className="text-sm text-muted">
+            For the skip buttons, the lock screen and headphones.
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            {SKIP_SECONDS.map((s) => {
+              const active = settings.skipIntervalMs === s * 1000;
+              return (
+                <Pressable
+                  key={s}
+                  onPress={() => update('skipIntervalMs', s * 1000)}
+                  className={`rounded-full border px-4 py-2 ${active ? 'border-amber bg-amber' : 'border-line'}`}
+                >
+                  <Text className={active ? 'text-ink' : 'text-soft'}>{s} s</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Developer</Text>
+        <Row label="Audio spike" detail="The M1 test screen, until its call checks pass.">
+          <Pressable onPress={() => router.push('/dev/spike')}>
+            <Text className="text-amber">Open</Text>
+          </Pressable>
+        </Row>
+      </ScrollView>
+      <MiniPlayer />
+    </View>
+  );
+}

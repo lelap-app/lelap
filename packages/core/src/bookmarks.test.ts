@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createTestDb } from '../test/db';
 import { seedBook } from '../test/seed';
-import { addBookmark, deleteBookmark, listBookmarks } from './bookmarks';
+import { addBookmark, deleteBookmark, listBookmarks, setBookmarkNote } from './bookmarks';
 import type { Db } from './db';
 import { DEFAULT_PROFILE_ID as ME } from './profiles';
 import { profiles } from './schema';
@@ -40,6 +40,20 @@ describe('bookmarks', () => {
       [20, null],
       [1010, 'later'],
     ]);
+  });
+
+  it('adds a note to a saved bookmark', () => {
+    const id = addBookmark(db, ME, newId, {
+      bookId,
+      fileLocation: 'a',
+      filePositionMs: 0,
+      note: null,
+      now: 1,
+    });
+    setBookmarkNote(db, ME, id, 'Good part', 2);
+    expect(listBookmarks(db, ME, bookId)[0]?.note).toBe('Good part');
+    setBookmarkNote(db, ME, id, '  ', 3);
+    expect(listBookmarks(db, ME, bookId)[0]?.note).toBeNull();
   });
 
   it('deletes a bookmark', () => {

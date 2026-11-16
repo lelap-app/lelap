@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Text, View } from 'react-native';
 
 import { useDbReady } from '../src/db';
+import { PlayerProvider } from '../src/player';
 
 export default function RootLayout() {
   const { ready, error } = useDbReady();
@@ -19,9 +20,14 @@ export default function RootLayout() {
   if (!ready) return <View className="flex-1 bg-night" />;
 
   return (
-    <>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0d0e11' } }} />
+    <PlayerProvider>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0d0e11' } }}>
+        <Stack.Screen
+          name="player"
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
+      </Stack>
       <StatusBar style="light" />
-    </>
+    </PlayerProvider>
   );
 }

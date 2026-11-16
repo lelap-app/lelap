@@ -56,3 +56,18 @@ export function deleteBookmark(db: Db, profileId: string, id: string): void {
     .where(and(eq(bookmarks.profileId, profileId), eq(bookmarks.id, id)))
     .run();
 }
+
+/** Sets or clears (blank) a bookmark's note. */
+export function setBookmarkNote(
+  db: Db,
+  profileId: string,
+  id: string,
+  note: string,
+  now: number,
+): void {
+  const text = note.trim();
+  db.update(bookmarks)
+    .set({ note: text === '' ? null : text, updatedAt: now })
+    .where(and(eq(bookmarks.profileId, profileId), eq(bookmarks.id, id)))
+    .run();
+}
