@@ -88,14 +88,15 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
     type: meta.type,
     id: meta.id,
     sourceKey: stream.sourceKey,
+    downloadable: stream.downloadable !== false,
   };
+  // `cover_path` is left out: a downloaded book keeps its downloaded cover when added again.
   const values = {
     kind: hasParts(stream) && parts.length > 1 ? ('folder' as const) : ('file' as const),
     source: 'addon' as const,
     rootId: null,
     title: meta.name,
     author: meta.author ?? null,
-    coverPath: null,
     coverUrl: meta.cover ?? null,
     addonItem,
     durationMs: parts.reduce((sum, p) => sum + p.durationMs, 0),
@@ -117,7 +118,7 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
         .run();
     } else {
       tx.insert(books)
-        .values({ id: bookId, location, addedAt: now, ...values })
+        .values({ id: bookId, location, addedAt: now, coverPath: null, ...values })
         .run();
     }
 

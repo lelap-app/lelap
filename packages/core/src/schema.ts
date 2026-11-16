@@ -1,3 +1,4 @@
+import type { Meta } from '@lelap/sdk';
 import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 // Shared tables describe files on this device and are the same for every profile. Every other
@@ -10,6 +11,7 @@ export const SHARED_TABLES = [
   'profiles',
   'addons',
   'removed_addons',
+  'downloads',
 ] as const;
 
 export type StoredChapter = { title: string; startMs: number };
@@ -33,7 +35,14 @@ export const libraryRoots = sqliteTable('library_roots', {
 });
 
 /** Where a streamed book came from, so the app can find it again from an add-on item. */
-export type AddonItemRef = { addonUrl: string; type: string; id: string; sourceKey: string };
+export type AddonItemRef = {
+  addonUrl: string;
+  type: string;
+  id: string;
+  sourceKey: string;
+  /** False when the stream said it may not be downloaded. */
+  downloadable?: boolean;
+};
 
 export const books = sqliteTable('books', {
   id: text('id').primaryKey(),
@@ -85,6 +94,8 @@ export const bookFiles = sqliteTable(
     coverPath: text('cover_path'),
     chaptersJson: text('chapters_json', { mode: 'json' }).$type<StoredChapter[]>().notNull(),
     missingSince: integer('missing_since'),
+    /** Absolute path of a streamed part's downloaded copy. */
+    downloadPath: text('download_path'),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [index('book_files_book_idx').on(t.bookId, t.idx)],
@@ -192,5 +203,23 @@ export const addons = sqliteTable('addons', {
 export const removedAddons = sqliteTable('removed_addons', {
   url: text('url').primaryKey(),
   removedAt: integer('removed_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+/**
+ * Downloads of streamed books. Shared: a downloaded file is stored once for every profile. The
+ * native worker reports progress; this row records what was asked for and what finished.
+ */
+export const downloads = sqliteTable('downloads', {
+  bookId: text('book_id')
+    .primaryKey()
+    .references(() => books.id, { onDelete: 'cascade' }),
+  state: text('state', { enum: ['queued', 'done', 'failed'] }).notNull(),
+  bytesTotal: integer('bytes_total').notNull(),
+  error: text('error'),
+  /** The add-on's meta when the download was asked for, so the item page works offline. */
+  meta: text('meta', { mode: 'json' }).$type<Meta>(),
+  requestedAt: integer('requested_at').notNull(),
+  completedAt: integer('completed_at'),
   updatedAt: integer('updated_at').notNull(),
 });

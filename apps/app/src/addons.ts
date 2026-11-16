@@ -39,15 +39,20 @@ export async function syncAddonsNow(): Promise<void> {
   await syncAddons(db, fetcher, defaultAddons, Date.now(), newId).catch(() => {});
 }
 
-/** Adds an add-on item to the library with the chosen stream and starts playing it. */
-export async function playItem(meta: Meta, found: FoundStream): Promise<string> {
-  const bookId = addStreamedBook(db, {
+/** Adds an add-on item to the library with the chosen stream, or refreshes it. */
+export function addItem(meta: Meta, found: FoundStream): string {
+  return addStreamedBook(db, {
     addonUrl: found.addon.url,
     meta,
     stream: found.stream,
     now: Date.now(),
     newId,
   });
+}
+
+/** Adds an add-on item to the library with the chosen stream and starts playing it. */
+export async function playItem(meta: Meta, found: FoundStream): Promise<string> {
+  const bookId = addItem(meta, found);
   await playBook(bookId);
   return bookId;
 }

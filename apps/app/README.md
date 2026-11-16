@@ -85,3 +85,20 @@ Open items: [`docs/m3-follow-ups.md`](../../docs/m3-follow-ups.md).
 | 6   | **Add-ons:** remove LibriVox in Settings → Add-ons, restart; it stays removed. Add it back by pasting its manifest URL.  |                                             |
 | 7   | **Offline:** in airplane mode Home shows no rows but local books still play; a streamed book reports that it can't load. |                                             |
 | 8   | **Remove:** long-press a streamed book → Remove from library. Local books only offer Mark as finished.                   |                                             |
+
+## M4 device checklist
+
+Downloads. The done-when: a book downloads overnight with the screen off and plays in airplane
+mode. Not run yet.
+
+| #   | Check                                                                                                                                        | Result |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **First download:** on a LibriVox item page, Download. Android asks for notifications, then Lelap asks to run in the background; allow both. |        |
+| 2   | **Progress:** the item page and Settings → Downloads and storage show the percentage; the notification shows a progress bar and Cancel.      |        |
+| 3   | **Wi-Fi rule:** turn Wi-Fi off mid-download. It waits (“Waiting for Wi-Fi”), then continues from the same byte when Wi-Fi is back.           |        |
+| 4   | **Charging rule:** turn on “only while charging” unplugged. The download waits, and starts when the phone is plugged in.                     |        |
+| 5   | **App closed:** swipe the app away mid-download. The notification keeps going; reopening shows the progress.                                 |        |
+| 6   | **Overnight:** start a long book on Wi-Fi and a charger, screen off, until morning. The Library says Downloaded.                             |        |
+| 7   | **Airplane mode:** play the downloaded book in airplane mode, cover and chapters included; the item page shows its description.              |        |
+| 8   | **Remove while playing:** Remove download while it plays. It continues from the stream (online) and the storage overview frees the space.    |        |
+| 9   | **Remove from library:** long-press a downloaded book → Remove from library. Its files go too.                                               |        |

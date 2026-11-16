@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookRow } from '../../src/components/BookRow';
 import { ContinueCard } from '../../src/components/ContinueCard';
 import { db } from '../../src/db';
+import { deleteDownload, startDownload } from '../../src/downloads';
 import { playBook, useLibrary } from '../../src/player';
 import { profileId } from '../../src/profile';
 import { chooseFolder, scanLibrary } from '../../src/scan';
@@ -91,30 +92,49 @@ export default function LibraryScreen() {
       toggleFinished(book);
       return;
     }
-    Alert.alert(book.title, undefined, [
-      finish,
-      {
-        text: 'Remove from library',
-        style: 'destructive',
-        onPress: () =>
-          Alert.alert(
-            'Remove from library?',
-            'Your place and bookmarks in this book are removed too.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Remove',
-                style: 'destructive',
-                onPress: () => {
-                  removeStreamedBook(db, book.id);
-                  refresh();
+    const download = book.downloaded
+      ? { text: 'Remove download', onPress: () => void deleteDownload(book.id).finally(refresh) }
+      : {
+          text: 'Download',
+          onPress: () =>
+            void startDownload(book.id, null)
+              .catch((error: unknown) =>
+                Alert.alert('Download', error instanceof Error ? error.message : String(error)),
+              )
+              .finally(refresh),
+        };
+    Alert.alert(
+      book.title,
+      undefined,
+      [
+        finish,
+        download,
+        {
+          text: 'Remove from library',
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert(
+              'Remove from library?',
+              'Your place and bookmarks in this book are removed too.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Remove',
+                  style: 'destructive',
+                  onPress: () => {
+                    removeStreamedBook(db, book.id);
+                    refresh();
+                    // Its download, if any, goes too.
+                    void deleteDownload(book.id).catch(() => {});
+                  },
                 },
-              },
-            ],
-          ),
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+              ],
+            ),
+        },
+        // Android shows at most three buttons; a tap outside closes the menu.
+      ],
+      { cancelable: true },
+    );
   };
 
   if (!root && books.length === 0) {

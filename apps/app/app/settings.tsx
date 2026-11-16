@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { db } from '../src/db';
+import { applyRules } from '../src/downloads';
 import * as audio from '../src/platform/audio';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
@@ -47,6 +48,7 @@ export default function SettingsScreen() {
     const next = getSettings(db, profileId);
     setSettings(next);
     void audio.setSettings(next);
+    if (key === 'downloadOnWifiOnly' || key === 'downloadWhileChargingOnly') void applyRules(next);
   };
 
   const rescan = async () => {
@@ -91,6 +93,31 @@ export default function SettingsScreen() {
             <Text className={scanning ? 'text-muted' : 'text-amber'}>
               {scanning ? 'Scanning…' : 'Rescan'}
             </Text>
+          </Pressable>
+        </Row>
+
+        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Downloads</Text>
+        <Row
+          label="Download only on Wi-Fi"
+          detail="Downloads wait for Wi-Fi instead of using mobile data."
+        >
+          <Switch
+            value={settings.downloadOnWifiOnly}
+            onValueChange={(v) => update('downloadOnWifiOnly', v)}
+          />
+        </Row>
+        <Row label="Download only while charging" detail="Good for downloading overnight.">
+          <Switch
+            value={settings.downloadWhileChargingOnly}
+            onValueChange={(v) => update('downloadWhileChargingOnly', v)}
+          />
+        </Row>
+        <Row
+          label="Downloads and storage"
+          detail="What is on the phone and how much space it takes."
+        >
+          <Pressable onPress={() => router.push('/downloads')}>
+            <Text className="text-amber">Open</Text>
           </Pressable>
         </Row>
 

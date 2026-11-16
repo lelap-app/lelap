@@ -8,6 +8,7 @@ import { Text, View } from 'react-native';
 
 import { queryClient, syncAddonsNow } from '../src/addons';
 import { useDbReady } from '../src/db';
+import { DownloadSync } from '../src/downloads';
 import { PlayerProvider, useLibrary } from '../src/player';
 
 /** Installs the default add-ons on first start and refreshes manifests on every start. */
@@ -35,6 +36,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <PlayerProvider>
         <AddonSync />
+        <DownloadSync />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0d0e11' } }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen

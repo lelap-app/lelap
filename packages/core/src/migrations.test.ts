@@ -54,7 +54,7 @@ describe('0002_addons', () => {
     cpSync(source, m2, { recursive: true });
     const journalPath = join(m2, 'meta', '_journal.json');
     const journal = JSON.parse(readFileSync(journalPath, 'utf8')) as { entries: { tag: string }[] };
-    journal.entries = journal.entries.filter((e) => !e.tag.startsWith('0002'));
+    journal.entries = journal.entries.filter((e) => e.tag < '0002');
     writeFileSync(journalPath, JSON.stringify(journal));
 
     const SQL = await initSqlJs();
@@ -92,5 +92,7 @@ describe('0002_addons', () => {
     expect(db.select().from(progress).get()).toMatchObject({ bookId: 'book', filePositionMs: 500 });
     expect(db.select().from(schema.bookmarks).all()).toHaveLength(1);
     expect(db.select().from(schema.addons).all()).toEqual([]);
+    expect(db.select().from(schema.bookFiles).get()?.downloadPath).toBeNull();
+    expect(db.select().from(schema.downloads).all()).toEqual([]);
   });
 });

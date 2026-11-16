@@ -11,6 +11,8 @@ describe('settings', () => {
       duckOnInterruption: true,
       skipIntervalMs: 30_000,
       smartRewind: true,
+      downloadOnWifiOnly: true,
+      downloadWhileChargingOnly: false,
     });
   });
 

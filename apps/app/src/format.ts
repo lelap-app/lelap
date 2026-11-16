@@ -24,3 +24,10 @@ export function formatDuration(ms: number): string {
   if (h === 0) return `${m} min`;
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
+
+/** `245 MB`, `1.2 GB`. */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1e6) return `${Math.max(0, Math.round(bytes / 1e3))} kB`;
+  if (bytes < 1e9) return `${Math.round(bytes / 1e6)} MB`;
+  return `${(bytes / 1e9).toFixed(bytes < 1e10 ? 1 : 0)} GB`;
+}
