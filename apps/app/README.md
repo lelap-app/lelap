@@ -53,6 +53,8 @@ Before the week in airplane mode, on the phone with the `Audiobooks` folder. Res
 
 Then the real test: a week of daily listening in airplane mode without losing your place.
 
+Open items and known issues: [`docs/m2-follow-ups.md`](../../docs/m2-follow-ups.md).
+
 ## Add-ons while developing
 
 On first start the app installs the default add-ons from configuration: the LibriVox and Catalog
