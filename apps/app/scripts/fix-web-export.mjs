@@ -6,7 +6,8 @@ import { readdirSync, readFileSync, renameSync, statSync, writeFileSync } from '
 import { join } from 'node:path';
 
 const root = process.argv[2] ?? 'dist-web';
-const RENAMES = { __node_modules: '__nm', node_modules: 'nm' };
+// `.pnpm` too: the deploy passes the build as a GitHub artifact, which leaves out hidden folders.
+const RENAMES = { __node_modules: '__nm', node_modules: 'nm', '.pnpm': '_pnpm' };
 const TEXT = /\.(js|mjs|html|json|css|map|txt)$/;
 
 /** Renames the deepest folders first, so parent paths stay valid while walking. */
@@ -30,7 +31,8 @@ function rewrite(dir) {
       const text = readFileSync(path, 'utf8');
       const fixed = text
         .replace(/\/__node_modules\//g, '/__nm/')
-        .replace(/\/node_modules\//g, '/nm/');
+        .replace(/\/node_modules\//g, '/nm/')
+        .replace(/\/\.pnpm\//g, '/_pnpm/');
       if (fixed !== text) {
         writeFileSync(path, fixed);
         files++;
