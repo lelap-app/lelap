@@ -9,7 +9,9 @@ Lelap is an open-source audiobook and podcast player. The app plays, downloads, 
 syncs; add-ons (stateless HTTP services returning JSON, modelled on Stremio's add-on protocol)
 bring catalogs, metadata and audio sources. Android first, the same code on the web, and a
 self-hostable backend. The full plan, decisions and v1.0 scope are in
-[`docs/brief.md`](docs/brief.md). Read it before making architectural choices.
+[`docs/brief.md`](docs/brief.md). Read it before making architectural choices. Milestones, their
+status and the infrastructure each needs are in [`docs/roadmap.md`](docs/roadmap.md); update the
+status there when you start or finish one.
 
 ## Hard rules
 
@@ -35,7 +37,8 @@ packages/core   domain model, add-on client, sync (planned)
 packages/sdk    add-on SDK and protocol types (planned)
 services/       Hono services on Cloudflare Workers (planned)
 modules/        native Kotlin modules for the app (planned)
-docs/brief.md   decisions, stack, infrastructure, milestones, v1.0 scope
+docs/brief.md   decisions, stack, infrastructure, v1.0 scope
+docs/roadmap.md milestones M0–M8, status, per-milestone resources, environments
 ```
 
 ## Commands

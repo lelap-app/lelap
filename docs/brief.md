@@ -117,11 +117,14 @@ SQLite and R2 for disk or MinIO.
 
 ## CI/CD
 
-| Trigger        | Runs                                                                    | Secrets                         |
-| -------------- | ----------------------------------------------------------------------- | ------------------------------- |
-| Pull request   | Check, test, build; no deploys                                          | None                            |
-| Push to `main` | Deploy site, PWA and services                                           | `web` environment               |
-| Tag `v*`       | Sign APK, R2 and GitHub Releases, OTA bundle, Docker images, provenance | `release` environment, approval |
+| Trigger        | Runs                                                                                            | Secrets                         |
+| -------------- | ----------------------------------------------------------------------------------------------- | ------------------------------- |
+| Pull request   | Check, test, build; no deploys                                                                  | None                            |
+| Push to `main` | Deploy site and PWA; services to staging once it exists (M7)                                    | `web` environment               |
+| Tag `v*`       | Sign APK, R2 and GitHub Releases, OTA bundle, Docker images, provenance; services to production | `release` environment, approval |
+
+Environments over time (dev, production, previews, staging, beta) are in
+[`roadmap.md`](roadmap.md#environments).
 
 Protection: tag ruleset for `v*`, required reviewer on `release`, branch protection on `main`,
 2FA, read-only default permissions, actions pinned to SHAs, secret scanning, offline keystore backup.
@@ -144,16 +147,8 @@ Protection: tag ruleset for `v*`, required reviewer on `release`, branch protect
 
 ## Milestones
 
-1. **M0 Claim the name:** domain, GitHub organisation (`lelap-app`), monorepo, landing page.
-2. **M1 Audio spike:** Media3 module on a real phone; gapless parts, speed, screen off, calls, fade.
-3. **M2 Local library:** SQLite schema, local file import, chapters, progress, bookmarks.
-4. **M3 Add-on protocol and SDK:** spec, SDK, Workers template, Catalog and LibriVox add-ons,
-   Home, Discover and Search.
-5. **M4 Downloads:** background downloads with rules, snapshots, storage overview.
-6. **M5 Podcasts:** RSS, OPML, auto-download rules, Up Next.
-7. **M6 Web build:** react-native-web, OPFS, web audio, proxy, `listen.lelap.app`.
-8. **M7 Sync:** pairing code, encrypted oplog, continue-on-another-device prompt.
-9. **M8 Release pipeline:** signed APK, updater, OTA, Docker images.
+M0 to M8, their status, “done when” criteria and the Cloudflare resources each one needs are in
+[`roadmap.md`](roadmap.md).
 
 ## v1.0 scope
 
@@ -168,10 +163,12 @@ Protection: tag ruleset for `v*`, required reviewer on `release`, branch protect
 
 ## Later
 
-Casting (Chromecast, Sonos), scrobbling (Hardcover, gPodder, Goodreads CSV), Audiobookshelf and
-Jellyfin add-ons, artwork add-ons with app-drawn rating badges, on-device recommendations, silence
-auto-chapters and Podcasting 2.0 transcripts, voice boost and intro trimming, widgets and Wear OS,
-stats, kids profile, importers, sandboxed local add-ons, add-on health and permissions.
+Profiles for a household with optional PIN, avatars and a kids profile
+([M9 in the roadmap](roadmap.md#m9-profiles-v11)), casting (Chromecast, Sonos), scrobbling
+(Hardcover, gPodder, Goodreads CSV), Audiobookshelf and Jellyfin add-ons, artwork add-ons with
+app-drawn rating badges, on-device recommendations, silence auto-chapters and Podcasting 2.0
+transcripts, voice boost and intro trimming, widgets and Wear OS, stats, importers, sandboxed local
+add-ons, add-on health and permissions.
 
 ## Open questions
 
