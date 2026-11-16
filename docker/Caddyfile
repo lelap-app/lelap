@@ -1,0 +1,8 @@
+# Serves the web app; every unknown path is the app itself (client-side routes).
+:8080 {
+	root * /srv
+	encode zstd gzip
+	try_files {path} /index.html
+	file_server
+	header /_expo/* Cache-Control "public, max-age=31536000, immutable"
+}

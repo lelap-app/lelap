@@ -40,6 +40,9 @@ services/       Hono services on Cloudflare Workers: catalog (Catalog + LibriVox
 modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer
 modules/library Kotlin Expo module: folder access, tags and chapters for the local library
 modules/download Kotlin Expo module: WorkManager downloads with Wi-Fi and charging rules
+modules/updater Kotlin Expo module: in-app APK updates through PackageInstaller
+docker/         Node entries, Dockerfiles and compose for self-hosting      → docker/README.md
+scripts/        release helpers for the tag workflow (Node, type stripping)
 docs/brief.md   decisions, stack, infrastructure, v1.0 scope
 docs/roadmap.md milestones M0–M8, status, per-milestone resources, environments
 ```
@@ -103,3 +106,8 @@ GitHub Actions in a public repository:
   filter when a new native module or test location appears.
 - Deploy jobs use GitHub environments (`web` for the site and services, `release` for signed
   builds) so secrets never reach pull requests from forks.
+- `release.yml` runs on `v*` tags: signed APK with provenance, R2 and GitHub Releases,
+  `latest.json` or `beta.json`, multi-arch images on `ghcr.io`, sync to production.
+- Release builds bundle JavaScript, which debug builds never do: Babel presets and plugins named
+  in `apps/app/babel.config.js` (and by NativeWind's preset) must be the app's own dependencies,
+  or pnpm's strict layout hides them.

@@ -13,9 +13,10 @@
       "adaptiveIcon": {
         "backgroundColor": "#0d0e11",
         "foregroundImage": "./assets/adaptive-icon.png"
-      }
+      },
+      "versionCode": 1
     },
-    "plugins": ["expo-router", "expo-sqlite"],
+    "plugins": ["expo-router", "expo-sqlite", "./plugins/withReleaseSigning"],
     "web": {
       "bundler": "metro",
       "output": "single",

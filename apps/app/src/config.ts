@@ -26,3 +26,8 @@ export const proxyBase: string = (
 export const syncBase: string = (
   process.env.EXPO_PUBLIC_LELAP_SYNC ?? `https://sync.${domain}`
 ).replace(/\/$/, '');
+
+/** Releases: `latest.json`, `beta.json` and the APKs. */
+export const downloadsBase: string = (
+  process.env.EXPO_PUBLIC_LELAP_DOWNLOADS ?? `https://dl.${domain}`
+).replace(/\/$/, '');

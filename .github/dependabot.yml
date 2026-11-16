@@ -25,3 +25,13 @@ updates:
       # astro check and typescript-eslint support TypeScript below 6.1 only.
       - dependency-name: typescript
         versions: ['>=6.1.0']
+
+  - package-ecosystem: docker
+    directories: ['/docker']
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      images:
+        patterns: ['*']

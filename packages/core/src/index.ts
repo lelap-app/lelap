@@ -17,3 +17,4 @@ export * from './downloads';
 export * from './podcasts';
 export * from './upNext';
 export * from './sync';
+export * from './release';

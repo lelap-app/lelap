@@ -13,6 +13,7 @@ describe('settings', () => {
       smartRewind: true,
       downloadOnWifiOnly: true,
       downloadWhileChargingOnly: false,
+      betaUpdates: false,
     });
   });
 

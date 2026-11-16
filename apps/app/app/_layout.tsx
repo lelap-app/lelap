@@ -13,12 +13,14 @@ import { PlayerProvider, useLibrary } from '../src/player';
 import { HandoffBanner } from '../src/components/HandoffBanner';
 import { PodcastSync } from '../src/podcasts';
 import { SyncRunner } from '../src/sync';
+import { offerUpdateOnStart } from '../src/updates';
 
 /** Installs the default add-ons on first start and refreshes manifests on every start. */
 function AddonSync() {
   const { refresh } = useLibrary();
   useEffect(() => {
     void syncAddonsNow().finally(refresh);
+    void offerUpdateOnStart();
   }, [refresh]);
   return null;
 }

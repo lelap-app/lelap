@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.INTERNET" />
+  <!-- Sideloaded: Lelap updates itself; Android asks the user once to allow it. -->
+  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+  <application>
+    <receiver android:name="app.lelap.updater.InstallResultReceiver" android:exported="false" />
+  </application>
+</manifest>
