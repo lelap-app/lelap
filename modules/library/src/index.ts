@@ -1,4 +1,4 @@
-import type { ListedFile } from '@lelap/core';
+import type { FileTags, ListedFile } from '@lelap/core';
 import { requireNativeModule } from 'expo';
 
 export type PickedFolder = {
@@ -16,6 +16,8 @@ type LelapLibraryModule = {
   pickFolder(): Promise<PickedFolder | null>;
   hasPermission(uri: string): Promise<boolean>;
   listTree(uri: string): Promise<ListedFile[]>;
+  readTags(uri: string, name: string, coverDir: string): Promise<FileTags>;
+  readImage(uri: string, coverDir: string): Promise<string | null>;
 };
 
 const native = requireNativeModule<LelapLibraryModule>('LelapLibrary');
@@ -32,4 +34,17 @@ export function hasPermission(uri: string): Promise<boolean> {
 /** Every file below the folder. Rejects with FOLDER_UNAVAILABLE when the folder cannot be read. */
 export function listTree(uri: string): Promise<ListedFile[]> {
   return native.listTree(uri);
+}
+
+/**
+ * Tags, duration, embedded cover (saved as a small JPEG in `coverDir`) and chapters of an audio
+ * file. `coverDir` is a plain file path, not a `file://` URI.
+ */
+export function readTags(uri: string, name: string, coverDir: string): Promise<FileTags> {
+  return native.readTags(uri, name, coverDir);
+}
+
+/** Saves an image file such as `cover.jpg` as a small cover in `coverDir`; returns its path. */
+export function readImage(uri: string, coverDir: string): Promise<string | null> {
+  return native.readImage(uri, coverDir);
 }

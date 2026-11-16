@@ -12,6 +12,7 @@ import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.io.File
 import java.io.Serializable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -56,6 +57,25 @@ class LibraryModule : Module() {
 
     AsyncFunction("listTree") Coroutine { uri: String ->
       withContext(Dispatchers.IO) { listTree(Uri.parse(uri)) }
+    }
+
+    AsyncFunction("readTags") Coroutine { uri: String, name: String, coverDir: String ->
+      withContext(Dispatchers.IO) {
+        val tags = TagReader(context).read(Uri.parse(uri), name, File(coverDir))
+        mapOf(
+          "durationMs" to tags.durationMs.toDouble(),
+          "title" to tags.title,
+          "album" to tags.album,
+          "artist" to tags.artist,
+          "albumArtist" to tags.albumArtist,
+          "coverPath" to tags.coverPath,
+          "chapters" to tags.chapters.map { mapOf("title" to it.title, "startMs" to it.startMs.toDouble()) },
+        )
+      }
+    }
+
+    AsyncFunction("readImage") Coroutine { uri: String, coverDir: String ->
+      withContext(Dispatchers.IO) { TagReader(context).readImage(Uri.parse(uri), File(coverDir)) }
     }
   }
 
