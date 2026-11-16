@@ -7,7 +7,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | -------------------------- | ----------- |
 | M0 Claim the name          | Done        |
 | M1 Audio spike             | In progress |
-| M2 Local library           | Not started |
+| M2 Local library           | In progress |
 | M3 Add-on protocol and SDK | Not started |
 | M4 Downloads               | Not started |
 | M5 Podcasts                | Not started |
@@ -54,6 +54,8 @@ Media3 `MediaLibraryService`.
 public-domain audio split into several files (a LibriVox book works).
 
 ## M2 Local library
+
+**Status:** in progress. Design: [`superpowers/specs/2026-11-16-m2-local-library-design.md`](superpowers/specs/2026-11-16-m2-local-library-design.md).
 
 SQLite schema through Drizzle, import of local files and folders, chapters from tags, progress,
 bookmarks, and the Library and Player screens.

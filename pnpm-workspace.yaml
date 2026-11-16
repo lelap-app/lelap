@@ -4,6 +4,8 @@ packages:
   - services/*
   - modules/*
 allowBuilds:
+  # drizzle-kit's esbuild runs from its platform package; its install script only re-checks it.
+  esbuild: false
   simple-git-hooks: false
 
 # Supply-chain policy (see AGENTS.md). Versions must be published for 7 days before they install;
