@@ -1,5 +1,4 @@
-import type { Part } from '@lelap/audio';
-
+type Part = { url: string; title: string };
 type Section = { section_number: string; title: string; listen_url: string };
 type Book = { title: string; sections: Section[] };
 

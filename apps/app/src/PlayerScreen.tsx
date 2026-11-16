@@ -13,6 +13,8 @@ const INITIAL_STATE: PlayerState = {
   connected: false,
   playing: false,
   buffering: false,
+  bookId: null,
+  fileLocation: null,
   bookTitle: null,
   partTitle: null,
   partIndex: -1,
@@ -72,8 +74,25 @@ export function PlayerScreen() {
     setMessage(null);
     try {
       const book = await fetchLibriVoxBook(bookId.trim());
-      await audio.load(book.title, book.parts);
-      await audio.play();
+      await audio.load(
+        {
+          bookId: `librivox-${bookId.trim()}`,
+          title: book.title,
+          author: null,
+          coverUri: null,
+          files: book.parts.map((p) => ({
+            uri: p.url,
+            location: p.url,
+            title: p.title,
+            durationMs: 0,
+          })),
+          chapters: [],
+          startIndex: 0,
+          startPositionMs: 0,
+          speed: 1,
+        },
+        true,
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     } finally {

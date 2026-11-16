@@ -1,11 +1,35 @@
 import { type EventSubscription, NativeModule, requireNativeModule } from 'expo';
 
-export type Part = { url: string; title: string };
+/** A book for the player. The service keeps it to resume with the app closed. */
+export type BookLoad = {
+  bookId: string;
+  title: string;
+  author: string | null;
+  coverUri: string | null;
+  /** In play order. `location` identifies the file in the library. */
+  files: { uri: string; location: string; title: string; durationMs: number }[];
+  /** On the whole-book timeline. */
+  chapters: { title: string; startMs: number }[];
+  startIndex: number;
+  startPositionMs: number;
+  speed: number;
+};
+
+/** The service's last saved place. Same shape as `JournalEntry` in `@lelap/core`. */
+export type JournalEntry = {
+  bookId: string;
+  fileLocation: string;
+  filePositionMs: number;
+  savedAt: number;
+};
 
 export type PlayerState = {
   connected: boolean;
   playing: boolean;
   buffering: boolean;
+  bookId: string | null;
+  /** Location of the file playing now. */
+  fileLocation: string | null;
   bookTitle: string | null;
   partTitle: string | null;
   /** -1 when nothing is loaded. */
@@ -27,7 +51,9 @@ type LelapAudioEvents = {
 };
 
 declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
-  load(bookTitle: string, parts: Part[], startIndex: number): Promise<void>;
+  load(bookJson: string, autoplay: boolean): Promise<void>;
+  seekTo(index: number, positionMs: number): Promise<void>;
+  takeJournal(): Promise<JournalEntry | null>;
   play(): Promise<void>;
   pause(): Promise<void>;
   seekBy(deltaMs: number): Promise<void>;
@@ -41,8 +67,17 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
 
 const native = requireNativeModule<LelapAudioModule>('LelapAudio');
 
-export function load(bookTitle: string, parts: Part[], startIndex = 0): Promise<void> {
-  return native.load(bookTitle, parts, startIndex);
+export function load(book: BookLoad, autoplay: boolean): Promise<void> {
+  return native.load(JSON.stringify(book), autoplay);
+}
+
+export function seekTo(index: number, positionMs: number): Promise<void> {
+  return native.seekTo(index, positionMs);
+}
+
+/** The service's last saved place, also when it played while the app was closed. */
+export function takeJournal(): Promise<JournalEntry | null> {
+  return native.takeJournal();
 }
 
 export function play(): Promise<void> {
