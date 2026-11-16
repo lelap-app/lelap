@@ -4,8 +4,8 @@ What is left of [M7 Sync](roadmap.md#m7-sync). Design notes are in [the brief](b
 
 ## 1. Setup before it is live
 
-- `wrangler d1 create lelap-sync` and `wrangler d1 create lelap-sync-staging`; put the IDs in
-  `services/sync/wrangler.toml` (they are zeros now, so the staging deploy fails until then).
+- Done 2026-11-16: D1 `lelap-sync` and `lelap-sync-staging` created (EEUR); their IDs are in
+  `services/sync/wrangler.toml`.
 - Custom domains: `sync-staging.lelap.app` through `SYNC_STAGING_DOMAIN` in the `web` environment;
   `sync.lelap.app` for production comes with the M8 release workflow.
 - A rate limiting rule on the sync hostnames, mainly for `POST /v1/pairings/*` (a code has 60 bits,
