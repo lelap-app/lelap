@@ -69,11 +69,11 @@ jobs:
       - run: node scripts/release.mts stamp "$GITHUB_REF_NAME"
       - run: pnpm --filter @lelap/app exec expo prebuild --platform android --no-install
         env:
-          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN }}
+          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
       - name: Build and sign
         working-directory: apps/app/android
         env:
-          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN }}
+          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           LELAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           LELAP_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
