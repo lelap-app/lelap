@@ -28,6 +28,10 @@ Steps are in [`apps/app/README.md`](../apps/app/README.md#m6-web-checklist). Run
 
 ## 3. Deferred
 
-- No PWA manifest or service worker yet, so the app is not installable and needs the network to
-  load its code.
+- Installable since after M9: a web manifest with icons (`apps/app/public`), linked by
+  `scripts/fix-web-export.mjs`. No service worker yet, so the app needs the network to load its
+  code; an offline shell (Workbox or a small hand-written worker) is the next step.
+- Live on `listen.lelap.app` since 2026-11-16. Fixed on the way: Pages skipped `node_modules`
+  and the artifact skipped `.pnpm` (sql.js's WebAssembly), the unset `LELAP_DOMAIN` reached the
+  build as an empty string, and an OPML import tripped the proxy's rate limit.
 - Web downloads need CORS on the audio host and stop when the tab closes.

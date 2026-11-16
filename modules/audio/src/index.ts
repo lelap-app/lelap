@@ -74,6 +74,7 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   skip(forward: boolean): Promise<void>;
   startSleepTimer(minutes: number): Promise<void>;
   cancelSleepTimer(): Promise<void>;
+  unload(): Promise<void>;
   getState(): Promise<PlayerState>;
 }
 
@@ -131,6 +132,11 @@ export function startSleepTimer(minutes: number): Promise<void> {
 
 export function cancelSleepTimer(): Promise<void> {
   return native.cancelSleepTimer();
+}
+
+/** Empties the player: no book on the lock screen or in the notification. */
+export function unload(): Promise<void> {
+  return native.unload();
 }
 
 export function getState(): Promise<PlayerState> {

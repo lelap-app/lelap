@@ -182,11 +182,15 @@ export function switchProfile(id: string): Promise<void> {
   return enqueue(async () => {
     if (id === profileId) return;
     const current = await audio.getState();
+    // Saved now, for the profile it belongs to: the player may be emptied below.
+    if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
     if (current.playing) await audio.pause();
     setProfileId(id);
     await audio.setSettings(getSettings(db, id));
     const next = continueListening(db, id);
+    // The lock screen follows the listener: their last book, or nothing.
     if (next) await load(next.id, false).catch(() => {});
+    else if (current.bookId) await audio.unload();
   });
 }
 

@@ -24,8 +24,8 @@ Then the week of daily listening in airplane mode.
 ## 2. Known issue from testing
 
 - **Pause is recorded about 1.7 s early.** On pause the service journals the position before it
-  settles (lock screen showed 2:07:07.97, journal 2:07:06.28). Safe direction (you re-hear 1.7 s,
-  never skip ahead). Fix: journal again about 500 ms after a pause.
+  settles (lock screen showed 2:07:07.97, journal 2:07:06.28). Fixed after M9: the service
+  journals again 500 ms after a pause. Still to confirm on the phone.
 
 ## 3. Deferred review findings (minor)
 
