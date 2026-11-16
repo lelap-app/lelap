@@ -59,6 +59,7 @@ const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
         <a href={anchor('get')}>Get it</a>
         <a href={anchor('selfhost')}>Self-host</a>
         <a href={anchor('faq')}>FAQ</a>
+        <a href="/docs/">Docs</a>
       </nav>
       <div class="header-actions">
         <a class="btn btn-sm btn-outline" href={site.repoUrl}>
@@ -82,14 +83,14 @@ const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
         <div class="footer-brand">
           <span class="footer-name">{site.name}</span>
           <p class="muted">
-            {site.tagline}
-            {site.name} does not host, index or link to any content. Add-ons are made and run by
-            third parties.
+            {site.tagline} {site.name} does not host, index or link to any content. Add-ons are made
+            and run by third parties.
           </p>
         </div>
         <nav aria-label="Footer" class="footer-nav">
           <a href={site.repoUrl}>GitHub</a>
           <a href={anchor('selfhost')}>Self-hosting</a>
+          <a href="/docs/">Add-on docs</a>
           <a href="/terms">Terms</a>
           <a href="/privacy">Privacy</a>
           <a href={anchor('rights')}>Copyright</a>
