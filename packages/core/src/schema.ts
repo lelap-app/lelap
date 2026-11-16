@@ -8,6 +8,8 @@ export const SHARED_TABLES = [
   'book_files',
   'chapters',
   'profiles',
+  'addons',
+  'removed_addons',
 ] as const;
 
 export type StoredChapter = { title: string; startMs: number };
@@ -30,17 +32,27 @@ export const libraryRoots = sqliteTable('library_roots', {
   updatedAt: integer('updated_at').notNull(),
 });
 
+/** Where a streamed book came from, so the app can find it again from an add-on item. */
+export type AddonItemRef = { addonUrl: string; type: string; id: string; sourceKey: string };
+
 export const books = sqliteTable('books', {
   id: text('id').primaryKey(),
-  rootId: text('root_id')
-    .notNull()
-    .references(() => libraryRoots.id),
-  /** Volume path of the book's folder, or of its file for single-file books. */
+  /** Null for books streamed from an add-on. */
+  rootId: text('root_id').references(() => libraryRoots.id),
+  /**
+   * Volume path of the book's folder, or of its file for single-file books; `addon:<type>:<id>`
+   * for streamed books.
+   */
   location: text('location').notNull().unique(),
   kind: text('kind', { enum: ['folder', 'file'] }).notNull(),
+  source: text('source', { enum: ['local', 'addon'] })
+    .notNull()
+    .default('local'),
   title: text('title').notNull(),
   author: text('author'),
   coverPath: text('cover_path'),
+  coverUrl: text('cover_url'),
+  addonItem: text('addon_item', { mode: 'json' }).$type<AddonItemRef>(),
   durationMs: integer('duration_ms').notNull(),
   missingSince: integer('missing_since'),
   addedAt: integer('added_at').notNull(),
@@ -51,11 +63,13 @@ export const bookFiles = sqliteTable(
   'book_files',
   {
     id: text('id').primaryKey(),
-    /** Volume path of the file; stable across a change of library folder. */
+    /**
+     * Volume path of the file; stable across a change of library folder. For a streamed part,
+     * `stream:<sourceKey>:<index>`.
+     */
     location: text('location').notNull().unique(),
-    rootId: text('root_id')
-      .notNull()
-      .references(() => libraryRoots.id),
+    /** Null for streamed parts. */
+    rootId: text('root_id').references(() => libraryRoots.id),
     bookId: text('book_id').references(() => books.id, { onDelete: 'set null' }),
     idx: integer('idx').notNull(),
     uri: text('uri').notNull(),
@@ -159,3 +173,24 @@ export const settings = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.profileId, t.key] })],
 );
+
+/** Installed add-ons, shared by every profile (M9 lets a profile hide some). */
+export const addons = sqliteTable('addons', {
+  id: text('id').primaryKey(),
+  /** The manifest URL; the add-on's base is everything before `manifest.json`. */
+  url: text('url').notNull().unique(),
+  /** The last manifest fetched, as JSON text. */
+  manifest: text('manifest').notNull(),
+  position: integer('position').notNull(),
+  /** Installed by the app from its configuration rather than by the user. */
+  builtin: integer('builtin', { mode: 'boolean' }).notNull().default(false),
+  installedAt: integer('installed_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+/** Default add-ons the user removed, so they are not installed again. */
+export const removedAddons = sqliteTable('removed_addons', {
+  url: text('url').primaryKey(),
+  removedAt: integer('removed_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
