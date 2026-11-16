@@ -273,6 +273,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.4
         version: 0.45.4(@types/sql.js@1.4.11)(sql.js@1.15.2)
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@types/sql.js':
         specifier: ^1.4.11
