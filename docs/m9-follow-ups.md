@@ -35,8 +35,8 @@ book.
 
 ## 3. Known limits
 
-- After a switch to a profile with nothing to play, the other profile's book stays loaded in the
-  playback service until something new is played: the app hides it, but the lock screen and
-  Bluetooth still show it. Fix: an `unload` command in `modules/audio`.
+- Fixed after M9: switching to a profile with nothing to play now empties the player (`unload`),
+  so the lock screen and notification no longer show the other profile's book. Still to confirm
+  on the phone. Playback resumption from headphones can still pick up that book's journal.
 - Per-profile scrobble add-ons wait for scrobbling itself (Later in the brief).
 - Settings are per profile, including download rules, which arguably belong to the device.

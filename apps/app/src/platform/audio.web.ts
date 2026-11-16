@@ -313,6 +313,17 @@ export async function cancelSleepTimer(): Promise<void> {
   emit();
 }
 
+export async function unload(): Promise<void> {
+  writeJournal();
+  element?.pause();
+  if (element) element.removeAttribute('src');
+  book = null;
+  index = -1;
+  ended = false;
+  if ('mediaSession' in navigator) navigator.mediaSession.metadata = null;
+  emit();
+}
+
 export async function getState(): Promise<PlayerState> {
   return state();
 }

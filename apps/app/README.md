@@ -136,3 +136,11 @@ proxy and an episode plays.
 | 6   | **Download:** download a book; it plays with the network off in DevTools.                        |                             |
 | 7   | **Safari and Firefox:** the app opens, streams and keeps the place.                              |                             |
 | 8   | **Same library:** M7 (sync) brings the phone's library over; until then the browser has its own. |                             |
+
+## Checks after M9 (2026-11-16)
+
+| #   | Check                                                                                                         | Result |
+| --- | ------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Pause journal:** pause, swipe the app away, reopen. The place matches the lock screen to the second.        |        |
+| 2   | **Unload:** with two profiles, play a book as one, switch to one with nothing played. The lock screen clears. |        |
+| 3   | **Install the web app:** open `listen.lelap.app` in Chrome on the phone → Add to home screen.                 |        |

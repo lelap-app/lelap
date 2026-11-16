@@ -6,6 +6,7 @@ object Commands {
   const val START_SLEEP_TIMER = "app.lelap.audio.START_SLEEP_TIMER"
   const val CANCEL_SLEEP_TIMER = "app.lelap.audio.CANCEL_SLEEP_TIMER"
   const val LOAD_BOOK = "app.lelap.audio.LOAD_BOOK"
+  const val UNLOAD = "app.lelap.audio.UNLOAD"
 
   const val KEY_SKIP_INTERVAL_MS = "skipIntervalMs"
   const val KEY_SMART_REWIND = "smartRewind"

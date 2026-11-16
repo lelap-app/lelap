@@ -42,5 +42,21 @@ function rewrite(dir) {
   return files;
 }
 
+// Makes the web app installable: the manifest and icons come from public/, the links go here.
+const HEAD = [
+  '<link rel="manifest" href="/manifest.webmanifest">',
+  '<link rel="apple-touch-icon" href="/icons/icon-192.png">',
+  '<meta name="apple-mobile-web-app-capable" content="yes">',
+  '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">',
+].join('');
+
+function addInstallLinks(dir) {
+  const index = join(dir, 'index.html');
+  const html = readFileSync(index, 'utf8');
+  if (!html.includes('rel="manifest"'))
+    writeFileSync(index, html.replace('</head>', `${HEAD}</head>`));
+}
+
 renameFolders(root);
+addInstallLinks(root);
 console.log(`fix-web-export: rewrote references in ${rewrite(root)} files`);

@@ -152,6 +152,12 @@ class AudioModule : Module() {
       }
     }.runOnQueue(Queues.MAIN)
 
+    AsyncFunction("unload") { promise: Promise ->
+      withController(promise) { c ->
+        c.sendCustomCommand(SessionCommand(Commands.UNLOAD, Bundle.EMPTY), Bundle.EMPTY)
+      }
+    }.runOnQueue(Queues.MAIN)
+
     AsyncFunction("getState") { promise: Promise ->
       connect().addListener({ promise.resolve(state()) }, ContextCompat.getMainExecutor(context))
     }.runOnQueue(Queues.MAIN)

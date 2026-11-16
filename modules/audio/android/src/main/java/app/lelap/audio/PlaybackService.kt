@@ -33,6 +33,8 @@ private const val TIMER_TICK_MS = 250L
 private const val CHAPTER_TICK_MS = 1_000L
 
 @OptIn(UnstableApi::class)
+private const val PAUSE_SETTLE_MS = 500L
+
 class PlaybackService : MediaLibraryService() {
   private lateinit var player: ExoPlayer
   private lateinit var session: MediaLibrarySession
@@ -64,6 +66,12 @@ class PlaybackService : MediaLibraryService() {
       updateChapterTitle()
       if (player.isPlaying) handler.postDelayed(this, CHAPTER_TICK_MS)
     }
+  }
+
+  // ExoPlayer reports the pause before its position settles (about 1.7 s early on the test phone),
+  // so the journal is written once more shortly after.
+  private val pauseSettled = Runnable {
+    if (!player.isPlaying) writeJournal(PositionJournal.Event.PAUSE)
   }
 
   private val journalTicker = object : Runnable {
@@ -128,12 +136,14 @@ class PlaybackService : MediaLibraryService() {
       override fun onIsPlayingChanged(isPlaying: Boolean) {
         handler.removeCallbacks(journalTicker)
         handler.removeCallbacks(chapterTicker)
+        handler.removeCallbacks(pauseSettled)
         if (isPlaying) {
           handler.postDelayed(journalTicker, PositionJournal.TICK_INTERVAL_MS)
           handler.post(chapterTicker)
         } else {
           placeChangedAt = System.currentTimeMillis()
           writeJournal(PositionJournal.Event.PAUSE)
+          handler.postDelayed(pauseSettled, PAUSE_SETTLE_MS)
         }
       }
 
@@ -186,6 +196,7 @@ class PlaybackService : MediaLibraryService() {
     handler.removeCallbacks(journalTicker)
     handler.removeCallbacks(chapterTicker)
     handler.removeCallbacks(timerTicker)
+    handler.removeCallbacks(pauseSettled)
     sleepTimer.cancel()
     focus.abandon()
     session.release()
@@ -385,6 +396,7 @@ class PlaybackService : MediaLibraryService() {
         .add(SessionCommand(Commands.START_SLEEP_TIMER, Bundle.EMPTY))
         .add(SessionCommand(Commands.CANCEL_SLEEP_TIMER, Bundle.EMPTY))
         .add(SessionCommand(Commands.LOAD_BOOK, Bundle.EMPTY))
+        .add(SessionCommand(Commands.UNLOAD, Bundle.EMPTY))
         .build()
       return MediaSession.ConnectionResult.accept(
         commands,
@@ -417,6 +429,15 @@ class PlaybackService : MediaLibraryService() {
           if (!player.playWhenReady) sleepTimer.freeze() else startTicker()
         }
         Commands.CANCEL_SLEEP_TIMER -> cancelSleepTimer()
+        // Another profile is listening now and has nothing to play: clear the lock screen and
+        // notification. The place was journaled at the pause before this.
+        Commands.UNLOAD -> {
+          writeJournal(PositionJournal.Event.PAUSE)
+          handler.removeCallbacks(pauseSettled)
+          player.pause()
+          player.clearMediaItems()
+          current = null
+        }
         Commands.LOAD_BOOK -> {
           val load = PositionJournal.decodeLoad(args.getString(Commands.KEY_BOOK_JSON).orEmpty())
             ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
