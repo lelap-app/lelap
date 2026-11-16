@@ -3,19 +3,31 @@ import Icon from './Icon.astro';
 ---
 
 <div class="stage" aria-hidden="true">
-  <div class="phone">
+  <div class="phone phone-frame">
     <div class="from">
       <span class="label">Playing from</span>
       <span class="value">On this phone</span>
     </div>
     <div class="cover">
-      <span class="cover-author">Herman Melville</span>
-      <span class="cover-title">Moby Dick</span>
-      <span class="cover-foot">LibriVox recording</span>
+      <span class="cover-author">Janet Tay</span>
+      <span class="cover-title">Early Mornings at the Laksa Café</span>
+      <svg class="cover-art" viewBox="0 0 120 96" fill="none" stroke-linecap="round">
+        <circle cx="94" cy="20" r="11" fill="var(--cover-sand)" opacity="0.35"></circle>
+        <path
+          d="M44 30c-5-6 5-10 0-16M60 28c-5-6 5-10 0-16M76 30c-5-6 5-10 0-16"
+          stroke="var(--cover-ink)"
+          stroke-width="2.4"
+          opacity="0.7"
+        ></path>
+        <path d="M78 6 52 46M90 10 60 47" stroke="var(--cover-sand)" stroke-width="3"></path>
+        <path d="M14 48h92a46 40 0 0 1-92 0z" fill="var(--cover-paper)"></path>
+        <path d="M18 48h84" stroke="var(--cover-broth)" stroke-width="7"></path>
+        <path d="M44 92h32" stroke="var(--cover-paper)" stroke-width="5"></path>
+      </svg>
     </div>
     <div class="title">
-      <span class="book">Moby Dick</span>
-      <span class="chapter">Ch. 42 of 135 · The Whiteness of the Whale</span>
+      <span class="book">Early Mornings at the Laksa Café</span>
+      <span class="chapter">Janet Tay · Chapter 3</span>
     </div>
     <div class="scrub">
       <div class="track">
@@ -73,15 +85,6 @@ import Icon from './Icon.astro';
     position: absolute;
     right: 0;
     top: 0;
-    width: min(300px, 100%);
-    height: 610px;
-    border: 8px solid #23262e;
-    border-radius: 44px;
-    background: #0a0b0d;
-    padding: 22px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
   }
 
   .from {
@@ -104,38 +107,41 @@ import Icon from './Icon.astro';
   }
 
   .cover {
+    position: relative;
     align-self: center;
     width: 228px;
     max-width: 100%;
     aspect-ratio: 1;
     border-radius: 12px;
-    background: var(--cover-navy);
-    padding: 20px;
+    background: linear-gradient(170deg, var(--cover-teal) 55%, var(--cover-ocean));
+    padding: 18px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    gap: 10px;
+    overflow: hidden;
   }
 
   .cover-author {
     font-size: 10px;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: #c9d2e3;
+    color: var(--cover-sand);
   }
 
   .cover-title {
+    max-width: 150px;
     font-family: var(--font-display);
-    font-size: 42px;
+    font-size: 23px;
     font-weight: 600;
-    line-height: 0.95;
+    line-height: 1.02;
     color: var(--cover-ink);
   }
 
-  .cover-foot {
-    border-top: 1px solid #44567a;
-    padding-top: 8px;
-    font-size: 11px;
-    color: #c9d2e3;
+  .cover-art {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    width: 116px;
   }
 
   .title {
@@ -146,7 +152,8 @@ import Icon from './Icon.astro';
 
   .book {
     font-family: var(--font-display);
-    font-size: 19px;
+    font-size: 17px;
+    line-height: 1.25;
     font-weight: 600;
   }
 
@@ -247,7 +254,7 @@ import Icon from './Icon.astro';
 
   .float-top {
     left: 12px;
-    top: 120px;
+    top: 244px;
     padding: 10px 12px;
     font-weight: 600;
   }

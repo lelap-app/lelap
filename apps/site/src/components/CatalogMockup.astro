@@ -1,0 +1,310 @@
+---
+import Icon from './Icon.astro';
+
+type Motif = 'house' | 'wave' | 'sun' | 'arch' | 'stack';
+
+interface Book {
+  title: string;
+  author: string;
+  cover: string;
+  light?: boolean;
+  motif?: Motif;
+  progress?: number;
+}
+
+// Covers are drawn here, never the publishers' artwork. In-copyright titles sit under the
+// user's own Audiobookshelf so the mockup doesn't suggest Lelap supplies them.
+const rows: { name: string; source: string; books: Book[] }[] = [
+  {
+    name: 'Classics',
+    source: 'LibriVox',
+    books: [
+      { title: 'Pride and Prejudice', author: 'Jane Austen', cover: 'rose', motif: 'arch' },
+      { title: 'Moby Dick', author: 'Herman Melville', cover: 'navy', motif: 'wave' },
+      { title: 'Jane Eyre', author: 'Charlotte Brontë', cover: 'plum' },
+      { title: 'Frankenstein', author: 'Mary Shelley', cover: 'forest' },
+    ],
+  },
+  {
+    name: 'Self-improvement',
+    source: 'Audiobookshelf',
+    books: [
+      { title: 'Atomic Habits', author: 'James Clear', cover: 'sand', light: true, motif: 'stack' },
+      { title: 'Four Thousand Weeks', author: 'Oliver Burkeman', cover: 'ocean', motif: 'sun' },
+      { title: 'The Courage to Be Disliked', author: 'Kishimi & Koga', cover: 'wine' },
+      { title: 'Meditations', author: 'Marcus Aurelius', cover: 'slate' },
+    ],
+  },
+  {
+    name: 'Cozy and uncanny',
+    source: 'Audiobookshelf',
+    books: [
+      { title: 'Strange Houses', author: 'Uketsu', cover: 'paper', light: true, motif: 'house' },
+      {
+        title: 'Before the Coffee Gets Cold',
+        author: 'Toshikazu Kawaguchi',
+        cover: 'olive',
+      },
+      { title: 'Piranesi', author: 'Susanna Clarke', cover: 'teal', motif: 'arch', progress: 40 },
+      { title: 'Days at the Morisaki Bookshop', author: 'Satoshi Yagisawa', cover: 'plum' },
+    ],
+  },
+];
+
+const motifs: Record<Motif, string> = {
+  house: '<path d="M4 13 12 5l8 8M6 11v9h12v-9"/><path d="M10 20v-5h4v5"/>',
+  wave: '<path d="M2 14c3-3 5-3 8 0s5 3 8 0 4-2 4-2M2 19c3-3 5-3 8 0s5 3 8 0"/>',
+  sun: '<circle cx="12" cy="14" r="5"/><path d="M2 20h20"/>',
+  arch: '<path d="M6 21V11a6 6 0 0 1 12 0v10"/><path d="M3 21h18"/>',
+  stack: '<path d="M4 20h16M6 16h12M8 12h8M10 8h4"/>',
+};
+---
+
+<div class="stage" aria-hidden="true">
+  <div class="phone phone-frame">
+    <div class="head">
+      <span class="heading">Catalogs</span>
+      <Icon name="search" size={20} />
+    </div>
+    <div class="filters">
+      <span class="filter active">Audiobooks</span>
+      <span class="filter">Podcasts</span>
+      <span class="filter">Downloaded</span>
+    </div>
+    {rows.map((row) => (
+      <section class="row">
+        <div class="row-head">
+          <b>{row.name}</b>
+          <span>{row.source}</span>
+        </div>
+        <div class="shelf">
+          {row.books.map((book) => (
+            <div
+              class:list={['tile', { light: book.light }]}
+              style={`--tile: var(--cover-${book.cover})`}
+            >
+              <span class="tile-author">{book.author}</span>
+              <span class="tile-title">{book.title}</span>
+              {book.motif && (
+                <svg
+                  class="tile-motif"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  set:html={motifs[book.motif]}
+                />
+              )}
+              {book.progress && (
+                <span class="tile-progress">
+                  <span style={`width: ${book.progress}%`} />
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+    ))}
+    <nav class="tabs">
+      <span class="tab">
+        <Icon name="home" size={20} />
+        Home
+      </span>
+      <span class="tab active">
+        <Icon name="grid" size={20} />
+        Catalogs
+      </span>
+      <span class="tab">
+        <Icon name="books" size={20} />
+        Library
+      </span>
+    </nav>
+  </div>
+  <div class="float">
+    <Icon name="box" size={18} />
+    Rows come from your add-ons
+  </div>
+</div>
+
+<style>
+  .stage {
+    position: relative;
+    width: 340px;
+    max-width: 100%;
+    height: 620px;
+    margin-inline: auto;
+  }
+
+  .phone {
+    position: absolute;
+    left: 0;
+    top: 0;
+    gap: 12px;
+  }
+
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--fg-soft);
+  }
+
+  .heading {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--fg);
+  }
+
+  .filters {
+    display: flex;
+    gap: 6px;
+  }
+
+  .filter {
+    padding: 4px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--fg-soft);
+    white-space: nowrap;
+  }
+
+  .filter.active {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .row {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .row-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+
+  .row-head span {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Bleeds past the right padding so the fourth cover peeks in, as on a real scrolling shelf. */
+  .shelf {
+    display: flex;
+    gap: 9px;
+    margin-right: -20px;
+  }
+
+  .tile {
+    position: relative;
+    flex: 0 0 76px;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    background: var(--tile);
+    padding: 7px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    overflow: hidden;
+    color: var(--cover-ink);
+  }
+
+  .tile.light {
+    color: var(--cover-ink-dark);
+  }
+
+  .tile-author {
+    font-size: 6.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.75;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tile-title {
+    font-family: var(--font-display);
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1.08;
+  }
+
+  .tile-motif {
+    position: absolute;
+    right: 5px;
+    bottom: 5px;
+    width: 22px;
+    height: 22px;
+    opacity: 0.55;
+  }
+
+  .tile-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: rgb(0 0 0 / 0.35);
+  }
+
+  .tile-progress span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+  }
+
+  .tabs {
+    margin-top: auto;
+    margin-inline: -20px;
+    margin-bottom: -22px;
+    padding: 10px 20px 14px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-around;
+  }
+
+  .tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .tab.active {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .float {
+    position: absolute;
+    right: 0;
+    top: 468px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: #1c1f26;
+    border: 1px solid #2e323c;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .float :global(svg) {
+    color: var(--accent);
+  }
+</style>
