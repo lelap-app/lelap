@@ -10,10 +10,10 @@ import * as schema from '../src/schema';
 const migrationsFolder = fileURLToPath(new URL('../drizzle', import.meta.url));
 const SQL = await initSqlJs();
 
-/** A fresh in-memory database with every migration applied. */
+/** A fresh in-memory database with every migration applied and foreign keys on, like the app. */
 export function createTestDb(): Db {
   const db = drizzle(new SQL.Database(), { schema });
-  db.run('pragma foreign_keys = on');
   migrate(db, { migrationsFolder });
+  db.run('pragma foreign_keys = on');
   return db;
 }

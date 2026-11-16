@@ -1,0 +1,30 @@
+import type { LibraryBook } from '@lelap/core';
+import { Pressable, Text, View } from 'react-native';
+
+import { formatLeft } from '../format';
+import { BookCover } from './BookCover';
+
+export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className="mx-4 flex-row items-center gap-4 rounded-xl bg-raised p-3 active:opacity-80"
+    >
+      <BookCover path={book.coverPath} title={book.title} size={72} />
+      <View className="flex-1 gap-1">
+        <Text className="text-xs uppercase tracking-wider text-muted">Continue listening</Text>
+        <Text numberOfLines={2} className="text-base font-semibold text-paper">
+          {book.title}
+        </Text>
+        {book.durationMs > 0 && (
+          <Text className="text-sm text-soft">
+            {formatLeft(book.durationMs - book.bookPositionMs)}
+          </Text>
+        )}
+      </View>
+      <View className="h-12 w-12 items-center justify-center rounded-full bg-amber">
+        <Text className="text-lg text-ink">▶</Text>
+      </View>
+    </Pressable>
+  );
+}

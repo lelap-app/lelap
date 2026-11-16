@@ -11,3 +11,4 @@ export * from './library/scan';
 export * from './bookmarks';
 export * from './library/queries';
 export * from './settings';
+export * as schema from './schema';

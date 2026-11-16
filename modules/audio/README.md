@@ -19,7 +19,7 @@ cd apps/app/android && ./gradlew :lelap-audio:testDebugUnitTest
 
 ## M1 device checklist
 
-Load the default LibriVox book (ID 254, 35 parts) on the test screen, then:
+Open Settings → Developer → Audio spike, load the default LibriVox book (ID 254, 35 parts), then:
 
 | #   | Check                                                                                                                                                                                                          | Result                                                            |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
