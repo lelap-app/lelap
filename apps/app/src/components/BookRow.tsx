@@ -35,7 +35,10 @@ export const BookRow = memo(function BookRow({
         </Text>
         {(book.author !== null || book.source === 'addon') && (
           <Text numberOfLines={1} className="text-sm text-muted">
-            {[book.author, book.source === 'addon' ? 'Streaming' : null]
+            {[
+              book.author,
+              book.source === 'addon' ? (book.downloaded ? 'Downloaded' : 'Streaming') : null,
+            ]
               .filter(Boolean)
               .join(' · ')}
           </Text>

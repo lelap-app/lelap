@@ -9,7 +9,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M1 Audio spike             | In progress |
 | M2 Local library           | In progress |
 | M3 Add-on protocol and SDK | In progress |
-| M4 Downloads               | Not started |
+| M4 Downloads               | In progress |
 | M5 Podcasts                | Not started |
 | M6 Web build               | Not started |
 | M7 Sync                    | Not started |
@@ -81,6 +81,11 @@ a Workers template, the Catalog and LibriVox add-ons, and the Home, Discover and
 as Worker secrets. Register the Podcast Index API key before starting.
 
 ## M4 Downloads
+
+**Status:** in progress. Design:
+[`superpowers/specs/2026-11-16-m4-downloads-design.md`](superpowers/specs/2026-11-16-m4-downloads-design.md).
+Built and unit-tested without a phone; the device checklist is in
+[`apps/app/README.md`](../apps/app/README.md#m4-device-checklist).
 
 Background download service with Wi-Fi and charging rules, cover and metadata snapshots, and a
 storage overview.

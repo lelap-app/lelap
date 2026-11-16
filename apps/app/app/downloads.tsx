@@ -1,0 +1,141 @@
+import { type DownloadEntry, getSettings, listDownloads } from '@lelap/core';
+import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
+import { Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { BookCover, coverUri } from '../src/components/BookCover';
+import { MiniPlayer } from '../src/components/MiniPlayer';
+import { db } from '../src/db';
+import {
+  deleteDownload,
+  describeDownload,
+  startDownload,
+  useDownloadStatuses,
+} from '../src/downloads';
+import { formatBytes } from '../src/format';
+import * as native from '../src/platform/downloads';
+import { useLibrary } from '../src/player';
+import { profileId } from '../src/profile';
+
+/** The storage overview: what Lelap keeps on the phone and the space left. */
+export default function DownloadsScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { version, refresh } = useLibrary();
+  const statuses = useDownloadStatuses();
+  // `version` is the signal to re-read the database.
+  const entries = useMemo(() => listDownloads(db), [version]);
+  const settings = useMemo(() => getSettings(db, profileId), [version]);
+  const storage = useQuery({
+    queryKey: ['storage', version, entries.length],
+    queryFn: () => native.storage(),
+  });
+
+  const act = (task: () => Promise<void>) =>
+    void task()
+      .catch((error: unknown) =>
+        Alert.alert('Download', error instanceof Error ? error.message : String(error)),
+      )
+      .finally(refresh);
+
+  const showActions = (entry: DownloadEntry) => {
+    const remove = {
+      text: entry.state === 'done' ? 'Remove download' : 'Cancel download',
+      style: 'destructive' as const,
+      onPress: () => act(() => deleteDownload(entry.bookId)),
+    };
+    const buttons =
+      entry.state === 'failed'
+        ? [
+            remove,
+            { text: 'Try again', onPress: () => act(() => startDownload(entry.bookId, null)) },
+          ]
+        : [remove];
+    Alert.alert(entry.title, entry.error ?? undefined, [
+      { text: 'Close', style: 'cancel' },
+      ...buttons,
+    ]);
+  };
+
+  const used = storage.data?.usedBytes ?? 0;
+  const total = storage.data?.totalBytes ?? 0;
+
+  return (
+    <View className="flex-1 bg-night">
+      <FlatList
+        data={entries}
+        keyExtractor={(e) => e.bookId}
+        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 24 }}
+        ListHeaderComponent={
+          <View className="gap-4 px-4 pb-4">
+            <Pressable onPress={() => router.back()} hitSlop={12} className="self-start py-2">
+              <Text className="text-2xl text-muted">‹</Text>
+            </Pressable>
+            <Text className="text-3xl font-semibold text-paper">Downloads</Text>
+            {storage.data && (
+              <View className="gap-2">
+                <Text className="text-base text-soft">
+                  Lelap uses {formatBytes(used)} · {formatBytes(storage.data.freeBytes)} free on
+                  this phone
+                </Text>
+                <View className="h-2 flex-row overflow-hidden rounded-full bg-line">
+                  <View
+                    style={{
+                      width: `${total > 0 ? ((total - storage.data.freeBytes) / total) * 100 : 0}%`,
+                    }}
+                    className="h-2 bg-soft"
+                  />
+                </View>
+              </View>
+            )}
+            <Text className="text-sm text-muted">
+              {[
+                settings.downloadOnWifiOnly ? 'Only on Wi-Fi' : 'On Wi-Fi and mobile data',
+                settings.downloadWhileChargingOnly ? 'only while charging' : null,
+              ]
+                .filter(Boolean)
+                .join(', ')}
+              . Change this in Settings.
+            </Text>
+          </View>
+        }
+        ListEmptyComponent={
+          <Text className="px-4 pt-8 text-center text-muted">
+            Downloaded books play without a connection. Download one from its page or from the
+            Library.
+          </Text>
+        }
+        renderItem={({ item: entry }) => {
+          const view = describeDownload(entry, statuses.get(entry.bookId), settings);
+          return (
+            <Pressable
+              onPress={() => showActions(entry)}
+              className="flex-row items-center gap-3 px-4 py-2 active:bg-raised"
+            >
+              <BookCover uri={coverUri(entry)} title={entry.title} size={56} />
+              <View className="flex-1 gap-1">
+                <Text numberOfLines={2} className="text-base text-paper">
+                  {entry.title}
+                </Text>
+                <Text
+                  numberOfLines={2}
+                  className={`text-sm ${view.failed ? 'text-danger' : 'text-muted'}`}
+                >
+                  {view.label}
+                </Text>
+                {view.progress !== null && (
+                  <View className="h-1 overflow-hidden rounded-full bg-line">
+                    <View style={{ width: `${view.progress * 100}%` }} className="h-1 bg-amber" />
+                  </View>
+                )}
+              </View>
+            </Pressable>
+          );
+        }}
+      />
+      <MiniPlayer />
+    </View>
+  );
+}

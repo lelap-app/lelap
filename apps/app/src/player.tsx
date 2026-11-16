@@ -108,9 +108,22 @@ function loadAtStartup(bookId: string): Promise<void> {
   });
 }
 
-async function load(bookId: string, autoplay: boolean): Promise<void> {
+/**
+ * Loads a loaded book again, so it plays from downloaded files or, after they are removed, from
+ * the stream. A playing book is only reloaded when [evenWhilePlaying] (its files are going).
+ */
+export function reloadBook(bookId: string, evenWhilePlaying: boolean): Promise<void> {
+  return enqueue(async () => {
+    const current = await audio.getState();
+    if (current.bookId !== bookId || current.partIndex < 0) return;
+    if (current.playing && !evenWhilePlaying) return;
+    await load(bookId, current.playing, true);
+  });
+}
+
+async function load(bookId: string, autoplay: boolean, force = false): Promise<void> {
   const current = await audio.getState();
-  if (current.bookId === bookId && current.partIndex >= 0) {
+  if (!force && current.bookId === bookId && current.partIndex >= 0) {
     if (autoplay) await audio.play();
     return;
   }
@@ -126,7 +139,8 @@ async function load(bookId: string, autoplay: boolean): Promise<void> {
       author: detail.book.author,
       coverUri: detail.book.coverPath ? `file://${detail.book.coverPath}` : detail.book.coverUrl,
       files: detail.files.map((f) => ({
-        uri: f.uri,
+        // A downloaded part plays from the phone; the rest stream.
+        uri: f.downloadPath ? `file://${f.downloadPath}` : f.uri,
         location: f.location,
         title: f.title ?? stripExtension(f.name),
         durationMs: f.durationMs,

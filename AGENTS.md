@@ -38,6 +38,7 @@ packages/sdk    add-on SDK: protocol v1 as zod schemas, createAddon(); MIT
 services/       Hono services on Cloudflare Workers: catalog (Catalog + LibriVox add-ons), template
 modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer
 modules/library Kotlin Expo module: folder access, tags and chapters for the local library
+modules/download Kotlin Expo module: WorkManager downloads with Wi-Fi and charging rules
 docs/brief.md   decisions, stack, infrastructure, v1.0 scope
 docs/roadmap.md milestones M0–M8, status, per-milestone resources, environments
 ```
@@ -75,7 +76,7 @@ saying why. Dependabot waits the same 7 days. Never weaken these settings to mak
 Don't swap these without updating `docs/brief.md` in the same pull request.
 
 - **App:** Expo (React Native) with react-native-web, Expo Router, NativeWind for styling.
-- **Native:** Kotlin Expo modules; Media3 for playback, WorkManager or Media3 for downloads.
+- **Native:** Kotlin Expo modules; Media3 for playback, WorkManager for downloads.
 - **Data:** SQLite everywhere through Drizzle ORM; zod for validation and protocol schemas.
 - **Backend:** TypeScript and Hono on Cloudflare Workers (D1, R2, Cache API); the same code runs
   in Docker for self-hosting.

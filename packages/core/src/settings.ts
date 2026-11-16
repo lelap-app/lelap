@@ -8,6 +8,8 @@ export const SettingsSchema = z.object({
   duckOnInterruption: z.boolean().default(true),
   skipIntervalMs: z.number().int().positive().default(30_000),
   smartRewind: z.boolean().default(true),
+  downloadOnWifiOnly: z.boolean().default(true),
+  downloadWhileChargingOnly: z.boolean().default(false),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

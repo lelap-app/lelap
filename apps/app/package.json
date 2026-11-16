@@ -11,6 +11,7 @@
   "dependencies": {
     "@lelap/audio": "workspace:*",
     "@lelap/core": "workspace:*",
+    "@lelap/download": "workspace:*",
     "@lelap/library": "workspace:*",
     "@lelap/sdk": "workspace:*",
     "@tanstack/react-query": "^5.107.1",

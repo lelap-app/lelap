@@ -13,3 +13,4 @@ export * from './library/queries';
 export * from './settings';
 export * as schema from './schema';
 export * from './addons';
+export * from './downloads';

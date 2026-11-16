@@ -1,4 +1,10 @@
-import { findBookBySource, findStreamedBook, type FoundStream, getBook } from '@lelap/core';
+import {
+  downloadSnapshot,
+  findBookBySource,
+  findStreamedBook,
+  type FoundStream,
+  getBook,
+} from '@lelap/core';
 import { CONTENT_TYPES, type ContentType, hasParts } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -6,9 +12,11 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { playItem, queries, useAddons } from '../src/addons';
-import { BookCover } from '../src/components/BookCover';
+import { addItem, playItem, queries, useAddons } from '../src/addons';
+import { BookCover, coverUri } from '../src/components/BookCover';
+import { DownloadButton } from '../src/components/DownloadButton';
 import { db } from '../src/db';
+import { startDownload } from '../src/downloads';
 import { formatClock, formatDuration } from '../src/format';
 import { playBook, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
@@ -36,7 +44,6 @@ export default function ItemScreen() {
   const meta = useQuery(queries.meta(addons, type, id));
   const streams = useQuery(queries.streams(addons, type, id));
 
-  const item = meta.data?.meta;
   const found = streams.data ?? [];
   const stream = found[Math.min(chosen, found.length - 1)];
 
@@ -48,7 +55,24 @@ export default function ItemScreen() {
       (sourceKey ? findBookBySource(db, sourceKey) : null) ?? findStreamedBook(db, type, id);
     return bookId ? getBook(db, profileId, bookId) : null;
   }, [type, id, sourceKey, version]);
+  // Offline, a downloaded book shows the metadata saved with its download.
+  const snapshot = useMemo(() => (saved ? downloadSnapshot(db, saved.book.id) : null), [saved]);
+  const item = meta.data?.meta ?? snapshot ?? undefined;
   const parts = stream && hasParts(stream.stream) ? stream.stream.parts : [];
+  const sizeBytes = stream
+    ? hasParts(stream.stream)
+      ? stream.stream.parts.reduce((sum, p) => sum + (p.size ?? 0), 0)
+      : (stream.stream.size ?? 0)
+    : 0;
+  const canDownload = stream
+    ? stream.stream.downloadable !== false
+    : saved?.book.source === 'addon';
+
+  const download = async () => {
+    const bookId = item && stream ? addItem(item, stream) : saved?.book.id;
+    if (!bookId) return;
+    await startDownload(bookId, meta.data?.meta ?? null);
+  };
   const progress =
     saved && saved.book.durationMs > 0 ? saved.book.bookPositionMs / saved.book.durationMs : 0;
 
@@ -94,7 +118,13 @@ export default function ItemScreen() {
       ) : (
         <View className="gap-5 px-4">
           <View className="items-center gap-3">
-            <BookCover uri={item?.cover ?? saved?.book.coverUrl} title={title} size={220} />
+            <BookCover
+              uri={
+                saved?.book.coverPath ? coverUri(saved.book) : (item?.cover ?? saved?.book.coverUrl)
+              }
+              title={title}
+              size={220}
+            />
             <Text className="text-center text-2xl font-semibold text-paper">{title}</Text>
             {(item?.author ?? saved?.book.author) && (
               <Text className="text-center text-base text-soft">
@@ -131,8 +161,18 @@ export default function ItemScreen() {
           </Pressable>
           {saved && (
             <Text className="-mt-3 text-center text-xs text-muted">
-              In your library · streams while online
+              {saved.book.downloaded
+                ? 'In your library · plays offline'
+                : 'In your library · streams while online'}
             </Text>
+          )}
+
+          {canDownload && (
+            <DownloadButton
+              bookId={saved?.book.id ?? null}
+              sizeBytes={sizeBytes}
+              start={download}
+            />
           )}
 
           {found.length > 1 && (

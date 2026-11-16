@@ -1,7 +1,14 @@
 import { and, asc, eq } from 'drizzle-orm';
 
 import type { Db } from '../db';
-import { books, chapters, libraryEntries, progress, type StoredChapter } from '../schema';
+import {
+  books,
+  chapters,
+  downloads,
+  libraryEntries,
+  progress,
+  type StoredChapter,
+} from '../schema';
 import { presentFiles } from './bookFiles';
 import { compareNatural } from './files';
 
@@ -13,6 +20,8 @@ export type LibraryBook = {
   /** For streamed books. */
   coverUrl: string | null;
   source: 'local' | 'addon';
+  /** A streamed book whose download finished. */
+  downloaded: boolean;
   durationMs: number;
   bookPositionMs: number;
   addedAt: number;
@@ -30,6 +39,7 @@ function selectBooks(db: Db, profileId: string, bookId?: string): LibraryBook[] 
       bookPositionMs: progress.bookPositionMs,
       finishedAt: libraryEntries.finishedAt,
       lastPlayedAt: libraryEntries.lastPlayedAt,
+      downloadState: downloads.state,
     })
     .from(books)
     .leftJoin(progress, and(eq(progress.bookId, books.id), eq(progress.profileId, profileId)))
@@ -37,15 +47,17 @@ function selectBooks(db: Db, profileId: string, bookId?: string): LibraryBook[] 
       libraryEntries,
       and(eq(libraryEntries.bookId, books.id), eq(libraryEntries.profileId, profileId)),
     )
+    .leftJoin(downloads, eq(downloads.bookId, books.id))
     .where(bookId === undefined ? undefined : eq(books.id, bookId))
     .all();
-  return rows.map(({ book, bookPositionMs, finishedAt, lastPlayedAt }) => ({
+  return rows.map(({ book, bookPositionMs, finishedAt, lastPlayedAt, downloadState }) => ({
     id: book.id,
     title: book.title,
     author: book.author,
     coverPath: book.coverPath,
     coverUrl: book.coverUrl,
     source: book.source,
+    downloaded: downloadState === 'done',
     durationMs: book.durationMs,
     bookPositionMs: bookPositionMs ?? 0,
     addedAt: book.addedAt,

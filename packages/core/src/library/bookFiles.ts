@@ -12,6 +12,7 @@ export function presentFiles(db: Db, bookId: string) {
       uri: bookFiles.uri,
       title: bookFiles.title,
       name: bookFiles.name,
+      downloadPath: bookFiles.downloadPath,
     })
     .from(bookFiles)
     .where(and(eq(bookFiles.bookId, bookId), isNull(bookFiles.missingSince)))
