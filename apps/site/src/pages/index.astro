@@ -1,0 +1,740 @@
+---
+import Base from '../layouts/Base.astro';
+import Icon, { type IconName } from '../components/Icon.astro';
+import PhoneMockup from '../components/PhoneMockup.astro';
+import { site } from '../site';
+
+const features: { icon: IconName; title: string; text: string }[] = [
+  {
+    icon: 'moon',
+    title: 'Lull, the sleep timer that fades',
+    text: 'Minutes or end of chapter. Fades out over the last minute, rewinds a little so you can find your place, and a shake buys you ten more.',
+  },
+  {
+    icon: 'plane',
+    title: 'Offline first',
+    text: 'Download books and episodes over Wi-Fi with the screen off. Airplane mode is a normal day, not an error state.',
+  },
+  {
+    icon: 'phone',
+    title: 'Plays in your pocket',
+    text: 'Screen off, app closed. Lock screen, headphone buttons, Bluetooth and Android Auto all work.',
+  },
+  {
+    icon: 'call',
+    title: 'Keeps going through calls',
+    text: 'Lower the volume instead of stopping when a call comes in. Your choice, on Android.',
+  },
+  {
+    icon: 'sync',
+    title: 'Progress that follows you',
+    text: 'Pick up on your laptop where you stopped on your phone. Pair devices with a code; sync is end-to-end encrypted.',
+  },
+  {
+    icon: 'gauge',
+    title: 'Smart rewind, speed, chapters',
+    text: 'Rewinds further the longer you paused. Speed per book with pitch correction, silence skipping and chapter-aware scrubbing.',
+  },
+  {
+    icon: 'list',
+    title: 'Playlists, tags and Up Next',
+    text: 'One queue for books and episodes, hand-made lists, and smart ones like “short and not started” or “for the flight”.',
+  },
+  {
+    icon: 'cast',
+    title: 'Cast to the living room',
+    text: 'Chromecast and Sonos from Android, with your progress kept while it plays.',
+  },
+  {
+    icon: 'folder',
+    title: 'Bring your own files',
+    text: 'Import m4b, mp3, opus and flac, or point it at a folder. Chapters come from the tags. OPML in and out for podcasts.',
+  },
+];
+
+const addonRoles = [
+  ['Catalogs', 'Trending, new, your shelves'],
+  ['Metadata', 'Covers, narrators, chapters'],
+  ['Sources', 'Where the audio file lives'],
+  ['Scrobble', 'Share progress elsewhere'],
+];
+
+const services = [
+  ['web', 'The PWA, served as static files.'],
+  ['catalog', 'The built-in catalog add-on: Open Library, LibriVox and Podcast Index, cached.'],
+  ['proxy', 'Fetches RSS feeds and cover images for the web app. Never audio.'],
+  ['sync', 'Stores encrypted progress and playlists. It can’t read them.'],
+];
+
+const compose = `services:
+  web:
+    image: ghcr.io/lelap-app/web
+    ports: ["8080:80"]
+  catalog:
+    image: ghcr.io/lelap-app/catalog
+    env_file: .env
+  proxy:
+    image: ghcr.io/lelap-app/proxy
+  sync:
+    image: ghcr.io/lelap-app/sync
+    volumes: ["./data:/data"]`;
+---
+
+<Base>
+  <section class="container hero">
+    <div class="hero-copy">
+      <span class="pill">
+        {site.released
+          ? 'Open source · Android · Web · Self-hosted'
+          : 'In development · Open source · Android and web'}
+      </span>
+      <h1>{site.tagline}</h1>
+      <p class="hero-lead">
+        Connect the libraries you already have through add-ons, download for the flight, and keep
+        listening with the screen off. Open source, no account, no app store, no lock-in.
+      </p>
+      <div class="cta">
+        {site.released ? (
+          <>
+            <a class="btn btn-lg btn-primary" href={site.appUrl}>
+              Open {site.appHost}
+            </a>
+            <a class="btn btn-lg btn-outline" href={site.apkUrl}>
+              <Icon name="download" size={18} strokeWidth={2} />
+              Download for Android
+            </a>
+            <a class="btn-link" href="#selfhost">
+              Self-host with Docker →
+            </a>
+          </>
+        ) : (
+          <>
+            <a class="btn btn-lg btn-primary" href={site.repoUrl}>
+              <Icon name="code" size={18} strokeWidth={2} />
+              Follow on GitHub
+            </a>
+            <a class="btn btn-lg btn-outline" href={site.briefUrl}>
+              Read the plan
+            </a>
+          </>
+        )}
+      </div>
+      <ul class="checks">
+        <li>
+          <Icon name="check" size={18} strokeWidth={2} />
+          Works fully offline
+        </li>
+        <li>
+          <Icon name="check" size={18} strokeWidth={2} />
+          No account needed
+        </li>
+        <li>
+          <Icon name="check" size={18} strokeWidth={2} />
+          Audio never passes through our servers
+        </li>
+      </ul>
+    </div>
+    <div class="hero-visual">
+      <PhoneMockup />
+    </div>
+  </section>
+
+  <div class="band" id="how">
+    <section class="container section">
+      <div class="section-head">
+        <span class="eyebrow">How it works</span>
+        <h2 class="h2">The app plays. Add-ons bring the library.</h2>
+        <p class="lead">
+          {site.name} handles playback, downloads, progress and sync. What you browse, where the
+          audio lives and where your progress is shared are add-ons you choose, made and run by
+          whoever builds them.
+        </p>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <span class="step">1 · Add-ons answer</span>
+          <div class="roles">
+            {addonRoles.map(([name, text]) => (
+              <div class="role">
+                <b>{name}</b>
+                <span>{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div class="card">
+          <span class="step">2 · Your device keeps it</span>
+          <p class="statement">
+            Library, progress, downloads and playlists live on your phone first.
+          </p>
+          <p>
+            Add-ons can be slow, offline or gone tomorrow. What you downloaded keeps playing, and
+            your progress never depends on someone else’s server.
+          </p>
+        </div>
+        <div class="card">
+          <span class="step">3 · Install by URL</span>
+          <pre class="code"><code>{`GET /manifest.json
+{
+  "id": "org.librivox",
+  "resources": ["catalog", "meta", "stream"],
+  "types": ["audiobook"]
+}`}</code></pre>
+          <p>
+            Paste an add-on’s address and you’re done. Settings live on the add-on’s own page; the
+            app only remembers the URL.
+          </p>
+        </div>
+      </div>
+      <div class="chips">
+        <span class="muted">Ships with open sources:</span>
+        <span class="chip">LibriVox</span>
+        <span class="chip">Open Library</span>
+        <span class="chip">Podcast Index</span>
+        <span class="chip">RSS feeds</span>
+        <span class="chip">Your own files</span>
+        <span class="muted chips-gap">Optional:</span>
+        <span class="chip chip-dashed">Audiobookshelf</span>
+        <span class="chip chip-dashed">WebDAV</span>
+        <span class="chip chip-dashed">Hardcover</span>
+        <span class="chip chip-dashed">gPodder</span>
+      </div>
+    </section>
+  </div>
+
+  <section class="container section" id="features">
+    <div class="section-head">
+      <span class="eyebrow">Features</span>
+      <h2 class="h2">Built for long listens.</h2>
+    </div>
+    <div class="grid">
+      {features.map((f) => (
+        <div class="card card-outline">
+          <span class="icon-tile">
+            <Icon name={f.icon} />
+          </span>
+          <h3>{f.title}</h3>
+          <p>{f.text}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <div class="band" id="get">
+    <section class="container section">
+      <div class="section-head">
+        <span class="eyebrow">Get it</span>
+        <h2 class="h2">One codebase, three ways to listen.</h2>
+        {!site.released && <p class="lead">All three arrive with version 1.0.</p>}
+      </div>
+      <div class="grid">
+        <div class="card get">
+          <span class="get-icon">
+            <Icon name="globe" size={28} strokeWidth={1.6} />
+          </span>
+          <h3 class="get-title">Web app</h3>
+          <span class="mono-accent">{site.appHost}</span>
+          <p>
+            Nothing to install. Add it to your home screen as a PWA. Best for your laptop, or any
+            device that isn’t an Android phone.
+          </p>
+          {site.released ? (
+            <a class="btn btn-primary get-cta" href={site.appUrl}>
+              Start listening
+            </a>
+          ) : (
+            <span class="badge get-cta">Planned for v1.0</span>
+          )}
+        </div>
+        <div class="card get">
+          <span class="get-icon">
+            <Icon name="phone" size={28} strokeWidth={1.6} />
+          </span>
+          <h3 class="get-title">Android</h3>
+          <span class="mono-accent">.apk · no Play Store</span>
+          <p>
+            The full experience: background playback, downloads with the screen off, casting and
+            Android Auto. Small updates install themselves; new versions take one tap.
+          </p>
+          {site.released ? (
+            <a class="btn btn-primary get-cta" href={site.apkUrl}>
+              Download .apk
+            </a>
+          ) : (
+            <span class="badge get-cta">Planned for v1.0</span>
+          )}
+        </div>
+        <div class="card get">
+          <span class="get-icon">
+            <Icon name="box" size={28} strokeWidth={1.6} />
+          </span>
+          <h3 class="get-title">Self-hosted</h3>
+          <span class="mono-accent">docker compose up</span>
+          <p>
+            Run the web app, catalog, feed proxy and sync on your own machine, and point the Android
+            app at it.
+          </p>
+          <a class="btn btn-outline get-cta" href="#selfhost">
+            Self-hosting
+          </a>
+        </div>
+      </div>
+      <p class="muted small">
+        No iOS app is planned. iPhone and iPad can use the web app, with streaming and in-app
+        downloads.
+      </p>
+    </section>
+  </div>
+
+  <section class="container section selfhost" id="selfhost">
+    <div class="selfhost-copy">
+      <span class="eyebrow">Self-host</span>
+      <h2 class="h2">Run the whole thing yourself.</h2>
+      <p class="lead">
+        Everything behind {site.appHost} is in the repository. Four small containers, no database
+        server to babysit.
+      </p>
+      <ul class="services">
+        {services.map(([name, text]) => (
+          <li>
+            <span class="mono-accent">{name}</span>
+            <span>{text}</span>
+          </li>
+        ))}
+      </ul>
+      {!site.released && <p class="muted small">Images are published with the first release.</p>}
+    </div>
+    <div class="terminal">
+      <div class="terminal-head">docker-compose.yml</div>
+      <pre class="terminal-body"><code>{compose}</code></pre>
+      <div class="terminal-foot">
+        <span>$</span> docker compose up -d
+      </div>
+    </div>
+  </section>
+
+  <div class="band">
+    <section class="container section">
+      <h2 class="h2 narrow">Nothing to look at, by design.</h2>
+      <div class="grid promises">
+        <div>
+          <h3>No account</h3>
+          <p>Your library lives on your device. There is no profile to sign up for.</p>
+        </div>
+        <div>
+          <h3>Encrypted sync</h3>
+          <p>
+            Devices pair with a code. The sync server only ever sees ciphertext, including your
+            add-on list.
+          </p>
+        </div>
+        <div>
+          <h3>No audio through us</h3>
+          <p>Your phone talks to add-ons and their sources directly. We never see what you play.</p>
+        </div>
+        <div>
+          <h3>No ads, no tracking</h3>
+          <p>Open source, so you can check every line of that claim.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="container section faq" id="faq">
+    <h2 class="h2">Questions</h2>
+    <div>
+      {!site.released && (
+        <details open>
+          <summary>When can I use it?</summary>
+          <p>
+            {site.name} is in early development. Follow the repository on GitHub to see progress;
+            the plan and the v1.0 scope are in the open.
+          </p>
+        </details>
+      )}
+      <details open={site.released}>
+        <summary>Where does the audio come from?</summary>
+        <p>
+          From the add-ons you install. Out of the box that means public-domain audiobooks from
+          LibriVox, podcast feeds and your own files. Add-ons are made and run by third parties. You
+          are responsible for the add-ons you add and for only playing content you have the right
+          to.
+        </p>
+      </details>
+      <details>
+        <summary>Does {site.name} list or recommend third-party add-ons?</summary>
+        <p>
+          No. We publish our own add-ons for open sources and the SDK, nothing else. There is no
+          add-on store, and we don’t link to, review or promote add-ons made by others.
+        </p>
+      </details>
+      <details>
+        <summary>Is it free?</summary>
+        <p>
+          Yes. The code is open source, and the hosted web app at {site.appHost} will be free to
+          use.
+        </p>
+      </details>
+      <details>
+        <summary>Do I need an account?</summary>
+        <p>
+          No. To continue on another device, pair it with a sync code. Skip that and everything
+          stays on the one device.
+        </p>
+      </details>
+      <details>
+        <summary>Why isn’t it on Google Play?</summary>
+        <p>
+          We ship the .apk directly so releases don’t wait on store review. The app checks for
+          updates itself, or you can follow releases with Obtainium.
+        </p>
+      </details>
+      <details>
+        <summary>Can I write my own add-on?</summary>
+        <p>
+          Yes. An add-on is a small HTTP service that returns JSON. The protocol and an SDK will be
+          documented in the <a href={site.repoUrl}>repository</a>.
+        </p>
+      </details>
+      <details>
+        <summary>What does “{site.name}” mean?</summary>
+        <p>
+          It’s Indonesian for deep, peaceful sleep. It’s how we think a good story should end your
+          day.
+        </p>
+      </details>
+    </div>
+  </section>
+
+  <div class="band" id="rights">
+    <section class="container section rights">
+      <div class="rights-copy">
+        <span class="eyebrow">For rights holders</span>
+        <h2 class="h2 h2-small">Report copyright infringement</h2>
+        <p class="lead">
+          {site.name} is a player. We don’t host, index or link to audio, and our servers never
+          carry it. If you believe something on our websites, in our repositories or in one of our
+          own add-ons infringes your rights, tell us and we’ll act on it.
+        </p>
+      </div>
+      <div class="card rights-card">
+        <a class="mono-accent email" href={`mailto:${site.copyrightEmail}`}>
+          {site.copyrightEmail}
+        </a>
+        <p>Please include:</p>
+        <ul>
+          <li>The work you hold rights to</li>
+          <li>Where you found the infringing material, with a link</li>
+          <li>How to reach you, and that you are authorised to act for the rights holder</li>
+        </ul>
+        <p class="muted small">
+          Add-ons made by others run on their own servers. We can’t remove them, but we’ll tell you
+          what we know about where one is hosted.
+        </p>
+      </div>
+    </section>
+  </div>
+</Base>
+
+<style>
+  .hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 56px;
+    padding-block: clamp(40px, 7vw, 96px) clamp(56px, 8vw, 112px);
+  }
+
+  .hero-copy {
+    flex: 1 1 520px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .hero-visual {
+    flex: 0 1 340px;
+    margin-inline: auto;
+  }
+
+  .pill {
+    align-self: flex-start;
+    padding: 6px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-size: 13px;
+    color: var(--fg-soft);
+  }
+
+  h1 {
+    font-size: clamp(42px, 6.4vw, 80px);
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+
+  .hero-lead {
+    max-width: 560px;
+    font-size: clamp(17px, 1.6vw, 20px);
+    color: var(--fg-soft);
+  }
+
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .checks {
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 24px;
+    font-size: 14px;
+    color: var(--fg-soft);
+  }
+
+  .checks li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .checks :global(svg) {
+    color: var(--accent);
+  }
+
+  .step {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .roles {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .role {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--surface-2);
+  }
+
+  .role span {
+    font-size: 13px;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  .card .statement {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--fg);
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+  }
+
+  .chips-gap {
+    margin-left: 12px;
+  }
+
+  .get-icon {
+    color: var(--accent);
+    display: flex;
+  }
+
+  .card .get-title {
+    font-family: var(--font-display);
+    font-size: 24px;
+  }
+
+  .mono-accent {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--accent);
+  }
+
+  .get-cta {
+    margin-top: auto;
+    align-self: flex-start;
+  }
+
+  .small {
+    font-size: 14px;
+  }
+
+  .selfhost {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 48px;
+  }
+
+  .selfhost-copy {
+    flex: 1 1 360px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .services {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    font-size: 15px;
+    color: var(--fg-soft);
+  }
+
+  .services li {
+    display: flex;
+    gap: 12px;
+  }
+
+  .services .mono-accent {
+    flex: 0 0 72px;
+  }
+
+  .terminal {
+    flex: 1 1 520px;
+    min-width: 0;
+    border-radius: 18px;
+    background: #0a0b0d;
+    border: 1px solid #23262e;
+    overflow: hidden;
+    font-family: var(--font-mono);
+  }
+
+  .terminal-head {
+    padding: 12px 16px;
+    border-bottom: 1px solid #23262e;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .terminal-body {
+    margin: 0;
+    padding: 20px;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--fg-soft);
+    overflow-x: auto;
+  }
+
+  .terminal-foot {
+    padding: 14px 20px;
+    border-top: 1px solid #23262e;
+    font-size: 13.5px;
+  }
+
+  .terminal-foot span {
+    color: var(--accent);
+  }
+
+  .narrow {
+    max-width: 720px;
+  }
+
+  .promises {
+    gap: 28px;
+  }
+
+  .promises > div {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .promises h3 {
+    font-family: var(--font-body);
+    font-size: 18px;
+  }
+
+  .promises p {
+    font-size: 15px;
+    color: var(--fg-soft);
+  }
+
+  .faq {
+    max-width: 880px;
+    gap: 24px;
+  }
+
+  details {
+    border-bottom: 1px solid #23262e;
+    padding-block: 18px;
+  }
+
+  summary {
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  details p {
+    margin-top: 12px;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--fg-soft);
+  }
+
+  .rights {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 32px 64px;
+    padding-block: clamp(48px, 6vw, 72px);
+  }
+
+  .rights-copy {
+    flex: 1 1 360px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .h2-small {
+    font-size: clamp(26px, 3vw, 34px);
+  }
+
+  .rights-card {
+    flex: 1 1 360px;
+  }
+
+  .rights-card .email {
+    font-size: 17px;
+    padding-block: 6px;
+    align-self: flex-start;
+    word-break: break-all;
+  }
+
+  .rights-card ul {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 15px;
+    color: var(--fg-soft);
+  }
+</style>

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/lelap-app/lelap/security/advisories/new
+    about: Report security issues privately, not as a public issue.
+  - name: Copyright complaint
+    url: https://lelap.app/#rights
+    about: Rights holders can reach us at copyright@lelap.app.

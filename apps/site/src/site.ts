@@ -1,0 +1,19 @@
+// Hosts come from the environment so forks and self-hosters can build the site for their own domain.
+const domain = import.meta.env.PUBLIC_LELAP_DOMAIN ?? 'lelap.app';
+const repoUrl = import.meta.env.PUBLIC_LELAP_REPO_URL ?? 'https://github.com/lelap-app/lelap';
+
+export const site = {
+  name: 'Lelap',
+  tagline: 'From first chapter to fast asleep.',
+  descriptor: 'The open player for audiobooks and podcasts.',
+  domain,
+  appHost: `listen.${domain}`,
+  appUrl: `https://listen.${domain}`,
+  apkUrl: `https://dl.${domain}/latest.apk`,
+  repoUrl,
+  briefUrl: `${repoUrl}/blob/main/docs/brief.md`,
+  copyrightEmail: `copyright@${domain}`,
+  privacyEmail: `privacy@${domain}`,
+  // Until v1.0 ships, download and "open app" buttons are replaced by links to the repository.
+  released: import.meta.env.PUBLIC_LELAP_RELEASED === 'true',
+} as const;

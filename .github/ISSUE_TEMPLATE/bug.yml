@@ -1,0 +1,39 @@
+name: Bug report
+description: Something doesn't work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Tap …
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where
+      options:
+        - Android app
+        - Web app
+        - Self-hosted services
+        - Website
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version and device
+      placeholder: Lelap 1.0.0, Pixel 8, Android 16
+  - type: markdown
+    attributes:
+      value: Please don't name or link to add-ons for pirated content. Such issues are closed.

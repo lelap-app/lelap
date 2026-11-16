@@ -1,0 +1,190 @@
+---
+import '@fontsource-variable/inter';
+import '@fontsource-variable/space-grotesk';
+import '@fontsource-variable/jetbrains-mono';
+import '../styles/global.css';
+import Logo from '../components/Logo.astro';
+import Icon from '../components/Icon.astro';
+import { site } from '../site';
+import { splashImages } from '../splash-screens';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = `${site.name}: ${site.descriptor}`,
+  description = `${site.descriptor} ${site.tagline} Open source, works offline, no account.`,
+} = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const isHome = Astro.url.pathname === '/';
+const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d0e11" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="apple-mobile-web-app-title" content={site.name} />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    {splashImages.map(({ href, media }) => (
+      <link rel="apple-touch-startup-image" href={href} media={media} />
+    ))}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+  </head>
+  <body>
+    <header class="container site-header">
+      <a class="brand" href="/">
+        <Logo />
+        {site.name}
+      </a>
+      <nav class="primary" aria-label="Primary">
+        <a href={anchor('how')}>How it works</a>
+        <a href={anchor('features')}>Features</a>
+        <a href={anchor('get')}>Get it</a>
+        <a href={anchor('selfhost')}>Self-host</a>
+        <a href={anchor('faq')}>FAQ</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-sm btn-outline" href={site.repoUrl}>
+          <Icon name="code" size={18} />
+          GitHub
+        </a>
+        {site.released && (
+          <a class="btn btn-sm btn-primary" href={site.appUrl}>
+            Start listening
+          </a>
+        )}
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <span class="footer-name">{site.name}</span>
+          <p class="muted">
+            {site.tagline}
+            {site.name} does not host, index or link to any content. Add-ons are made and run by
+            third parties.
+          </p>
+        </div>
+        <nav aria-label="Footer" class="footer-nav">
+          <a href={site.repoUrl}>GitHub</a>
+          <a href={anchor('selfhost')}>Self-hosting</a>
+          <a href="/terms">Terms</a>
+          <a href="/privacy">Privacy</a>
+          <a href={anchor('rights')}>Copyright</a>
+          {site.released && <a href={site.appUrl}>Web app</a>}
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .site-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 28px;
+    padding-block: 20px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: 21px;
+    font-weight: 700;
+  }
+
+  .primary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 22px;
+    margin-right: auto;
+    font-size: 15px;
+  }
+
+  /* The page is short enough to scroll on phones; one header row beats a wrapped menu. */
+  @media (max-width: 640px) {
+    .primary {
+      display: none;
+    }
+
+    .brand {
+      margin-right: auto;
+    }
+  }
+
+  .primary a,
+  .footer-nav a {
+    color: var(--fg-soft);
+    padding-block: 10px;
+  }
+
+  .primary a:hover,
+  .footer-nav a:hover {
+    color: var(--fg);
+  }
+
+  .header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .site-footer {
+    border-top: 1px solid var(--line);
+  }
+
+  .footer-inner {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 24px 48px;
+    padding-block: 40px 56px;
+  }
+
+  .footer-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 460px;
+    font-size: 14px;
+  }
+
+  .footer-name {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .footer-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 28px;
+    font-size: 15px;
+  }
+</style>

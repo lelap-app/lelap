@@ -1,0 +1,59 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../site';
+---
+
+<Base title={`Terms · ${site.name}`} description={`The terms for using ${site.name}.`}>
+  <article class="container prose">
+    <h1>Terms</h1>
+    <p class="muted">Last updated November 2026</p>
+    <p>
+      {site.name} is free, open-source software for playing audiobooks and podcasts. By using the
+      app, the web app or our services, you agree to these terms.
+    </p>
+
+    <h2>Your content and your add-ons</h2>
+    <ul>
+      <li>
+        {site.name} is a player. We don’t host, index or link to audio, and we don’t list or
+        recommend add-ons made by others.
+      </li>
+      <li>
+        You choose which add-ons to install and what to play. Only play content you have the right
+        to, and follow the terms of the services your add-ons connect to.
+      </li>
+    </ul>
+
+    <h2>Our services</h2>
+    <ul>
+      <li>
+        We run the web app, our own add-ons, a feed and cover proxy, and optional sync for free. We
+        may change, limit or stop them, and we will try to give notice first.
+      </li>
+      <li>
+        Don’t abuse them: no automated scraping, no attempts to break them, no use as a general
+        proxy.
+      </li>
+    </ul>
+
+    <h2>No warranty</h2>
+    <p>
+      {site.name} is provided as is, without warranty of any kind. To the extent the law allows, we
+      are not liable for lost data, lost progress or any other damage from using it. Keep your own
+      copies of files that matter to you.
+    </p>
+
+    <h2>Copyright complaints</h2>
+    <p>
+      If you believe something on our sites, in our repositories or in one of our own add-ons
+      infringes your rights, write to{' '}
+      <a href={`mailto:${site.copyrightEmail}`}>{site.copyrightEmail}</a>.
+    </p>
+
+    <h2>The code</h2>
+    <p>
+      The source code is published under the license in the <a href={site.repoUrl}>repository</a>.
+      That license, not these terms, governs what you may do with the code.
+    </p>
+  </article>
+</Base>

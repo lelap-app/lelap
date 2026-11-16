@@ -1,0 +1,14 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../site';
+---
+
+<Base title={`Not found · ${site.name}`} description="This page doesn’t exist.">
+  <article class="container prose">
+    <h1>This chapter is missing</h1>
+    <p>The page you were looking for doesn’t exist, or it moved.</p>
+    <p>
+      <a href="/">Back to the start</a>
+    </p>
+  </article>
+</Base>

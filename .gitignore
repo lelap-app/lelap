@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.astro/
+.wrangler/
+coverage/
+
+# Local secrets and environment
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# Android signing material never belongs in the repo
+*.keystore
+*.jks
+
+# OS and editor
+.DS_Store
+*.log

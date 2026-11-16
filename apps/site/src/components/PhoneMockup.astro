@@ -1,0 +1,275 @@
+---
+import Icon from './Icon.astro';
+---
+
+<div class="stage" aria-hidden="true">
+  <div class="phone">
+    <div class="from">
+      <span class="label">Playing from</span>
+      <span class="value">On this phone</span>
+    </div>
+    <div class="cover">
+      <span class="cover-author">Herman Melville</span>
+      <span class="cover-title">Moby Dick</span>
+      <span class="cover-foot">LibriVox recording</span>
+    </div>
+    <div class="title">
+      <span class="book">Moby Dick</span>
+      <span class="chapter">Ch. 42 of 135 · The Whiteness of the Whale</span>
+    </div>
+    <div class="scrub">
+      <div class="track">
+        <div class="fill"></div>
+      </div>
+      <div class="times">
+        <span>12:04</span>
+        <span>−8:31</span>
+      </div>
+    </div>
+    <div class="controls">
+      <span class="speed">1.3×</span>
+      <Icon name="back" size={28} strokeWidth={1.6} />
+      <span class="play">
+        <svg width="24" height="24" viewBox="0 0 24 24">
+          <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"></rect>
+          <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"></rect>
+        </svg>
+      </span>
+      <Icon name="forward" size={28} strokeWidth={1.6} />
+      <span class="moon">
+        <Icon name="moon" size={22} />
+      </span>
+    </div>
+    <div class="lull">
+      <b>Lull</b>
+      <span>29:12 · fades out</span>
+    </div>
+  </div>
+  <div class="float float-top">
+    <Icon name="phone" size={18} />
+    Screen off, still playing
+  </div>
+  <div class="float float-bottom">
+    <span class="ok">
+      <Icon name="circleCheck" size={20} />
+    </span>
+    <span class="float-text">
+      <b>Downloaded · 482 MB</b>
+      <span>Ready for airplane mode</span>
+    </span>
+  </div>
+</div>
+
+<style>
+  .stage {
+    position: relative;
+    width: 340px;
+    max-width: 100%;
+    height: 620px;
+    margin-inline: auto;
+  }
+
+  .phone {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: min(300px, 100%);
+    height: 610px;
+    border: 8px solid #23262e;
+    border-radius: 44px;
+    background: #0a0b0d;
+    padding: 22px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .from {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .label {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .value {
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .cover {
+    align-self: center;
+    width: 228px;
+    max-width: 100%;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    background: var(--cover-navy);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .cover-author {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #c9d2e3;
+  }
+
+  .cover-title {
+    font-family: var(--font-display);
+    font-size: 42px;
+    font-weight: 600;
+    line-height: 0.95;
+    color: var(--cover-ink);
+  }
+
+  .cover-foot {
+    border-top: 1px solid #44567a;
+    padding-top: 8px;
+    font-size: 11px;
+    color: #c9d2e3;
+  }
+
+  .title {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .book {
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 600;
+  }
+
+  .chapter {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .scrub {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line-strong);
+  }
+
+  .fill {
+    width: 58%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+
+  .times {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .speed {
+    width: 46px;
+    height: 32px;
+    border: 1px solid var(--line-strong);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .play {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--accent-ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .moon {
+    color: var(--accent);
+    display: flex;
+  }
+
+  .lull {
+    margin-top: auto;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--surface);
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+
+  .lull span {
+    color: var(--muted);
+  }
+
+  .float {
+    position: absolute;
+    border-radius: 14px;
+    background: #1c1f26;
+    border: 1px solid #2e323c;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  .float :global(svg) {
+    color: var(--accent);
+  }
+
+  .float-top {
+    left: 12px;
+    top: 120px;
+    padding: 10px 12px;
+    font-weight: 600;
+  }
+
+  .float-bottom {
+    left: 0;
+    bottom: 96px;
+    padding: 12px 14px;
+  }
+
+  .ok {
+    display: flex;
+  }
+
+  .float-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .float-text span {
+    color: var(--muted);
+    font-size: 12px;
+  }
+</style>

@@ -1,0 +1,56 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../site';
+---
+
+<Base
+  title={`Privacy · ${site.name}`}
+  description={`What ${site.name} collects, and what it doesn’t.`}
+>
+  <article class="container prose">
+    <h1>Privacy</h1>
+    <p class="muted">Last updated November 2026</p>
+    <p>
+      {site.name} is built so that we learn as little about you as possible. There are no accounts,
+      no analytics and no advertising.
+    </p>
+
+    <h2>This website and the web app</h2>
+    <ul>
+      <li>
+        No analytics, no tracking cookies and no third-party scripts. Fonts are served from our own
+        domain.
+      </li>
+      <li>
+        Our host, Cloudflare, processes standard request data such as IP address and browser to
+        deliver and protect the service. We don’t use it to build profiles.
+      </li>
+    </ul>
+
+    <h2>The app</h2>
+    <ul>
+      <li>Your library, progress, downloads and playlists are stored on your device.</li>
+      <li>
+        If you turn on sync, your data is encrypted on your device before it is sent. Our sync
+        server stores only that encrypted data and can’t read it. Removing sync from your devices
+        stops it.
+      </li>
+      <li>
+        Audio is fetched directly from the sources your add-ons point to. It never passes through
+        our servers.
+      </li>
+    </ul>
+
+    <h2>Add-ons</h2>
+    <p>
+      Add-ons are run by whoever makes them. When the app talks to an add-on, that add-on’s own
+      privacy practices apply. Our own add-ons log only what is needed to run them and keep no
+      listening history.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions about privacy: <a href={`mailto:${site.privacyEmail}`}>{site.privacyEmail}</a>
+    </p>
+  </article>
+</Base>

@@ -1,0 +1,85 @@
+# Lelap: agent guidelines
+
+Applies to every agent and contributor working in this repository. Nested `AGENTS.md` files add
+rules for their own folder.
+
+## What this is
+
+Lelap is an open-source audiobook and podcast player. The app plays, downloads, remembers and
+syncs; add-ons (stateless HTTP services returning JSON, modelled on Stremio's add-on protocol)
+bring catalogs, metadata and audio sources. Android first, the same code on the web, and a
+self-hostable backend. The full plan, decisions and v1.0 scope are in
+[`docs/brief.md`](docs/brief.md). Read it before making architectural choices.
+
+## Hard rules
+
+- **Neutral core.** The app and first-party add-ons only connect to open sources (LibriVox, Open
+  Library, Podcast Index, RSS) and storage the user controls (local files, WebDAV, Audiobookshelf).
+  Never add code, docs, examples, tests or issue templates that target torrent indexes or services
+  that resolve torrents or file-hoster links, and never name such services anywhere in the repo.
+- **No add-on directory.** Don't add lists, links or recommendations for third-party add-ons.
+- **Audio never touches our servers.** Services may proxy RSS feeds and cover images for the web
+  app; they never proxy, cache or transcode audio.
+- **Secrets stay out of the repo.** Keystores, API tokens and `.dev.vars` are ignored for a
+  reason. Runtime secrets go to `wrangler secret put`; CI secrets go to GitHub environments.
+- **English everywhere:** UI copy, docs, commits and pull requests.
+- **No hard-coded hosts.** `lelap.app` and its subdomains come from configuration, so forks and
+  self-hosters never edit source files.
+
+## Repository map
+
+```
+apps/site       landing page for lelap.app (Astro, static)       → apps/site/AGENTS.md
+apps/app        Expo app for Android and web (planned)
+packages/core   domain model, add-on client, sync (planned)
+packages/sdk    add-on SDK and protocol types (planned)
+services/       Hono services on Cloudflare Workers (planned)
+modules/        native Kotlin modules for the app (planned)
+docs/brief.md   decisions, stack, infrastructure, milestones, v1.0 scope
+```
+
+## Commands
+
+Node 24 (`.nvmrc`) and pnpm via Corepack (`corepack enable`). Run from the root:
+
+| Task                  | Command         |
+| --------------------- | --------------- |
+| Install               | `pnpm install`  |
+| Landing page dev      | `pnpm dev:site` |
+| Build everything      | `pnpm build`    |
+| Type-check everything | `pnpm check`    |
+| Lint                  | `pnpm lint`     |
+| Format                | `pnpm format`   |
+
+Before opening a pull request run `pnpm format:check`, `pnpm lint`, `pnpm check` and `pnpm build`;
+CI runs the same. pnpm 12 only runs dependency build scripts listed under `allowBuilds` in
+`pnpm-workspace.yaml`; approve new ones with `pnpm approve-builds`.
+
+## Stack decisions
+
+Don't swap these without updating `docs/brief.md` in the same pull request.
+
+- **App:** Expo (React Native) with react-native-web, Expo Router, NativeWind for styling.
+- **Native:** Kotlin Expo modules; Media3 for playback, WorkManager or Media3 for downloads.
+- **Data:** SQLite everywhere through Drizzle ORM; zod for validation and protocol schemas.
+- **Backend:** TypeScript and Hono on Cloudflare Workers (D1, R2, Cache API); the same code runs
+  in Docker for self-hosting.
+- **Site and docs:** Astro, static output on Cloudflare Pages.
+- **Monorepo:** pnpm workspaces. Changesets once the SDK is published.
+
+## Code conventions
+
+- TypeScript strict, no `any`. Named exports. Shared compiler options live in
+  `tsconfig.base.json`.
+- Comment the why, only where a reader would otherwise be surprised. One or two lines.
+- Keep dependencies few, especially UI libraries that must work on both native and web.
+
+## CI
+
+GitHub Actions in a public repository:
+
+- Pin every third-party action to a full commit SHA with the version in a comment.
+- Default `permissions: contents: read`; widen per job only when needed.
+- Never use `pull_request_target` together with a checkout of pull request code.
+- Deploy jobs use GitHub environments (`web` for the site and services, `release` for signed
+  builds) so secrets never reach pull requests from forks.
