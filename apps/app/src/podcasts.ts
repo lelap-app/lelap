@@ -27,7 +27,7 @@ const FETCH_TIMEOUT_MS = 20_000;
 const REFRESH_EVERY_MS = 30 * 60_000;
 
 // The proxy is rate limited per address; the web app spaces its feed requests out.
-const PROXY_SPACING_MS = 250;
+const PROXY_SPACING_MS = 150;
 let nextProxySlot = 0;
 
 async function proxySlot(): Promise<void> {
