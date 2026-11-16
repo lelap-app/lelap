@@ -14,7 +14,7 @@ and on the web from one codebase, and every server piece can be self-hosted with
 
 - Play audiobooks and podcasts in the background, with the screen off and through calls.
 - Download for offline listening, and work fully in airplane mode.
-- Remember speed per book, rewind smartly after pauses, and fade out with **Lull**, the sleep timer.
+- Remember speed per book, rewind smartly after pauses, and fade out with the sleep timer.
 - Organise with tags, playlists, smart lists and one Up Next queue.
 - Sync progress between devices with a pairing code. No account, end-to-end encrypted.
 - Get content from add-ons: LibriVox, Open Library, Podcast Index, RSS feeds, your own files, your

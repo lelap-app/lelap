@@ -1,6 +1,7 @@
 # M1 audio spike: design
 
-Approved 2026-11-16. Scope and “done when” criteria come from
+Approved 2026-11-16. Later the same day the sleep timer lost its name “Lull” (now “Sleep timer”
+everywhere), and pausing freezes it instead of letting it run. Scope and “done when” criteria come from
 [`docs/roadmap.md`](../../roadmap.md#m1-audio-spike).
 
 ## Intent

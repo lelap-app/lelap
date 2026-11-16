@@ -16,7 +16,7 @@ export type PlayerState = {
   durationMs: number;
   speed: number;
   duckOnInterruption: boolean;
-  lullRemainingMs: number | null;
+  sleepTimerRemainingMs: number | null;
   error: string | null;
 };
 
@@ -32,8 +32,8 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   skipToPart(index: number): Promise<void>;
   setSpeed(speed: number): Promise<void>;
   setDuckOnInterruption(enabled: boolean): Promise<void>;
-  startLull(minutes: number): Promise<void>;
-  cancelLull(): Promise<void>;
+  startSleepTimer(minutes: number): Promise<void>;
+  cancelSleepTimer(): Promise<void>;
   getState(): Promise<PlayerState>;
 }
 
@@ -67,12 +67,12 @@ export function setDuckOnInterruption(enabled: boolean): Promise<void> {
   return native.setDuckOnInterruption(enabled);
 }
 
-export function startLull(minutes: number): Promise<void> {
-  return native.startLull(minutes);
+export function startSleepTimer(minutes: number): Promise<void> {
+  return native.startSleepTimer(minutes);
 }
 
-export function cancelLull(): Promise<void> {
-  return native.cancelLull();
+export function cancelSleepTimer(): Promise<void> {
+  return native.cancelSleepTimer();
 }
 
 export function getState(): Promise<PlayerState> {

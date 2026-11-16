@@ -126,7 +126,7 @@ Netflix-style profiles inside one household, with no accounts.
 
 - **Picker:** “Who's listening?” on launch, shown only when there is more than one profile. The
   lock screen, notification and Android Auto follow the active profile.
-- **Per profile:** progress, library state, playlists, tags, Up Next, speed per book, Lull
+- **Per profile:** progress, library state, playlists, tags, Up Next, speed per book, sleep timer
   settings, and scrobble add-ons.
 - **Shared:** downloaded files (stored once) and catalog and source add-ons, unless a profile
   hides some.

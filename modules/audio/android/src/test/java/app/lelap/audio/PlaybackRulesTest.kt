@@ -5,14 +5,15 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Stands in for ExoPlayer, audio focus and Lull; reports playWhenReady changes back like ExoPlayer. */
+/** Stands in for ExoPlayer, audio focus and the sleep timer; reports playWhenReady changes back like ExoPlayer. */
 private class FakePort : PlaybackRules.Port {
   lateinit var rules: PlaybackRules
   override var playWhenReady = false
   var focusGranted = true
   var focusHeld = false
   var duckLevel = 1f
-  var lullCancelled = 0
+  var timerFrozen = 0
+  var timerResumed = 0
 
   override fun pause() {
     if (!playWhenReady) return
@@ -39,8 +40,12 @@ private class FakePort : PlaybackRules.Port {
     duckLevel = level
   }
 
-  override fun cancelLull() {
-    lullCancelled++
+  override fun freezeSleepTimer() {
+    timerFrozen++
+  }
+
+  override fun resumeSleepTimer() {
+    timerResumed++
   }
 }
 
@@ -48,30 +53,37 @@ class PlaybackRulesTest {
   private val port = FakePort()
   private val rules = PlaybackRules(port).also { port.rules = it }
 
-  @Test fun userPauseCancelsLullAndAbandonsFocus() {
+  @Test fun userPauseFreezesSleepTimerAndAbandonsFocus() {
     port.play()
     port.pause()
-    assertEquals(1, port.lullCancelled)
+    assertEquals(1, port.timerFrozen)
     assertFalse(port.focusHeld)
   }
 
-  @Test fun lullFinishingDuringCallPauseDoesNotResumeAfterCall() {
+  @Test fun userPlayResumesSleepTimer() {
+    port.play()
+    port.pause()
+    port.play()
+    assertEquals(2, port.timerResumed)
+  }
+
+  @Test fun sleepTimerFinishingDuringCallPauseDoesNotResumeAfterCall() {
     rules.duckOnInterruption = false
     port.play()
     rules.onFocus(FocusAction.PAUSE_TRANSIENT)
     assertFalse(port.playWhenReady)
-    rules.onLullFinished()
+    rules.onSleepTimerFinished()
     rules.onFocus(FocusAction.RESTORE)
     assertFalse(port.playWhenReady)
     assertFalse(port.focusHeld)
   }
 
-  @Test fun lullFinishingPausesWithoutCountingAsUserPause() {
+  @Test fun sleepTimerFinishingPausesWithoutCountingAsUserPause() {
     port.play()
-    rules.onLullFinished()
+    rules.onSleepTimerFinished()
     assertFalse(port.playWhenReady)
     assertFalse(port.focusHeld)
-    assertEquals(0, port.lullCancelled)
+    assertEquals(0, port.timerFrozen)
   }
 
   @Test fun permanentLossAfterCallPauseAbandonsFocus() {
@@ -91,8 +103,10 @@ class PlaybackRulesTest {
     port.play()
     assertFalse(port.playWhenReady)
     assertEquals(1f, port.duckLevel, 0f)
+    assertEquals(1, port.timerResumed)
     rules.onFocus(FocusAction.RESTORE)
     assertTrue(port.playWhenReady)
+    assertEquals(2, port.timerResumed)
   }
 
   @Test fun playDuringDuckedCallStaysDucked() {
@@ -104,18 +118,19 @@ class PlaybackRulesTest {
     assertEquals(0.2f, port.duckLevel, 1e-6f)
   }
 
-  @Test fun deniedFocusPausesWithoutCancellingLull() {
+  @Test fun deniedFocusPausesWithoutTouchingSleepTimer() {
     port.focusGranted = false
     port.play()
     assertFalse(port.playWhenReady)
-    assertEquals(0, port.lullCancelled)
+    assertEquals(0, port.timerFrozen)
+    assertEquals(0, port.timerResumed)
   }
 
   @Test fun callPauseResumesWhenTheCallEnds() {
     rules.duckOnInterruption = false
     port.play()
     rules.onFocus(FocusAction.PAUSE_TRANSIENT)
-    assertEquals(0, port.lullCancelled)
+    assertEquals(0, port.timerFrozen)
     rules.onFocus(FocusAction.RESTORE)
     assertTrue(port.playWhenReady)
     assertEquals(1f, port.duckLevel, 0f)

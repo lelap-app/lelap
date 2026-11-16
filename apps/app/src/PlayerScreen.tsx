@@ -7,7 +7,7 @@ import { fetchLibriVoxBook } from './librivox';
 
 const DEFAULT_BOOK_ID = '254';
 const SPEEDS = [0.8, 1, 1.25, 1.5, 2, 3];
-const LULL_MINUTES = [1, 5, 15];
+const SLEEP_TIMER_MINUTES = [1, 5, 15];
 
 const INITIAL_STATE: PlayerState = {
   connected: false,
@@ -21,7 +21,7 @@ const INITIAL_STATE: PlayerState = {
   durationMs: 0,
   speed: 1,
   duckOnInterruption: true,
-  lullRemainingMs: null,
+  sleepTimerRemainingMs: null,
   error: null,
 };
 
@@ -143,18 +143,20 @@ export function PlayerScreen() {
       </View>
 
       <Text style={styles.label}>
-        Lull
-        {state.lullRemainingMs === null ? '' : `: ${formatTime(state.lullRemainingMs)} left`}
+        Sleep timer
+        {state.sleepTimerRemainingMs === null
+          ? ''
+          : `: ${formatTime(state.sleepTimerRemainingMs)} left`}
       </Text>
       <View style={styles.row}>
-        {LULL_MINUTES.map((minutes) => (
+        {SLEEP_TIMER_MINUTES.map((minutes) => (
           <Button
             key={minutes}
             label={`${minutes} min`}
-            onPress={() => run(audio.startLull(minutes))}
+            onPress={() => run(audio.startSleepTimer(minutes))}
           />
         ))}
-        <Button label="Cancel" onPress={() => run(audio.cancelLull())} />
+        <Button label="Cancel" onPress={() => run(audio.cancelSleepTimer())} />
       </View>
 
       {error !== null && <Text style={styles.error}>{error}</Text>}

@@ -36,7 +36,7 @@ apps/app        Expo app for Android and web; M1 test screen for now
 packages/core   domain model, add-on client, sync (planned)
 packages/sdk    add-on SDK and protocol types (planned)
 services/       Hono services on Cloudflare Workers (planned)
-modules/audio   Kotlin Expo module: Media3 playback service, focus, Lull
+modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer
 docs/brief.md   decisions, stack, infrastructure, v1.0 scope
 docs/roadmap.md milestones M0–M8, status, per-milestone resources, environments
 ```

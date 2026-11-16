@@ -105,17 +105,17 @@ class AudioModule : Module() {
       }
     }.runOnQueue(Queues.MAIN)
 
-    AsyncFunction("startLull") { minutes: Double, promise: Promise ->
+    AsyncFunction("startSleepTimer") { minutes: Double, promise: Promise ->
       withController(promise) { c ->
         val args = Bundle().apply { putLong(Commands.KEY_DURATION_MS, (minutes * 60_000).toLong()) }
-        c.sendCustomCommand(SessionCommand(Commands.START_LULL, Bundle.EMPTY), args)
+        c.sendCustomCommand(SessionCommand(Commands.START_SLEEP_TIMER, Bundle.EMPTY), args)
         startTicker()
       }
     }.runOnQueue(Queues.MAIN)
 
-    AsyncFunction("cancelLull") { promise: Promise ->
+    AsyncFunction("cancelSleepTimer") { promise: Promise ->
       withController(promise) { c ->
-        c.sendCustomCommand(SessionCommand(Commands.CANCEL_LULL, Bundle.EMPTY), Bundle.EMPTY)
+        c.sendCustomCommand(SessionCommand(Commands.CANCEL_SLEEP_TIMER, Bundle.EMPTY), Bundle.EMPTY)
       }
     }.runOnQueue(Queues.MAIN)
 
@@ -194,11 +194,16 @@ class AudioModule : Module() {
         "connected" to false, "playing" to false, "buffering" to false,
         "bookTitle" to null, "partTitle" to null,
         "partIndex" to -1, "partCount" to 0, "positionMs" to 0.0, "durationMs" to 0.0,
-        "speed" to 1.0, "duckOnInterruption" to true, "lullRemainingMs" to null, "error" to null,
+        "speed" to 1.0, "duckOnInterruption" to true, "sleepTimerRemainingMs" to null, "error" to null,
       )
     }
     val extras = c.sessionExtras
-    val lullEnd = if (extras.containsKey(Commands.EXTRA_LULL_END)) extras.getLong(Commands.EXTRA_LULL_END) else null
+    val timerRemaining = when {
+      extras.containsKey(Commands.EXTRA_SLEEP_TIMER_END) ->
+        (extras.getLong(Commands.EXTRA_SLEEP_TIMER_END) - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+      extras.containsKey(Commands.EXTRA_SLEEP_TIMER_FROZEN) -> extras.getLong(Commands.EXTRA_SLEEP_TIMER_FROZEN)
+      else -> null
+    }
     val duration = c.duration
     return mapOf(
       "connected" to true,
@@ -212,7 +217,7 @@ class AudioModule : Module() {
       "durationMs" to if (duration == C.TIME_UNSET) 0.0 else duration.toDouble(),
       "speed" to c.playbackParameters.speed.toDouble(),
       "duckOnInterruption" to extras.getBoolean(Commands.EXTRA_DUCK, true),
-      "lullRemainingMs" to lullEnd?.let { (it - SystemClock.elapsedRealtime()).coerceAtLeast(0L).toDouble() },
+      "sleepTimerRemainingMs" to timerRemaining?.toDouble(),
       "error" to c.playerError?.let { "${it.errorCodeName}: ${it.message}" },
     )
   }

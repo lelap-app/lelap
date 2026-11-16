@@ -7,21 +7,21 @@ class VolumeMixerTest {
   private val applied = mutableListOf<Float>()
   private val mixer = VolumeMixer { applied += it }
 
-  @Test fun duckAndLullMultiply() {
+  @Test fun duckAndFadeMultiply() {
     mixer.duck = 0.2f
-    mixer.lull = 0.5f
+    mixer.fade = 0.5f
     assertEquals(0.1f, applied.last(), 1e-6f)
   }
 
-  @Test fun endingDuckKeepsLull() {
+  @Test fun endingDuckKeepsFade() {
     mixer.duck = 0.2f
-    mixer.lull = 0.5f
+    mixer.fade = 0.5f
     mixer.duck = 1f
     assertEquals(0.5f, applied.last(), 1e-6f)
   }
 
   @Test fun valuesAreClamped() {
-    mixer.lull = 2f
+    mixer.fade = 2f
     assertEquals(1f, applied.last(), 1e-6f)
     mixer.duck = -1f
     assertEquals(0f, applied.last(), 1e-6f)
@@ -29,7 +29,7 @@ class VolumeMixerTest {
 
   @Test fun resetRestoresFullVolume() {
     mixer.duck = 0.2f
-    mixer.lull = 0.3f
+    mixer.fade = 0.3f
     mixer.reset()
     assertEquals(1f, applied.last(), 1e-6f)
   }

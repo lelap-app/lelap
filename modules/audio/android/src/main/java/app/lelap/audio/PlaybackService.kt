@@ -27,7 +27,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 
 private const val PREFS = "lelap_audio"
-private const val LULL_TICK_MS = 250L
+private const val TIMER_TICK_MS = 250L
 
 @OptIn(UnstableApi::class)
 class PlaybackService : MediaLibraryService() {
@@ -35,16 +35,16 @@ class PlaybackService : MediaLibraryService() {
   private lateinit var session: MediaLibrarySession
   private lateinit var focus: AudioFocus
   private lateinit var mixer: VolumeMixer
-  private lateinit var lull: Lull
+  private lateinit var sleepTimer: SleepTimer
   private lateinit var rules: PlaybackRules
 
   private val handler = Handler(Looper.getMainLooper())
   private val prefs by lazy { getSharedPreferences(PREFS, MODE_PRIVATE) }
 
-  private val lullTicker = object : Runnable {
+  private val timerTicker = object : Runnable {
     override fun run() {
-      lull.tick()
-      if (lull.endsAtMs != null) handler.postDelayed(this, LULL_TICK_MS)
+      sleepTimer.tick()
+      if (sleepTimer.isRunning) handler.postDelayed(this, TIMER_TICK_MS)
     }
   }
 
@@ -68,11 +68,11 @@ class PlaybackService : MediaLibraryService() {
       .build()
 
     mixer = VolumeMixer { player.volume = it }
-    lull = Lull(
+    sleepTimer = SleepTimer(
       clock = SystemClock::elapsedRealtime,
-      onVolume = { mixer.lull = it },
+      onVolume = { mixer.fade = it },
       onFinished = {
-        rules.onLullFinished()
+        rules.onSleepTimerFinished()
         publishExtras()
       },
     )
@@ -109,19 +109,24 @@ class PlaybackService : MediaLibraryService() {
   }
 
   override fun onDestroy() {
-    handler.removeCallbacks(lullTicker)
-    lull.cancel()
+    handler.removeCallbacks(timerTicker)
+    sleepTimer.cancel()
     focus.abandon()
     session.release()
     player.release()
     super.onDestroy()
   }
 
-  private fun cancelLull() {
-    if (lull.endsAtMs == null) return
-    handler.removeCallbacks(lullTicker)
-    lull.cancel()
+  private fun cancelSleepTimer() {
+    if (!sleepTimer.isActive) return
+    handler.removeCallbacks(timerTicker)
+    sleepTimer.cancel()
     publishExtras()
+  }
+
+  private fun startTicker() {
+    handler.removeCallbacks(timerTicker)
+    handler.postDelayed(timerTicker, TIMER_TICK_MS)
   }
 
   private inner class Port : PlaybackRules.Port {
@@ -140,14 +145,29 @@ class PlaybackService : MediaLibraryService() {
       mixer.duck = level
     }
 
-    override fun cancelLull() = this@PlaybackService.cancelLull()
+    override fun freezeSleepTimer() {
+      if (!sleepTimer.isRunning) return
+      handler.removeCallbacks(timerTicker)
+      sleepTimer.freeze()
+      publishExtras()
+    }
+
+    override fun resumeSleepTimer() {
+      if (!sleepTimer.isActive || sleepTimer.isRunning) return
+      sleepTimer.resume()
+      startTicker()
+      publishExtras()
+    }
   }
 
   private fun publishExtras() {
     session.setSessionExtras(
       Bundle().apply {
         putBoolean(Commands.EXTRA_DUCK, focus.duckOnInterruption)
-        lull.endsAtMs?.let { putLong(Commands.EXTRA_LULL_END, it) }
+        sleepTimer.endsAtMs?.let { putLong(Commands.EXTRA_SLEEP_TIMER_END, it) }
+        if (!sleepTimer.isRunning) {
+          sleepTimer.remainingMs?.let { putLong(Commands.EXTRA_SLEEP_TIMER_FROZEN, it) }
+        }
       },
     )
   }
@@ -159,8 +179,8 @@ class PlaybackService : MediaLibraryService() {
     ): MediaSession.ConnectionResult {
       val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
         .add(SessionCommand(Commands.SET_DUCK, Bundle.EMPTY))
-        .add(SessionCommand(Commands.START_LULL, Bundle.EMPTY))
-        .add(SessionCommand(Commands.CANCEL_LULL, Bundle.EMPTY))
+        .add(SessionCommand(Commands.START_SLEEP_TIMER, Bundle.EMPTY))
+        .add(SessionCommand(Commands.CANCEL_SLEEP_TIMER, Bundle.EMPTY))
         .build()
       return MediaSession.ConnectionResult.accept(
         commands,
@@ -181,12 +201,12 @@ class PlaybackService : MediaLibraryService() {
           focus.duckOnInterruption = enabled
           prefs.edit().putBoolean(Commands.EXTRA_DUCK, enabled).apply()
         }
-        Commands.START_LULL -> {
-          lull.start(args.getLong(Commands.KEY_DURATION_MS))
-          handler.removeCallbacks(lullTicker)
-          handler.postDelayed(lullTicker, LULL_TICK_MS)
+        Commands.START_SLEEP_TIMER -> {
+          sleepTimer.start(args.getLong(Commands.KEY_DURATION_MS))
+          // Set while paused, the timer waits for Play like one the user paused.
+          if (!player.playWhenReady) sleepTimer.freeze() else startTicker()
         }
-        Commands.CANCEL_LULL -> cancelLull()
+        Commands.CANCEL_SLEEP_TIMER -> cancelSleepTimer()
         else -> return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
       }
       publishExtras()

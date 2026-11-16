@@ -3,7 +3,7 @@ package app.lelap.audio
 private const val DUCK_VOLUME = 0.2f
 
 /**
- * Decides what playback does on user play/pause, audio focus changes and the end of Lull.
+ * Decides what playback does on user play/pause, audio focus changes and the end of the sleep timer.
  * ExoPlayer reports every pause the same way, so pauses we cause ourselves are marked beforehand
  * to tell them apart from the user's.
  */
@@ -15,7 +15,8 @@ class PlaybackRules(private val port: Port) {
     fun requestFocus(): Boolean
     fun abandonFocus()
     fun setDuck(level: Float)
-    fun cancelLull()
+    fun freezeSleepTimer()
+    fun resumeSleepTimer()
   }
 
   var duckOnInterruption = true
@@ -36,20 +37,27 @@ class PlaybackRules(private val port: Port) {
         return
       }
       resumeOnGain = false
-      port.cancelLull()
+      port.freezeSleepTimer()
       abandonFocus()
       return
     }
     if (transientLoss) {
       // Play during a call: ducked if that is the setting, otherwise wait for the call to end.
-      if (!duckOnInterruption) {
+      if (duckOnInterruption) {
+        port.resumeSleepTimer()
+      } else {
         resumeOnGain = true
         pauseInternally()
       }
       return
     }
     resumeOnGain = false
-    if (port.requestFocus()) port.setDuck(1f) else pauseInternally()
+    if (port.requestFocus()) {
+      port.setDuck(1f)
+      port.resumeSleepTimer()
+    } else {
+      pauseInternally()
+    }
   }
 
   fun onFocus(action: FocusAction) {
@@ -82,7 +90,7 @@ class PlaybackRules(private val port: Port) {
     }
   }
 
-  fun onLullFinished() {
+  fun onSleepTimerFinished() {
     resumeOnGain = false
     pauseInternally()
     abandonFocus()
