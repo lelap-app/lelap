@@ -13,6 +13,7 @@ const INITIAL_STATE: PlayerState = {
   connected: false,
   playing: false,
   buffering: false,
+  ended: false,
   bookId: null,
   fileLocation: null,
   bookTitle: null,

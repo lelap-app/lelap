@@ -1,5 +1,13 @@
 import type { Meta } from '@lelap/sdk';
-import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {
+  index,
+  integer,
+  primaryKey,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 
 // Shared tables describe files on this device and are the same for every profile. Every other
 // table belongs to a profile, which the schema test enforces.
@@ -12,6 +20,8 @@ export const SHARED_TABLES = [
   'addons',
   'removed_addons',
   'downloads',
+  'podcasts',
+  'episodes',
 ] as const;
 
 export type StoredChapter = { title: string; startMs: number };
@@ -54,7 +64,8 @@ export const books = sqliteTable('books', {
    */
   location: text('location').notNull().unique(),
   kind: text('kind', { enum: ['folder', 'file'] }).notNull(),
-  source: text('source', { enum: ['local', 'addon'] })
+  /** `feed`: a podcast episode from an RSS subscription. */
+  source: text('source', { enum: ['local', 'addon', 'feed'] })
     .notNull()
     .default('local'),
   title: text('title').notNull(),
@@ -223,3 +234,86 @@ export const downloads = sqliteTable('downloads', {
   completedAt: integer('completed_at'),
   updatedAt: integer('updated_at').notNull(),
 });
+
+/** Podcast feeds the device knows, shared by every profile; subscriptions are per profile. */
+export const podcasts = sqliteTable('podcasts', {
+  id: text('id').primaryKey(),
+  feedUrl: text('feed_url').notNull().unique(),
+  /** `podcast:guid` from the feed, when it has one. */
+  guid: text('guid'),
+  title: text('title').notNull(),
+  author: text('author'),
+  description: text('description'),
+  coverUrl: text('cover_url'),
+  link: text('link'),
+  /** For conditional requests, so an unchanged feed costs one small response. */
+  etag: text('etag'),
+  lastModified: text('last_modified'),
+  fetchedAt: integer('fetched_at'),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+export const episodes = sqliteTable(
+  'episodes',
+  {
+    id: text('id').primaryKey(),
+    podcastId: text('podcast_id')
+      .notNull()
+      .references(() => podcasts.id, { onDelete: 'cascade' }),
+    /** The item's `guid`, or its enclosure URL when it has none. */
+    guid: text('guid').notNull(),
+    title: text('title').notNull(),
+    description: text('description'),
+    publishedAt: integer('published_at'),
+    /** `itunes:season` and `itunes:episode`, for matching files named like `S01E03`. */
+    season: integer('season'),
+    number: integer('number'),
+    durationMs: integer('duration_ms').notNull(),
+    url: text('url').notNull(),
+    mime: text('mime'),
+    size: integer('size').notNull(),
+    /** The library book that plays it, made the first time it is played or downloaded. */
+    bookId: text('book_id').references(() => books.id, { onDelete: 'set null' }),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [
+    uniqueIndex('episodes_podcast_guid').on(t.podcastId, t.guid),
+    index('episodes_podcast_published').on(t.podcastId, t.publishedAt),
+  ],
+);
+
+export const subscriptions = sqliteTable(
+  'subscriptions',
+  {
+    profileId: text('profile_id')
+      .notNull()
+      .references(() => profiles.id),
+    podcastId: text('podcast_id')
+      .notNull()
+      .references(() => podcasts.id, { onDelete: 'cascade' }),
+    subscribedAt: integer('subscribed_at').notNull(),
+    /** Off until the listener turns it on for this podcast. */
+    autoDownload: integer('auto_download', { mode: 'boolean' }).notNull().default(false),
+    /** How many of the newest unplayed episodes auto-download keeps on the phone. */
+    keepLatest: integer('keep_latest').notNull().default(3),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.podcastId] })],
+);
+
+/** The listening queue. Ordered by `position`; a podcast episode that ends plays the next. */
+export const upNext = sqliteTable(
+  'up_next',
+  {
+    profileId: text('profile_id')
+      .notNull()
+      .references(() => profiles.id),
+    bookId: text('book_id')
+      .notNull()
+      .references(() => books.id, { onDelete: 'cascade' }),
+    position: real('position').notNull(),
+    addedAt: integer('added_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.bookId] })],
+);

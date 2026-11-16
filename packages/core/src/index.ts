@@ -14,3 +14,5 @@ export * from './settings';
 export * as schema from './schema';
 export * from './addons';
 export * from './downloads';
+export * from './podcasts';
+export * from './upNext';

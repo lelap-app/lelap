@@ -1,5 +1,5 @@
 import type { Meta } from '@lelap/sdk';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, ne } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { bookFiles, books, downloads } from './schema';
@@ -51,7 +51,7 @@ export const coverFileName = (url: string) => `cover${extensionOf(url, '.jpg')}`
 export function planDownload(db: Db, bookId: string): DownloadPlan {
   const book = db.select().from(books).where(eq(books.id, bookId)).get();
   if (!book) throw new DownloadError('This book is not in the library.');
-  if (book.source !== 'addon') throw new DownloadError('This book is already on the phone.');
+  if (book.source === 'local') throw new DownloadError('This book is already on the phone.');
   if (book.addonItem?.downloadable === false)
     throw new DownloadError('This source does not allow downloads.');
   const parts = db
@@ -177,7 +177,7 @@ export function removeDownload(db: Db, bookId: string, now: number): void {
       .run();
     tx.update(books)
       .set({ coverPath: null, updatedAt: now })
-      .where(and(eq(books.id, bookId), eq(books.source, 'addon')))
+      .where(and(eq(books.id, bookId), ne(books.source, 'local')))
       .run();
     tx.delete(downloads).where(eq(downloads.bookId, bookId)).run();
   });

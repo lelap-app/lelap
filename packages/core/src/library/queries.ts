@@ -19,7 +19,8 @@ export type LibraryBook = {
   coverPath: string | null;
   /** For streamed books. */
   coverUrl: string | null;
-  source: 'local' | 'addon';
+  /** `feed`: a podcast episode. */
+  source: 'local' | 'addon' | 'feed';
   /** A streamed book whose download finished. */
   downloaded: boolean;
   durationMs: number;
@@ -79,8 +80,11 @@ const SORTS: Record<LibrarySort, (a: LibraryBook, b: LibraryBook) => number> = {
     compareNatural(a.author ?? '￿', b.author ?? '￿') || compareNatural(a.title, b.title),
 };
 
+/** Books in the Library; podcast episodes are listed under their podcast instead. */
 export function listBooks(db: Db, profileId: string, sort: LibrarySort): LibraryBook[] {
-  return selectBooks(db, profileId).sort(SORTS[sort]);
+  return selectBooks(db, profileId)
+    .filter((b) => b.source !== 'feed')
+    .sort(SORTS[sort]);
 }
 
 /** The latest played book that is neither finished nor missing. */

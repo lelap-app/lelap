@@ -36,6 +36,8 @@ export type PlayerState = {
   connected: boolean;
   playing: boolean;
   buffering: boolean;
+  /** The last part played to its end. */
+  ended: boolean;
   bookId: string | null;
   /** Location of the file playing now. */
   fileLocation: string | null;

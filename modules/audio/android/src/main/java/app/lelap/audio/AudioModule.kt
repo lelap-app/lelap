@@ -224,7 +224,7 @@ class AudioModule : Module() {
     val c = controller
     if (c == null || !c.isConnected) {
       return mapOf(
-        "connected" to false, "playing" to false, "buffering" to false,
+        "connected" to false, "playing" to false, "buffering" to false, "ended" to false,
         "bookId" to null, "fileLocation" to null, "bookTitle" to null, "partTitle" to null,
         "partIndex" to -1, "partCount" to 0, "positionMs" to 0.0, "durationMs" to 0.0,
         "speed" to 1.0, "duckOnInterruption" to true, "waitingForCall" to false, "sleepTimerRemainingMs" to null, "error" to null,
@@ -242,6 +242,7 @@ class AudioModule : Module() {
       "connected" to true,
       "playing" to c.isPlaying,
       "buffering" to (c.playbackState == Player.STATE_BUFFERING),
+      "ended" to (c.playbackState == Player.STATE_ENDED),
       "bookId" to c.mediaMetadata.extras?.getString(Commands.METADATA_BOOK_ID),
       "fileLocation" to c.currentMediaItem?.mediaId,
       "bookTitle" to c.mediaMetadata.albumTitle?.toString(),

@@ -27,6 +27,7 @@ const Feed = z.object({
   artwork: lenient(z.string()),
   language: lenient(z.string()),
   link: lenient(z.string()),
+  url: lenient(z.string()),
   categories: lenient(z.record(z.string(), z.string()).nullable()),
 });
 type Feed = z.infer<typeof Feed>;
@@ -148,6 +149,8 @@ export function createPodcastIndex(
       if (genres.length > 0) meta.genres = unique(genres);
       const link = httpUrl(feed.link);
       if (link) meta.link = link;
+      const feedUrl = httpUrl(feed.url);
+      if (feedUrl) meta.feed = feedUrl;
 
       const items = EpisodeList.safeParse(episodeData);
       meta.episodes = (items.success ? items.data.items : []).flatMap((raw): Episode[] => {

@@ -1,4 +1,5 @@
 import {
+  addToUpNext,
   continueListening,
   type LibraryBook,
   type LibrarySort,
@@ -88,8 +89,23 @@ export default function LibraryScreen() {
       text: book.finishedAt === null ? 'Mark as finished' : 'Mark as not finished',
       onPress: () => toggleFinished(book),
     };
-    if (book.source !== 'addon') {
-      toggleFinished(book);
+    if (book.source === 'local') {
+      Alert.alert(
+        book.title,
+        undefined,
+        [
+          finish,
+          {
+            text: 'Add to Up Next',
+            onPress: () => addToUpNext(db, profileId, book.id, 'last', Date.now()),
+          },
+          {
+            text: 'This is a podcast…',
+            onPress: () => router.push({ pathname: '/convert', params: { bookId: book.id } }),
+          },
+        ],
+        { cancelable: true },
+      );
       return;
     }
     const download = book.downloaded
