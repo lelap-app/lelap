@@ -7,7 +7,8 @@ your place and syncs it; add-ons bring the catalogs, metadata and audio sources.
 and on the web from one codebase, and every server piece can be self-hosted with Docker.
 
 > **Status:** early development. There is nothing to install yet. The landing page lives in
-> [`apps/site`](apps/site); the plan is in [`docs/brief.md`](docs/brief.md).
+> [`apps/site`](apps/site); the plan is in [`docs/brief.md`](docs/brief.md) and progress in
+> [`docs/roadmap.md`](docs/roadmap.md).
 
 ## What it will do
 
