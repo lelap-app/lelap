@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
@@ -100,6 +100,7 @@ export function filesNeedingTags(db: Db, listed: ListedFile[]): ListedFile[] {
         location: bookFiles.location,
         size: bookFiles.size,
         modifiedAt: bookFiles.modifiedAt,
+        durationMs: bookFiles.durationMs,
       })
       .from(bookFiles)
       .all()
@@ -107,7 +108,8 @@ export function filesNeedingTags(db: Db, listed: ListedFile[]): ListedFile[] {
   );
   return audio.filter((f) => {
     const s = stored.get(f.location);
-    return !s || s.size !== f.size || s.modifiedAt !== f.modifiedAt;
+    // Duration 0 means the last read failed or found nothing; try again.
+    return !s || s.size !== f.size || s.modifiedAt !== f.modifiedAt || s.durationMs === 0;
   });
 }
 
@@ -260,7 +262,14 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
       return files;
     };
 
-    for (const row of tx.select().from(progress).all()) {
+    for (const snapshot of tx.select().from(progress).all()) {
+      // Re-read: an earlier move in this loop may have replaced the row.
+      const row = tx
+        .select()
+        .from(progress)
+        .where(eqProgress(snapshot.profileId, snapshot.bookId))
+        .get();
+      if (!row || row.fileLocation !== snapshot.fileLocation) continue;
       const target = fileBook.get(row.fileLocation);
       if (!target) continue;
       const bookPositionMs = toBookPosition(timeline(target), row.fileLocation, row.filePositionMs);
@@ -278,17 +287,6 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
           .set({ bookId: target, bookPositionMs })
           .where(eqProgress(row.profileId, row.bookId))
           .run();
-        const entry = tx
-          .select()
-          .from(libraryEntries)
-          .where(eqEntry(row.profileId, row.bookId))
-          .get();
-        if (entry) {
-          tx.insert(libraryEntries)
-            .values({ ...entry, bookId: target, updatedAt: now })
-            .onConflictDoNothing()
-            .run();
-        }
       }
     }
 
@@ -303,23 +301,34 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
     }
 
     // 4. Books not produced by this scan: regrouped away if their present files moved on, else
-    // missing (kept, with their places, until the files come back).
-    const regrouped: string[] = [];
+    // missing (kept, with their places, until the files come back). A regrouped book hands
+    // everything still on it to the books its files went to before it is deleted, so nothing is
+    // lost to ON DELETE CASCADE (for example a place in a file that is missing right now).
     let missing = 0;
     for (const book of storedBooks) {
       if (keptBookIds.has(book.id)) continue;
-      const own = [...storedFiles.values()].filter((f) => f.bookId === book.id);
-      if (own.some((f) => fileBook.has(f.location))) {
-        regrouped.push(book.id);
-      } else if (book.missingSince === null) {
-        tx.update(books)
-          .set({ missingSince: now, updatedAt: now })
-          .where(eq(books.id, book.id))
-          .run();
-        missing++;
+      const targets = [
+        ...new Set(
+          [...storedFiles.values()]
+            .filter((f) => f.bookId === book.id)
+            .sort((a, b) => a.idx - b.idx)
+            .flatMap((f) => fileBook.get(f.location) ?? []),
+        ),
+      ];
+      const [first] = targets;
+      if (first === undefined) {
+        if (book.missingSince === null) {
+          tx.update(books)
+            .set({ missingSince: now, updatedAt: now })
+            .where(eq(books.id, book.id))
+            .run();
+          missing++;
+        }
+        continue;
       }
+      handOver(tx, book.id, first, targets, now);
+      tx.delete(books).where(eq(books.id, book.id)).run();
     }
-    if (regrouped.length > 0) tx.delete(books).where(inArray(books.id, regrouped)).run();
 
     tx.update(libraryRoots)
       .set({ lastScanAt: now, updatedAt: now })
@@ -331,5 +340,26 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
 
 const eqProgress = (profileId: string, bookId: string) =>
   and(eq(progress.profileId, profileId), eq(progress.bookId, bookId));
-const eqEntry = (profileId: string, bookId: string) =>
-  and(eq(libraryEntries.profileId, profileId), eq(libraryEntries.bookId, bookId));
+
+/** Moves what is left on a regrouped book: places and bookmarks to `first`, entries to all. */
+function handOver(tx: Db, from: string, first: string, targets: string[], now: number): void {
+  for (const row of tx.select().from(progress).where(eq(progress.bookId, from)).all()) {
+    const existing = tx.select().from(progress).where(eqProgress(row.profileId, first)).get();
+    if (existing && existing.updatedAt >= row.updatedAt) continue;
+    tx.delete(progress).where(eqProgress(row.profileId, first)).run();
+    tx.update(progress).set({ bookId: first }).where(eqProgress(row.profileId, from)).run();
+  }
+  tx.update(bookmarks).set({ bookId: first }).where(eq(bookmarks.bookId, from)).run();
+  for (const entry of tx
+    .select()
+    .from(libraryEntries)
+    .where(eq(libraryEntries.bookId, from))
+    .all()) {
+    for (const bookId of targets) {
+      tx.insert(libraryEntries)
+        .values({ ...entry, bookId, updatedAt: now })
+        .onConflictDoNothing()
+        .run();
+    }
+  }
+}

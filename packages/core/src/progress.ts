@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import type { Db } from './db';
 import { presentFiles } from './library/bookFiles';
 import { type FilePosition, toBookPosition, toFilePosition } from './library/timeline';
-import { books, libraryEntries, progress } from './schema';
+import { bookFiles, books, libraryEntries, progress } from './schema';
 
 /** A saved place, from the app or from the playback service's journal. */
 export type JournalEntry = {
@@ -13,21 +13,47 @@ export type JournalEntry = {
   savedAt: number;
 };
 
-/** Stores a place unless a newer one is already stored. Returns whether it was written. */
-export function saveProgress(db: Db, profileId: string, entry: JournalEntry): boolean {
+/**
+ * Where a saved place came from. The app saves what the player reports right now, so its saves
+ * always win; the service's journal can lag the app by a tick, so it only wins when newer.
+ */
+export type ProgressOrigin = 'app' | 'journal';
+
+/**
+ * Stores a place. The place belongs to whichever book now holds its file, so a save for a book
+ * that a rescan regrouped still lands. Returns whether it was written.
+ */
+export function saveProgress(
+  db: Db,
+  profileId: string,
+  entry: JournalEntry,
+  origin: ProgressOrigin = 'journal',
+): boolean {
   return db.transaction((tx) => {
-    const book = tx.select({ id: books.id }).from(books).where(eq(books.id, entry.bookId)).get();
-    if (!book) return false;
+    const file = tx
+      .select({ bookId: bookFiles.bookId, missingSince: bookFiles.missingSince })
+      .from(bookFiles)
+      .where(eq(bookFiles.location, entry.fileLocation))
+      .get();
+    const bookId =
+      file?.bookId && file.missingSince === null
+        ? file.bookId
+        : tx.select({ id: books.id }).from(books).where(eq(books.id, entry.bookId)).get()?.id;
+    if (!bookId) return false;
 
-    const key = and(eq(progress.profileId, profileId), eq(progress.bookId, entry.bookId));
-    const stored = tx.select({ updatedAt: progress.updatedAt }).from(progress).where(key).get();
-    if (stored && stored.updatedAt >= entry.savedAt) return false;
+    const key = and(eq(progress.profileId, profileId), eq(progress.bookId, bookId));
+    const stored = tx
+      .select({ updatedAt: progress.updatedAt, bookPositionMs: progress.bookPositionMs })
+      .from(progress)
+      .where(key)
+      .get();
+    if (origin === 'journal' && stored && stored.updatedAt >= entry.savedAt) return false;
 
-    const bookPositionMs = toBookPosition(
-      presentFiles(tx, entry.bookId),
-      entry.fileLocation,
-      entry.filePositionMs,
-    );
+    const files = presentFiles(tx, bookId);
+    // A place in a missing file cannot be put on the book timeline; keep the last known offset.
+    const bookPositionMs = files.some((f) => f.location === entry.fileLocation)
+      ? toBookPosition(files, entry.fileLocation, entry.filePositionMs)
+      : (stored?.bookPositionMs ?? 0);
     const values = {
       fileLocation: entry.fileLocation,
       filePositionMs: Math.max(0, entry.filePositionMs),
@@ -35,16 +61,11 @@ export function saveProgress(db: Db, profileId: string, entry: JournalEntry): bo
       updatedAt: entry.savedAt,
     };
     tx.insert(progress)
-      .values({ profileId, bookId: entry.bookId, ...values })
+      .values({ profileId, bookId, ...values })
       .onConflictDoUpdate({ target: [progress.profileId, progress.bookId], set: values })
       .run();
     tx.insert(libraryEntries)
-      .values({
-        profileId,
-        bookId: entry.bookId,
-        lastPlayedAt: entry.savedAt,
-        updatedAt: entry.savedAt,
-      })
+      .values({ profileId, bookId, lastPlayedAt: entry.savedAt, updatedAt: entry.savedAt })
       .onConflictDoUpdate({
         target: [libraryEntries.profileId, libraryEntries.bookId],
         set: { lastPlayedAt: entry.savedAt, updatedAt: entry.savedAt },

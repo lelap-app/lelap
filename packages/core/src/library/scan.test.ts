@@ -6,7 +6,16 @@ import { ROOT, scanned } from '../../test/files';
 import type { Db } from '../db';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { resumePoint, saveProgress } from '../progress';
-import { bookFiles, bookmarks, books, chapters, libraryRoots, progress } from '../schema';
+import { getBook, setFinished, setSpeed } from './queries';
+import {
+  bookFiles,
+  bookmarks,
+  books,
+  chapters,
+  libraryEntries,
+  libraryRoots,
+  progress,
+} from '../schema';
 import type { ScannedFile } from './files';
 import { applyScan, filesNeedingTags, type ListedFile, splitScanned, upsertRoot } from './scan';
 
@@ -155,6 +164,82 @@ describe('applyScan', () => {
     expect(db.select().from(progress).all()).toEqual([
       expect.objectContaining({ bookId: second?.id, filePositionMs: 300, bookPositionMs: 300 }),
     ]);
+  });
+
+  it('keeps the place, bookmarks and speed on a missing file when its book regroups', () => {
+    const chaptered = { chapters: [{ title: 'One', startMs: 0 }], durationMs: 1000 };
+    scan(db, [
+      scanned('Book/intro.mp3', { durationMs: 500 }),
+      scanned('Book/y.m4b', chaptered),
+      scanned('Book/z.m4b', chaptered),
+    ]);
+    const folder = bookByLocation(db, `${ROOT}/Book`)?.id ?? '';
+    saveProgress(db, ME, {
+      bookId: folder,
+      fileLocation: `${ROOT}/Book/intro.mp3`,
+      filePositionMs: 200,
+      savedAt: 150,
+    });
+    setSpeed(db, ME, folder, 1.5, 150);
+    db.insert(bookmarks)
+      .values({
+        id: 'bm',
+        profileId: ME,
+        bookId: folder,
+        fileLocation: `${ROOT}/Book/intro.mp3`,
+        filePositionMs: 200,
+        bookPositionMs: 200,
+        note: null,
+        createdAt: 150,
+        updatedAt: 150,
+      })
+      .run();
+
+    scan(db, [scanned('Book/y.m4b', chaptered), scanned('Book/z.m4b', chaptered)], ROOT, 200);
+
+    const y = bookByLocation(db, `${ROOT}/Book/y.m4b`)?.id;
+    expect(db.select().from(progress).all()).toEqual([
+      expect.objectContaining({ bookId: y, bookPositionMs: 200 }),
+    ]);
+    expect(db.select().from(bookmarks).all()).toEqual([expect.objectContaining({ bookId: y })]);
+    expect(getBook(db, ME, y ?? '')?.speed).toBe(1.5);
+  });
+
+  it('carries the finished mark to every book a finished book splits into', () => {
+    scan(db, [scanned('Set/a.m4b'), scanned('Set/b.m4b')]);
+    setFinished(db, ME, bookByLocation(db, `${ROOT}/Set`)?.id ?? '', true, 150);
+    const chaptered = { chapters: [{ title: 'One', startMs: 0 }], modifiedAt: 2 };
+    scan(db, [scanned('Set/a.m4b', chaptered), scanned('Set/b.m4b', chaptered)], ROOT, 200);
+    expect(db.select({ finishedAt: libraryEntries.finishedAt }).from(libraryEntries).all()).toEqual(
+      [{ finishedAt: 150 }, { finishedAt: 150 }],
+    );
+  });
+
+  it('saves a place for a book that was regrouped away into the book now holding the file', () => {
+    scan(db, [scanned('Set/a.m4b'), scanned('Set/b.m4b')]);
+    const old = bookByLocation(db, `${ROOT}/Set`)?.id ?? '';
+    const chaptered = { chapters: [{ title: 'One', startMs: 0 }], modifiedAt: 2 };
+    scan(db, [scanned('Set/a.m4b', chaptered), scanned('Set/b.m4b', chaptered)], ROOT, 200);
+    expect(
+      saveProgress(db, ME, {
+        bookId: old,
+        fileLocation: `${ROOT}/Set/b.m4b`,
+        filePositionMs: 30,
+        savedAt: 300,
+      }),
+    ).toBe(true);
+    const b = bookByLocation(db, `${ROOT}/Set/b.m4b`)?.id ?? '';
+    expect(resumePoint(db, ME, b)).toEqual({
+      index: 0,
+      location: `${ROOT}/Set/b.m4b`,
+      positionMs: 30,
+    });
+  });
+
+  it('asks again for tags of files whose duration is unknown', () => {
+    const files = [scanned('Book/a.mp3', { durationMs: 0 })];
+    scan(db, files);
+    expect(filesNeedingTags(db, splitScanned(files).listed).map((f) => f.name)).toEqual(['a.mp3']);
   });
 
   it('keeps book IDs when the library folder becomes its parent', () => {
