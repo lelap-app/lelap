@@ -73,6 +73,7 @@ Settings → Add-ons.
 ## M3 device checklist
 
 Against `wrangler dev` on the laptop. Results so far: Pixel 10 Pro XL, Android 17, 2026-11-16.
+Open items: [`docs/m3-follow-ups.md`](../../docs/m3-follow-ups.md).
 
 | #   | Check                                                                                                                    | Result                                      |
 | --- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |

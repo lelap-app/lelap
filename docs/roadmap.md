@@ -70,6 +70,7 @@ it later means migrating every table and the sync format.
 
 **Status:** in progress. Design:
 [`superpowers/specs/2026-11-16-m3-addon-protocol-design.md`](superpowers/specs/2026-11-16-m3-addon-protocol-design.md).
+Built in PR #12; open checks and follow-ups: [`m3-follow-ups.md`](m3-follow-ups.md).
 
 The protocol spec and SDK docs (served from `lelap.app/docs`), the TypeScript SDK in `packages/sdk`,
 a Workers template, the Catalog and LibriVox add-ons, and the Home, Discover and Search screens.
