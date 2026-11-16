@@ -1,0 +1,776 @@
+---
+import {
+  CatalogResponse,
+  Manifest,
+  MetaResponse,
+  PROTOCOL_VERSION,
+  StreamResponse,
+  catalogPath,
+  metaPath,
+  streamPath,
+} from '@lelap/sdk';
+import type { ZodType } from 'zod';
+import CodeBlock from '../../components/CodeBlock.astro';
+import FieldTable, { type Field } from '../../components/FieldTable.astro';
+import Docs from '../../layouts/Docs.astro';
+import { site } from '../../site';
+
+const base = 'https://addon.example.com';
+
+// The examples are checked against the SDK's schemas, so a protocol change breaks the build
+// instead of leaving the docs wrong.
+function example<T>(schema: ZodType<T>, value: T): string {
+  schema.parse(value);
+  return JSON.stringify(value, null, 2);
+}
+
+const manifest = example(Manifest, {
+  id: 'com.example.readings',
+  version: '1.0.0',
+  protocol: 1,
+  name: 'Example Readings',
+  description: 'Public-domain books read by volunteers.',
+  logo: `${base}/logo.png`,
+  types: ['audiobook'],
+  resources: ['catalog', 'meta', { name: 'stream', idPrefixes: ['example:', 'ol:'] }],
+  idPrefixes: ['example:'],
+  catalogs: [
+    {
+      type: 'audiobook',
+      id: 'new',
+      name: 'New releases',
+      extra: [{ name: 'genre', options: ['children', 'mystery', 'poetry'] }, { name: 'skip' }],
+    },
+    {
+      type: 'audiobook',
+      id: 'search',
+      name: 'Example Readings',
+      extra: [{ name: 'search', isRequired: true }, { name: 'skip' }],
+    },
+  ],
+});
+
+const catalogUrl = `${base}/${catalogPath('audiobook', 'new', { skip: '20', genre: 'children' })}`;
+const searchUrl = `${base}/${catalogPath('audiobook', 'search', { search: 'secret garden' })}`;
+const catalog = example(CatalogResponse, {
+  metas: [
+    {
+      id: 'example:secret-garden',
+      type: 'audiobook',
+      name: 'The Secret Garden',
+      author: 'Frances Hodgson Burnett',
+      cover: 'https://media.example.com/secret-garden/cover.jpg',
+      year: 1911,
+      durationMs: 27812000,
+    },
+    {
+      id: 'example:wind-in-the-willows',
+      type: 'audiobook',
+      name: 'The Wind in the Willows',
+      author: 'Kenneth Grahame',
+      cover: 'https://media.example.com/wind-in-the-willows/cover.jpg',
+      year: 1908,
+    },
+  ],
+  cacheMaxAge: 21600,
+});
+
+const metaUrl = `${base}/${metaPath('audiobook', 'example:secret-garden')}`;
+const meta = example(MetaResponse, {
+  meta: {
+    id: 'example:secret-garden',
+    type: 'audiobook',
+    name: 'The Secret Garden',
+    author: 'Frances Hodgson Burnett',
+    cover: 'https://media.example.com/secret-garden/cover.jpg',
+    description: 'An orphan finds a locked garden and brings it back to life.',
+    year: 1911,
+    durationMs: 27812000,
+    narrators: ['Ana Reader'],
+    language: 'en',
+    genres: ['children', 'fiction'],
+    chapters: [
+      { title: 'There Is No One Left', startMs: 0 },
+      { title: 'Mistress Mary Quite Contrary', startMs: 1123000 },
+    ],
+    externalIds: { ol: 'OL69612W' },
+    link: 'https://example.com/books/secret-garden',
+  },
+  cacheMaxAge: 86400,
+});
+
+const podcastUrl = `${base}/${metaPath('podcast', 'example:night-sky')}`;
+const podcast = example(MetaResponse, {
+  meta: {
+    id: 'example:night-sky',
+    type: 'podcast',
+    name: 'Night Sky Notes',
+    author: 'Example Radio',
+    cover: 'https://media.example.com/night-sky/cover.jpg',
+    language: 'en',
+    episodes: [
+      {
+        id: 'example:night-sky-12',
+        title: 'Finding the Pleiades',
+        released: '2026-11-02T06:00:00Z',
+        durationMs: 1684000,
+        description: 'Where to look this month, and what you can see without a telescope.',
+      },
+    ],
+  },
+});
+
+const streamUrl = `${base}/${streamPath('audiobook', 'example:secret-garden')}`;
+const streams = example(StreamResponse, {
+  streams: [
+    {
+      sourceKey: 'secret-garden-ana',
+      name: 'Example Readings',
+      title: 'Read by Ana Reader',
+      mime: 'audio/mpeg',
+      bitrate: 64000,
+      downloadable: true,
+      parts: [
+        {
+          url: 'https://media.example.com/secret-garden/01.mp3',
+          title: 'There Is No One Left',
+          durationMs: 1123000,
+          size: 8984000,
+        },
+        {
+          url: 'https://media.example.com/secret-garden/02.mp3',
+          title: 'Mistress Mary Quite Contrary',
+          durationMs: 1342000,
+          size: 10736000,
+        },
+      ],
+    },
+    {
+      sourceKey: 'secret-garden-ben-m4b',
+      name: 'Example Readings',
+      title: 'Read by Ben Narrator, one file',
+      mime: 'audio/mp4',
+      size: 222496000,
+      url: 'https://media.example.com/secret-garden/full.m4b',
+      durationMs: 27812000,
+      chapters: [
+        { title: 'There Is No One Left', startMs: 0 },
+        { title: 'Mistress Mary Quite Contrary', startMs: 1123000 },
+      ],
+    },
+  ],
+  cacheMaxAge: 86400,
+});
+
+const routes = `
+GET /manifest.json                          → Manifest
+GET /catalog/{type}/{id}.json               → { "metas": MetaPreview[] }
+GET /catalog/{type}/{id}/{extra}.json       → { "metas": MetaPreview[] }
+GET /meta/{type}/{id}.json                  → { "meta": Meta }
+GET /stream/{type}/{id}.json                → { "streams": Stream[] }
+`;
+
+const errorExample = `
+HTTP/1.1 404 Not Found
+Content-Type: application/json; charset=utf-8
+Access-Control-Allow-Origin: *
+
+{ "error": "Not found" }
+`;
+
+const headers = `
+Content-Type: application/json; charset=utf-8
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, OPTIONS
+Access-Control-Allow-Headers: *
+Cache-Control: public, max-age=21600
+`;
+
+const schemaRef = `{ "$ref": "https://${site.domain}/docs/protocol.schema.json#/$defs/Manifest" }`;
+
+const manifestFields: Field[] = [
+  {
+    name: 'id',
+    type: 'string',
+    required: true,
+    meaning: 'Reverse DNS, such as `org.example.myaddon`; at least 3 characters. Keep it stable.',
+  },
+  {
+    name: 'version',
+    type: 'string',
+    required: true,
+    meaning: 'Your add-on’s semantic version, such as `1.2.0`.',
+  },
+  {
+    name: 'protocol',
+    type: `${PROTOCOL_VERSION}`,
+    required: true,
+    meaning: `The protocol version. Always \`${PROTOCOL_VERSION}\` for this reference.`,
+  },
+  { name: 'name', type: 'string', required: true, meaning: 'Shown to listeners. Not empty.' },
+  {
+    name: 'description',
+    type: 'string',
+    required: true,
+    meaning: 'A sentence about what the add-on serves. May be empty.',
+  },
+  { name: 'logo', type: 'URL', required: false, meaning: 'An `http` or `https` image URL.' },
+  {
+    name: 'types',
+    type: 'ContentType[]',
+    required: true,
+    meaning: 'The types you serve: `audiobook`, `podcast`, `episode`. At least one.',
+  },
+  {
+    name: 'resources',
+    type: '(ResourceName | Resource)[]',
+    required: true,
+    meaning:
+      'What you answer: `catalog`, `meta`, `stream`, each as a name or as a Resource object. At least one.',
+  },
+  {
+    name: 'idPrefixes',
+    type: 'string[]',
+    required: false,
+    meaning:
+      'Prefixes of the IDs you answer `meta` and `stream` for, such as `example:`. Without it, any ID.',
+  },
+  {
+    name: 'catalogs',
+    type: 'CatalogDefinition[]',
+    required: true,
+    meaning: 'Your catalogs. Use `[]` when you have none.',
+  },
+  {
+    name: 'configurable',
+    type: 'boolean',
+    required: false,
+    meaning: '`true` when the add-on has a `/configure` page.',
+  },
+];
+
+const resourceFields: Field[] = [
+  {
+    name: 'name',
+    type: '"catalog" | "meta" | "stream"',
+    required: true,
+    meaning: 'The resource.',
+  },
+  {
+    name: 'types',
+    type: 'ContentType[]',
+    required: false,
+    meaning: 'The types this resource answers, if fewer than the manifest’s `types`.',
+  },
+  {
+    name: 'idPrefixes',
+    type: 'string[]',
+    required: false,
+    meaning: 'Replaces the manifest’s `idPrefixes` for this resource.',
+  },
+];
+
+const catalogFields: Field[] = [
+  { name: 'type', type: 'ContentType', required: true, meaning: 'The type of every item in it.' },
+  {
+    name: 'id',
+    type: 'string',
+    required: true,
+    meaning: 'Unique among your catalogs of this type; part of the URL. Not empty.',
+  },
+  {
+    name: 'name',
+    type: 'string',
+    required: true,
+    meaning: 'Shown as the heading of the row or list. Not empty.',
+  },
+  {
+    name: 'extra',
+    type: 'CatalogExtra[]',
+    required: false,
+    meaning: 'The extras this catalog accepts.',
+  },
+];
+
+const extraFields: Field[] = [
+  {
+    name: 'name',
+    type: 'string',
+    required: true,
+    meaning: '`search`, `genre` or `skip`. The app ignores other names.',
+  },
+  {
+    name: 'isRequired',
+    type: 'boolean',
+    required: false,
+    meaning: 'The catalog only answers with this extra set.',
+  },
+  {
+    name: 'options',
+    type: 'string[]',
+    required: false,
+    meaning: 'The allowed values, for `genre`.',
+  },
+];
+
+const previewFields: Field[] = [
+  { name: 'id', type: 'ID', required: true, meaning: 'The item’s ID, `prefix:value`.' },
+  { name: 'type', type: 'ContentType', required: true, meaning: 'The item’s type.' },
+  { name: 'name', type: 'string', required: true, meaning: 'The title. Not empty.' },
+  { name: 'author', type: 'string', required: false, meaning: 'Author, or a podcast’s publisher.' },
+  { name: 'cover', type: 'URL', required: false, meaning: 'Cover image, `http` or `https`.' },
+  { name: 'description', type: 'string', required: false, meaning: 'Plain text.' },
+  { name: 'year', type: 'integer', required: false, meaning: 'Year of first publication.' },
+  {
+    name: 'durationMs',
+    type: 'integer ≥ 0',
+    required: false,
+    meaning: 'Total length in milliseconds.',
+  },
+];
+
+const metaFields: Field[] = [
+  { name: 'narrators', type: 'string[]', required: false, meaning: 'Who reads it.' },
+  {
+    name: 'language',
+    type: 'string',
+    required: false,
+    meaning: 'BCP 47 or ISO 639 code, such as `en` or `pt-BR`.',
+  },
+  { name: 'genres', type: 'string[]', required: false, meaning: 'Free-form genres or subjects.' },
+  {
+    name: 'chapters',
+    type: 'Chapter[]',
+    required: false,
+    meaning: 'Chapters across the whole item.',
+  },
+  {
+    name: 'externalIds',
+    type: 'object<string, string>',
+    required: false,
+    meaning:
+      'The same work under other prefixes: prefix without the colon to value, such as `{ "ol": "OL69612W" }`.',
+  },
+  {
+    name: 'episodes',
+    type: 'Episode[]',
+    required: false,
+    meaning: 'For podcasts, the episodes.',
+  },
+  {
+    name: 'link',
+    type: 'URL',
+    required: false,
+    meaning: 'A page about the item on the source’s own site.',
+  },
+];
+
+const chapterFields: Field[] = [
+  { name: 'title', type: 'string', required: true, meaning: 'The chapter title. May be empty.' },
+  {
+    name: 'startMs',
+    type: 'integer ≥ 0',
+    required: true,
+    meaning: 'Where it starts, in milliseconds from the beginning of the audio.',
+  },
+];
+
+const episodeFields: Field[] = [
+  {
+    name: 'id',
+    type: 'ID',
+    required: true,
+    meaning: 'The episode’s ID; its streams are requested with type `episode`.',
+  },
+  { name: 'title', type: 'string', required: true, meaning: 'The episode title.' },
+  {
+    name: 'released',
+    type: 'string',
+    required: false,
+    meaning: 'ISO 8601 date and time, such as `2026-11-02T06:00:00Z`.',
+  },
+  { name: 'durationMs', type: 'integer ≥ 0', required: false, meaning: 'Length in milliseconds.' },
+  { name: 'description', type: 'string', required: false, meaning: 'Show notes, plain text.' },
+];
+
+const streamFields: Field[] = [
+  {
+    name: 'sourceKey',
+    type: 'string',
+    required: true,
+    meaning:
+      'Stable for this source and item, 1 to 256 characters. The app keys saved places on it, so never reuse or change it.',
+  },
+  {
+    name: 'name',
+    type: 'string',
+    required: true,
+    meaning: 'Who provides it, such as your add-on’s name. Not empty.',
+  },
+  {
+    name: 'title',
+    type: 'string',
+    required: false,
+    meaning: 'What sets it apart from other streams, such as the reader.',
+  },
+  { name: 'mime', type: 'string', required: false, meaning: 'Such as `audio/mpeg`.' },
+  {
+    name: 'bitrate',
+    type: 'integer > 0',
+    required: false,
+    meaning: 'Bits per second, such as `64000`.',
+  },
+  { name: 'size', type: 'integer ≥ 0', required: false, meaning: 'Total size in bytes.' },
+  {
+    name: 'downloadable',
+    type: 'boolean',
+    required: false,
+    meaning: 'The source allows keeping a copy for offline listening.',
+  },
+];
+
+const singleFields: Field[] = [
+  { name: 'url', type: 'URL', required: true, meaning: 'The audio file, `http` or `https`.' },
+  { name: 'durationMs', type: 'integer ≥ 0', required: false, meaning: 'Length in milliseconds.' },
+  {
+    name: 'chapters',
+    type: 'Chapter[]',
+    required: false,
+    meaning: 'Chapters within the file.',
+  },
+];
+
+const multiFields: Field[] = [
+  {
+    name: 'parts',
+    type: 'StreamPart[]',
+    required: true,
+    meaning: 'The files in playing order. At least one.',
+  },
+];
+
+const partFields: Field[] = [
+  { name: 'url', type: 'URL', required: true, meaning: 'The audio file, `http` or `https`.' },
+  {
+    name: 'title',
+    type: 'string',
+    required: false,
+    meaning: 'Shown as the chapter; without it the app shows “Part 1”, “Part 2” and so on.',
+  },
+  {
+    name: 'durationMs',
+    type: 'integer ≥ 0',
+    required: true,
+    meaning: 'Length in milliseconds. The app builds the book’s timeline from it.',
+  },
+  { name: 'size', type: 'integer ≥ 0', required: false, meaning: 'Size in bytes.' },
+];
+
+const toc: [string, string][] = [
+  ['routes', 'Routes'],
+  ['http', 'HTTP'],
+  ['ids', 'IDs and routing'],
+  ['manifest', 'Manifest'],
+  ['catalogs', 'Catalogs'],
+  ['meta', 'Meta'],
+  ['streams', 'Streams'],
+  ['errors', 'Errors'],
+  ['configure', 'Configuration page'],
+  ['planned', 'Planned'],
+  ['schema', 'JSON Schema'],
+];
+---
+
+<Docs
+  title="Protocol v1"
+  description={`The ${site.name} add-on protocol, version ${PROTOCOL_VERSION}: routes, objects and fields.`}
+  toc={toc}
+>
+  <h1>Protocol v{PROTOCOL_VERSION}</h1>
+  <p class="lead">
+    The reference for what an add-on answers. The <a href="/docs/sdk/">SDK</a> implements all of it;
+    you only need this page to check a detail or to write an add-on in another language.
+  </p>
+
+  <h2 id="routes">Routes</h2>
+  <p>
+    All paths are relative to the add-on’s base URL: the manifest URL without{' '}
+    <code>manifest.json</code>. An add-on can live under a path, such as{' '}
+    <code>https://catalog.{site.domain}/librivox/manifest.json</code>.
+  </p>
+  <CodeBlock code={routes} />
+  <ul>
+    <li>
+      <code>{'{type}'}</code> is a content type: <code>audiobook</code>, <code>podcast</code> or{' '}
+      <code>episode</code>.
+    </li>
+    <li>
+      <code>{'{id}'}</code> is percent-encoded with <code>encodeURIComponent</code>, so{' '}
+      <code>example:secret-garden</code> arrives as <code>example%3Asecret-garden</code> and a{' '}
+      <code>/</code> in an ID as <code>%2F</code>. Split the path on <code>/</code> first, then
+      decode each segment.
+    </li>
+    <li>
+      <code>{'{extra}'}</code> is a query string in a path segment, such as{' '}
+      <code>genre=children&amp;skip=20</code>. The app sorts the keys alphabetically, leaves out
+      empty values and encodes keys and values with <code>encodeURIComponent</code>, so the same
+      request always has the same URL and caches well. Decode <code>+</code> as a space, as in a
+      query string. Without extras the path is{' '}
+      <code>
+        /catalog/{'{type}'}/{'{id}'}.json
+      </code>
+      .
+    </li>
+  </ul>
+  <CodeBlock code={`${catalogUrl}\n${searchUrl}\n${metaUrl}\n${streamUrl}`} label="Examples" />
+
+  <h2 id="http">HTTP</h2>
+  <ul>
+    <li>
+      Answer <code>GET</code> (and <code>HEAD</code>). Answer <code>OPTIONS</code> preflights with{' '}
+      <code>204</code> and the CORS headers.
+    </li>
+    <li>
+      Send <code>Access-Control-Allow-Origin: *</code> on every response, errors included. The web
+      app calls add-ons straight from the browser.
+    </li>
+    <li>
+      Respond with <code>Content-Type: application/json; charset=utf-8</code>.
+    </li>
+    <li>Serve over HTTPS: the web app can’t reach plain HTTP from an HTTPS page.</li>
+    <li>
+      Answer within 10 seconds. The app gives up on slower answers and shows what other add-ons
+      returned.
+    </li>
+    <li>
+      Catalog, meta and stream responses may carry <code>cacheMaxAge</code>: how many seconds the
+      response may be kept. Send the same value as <code>Cache-Control: public, max-age=…</code>
+      so HTTP caches agree; the SDK does both, and gives the manifest an hour.
+    </li>
+    <li>
+      Times and lengths are integer milliseconds (<code>durationMs</code>, <code>startMs</code>),
+      sizes are bytes, <code>released</code> is ISO 8601 and <code>cacheMaxAge</code> is seconds.
+    </li>
+    <li>
+      Use only the fields on this page. The app drops fields it doesn’t know, and the{' '}
+      <a href="#schema">JSON Schema</a> rejects them.
+    </li>
+  </ul>
+  <CodeBlock code={headers} label="Response headers" />
+
+  <h2 id="ids">IDs and routing</h2>
+  <p>
+    Every item has an ID of the form <code>prefix:value</code>. The prefix starts with a lowercase
+    letter and has only lowercase letters, digits, <code>_</code> and <code>-</code>; the value is
+    anything that isn’t empty. The whole ID is 3 to 512 characters.
+  </p>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Prefix</th>
+          <th scope="col">Value</th>
+          <th scope="col">Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <code>ol:</code>
+          </td>
+          <td>An Open Library work ID. Canonical for books.</td>
+          <td>
+            <code>ol:OL69612W</code>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>librivox:</code>
+          </td>
+          <td>The archive.org identifier of a LibriVox recording.</td>
+          <td>
+            <code>librivox:secret_garden_librivox</code>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>podcast:</code>
+          </td>
+          <td>A podcast’s GUID.</td>
+          <td>
+            <code>podcast:917393e3-1b1e-5cef-ace4-edaa54e1f810</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Use an <code>ol:</code> ID for a book when you know it, or name it in <code>externalIds</code>.
+    For your own items, pick a prefix of your own.
+  </p>
+  <p>
+    The app decides whom to ask for an item’s <code>meta</code> and <code>stream</code>:
+  </p>
+  <ol>
+    <li>
+      The add-on must list the resource in <code>resources</code>, and the item’s type in that
+      resource’s <code>types</code> (or, without them, in the manifest’s <code>types</code>).
+    </li>
+    <li>
+      The ID must start with one of the resource’s <code>idPrefixes</code>. A resource object’s{' '}
+      <code>idPrefixes</code> replace the manifest’s; without either, the add-on is asked for any
+      ID. Include the colon (<code>ol:</code>, not <code>ol</code>), since the app compares the
+      start of the ID.
+    </li>
+    <li>
+      <code>meta</code> comes from the first matching add-on, in the order the listener keeps them.{' '}
+      <code>stream</code> is asked of every matching add-on, and the answers are merged in that
+      order.
+    </li>
+  </ol>
+  <p>
+    In the example manifest below, <code>meta</code> is only asked for <code>example:</code> IDs,
+    but <code>stream</code> also for <code>ol:</code> IDs: the add-on offers its recordings for any
+    Open Library book the listener opens, whichever add-on listed it.
+  </p>
+
+  <h2 id="manifest">Manifest</h2>
+  <p>
+    <code>GET /manifest.json</code> answers with the manifest itself.
+  </p>
+  <FieldTable fields={manifestFields} />
+  <h3 id="resource">Resource</h3>
+  <p>
+    A <code>resources</code> entry is a name (<code>"catalog"</code>, <code>"meta"</code>,{' '}
+    <code>"stream"</code>) or an object:
+  </p>
+  <FieldTable fields={resourceFields} />
+  <CodeBlock code={manifest} label="GET /manifest.json" />
+
+  <h2 id="catalogs">Catalogs</h2>
+  <p>
+    A catalog is a list of items to browse or search. It answers with{' '}
+    <code>{'{ "metas": MetaPreview[], "cacheMaxAge"?: number }'}</code>. Only catalogs declared in
+    the manifest are requested.
+  </p>
+  <h3 id="catalog-definition">CatalogDefinition</h3>
+  <FieldTable fields={catalogFields} />
+  <h3 id="extras">CatalogExtra</h3>
+  <FieldTable fields={extraFields} />
+  <p>The extras the app understands:</p>
+  <ul>
+    <li>
+      <code>search</code>: what the listener typed. A catalog with a <code>search</code> extra can
+      be searched; when it’s required, the catalog only answers searches and stays off Home.
+    </li>
+    <li>
+      <code>genre</code>: one of the <code>options</code>, shown as filters.
+    </li>
+    <li>
+      <code>skip</code>: how many items to skip, as a decimal string, for the next page. Return an
+      empty <code>metas</code> list when there are no more.
+    </li>
+  </ul>
+  <p>Catalogs without a required extra can appear on Home.</p>
+  <h3 id="meta-preview">MetaPreview</h3>
+  <p>One item in a catalog: enough to draw a cover and a title.</p>
+  <FieldTable fields={previewFields} />
+  <CodeBlock code={catalog} label={`GET ${catalogUrl}`} />
+
+  <h2 id="meta">Meta</h2>
+  <p>
+    <code>
+      GET /meta/{'{type}'}/{'{id}'}.json
+    </code>{' '}
+    answers with <code>{'{ "meta": Meta, "cacheMaxAge"?: number }'}</code>, or a <code>404</code>{' '}
+    when the ID is unknown. Meta has every MetaPreview field, plus:
+  </p>
+  <FieldTable fields={metaFields} />
+  <h3 id="chapter">Chapter</h3>
+  <FieldTable fields={chapterFields} />
+  <h3 id="episode">Episode</h3>
+  <FieldTable fields={episodeFields} />
+  <CodeBlock code={meta} label={`GET ${metaUrl}`} />
+  <CodeBlock code={podcast} label={`GET ${podcastUrl}`} />
+
+  <h2 id="streams">Streams</h2>
+  <p>
+    <code>
+      GET /stream/{'{type}'}/{'{id}'}.json
+    </code>{' '}
+    answers with <code>{'{ "streams": Stream[], "cacheMaxAge"?: number }'}</code>. Each stream is
+    one way to play the item, such as one reading of a book. With nothing to offer, answer{' '}
+    <code>{'{ "streams": [] }'}</code>.
+  </p>
+  <p>
+    A stream is either a single file, with <code>url</code>, or a list of files, with{' '}
+    <code>parts</code>; never both. Both kinds have these fields:
+  </p>
+  <FieldTable fields={streamFields} />
+  <h3 id="single-file">Single file</h3>
+  <FieldTable fields={singleFields} />
+  <h3 id="parts">Parts</h3>
+  <FieldTable fields={multiFields} />
+  <h3 id="stream-part">StreamPart</h3>
+  <FieldTable fields={partFields} />
+  <p>
+    With parts, each part becomes a chapter. A single file uses its own <code>chapters</code>, or
+    the meta’s.
+  </p>
+  <CodeBlock code={streams} label={`GET ${streamUrl}`} />
+
+  <h2 id="errors">Errors</h2>
+  <p>
+    Answer errors with a non-2xx status and <code>{'{ "error": string }'}</code>: <code>404</code>
+    for an unknown route, catalog or ID, <code>400</code> for extras you can’t use, <code>5xx</code>
+    when something upstream failed. The app treats a failing add-on as having nothing right now and
+    keeps the answers of the others.
+  </p>
+  <CodeBlock code={errorExample} />
+
+  <h2 id="configure">Configuration page</h2>
+  <p>
+    With <code>"configurable": true</code>, the app links to <code>/configure</code> under the
+    add-on’s base URL and opens it in the browser. It’s a normal web page; v1 has no API between it
+    and the app.
+  </p>
+  <p>
+    The app only remembers the manifest URL, and add-ons are stateless, so put the settings in the
+    URL. For example, a page that picks a language can hand out{' '}
+    <code>https://addon.example.com/lang=de/manifest.json</code> for the listener to add in place of
+    the plain one, and serve every route under <code>/lang=de/</code>. Never put passwords or tokens
+    in those URLs.
+  </p>
+
+  <h2 id="planned">Planned</h2>
+  <p>Not in v1 clients yet; the details may change.</p>
+  <ul>
+    <li>
+      <strong>
+        <code>/resolve/…</code>
+      </strong>
+      , for sources whose audio URLs expire. A stream or part <code>url</code> points at a{' '}
+      <code>/resolve/…</code> path of the add-on, which answers with a redirect to a fresh audio
+      URL. When the audio host later answers <code>403</code> or <code>410</code>, the player
+      requests the <code>/resolve/…</code> URL again and keeps its place. The audio still goes
+      straight from the source to the listener.
+    </li>
+    <li>
+      <strong>
+        <code>POST /scrobble</code>
+      </strong>
+      , for add-ons that want to hear what was played. Its body isn’t specified yet.
+    </li>
+  </ul>
+
+  <h2 id="schema">JSON Schema</h2>
+  <p>
+    <a href="/docs/protocol.schema.json">
+      <code>/docs/protocol.schema.json</code>
+    </a>{' '}
+    is a JSON Schema (draft 2020-12) generated from the SDK’s schemas, with <code>Manifest</code>,{' '}
+    <code>CatalogResponse</code>, <code>MetaResponse</code> and <code>StreamResponse</code> under{' '}
+    <code>$defs</code>. Point a validator or your editor at one of them:
+  </p>
+  <CodeBlock code={schemaRef} />
+</Docs>

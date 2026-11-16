@@ -1,11 +1,23 @@
 import '../global.css';
 
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { Text, View } from 'react-native';
 
+import { queryClient, syncAddonsNow } from '../src/addons';
 import { useDbReady } from '../src/db';
-import { PlayerProvider } from '../src/player';
+import { PlayerProvider, useLibrary } from '../src/player';
+
+/** Installs the default add-ons on first start and refreshes manifests on every start. */
+function AddonSync() {
+  const { refresh } = useLibrary();
+  useEffect(() => {
+    void syncAddonsNow().finally(refresh);
+  }, [refresh]);
+  return null;
+}
 
 export default function RootLayout() {
   const { ready, error } = useDbReady();
@@ -20,14 +32,18 @@ export default function RootLayout() {
   if (!ready) return <View className="flex-1 bg-night" />;
 
   return (
-    <PlayerProvider>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0d0e11' } }}>
-        <Stack.Screen
-          name="player"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-        />
-      </Stack>
-      <StatusBar style="light" />
-    </PlayerProvider>
+    <QueryClientProvider client={queryClient}>
+      <PlayerProvider>
+        <AddonSync />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0d0e11' } }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="player"
+            options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+          />
+        </Stack>
+        <StatusBar style="light" />
+      </PlayerProvider>
+    </QueryClientProvider>
   );
 }

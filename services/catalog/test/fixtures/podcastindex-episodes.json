@@ -1,0 +1,32 @@
+{
+  "status": "true",
+  "items": [
+    {
+      "id": 5002,
+      "title": "Planting bulbs",
+      "link": "https://example.org/garden-hour/2",
+      "description": "<p>When and how deep.</p>",
+      "guid": "garden-hour-episode-2",
+      "datePublished": 1762905600,
+      "enclosureUrl": "https://media.example.org/garden-hour/2.mp3",
+      "enclosureType": "audio/mpeg",
+      "duration": 1830,
+      "feedId": 1001
+    },
+    {
+      "id": 5001,
+      "title": "Welcome",
+      "link": "https://example.org/garden-hour/1",
+      "description": "",
+      "guid": "garden-hour-episode-1",
+      "datePublished": 1762300800,
+      "enclosureUrl": "https://media.example.org/garden-hour/1.mp3",
+      "enclosureType": "audio/mpeg",
+      "duration": null,
+      "feedId": 1001
+    }
+  ],
+  "count": 2,
+  "query": "5b8a6a0e-2d1c-5c3b-9a55-0f3c2a8e1b01",
+  "description": "Found matching items"
+}

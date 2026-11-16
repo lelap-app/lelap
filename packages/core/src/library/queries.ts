@@ -10,6 +10,9 @@ export type LibraryBook = {
   title: string;
   author: string | null;
   coverPath: string | null;
+  /** For streamed books. */
+  coverUrl: string | null;
+  source: 'local' | 'addon';
   durationMs: number;
   bookPositionMs: number;
   addedAt: number;
@@ -41,6 +44,8 @@ function selectBooks(db: Db, profileId: string, bookId?: string): LibraryBook[] 
     title: book.title,
     author: book.author,
     coverPath: book.coverPath,
+    coverUrl: book.coverUrl,
+    source: book.source,
     durationMs: book.durationMs,
     bookPositionMs: bookPositionMs ?? 0,
     addedAt: book.addedAt,

@@ -1,0 +1,346 @@
+---
+import CodeBlock from '../../components/CodeBlock.astro';
+import Docs from '../../layouts/Docs.astro';
+import { site } from '../../site';
+
+const templateUrl = `${site.repoUrl}/tree/main/services/template`;
+const sdkUrl = `${site.repoUrl}/tree/main/packages/sdk`;
+
+const install = `
+npm install @lelap/sdk hono
+npm install --save-dev wrangler
+`;
+
+const worker = `
+import { AddonError, createAddon, type Manifest, type MetaPreview } from '@lelap/sdk';
+import { Hono } from 'hono';
+
+const manifest: Manifest = {
+  id: 'com.example.readings',
+  version: '1.0.0',
+  protocol: 1,
+  name: 'Example Readings',
+  description: 'Public-domain books read by volunteers.',
+  types: ['audiobook'],
+  resources: ['catalog', 'meta', 'stream'],
+  idPrefixes: ['example:'],
+  catalogs: [{ type: 'audiobook', id: 'new', name: 'New releases', extra: [{ name: 'skip' }] }],
+};
+
+// Your own data source: a database, a feed, an API you're allowed to use.
+const books: MetaPreview[] = [
+  {
+    id: 'example:secret-garden',
+    type: 'audiobook',
+    name: 'The Secret Garden',
+    author: 'Frances Hodgson Burnett',
+    cover: 'https://media.example.com/secret-garden/cover.jpg',
+  },
+];
+
+const PAGE = 50;
+
+const addon = createAddon({
+  manifest,
+
+  catalog: ({ extra }) => {
+    const skip = Number(extra.skip ?? 0);
+    if (!Number.isInteger(skip) || skip < 0) throw new AddonError(400, 'skip must be a whole number');
+    return { metas: books.slice(skip, skip + PAGE), cacheMaxAge: 6 * 3600 };
+  },
+
+  meta: ({ id }) => {
+    const book = books.find((b) => b.id === id);
+    if (!book) return null; // becomes a 404
+    return {
+      meta: { ...book, chapters: [{ title: 'There Is No One Left', startMs: 0 }] },
+      cacheMaxAge: 86400,
+    };
+  },
+
+  stream: ({ id }) => {
+    if (id !== 'example:secret-garden') return { streams: [] };
+    return {
+      streams: [
+        {
+          sourceKey: 'secret-garden-ana',
+          name: 'Example Readings',
+          title: 'Read by Ana Reader',
+          parts: [
+            { url: 'https://media.example.com/secret-garden/01.mp3', durationMs: 1123000 },
+            { url: 'https://media.example.com/secret-garden/02.mp3', durationMs: 1342000 },
+          ],
+        },
+      ],
+      cacheMaxAge: 86400,
+    };
+  },
+});
+
+const app = new Hono();
+app.get('/', (c) => c.redirect('/manifest.json'));
+app.all('*', (c) => addon.fetch(c.req.raw));
+
+export default app;
+`;
+
+const wrangler = `
+name = "example-readings"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+`;
+
+const deploy = `
+npx wrangler dev      # http://localhost:8787/manifest.json
+npx wrangler deploy
+`;
+
+const deno = `
+// main.ts: deno run --allow-net main.ts
+Deno.serve(addon.fetch);
+`;
+
+const bun = `
+// index.ts: bun run index.ts
+export default { fetch: addon.fetch };
+`;
+
+const node = `
+// Node, with @hono/node-server
+import { serve } from '@hono/node-server';
+
+serve({ fetch: addon.fetch, port: 8787 });
+`;
+
+const mounted = `
+const librivox = createAddon(librivoxHandlers, { basePath: '/librivox' });
+const catalog = createAddon(catalogHandlers);
+
+const app = new Hono();
+app.all('/librivox/*', (c) => librivox.fetch(c.req.raw));
+app.all('*', (c) => catalog.fetch(c.req.raw));
+`;
+
+const errors = `
+import { AddonError } from '@lelap/sdk';
+
+catalog: async ({ extra }) => {
+  if (!extra.search?.trim()) throw new AddonError(400, 'Type something to search for');
+  const response = await fetch(upstreamSearchUrl(extra.search));
+  if (response.status === 429) throw new AddonError(503, 'The source is busy, try again soon');
+  // …
+},
+`;
+
+const onError = `
+const addon = createAddon(handlers, {
+  onError: (error, request) => console.error(request.url, error),
+});
+`;
+
+const test = `
+import { CatalogResponse } from '@lelap/sdk';
+import { expect, test } from 'vitest';
+
+import { addon } from './addon';
+
+test('the catalog pages with skip', async () => {
+  const response = await addon.fetch(
+    new Request('https://addon.test/catalog/audiobook/new/skip=50.json'),
+  );
+  expect(response.status).toBe(200);
+  expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  const body = CatalogResponse.parse(await response.json());
+  expect(body.metas).toHaveLength(0);
+});
+
+test('unknown IDs are a 404', async () => {
+  const response = await addon.fetch(
+    new Request('https://addon.test/meta/audiobook/example%3Anope.json'),
+  );
+  expect(response.status).toBe(404);
+});
+`;
+
+const toc: [string, string][] = [
+  ['install', 'Install'],
+  ['example', 'A complete add-on'],
+  ['runtimes', 'Deno, Bun and Node'],
+  ['options', 'Options'],
+  ['errors', 'Errors'],
+  ['validation', 'Validation'],
+  ['testing', 'Testing'],
+  ['app', 'Add it to the app'],
+];
+---
+
+<Docs
+  title="SDK guide"
+  description={`Write a ${site.name} add-on in TypeScript with @lelap/sdk and run it on Cloudflare Workers, Deno, Bun or Node.`}
+  toc={toc}
+>
+  <h1>SDK guide</h1>
+  <p class="lead">
+    <code>@lelap/sdk</code> has the protocol’s types and zod schemas, and <code>createAddon</code>,
+    which turns a few handlers into a standard <code>fetch(request)</code> function with routing,
+    CORS, caching headers and JSON errors done for you.
+  </p>
+
+  <h2 id="install">Install</h2>
+  <p>
+    The SDK is MIT-licensed, so you can use it in an add-on under any license. It needs a runtime
+    with the Fetch API (<code>Request</code> and <code>Response</code>).
+  </p>
+  <CodeBlock code={install} label="Terminal" />
+  <div class="note">
+    <p>
+      <code>@lelap/sdk</code> isn’t published to npm yet. Until it is, copy{' '}
+      <a href={templateUrl}>
+        <code>services/template</code>
+      </a>{' '}
+      from the repository: it’s the smallest working add-on, with the SDK wired in. The SDK’s source
+      is in{' '}
+      <a href={sdkUrl}>
+        <code>packages/sdk</code>
+      </a>
+      .
+    </p>
+  </div>
+
+  <h2 id="example">A complete add-on</h2>
+  <p>
+    One catalog, meta and streams, served with <a href="https://hono.dev">Hono</a> on Cloudflare
+    Workers. Every handler may be async.
+  </p>
+  <CodeBlock code={worker} label="src/index.ts" />
+  <CodeBlock code={wrangler} label="wrangler.toml" />
+  <CodeBlock code={deploy} label="Terminal" />
+  <p>Handlers get:</p>
+  <ul>
+    <li>
+      <code>catalog({'{ type, id, extra, request }'})</code>: <code>extra</code> is an object of
+      strings, such as <code>{'{ search: "dune", skip: "20" }'}</code>. Return{' '}
+      <code>{'{ metas, cacheMaxAge? }'}</code>.
+    </li>
+    <li>
+      <code>meta({'{ type, id, request }'})</code>: return <code>{'{ meta, cacheMaxAge? }'}</code>,
+      or <code>null</code> for an unknown ID.
+    </li>
+    <li>
+      <code>stream({'{ type, id, request }'})</code>: return{' '}
+      <code>{'{ streams, cacheMaxAge? }'}</code>; an empty list when you have nothing.
+    </li>
+  </ul>
+  <p>
+    IDs and extras arrive decoded. Leave out the handlers you don’t need and the resources you don’t
+    declare; their routes answer <code>404</code>. The{' '}
+    <a href="/docs/protocol/">protocol reference</a> has every field.
+  </p>
+
+  <h2 id="runtimes">Deno, Bun and Node</h2>
+  <p>
+    <code>addon.fetch</code> is a plain{' '}
+    <code>(request: Request) =&gt; Promise&lt;Response&gt;</code>, so it runs without Hono too.
+    Workers also take <code>export default {'{ fetch: addon.fetch }'}</code>.
+  </p>
+  <CodeBlock code={deno} label="Deno" />
+  <CodeBlock code={bun} label="Bun" />
+  <CodeBlock code={node} label="Node" />
+
+  <h2 id="options">Options</h2>
+  <p>
+    <code>createAddon(handlers, options)</code> takes:
+  </p>
+  <ul>
+    <li>
+      <code>basePath</code>: the path the add-on is mounted under, such as <code>/librivox</code>.
+      Defaults to the root. Requests outside it answer <code>404</code>.
+    </li>
+    <li>
+      <code>validate</code>: check handler output against the protocol schemas. On by default.
+    </li>
+    <li>
+      <code>onError(error, request)</code>: called with anything a handler throws, other than an{' '}
+      <code>AddonError</code>, before the <code>500</code> goes out. Use it for logging.
+    </li>
+  </ul>
+  <p>Several add-ons, each with its own manifest, can share one Worker:</p>
+  <CodeBlock code={mounted} />
+  <CodeBlock code={onError} />
+
+  <h2 id="errors">Errors</h2>
+  <p>
+    Throw <code>new AddonError(status, message)</code> to answer with that status and{' '}
+    <code>{'{ "error": message }'}</code>. Anything else a handler throws becomes a <code>500</code>
+    with <code>{'{ "error": "The add-on failed to answer" }'}</code>, so internal details never
+    reach listeners.
+  </p>
+  <CodeBlock code={errors} />
+  <p>The SDK answers these on its own, always as JSON with CORS headers:</p>
+  <ul>
+    <li>
+      <code>204</code> for <code>OPTIONS</code> preflights.
+    </li>
+    <li>
+      <code>405</code> for methods other than <code>GET</code>, <code>HEAD</code> and{' '}
+      <code>OPTIONS</code>.
+    </li>
+    <li>
+      <code>404</code> for unknown paths, resources or types the manifest doesn’t declare, catalogs
+      it doesn’t list, missing handlers and <code>meta</code> returning <code>null</code>.
+    </li>
+  </ul>
+  <p>
+    The SDK doesn’t check <code>idPrefixes</code> on incoming requests; the app only sends IDs you
+    declared, but answer unknown IDs with <code>null</code> or an empty list anyway.
+  </p>
+
+  <h2 id="validation">Validation</h2>
+  <ul>
+    <li>
+      <code>createAddon</code> checks the manifest when it’s called and throws if it doesn’t match
+      the protocol, so a broken manifest fails at startup, not in the app.
+    </li>
+    <li>
+      With <code>validate</code> on, every catalog, meta and stream response is checked before it’s
+      sent. Output that doesn’t match is a <code>500</code>, and <code>onError</code> gets the zod
+      message naming the field. Fields the protocol doesn’t have are dropped.
+    </li>
+    <li>
+      With <code>validate: false</code>, handler output is sent as it is. Turn it off only once your
+      tests cover every handler.
+    </li>
+  </ul>
+  <p>
+    The schemas are exported too (<code>Manifest</code>, <code>CatalogResponse</code>,{' '}
+    <code>MetaResponse</code>, <code>StreamResponse</code> and the objects inside them), and so are
+    their types under the same names.
+  </p>
+
+  <h2 id="testing">Testing</h2>
+  <p>
+    <code>addon.fetch</code> needs no server: build a <code>Request</code>, await the{' '}
+    <code>Response</code>. Keep <code>createAddon</code> in a module of its own, such as{' '}
+    <code>src/addon.ts</code>, and import it from the Worker entry and from the tests. Remember that
+    IDs in paths are percent-encoded. The SDK also exports <code>catalogPath</code>,{' '}
+    <code>metaPath</code> and <code>streamPath</code>, which build paths the way the app does.
+  </p>
+  <CodeBlock code={test} label="src/addon.test.ts" />
+
+  <h2 id="app">Add it to the app</h2>
+  <ol>
+    <li>Deploy the add-on, or run it on a machine your phone can reach.</li>
+    <li>
+      In {site.name}, open <strong>Settings → Add-ons</strong>, paste the manifest URL, such as{' '}
+      <code>https://addon.example.com/manifest.json</code>, and add it.
+    </li>
+    <li>
+      Its catalogs show up on Home and in Discover, and searchable catalogs in Search. Items whose
+      ID prefix it declares get its meta and streams.
+    </li>
+  </ol>
+  <p>
+    The web app needs HTTPS and the CORS headers the SDK sends. Keep your <code>sourceKey</code>
+    values stable across versions; listeners’ saved places depend on them.
+  </p>
+</Docs>

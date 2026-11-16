@@ -124,7 +124,7 @@ async function load(bookId: string, autoplay: boolean): Promise<void> {
       bookId,
       title: detail.book.title,
       author: detail.book.author,
-      coverUri: detail.book.coverPath ? `file://${detail.book.coverPath}` : null,
+      coverUri: detail.book.coverPath ? `file://${detail.book.coverPath}` : detail.book.coverUrl,
       files: detail.files.map((f) => ({
         uri: f.uri,
         location: f.location,

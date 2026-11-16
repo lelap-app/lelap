@@ -5,8 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as audio from '../platform/audio';
 import { usePlayerState } from '../player';
 
-/** The book that is loaded, with Play/Pause; opens the Player. Hidden when nothing is loaded. */
-export function MiniPlayer() {
+/**
+ * The book that is loaded, with Play/Pause; opens the Player. Hidden when nothing is loaded.
+ * Above the tab bar it leaves the bottom inset to the tab bar.
+ */
+export function MiniPlayer({ inset = true }: { inset?: boolean }) {
   const state = usePlayerState();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -16,7 +19,7 @@ export function MiniPlayer() {
   return (
     <Pressable
       onPress={() => router.push('/player')}
-      style={{ paddingBottom: insets.bottom + 8 }}
+      style={{ paddingBottom: (inset ? insets.bottom : 0) + 8 }}
       className="border-t border-line bg-raised"
     >
       <View className="h-0.5 bg-line">

@@ -2,7 +2,7 @@ import type { LibraryBook } from '@lelap/core';
 import { memo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { BookCover } from './BookCover';
+import { BookCover, coverUri } from './BookCover';
 
 function status(book: LibraryBook): string {
   if (book.missing) return 'Files not found';
@@ -15,27 +15,29 @@ function status(book: LibraryBook): string {
 export const BookRow = memo(function BookRow({
   book,
   onOpen,
-  onToggleFinished,
+  onLongPress,
 }: {
   book: LibraryBook;
   onOpen: (book: LibraryBook) => void;
-  onToggleFinished: (book: LibraryBook) => void;
+  onLongPress: (book: LibraryBook) => void;
 }) {
   const progress = book.durationMs > 0 ? Math.min(1, book.bookPositionMs / book.durationMs) : 0;
   return (
     <Pressable
       onPress={() => onOpen(book)}
-      onLongPress={() => onToggleFinished(book)}
+      onLongPress={() => onLongPress(book)}
       className={`flex-row items-center gap-3 px-4 py-2 active:bg-raised ${book.missing ? 'opacity-40' : ''}`}
     >
-      <BookCover path={book.coverPath} title={book.title} size={56} />
+      <BookCover uri={coverUri(book)} title={book.title} size={56} />
       <View className="flex-1 gap-1">
         <Text numberOfLines={2} className="text-base text-paper">
           {book.title}
         </Text>
-        {book.author !== null && (
+        {(book.author !== null || book.source === 'addon') && (
           <Text numberOfLines={1} className="text-sm text-muted">
-            {book.author}
+            {[book.author, book.source === 'addon' ? 'Streaming' : null]
+              .filter(Boolean)
+              .join(' · ')}
           </Text>
         )}
         {progress > 0 && book.finishedAt === null && !book.missing && (

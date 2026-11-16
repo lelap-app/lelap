@@ -2,7 +2,7 @@ import type { LibraryBook } from '@lelap/core';
 import { Pressable, Text, View } from 'react-native';
 
 import { formatLeft } from '../format';
-import { BookCover } from './BookCover';
+import { BookCover, coverUri } from './BookCover';
 
 export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: () => void }) {
   return (
@@ -10,7 +10,7 @@ export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: ()
       onPress={onPress}
       className="mx-4 flex-row items-center gap-4 rounded-xl bg-raised p-3 active:opacity-80"
     >
-      <BookCover path={book.coverPath} title={book.title} size={72} />
+      <BookCover uri={coverUri(book)} title={book.title} size={72} />
       <View className="flex-1 gap-1">
         <Text className="text-xs uppercase tracking-wider text-muted">Continue listening</Text>
         <Text numberOfLines={2} className="text-base font-semibold text-paper">

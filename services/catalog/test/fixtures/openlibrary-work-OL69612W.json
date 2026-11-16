@@ -1,0 +1,33 @@
+{
+  "key": "/works/OL69612W",
+  "type": {
+    "key": "/type/work"
+  },
+  "title": "The Secret Garden",
+  "description": "A ten-year-old orphan comes to live in a lonely house on the Yorkshire moors where she discovers an invalid cousin and the mysteries of a locked garden.",
+  "subjects": [
+    "Fiction, general",
+    "Friendship, fiction",
+    "People with disabilities, fiction",
+    "Great britain, fiction",
+    "Child and youth fiction",
+    "Children's fiction",
+    "Gardens, fiction",
+    "England, fiction",
+    "American literature",
+    "Orphans, fiction",
+    "Great britain, history, fiction",
+    "English language"
+  ],
+  "covers": [12622062, 9025496, 11235414],
+  "authors": [
+    {
+      "author": {
+        "key": "/authors/OL23767A"
+      },
+      "type": {
+        "key": "/type/author_role"
+      }
+    }
+  ]
+}

@@ -15,3 +15,12 @@ export function formatLeft(ms: number): string {
   if (h === 0) return `${m} min left`;
   return m === 0 ? `${h} h left` : `${h} h ${m} min left`;
 }
+
+/** `9 h 8 min`, `42 min`. */
+export function formatDuration(ms: number): string {
+  const minutes = Math.max(0, Math.round(ms / 60_000));
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+}

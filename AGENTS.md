@@ -33,9 +33,9 @@ status there when you start or finish one.
 ```
 apps/site       landing page for lelap.app (Astro, static)       → apps/site/AGENTS.md
 apps/app        Expo app for Android and web; M1 test screen for now
-packages/core   domain model, library logic, Drizzle schema; add-on client and sync later
-packages/sdk    add-on SDK and protocol types (planned)
-services/       Hono services on Cloudflare Workers (planned)
+packages/core   domain model, library logic, Drizzle schema, add-on client; sync later
+packages/sdk    add-on SDK: protocol v1 as zod schemas, createAddon(); MIT
+services/       Hono services on Cloudflare Workers: catalog (Catalog + LibriVox add-ons), template
 modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer
 modules/library Kotlin Expo module: folder access, tags and chapters for the local library
 docs/brief.md   decisions, stack, infrastructure, v1.0 scope

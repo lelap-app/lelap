@@ -1,0 +1,11 @@
+{
+  "status": "true",
+  "query": { "id": "1002" },
+  "feed": {
+    "id": 1002,
+    "podcastGuid": "c7e2f4d1-8a3b-5e6f-b1c2-d3e4f5a6b7c8",
+    "title": "Night Reading",
+    "url": "https://feeds.example.org/night-reading.xml"
+  },
+  "description": "Found matching feed"
+}

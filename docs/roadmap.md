@@ -8,7 +8,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M0 Claim the name          | Done        |
 | M1 Audio spike             | In progress |
 | M2 Local library           | In progress |
-| M3 Add-on protocol and SDK | Not started |
+| M3 Add-on protocol and SDK | In progress |
 | M4 Downloads               | Not started |
 | M5 Podcasts                | Not started |
 | M6 Web build               | Not started |
@@ -67,6 +67,10 @@ Up Next, settings) has a `profile_id` from the first schema, with a single defau
 it later means migrating every table and the sync format.
 
 ## M3 Add-on protocol and SDK
+
+**Status:** in progress. Design:
+[`superpowers/specs/2026-11-16-m3-addon-protocol-design.md`](superpowers/specs/2026-11-16-m3-addon-protocol-design.md).
+Built in PR #12; open checks and follow-ups: [`m3-follow-ups.md`](m3-follow-ups.md).
 
 The protocol spec and SDK docs (served from `lelap.app/docs`), the TypeScript SDK in `packages/sdk`,
 a Workers template, the Catalog and LibriVox add-ons, and the Home, Discover and Search screens.

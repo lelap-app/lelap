@@ -1,0 +1,108 @@
+---
+import CodeBlock from '../../components/CodeBlock.astro';
+import Docs from '../../layouts/Docs.astro';
+import { site } from '../../site';
+
+const catalogManifest = `https://catalog.${site.domain}/manifest.json`;
+const librivoxManifest = `https://catalog.${site.domain}/librivox/manifest.json`;
+const servicesUrl = `${site.repoUrl}/tree/main/services`;
+
+const flow = `
+GET https://addon.example.com/manifest.json
+  → who you are, what you serve, which catalogs you have
+
+GET https://addon.example.com/catalog/audiobook/new.json
+  → { "metas": [ …titles and covers… ] }
+
+GET https://addon.example.com/meta/audiobook/example%3Asecret-garden.json
+  → { "meta": { …description, chapters… } }
+
+GET https://addon.example.com/stream/audiobook/example%3Asecret-garden.json
+  → { "streams": [ { "url": "https://media.example.com/…" } ] }
+`;
+---
+
+<Docs
+  title="Build an add-on"
+  description={`How ${site.name} add-ons work: small HTTP services that answer JSON with catalogs, metadata and audio sources.`}
+>
+  <h1>Build an add-on for {site.name}</h1>
+  <p class="lead">
+    {site.name} is a player. Everything it can browse, search and stream online comes from add-ons:
+    small, stateless HTTP services that answer a few <code>GET</code> requests with JSON.
+  </p>
+
+  <h2 id="what">What an add-on does</h2>
+  <p>An add-on can answer any of three resources, for the types it declares:</p>
+  <ul>
+    <li>
+      <strong>Catalogs</strong>: lists of titles to browse or search, such as “New releases” or
+      “Poetry”.
+    </li>
+    <li>
+      <strong>Meta</strong>: the details of one item, such as the description, narrators, chapters
+      or a podcast’s episodes.
+    </li>
+    <li>
+      <strong>Streams</strong>: where to play an item, as one audio URL or a list of parts.
+    </li>
+  </ul>
+  <p>
+    Types are <code>audiobook</code>, <code>podcast</code> and <code>episode</code>. An add-on
+    describes itself in a manifest at <code>/manifest.json</code>; listeners add it by pasting that
+    URL into the app. There is no account, no registration and no review.
+  </p>
+  <CodeBlock code={flow} label="A session with an add-on" />
+  <p>
+    Every request is a plain <code>GET</code> with everything it needs in the path, so responses
+    cache well and an add-on runs anywhere that answers HTTP: Cloudflare Workers, Deno, Bun or Node.
+  </p>
+
+  <h2 id="audio">Audio goes straight to the listener</h2>
+  <p>
+    Stream URLs point at the source, and the app plays them from there. Audio never passes through{' '}
+    {site.name}’s servers, and an add-on doesn’t have to serve it either: it only says where the
+    files are. What a listener plays, and what they downloaded, stays on their device.
+  </p>
+
+  <h2 id="docs">Where to go next</h2>
+  <ul>
+    <li>
+      <a href="/docs/protocol/">Protocol v1</a>: every route, object and field, with example
+      responses and a <a href="/docs/protocol.schema.json">JSON Schema</a>.
+    </li>
+    <li>
+      <a href="/docs/sdk/">SDK guide</a>: write an add-on in TypeScript with <code>@lelap/sdk</code>
+      , run it on Cloudflare Workers, Deno or Bun, and add it to the app.
+    </li>
+  </ul>
+  <p>
+    {site.name}’s own add-ons are built the same way: the Catalog add-on ({' '}
+    <code>{catalogManifest}</code>) brings Open Library and Podcast Index, and the LibriVox add-on ({' '}
+    <code>{librivoxManifest}</code>) streams public-domain recordings. Their source is in the{' '}
+    <a href={servicesUrl}>repository</a>.
+  </p>
+
+  <h2 id="policy">Rules for add-ons</h2>
+  <div class="note">
+    <p>
+      Only build add-ons for audio you have the rights to stream: public-domain works, your own
+      recordings, feeds their publishers make public, or a library you run yourself.
+    </p>
+  </div>
+  <ul>
+    <li>
+      {site.name} keeps no directory of third-party add-ons and doesn’t list, link to or recommend
+      any. Share your add-on’s URL however you like; listeners decide what to install.
+    </li>
+    <li>
+      You run your add-on and you answer for what it serves. Follow the terms of the services it
+      connects to.
+    </li>
+    <li>
+      Rights holders can reach us about our own sites and add-ons at{' '}
+      <a href={`mailto:${site.copyrightEmail}`}>{site.copyrightEmail}</a>. See the{' '}
+      <a href="/terms">terms</a>.
+    </li>
+  </ul>
+</Docs>

@@ -57,21 +57,21 @@ docker/           compose file and images for self-hosting
 
 ## Stack
 
-| Area           | Choice                                                       |
-| -------------- | ------------------------------------------------------------ |
-| Monorepo       | pnpm workspaces; Changesets for the SDK; Turborepo if needed |
-| App            | Expo with dev client, Expo Router, react-native-web          |
-| Styling        | NativeWind (Tailwind classes on native and web)              |
-| Server state   | TanStack Query                                               |
-| Audio, Android | Media3 ExoPlayer in a `MediaLibraryService`, own audio focus |
-| Audio, web     | `<audio>`, Web Audio gain ramp for fades, Media Session      |
-| Database       | SQLite via Drizzle ORM (expo-sqlite, D1, plain SQLite)       |
-| Validation     | zod; protocol docs generated with `@hono/zod-openapi`        |
-| Sync crypto    | libsodium, XChaCha20-Poly1305, key shared by QR or words     |
-| Backend        | Hono on Cloudflare Workers; same code in Docker via Node     |
-| OTA updates    | expo-updates, self-hosted server, code-signed bundles        |
-| Site and docs  | Astro, static on Cloudflare Pages                            |
-| Tests          | Vitest; `@cloudflare/vitest-pool-workers` for services       |
+| Area           | Choice                                                          |
+| -------------- | --------------------------------------------------------------- |
+| Monorepo       | pnpm workspaces; Changesets for the SDK; Turborepo if needed    |
+| App            | Expo with dev client, Expo Router, react-native-web             |
+| Styling        | NativeWind (Tailwind classes on native and web)                 |
+| Server state   | TanStack Query                                                  |
+| Audio, Android | Media3 ExoPlayer in a `MediaLibraryService`, own audio focus    |
+| Audio, web     | `<audio>`, Web Audio gain ramp for fades, Media Session         |
+| Database       | SQLite via Drizzle ORM (expo-sqlite, D1, plain SQLite)          |
+| Validation     | zod; the protocol's JSON Schema generated with `z.toJSONSchema` |
+| Sync crypto    | libsodium, XChaCha20-Poly1305, key shared by QR or words        |
+| Backend        | Hono on Cloudflare Workers; same code in Docker via Node        |
+| OTA updates    | expo-updates, self-hosted server, code-signed bundles           |
+| Site and docs  | Astro, static on Cloudflare Pages                               |
+| Tests          | Vitest; `@cloudflare/vitest-pool-workers` for services          |
 
 ## Add-on protocol
 
@@ -168,7 +168,8 @@ Profiles for a household with optional PIN, avatars and a kids profile
 (Hardcover, gPodder, Goodreads CSV), Audiobookshelf and Jellyfin add-ons, artwork add-ons with
 app-drawn rating badges, on-device recommendations, silence auto-chapters and Podcasting 2.0
 transcripts, voice boost and intro trimming, widgets and Wear OS, stats, importers, sandboxed local
-add-ons, add-on health and permissions.
+add-ons, add-on health and permissions, and the output device (Bluetooth headphones, car) named in
+the Player.
 
 ## Open questions
 

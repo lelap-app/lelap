@@ -94,6 +94,13 @@ export default function SettingsScreen() {
           </Pressable>
         </Row>
 
+        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Catalogs</Text>
+        <Row label="Add-ons" detail="Where Home, Discover and Search look for books.">
+          <Pressable onPress={() => router.push('/addons')}>
+            <Text className="text-amber">Manage</Text>
+          </Pressable>
+        </Row>
+
         <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Playback</Text>
         <Row label="Duck on calls" detail="Lower the volume during calls instead of pausing.">
           <Switch
