@@ -10,6 +10,8 @@
   "scripts": {
     "prepare": "simple-git-hooks",
     "dev:site": "pnpm --filter @lelap/site dev",
+    "dev:app": "pnpm --filter @lelap/app start",
+    "android": "pnpm --filter @lelap/app android",
     "build": "pnpm -r build",
     "check": "pnpm -r check",
     "lint": "eslint .",
