@@ -154,7 +154,7 @@ it('sorts by time', () => {
 - Tag facts live on `bookFiles` so a rescan can regroup without rereading unchanged files.
 
 - [ ] **Step 1:** `pnpm --filter @lelap/core add drizzle-orm` and `add -D drizzle-kit sql.js
-  @types/sql.js` (versions per Global Constraints).
+@types/sql.js` (versions per Global Constraints).
 - [ ] **Step 2: Failing tests** in `schema.test.ts`:
 
 ```ts

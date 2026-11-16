@@ -33,7 +33,7 @@ status there when you start or finish one.
 ```
 apps/site       landing page for lelap.app (Astro, static)       → apps/site/AGENTS.md
 apps/app        Expo app for Android and web; M1 test screen for now
-packages/core   domain model, add-on client, sync (planned)
+packages/core   domain model, library logic, Drizzle schema; add-on client and sync later
 packages/sdk    add-on SDK and protocol types (planned)
 services/       Hono services on Cloudflare Workers (planned)
 modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer
@@ -53,10 +53,12 @@ Node 24 (`.nvmrc`) and pnpm via Corepack (`corepack enable`). Run from the root:
 | App dev server        | `pnpm dev:app`  |
 | Build everything      | `pnpm build`    |
 | Type-check everything | `pnpm check`    |
+| Test                  | `pnpm test`     |
 | Lint                  | `pnpm lint`     |
 | Format                | `pnpm format`   |
 
-Before opening a pull request run `pnpm format:check`, `pnpm lint`, `pnpm check` and `pnpm build`;
+Before opening a pull request run `pnpm format:check`, `pnpm lint`, `pnpm check`, `pnpm test` and
+`pnpm build`;
 CI runs the same. pnpm 12 only runs dependency build scripts listed under `allowBuilds` in
 `pnpm-workspace.yaml`; approve new ones with `pnpm approve-builds`.
 
