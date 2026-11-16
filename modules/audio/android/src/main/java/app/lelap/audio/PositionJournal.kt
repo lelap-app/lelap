@@ -22,7 +22,8 @@ data class BookPlaylist(
 /** The last known place. Mirrors `JournalEntry` in `@lelap/core`. */
 data class JournalEntry(val bookId: String, val fileLocation: String, val filePositionMs: Long, val savedAt: Long)
 
-data class BookLoad(val playlist: BookPlaylist, val startIndex: Int, val startPositionMs: Long)
+/** [pausedAt] is when the place was saved, for smart rewind on the first Play after loading. */
+data class BookLoad(val playlist: BookPlaylist, val startIndex: Int, val startPositionMs: Long, val pausedAt: Long? = null)
 
 /**
  * The service's own record of the place, written while the app may not be running and folded
@@ -60,7 +61,12 @@ object PositionJournal {
   /** The app's `BookLoad`, as JSON. */
   fun decodeLoad(json: String): BookLoad? = try {
     val root = JSONObject(json)
-    BookLoad(decodePlaylist(root), root.getInt("startIndex"), root.getLong("startPositionMs"))
+    BookLoad(
+      decodePlaylist(root),
+      root.getInt("startIndex"),
+      root.getLong("startPositionMs"),
+      if (root.isNull("pausedAt")) null else root.getLong("pausedAt"),
+    )
   } catch (e: JSONException) {
     null
   }

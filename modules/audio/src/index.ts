@@ -13,6 +13,15 @@ export type BookLoad = {
   startIndex: number;
   startPositionMs: number;
   speed: number;
+  /** When the place was saved, so the first Play can rewind a little. */
+  pausedAt: number | null;
+};
+
+/** Player settings that must also work with the app closed. */
+export type PlayerSettings = {
+  duckOnInterruption: boolean;
+  skipIntervalMs: number;
+  smartRewind: boolean;
 };
 
 /** The service's last saved place. Same shape as `JournalEntry` in `@lelap/core`. */
@@ -59,7 +68,8 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   seekBy(deltaMs: number): Promise<void>;
   skipToPart(index: number): Promise<void>;
   setSpeed(speed: number): Promise<void>;
-  setDuckOnInterruption(enabled: boolean): Promise<void>;
+  setSettings(duck: boolean, skipIntervalMs: number, smartRewind: boolean): Promise<void>;
+  skip(forward: boolean): Promise<void>;
   startSleepTimer(minutes: number): Promise<void>;
   cancelSleepTimer(): Promise<void>;
   getState(): Promise<PlayerState>;
@@ -100,8 +110,17 @@ export function setSpeed(speed: number): Promise<void> {
   return native.setSpeed(speed);
 }
 
-export function setDuckOnInterruption(enabled: boolean): Promise<void> {
-  return native.setDuckOnInterruption(enabled);
+export function setSettings(settings: PlayerSettings): Promise<void> {
+  return native.setSettings(
+    settings.duckOnInterruption,
+    settings.skipIntervalMs,
+    settings.smartRewind,
+  );
+}
+
+/** Skips by the skip interval across files, like ⏮/⏭ on the lock screen. */
+export function skip(forward: boolean): Promise<void> {
+  return native.skip(forward);
 }
 
 export function startSleepTimer(minutes: number): Promise<void> {

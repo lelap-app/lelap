@@ -90,6 +90,7 @@ export function PlayerScreen() {
           startIndex: 0,
           startPositionMs: 0,
           speed: 1,
+          pausedAt: null,
         },
         true,
       );
@@ -159,7 +160,15 @@ export function PlayerScreen() {
         <Text style={styles.text}>Duck on interruption (calls)</Text>
         <Switch
           value={state.duckOnInterruption}
-          onValueChange={(enabled) => run(audio.setDuckOnInterruption(enabled))}
+          onValueChange={(enabled) =>
+            run(
+              audio.setSettings({
+                duckOnInterruption: enabled,
+                skipIntervalMs: 30_000,
+                smartRewind: true,
+              }),
+            )
+          }
         />
       </View>
 

@@ -2,12 +2,13 @@ package app.lelap.audio
 
 /** Custom session commands and extras shared by [PlaybackService] and [AudioModule]. */
 object Commands {
-  const val SET_DUCK = "app.lelap.audio.SET_DUCK"
+  const val SET_SETTINGS = "app.lelap.audio.SET_SETTINGS"
   const val START_SLEEP_TIMER = "app.lelap.audio.START_SLEEP_TIMER"
   const val CANCEL_SLEEP_TIMER = "app.lelap.audio.CANCEL_SLEEP_TIMER"
   const val LOAD_BOOK = "app.lelap.audio.LOAD_BOOK"
 
-  const val KEY_ENABLED = "enabled"
+  const val KEY_SKIP_INTERVAL_MS = "skipIntervalMs"
+  const val KEY_SMART_REWIND = "smartRewind"
   const val KEY_DURATION_MS = "durationMs"
   const val KEY_BOOK_JSON = "book"
   const val KEY_AUTOPLAY = "autoplay"

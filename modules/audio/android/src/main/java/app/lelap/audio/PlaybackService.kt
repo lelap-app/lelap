@@ -10,9 +10,11 @@ import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -29,6 +31,7 @@ import com.google.common.util.concurrent.ListenableFuture
 
 private const val PREFS = "lelap_audio"
 private const val TIMER_TICK_MS = 250L
+private const val CHAPTER_TICK_MS = 1_000L
 
 @OptIn(UnstableApi::class)
 class PlaybackService : MediaLibraryService() {
@@ -46,6 +49,19 @@ class PlaybackService : MediaLibraryService() {
   /** The loaded book, kept for the journal and playback resumption. */
   private var current: BookPlaylist? = null
   private var lastJournalAt = Long.MIN_VALUE / 2
+
+  private var skipIntervalMs = 30_000L
+  private var smartRewind = true
+
+  /** Wall-clock time of the last pause, for smart rewind; null once Play has used it. */
+  private var pausedAt: Long? = null
+
+  private val chapterTicker = object : Runnable {
+    override fun run() {
+      updateChapterTitle()
+      if (player.isPlaying) handler.postDelayed(this, CHAPTER_TICK_MS)
+    }
+  }
 
   private val journalTicker = object : Runnable {
     override fun run() {
@@ -96,35 +112,45 @@ class PlaybackService : MediaLibraryService() {
     rules = PlaybackRules(Port()).apply {
       duckOnInterruption = prefs.getBoolean(Commands.EXTRA_DUCK, true)
     }
+    skipIntervalMs = prefs.getLong(Commands.KEY_SKIP_INTERVAL_MS, 30_000L)
+    smartRewind = prefs.getBoolean(Commands.KEY_SMART_REWIND, true)
     focus.duckOnInterruption = rules.duckOnInterruption
     player.addListener(object : Player.Listener {
       override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        if (playWhenReady) rewindAfterPause() else pausedAt = System.currentTimeMillis()
         rules.onPlayWhenReadyChanged(playWhenReady)
         publishExtras()
       }
 
       override fun onIsPlayingChanged(isPlaying: Boolean) {
         handler.removeCallbacks(journalTicker)
+        handler.removeCallbacks(chapterTicker)
         if (isPlaying) {
           handler.postDelayed(journalTicker, PositionJournal.TICK_INTERVAL_MS)
+          handler.post(chapterTicker)
         } else {
           writeJournal(PositionJournal.Event.PAUSE)
         }
       }
 
-      override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) =
-        writeJournal(PositionJournal.Event.ITEM_CHANGE)
+      override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+        // Replacing an item's metadata reports a transition too; only real ones are journaled.
+        if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) writeJournal(PositionJournal.Event.ITEM_CHANGE)
+      }
 
       override fun onPositionDiscontinuity(
         oldPosition: Player.PositionInfo,
         newPosition: Player.PositionInfo,
         reason: Int,
       ) {
-        if (reason == Player.DISCONTINUITY_REASON_SEEK) writeJournal(PositionJournal.Event.SEEK)
+        if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+          writeJournal(PositionJournal.Event.SEEK)
+          updateChapterTitle()
+        }
       }
     })
 
-    val builder = MediaLibrarySession.Builder(this, player, Callback())
+    val builder = MediaLibrarySession.Builder(this, SkippingPlayer(), Callback())
     packageManager.getLaunchIntentForPackage(packageName)?.let { launch ->
       builder.setSessionActivity(
         PendingIntent.getActivity(
@@ -150,6 +176,7 @@ class PlaybackService : MediaLibraryService() {
   override fun onDestroy() {
     writeJournal(PositionJournal.Event.DESTROY)
     handler.removeCallbacks(journalTicker)
+    handler.removeCallbacks(chapterTicker)
     handler.removeCallbacks(timerTicker)
     sleepTimer.cancel()
     focus.abandon()
@@ -162,6 +189,7 @@ class PlaybackService : MediaLibraryService() {
     val playlist = load.playlist
     require(playlist.files.isNotEmpty()) { "A book needs at least one file" }
     current = playlist
+    pausedAt = if (autoplay) null else load.pausedAt
     player.setMediaItems(
       mediaItems(playlist),
       load.startIndex.coerceIn(0, playlist.files.lastIndex),
@@ -181,7 +209,7 @@ class PlaybackService : MediaLibraryService() {
       .setRequestMetadata(MediaItem.RequestMetadata.Builder().setMediaUri(uri).build())
       .setMediaMetadata(
         MediaMetadata.Builder()
-          .setTitle(file.title)
+          .setTitle(chapterTitleAt(playlist, index, 0L) ?: file.title)
           .setAlbumTitle(playlist.title)
           .setArtist(playlist.author)
           .setArtworkUri(playlist.coverUri?.let(Uri::parse))
@@ -191,6 +219,69 @@ class PlaybackService : MediaLibraryService() {
           .build(),
       )
       .build()
+  }
+
+  private fun rewindAfterPause() {
+    val since = pausedAt ?: return
+    pausedAt = null
+    if (!smartRewind || player.mediaItemCount == 0) return
+    val rewind = SeekRules.rewindOnResume(System.currentTimeMillis() - since)
+    // Never across a file start: the rewind stays inside the file that is playing.
+    if (rewind > 0) player.seekTo(player.currentMediaItemIndex, (player.currentPosition - rewind).coerceAtLeast(0L))
+  }
+
+  /** Durations the player knows, else those from the tags. */
+  private fun durations(): List<Long> = List(player.mediaItemCount) { i ->
+    val known = player.currentTimeline.takeIf { i < it.windowCount }?.getWindow(i, Timeline.Window())?.durationMs
+    if (known != null && known != C.TIME_UNSET) known else current?.files?.getOrNull(i)?.durationMs ?: 0L
+  }
+
+  private fun skipBy(deltaMs: Long) {
+    if (player.mediaItemCount == 0) return
+    val (index, position) = SeekRules.skip(player.currentMediaItemIndex, player.currentPosition, deltaMs, durations())
+    player.seekTo(index, position)
+  }
+
+  private fun chapterTitleAt(playlist: BookPlaylist, index: Int, positionMs: Long): String? {
+    if (playlist.chapters.isEmpty()) return null
+    val bookPosition = playlist.files.take(index).sumOf { it.durationMs.coerceAtLeast(0L) } + positionMs
+    return playlist.chapters.lastOrNull { it.startMs <= bookPosition }?.title
+  }
+
+  /** Shows the current chapter as the title on the notification and lock screen. */
+  private fun updateChapterTitle() {
+    val playlist = current ?: return
+    val index = player.currentMediaItemIndex
+    val item = player.currentMediaItem ?: return
+    val title = chapterTitleAt(playlist, index, player.currentPosition) ?: return
+    if (item.mediaMetadata.title?.toString() == title) return
+    // Same URI, so ExoPlayer swaps the metadata without interrupting playback.
+    player.replaceMediaItem(index, item.buildUpon().setMediaMetadata(item.mediaMetadata.buildUpon().setTitle(title).build()).build())
+  }
+
+  /** The session's player: previous and next skip by the skip interval, across files. */
+  private inner class SkippingPlayer : ForwardingPlayer(player) {
+    private val skipCommands = intArrayOf(
+      Player.COMMAND_SEEK_TO_PREVIOUS, Player.COMMAND_SEEK_TO_NEXT,
+      Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM, Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+      Player.COMMAND_SEEK_BACK, Player.COMMAND_SEEK_FORWARD,
+    )
+
+    override fun getAvailableCommands(): Player.Commands {
+      val commands = super.getAvailableCommands()
+      if (player.mediaItemCount == 0) return commands
+      return commands.buildUpon().addAll(*skipCommands).build()
+    }
+
+    override fun isCommandAvailable(command: Int) = availableCommands.contains(command)
+    override fun seekToPrevious() = skipBy(-skipIntervalMs)
+    override fun seekToNext() = skipBy(skipIntervalMs)
+    override fun seekToPreviousMediaItem() = skipBy(-skipIntervalMs)
+    override fun seekToNextMediaItem() = skipBy(skipIntervalMs)
+    override fun seekBack() = skipBy(-skipIntervalMs)
+    override fun seekForward() = skipBy(skipIntervalMs)
+    override fun getSeekBackIncrement() = skipIntervalMs
+    override fun getSeekForwardIncrement() = skipIntervalMs
   }
 
   /** Records the place; must never throw, since it runs from lifecycle callbacks. */
@@ -270,7 +361,7 @@ class PlaybackService : MediaLibraryService() {
       controller: MediaSession.ControllerInfo,
     ): MediaSession.ConnectionResult {
       val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
-        .add(SessionCommand(Commands.SET_DUCK, Bundle.EMPTY))
+        .add(SessionCommand(Commands.SET_SETTINGS, Bundle.EMPTY))
         .add(SessionCommand(Commands.START_SLEEP_TIMER, Bundle.EMPTY))
         .add(SessionCommand(Commands.CANCEL_SLEEP_TIMER, Bundle.EMPTY))
         .add(SessionCommand(Commands.LOAD_BOOK, Bundle.EMPTY))
@@ -288,11 +379,17 @@ class PlaybackService : MediaLibraryService() {
       args: Bundle,
     ): ListenableFuture<SessionResult> {
       when (customCommand.customAction) {
-        Commands.SET_DUCK -> {
-          val enabled = args.getBoolean(Commands.KEY_ENABLED, true)
-          rules.duckOnInterruption = enabled
-          focus.duckOnInterruption = enabled
-          prefs.edit().putBoolean(Commands.EXTRA_DUCK, enabled).apply()
+        Commands.SET_SETTINGS -> {
+          val duck = args.getBoolean(Commands.EXTRA_DUCK, true)
+          rules.duckOnInterruption = duck
+          focus.duckOnInterruption = duck
+          skipIntervalMs = args.getLong(Commands.KEY_SKIP_INTERVAL_MS, 30_000L).coerceIn(5_000L, 300_000L)
+          smartRewind = args.getBoolean(Commands.KEY_SMART_REWIND, true)
+          prefs.edit()
+            .putBoolean(Commands.EXTRA_DUCK, duck)
+            .putLong(Commands.KEY_SKIP_INTERVAL_MS, skipIntervalMs)
+            .putBoolean(Commands.KEY_SMART_REWIND, smartRewind)
+            .apply()
         }
         Commands.START_SLEEP_TIMER -> {
           sleepTimer.start(args.getLong(Commands.KEY_DURATION_MS))
@@ -338,8 +435,10 @@ class PlaybackService : MediaLibraryService() {
       current = playlist
       player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
       val index = playlist.files.indexOfFirst { it.location == entry.fileLocation }.coerceAtLeast(0)
+      val rewind = if (smartRewind) SeekRules.rewindOnResume(System.currentTimeMillis() - entry.savedAt) else 0L
+      pausedAt = null
       return Futures.immediateFuture(
-        MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, entry.filePositionMs),
+        MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, (entry.filePositionMs - rewind).coerceAtLeast(0L)),
       )
     }
 

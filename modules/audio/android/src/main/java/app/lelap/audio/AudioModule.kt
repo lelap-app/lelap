@@ -109,11 +109,20 @@ class AudioModule : Module() {
       withController(promise) { it.setPlaybackSpeed(speed.coerceIn(0.5f, 3f)) }
     }.runOnQueue(Queues.MAIN)
 
-    AsyncFunction("setDuckOnInterruption") { enabled: Boolean, promise: Promise ->
+    AsyncFunction("setSettings") { duck: Boolean, skipIntervalMs: Double, smartRewind: Boolean, promise: Promise ->
       withController(promise) { c ->
-        val args = Bundle().apply { putBoolean(Commands.KEY_ENABLED, enabled) }
-        c.sendCustomCommand(SessionCommand(Commands.SET_DUCK, Bundle.EMPTY), args)
+        val args = Bundle().apply {
+          putBoolean(Commands.EXTRA_DUCK, duck)
+          putLong(Commands.KEY_SKIP_INTERVAL_MS, skipIntervalMs.toLong())
+          putBoolean(Commands.KEY_SMART_REWIND, smartRewind)
+        }
+        c.sendCustomCommand(SessionCommand(Commands.SET_SETTINGS, Bundle.EMPTY), args)
       }
+    }.runOnQueue(Queues.MAIN)
+
+    // Through the session's player, so the app's skip buttons match the lock screen's.
+    AsyncFunction("skip") { forward: Boolean, promise: Promise ->
+      withController(promise) { if (forward) it.seekToNext() else it.seekToPrevious() }
     }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("startSleepTimer") { minutes: Double, promise: Promise ->
