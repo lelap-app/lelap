@@ -55,6 +55,20 @@ describe('feed proxy', () => {
     expect(calls[0]?.headers['If-None-Match']).toBe('"v1"');
   });
 
+  it('takes the validators from the query too, so browsers need no preflight', async () => {
+    const { get, calls } = setup(() => new Response(null, { status: 304 }));
+    const query = new URLSearchParams({
+      url: 'https://feeds.example.org/a.xml',
+      etag: '"v2"',
+      since: 'Mon, 16 Nov 2026 10:00:00 GMT',
+    });
+    expect((await get(`/feed?${query.toString()}`)).status).toBe(304);
+    expect(calls[0]?.headers).toMatchObject({
+      'If-None-Match': '"v2"',
+      'If-Modified-Since': 'Mon, 16 Nov 2026 10:00:00 GMT',
+    });
+  });
+
   it('never passes audio, whatever the server calls it', async () => {
     const audio = setup(
       () =>

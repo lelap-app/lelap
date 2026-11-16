@@ -26,18 +26,43 @@ const FETCH_TIMEOUT_MS = 20_000;
 // Feeds are read from the phone, so refreshing often costs the listener's data, not ours.
 const REFRESH_EVERY_MS = 30 * 60_000;
 
+// The proxy is rate limited per address; the web app spaces its feed requests out.
+const PROXY_SPACING_MS = 250;
+let nextProxySlot = 0;
+
+async function proxySlot(): Promise<void> {
+  const now = Date.now();
+  const wait = Math.max(0, nextProxySlot - now);
+  nextProxySlot = Math.max(now, nextProxySlot) + PROXY_SPACING_MS;
+  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+}
+
+/**
+ * Where to fetch a feed, and with which headers. Browsers can't read most feeds across origins,
+ * so the web app goes through the proxy, with the validators in the URL: headers such as
+ * `If-None-Match` would make the browser send a preflight request for every feed.
+ */
+function feedRequest(feedUrl: string, etag: string | null, lastModified: string | null) {
+  if (Platform.OS !== 'web') {
+    const headers: Record<string, string> = {};
+    if (etag) headers['If-None-Match'] = etag;
+    if (lastModified) headers['If-Modified-Since'] = lastModified;
+    return { url: feedUrl, headers };
+  }
+  const query = new URLSearchParams({ url: feedUrl });
+  if (etag) query.set('etag', etag);
+  if (lastModified) query.set('since', lastModified);
+  return { url: `${proxyBase}/feed?${query.toString()}`, headers: {} };
+}
+
 /** Fetches and stores a feed. An unchanged feed (304) keeps what is stored. */
 export async function fetchFeed(feedUrl: string): Promise<string> {
   const cache = feedCache(db, feedUrl);
-  const headers: Record<string, string> = {};
-  if (cache?.etag) headers['If-None-Match'] = cache.etag;
-  if (cache?.lastModified) headers['If-Modified-Since'] = cache.lastModified;
+  const { url, headers } = feedRequest(feedUrl, cache?.etag ?? null, cache?.lastModified ?? null);
+  if (Platform.OS === 'web') await proxySlot();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    // Browsers can't read most feeds across origins; the web app goes through the feed proxy.
-    const url =
-      Platform.OS === 'web' ? `${proxyBase}/feed?url=${encodeURIComponent(feedUrl)}` : feedUrl;
     const response = await fetch(url, { headers, signal: controller.signal });
     const existing = findPodcast(db, { feedUrl });
     if (response.status === 304 && existing) return existing.id;

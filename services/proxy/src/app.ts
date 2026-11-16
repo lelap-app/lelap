@@ -124,8 +124,9 @@ export function createApp(platform: Platform, env: Env): Hono {
     const conditional: Record<string, string> = {
       Accept: 'application/rss+xml, application/xml, text/xml, */*',
     };
-    const etag = c.req.header('if-none-match');
-    const since = c.req.header('if-modified-since');
+    // Browsers pass these in the query, which spares a preflight request per feed.
+    const etag = c.req.header('if-none-match') ?? c.req.query('etag');
+    const since = c.req.header('if-modified-since') ?? c.req.query('since');
     if (etag) conditional['If-None-Match'] = etag;
     if (since) conditional['If-Modified-Since'] = since;
     const response = await upstream(url, conditional);
