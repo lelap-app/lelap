@@ -7,3 +7,4 @@ export * from './library/files';
 export * from './library/group';
 export * from './library/timeline';
 export * from './progress';
+export * from './library/scan';
