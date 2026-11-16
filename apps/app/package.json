@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@lelap/audio": "workspace:*",
+    "@lelap/library": "workspace:*",
     "expo": "~58.0.25",
     "expo-dev-client": "~58.0.20",
     "expo-status-bar": "~58.0.5",

@@ -1,0 +1,19 @@
+{
+  "name": "@lelap/library",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Android folder access, tags and chapters for the local library.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "expo": "*"
+  },
+  "devDependencies": {
+    "@lelap/core": "workspace:*",
+    "expo": "~58.0.25",
+    "typescript": "~6.0.3"
+  }
+}
