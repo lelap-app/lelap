@@ -3,11 +3,11 @@ import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as audio from '../platform/audio';
-import { usePlayer } from '../player';
+import { usePlayerState } from '../player';
 
 /** The book that is loaded, with Play/Pause; opens the Player. Hidden when nothing is loaded. */
 export function MiniPlayer() {
-  const { state } = usePlayer();
+  const state = usePlayerState();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   if (!state.bookId || state.partIndex < 0) return null;

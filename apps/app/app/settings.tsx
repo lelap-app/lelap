@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { db } from '../src/db';
 import * as audio from '../src/platform/audio';
-import { usePlayer } from '../src/player';
+import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { chooseFolder, scanLibrary } from '../src/scan';
 
@@ -34,7 +34,7 @@ function Row({
 }
 
 export default function SettingsScreen() {
-  const { version, refresh } = usePlayer();
+  const { version, refresh } = useLibrary();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState(() => getSettings(db, profileId));
@@ -76,7 +76,13 @@ export default function SettingsScreen() {
 
         <Text className="pt-2 text-xs uppercase tracking-wider text-muted">Library</Text>
         <Row label="Audiobooks folder" detail={root?.name ?? 'Not chosen'}>
-          <Pressable onPress={() => void chooseFolder().then((ok) => ok && refresh())}>
+          <Pressable
+            onPress={() =>
+              void chooseFolder().then(async (ok) => {
+                if (ok) await rescan();
+              })
+            }
+          >
             <Text className="text-amber">Change</Text>
           </Pressable>
         </Row>

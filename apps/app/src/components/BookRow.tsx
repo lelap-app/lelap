@@ -1,4 +1,5 @@
 import type { LibraryBook } from '@lelap/core';
+import { memo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { BookCover } from './BookCover';
@@ -11,20 +12,20 @@ function status(book: LibraryBook): string {
   return `${Math.min(99, Math.floor((book.bookPositionMs / book.durationMs) * 100))} %`;
 }
 
-export function BookRow({
+export const BookRow = memo(function BookRow({
   book,
-  onPress,
-  onLongPress,
+  onOpen,
+  onToggleFinished,
 }: {
   book: LibraryBook;
-  onPress: () => void;
-  onLongPress: () => void;
+  onOpen: (book: LibraryBook) => void;
+  onToggleFinished: (book: LibraryBook) => void;
 }) {
   const progress = book.durationMs > 0 ? Math.min(1, book.bookPositionMs / book.durationMs) : 0;
   return (
     <Pressable
-      onPress={onPress}
-      onLongPress={onLongPress}
+      onPress={() => onOpen(book)}
+      onLongPress={() => onToggleFinished(book)}
       className={`flex-row items-center gap-3 px-4 py-2 active:bg-raised ${book.missing ? 'opacity-40' : ''}`}
     >
       <BookCover path={book.coverPath} title={book.title} size={56} />
@@ -48,4 +49,4 @@ export function BookRow({
       </Text>
     </Pressable>
   );
-}
+});

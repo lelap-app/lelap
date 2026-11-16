@@ -20,7 +20,7 @@ import { Sheet } from '../src/components/Sheet';
 import { db, newId } from '../src/db';
 import { formatClock, formatLeft } from '../src/format';
 import * as audio from '../src/platform/audio';
-import { seekToBookPosition, usePlayer } from '../src/player';
+import { seekToBookPosition, useLibrary, usePlayerState } from '../src/player';
 import { profileId } from '../src/profile';
 
 const SPEEDS = [0.8, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
@@ -60,7 +60,8 @@ function Chip({ label, onPress }: { label: string; onPress: () => void }) {
 }
 
 export default function Player() {
-  const { state, version, refresh } = usePlayer();
+  const state = usePlayerState();
+  const { version, refresh } = useLibrary();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [sheet, setSheet] = useState<'chapters' | 'bookmarks' | 'speed' | 'sleep' | 'note' | null>(

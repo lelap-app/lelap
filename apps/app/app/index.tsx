@@ -15,7 +15,7 @@ import { BookRow } from '../src/components/BookRow';
 import { ContinueCard } from '../src/components/ContinueCard';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { db } from '../src/db';
-import { playBook, usePlayer } from '../src/player';
+import { playBook, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { chooseFolder, scanLibrary } from '../src/scan';
 
@@ -26,7 +26,7 @@ const SORTS: { key: LibrarySort; label: string }[] = [
 ];
 
 export default function Library() {
-  const { version, refresh } = usePlayer();
+  const { version, refresh } = useLibrary();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [sort, setSort] = useState<LibrarySort>('recent');
@@ -56,8 +56,9 @@ export default function Library() {
     if (root) void rescan();
   }, [root?.uri, rescan]);
 
+  // Re-picking the same folder keeps its URI, so scan here rather than wait for it to change.
   const pick = async () => {
-    if (await chooseFolder()) refresh();
+    if (await chooseFolder()) await rescan();
   };
 
   const open = async (book: LibraryBook) => {
@@ -159,11 +160,7 @@ export default function Library() {
           ) : undefined
         }
         renderItem={({ item }) => (
-          <BookRow
-            book={item}
-            onPress={() => void open(item)}
-            onLongPress={() => toggleFinished(item)}
-          />
+          <BookRow book={item} onOpen={(b) => void open(b)} onToggleFinished={toggleFinished} />
         )}
       />
       <MiniPlayer />

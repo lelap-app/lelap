@@ -13,6 +13,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -43,16 +44,34 @@ export const IDLE: audio.PlayerState = {
 
 const SAVE_INTERVAL_MS = 10_000;
 
-type PlayerContext = {
-  state: audio.PlayerState;
+type Library = {
   /** Bumped whenever stored library data may have changed; screens re-read on change. */
   version: number;
   refresh: () => void;
 };
 
-const Context = createContext<PlayerContext>({ state: IDLE, version: 0, refresh: () => {} });
+// Two contexts: the player state changes every second while playing, the library rarely, and
+// the Library list should only re-render for the latter.
+const PlayerStateContext = createContext<audio.PlayerState>(IDLE);
+const LibraryContext = createContext<Library>({ version: 0, refresh: () => {} });
 
-export const usePlayer = () => useContext(Context);
+export const usePlayerState = () => useContext(PlayerStateContext);
+export const useLibrary = () => useContext(LibraryContext);
+
+// Books whose place this session has played; only those are saved when another book replaces
+// them. A book only loaded at startup may sit at a fallback place (its saved file is missing),
+// and saving that would stop the place from following the file when it comes back.
+const playedThisSession = new Set<string>();
+
+// Loads run one at a time, so the startup load can never land after (and undo) a user's tap.
+let loads: Promise<unknown> = Promise.resolve();
+let userLoaded = false;
+
+function enqueue<T>(task: () => Promise<T>): Promise<T> {
+  const next = loads.then(task, task);
+  loads = next.catch(() => {});
+  return next;
+}
 
 /** Folds the service's journal into the database, for places saved while the app was closed. */
 async function foldJournal(): Promise<void> {
@@ -77,13 +96,25 @@ function savePlace(state: audio.PlayerState): boolean {
 }
 
 /** Loads a book at its saved place, or resumes it when it is already loaded. */
-export async function playBook(bookId: string, autoplay = true): Promise<void> {
+export function playBook(bookId: string, autoplay = true): Promise<void> {
+  userLoaded = true;
+  return enqueue(() => load(bookId, autoplay));
+}
+
+/** Startup: the last book, paused, unless the user has already chosen one. */
+function loadAtStartup(bookId: string): Promise<void> {
+  return enqueue(async () => {
+    if (!userLoaded) await load(bookId, false);
+  });
+}
+
+async function load(bookId: string, autoplay: boolean): Promise<void> {
   const current = await audio.getState();
   if (current.bookId === bookId && current.partIndex >= 0) {
     if (autoplay) await audio.play();
     return;
   }
-  savePlace(current);
+  if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
   const detail = getBook(db, profileId, bookId);
   if (!detail || detail.files.length === 0)
     throw new Error('The files of this book are not available.');
@@ -135,7 +166,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!now.bookId) {
         const next = continueListening(db, profileId);
         // Ready on the lock screen and mini player, without starting to play.
-        if (next) await playBook(next.id, false).catch(() => {});
+        if (next) await loadAtStartup(next.id).catch(() => {});
       }
     };
     void start().finally(refresh);
@@ -150,6 +181,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   // The app's own saves, from what the player reports: every 10 s while playing and on pause.
   useEffect(() => {
+    if (state.playing && state.bookId) playedThisSession.add(state.bookId);
     const paused = wasPlaying.current && !state.playing;
     wasPlaying.current = state.playing;
     const now = Date.now();
@@ -158,5 +190,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (savePlace(state) && paused) refresh();
   }, [state, refresh]);
 
-  return <Context.Provider value={{ state, version, refresh }}>{children}</Context.Provider>;
+  const library = useMemo(() => ({ version, refresh }), [version, refresh]);
+  return (
+    <LibraryContext.Provider value={library}>
+      <PlayerStateContext.Provider value={state}>{children}</PlayerStateContext.Provider>
+    </LibraryContext.Provider>
+  );
 }
