@@ -86,5 +86,8 @@ GitHub Actions in a public repository:
 - Pin every third-party action to a full commit SHA with the version in a comment.
 - Default `permissions: contents: read`; widen per job only when needed.
 - Never use `pull_request_target` together with a checkout of pull request code.
+- The `android-unit-tests` job in `ci.yml` runs the Kotlin JVM unit tests on pushes to `main` and on
+  pull requests that touch `modules/`, the app manifest files or the lockfile. Extend its path
+  filter when a new native module or test location appears.
 - Deploy jobs use GitHub environments (`web` for the site and services, `release` for signed
   builds) so secrets never reach pull requests from forks.
