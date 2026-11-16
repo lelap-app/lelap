@@ -1,0 +1,4 @@
+# Copy to .dev.vars for `wrangler dev`. Both are optional; without them the Catalog add-on leaves
+# out the Podcast Index catalogs. Free keys: https://api.podcastindex.org
+PODCASTINDEX_KEY=
+PODCASTINDEX_SECRET=

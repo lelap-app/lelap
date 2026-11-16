@@ -1,0 +1,37 @@
+{
+  "status": "true",
+  "feeds": [
+    {
+      "id": 1001,
+      "url": "https://feeds.example.org/garden-hour.xml",
+      "title": "The Garden Hour",
+      "description": "<p>Weekly talk about <b>gardens</b> &amp; growing things.</p>",
+      "author": "Example Media",
+      "image": "https://images.example.org/garden-hour.jpg",
+      "artwork": "https://images.example.org/garden-hour-large.jpg",
+      "newestItemPublishTime": 1762905600,
+      "itunesId": null,
+      "trendScore": 9,
+      "language": "en",
+      "categories": { "38": "Home", "39": "Garden" }
+    },
+    {
+      "id": 1002,
+      "url": "https://feeds.example.org/night-reading.xml",
+      "title": "Night Reading",
+      "description": "Public-domain stories read aloud.",
+      "author": "",
+      "image": "not a url",
+      "artwork": "",
+      "newestItemPublishTime": 1762819200,
+      "itunesId": 123456,
+      "trendScore": 7,
+      "language": "en",
+      "categories": null
+    }
+  ],
+  "count": 2,
+  "max": "20",
+  "since": null,
+  "description": "Found matching feeds"
+}

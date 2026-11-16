@@ -1,0 +1,13 @@
+# The Catalog add-on at the root and the LibriVox add-on under /librivox.
+# No routes here: attach a custom domain in the Cloudflare dashboard, so forks deploy to their own.
+name = "lelap-catalog"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+workers_dev = true
+send_metrics = false
+
+[vars]
+SOURCE_URL = "https://github.com/lelap-app/lelap"
+
+# Optional secrets, set with `wrangler secret put`:
+#   PODCASTINDEX_KEY, PODCASTINDEX_SECRET  turn on the Podcast Index catalogs.

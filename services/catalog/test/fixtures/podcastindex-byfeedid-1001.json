@@ -1,0 +1,11 @@
+{
+  "status": "true",
+  "query": { "id": "1001" },
+  "feed": {
+    "id": 1001,
+    "podcastGuid": "5b8a6a0e-2d1c-5c3b-9a55-0f3c2a8e1b01",
+    "title": "The Garden Hour",
+    "url": "https://feeds.example.org/garden-hour.xml"
+  },
+  "description": "Found matching feed"
+}
