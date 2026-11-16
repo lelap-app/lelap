@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookCover } from '../src/components/BookCover';
 import { BookmarksSheet } from '../src/components/BookmarksSheet';
 import { ChaptersSheet } from '../src/components/ChaptersSheet';
+import { Scrubber } from '../src/components/Scrubber';
 import { Sheet } from '../src/components/Sheet';
 import { db, newId } from '../src/db';
 import { formatClock, formatLeft } from '../src/format';
@@ -67,7 +68,6 @@ export default function Player() {
   const [sheet, setSheet] = useState<'chapters' | 'bookmarks' | 'speed' | 'sleep' | 'note' | null>(
     null,
   );
-  const [width, setWidth] = useState(1);
   const [note, setNote] = useState('');
   const [lastBookmark, setLastBookmark] = useState<string | null>(null);
 
@@ -168,21 +168,11 @@ export default function Player() {
         </View>
       </View>
 
-      <View className="gap-2">
-        <Pressable
-          onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-          onPress={(e) => seek(rangeStart + (e.nativeEvent.locationX / width) * length)}
-          className="h-8 justify-center"
-        >
-          <View className="h-1.5 overflow-hidden rounded-full bg-line">
-            <View style={{ width: `${(elapsed / length) * 100}%` }} className="h-1.5 bg-amber" />
-          </View>
-        </Pressable>
-        <View className="flex-row justify-between">
-          <Text className="text-sm text-muted">{formatClock(elapsed)}</Text>
-          <Text className="text-sm text-muted">{formatClock(length)}</Text>
-        </View>
-      </View>
+      <Scrubber
+        elapsedMs={elapsed}
+        lengthMs={length}
+        onSeek={(offset) => seek(rangeStart + offset)}
+      />
 
       <View className="flex-row items-center justify-between py-4">
         <Control label="⟲30" onPress={() => void audio.skip(false)} />

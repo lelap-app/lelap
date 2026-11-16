@@ -32,22 +32,22 @@ native module's manifest.
 
 ## M2 device checklist
 
-Before the week in airplane mode, on the phone with the `Audiobooks` folder:
+Before the week in airplane mode, on the phone with the `Audiobooks` folder. Results so far: Pixel 10 Pro XL, Android 17, 2026-11-16.
 
-| #   | Check                                                                                                                                      | Result |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
-| 1   | **Folder:** choose `Audiobooks`. Six books appear: the four audiobooks and the two podcast folders, with covers where the files have them. |        |
-| 2   | **Rescan:** reopen the app. The Library appears at once and nothing is read again (no “Scanning… n of m” line).                            |        |
-| 3   | **Episodes:** a podcast folder plays as one book; Chapters lists every episode as `S01E01 · …` in order.                                   |        |
-| 4   | **Deep resume:** play a 500 MB book two hours in, note the time, pause, swipe the app away, reopen. Within 2 s of the noted time.          |        |
-| 5   | **Swipe away while playing:** swipe the app away mid-chapter, keep listening for a minute, stop from the notification, reopen. Same place. |        |
-| 6   | **Reboot:** reboot the phone mid-book, reopen. Same place.                                                                                 |        |
-| 7   | **Headphones:** with the app closed and nothing playing, press Play on Bluetooth headphones. The last book resumes where it stopped.       |        |
-| 8   | **Skip:** ⏮/⏭ on the lock screen and headphones skip 30 s back and forward, across part boundaries in a podcast folder.                    |        |
-| 9   | **Smart rewind:** pause for two minutes, then Play. It starts 5 s earlier.                                                                 |        |
-| 10  | **Bookmarks:** add one with a note, restart the app, tap it. It jumps there.                                                               |        |
-| 11  | **Missing files:** rename a book folder on the phone, pull to refresh. The book is dimmed. Rename it back: whole again, same place.        |        |
-| 12  | **Lost access:** revoke Lelap's folder access in Android settings, reopen. A banner asks for the folder; no book is dimmed.                |        |
-| 13  | **Airplane mode:** everything above with airplane mode on.                                                                                 |        |
+| #   | Check                                                                                                                                      | Result                                                             |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| 1   | **Folder:** choose `Audiobooks`. Every book folder and both podcast folders appear, with covers where the files have them.                 | Pass: 111 files, 29 books, durations for all, 88 files with covers |
+| 2   | **Rescan:** reopen the app. The Library appears at once and nothing is read again (no “Scanning… n of m” line).                            |                                                                    |
+| 3   | **Episodes:** a podcast folder plays as one book; Chapters lists every episode as `S01E01 · …` in order.                                   | Pass: Bandeland 62 episodes in order, `S01E01 · …`                 |
+| 4   | **Deep resume:** play a 500 MB book two hours in, note the time, pause, swipe the app away, reopen. Within 2 s of the noted time.          |                                                                    |
+| 5   | **Swipe away while playing:** swipe the app away mid-chapter, keep listening for a minute, stop from the notification, reopen. Same place. |                                                                    |
+| 6   | **Reboot:** reboot the phone mid-book, reopen. Same place.                                                                                 |                                                                    |
+| 7   | **Headphones:** with the app closed and nothing playing, press Play on Bluetooth headphones. The last book resumes where it stopped.       |                                                                    |
+| 8   | **Skip:** ⏮/⏭ on the lock screen and headphones skip 30 s back and forward, across part boundaries in a podcast folder.                    |                                                                    |
+| 9   | **Smart rewind:** pause for two minutes, then Play. It starts 5 s earlier.                                                                 |                                                                    |
+| 10  | **Bookmarks:** add one with a note, restart the app, tap it. It jumps there.                                                               |                                                                    |
+| 11  | **Missing files:** rename a book folder on the phone, pull to refresh. The book is dimmed. Rename it back: whole again, same place.        |                                                                    |
+| 12  | **Lost access:** revoke Lelap's folder access in Android settings, reopen. A banner asks for the folder; no book is dimmed.                |                                                                    |
+| 13  | **Airplane mode:** everything above with airplane mode on.                                                                                 |                                                                    |
 
 Then the real test: a week of daily listening in airplane mode without losing your place.
