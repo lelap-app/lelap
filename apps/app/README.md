@@ -116,3 +116,23 @@ Podcasts. The done-when: the maintainer's podcast folders have become subscripti
 | 5   | **Auto-download:** turn it on with 3 newest; three episodes download; marking one played removes its download and fetches the next.   |        |
 | 6   | **Up Next:** queue two episodes and a book. An episode that ends plays the next; the book stops at its end.                           |        |
 | 7   | **Refresh:** pull to refresh fetches new episodes; an unchanged feed answers 304.                                                     |        |
+
+## M6 web checklist
+
+The done-when: the same library plays in a desktop browser at `listen.lelap.app`.
+
+Local run: start the `proxy` and `web` configurations in `.claude/launch.json` (`wrangler dev`
+on :8788, `expo start --web` on :8082). Checked in Chrome on 2026-11-16: Home rows load, a
+LibriVox book streams, its place survives a reload, a LibriVox RSS feed subscribes through the
+proxy and an episode plays.
+
+| #   | Check                                                                                            | Result                      |
+| --- | ------------------------------------------------------------------------------------------------ | --------------------------- |
+| 1   | **Deploy:** create the Pages project `lelap-web` on `listen.lelap.app`; the workflow deploys.    |                             |
+| 2   | **Proxy:** `PROXY_DOMAIN` and `WEB_ORIGIN` set, rate limiting rule on; `/feed` answers.          |                             |
+| 3   | **Stream:** play a LibriVox book; skip, speed, sleep timer, media keys.                          | Pass locally (play, skip)   |
+| 4   | **Place:** reload mid-chapter; Continue listening resumes there.                                 | Pass locally                |
+| 5   | **Podcast:** subscribe by feed address; play an episode.                                         | Pass locally (LibriVox RSS) |
+| 6   | **Download:** download a book; it plays with the network off in DevTools.                        |                             |
+| 7   | **Safari and Firefox:** the app opens, streams and keeps the place.                              |                             |
+| 8   | **Same library:** M7 (sync) brings the phone's library over; until then the browser has its own. |                             |

@@ -10,6 +10,7 @@ import { applyRules } from '../src/downloads';
 import * as audio from '../src/platform/audio';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
+import { LOCAL_FOLDERS } from '../src/platform/library';
 import { chooseFolder, scanLibrary } from '../src/scan';
 
 const SKIP_SECONDS = [10, 15, 30, 45, 60];
@@ -76,42 +77,50 @@ export default function SettingsScreen() {
         </Pressable>
         <Text className="pb-4 text-3xl font-semibold text-paper">Settings</Text>
 
-        <Text className="pt-2 text-xs uppercase tracking-wider text-muted">Library</Text>
-        <Row label="Audiobooks folder" detail={root?.name ?? 'Not chosen'}>
-          <Pressable
-            onPress={() =>
-              void chooseFolder().then(async (ok) => {
-                if (ok) await rescan();
-              })
-            }
-          >
-            <Text className="text-amber">Change</Text>
-          </Pressable>
-        </Row>
-        <Row label="Look for new and changed files">
-          <Pressable disabled={scanning || !root} onPress={() => void rescan()}>
-            <Text className={scanning ? 'text-muted' : 'text-amber'}>
-              {scanning ? 'Scanning…' : 'Rescan'}
-            </Text>
-          </Pressable>
-        </Row>
+        {LOCAL_FOLDERS && (
+          <>
+            <Text className="pt-2 text-xs uppercase tracking-wider text-muted">Library</Text>
+            <Row label="Audiobooks folder" detail={root?.name ?? 'Not chosen'}>
+              <Pressable
+                onPress={() =>
+                  void chooseFolder().then(async (ok) => {
+                    if (ok) await rescan();
+                  })
+                }
+              >
+                <Text className="text-amber">Change</Text>
+              </Pressable>
+            </Row>
+            <Row label="Look for new and changed files">
+              <Pressable disabled={scanning || !root} onPress={() => void rescan()}>
+                <Text className={scanning ? 'text-muted' : 'text-amber'}>
+                  {scanning ? 'Scanning…' : 'Rescan'}
+                </Text>
+              </Pressable>
+            </Row>
+          </>
+        )}
 
         <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Downloads</Text>
-        <Row
-          label="Download only on Wi-Fi"
-          detail="Downloads wait for Wi-Fi instead of using mobile data."
-        >
-          <Switch
-            value={settings.downloadOnWifiOnly}
-            onValueChange={(v) => update('downloadOnWifiOnly', v)}
-          />
-        </Row>
-        <Row label="Download only while charging" detail="Good for downloading overnight.">
-          <Switch
-            value={settings.downloadWhileChargingOnly}
-            onValueChange={(v) => update('downloadWhileChargingOnly', v)}
-          />
-        </Row>
+        {LOCAL_FOLDERS && (
+          <>
+            <Row
+              label="Download only on Wi-Fi"
+              detail="Downloads wait for Wi-Fi instead of using mobile data."
+            >
+              <Switch
+                value={settings.downloadOnWifiOnly}
+                onValueChange={(v) => update('downloadOnWifiOnly', v)}
+              />
+            </Row>
+            <Row label="Download only while charging" detail="Good for downloading overnight.">
+              <Switch
+                value={settings.downloadWhileChargingOnly}
+                onValueChange={(v) => update('downloadWhileChargingOnly', v)}
+              />
+            </Row>
+          </>
+        )}
         <Row
           label="Downloads and storage"
           detail="What is on the phone and how much space it takes."
@@ -159,12 +168,16 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Developer</Text>
-        <Row label="Audio spike" detail="The M1 test screen, until its call checks pass.">
-          <Pressable onPress={() => router.push('/dev/spike')}>
-            <Text className="text-amber">Open</Text>
-          </Pressable>
-        </Row>
+        {__DEV__ && LOCAL_FOLDERS && (
+          <>
+            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Developer</Text>
+            <Row label="Audio spike" detail="The M1 test screen, until its call checks pass.">
+              <Pressable onPress={() => router.push('/dev/spike')}>
+                <Text className="text-amber">Open</Text>
+              </Pressable>
+            </Row>
+          </>
+        )}
       </ScrollView>
       <MiniPlayer />
     </View>

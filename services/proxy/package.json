@@ -1,0 +1,24 @@
+{
+  "name": "@lelap/proxy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "RSS feed and cover proxy for the Lelap web app. Never audio.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "hono": "^4.13.17"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261109.1",
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0",
+    "wrangler": "^4.158.0"
+  }
+}

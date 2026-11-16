@@ -1,6 +1,5 @@
 import { listSubscriptions } from '@lelap/core';
 import * as DocumentPicker from 'expo-document-picker';
-import { File } from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
@@ -9,7 +8,6 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  Share,
   Text,
   TextInput,
   View,
@@ -20,6 +18,7 @@ import { BookCover } from '../../src/components/BookCover';
 import { db } from '../../src/db';
 import { useLibrary } from '../../src/player';
 import { exportOpml, importOpml, refreshPodcasts, subscribeToFeed } from '../../src/podcasts';
+import { readPickedText, shareText } from '../../src/platform/files';
 import { profileId } from '../../src/profile';
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -58,7 +57,7 @@ export default function PodcastsScreen() {
       const picked = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
       const asset = picked.canceled ? undefined : picked.assets[0];
       if (!asset) return;
-      const result = await importOpml(await new File(asset.uri).text());
+      const result = await importOpml(await readPickedText(asset));
       Alert.alert(
         `${result.added} podcasts added`,
         result.failed.length > 0 ? `Could not read: ${result.failed.join(', ')}` : undefined,
@@ -118,11 +117,7 @@ export default function PodcastsScreen() {
               <Text className="text-amber">Import OPML</Text>
             </Pressable>
             {subs.length > 0 && (
-              <Pressable
-                onPress={() =>
-                  void Share.share({ title: 'Lelap subscriptions.opml', message: exportOpml() })
-                }
-              >
+              <Pressable onPress={() => void shareText('lelap-subscriptions.opml', exportOpml())}>
                 <Text className="text-amber">Export OPML</Text>
               </Pressable>
             )}

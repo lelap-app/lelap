@@ -7,3 +7,6 @@ export {
   readImage,
   readTags,
 } from '@lelap/library';
+
+/** Whether this platform can read a local library folder. */
+export const LOCAL_FOLDERS = true;

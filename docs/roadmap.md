@@ -11,7 +11,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M3 Add-on protocol and SDK | In progress |
 | M4 Downloads               | In progress |
 | M5 Podcasts                | In progress |
-| M6 Web build               | Not started |
+| M6 Web build               | In progress |
 | M7 Sync                    | Not started |
 | M8 Release pipeline        | Not started |
 | M9 Profiles (v1.1)         | Not started |
@@ -104,6 +104,12 @@ RSS subscriptions, OPML import and export, auto-download rules per podcast, and 
 **Done when** the maintainer's own podcast subscriptions have moved over.
 
 ## M6 Web build
+
+**Status:** in progress. Design notes in [the brief](brief.md#web-build-m6). Streaming, saved
+places across reloads and a podcast through the local proxy work in a desktop browser (Chrome,
+`expo start --web`). Still to do: create the Pages project and the proxy's domain, then check
+the deployed app at `listen.lelap.app` (see the checklist in
+[`apps/app/README.md`](../apps/app/README.md#m6-web-checklist)).
 
 react-native-web build, OPFS storage, the web audio adapter, and the feed and cover proxy.
 
