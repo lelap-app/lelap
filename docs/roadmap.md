@@ -14,7 +14,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M6 Web build               | In progress |
 | M7 Sync                    | In progress |
 | M8 Release pipeline        | In progress |
-| M9 Profiles (v1.1)         | Not started |
+| M9 Profiles (v1.1)         | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
 v1.1.
@@ -144,6 +144,8 @@ the beta channel.
 separate API token for Workers, D1 and R2 instead of widening the Pages token.
 
 ## M9 Profiles (v1.1)
+
+**Status:** in progress. Open checks and follow-ups: [`m9-follow-ups.md`](m9-follow-ups.md).
 
 Netflix-style profiles inside one household, with no accounts.
 

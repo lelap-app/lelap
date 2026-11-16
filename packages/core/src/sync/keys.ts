@@ -52,7 +52,7 @@ export function bookIdForKey(db: Db, key: string): string | null {
   );
 }
 
-export type TombstoneKind = 'bookmark' | 'upNext' | 'subscription' | 'book';
+export type TombstoneKind = 'bookmark' | 'upNext' | 'subscription' | 'book' | 'profile';
 
 /** Remembers a deletion so the next sync tells the other devices. */
 export function recordDeletion(

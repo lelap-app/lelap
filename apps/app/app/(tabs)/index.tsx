@@ -1,4 +1,4 @@
-import { browseCatalogs, continueListening } from '@lelap/core';
+import { browseCatalogs, continueListening, getProfile, listProfiles } from '@lelap/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -6,6 +6,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SHOWN_TYPES, syncAddonsNow, useAddons } from '../../src/addons';
+import { Avatar } from '../../src/components/Avatar';
 import { CatalogRow } from '../../src/components/CatalogRow';
 import { ContinueCard } from '../../src/components/ContinueCard';
 import { db } from '../../src/db';
@@ -15,6 +16,9 @@ import { profileId } from '../../src/profile';
 
 export default function HomeScreen() {
   const { version, refresh } = useLibrary();
+  // `version` is the signal to re-read the database.
+  const profiles = useMemo(() => listProfiles(db), [version]);
+  const me = useMemo(() => getProfile(db, profileId), [version]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -60,9 +64,20 @@ export default function HomeScreen() {
     >
       <View className="flex-row items-center justify-between px-4">
         <Text className="text-3xl font-semibold text-paper">Lelap</Text>
-        <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
-          <Text className="text-2xl text-muted">⚙</Text>
-        </Pressable>
+        <View className="flex-row items-center gap-4">
+          {profiles.length > 1 && (
+            <Pressable
+              onPress={() => router.push('/who')}
+              hitSlop={8}
+              accessibilityLabel="Switch profile"
+            >
+              <Avatar avatar={me?.avatar ?? null} name={me?.name ?? ''} size={30} />
+            </Pressable>
+          )}
+          <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
+            <Text className="text-2xl text-muted">⚙</Text>
+          </Pressable>
+        </View>
       </View>
       {next && <ContinueCard book={next} onPress={() => void resume()} />}
       {rows.map((ref) => (

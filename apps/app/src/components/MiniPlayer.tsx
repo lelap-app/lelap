@@ -3,7 +3,8 @@ import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as audio from '../platform/audio';
-import { usePlayerState } from '../player';
+import { playerProfile, usePlayerState } from '../player';
+import { profileId } from '../profile';
 
 /**
  * The book that is loaded, with Play/Pause; opens the Player. Hidden when nothing is loaded.
@@ -14,6 +15,8 @@ export function MiniPlayer({ inset = true }: { inset?: boolean }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   if (!state.bookId || state.partIndex < 0) return null;
+  // Another profile's book stays loaded until this profile plays something; don't show it.
+  if (playerProfile() !== profileId) return null;
   const progress = state.durationMs > 0 ? state.positionMs / state.durationMs : 0;
 
   return (

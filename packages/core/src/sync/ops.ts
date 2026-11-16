@@ -102,7 +102,19 @@ export type Op =
       data: { position: number; addedAt: number };
     }
   | { type: 'setting'; profile: string; key: string; at: number; data: { value: string } }
-  | { type: 'profile'; key: string; at: number; data: { name: string; createdAt: number } }
+  | {
+      type: 'profile';
+      key: string;
+      at: number;
+      data: {
+        name: string;
+        createdAt: number;
+        avatar?: string | null;
+        pinHash?: string | null;
+        kids?: boolean;
+        hiddenAddons?: string[];
+      };
+    }
   | { type: 'delete'; kind: TombstoneKind; profile: string; key: string; at: number };
 
 function fileIndexOf(db: Db, bookId: string, location: string): number {
@@ -214,7 +226,14 @@ export function collectOps(db: Db, since: number): Op[] {
       type: 'profile',
       key: p.id,
       at: p.updatedAt,
-      data: { name: p.name, createdAt: p.createdAt },
+      data: {
+        name: p.name,
+        createdAt: p.createdAt,
+        avatar: p.avatar,
+        pinHash: p.pinHash,
+        kids: p.kids,
+        hiddenAddons: p.hiddenAddons,
+      },
     });
   }
   for (const b of db
@@ -471,20 +490,22 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
       switch (op.type) {
         case 'profile': {
           const found = tx.select().from(profiles).where(eq(profiles.id, op.key)).get();
-          if (!found)
+          const row = {
+            name: op.data.name,
+            // Older devices send only the name.
+            ...(op.data.avatar !== undefined ? { avatar: op.data.avatar } : {}),
+            ...(op.data.pinHash !== undefined ? { pinHash: op.data.pinHash } : {}),
+            ...(op.data.kids !== undefined ? { kids: op.data.kids } : {}),
+            ...(op.data.hiddenAddons !== undefined ? { hiddenAddons: op.data.hiddenAddons } : {}),
+            updatedAt: op.at,
+          };
+          if (!found) {
             tx.insert(profiles)
-              .values({
-                id: op.key,
-                name: op.data.name,
-                createdAt: op.data.createdAt,
-                updatedAt: op.at,
-              })
+              .values({ id: op.key, createdAt: op.data.createdAt, ...row })
               .run();
-          else if (op.at > found.updatedAt)
-            tx.update(profiles)
-              .set({ name: op.data.name, updatedAt: op.at })
-              .where(eq(profiles.id, op.key))
-              .run();
+          } else if (op.at > found.updatedAt) {
+            tx.update(profiles).set(row).where(eq(profiles.id, op.key)).run();
+          }
           break;
         }
         case 'book':
@@ -686,6 +707,20 @@ function applyDelete(db: Db, op: Extract<Op, { type: 'delete' }>): void {
         .get();
       if (!local || local.updatedAt > op.at) return;
       db.delete(subscriptions).where(where).run();
+      break;
+    }
+    case 'profile': {
+      const local = db
+        .select({ updatedAt: profiles.updatedAt })
+        .from(profiles)
+        .where(eq(profiles.id, op.key))
+        .get();
+      if (!local || local.updatedAt > op.at) return;
+      for (const table of [progress, libraryEntries, bookmarks, settings, subscriptions, upNext]) {
+        db.delete(table).where(eq(table.profileId, op.key)).run();
+      }
+      db.delete(tombstones).where(eq(tombstones.profileId, op.key)).run();
+      db.delete(profiles).where(eq(profiles.id, op.key)).run();
       break;
     }
     case 'book': {
