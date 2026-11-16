@@ -10,6 +10,7 @@ object Commands {
   const val KEY_DURATION_MS = "durationMs"
 
   const val EXTRA_DUCK = "duckOnInterruption"
+  const val EXTRA_WAITING_FOR_FOCUS = "waitingForFocus"
   const val EXTRA_SLEEP_TIMER_END = "sleepTimerEndsAtElapsedMs"
   const val EXTRA_SLEEP_TIMER_FROZEN = "sleepTimerFrozenRemainingMs"
 }

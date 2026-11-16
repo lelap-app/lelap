@@ -76,14 +76,19 @@ class PlaybackService : MediaLibraryService() {
         publishExtras()
       },
     )
-    focus = AudioFocus(this) { rules.onFocus(it) }
+    focus = AudioFocus(this) {
+      rules.onFocus(it)
+      publishExtras()
+    }
     rules = PlaybackRules(Port()).apply {
       duckOnInterruption = prefs.getBoolean(Commands.EXTRA_DUCK, true)
     }
     focus.duckOnInterruption = rules.duckOnInterruption
     player.addListener(object : Player.Listener {
-      override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) =
+      override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         rules.onPlayWhenReadyChanged(playWhenReady)
+        publishExtras()
+      }
     })
 
     val builder = MediaLibrarySession.Builder(this, player, Callback())
@@ -161,9 +166,11 @@ class PlaybackService : MediaLibraryService() {
   }
 
   private fun publishExtras() {
+    if (!::session.isInitialized) return
     session.setSessionExtras(
       Bundle().apply {
         putBoolean(Commands.EXTRA_DUCK, focus.duckOnInterruption)
+        putBoolean(Commands.EXTRA_WAITING_FOR_FOCUS, rules.isWaitingForFocus)
         sleepTimer.endsAtMs?.let { putLong(Commands.EXTRA_SLEEP_TIMER_END, it) }
         if (!sleepTimer.isRunning) {
           sleepTimer.remainingMs?.let { putLong(Commands.EXTRA_SLEEP_TIMER_FROZEN, it) }

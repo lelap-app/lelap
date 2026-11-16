@@ -16,6 +16,8 @@ export type PlayerState = {
   durationMs: number;
   speed: number;
   duckOnInterruption: boolean;
+  /** Play was pressed during a call; playback starts when the call ends. */
+  waitingForCall: boolean;
   sleepTimerRemainingMs: number | null;
   error: string | null;
 };

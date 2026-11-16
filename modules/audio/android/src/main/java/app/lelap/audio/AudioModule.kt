@@ -194,7 +194,7 @@ class AudioModule : Module() {
         "connected" to false, "playing" to false, "buffering" to false,
         "bookTitle" to null, "partTitle" to null,
         "partIndex" to -1, "partCount" to 0, "positionMs" to 0.0, "durationMs" to 0.0,
-        "speed" to 1.0, "duckOnInterruption" to true, "sleepTimerRemainingMs" to null, "error" to null,
+        "speed" to 1.0, "duckOnInterruption" to true, "waitingForCall" to false, "sleepTimerRemainingMs" to null, "error" to null,
       )
     }
     val extras = c.sessionExtras
@@ -217,6 +217,7 @@ class AudioModule : Module() {
       "durationMs" to if (duration == C.TIME_UNSET) 0.0 else duration.toDouble(),
       "speed" to c.playbackParameters.speed.toDouble(),
       "duckOnInterruption" to extras.getBoolean(Commands.EXTRA_DUCK, true),
+      "waitingForCall" to extras.getBoolean(Commands.EXTRA_WAITING_FOR_FOCUS, false),
       "sleepTimerRemainingMs" to timerRemaining?.toDouble(),
       "error" to c.playerError?.let { "${it.errorCodeName}: ${it.message}" },
     )

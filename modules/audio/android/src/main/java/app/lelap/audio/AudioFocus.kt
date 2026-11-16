@@ -11,6 +11,9 @@ import androidx.media3.common.audio.AudioManagerCompat
 
 enum class FocusAction { PAUSE, PAUSE_TRANSIENT, DUCK, RESTORE }
 
+/** DELAYED: Android holds the request during a call and grants it when the call ends. */
+enum class FocusResult { GRANTED, DELAYED, FAILED }
+
 fun focusAction(focusChange: Int, duckOnInterruption: Boolean): FocusAction = when (focusChange) {
   AudioManager.AUDIOFOCUS_LOSS -> FocusAction.PAUSE
   AudioManager.AUDIOFOCUS_LOSS_TRANSIENT ->
@@ -27,7 +30,9 @@ class AudioFocus(context: Context, private val onAction: (FocusAction) -> Unit) 
   var duckOnInterruption = true
 
   private val audioManager = AudioManagerCompat.getAudioManager(context)
-  private var held = false
+  private enum class State { NONE, PENDING, HELD }
+
+  private var state = State.NONE
 
   private val request = AudioFocusRequestCompat.Builder(AudioManagerCompat.AUDIOFOCUS_GAIN)
     .setAudioAttributes(
@@ -38,22 +43,32 @@ class AudioFocus(context: Context, private val onAction: (FocusAction) -> Unit) 
     )
     // Stops the system from ducking for us, so the duck level stays ours.
     .setWillPauseWhenDucked(true)
+    .setAcceptsDelayedFocusGain(true)
     .setOnAudioFocusChangeListener(
-      { change -> onAction(focusAction(change, duckOnInterruption)) },
+      { change ->
+        if (change == AudioManager.AUDIOFOCUS_GAIN) state = State.HELD
+        onAction(focusAction(change, duckOnInterruption))
+      },
       Handler(Looper.getMainLooper()),
     )
     .build()
 
-  fun request(): Boolean {
-    if (held) return true
-    held = AudioManagerCompat.requestAudioFocus(audioManager, request) ==
-      AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-    return held
+  fun request(): FocusResult {
+    when (state) {
+      State.HELD -> return FocusResult.GRANTED
+      State.PENDING -> return FocusResult.DELAYED
+      State.NONE -> Unit
+    }
+    return when (AudioManagerCompat.requestAudioFocus(audioManager, request)) {
+      AudioManager.AUDIOFOCUS_REQUEST_GRANTED -> FocusResult.GRANTED.also { state = State.HELD }
+      AudioManager.AUDIOFOCUS_REQUEST_DELAYED -> FocusResult.DELAYED.also { state = State.PENDING }
+      else -> FocusResult.FAILED
+    }
   }
 
   fun abandon() {
-    if (!held) return
+    if (state == State.NONE) return
     AudioManagerCompat.abandonAudioFocusRequest(audioManager, request)
-    held = false
+    state = State.NONE
   }
 }

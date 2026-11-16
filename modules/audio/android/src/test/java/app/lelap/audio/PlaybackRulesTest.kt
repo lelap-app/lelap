@@ -9,7 +9,7 @@ import org.junit.Test
 private class FakePort : PlaybackRules.Port {
   lateinit var rules: PlaybackRules
   override var playWhenReady = false
-  var focusGranted = true
+  var focusResult = FocusResult.GRANTED
   var focusHeld = false
   var duckLevel = 1f
   var timerFrozen = 0
@@ -27,9 +27,10 @@ private class FakePort : PlaybackRules.Port {
     rules.onPlayWhenReadyChanged(true)
   }
 
-  override fun requestFocus(): Boolean {
-    if (focusGranted) focusHeld = true
-    return focusHeld
+  override fun requestFocus(): FocusResult {
+    if (focusHeld) return FocusResult.GRANTED
+    if (focusResult == FocusResult.GRANTED) focusHeld = true
+    return focusResult
   }
 
   override fun abandonFocus() {
@@ -119,11 +120,24 @@ class PlaybackRulesTest {
   }
 
   @Test fun deniedFocusPausesWithoutTouchingSleepTimer() {
-    port.focusGranted = false
+    port.focusResult = FocusResult.FAILED
     port.play()
     assertFalse(port.playWhenReady)
     assertEquals(0, port.timerFrozen)
     assertEquals(0, port.timerResumed)
+  }
+
+  @Test fun playDuringACallStartsWhenTheCallEnds() {
+    port.focusResult = FocusResult.DELAYED
+    port.play()
+    assertFalse(port.playWhenReady)
+    assertTrue(rules.isWaitingForFocus)
+    assertEquals(0, port.timerResumed)
+    port.focusResult = FocusResult.GRANTED
+    rules.onFocus(FocusAction.RESTORE)
+    assertTrue(port.playWhenReady)
+    assertFalse(rules.isWaitingForFocus)
+    assertEquals(1, port.timerResumed)
   }
 
   @Test fun callPauseResumesWhenTheCallEnds() {

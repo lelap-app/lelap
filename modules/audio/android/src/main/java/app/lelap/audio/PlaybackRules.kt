@@ -12,7 +12,7 @@ class PlaybackRules(private val port: Port) {
     val playWhenReady: Boolean
     fun pause()
     fun play()
-    fun requestFocus(): Boolean
+    fun requestFocus(): FocusResult
     fun abandonFocus()
     fun setDuck(level: Float)
     fun freezeSleepTimer()
@@ -26,6 +26,10 @@ class PlaybackRules(private val port: Port) {
 
   // Playback was paused by a transient loss, or the user asked to play during one.
   private var resumeOnGain = false
+
+  /** Play was asked for during a call; it starts when focus comes back. */
+  val isWaitingForFocus: Boolean
+    get() = resumeOnGain
 
   // The next pause is ours, not the user's.
   private var expectingPause = false
@@ -52,11 +56,16 @@ class PlaybackRules(private val port: Port) {
       return
     }
     resumeOnGain = false
-    if (port.requestFocus()) {
-      port.setDuck(1f)
-      port.resumeSleepTimer()
-    } else {
-      pauseInternally()
+    when (port.requestFocus()) {
+      FocusResult.GRANTED -> {
+        port.setDuck(1f)
+        port.resumeSleepTimer()
+      }
+      FocusResult.DELAYED -> {
+        resumeOnGain = true
+        pauseInternally()
+      }
+      FocusResult.FAILED -> pauseInternally()
     }
   }
 

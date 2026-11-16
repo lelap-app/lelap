@@ -21,6 +21,7 @@ const INITIAL_STATE: PlayerState = {
   durationMs: 0,
   speed: 1,
   duckOnInterruption: true,
+  waitingForCall: false,
   sleepTimerRemainingMs: null,
   error: null,
 };
@@ -108,6 +109,7 @@ export function PlayerScreen() {
       <Text style={styles.text}>
         {formatTime(state.positionMs)} / {formatTime(state.durationMs)}
         {state.buffering ? '  buffering…' : ''}
+        {state.waitingForCall ? '  starts when the call ends' : ''}
       </Text>
 
       <View style={styles.row}>
