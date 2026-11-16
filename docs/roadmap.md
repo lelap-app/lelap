@@ -14,8 +14,10 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M6 Web build               | Not started |
 | M7 Sync                    | Not started |
 | M8 Release pipeline        | Not started |
+| M9 Profiles (v1.1)         | Not started |
 
-v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope).
+v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
+v1.1.
 
 ## M0 Claim the name
 
@@ -56,6 +58,10 @@ SQLite schema through Drizzle, import of local files and folders, chapters from 
 bookmarks, and the Library and Player screens.
 
 **Done when** you listen to your own files for a week in airplane mode without losing your place.
+
+**Prepares M9:** every user-specific table (library entries, progress, bookmarks, playlists, tags,
+Up Next, settings) has a `profile_id` from the first schema, with a single default profile. Adding
+it later means migrating every table and the sync format.
 
 ## M3 Add-on protocol and SDK
 
@@ -98,6 +104,9 @@ Pairing code, encrypted oplog, and the “continue on another device” prompt.
 **Cloudflare:** D1 database `lelap-sync` and Worker `lelap-sync` on `sync.lelap.app`. This is the
 first service with user data, so it introduces the staging environment (see Environments).
 
+**Prepares M9:** a sync group is a household. Its encrypted data carries profiles, and each device
+remembers its active profile locally.
+
 ## M8 Release pipeline
 
 Release workflow on `v*` tags: signed APK, upload to R2 and GitHub Releases, `latest.json`, signed
@@ -109,6 +118,29 @@ the beta channel.
 **Cloudflare:** R2 bucket `lelap-downloads`, public on `dl.lelap.app`; Worker `lelap-updates` on
 `updates.lelap.app`. R2 needs a payment method on the account even within the free tier. Create a
 separate API token for Workers, D1 and R2 instead of widening the Pages token.
+
+## M9 Profiles (v1.1)
+
+Netflix-style profiles inside one household, with no accounts.
+
+- **Picker:** “Who's listening?” on launch, shown only when there is more than one profile. The
+  lock screen, notification and Android Auto follow the active profile.
+- **Per profile:** progress, library state, playlists, tags, Up Next, speed per book, Lull
+  settings, and scrobble add-ons.
+- **Shared:** downloaded files (stored once) and catalog and source add-ons, unless a profile
+  hides some.
+- **PIN:** optional four-digit PIN, stored as a hash. It keeps others from opening a profile on this
+  device; it does not encrypt anything, and the UI says so.
+- **Avatars:** about 20 bundled SVG illustrations in Lelap's style (a night theme: owl, fox, moon,
+  lantern, whale and so on, on amber, teal, rose and navy tiles). New profiles get a random unused
+  one; tap to change. Fallback: a name-derived colour tile with the initial. Draw or commission
+  them, so the licence is clean.
+- **Kids profile:** a profile with restrictions: no add-on installs and a limited set of catalogs.
+
+**Done when** two people in one household listen on the same phone and on their own devices,
+each with their own progress, without signing in anywhere.
+
+**Needs:** M2's `profile_id` columns and M7's household sync groups.
 
 ## Environments
 

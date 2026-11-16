@@ -163,10 +163,12 @@ M0 to M8, their status, “done when” criteria and the Cloudflare resources ea
 
 ## Later
 
-Casting (Chromecast, Sonos), scrobbling (Hardcover, gPodder, Goodreads CSV), Audiobookshelf and
-Jellyfin add-ons, artwork add-ons with app-drawn rating badges, on-device recommendations, silence
-auto-chapters and Podcasting 2.0 transcripts, voice boost and intro trimming, widgets and Wear OS,
-stats, kids profile, importers, sandboxed local add-ons, add-on health and permissions.
+Profiles for a household with optional PIN, avatars and a kids profile
+([M9 in the roadmap](roadmap.md#m9-profiles-v11)), casting (Chromecast, Sonos), scrobbling
+(Hardcover, gPodder, Goodreads CSV), Audiobookshelf and Jellyfin add-ons, artwork add-ons with
+app-drawn rating badges, on-device recommendations, silence auto-chapters and Podcasting 2.0
+transcripts, voice boost and intro trimming, widgets and Wear OS, stats, importers, sandboxed local
+add-ons, add-on health and permissions.
 
 ## Open questions
 
