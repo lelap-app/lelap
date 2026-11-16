@@ -2,3 +2,7 @@ export * from './db';
 export * from './ids';
 export * from './profiles';
 export * from './schema';
+export * from './library/chapters';
+export * from './library/files';
+export * from './library/group';
+export * from './library/timeline';
