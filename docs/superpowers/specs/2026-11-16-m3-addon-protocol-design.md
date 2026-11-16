@@ -180,8 +180,8 @@ Settings gains **Add-ons**: the list with remove, a field to add a manifest URL,
 ## Services and deploy
 
 - `services/catalog`: Hono, Wrangler, Vitest with recorded fixtures. Secrets via
-  `wrangler secret put`. No routes in `wrangler.toml`: the custom domain `catalog.lelap.app` is
-  attached in the Cloudflare dashboard, so forks deploy to their own.
+  `wrangler secret put`. No routes in `wrangler.toml`: deploys pass the custom domain from the
+  `CATALOG_DOMAIN` environment variable (`--domain`), so forks deploy to their own.
 - `.github/workflows/services.yml`: on pushes to `main` touching `services/catalog` or
   `packages/sdk`, test and `wrangler deploy` in the `web` environment with a
   `CLOUDFLARE_WORKERS_API_TOKEN` secret (Workers scope, separate from the Pages token).

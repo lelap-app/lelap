@@ -42,15 +42,18 @@ pnpm exec wrangler secret put PODCASTINDEX_SECRET
 ### Deploy
 
 `.github/workflows/services.yml` tests and deploys on pushes to `main` that touch
-`services/catalog`, `packages/sdk` or the lockfile, in the `web` environment. It needs the
-`CLOUDFLARE_WORKERS_API_TOKEN` secret (a token with the Workers Scripts edit permission, separate
-from the Pages token) and the `CLOUDFLARE_ACCOUNT_ID` variable. To deploy by hand, run
-`pnpm --filter @lelap/catalog run deploy` (`run` matters: `pnpm deploy` is a pnpm command).
+`services/catalog`, `packages/sdk` or the lockfile, in the `web` environment. It needs:
 
-`wrangler.toml` has no routes. After the first deploy, attach the custom domain (for lelap.app,
-`catalog.<domain>`) under **Workers & Pages → lelap-catalog → Settings → Domains & Routes** in the
-Cloudflare dashboard. Forks and self-hosters attach their own domain the same way, or use the
-`workers.dev` URL.
+- the `CLOUDFLARE_WORKERS_API_TOKEN` secret: a token from the **Edit Cloudflare Workers** template,
+  limited to the account and the zone, separate from the Pages token;
+- the `CLOUDFLARE_ACCOUNT_ID` variable;
+- the `CATALOG_DOMAIN` variable in the `web` environment (`catalog.lelap.app` for lelap.app). Every
+  deploy passes it as `--domain`, which creates the custom domain and its DNS record. Leave it
+  unset to use only the `workers.dev` URL.
+
+`wrangler.toml` has no routes, so forks and self-hosters deploy to their own domain. To deploy by
+hand: `pnpm --filter @lelap/catalog run deploy -- --domain catalog.<domain>` (`run` matters:
+`pnpm deploy` is a pnpm command).
 
 ## `template`
 
