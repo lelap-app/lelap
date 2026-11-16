@@ -55,7 +55,7 @@ public-domain audio split into several files (a LibriVox book works).
 
 ## M2 Local library
 
-**Status:** in progress. Design: [`superpowers/specs/2026-11-16-m2-local-library-design.md`](superpowers/specs/2026-11-16-m2-local-library-design.md).
+**Status:** in progress. Design: [`superpowers/specs/2026-11-16-m2-local-library-design.md`](superpowers/specs/2026-11-16-m2-local-library-design.md). Built in PRs #8–#10; open checks and follow-ups: [`m2-follow-ups.md`](m2-follow-ups.md).
 
 SQLite schema through Drizzle, import of local files and folders, chapters from tags, progress,
 bookmarks, and the Library and Player screens.
