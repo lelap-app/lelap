@@ -6,6 +6,9 @@ data class Chapter(val title: String, val startMs: Long)
 
 /** Chapters from ID3v2.3/2.4 `CHAP` frames at the start of an mp3. */
 object Id3Chapters {
+  private const val MAX_FRAME_BYTES = 1 shl 20
+  private const val MAX_CHAPTERS = 10_000
+
   /** Bytes to read for the whole tag, from its 10-byte header; 0 when there is no tag. */
   fun tagSize(header: ByteArray): Int {
     if (header.size < 10 || String(header, 0, 3, Charsets.ISO_8859_1) != "ID3") return 0
@@ -13,24 +16,52 @@ object Id3Chapters {
     return 10 + synchsafe(header, 6) + footer
   }
 
-  fun parse(tag: ByteArray): List<Chapter> = try {
-    parseUnsafe(tag)
+  fun parse(tag: ByteArray): List<Chapter> = parse(
+    { offset, length -> tag.copyOfRange(offset.toInt(), minOf(tag.size.toLong(), offset + length).toInt()) },
+    tag.size.toLong(),
+  )
+
+  /**
+   * Walks the tag's frame headers with small reads and reads only `CHAP` bodies, so a multi-MB
+   * cover picture or a bogus tag size never costs memory.
+   */
+  fun parse(read: (offset: Long, length: Int) -> ByteArray, size: Long): List<Chapter> = try {
+    parseUnsafe(read, size)
   } catch (e: IndexOutOfBoundsException) {
+    emptyList()
+  } catch (e: IllegalArgumentException) {
     emptyList()
   }
 
-  private fun parseUnsafe(tag: ByteArray): List<Chapter> {
-    if (tagSize(tag) == 0) return emptyList()
-    val version = tag[3].toInt()
+  private fun parseUnsafe(read: (Long, Int) -> ByteArray, size: Long): List<Chapter> {
+    fun exactly(offset: Long, length: Int): ByteArray {
+      require(offset >= 0 && length in 0..MAX_FRAME_BYTES && offset + length <= size)
+      return read(offset, length).also { require(it.size == length) }
+    }
+    if (size < 10) return emptyList()
+    val header = exactly(0, 10)
+    if (tagSize(header) == 0) return emptyList()
+    val version = header[3].toInt()
     if (version != 3 && version != 4) return emptyList()
-    val end = minOf(tag.size, 10 + synchsafe(tag, 6))
-    var pos = 10
-    if (tag[5].toInt() and 0x40 != 0) {
-      pos += if (version == 4) synchsafe(tag, pos) else 4 + u32(tag, pos)
+    val end = minOf(size, 10L + synchsafe(header, 6))
+    var pos = 10L
+    if (header[5].toInt() and 0x40 != 0) {
+      val ext = exactly(pos, 4)
+      pos += if (version == 4) synchsafe(ext, 0).toLong() else 4L + u32(ext, 0)
     }
     val found = mutableListOf<Pair<Long, String?>>()
-    forEachFrame(tag, pos, end, version) { id, bodyStart, bodyEnd ->
-      if (id == "CHAP") found += chapter(tag, bodyStart, bodyEnd, version)
+    while (pos + 10 <= end) {
+      val frame = exactly(pos, 10)
+      if (frame[0] == 0.toByte()) break
+      val id = String(frame, 0, 4, Charsets.ISO_8859_1)
+      val frameSize = (if (version == 4) synchsafe(frame, 4) else u32(frame, 4)).toLong() and 0xffffffffL
+      if (pos + 10 + frameSize > end) break
+      if (id == "CHAP" && frameSize <= MAX_FRAME_BYTES) {
+        val body = exactly(pos + 10, frameSize.toInt())
+        found += chapter(body, 0, body.size, version)
+        if (found.size > MAX_CHAPTERS) return emptyList()
+      }
+      pos += 10 + frameSize
     }
     return found.sortedBy { it.first }.mapIndexed { i, (start, title) ->
       Chapter(title?.takeIf { it.isNotBlank() } ?: "Chapter ${i + 1}", start)

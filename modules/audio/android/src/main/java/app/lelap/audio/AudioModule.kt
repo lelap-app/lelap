@@ -9,6 +9,7 @@ import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.media3.common.C
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
@@ -120,9 +121,21 @@ class AudioModule : Module() {
       }
     }.runOnQueue(Queues.MAIN)
 
-    // Through the session's player, so the app's skip buttons match the lock screen's.
+    // Computed here and sent as a plain seek: the session gates seekToNext by ExoPlayer's own
+    // commands (none on the last file), and a plain seek is masked correctly by the controller.
     AsyncFunction("skip") { forward: Boolean, promise: Promise ->
-      withController(promise) { if (forward) it.seekToNext() else it.seekToPrevious() }
+      withController(promise) { c ->
+        if (c.mediaItemCount == 0) return@withController
+        val interval = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE)
+          .getLong(Commands.KEY_SKIP_INTERVAL_MS, 30_000L)
+        val durations = List(c.mediaItemCount) { i ->
+          val timeline = c.currentTimeline
+          val known = if (i < timeline.windowCount) timeline.getWindow(i, Timeline.Window()).durationMs else C.TIME_UNSET
+          if (known == C.TIME_UNSET) 0L else known
+        }
+        val (index, position) = SeekRules.skip(c.currentMediaItemIndex, c.currentPosition, if (forward) interval else -interval, durations)
+        c.seekTo(index, position)
+      }
     }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("startSleepTimer") { minutes: Double, promise: Promise ->

@@ -29,7 +29,6 @@ import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 
-private const val PREFS = "lelap_audio"
 private const val TIMER_TICK_MS = 250L
 private const val CHAPTER_TICK_MS = 1_000L
 
@@ -43,12 +42,11 @@ class PlaybackService : MediaLibraryService() {
   private lateinit var rules: PlaybackRules
 
   private val handler = Handler(Looper.getMainLooper())
-  private val prefs by lazy { getSharedPreferences(PREFS, MODE_PRIVATE) }
+  private val prefs by lazy { getSharedPreferences(Commands.AUDIO_PREFS, MODE_PRIVATE) }
   private val journalPrefs by lazy { getSharedPreferences(Commands.JOURNAL_PREFS, MODE_PRIVATE) }
 
   /** The loaded book, kept for the journal and playback resumption. */
   private var current: BookPlaylist? = null
-  private var lastJournalAt = Long.MIN_VALUE / 2
 
   private var skipIntervalMs = 30_000L
   private var smartRewind = true
@@ -64,10 +62,7 @@ class PlaybackService : MediaLibraryService() {
   }
 
   private val journalTicker = object : Runnable {
-    override fun run() {
-      writeJournal(PositionJournal.Event.TICK)
-      if (player.isPlaying) handler.postDelayed(this, PositionJournal.TICK_INTERVAL_MS)
-    }
+    override fun run() = writeJournal(PositionJournal.Event.TICK)
   }
 
   private val timerTicker = object : Runnable {
@@ -187,13 +182,20 @@ class PlaybackService : MediaLibraryService() {
 
   private fun loadBook(load: BookLoad, autoplay: Boolean) {
     val playlist = load.playlist
-    require(playlist.files.isNotEmpty()) { "A book needs at least one file" }
+    // The book that is already loaded keeps its live place, which is newer than any saved one.
+    if (PositionJournal.isSameBook(current, player.mediaItemCount, load)) {
+      if (autoplay) player.play()
+      return
+    }
+    if (!autoplay) player.pause()
     current = playlist
+    val start = load.startPositionMs.coerceAtLeast(0L)
+    val position = if (autoplay) SeekRules.resumePosition(start, load.pausedAt, System.currentTimeMillis(), smartRewind) else start
     pausedAt = if (autoplay) null else load.pausedAt
     player.setMediaItems(
       mediaItems(playlist),
       load.startIndex.coerceIn(0, playlist.files.lastIndex),
-      load.startPositionMs.coerceAtLeast(0L),
+      position,
     )
     player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
     player.prepare()
@@ -287,15 +289,19 @@ class PlaybackService : MediaLibraryService() {
   /** Records the place; must never throw, since it runs from lifecycle callbacks. */
   private fun writeJournal(event: PositionJournal.Event) {
     val playlist = current ?: return
-    if (player.mediaItemCount == 0) return
-    val now = SystemClock.elapsedRealtime()
-    if (!PositionJournal.shouldWrite(lastJournalAt, now, event)) return
-    val file = playlist.files.getOrNull(player.currentMediaItemIndex) ?: return
-    val entry = JournalEntry(playlist.bookId, file.location, player.currentPosition.coerceAtLeast(0L), System.currentTimeMillis())
+    val entry = PositionJournal.entryFor(
+      playlist,
+      player.currentMediaItemIndex,
+      player.currentMediaItem?.mediaId,
+      player.currentPosition,
+      System.currentTimeMillis(),
+    ) ?: return
+    // Every write restarts the 10 s tick, so writes are never more than 10 s apart while playing.
+    handler.removeCallbacks(journalTicker)
+    if (player.isPlaying) handler.postDelayed(journalTicker, PositionJournal.TICK_INTERVAL_MS)
     val editor = journalPrefs.edit().putString(Commands.JOURNAL_KEY, PositionJournal.encode(entry, playlist))
     // The process may die right after these two; write them synchronously.
     if (event == PositionJournal.Event.TASK_REMOVED || event == PositionJournal.Event.DESTROY) editor.commit() else editor.apply()
-    lastJournalAt = now
   }
 
   private fun cancelSleepTimer() {
@@ -432,14 +438,17 @@ class PlaybackService : MediaLibraryService() {
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
       val (entry, playlist) = journalPrefs.getString(Commands.JOURNAL_KEY, null)?.let(PositionJournal::decode)
         ?: return Futures.immediateFailedFuture(UnsupportedOperationException("Nothing to resume"))
+      val index = playlist.files.indexOfFirst { it.location == entry.fileLocation }
+      if (index < 0) return Futures.immediateFailedFuture(UnsupportedOperationException("Journal file not in its book"))
+      // Not for playback: System UI only shows what would resume, so change nothing here.
+      if (!isForPlayback) {
+        return Futures.immediateFuture(MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, entry.filePositionMs))
+      }
       current = playlist
       player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
-      val index = playlist.files.indexOfFirst { it.location == entry.fileLocation }.coerceAtLeast(0)
-      val rewind = if (smartRewind) SeekRules.rewindOnResume(System.currentTimeMillis() - entry.savedAt) else 0L
       pausedAt = null
-      return Futures.immediateFuture(
-        MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, (entry.filePositionMs - rewind).coerceAtLeast(0L)),
-      )
+      val start = SeekRules.resumePosition(entry.filePositionMs, entry.savedAt, System.currentTimeMillis(), smartRewind)
+      return Futures.immediateFuture(MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, start))
     }
 
     override fun onGetLibraryRoot(

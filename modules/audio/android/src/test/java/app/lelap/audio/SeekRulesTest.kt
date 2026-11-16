@@ -54,4 +54,12 @@ class SeekRulesTest {
     assertEquals(1 to 0L, SeekRules.skip(1, 10_000, -30_000, listOf(0L, 60_000L)))
     assertEquals(0 to 70_000L, SeekRules.skip(0, 40_000, 30_000, listOf(0L, 60_000L)))
   }
+
+  @Test
+  fun rewindsTheStartOfABookPlayedAfterAPause() {
+    assertEquals(95_000L, SeekRules.resumePosition(100_000, pausedAt = 0, now = 120_000, smartRewind = true))
+    assertEquals(100_000L, SeekRules.resumePosition(100_000, pausedAt = 0, now = 120_000, smartRewind = false))
+    assertEquals(100_000L, SeekRules.resumePosition(100_000, pausedAt = null, now = 120_000, smartRewind = true))
+    assertEquals(0L, SeekRules.resumePosition(2_000, pausedAt = 0, now = 10_000_000, smartRewind = true))
+  }
 }

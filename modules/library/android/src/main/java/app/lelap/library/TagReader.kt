@@ -57,15 +57,14 @@ class TagReader(private val context: Context) {
       FileInputStream(pfd.fileDescriptor).channel.use { channel ->
         val size = channel.size()
         val read = { offset: Long, length: Int ->
+          // Parsers ask for small reads; refuse anything that would cost real memory.
+          require(length in 0..(8 shl 20))
           val buffer = ByteBuffer.allocate(length)
           while (buffer.hasRemaining() && channel.read(buffer, offset + buffer.position()) > 0) Unit
           buffer.array().copyOf(buffer.position())
         }
         return when (extension) {
-          "mp3" -> {
-            val tagSize = Id3Chapters.tagSize(read(0, 10))
-            if (tagSize == 0) emptyList() else Id3Chapters.parse(read(0, minOf(tagSize.toLong(), size).toInt()))
-          }
+          "mp3" -> Id3Chapters.parse(read, size)
           "m4a", "m4b", "mp4", "aac" -> Mp4Chapters.parse(read, size)
           else -> emptyList()
         }

@@ -45,4 +45,27 @@ class Id3ChaptersTest {
     assertEquals(10 + 300, Id3Chapters.tagSize(id3(4, ByteArray(300 - 10).let { Bytes.id3Frame(4, "TXXX", it) })))
     assertEquals(0, Id3Chapters.tagSize("abc".toByteArray()))
   }
+
+  @Test
+  fun skipsLargeFramesWithoutReadingThem() {
+    val pictureSize = 200_000_000
+    val chapter = Bytes.chap(4, "a", 7, 8, "Late")
+    val header = Bytes.concat(
+      "ID3".toByteArray(), byteArrayOf(4, 0, 0), Bytes.synchsafe(10 + pictureSize + chapter.size),
+      "APIC".toByteArray(), Bytes.synchsafe(pictureSize), byteArrayOf(0, 0),
+    )
+    val chapterAt = header.size.toLong() + pictureSize
+    val read = { offset: Long, length: Int ->
+      require(length <= 1_000_000) { "read of $length bytes" }
+      ByteArray(length) { i ->
+        val at = offset + i
+        when {
+          at < header.size -> header[at.toInt()]
+          at >= chapterAt && at < chapterAt + chapter.size -> chapter[(at - chapterAt).toInt()]
+          else -> 0
+        }
+      }
+    }
+    assertEquals(listOf(Chapter("Late", 7)), Id3Chapters.parse(read, chapterAt + chapter.size))
+  }
 }

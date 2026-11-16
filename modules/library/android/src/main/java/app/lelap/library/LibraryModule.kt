@@ -85,9 +85,13 @@ class LibraryModule : Module() {
   private fun listTree(tree: Uri): List<Map<String, Any>> {
     if (!hasPermission(tree)) throw FolderUnavailableException()
     val rootId = DocumentsContract.getTreeDocumentId(tree)
+    // Any failure mid-walk means the listing is incomplete, and an incomplete listing would mark
+    // books missing; report the whole folder as unavailable instead.
     val entries = try {
       TreeWalk.walk(rootId) { children(tree, it) }
-    } catch (e: SecurityException) {
+    } catch (e: FolderUnavailableException) {
+      throw e
+    } catch (e: Exception) {
       throw FolderUnavailableException(e)
     }
     return entries.map {
@@ -115,6 +119,11 @@ class LibraryModule : Module() {
     // as an empty folder, or every book would be marked missing.
     val cursor = context.contentResolver.query(uri, columns, null, null, null) ?: throw FolderUnavailableException()
     return cursor.use {
+      // Cloud and network providers return a first page while they keep loading, or flag errors.
+      val extras = it.extras
+      if (extras.getBoolean(DocumentsContract.EXTRA_LOADING) || extras.containsKey(DocumentsContract.EXTRA_ERROR)) {
+        throw FolderUnavailableException()
+      }
       buildList {
         while (it.moveToNext()) {
           add(

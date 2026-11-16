@@ -82,4 +82,29 @@ class Mp4ChaptersTest {
     val file = concat(atom("moov", atom("udta", chpl(chplEntry(0, "A"), chplEntry(10, "B")))))
     for (cut in file.indices) parse(file.copyOf(cut))
   }
+
+  @Test
+  fun ignoresAbsurdSampleCountsWithoutAllocating() {
+    fun fullBox(type: String, vararg body: ByteArray) = atom(type, u32(0), *body)
+    val textTrack = atom(
+      "trak",
+      fullBox("tkhd", ByteArray(8), u32(2)),
+      atom(
+        "mdia",
+        fullBox("mdhd", u32(0), u32(0), u32(1000), u32(0), ByteArray(4)),
+        atom(
+          "minf",
+          atom(
+            "stbl",
+            fullBox("stts", u32(1), u32(0x7fffffff), u32(1)),
+            fullBox("stsc", u32(1), u32(1), u32(0x7fffffff), u32(1)),
+            fullBox("stsz", u32(10), u32(0x7fffffff)),
+            fullBox("stco", u32(1), u32(0)),
+          ),
+        ),
+      ),
+    )
+    val audioTrack = atom("trak", fullBox("tkhd", ByteArray(8), u32(1)), atom("tref", atom("chap", u32(2))))
+    assertEquals(emptyList<Chapter>(), parse(concat(atom("moov", audioTrack, textTrack))))
+  }
 }

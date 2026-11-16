@@ -1,6 +1,5 @@
 package app.lelap.audio
 
-import app.lelap.audio.PositionJournal.Event
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -48,15 +47,28 @@ class PositionJournalTest {
   }
 
   @Test
-  fun writesTicksEveryTenSeconds() {
-    assertFalse(PositionJournal.shouldWrite(lastWriteAt = 0, now = 9_999, Event.TICK))
-    assertTrue(PositionJournal.shouldWrite(lastWriteAt = 0, now = 10_000, Event.TICK))
+  fun rejectsABookLoadWithoutFiles() {
+    val json = """{"bookId":"b","title":"T","author":null,"coverUri":null,"speed":1,"files":[],"chapters":[],"startIndex":0,"startPositionMs":0}"""
+    assertNull(PositionJournal.decodeLoad(json))
   }
 
   @Test
-  fun writesEveryOtherEventAtOnce() {
-    for (event in Event.entries - Event.TICK) {
-      assertTrue(event.name, PositionJournal.shouldWrite(lastWriteAt = 0, now = 1, event))
-    }
+  fun recordsAnEntryOnlyForTheItemThatIsPlaying() {
+    assertEquals(
+      JournalEntry("book-1", "primary:Books/Bog/02.mp3", 500, 9),
+      PositionJournal.entryFor(playlist, 1, "primary:Books/Bog/02.mp3", 500, 9),
+    )
+    assertNull(PositionJournal.entryFor(playlist, 1, "primary:Other/x.mp3", 500, 9))
+    assertNull(PositionJournal.entryFor(playlist, 5, "primary:Books/Bog/02.mp3", 500, 9))
+    assertNull(PositionJournal.entryFor(null, 0, "primary:Books/Bog/01.mp3", 500, 9))
+  }
+
+  @Test
+  fun knowsWhenALoadIsTheBookAlreadyLoaded() {
+    val load = BookLoad(playlist, 0, 0)
+    assertTrue(PositionJournal.isSameBook(playlist, 2, load))
+    assertFalse(PositionJournal.isSameBook(playlist, 0, load))
+    assertFalse(PositionJournal.isSameBook(null, 2, load))
+    assertFalse(PositionJournal.isSameBook(playlist.copy(bookId = "other"), 2, load))
   }
 }

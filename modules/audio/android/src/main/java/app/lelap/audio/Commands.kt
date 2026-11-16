@@ -16,6 +16,9 @@ object Commands {
   /** Media metadata extra naming the book an item belongs to. */
   const val METADATA_BOOK_ID = "bookId"
 
+  /** SharedPreferences file of the service's settings (duck, skip interval, smart rewind). */
+  const val AUDIO_PREFS = "lelap_audio"
+
   /** SharedPreferences file and key of the position journal, read by the app in-process. */
   const val JOURNAL_PREFS = "lelap_journal"
   const val JOURNAL_KEY = "journal"

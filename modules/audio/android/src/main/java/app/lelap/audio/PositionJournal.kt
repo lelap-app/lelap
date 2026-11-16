@@ -34,8 +34,19 @@ object PositionJournal {
 
   const val TICK_INTERVAL_MS = 10_000L
 
-  fun shouldWrite(lastWriteAt: Long, now: Long, event: Event): Boolean =
-    event != Event.TICK || now - lastWriteAt >= TICK_INTERVAL_MS
+  /**
+   * The entry for the item that is playing, or null when the player no longer holds [playlist]'s
+   * file at [index] (another controller replaced the items), so no wrong place is recorded.
+   */
+  fun entryFor(playlist: BookPlaylist?, index: Int, mediaId: String?, positionMs: Long, now: Long): JournalEntry? {
+    val file = playlist?.files?.getOrNull(index) ?: return null
+    if (file.location != mediaId) return null
+    return JournalEntry(playlist.bookId, file.location, positionMs.coerceAtLeast(0L), now)
+  }
+
+  /** Whether [load] is the book the player already holds, which must keep its live position. */
+  fun isSameBook(current: BookPlaylist?, mediaItemCount: Int, load: BookLoad): Boolean =
+    current != null && mediaItemCount > 0 && current.bookId == load.playlist.bookId
 
   fun encode(entry: JournalEntry, playlist: BookPlaylist): String = JSONObject()
     .put(
@@ -61,6 +72,7 @@ object PositionJournal {
   /** The app's `BookLoad`, as JSON. */
   fun decodeLoad(json: String): BookLoad? = try {
     val root = JSONObject(json)
+    if (root.getJSONArray("files").length() == 0) throw JSONException("A book needs at least one file")
     BookLoad(
       decodePlaylist(root),
       root.getInt("startIndex"),

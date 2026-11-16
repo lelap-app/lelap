@@ -4,6 +4,10 @@ import java.nio.ByteBuffer
 
 /** Chapters from an MP4/M4B: the Nero `chpl` list, else the QuickTime chapter text track. */
 object Mp4Chapters {
+  private const val MAX_READ = 8 shl 20
+  private const val MAX_SAMPLE = 64 shl 10
+  private const val MAX_CHAPTERS = 10_000
+
   private class Box(val type: String, val start: Long, val bodyStart: Long, val end: Long)
 
   fun parse(read: (offset: Long, length: Int) -> ByteArray, size: Long): List<Chapter> = try {
@@ -15,7 +19,7 @@ object Mp4Chapters {
 
   private class Reader(private val read: (Long, Int) -> ByteArray, private val size: Long) {
     fun bytes(offset: Long, length: Int): ByteBuffer {
-      require(length >= 0 && offset + length <= size)
+      require(length in 0..MAX_READ && offset >= 0 && offset + length <= size)
       val data = read(offset, length)
       require(data.size == length)
       return ByteBuffer.wrap(data)
@@ -94,9 +98,12 @@ object Mp4Chapters {
       child(stbl, "stts")?.let {
         val b = body(it).position(4) as ByteBuffer
         var time = 0L
-        repeat(b.int) {
+        val entries = b.int
+        require(entries in 0..b.remaining() / 8)
+        repeat(entries) {
           val count = b.int
           val delta = b.int.toLong() and 0xffffffffL
+          require(count in 0..MAX_CHAPTERS - starts.size)
           repeat(count) { starts += time; time += delta }
         }
       }
@@ -104,18 +111,25 @@ object Mp4Chapters {
         val b = body(it).position(4) as ByteBuffer
         val fixed = b.int
         val count = b.int
+        require(count in 0..MAX_CHAPTERS && (fixed != 0 || count <= b.remaining() / 4))
         List(count) { if (fixed != 0) fixed else b.int }
       }.orEmpty()
       val chunkOffsets = child(stbl, "stco")?.let {
         val b = body(it).position(4) as ByteBuffer
-        List(b.int) { b.int.toLong() and 0xffffffffL }
+        val count = b.int
+        require(count in 0..b.remaining() / 4)
+        List(count) { b.int.toLong() and 0xffffffffL }
       } ?: child(stbl, "co64")?.let {
         val b = body(it).position(4) as ByteBuffer
-        List(b.int) { b.long }
+        val count = b.int
+        require(count in 0..b.remaining() / 8)
+        List(count) { b.long }
       }.orEmpty()
       val runs = child(stbl, "stsc")?.let {
         val b = body(it).position(4) as ByteBuffer
-        List(b.int) { Triple(b.int, b.int, b.int) }
+        val count = b.int
+        require(count in 0..b.remaining() / 12)
+        List(count) { Triple(b.int, b.int, b.int) }
       }.orEmpty()
 
       val offsets = mutableListOf<Long>()
@@ -133,7 +147,7 @@ object Mp4Chapters {
 
       return offsets.indices.mapNotNull { i ->
         val start = starts.getOrNull(i) ?: return@mapNotNull null
-        val sample = bytes(offsets[i], sizes[i])
+        val sample = bytes(offsets[i], minOf(sizes[i], MAX_SAMPLE))
         val length = sample.short.toInt() and 0xffff
         val title = ByteArray(minOf(length, sample.remaining())).also { sample.get(it) }
         Chapter(String(title, Charsets.UTF_8), start * 1000 / timescale)

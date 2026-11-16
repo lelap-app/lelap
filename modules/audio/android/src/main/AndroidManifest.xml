@@ -14,5 +14,11 @@
         <action android:name="android.media.browse.MediaBrowserService" />
       </intent-filter>
     </service>
+    <!-- Lets headphone and Bluetooth Play restart playback after the app and service are gone. -->
+    <receiver android:name="androidx.media3.session.MediaButtonReceiver" android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MEDIA_BUTTON" />
+      </intent-filter>
+    </receiver>
   </application>
 </manifest>

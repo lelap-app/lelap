@@ -9,6 +9,12 @@ object SeekRules {
     else -> 15_000L
   }
 
+  /** Where a book loaded to play right away starts: the saved place, minus smart rewind. */
+  fun resumePosition(positionMs: Long, pausedAt: Long?, now: Long, smartRewind: Boolean): Long {
+    if (!smartRewind || pausedAt == null) return positionMs
+    return (positionMs - rewindOnResume(now - pausedAt)).coerceAtLeast(0L)
+  }
+
   /**
    * Where a skip of [deltaMs] from ([index], [positionMs]) lands across the book's files. Stops at
    * the book's start and end, and stays in the file when a neighbour's duration is unknown (≤ 0).
