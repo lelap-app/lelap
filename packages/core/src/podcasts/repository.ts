@@ -12,6 +12,7 @@ import {
   progress,
   subscriptions,
 } from '../schema';
+import { recordDeletion } from '../sync/keys';
 import type { ParsedFeed } from './rss';
 
 export type FeedCache = { etag: string | null; lastModified: string | null };
@@ -118,10 +119,16 @@ export function subscribe(db: Db, profileId: string, podcastId: string, now: num
 }
 
 /** Ends a subscription. The episodes' places stay, so subscribing again picks them up. */
-export function unsubscribe(db: Db, profileId: string, podcastId: string): void {
+export function unsubscribe(db: Db, profileId: string, podcastId: string, now = Date.now()): void {
   db.delete(subscriptions)
     .where(and(eq(subscriptions.profileId, profileId), eq(subscriptions.podcastId, podcastId)))
     .run();
+  const feed = db
+    .select({ feedUrl: podcasts.feedUrl })
+    .from(podcasts)
+    .where(eq(podcasts.id, podcastId))
+    .get();
+  if (feed) recordDeletion(db, 'subscription', feed.feedUrl, profileId, now);
 }
 
 export function setAutoDownload(

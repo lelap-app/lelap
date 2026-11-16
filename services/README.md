@@ -3,6 +3,32 @@
 Small Hono services that run on Cloudflare Workers and, for self-hosters, in Docker. See
 [`docs/brief.md`](../docs/brief.md).
 
+## `sync`
+
+Encrypted sync (Worker `lelap-sync`, D1 `lelap-sync`). It stores sealed messages per group in
+arrival order and hands out pairing blobs once; it never sees keys or plaintext. A group is a
+random ID plus the SHA-256 of its auth token. Limits: 50 messages of 256 KB per push, 50 MB per
+group, pairings 4 KB for ten minutes.
+
+| Route                                | What                                  |
+| ------------------------------------ | ------------------------------------- |
+| `PUT /v1/groups/:id`                 | Create a group with its auth hash     |
+| `POST /v1/groups/:id/messages`       | Append sealed messages (Bearer token) |
+| `GET /v1/groups/:id/messages?after=` | Read messages after a sequence number |
+| `DELETE /v1/groups/:id`              | Delete the group and its messages     |
+| `PUT /v1/pairings/:lookup`           | Leave a sealed group secret           |
+| `POST /v1/pairings/:lookup`          | Take it (deletes it)                  |
+
+```sh
+pnpm --filter @lelap/sync dev    # applies migrations locally, wrangler dev on :8789
+pnpm --filter @lelap/sync test   # the routes, and the app's real sync engine against them
+```
+
+Environments: `main` deploys to staging (`--env staging`, D1 `lelap-sync-staging`); `v*` tags
+deploy production from the release workflow (M8). Create both databases once and put their IDs in
+`wrangler.toml` (see the comments there). Set `SYNC_STAGING_DOMAIN` (`sync-staging.lelap.app`) in
+the `web` environment.
+
 ## `proxy`
 
 RSS feeds and cover images for the web app (Worker `lelap-proxy`), because browsers can't read

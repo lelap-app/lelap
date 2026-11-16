@@ -10,7 +10,9 @@ import { queryClient, syncAddonsNow } from '../src/addons';
 import { useDbReady } from '../src/db';
 import { DownloadSync } from '../src/downloads';
 import { PlayerProvider, useLibrary } from '../src/player';
+import { HandoffBanner } from '../src/components/HandoffBanner';
 import { PodcastSync } from '../src/podcasts';
+import { SyncRunner } from '../src/sync';
 
 /** Installs the default add-ons on first start and refreshes manifests on every start. */
 function AddonSync() {
@@ -39,6 +41,7 @@ export default function RootLayout() {
         <AddonSync />
         <DownloadSync />
         <PodcastSync />
+        <SyncRunner />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0d0e11' } }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
@@ -46,6 +49,7 @@ export default function RootLayout() {
             options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
           />
         </Stack>
+        <HandoffBanner />
         <StatusBar style="light" />
       </PlayerProvider>
     </QueryClientProvider>

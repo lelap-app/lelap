@@ -4,6 +4,7 @@ import { and, eq, like, notInArray } from 'drizzle-orm';
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
 import { type AddonItemRef, bookFiles, books, chapters } from '../schema';
+import { recordDeletion } from '../sync/keys';
 
 export type StreamedBookArgs = {
   addonUrl: string;
@@ -188,10 +189,15 @@ export function findStreamedBook(db: Db, type: string, id: string): string | nul
 }
 
 /** Removes a streamed book with its place and bookmarks. Local books are left alone. */
-export function removeStreamedBook(db: Db, bookId: string): boolean {
+export function removeStreamedBook(db: Db, bookId: string, now = Date.now()): boolean {
   return db.transaction((tx) => {
-    const book = tx.select({ source: books.source }).from(books).where(eq(books.id, bookId)).get();
+    const book = tx
+      .select({ source: books.source, location: books.location })
+      .from(books)
+      .where(eq(books.id, bookId))
+      .get();
     if (book?.source !== 'addon') return false;
+    recordDeletion(tx, 'book', book.location, null, now);
     tx.delete(bookFiles)
       .where(and(eq(bookFiles.bookId, bookId), like(bookFiles.location, 'stream:%')))
       .run();

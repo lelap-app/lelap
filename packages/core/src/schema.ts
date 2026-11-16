@@ -22,6 +22,8 @@ export const SHARED_TABLES = [
   'downloads',
   'podcasts',
   'episodes',
+  'sync_state',
+  'tombstones',
 ] as const;
 
 export type StoredChapter = { title: string; startMs: number };
@@ -316,4 +318,27 @@ export const upNext = sqliteTable(
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [primaryKey({ columns: [t.profileId, t.bookId] })],
+);
+
+/** This device's sync settings and progress: group, key, device ID, cursor. Never synced. */
+export const syncState = sqliteTable('sync_state', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+/**
+ * Deletions to tell other devices about (a bookmark, an Up Next item, a subscription, a streamed
+ * book). `key` is the synced identity of what was deleted; `profile_id` is null for shared rows.
+ */
+export const tombstones = sqliteTable(
+  'tombstones',
+  {
+    kind: text('kind', { enum: ['bookmark', 'upNext', 'subscription', 'book'] }).notNull(),
+    key: text('key').notNull(),
+    profileId: text('profile_id').notNull().default(''),
+    deletedAt: integer('deleted_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.kind, t.key, t.profileId] })],
 );

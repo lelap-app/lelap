@@ -67,7 +67,7 @@ docker/           compose file and images for self-hosting
 | Audio, web     | `<audio>`, volume fade for the sleep timer, Media Session       |
 | Database       | SQLite via Drizzle ORM (expo-sqlite; sql.js + OPFS on the web)  |
 | Validation     | zod; the protocol's JSON Schema generated with `z.toJSONSchema` |
-| Sync crypto    | libsodium, XChaCha20-Poly1305, key shared by QR or words        |
+| Sync crypto    | `@noble` XChaCha20-Poly1305, key shared by a pairing code       |
 | Backend        | Hono on Cloudflare Workers; same code in Docker via Node        |
 | OTA updates    | expo-updates, self-hosted server, code-signed bundles           |
 | Site and docs  | Astro, static on Cloudflare Pages                               |
@@ -182,9 +182,25 @@ the Player.
   or charging rules. Local library folders are Android only.
 - **Feeds** go through `proxy.lelap.app` (XML only, 10 MB, never audio); plain-http covers too.
 
+## Sync (M7)
+
+- **Group:** devices that sync share a random 32-byte key. The server knows a random group ID and
+  the SHA-256 of an auth token derived from the key (HKDF), never the key.
+- **Oplog:** each sync pushes the rows changed since the last push as operations, sealed with
+  XChaCha20-Poly1305 (`@noble/ciphers`: pure JavaScript, so the same code runs in Hermes, browsers
+  and Workers; libsodium needs WebAssembly, which Hermes lacks). The newest change to a row wins.
+  Deletions travel as tombstones. Books are named by what they are (location, or feed URL and
+  episode guid), since row IDs differ per device.
+- **Pairing:** a 12-character code (60 bits). Its scrypt output gives the server a lookup ID and a
+  key that seals the group secret; the server keeps the blob ten minutes and hands it out once.
+- **What syncs:** places, finished and speed, bookmarks, streamed books, podcast subscriptions and
+  episode places, Up Next, playback settings, profiles. Not: local files, downloads, download
+  rules, add-on lists.
+- **Journal times:** the playback journal carries when the place last moved, not when it was
+  written, so a stale place loaded on one device never outranks a newer one from another.
+
 ## Open questions
 
 - License: AGPL-3.0 for app and services with MIT for the SDK, or something simpler.
 - Google's developer verification for sideloaded apps: current requirements.
 - F-Droid: a `foss` flavor without the Google Cast SDK; reproducible builds or F-Droid's own key.
-- Sync storage: D1 tables or a Durable Object per sync group.

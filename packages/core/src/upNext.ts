@@ -3,6 +3,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import type { Db } from './db';
 import { setFinished } from './library/queries';
 import { books, upNext } from './schema';
+import { bookKey, recordDeletion } from './sync/keys';
 
 export type UpNextItem = {
   bookId: string;
@@ -63,10 +64,19 @@ export function addToUpNext(
     .run();
 }
 
-export function removeFromUpNext(db: Db, profileId: string, bookId: string): void {
-  db.delete(upNext)
+export function removeFromUpNext(
+  db: Db,
+  profileId: string,
+  bookId: string,
+  now = Date.now(),
+): void {
+  const removed = db
+    .delete(upNext)
     .where(and(mine(profileId), eq(upNext.bookId, bookId)))
-    .run();
+    .returning({ bookId: upNext.bookId })
+    .all();
+  const key = removed.length > 0 ? bookKey(db, bookId) : null;
+  if (key) recordDeletion(db, 'upNext', key, profileId, now);
 }
 
 /** Moves an item to `index` in the queue. */
@@ -103,7 +113,7 @@ export function finishAndNext(
   now: number,
 ): string | null {
   setFinished(db, profileId, bookId, true, now);
-  removeFromUpNext(db, profileId, bookId);
+  removeFromUpNext(db, profileId, bookId, now);
   const book = db.select({ source: books.source }).from(books).where(eq(books.id, bookId)).get();
   if (book?.source !== 'feed') return null;
   return listUpNext(db, profileId)[0]?.bookId ?? null;

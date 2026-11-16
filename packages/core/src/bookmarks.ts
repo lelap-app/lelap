@@ -5,6 +5,7 @@ import type { IdGenerator } from './ids';
 import { presentFiles } from './library/bookFiles';
 import { toBookPosition } from './library/timeline';
 import { bookmarks } from './schema';
+import { recordDeletion } from './sync/keys';
 
 export type Bookmark = typeof bookmarks.$inferSelect;
 
@@ -51,10 +52,11 @@ export function listBookmarks(db: Db, profileId: string, bookId: string): Bookma
     .all();
 }
 
-export function deleteBookmark(db: Db, profileId: string, id: string): void {
+export function deleteBookmark(db: Db, profileId: string, id: string, now = Date.now()): void {
   db.delete(bookmarks)
     .where(and(eq(bookmarks.profileId, profileId), eq(bookmarks.id, id)))
     .run();
+  recordDeletion(db, 'bookmark', id, profileId, now);
 }
 
 /** Sets or clears (blank) a bookmark's note. */
