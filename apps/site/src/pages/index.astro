@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import Icon, { type IconName } from '../components/Icon.astro';
+import CatalogMockup from '../components/CatalogMockup.astro';
 import PhoneMockup from '../components/PhoneMockup.astro';
 import { site } from '../site';
 
@@ -141,14 +142,36 @@ const compose = `services:
 
   <div class="band" id="how">
     <section class="container section">
-      <div class="section-head">
-        <span class="eyebrow">How it works</span>
-        <h2 class="h2">The app plays. Add-ons bring the library.</h2>
-        <p class="lead">
-          {site.name} handles playback, downloads, progress and sync. What you browse, where the
-          audio lives and where your progress is shared are add-ons you choose, made and run by
-          whoever builds them.
-        </p>
+      <div class="how">
+        <div class="how-copy">
+          <div class="section-head">
+            <span class="eyebrow">How it works</span>
+            <h2 class="h2">
+              The app plays. <span class="nowrap">Add-ons</span> bring the library.
+            </h2>
+            <p class="lead">
+              {site.name} handles playback, downloads, progress and sync. What you browse, where the
+              audio lives and where your progress is shared are add-ons you choose, made and run by
+              whoever builds them.
+            </p>
+          </div>
+          <div class="chips">
+            <span class="muted">Ships with open sources:</span>
+            <span class="chip">LibriVox</span>
+            <span class="chip">Open Library</span>
+            <span class="chip">Podcast Index</span>
+            <span class="chip">RSS feeds</span>
+            <span class="chip">Your own files</span>
+            <span class="muted chips-gap">Optional:</span>
+            <span class="chip chip-dashed">Audiobookshelf</span>
+            <span class="chip chip-dashed">WebDAV</span>
+            <span class="chip chip-dashed">Hardcover</span>
+            <span class="chip chip-dashed">gPodder</span>
+          </div>
+        </div>
+        <div class="how-visual">
+          <CatalogMockup />
+        </div>
       </div>
       <div class="grid">
         <div class="card">
@@ -185,19 +208,6 @@ const compose = `services:
             app only remembers the URL.
           </p>
         </div>
-      </div>
-      <div class="chips">
-        <span class="muted">Ships with open sources:</span>
-        <span class="chip">LibriVox</span>
-        <span class="chip">Open Library</span>
-        <span class="chip">Podcast Index</span>
-        <span class="chip">RSS feeds</span>
-        <span class="chip">Your own files</span>
-        <span class="muted chips-gap">Optional:</span>
-        <span class="chip chip-dashed">Audiobookshelf</span>
-        <span class="chip chip-dashed">WebDAV</span>
-        <span class="chip chip-dashed">Hardcover</span>
-        <span class="chip chip-dashed">gPodder</span>
       </div>
     </section>
   </div>
@@ -504,6 +514,30 @@ const compose = `services:
 
   .checks :global(svg) {
     color: var(--accent);
+  }
+
+  .how {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 40px 56px;
+  }
+
+  .how-copy {
+    flex: 1 1 480px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .nowrap {
+    white-space: nowrap;
+  }
+
+  .how-visual {
+    flex: 0 1 340px;
+    margin-inline: auto;
   }
 
   .step {
