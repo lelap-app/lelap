@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetcher, useAddons } from '../src/addons';
 import { db, newId } from '../src/db';
 import { useLibrary } from '../src/player';
+import { activeProfile } from '../src/profile';
 
 function AddonRow({ addon, onRemove }: { addon: InstalledAddon; onRemove: () => void }) {
   return (
@@ -52,7 +53,23 @@ function AddonRow({ addon, onRemove }: { addon: InstalledAddon; onRemove: () => 
   );
 }
 
+/** A kids profile can't change add-ons; a grown-up does it from their own profile. */
 export default function AddonsScreen() {
+  const router = useRouter();
+  if (activeProfile()?.kids) {
+    return (
+      <View className="flex-1 items-center justify-center gap-4 bg-night p-8">
+        <Text className="text-center text-paper">Ask a grown-up to change add-ons.</Text>
+        <Pressable onPress={() => router.back()}>
+          <Text className="text-amber">Back</Text>
+        </Pressable>
+      </View>
+    );
+  }
+  return <AddonsManager />;
+}
+
+function AddonsManager() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { refresh } = useLibrary();

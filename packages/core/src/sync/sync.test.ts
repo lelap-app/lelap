@@ -236,6 +236,30 @@ describe('sync between two devices', () => {
     expect(listBookmarks(laptop, ME, there)).toEqual([]);
   });
 
+  it('carries profiles with avatar, PIN and kids limits, and their deletion', async () => {
+    const { createProfile, deleteProfile, getProfile, setPin } = await import('../profiles');
+    const kid = createProfile(
+      phone,
+      { name: 'Mia', avatar: 'fox', kids: true, hiddenAddons: ['https://x.example/manifest.json'] },
+      10,
+      newId,
+    );
+    setPin(phone, kid, '2468', 11);
+    await syncNow(phone, server, random, 100, newId);
+    await syncNow(laptop, server, random, 110, newId);
+    expect(getProfile(laptop, kid)).toMatchObject({
+      name: 'Mia',
+      avatar: 'fox',
+      kids: true,
+      hiddenAddons: ['https://x.example/manifest.json'],
+      pinHash: getProfile(phone, kid)?.pinHash,
+    });
+    deleteProfile(laptop, kid, 200);
+    await syncNow(laptop, server, random, 300, newId);
+    await syncNow(phone, server, random, 310, newId);
+    expect(getProfile(phone, kid)).toBeNull();
+  });
+
   it('carries podcast subscriptions and episode places', async () => {
     const xml = `<rss><channel><title>Garden Hour</title>
       <item><title>Roses</title><guid>ep-1</guid><enclosure url="https://cdn.example/1.mp3" type="audio/mpeg" length="10"/></item>

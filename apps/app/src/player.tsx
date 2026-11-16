@@ -1,5 +1,7 @@
 import {
   continueListening,
+  deviceValue,
+  setDeviceValue,
   finishAndNext,
   getBook,
   getSettings,
@@ -22,7 +24,7 @@ import { AppState } from 'react-native';
 
 import { db } from './db';
 import * as audio from './platform/audio';
-import { profileId } from './profile';
+import { profileId, setProfileId } from './profile';
 
 export const IDLE: audio.PlayerState = {
   connected: false,
@@ -76,9 +78,17 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
 }
 
 /** Folds the service's journal into the database, for places saved while the app was closed. */
+const PLAYER_PROFILE = 'playerProfile';
+
+/**
+ * The profile the loaded book was loaded for. Its places go there, even after the listener has
+ * switched profile, so one person's place never lands in another's.
+ */
+export const playerProfile = () => deviceValue(db, PLAYER_PROFILE) ?? profileId;
+
 async function foldJournal(): Promise<void> {
   const entry = await audio.takeJournal();
-  if (entry) saveProgress(db, profileId, entry, 'journal');
+  if (entry) saveProgress(db, playerProfile(), entry, 'journal');
 }
 
 /** Saves the place playing right now, before anything replaces it. */
@@ -86,7 +96,7 @@ function savePlace(state: audio.PlayerState): boolean {
   if (!state.bookId || !state.fileLocation) return false;
   return saveProgress(
     db,
-    profileId,
+    playerProfile(),
     {
       bookId: state.bookId,
       fileLocation: state.fileLocation,
@@ -125,6 +135,12 @@ export function reloadBook(bookId: string, evenWhilePlaying: boolean): Promise<v
 
 async function load(bookId: string, autoplay: boolean, force = false): Promise<void> {
   const current = await audio.getState();
+  if (playerProfile() !== profileId) {
+    // A switch since this book was loaded: keep its place for its own profile, load fresh.
+    if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
+    playedThisSession.clear();
+    force = true;
+  }
   if (!force && current.bookId === bookId && current.partIndex >= 0) {
     if (autoplay) await audio.play();
     return;
@@ -134,6 +150,7 @@ async function load(bookId: string, autoplay: boolean, force = false): Promise<v
   if (!detail || detail.files.length === 0)
     throw new Error('The files of this book are not available.');
   const start = resumePoint(db, profileId, bookId);
+  setDeviceValue(db, PLAYER_PROFILE, profileId, Date.now());
   await audio.load(
     {
       bookId,
@@ -155,6 +172,22 @@ async function load(bookId: string, autoplay: boolean, force = false): Promise<v
     },
     autoplay,
   );
+}
+
+/**
+ * Switches the listener: pauses what plays (its place stays with its profile), applies the new
+ * profile's settings and loads its last book, paused, for the lock screen and mini player.
+ */
+export function switchProfile(id: string): Promise<void> {
+  return enqueue(async () => {
+    if (id === profileId) return;
+    const current = await audio.getState();
+    if (current.playing) await audio.pause();
+    setProfileId(id);
+    await audio.setSettings(getSettings(db, id));
+    const next = continueListening(db, id);
+    if (next) await load(next.id, false).catch(() => {});
+  });
 }
 
 /** Jumps to a place on the whole-book timeline. */

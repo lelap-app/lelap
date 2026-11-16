@@ -9,7 +9,7 @@ import { db } from '../src/db';
 import { applyRules } from '../src/downloads';
 import * as audio from '../src/platform/audio';
 import { useLibrary } from '../src/player';
-import { profileId } from '../src/profile';
+import { activeProfile, profileId } from '../src/profile';
 import { LOCAL_FOLDERS } from '../src/platform/library';
 import { SELF_UPDATES } from '../src/platform/updater';
 import { checkForUpdate, installUpdate } from '../src/updates';
@@ -84,6 +84,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState(() => getSettings(db, profileId));
+  const me = activeProfile();
   const [scanning, setScanning] = useState(false);
   // `version` is the signal to re-read the database.
   const root = useMemo(() => db.select().from(schema.libraryRoots).get(), [version]);
@@ -173,6 +174,17 @@ export default function SettingsScreen() {
             <Text className="text-amber">Open</Text>
           </Pressable>
         </Row>
+
+        {!me?.kids && (
+          <>
+            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">People</Text>
+            <Row label="Profiles" detail="Everyone who listens here, each with their own places.">
+              <Pressable onPress={() => router.push('/profiles')}>
+                <Text className="text-amber">Manage</Text>
+              </Pressable>
+            </Row>
+          </>
+        )}
 
         <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Devices</Text>
         <Row label="Sync" detail="Keep your places and podcasts in step on your other devices.">

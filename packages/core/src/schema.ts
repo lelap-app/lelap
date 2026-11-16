@@ -31,6 +31,14 @@ export type StoredChapter = { title: string; startMs: number };
 export const profiles = sqliteTable('profiles', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
+  /** One of the app's bundled avatars; null shows the name's initial on a colour. */
+  avatar: text('avatar'),
+  /** SHA-256 of the four-digit PIN with the profile ID. Keeps others out; encrypts nothing. */
+  pinHash: text('pin_hash'),
+  /** A kids profile cannot change add-ons and sees only the ones a grown-up allows. */
+  kids: integer('kids', { mode: 'boolean' }).notNull().default(false),
+  /** Add-on manifest URLs this profile does not see. */
+  hiddenAddons: text('hidden_addons', { mode: 'json' }).$type<string[]>().notNull().default([]),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
@@ -334,7 +342,9 @@ export const syncState = sqliteTable('sync_state', {
 export const tombstones = sqliteTable(
   'tombstones',
   {
-    kind: text('kind', { enum: ['bookmark', 'upNext', 'subscription', 'book'] }).notNull(),
+    kind: text('kind', {
+      enum: ['bookmark', 'upNext', 'subscription', 'book', 'profile'],
+    }).notNull(),
     key: text('key').notNull(),
     profileId: text('profile_id').notNull().default(''),
     deletedAt: integer('deleted_at').notNull(),

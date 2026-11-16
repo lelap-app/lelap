@@ -3,11 +3,15 @@ import '../global.css';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { queryClient, syncAddonsNow } from '../src/addons';
-import { useDbReady } from '../src/db';
+import { listProfiles } from '@lelap/core';
+
+import { db, useDbReady } from '../src/db';
+import { ProfilePicker } from '../src/components/ProfilePicker';
+import { loadActiveProfile } from '../src/profile';
 import { DownloadSync } from '../src/downloads';
 import { PlayerProvider, useLibrary } from '../src/player';
 import { HandoffBanner } from '../src/components/HandoffBanner';
@@ -25,8 +29,24 @@ function AddonSync() {
   return null;
 }
 
+/** “Who's listening?” over the app at launch, only when there is more than one profile. */
+function ProfileGate() {
+  const [picked, setPicked] = useState(() => listProfiles(db).length <= 1);
+  if (picked) return null;
+  return (
+    <View className="absolute inset-0">
+      <ProfilePicker atLaunch onPicked={() => setPicked(true)} />
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const { ready, error } = useDbReady();
+  // Before anything reads or saves: the profile this device used last.
+  const profileLoaded = useMemo(() => {
+    if (ready) loadActiveProfile();
+    return ready;
+  }, [ready]);
 
   if (error) {
     return (
@@ -35,7 +55,7 @@ export default function RootLayout() {
       </View>
     );
   }
-  if (!ready) return <View className="flex-1 bg-night" />;
+  if (!ready || !profileLoaded) return <View className="flex-1 bg-night" />;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -50,8 +70,10 @@ export default function RootLayout() {
             name="player"
             options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
           />
+          <Stack.Screen name="who" options={{ presentation: 'modal' }} />
         </Stack>
         <HandoffBanner />
+        <ProfileGate />
         <StatusBar style="light" />
       </PlayerProvider>
     </QueryClientProvider>

@@ -1,4 +1,27 @@
-import { currentProfileId } from '@lelap/core';
+import {
+  DEFAULT_PROFILE_ID,
+  getActiveProfile,
+  getProfile,
+  type Profile,
+  setActiveProfile,
+} from '@lelap/core';
 
-/** The profile everything is read and saved for. M9 makes this switchable. */
-export const profileId = currentProfileId();
+import { db } from './db';
+
+/**
+ * The profile everything is read and saved for. A live binding: modules that import it see the
+ * new value after a switch, and screens re-read when the library version changes.
+ */
+export let profileId: string = DEFAULT_PROFILE_ID;
+
+/** Reads the profile this device used last; called once the database is open. */
+export function loadActiveProfile(): void {
+  profileId = getActiveProfile(db);
+}
+
+export function setProfileId(id: string): void {
+  profileId = id;
+  setActiveProfile(db, id, Date.now());
+}
+
+export const activeProfile = (): Profile | null => getProfile(db, profileId);

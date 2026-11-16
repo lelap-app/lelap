@@ -3,6 +3,7 @@ import {
   type Fetcher,
   fetchMeta,
   fetchStreams,
+  getProfile,
   type FoundStream,
   type InstalledAddon,
   listAddons,
@@ -14,6 +15,7 @@ import { useMemo } from 'react';
 
 import { defaultAddons } from './config';
 import { db, newId } from './db';
+import { profileId } from './profile';
 import { playBook, useLibrary } from './player';
 
 export const queryClient = new QueryClient({
@@ -28,7 +30,18 @@ export const fetcher: Fetcher = (url, init) => fetch(url, init);
 export const SHOWN_TYPES: ContentType[] = ['audiobook', 'podcast'];
 
 /** Installed add-ons, re-read whenever the library version changes. */
+/** Installed add-ons this profile sees, re-read whenever the library version changes. */
 export function useAddons(): InstalledAddon[] {
+  const { version } = useLibrary();
+  // `version` is the signal to re-read the database.
+  return useMemo(() => {
+    const hidden = new Set(getProfile(db, profileId)?.hiddenAddons ?? []);
+    return listAddons(db).filter((a) => !hidden.has(a.url));
+  }, [version]);
+}
+
+/** Every installed add-on, for grown-ups choosing what a profile sees. */
+export function useAllAddons(): InstalledAddon[] {
   const { version } = useLibrary();
   // `version` is the signal to re-read the database.
   return useMemo(() => listAddons(db), [version]);
