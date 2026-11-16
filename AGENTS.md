@@ -36,7 +36,7 @@ apps/app        Expo app for Android and web; M1 test screen for now
 packages/core   domain model, library logic, Drizzle schema, add-on client; sync later
 packages/sdk    add-on SDK: protocol v1 as zod schemas, createAddon(); MIT
 services/       Hono services on Cloudflare Workers: catalog (Catalog + LibriVox add-ons), proxy (feeds
-                and covers for the web app), template
+                and covers for the web app), sync (encrypted oplog, D1), template
 modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer
 modules/library Kotlin Expo module: folder access, tags and chapters for the local library
 modules/download Kotlin Expo module: WorkManager downloads with Wi-Fi and charging rules

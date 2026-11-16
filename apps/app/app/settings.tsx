@@ -130,6 +130,13 @@ export default function SettingsScreen() {
           </Pressable>
         </Row>
 
+        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Devices</Text>
+        <Row label="Sync" detail="Keep your places and podcasts in step on your other devices.">
+          <Pressable onPress={() => router.push('/sync')}>
+            <Text className="text-amber">Open</Text>
+          </Pressable>
+        </Row>
+
         <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Catalogs</Text>
         <Row label="Add-ons" detail="Where Home, Discover and Search look for books.">
           <Pressable onPress={() => router.push('/addons')}>

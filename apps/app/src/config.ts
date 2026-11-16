@@ -21,3 +21,8 @@ export const defaultAddons: string[] = configured
 export const proxyBase: string = (
   process.env.EXPO_PUBLIC_LELAP_PROXY ?? `https://proxy.${domain}`
 ).replace(/\/$/, '');
+
+/** The encrypted sync server. It stores sealed messages and never sees keys or plaintext. */
+export const syncBase: string = (
+  process.env.EXPO_PUBLIC_LELAP_SYNC ?? `https://sync.${domain}`
+).replace(/\/$/, '');

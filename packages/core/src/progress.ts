@@ -43,11 +43,24 @@ export function saveProgress(
 
     const key = and(eq(progress.profileId, profileId), eq(progress.bookId, bookId));
     const stored = tx
-      .select({ updatedAt: progress.updatedAt, bookPositionMs: progress.bookPositionMs })
+      .select({
+        updatedAt: progress.updatedAt,
+        bookPositionMs: progress.bookPositionMs,
+        fileLocation: progress.fileLocation,
+        filePositionMs: progress.filePositionMs,
+      })
       .from(progress)
       .where(key)
       .get();
     if (origin === 'journal' && stored && stored.updatedAt >= entry.savedAt) return false;
+    // An unchanged place keeps its time: a newer place synced from another device must win.
+    if (
+      stored &&
+      stored.fileLocation === entry.fileLocation &&
+      stored.filePositionMs === Math.max(0, entry.filePositionMs)
+    ) {
+      return false;
+    }
 
     const files = presentFiles(tx, bookId);
     // A place in a missing file cannot be put on the book timeline; keep the last known offset.

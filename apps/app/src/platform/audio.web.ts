@@ -30,6 +30,9 @@ let settings: PlayerSettings = {
 let sleepRemainingMs: number | null = null;
 let lastTick = 0;
 let lastJournal = 0;
+// When playback or a seek last moved the place; loading does not count (see writeJournal).
+let placeChangedAt = 0;
+let seekingForLoad = false;
 let objectUrl: string | null = null;
 const listeners = new Set<(state: PlayerState) => void>();
 let ticker: ReturnType<typeof setInterval> | null = null;
@@ -81,12 +84,16 @@ function state(): PlayerState {
 
 function writeJournal(): void {
   const file = book?.files[index];
-  if (!book || !file) return;
+  // Before the media loads (or after it failed) the element reports 0, which would replace the
+  // real place at the next start.
+  if (!book || !file || !element || element.readyState === 0 || element.error) return;
   const entry: JournalEntry = {
     bookId: book.bookId,
     fileLocation: file.location,
     filePositionMs: positionMs(),
-    savedAt: Date.now(),
+    // The time the place moved, not the write time: a stale place loaded here must not outrank
+    // a newer one synced from another device.
+    savedAt: placeChangedAt,
   };
   lastJournal = Date.now();
   try {
@@ -115,7 +122,10 @@ function tick(): void {
       if (element) element.volume = 1;
     }
   }
-  if (playing() && now - lastJournal >= JOURNAL_EVERY_MS) writeJournal();
+  if (playing() && now - lastJournal >= JOURNAL_EVERY_MS) {
+    placeChangedAt = now;
+    writeJournal();
+  }
   emit();
 }
 
@@ -136,11 +146,13 @@ function player(): HTMLAudioElement {
   audio.preservesPitch = true;
   audio.addEventListener('play', () => {
     ended = false;
+    seekingForLoad = false;
     startTicker();
     emit();
   });
   audio.addEventListener('pause', () => {
     pausedAt = Date.now();
+    placeChangedAt = pausedAt;
     writeJournal();
     stopTicker();
     emit();
@@ -154,7 +166,11 @@ function player(): HTMLAudioElement {
     emit();
   });
   audio.addEventListener('seeked', () => {
-    writeJournal();
+    if (seekingForLoad) seekingForLoad = false;
+    else {
+      placeChangedAt = Date.now();
+      writeJournal();
+    }
     emit();
   });
   audio.addEventListener('error', () => {
@@ -166,6 +182,7 @@ function player(): HTMLAudioElement {
       void setPart(index + 1, 0, true);
     } else {
       ended = true;
+      placeChangedAt = Date.now();
       writeJournal();
       stopTicker();
       emit();
@@ -204,8 +221,8 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
     audio.addEventListener('error', ready, { once: true });
     audio.load();
   });
+  seekingForLoad = true;
   audio.currentTime = startMs / 1000;
-  writeJournal();
   if (autoplay) await audio.play().catch(() => {});
   emit();
 }
@@ -213,6 +230,7 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
 export async function load(next: BookLoad, autoplay: boolean): Promise<void> {
   book = next;
   pausedAt = next.pausedAt;
+  placeChangedAt = next.pausedAt ?? 0;
   let start = next.startPositionMs;
   if (autoplay && settings.smartRewind && pausedAt !== null) {
     start = Math.max(0, start - rewindOnResume(Date.now() - pausedAt));

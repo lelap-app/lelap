@@ -54,6 +54,11 @@ class PlaybackService : MediaLibraryService() {
   /** Wall-clock time of the last pause, for smart rewind; null once Play has used it. */
   private var pausedAt: Long? = null
 
+  // When playback or a seek last moved the place. Loading a book does not move it, so the journal
+  // carries this time rather than the write time: a stale place loaded here must not outrank a
+  // newer one synced from another device.
+  private var placeChangedAt = 0L
+
   private val chapterTicker = object : Runnable {
     override fun run() {
       updateChapterTitle()
@@ -62,7 +67,10 @@ class PlaybackService : MediaLibraryService() {
   }
 
   private val journalTicker = object : Runnable {
-    override fun run() = writeJournal(PositionJournal.Event.TICK)
+    override fun run() {
+      placeChangedAt = System.currentTimeMillis()
+      writeJournal(PositionJournal.Event.TICK)
+    }
   }
 
   private val timerTicker = object : Runnable {
@@ -124,13 +132,17 @@ class PlaybackService : MediaLibraryService() {
           handler.postDelayed(journalTicker, PositionJournal.TICK_INTERVAL_MS)
           handler.post(chapterTicker)
         } else {
+          placeChangedAt = System.currentTimeMillis()
           writeJournal(PositionJournal.Event.PAUSE)
         }
       }
 
       override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         // Replacing an item's metadata reports a transition too; only real ones are journaled.
-        if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) writeJournal(PositionJournal.Event.ITEM_CHANGE)
+        if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
+          placeChangedAt = System.currentTimeMillis()
+          writeJournal(PositionJournal.Event.ITEM_CHANGE)
+        }
       }
 
       override fun onPositionDiscontinuity(
@@ -139,6 +151,7 @@ class PlaybackService : MediaLibraryService() {
         reason: Int,
       ) {
         if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+          placeChangedAt = System.currentTimeMillis()
           writeJournal(PositionJournal.Event.SEEK)
           updateChapterTitle()
         }
@@ -192,6 +205,7 @@ class PlaybackService : MediaLibraryService() {
     val start = load.startPositionMs.coerceAtLeast(0L)
     val position = if (autoplay) SeekRules.resumePosition(start, load.pausedAt, System.currentTimeMillis(), smartRewind) else start
     pausedAt = if (autoplay) null else load.pausedAt
+    placeChangedAt = load.pausedAt ?: 0L
     player.setMediaItems(
       mediaItems(playlist),
       load.startIndex.coerceIn(0, playlist.files.lastIndex),
@@ -294,7 +308,7 @@ class PlaybackService : MediaLibraryService() {
       player.currentMediaItemIndex,
       player.currentMediaItem?.mediaId,
       player.currentPosition,
-      System.currentTimeMillis(),
+      placeChangedAt,
     ) ?: return
     // Every write restarts the 10 s tick, so writes are never more than 10 s apart while playing.
     handler.removeCallbacks(journalTicker)

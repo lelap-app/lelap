@@ -12,7 +12,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M4 Downloads               | In progress |
 | M5 Podcasts                | In progress |
 | M6 Web build               | In progress |
-| M7 Sync                    | Not started |
+| M7 Sync                    | In progress |
 | M8 Release pipeline        | Not started |
 | M9 Profiles (v1.1)         | Not started |
 
@@ -114,6 +114,9 @@ react-native-web build, OPFS storage, the web audio adapter, and the feed and co
 `proxy.lelap.app` with a rate limiting rule (the free plan includes one).
 
 ## M7 Sync
+
+**Status:** in progress. Design notes in [the brief](brief.md#sync-m7). Open checks and setup:
+[`m7-follow-ups.md`](m7-follow-ups.md).
 
 Pairing code, encrypted oplog, and the “continue on another device” prompt.
 

@@ -1,0 +1,27 @@
+# Encrypted sync. The Worker stores sealed messages and never sees keys or plaintext.
+# No routes here: deploys pass the custom domain, so forks deploy to their own.
+# Create the databases once, put their IDs below, then apply migrations/:
+#   wrangler d1 create lelap-sync
+#   wrangler d1 create lelap-sync-staging
+#   wrangler d1 migrations apply lelap-sync --remote
+#   wrangler d1 migrations apply lelap-sync-staging --remote --env staging
+name = "lelap-sync"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+workers_dev = true
+send_metrics = false
+
+[[d1_databases]]
+binding = "DB"
+database_name = "lelap-sync"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[env.staging]
+name = "lelap-sync-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "lelap-sync-staging"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

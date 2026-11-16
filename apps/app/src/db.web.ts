@@ -64,16 +64,37 @@ async function save(): Promise<void> {
   await writable.close();
 }
 
+/**
+ * Each tab would keep its own copy in memory and overwrite the other's file, so only one tab
+ * opens the library. The lock is held until the tab closes.
+ */
+function holdTabLock(): Promise<boolean> {
+  const locks = (navigator as Navigator & { locks?: LockManager }).locks;
+  if (!locks) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    void locks.request('lelap-library', { ifAvailable: true }, (lock) => {
+      resolve(lock !== null);
+      // Never settles: the lock goes when the tab does.
+      return lock ? new Promise<void>(() => {}) : undefined;
+    });
+  });
+}
+
 let opening: Promise<void> | null = null;
 
 function open(): Promise<void> {
   opening ??= (async () => {
+    if (!(await holdTabLock())) {
+      throw new Error('Lelap is open in another tab or window. Close that one and reload this.');
+    }
     const SQL = await initSqlJs({
       locateFile: () => (typeof wasmUrl === 'string' ? wasmUrl : wasmUrl.uri),
     });
     sqlite = new SQL.Database((await readSaved()) ?? undefined);
     const database = drizzle(sqlite, { schema });
     real = database;
+    // For poking at the library from the browser console while developing.
+    if (__DEV__) Object.assign(globalThis, { lelapSql: sqlite });
     // The Expo migrator only uses Drizzle's dialect and session, which sql.js has as well.
     await migrateSafely(database, () =>
       migrate(database as unknown as ExpoSQLiteDatabase<typeof schema>, migrations),

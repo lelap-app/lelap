@@ -34,6 +34,14 @@ describe('progress', () => {
     expect(db.select().from(libraryEntries).get()?.lastPlayedAt).toBe(42);
   });
 
+  it('keeps the time of an unchanged place, so a newer synced place still wins', () => {
+    saveProgress(db, ME, { bookId, fileLocation: 'b', filePositionMs: 500, savedAt: 10 });
+    expect(
+      saveProgress(db, ME, { bookId, fileLocation: 'b', filePositionMs: 500, savedAt: 99 }),
+    ).toBe(false);
+    expect(db.select().from(progress).get()?.updatedAt).toBe(10);
+  });
+
   it('ignores an entry older than the stored progress', () => {
     saveProgress(db, ME, { bookId, fileLocation: 'c', filePositionMs: 100, savedAt: 20 });
     saveProgress(db, ME, { bookId, fileLocation: 'a', filePositionMs: 0, savedAt: 10 });
