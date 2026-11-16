@@ -10,7 +10,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M2 Local library           | In progress |
 | M3 Add-on protocol and SDK | In progress |
 | M4 Downloads               | In progress |
-| M5 Podcasts                | Not started |
+| M5 Podcasts                | In progress |
 | M6 Web build               | Not started |
 | M7 Sync                    | Not started |
 | M8 Release pipeline        | Not started |
@@ -93,6 +93,11 @@ storage overview.
 **Done when** a book downloads overnight with the screen off and plays in airplane mode.
 
 ## M5 Podcasts
+
+**Status:** in progress. Design:
+[`superpowers/specs/2026-11-16-m5-podcasts-design.md`](superpowers/specs/2026-11-16-m5-podcasts-design.md).
+Built and unit-tested without a phone; the device checklist is in
+[`apps/app/README.md`](../apps/app/README.md#m5-device-checklist).
 
 RSS subscriptions, OPML import and export, auto-download rules per podcast, and the Up Next queue.
 

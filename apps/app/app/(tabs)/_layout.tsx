@@ -7,6 +7,7 @@ const ICONS: Record<string, string> = {
   index: '⌂',
   discover: '◎',
   search: '⌕',
+  podcasts: '◉',
   library: '▤',
 };
 
@@ -33,6 +34,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
       <Tabs.Screen name="discover" options={{ title: 'Discover' }} />
       <Tabs.Screen name="search" options={{ title: 'Search' }} />
+      <Tabs.Screen name="podcasts" options={{ title: 'Podcasts' }} />
       <Tabs.Screen name="library" options={{ title: 'Library' }} />
     </Tabs>
   );

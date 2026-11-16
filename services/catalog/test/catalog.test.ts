@@ -184,6 +184,7 @@ describe('Podcast Index', () => {
       language: 'en',
       genres: ['Home', 'Garden'],
       link: 'https://example.org/garden-hour',
+      feed: 'https://feeds.example.org/garden-hour.xml',
       episodes: [
         {
           id: 'episode:garden-hour-episode-2',

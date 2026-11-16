@@ -5,7 +5,8 @@ type Router = ReturnType<typeof useRouter>;
 
 /** Opens an add-on item's page. */
 export function openItem(router: Router, meta: Pick<MetaPreview, 'type' | 'id'>): void {
-  router.push({ pathname: '/item', params: { type: meta.type, id: meta.id } });
+  if (meta.type === 'podcast') router.push({ pathname: '/podcast', params: { item: meta.id } });
+  else router.push({ pathname: '/item', params: { type: meta.type, id: meta.id } });
 }
 
 /** Opens Discover on a catalog. */

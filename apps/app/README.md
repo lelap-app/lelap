@@ -102,3 +102,17 @@ mode. Not run yet.
 | 7   | **Airplane mode:** play the downloaded book in airplane mode, cover and chapters included; the item page shows its description.              |        |
 | 8   | **Remove while playing:** Remove download while it plays. It continues from the stream (online) and the storage overview frees the space.    |        |
 | 9   | **Remove from library:** long-press a downloaded book → Remove from library. Its files go too.                                               |        |
+
+## M5 device checklist
+
+Podcasts. The done-when: the maintainer's podcast folders have become subscriptions. Not run yet.
+
+| #   | Check                                                                                                                                 | Result |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Folder → podcast:** long-press each podcast folder → This is a podcast…; pick it. Played episodes and the current place carry over. |        |
+| 2   | **Search:** a podcast from Search opens its page with episodes read from the feed; Subscribe adds it to the Podcasts tab.             |        |
+| 3   | **Feed address:** paste an RSS address in the Podcasts tab; it subscribes.                                                            |        |
+| 4   | **OPML:** export, then import the file again; nothing is duplicated.                                                                  |        |
+| 5   | **Auto-download:** turn it on with 3 newest; three episodes download; marking one played removes its download and fetches the next.   |        |
+| 6   | **Up Next:** queue two episodes and a book. An episode that ends plays the next; the book stops at its end.                           |        |
+| 7   | **Refresh:** pull to refresh fetches new episodes; an unchanged feed answers 304.                                                     |        |

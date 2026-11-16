@@ -102,6 +102,8 @@ export const Meta = MetaPreview.extend({
   episodes: z.array(Episode).optional(),
   /** A page about the item on the source's own site. */
   link: Url.optional(),
+  /** A podcast's RSS feed. The app subscribes to it and reads it directly. */
+  feed: Url.optional(),
 });
 export type Meta = z.infer<typeof Meta>;
 

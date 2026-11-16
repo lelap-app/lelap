@@ -47,7 +47,7 @@ export default function SearchScreen() {
       <TextInput
         value={text}
         onChangeText={setText}
-        placeholder="Title or author"
+        placeholder="Title, author or podcast"
         placeholderTextColor="#8d8a83"
         autoCorrect={false}
         returnKeyType="search"

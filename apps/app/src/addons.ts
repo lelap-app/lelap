@@ -24,8 +24,8 @@ export const queryClient = new QueryClient({
 
 export const fetcher: Fetcher = (url, init) => fetch(url, init);
 
-/** The content types the app shows; podcasts join in M5. */
-export const SHOWN_TYPES: ContentType[] = ['audiobook'];
+/** The content types the app shows. */
+export const SHOWN_TYPES: ContentType[] = ['audiobook', 'podcast'];
 
 /** Installed add-ons, re-read whenever the library version changes. */
 export function useAddons(): InstalledAddon[] {

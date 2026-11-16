@@ -10,6 +10,7 @@ import { queryClient, syncAddonsNow } from '../src/addons';
 import { useDbReady } from '../src/db';
 import { DownloadSync } from '../src/downloads';
 import { PlayerProvider, useLibrary } from '../src/player';
+import { PodcastSync } from '../src/podcasts';
 
 /** Installs the default add-ons on first start and refreshes manifests on every start. */
 function AddonSync() {
@@ -37,6 +38,7 @@ export default function RootLayout() {
       <PlayerProvider>
         <AddonSync />
         <DownloadSync />
+        <PodcastSync />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0d0e11' } }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen

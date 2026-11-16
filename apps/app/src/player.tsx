@@ -1,5 +1,6 @@
 import {
   continueListening,
+  finishAndNext,
   getBook,
   getSettings,
   resumePoint,
@@ -27,6 +28,7 @@ export const IDLE: audio.PlayerState = {
   connected: false,
   playing: false,
   buffering: false,
+  ended: false,
   bookId: null,
   fileLocation: null,
   bookTitle: null,
@@ -169,6 +171,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(() => setVersion((v) => v + 1), []);
   const lastSave = useRef(0);
   const wasPlaying = useRef(false);
+  const endedBook = useRef<string | null>(null);
 
   useEffect(() => {
     const subscription = audio.addStateListener(setState);
@@ -203,6 +206,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     lastSave.current = now;
     if (savePlace(state) && paused) refresh();
   }, [state, refresh]);
+
+  // The end of a book or episode: mark it finished; an episode hands over to Up Next. This runs
+  // while the app's JavaScript is alive; with the app swiped away the service just stops.
+  useEffect(() => {
+    if (!state.ended || !state.bookId) {
+      endedBook.current = null;
+      return;
+    }
+    if (endedBook.current === state.bookId) return;
+    endedBook.current = state.bookId;
+    const next = finishAndNext(db, profileId, state.bookId, Date.now());
+    refresh();
+    if (next) void playBook(next).catch(() => {});
+  }, [state.ended, state.bookId, refresh]);
 
   const library = useMemo(() => ({ version, refresh }), [version, refresh]);
   return (
