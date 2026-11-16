@@ -15,6 +15,24 @@
         "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && pnpm --filter @lelap/app start"
       ],
       "port": 8081
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && EXPO_PUBLIC_LELAP_PROXY=${EXPO_PUBLIC_LELAP_PROXY:-http://localhost:8788} pnpm --filter @lelap/app exec expo start --web --port 8082"
+      ],
+      "port": 8082
+    },
+    {
+      "name": "proxy",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && pnpm --filter @lelap/proxy exec wrangler dev --port 8788"
+      ],
+      "port": 8788
     }
   ]
 }

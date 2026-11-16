@@ -1,0 +1,13 @@
+# RSS feeds and cover images for the web app, which browsers can't read across origins.
+# It never passes audio: only XML for feeds and images for covers, both with size limits.
+# No routes here: the deploy passes the custom domain, so forks deploy to their own.
+# Add a rate limiting rule for the domain in the Cloudflare dashboard (the free plan has one).
+name = "lelap-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+workers_dev = true
+send_metrics = false
+
+[vars]
+# The web app's origin, such as https://listen.example.org; `*` allows any.
+ALLOW_ORIGIN = "*"

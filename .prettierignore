@@ -1,5 +1,6 @@
 pnpm-lock.yaml
 dist/
+dist-web/
 .astro/
 apps/app/android/
 apps/app/ios/

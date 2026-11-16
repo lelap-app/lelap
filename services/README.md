@@ -3,6 +3,23 @@
 Small Hono services that run on Cloudflare Workers and, for self-hosters, in Docker. See
 [`docs/brief.md`](../docs/brief.md).
 
+## `proxy`
+
+RSS feeds and cover images for the web app (Worker `lelap-proxy`), because browsers can't read
+most feeds across origins. It never passes audio: `/feed?url=` only answers XML up to 10 MB,
+`/cover?url=` only raster images up to 5 MB; media types and non-XML bodies are refused. Feeds are
+cached for 15 minutes, covers for a day; `ETag` and `Last-Modified` pass through for conditional
+requests.
+
+```sh
+pnpm --filter @lelap/proxy dev   # wrangler dev on http://localhost:8788
+pnpm --filter @lelap/proxy test
+```
+
+Deploys with the catalog from `services.yml` (job `deploy-proxy`). Set `PROXY_DOMAIN`
+(`proxy.lelap.app`) and `WEB_ORIGIN` (`https://listen.lelap.app`) in the `web` environment, and add
+the free plan's rate limiting rule for the proxy's hostname in the Cloudflare dashboard.
+
 ## `catalog`
 
 The first-party add-ons, on one Worker (`lelap-catalog`):

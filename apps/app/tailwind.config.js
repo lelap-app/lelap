@@ -2,6 +2,8 @@
 module.exports = {
   content: ['./app/**/*.{ts,tsx}', './src/**/*.{ts,tsx}'],
   presets: [require('nativewind/preset')],
+  // One dark theme. 'class' also stops NativeWind's web build from fighting the media query.
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {

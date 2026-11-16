@@ -13,7 +13,9 @@ import {
   subscribe,
 } from '@lelap/core';
 import { useEffect } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
+
+import { proxyBase } from './config';
 
 import { db, newId } from './db';
 import { deleteDownload, startDownload } from './downloads';
@@ -33,7 +35,10 @@ export async function fetchFeed(feedUrl: string): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(feedUrl, { headers, signal: controller.signal });
+    // Browsers can't read most feeds across origins; the web app goes through the feed proxy.
+    const url =
+      Platform.OS === 'web' ? `${proxyBase}/feed?url=${encodeURIComponent(feedUrl)}` : feedUrl;
+    const response = await fetch(url, { headers, signal: controller.signal });
     const existing = findPodcast(db, { feedUrl });
     if (response.status === 304 && existing) return existing.id;
     if (!response.ok) throw new FeedError(`The feed answered HTTP ${response.status}.`);

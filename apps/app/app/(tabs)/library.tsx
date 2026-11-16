@@ -19,6 +19,7 @@ import { db } from '../../src/db';
 import { deleteDownload, startDownload } from '../../src/downloads';
 import { playBook, useLibrary } from '../../src/player';
 import { profileId } from '../../src/profile';
+import { LOCAL_FOLDERS } from '../../src/platform/library';
 import { chooseFolder, scanLibrary } from '../../src/scan';
 
 const SORTS: { key: LibrarySort; label: string }[] = [
@@ -160,16 +161,25 @@ export default function LibraryScreen() {
         className="flex-1 items-center justify-center gap-6 bg-night p-8"
       >
         <Text className="text-center text-2xl font-semibold text-paper">Your audiobooks</Text>
-        <Text className="text-center text-soft">
-          Choose the folder on this phone that holds your audiobooks. Lelap plays them where they
-          are. Books you play from Discover and Search appear here too.
-        </Text>
-        <Pressable
-          onPress={() => void pick()}
-          className="rounded-full bg-amber px-6 py-3 active:opacity-80"
-        >
-          <Text className="font-semibold text-ink">Choose your audiobooks folder</Text>
-        </Pressable>
+        {LOCAL_FOLDERS ? (
+          <>
+            <Text className="text-center text-soft">
+              Choose the folder on this phone that holds your audiobooks. Lelap plays them where
+              they are. Books you play from Discover and Search appear here too.
+            </Text>
+            <Pressable
+              onPress={() => void pick()}
+              className="rounded-full bg-amber px-6 py-3 active:opacity-80"
+            >
+              <Text className="font-semibold text-ink">Choose your audiobooks folder</Text>
+            </Pressable>
+          </>
+        ) : (
+          <Text className="text-center text-soft">
+            Books you play from Home, Discover and Search appear here. Local folders are in the
+            Android app.
+          </Text>
+        )}
       </View>
     );
   }
@@ -195,7 +205,7 @@ export default function LibraryScreen() {
                 <Text className="text-2xl text-muted">⚙</Text>
               </Pressable>
             </View>
-            {!root && (
+            {!root && LOCAL_FOLDERS && (
               <Pressable
                 onPress={() => void pick()}
                 className="mx-4 rounded-lg border border-line p-3 active:bg-raised"

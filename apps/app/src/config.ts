@@ -13,3 +13,11 @@ export const defaultAddons: string[] = configured
   .split(',')
   .map((url: string) => url.trim())
   .filter((url: string) => url !== '');
+
+/**
+ * The feed and cover proxy for the web app (never audio). Browsers can't read most RSS feeds
+ * across origins; the Android app fetches them directly.
+ */
+export const proxyBase: string = (
+  process.env.EXPO_PUBLIC_LELAP_PROXY ?? `https://proxy.${domain}`
+).replace(/\/$/, '');

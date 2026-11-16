@@ -1,4 +1,4 @@
-import * as audio from '@lelap/audio';
+import * as audio from '../platform/audio';
 import type { PlayerState } from '@lelap/audio';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';

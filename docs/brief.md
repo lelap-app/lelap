@@ -64,8 +64,8 @@ docker/           compose file and images for self-hosting
 | Styling        | NativeWind (Tailwind classes on native and web)                 |
 | Server state   | TanStack Query                                                  |
 | Audio, Android | Media3 ExoPlayer in a `MediaLibraryService`, own audio focus    |
-| Audio, web     | `<audio>`, Web Audio gain ramp for fades, Media Session         |
-| Database       | SQLite via Drizzle ORM (expo-sqlite, D1, plain SQLite)          |
+| Audio, web     | `<audio>`, volume fade for the sleep timer, Media Session       |
+| Database       | SQLite via Drizzle ORM (expo-sqlite; sql.js + OPFS on the web)  |
 | Validation     | zod; the protocol's JSON Schema generated with `z.toJSONSchema` |
 | Sync crypto    | libsodium, XChaCha20-Poly1305, key shared by QR or words        |
 | Backend        | Hono on Cloudflare Workers; same code in Docker via Node        |
@@ -171,10 +171,20 @@ transcripts, voice boost and intro trimming, widgets and Wear OS, stats, importe
 add-ons, add-on health and permissions, and the output device (Bluetooth headphones, car) named in
 the Player.
 
+## Web build (M6)
+
+- **Database:** sql.js in memory, with the whole file written to OPFS about a second after each
+  change and when the tab hides. expo-sqlite's web build needs cross-origin isolation, which blocks
+  covers and audio from other sites and does not work in Safari.
+- **Audio:** one `<audio>` element and Media Session. The sleep timer fades the element's volume;
+  a Web Audio gain node would need CORS on every audio host.
+- **Downloads:** fetch into OPFS while the tab is open, when the audio host allows CORS. No Wi-Fi
+  or charging rules. Local library folders are Android only.
+- **Feeds** go through `proxy.lelap.app` (XML only, 10 MB, never audio); plain-http covers too.
+
 ## Open questions
 
 - License: AGPL-3.0 for app and services with MIT for the SDK, or something simpler.
 - Google's developer verification for sideloaded apps: current requirements.
 - F-Droid: a `foss` flavor without the Google Cast SDK; reproducible builds or F-Droid's own key.
-- Web SQLite: which WASM build and OPFS approach.
 - Sync storage: D1 tables or a Durable Object per sync group.

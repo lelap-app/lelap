@@ -7,6 +7,7 @@ import tseslint from 'typescript-eslint';
 export default defineConfig([
   globalIgnores([
     '**/dist/',
+    '**/dist-web/',
     '**/.astro/',
     '**/.wrangler/',
     '**/node_modules/',

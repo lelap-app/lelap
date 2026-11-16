@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "backgroundColor": "#0d0e11",
-    "platforms": ["android"],
+    "platforms": ["android", "web"],
     "android": {
       "package": "app.lelap",
       "adaptiveIcon": {
@@ -15,6 +15,14 @@
         "foregroundImage": "./assets/adaptive-icon.png"
       }
     },
-    "plugins": ["expo-router", "expo-sqlite"]
+    "plugins": ["expo-router", "expo-sqlite"],
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/icon.png",
+      "name": "Lelap",
+      "themeColor": "#0d0e11",
+      "backgroundColor": "#0d0e11"
+    }
   }
 }
