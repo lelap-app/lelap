@@ -27,7 +27,6 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 
 private const val PREFS = "lelap_audio"
-private const val DUCK_VOLUME = 0.2f
 private const val LULL_TICK_MS = 250L
 
 @OptIn(UnstableApi::class)
@@ -37,12 +36,10 @@ class PlaybackService : MediaLibraryService() {
   private lateinit var focus: AudioFocus
   private lateinit var mixer: VolumeMixer
   private lateinit var lull: Lull
+  private lateinit var rules: PlaybackRules
 
   private val handler = Handler(Looper.getMainLooper())
   private val prefs by lazy { getSharedPreferences(PREFS, MODE_PRIVATE) }
-
-  // Set when a transient focus loss paused us, so regaining focus resumes playback.
-  private var resumeOnGain = false
 
   private val lullTicker = object : Runnable {
     override fun run() {
@@ -75,22 +72,18 @@ class PlaybackService : MediaLibraryService() {
       clock = SystemClock::elapsedRealtime,
       onVolume = { mixer.lull = it },
       onFinished = {
-        player.pause()
+        rules.onLullFinished()
         publishExtras()
       },
     )
-    focus = AudioFocus(this, ::onFocusAction).apply {
+    focus = AudioFocus(this) { rules.onFocus(it) }
+    rules = PlaybackRules(Port()).apply {
       duckOnInterruption = prefs.getBoolean(Commands.EXTRA_DUCK, true)
     }
+    focus.duckOnInterruption = rules.duckOnInterruption
     player.addListener(object : Player.Listener {
-      override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-        if (playWhenReady) {
-          resumeOnGain = false
-          if (focus.request()) mixer.duck = 1f else player.pause()
-        } else if (!resumeOnGain) {
-          focus.abandon()
-        }
-      }
+      override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) =
+        rules.onPlayWhenReadyChanged(playWhenReady)
     })
 
     val builder = MediaLibrarySession.Builder(this, player, Callback())
@@ -124,26 +117,30 @@ class PlaybackService : MediaLibraryService() {
     super.onDestroy()
   }
 
-  private fun onFocusAction(action: FocusAction) {
-    when (action) {
-      FocusAction.PAUSE -> {
-        resumeOnGain = false
-        mixer.duck = 1f
-        player.pause()
-      }
-      FocusAction.PAUSE_TRANSIENT -> if (player.playWhenReady) {
-        resumeOnGain = true
-        player.pause()
-      }
-      FocusAction.DUCK -> mixer.duck = DUCK_VOLUME
-      FocusAction.RESTORE -> {
-        mixer.duck = 1f
-        if (resumeOnGain) {
-          resumeOnGain = false
-          player.play()
-        }
-      }
+  private fun cancelLull() {
+    if (lull.endsAtMs == null) return
+    handler.removeCallbacks(lullTicker)
+    lull.cancel()
+    publishExtras()
+  }
+
+  private inner class Port : PlaybackRules.Port {
+    override val playWhenReady: Boolean
+      get() = player.playWhenReady
+
+    override fun pause() = player.pause()
+
+    override fun play() = player.play()
+
+    override fun requestFocus() = focus.request()
+
+    override fun abandonFocus() = focus.abandon()
+
+    override fun setDuck(level: Float) {
+      mixer.duck = level
     }
+
+    override fun cancelLull() = this@PlaybackService.cancelLull()
   }
 
   private fun publishExtras() {
@@ -179,18 +176,17 @@ class PlaybackService : MediaLibraryService() {
     ): ListenableFuture<SessionResult> {
       when (customCommand.customAction) {
         Commands.SET_DUCK -> {
-          focus.duckOnInterruption = args.getBoolean(Commands.KEY_ENABLED, true)
-          prefs.edit().putBoolean(Commands.EXTRA_DUCK, focus.duckOnInterruption).apply()
+          val enabled = args.getBoolean(Commands.KEY_ENABLED, true)
+          rules.duckOnInterruption = enabled
+          focus.duckOnInterruption = enabled
+          prefs.edit().putBoolean(Commands.EXTRA_DUCK, enabled).apply()
         }
         Commands.START_LULL -> {
           lull.start(args.getLong(Commands.KEY_DURATION_MS))
           handler.removeCallbacks(lullTicker)
           handler.postDelayed(lullTicker, LULL_TICK_MS)
         }
-        Commands.CANCEL_LULL -> {
-          handler.removeCallbacks(lullTicker)
-          lull.cancel()
-        }
+        Commands.CANCEL_LULL -> cancelLull()
         else -> return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
       }
       publishExtras()
