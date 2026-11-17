@@ -614,4 +614,7 @@ export const ms: Record<string, string> = {
   '{n} changes merged. Places, lists and tags that were newer here stayed.':
     '{n} perubahan digabungkan. Kedudukan, senarai dan tag yang lebih baharu di sini kekal.',
   '…and {n} more': '…dan {n} lagi',
+  'About the language': 'Tentang bahasa',
+  'This changes Lelap’s own buttons, menus and messages. Titles, descriptions, covers and audio come from add-ons and your files, and stay as they are.':
+    'Ini menukar butang, menu dan mesej Lelap sendiri. Tajuk, penerangan, kulit buku dan audio datang daripada alat tambah dan fail anda, dan kekal seperti asal.',
 };

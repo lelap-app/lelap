@@ -239,7 +239,23 @@ export default function SettingsScreen() {
         <Text className="pb-4 text-3xl font-semibold text-paper">{t('Settings')}</Text>
 
         <View className="gap-3 border-b border-line py-4">
-          <Text className="text-base text-paper">{t('Language')}</Text>
+          <View className="-my-3 flex-row items-center">
+            <Text className="text-base text-paper">{t('Language')}</Text>
+            <IconButton
+              name="info"
+              size={18}
+              label={t('About the language')}
+              color={COLORS.muted}
+              onPress={() =>
+                showAlert(
+                  t('Language'),
+                  t(
+                    'This changes Lelap’s own buttons, menus and messages. Titles, descriptions, covers and audio come from add-ons and your files, and stay as they are.',
+                  ),
+                )
+              }
+            />
+          </View>
           <Text className="text-sm text-muted">{t('For this profile only.')}</Text>
           <View className="flex-row flex-wrap gap-2">
             {LANGUAGES.map((l) => (
