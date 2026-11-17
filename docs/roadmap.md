@@ -63,6 +63,7 @@ and architecture live in [`brief.md`](brief.md); plans for milestones not starte
 | [M52 Sync upkeep](milestones/m52.md)                 | Snapshots that compact the sync log, expiry of idle groups                                              |
 | [M53 Storage choices](milestones/m53.md)             | Download location, covers from server folders, Atom feeds, export to a file                             |
 | [M54 Faster builds, smaller APKs](milestones/m54.md) | Build unsigned with caches and sign separately; one APK per CPU type                                    |
+| [M55 Light landing page](milestones/m55.md)          | The site and docs in a light theme too, following the system, with a switch                             |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
 v1.1.
