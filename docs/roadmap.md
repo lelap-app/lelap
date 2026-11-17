@@ -20,11 +20,12 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M12 Look and feel          | In progress |
 | M13 Landing page 2         | In progress |
 | M14 Developer platform     | In progress |
+| M15 Find any book          | In progress |
 | M16 Organise               | In progress |
 | M17 Car and offline web    | In progress |
 | M18 Updates over the air   | In progress |
 | M19 Security and hardening | In progress |
-| M20 SDK on npm             | In progress |
+| M20 SDK on npm             | Done        |
 | M32 Audnexus               | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
@@ -233,6 +234,16 @@ hard-coded seasonal catalogs, are in [`examples/`](../examples) and tested in CI
 app. Not yet checked: the samples' Dockerfiles have not been built, and none of the samples has
 been added to the app on a phone.
 
+## M15 Find any book
+
+**Status:** in progress (from [`next.md`](next.md#m15-find-any-book)). The item page asks every
+add-on with a `stream` resource for the work, by its own ID or one of its `externalIds`, lists each
+source with its add-on, length and parts, and remembers the choice per book and profile. A work
+without audio gets a page of its own with description, tags and a link to its source. Device
+checks in [`m15-follow-ups.md`](m15-follow-ups.md).
+
+**Done when** the device checks pass.
+
 ## M17 Car and offline web
 
 **Status:** in progress (from [`next.md`](next.md#proposed-milestones)). Android Auto browses
@@ -262,14 +273,15 @@ dashboard checks in [`m19-follow-ups.md`](m19-follow-ups.md).
 
 ## M20 SDK on npm
 
-**Status:** in progress (from [`next.md`](next.md#m20-sdk-on-npm)). `@lelap/sdk` builds to ESM and
-type declarations with `tsc`, Changesets versions it, and the `SDK` workflow publishes it with
-provenance from the `npm` environment. How to release: [`packages/sdk`](../packages/sdk/README.md#releasing).
-The samples' docs install it from npm. What the maintainer sets up on npm and GitHub:
+**Status:** done on 2026-11-17. `@lelap/sdk` builds to ESM and type declarations with `tsc`,
+Changesets versions it, and the `SDK` workflow publishes it with provenance from the `npm`
+environment, through npm trusted publishing. 0.2.0 was the first release. How to release:
+[`packages/sdk`](../packages/sdk/README.md#releasing). The setup and what we learnt:
 [`m20-follow-ups.md`](m20-follow-ups.md).
 
 **Done when** `npm install @lelap/sdk` gets a published version with a provenance statement, and a
-copy of `services/template` outside the repository builds against it.
+copy of `services/template` outside the repository builds against it. Both checked on 2026-11-17:
+the attestation verifies, and a copy installs 0.2.0, type-checks, passes its tests and bundles.
 
 ## Environments
 

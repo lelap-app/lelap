@@ -1,19 +1,25 @@
 import {
+  bookSourceChoice,
   downloadSnapshot,
   findBookBySource,
   findStreamedBook,
   type FoundStream,
   getBook,
+  getSourceChoice,
+  pickSource,
+  type SourceChoice,
+  setSourceChoice,
+  sourceLabel,
 } from '@lelap/core';
 import { CONTENT_TYPES, type ContentType, hasParts, type Meta } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { showAlert } from '../src/dialog';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { COLORS, Icon, IconButton } from '../src/components/Icon';
 import { addItem, playItem, queries, useAddons } from '../src/addons';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { DownloadButton } from '../src/components/DownloadButton';
@@ -33,8 +39,34 @@ const seriesLabel = (series: Meta['series']) => {
   return main ? (main.position ? `${main.name}, book ${main.position}` : main.name) : null;
 };
 
-const streamLabel = (found: FoundStream) =>
-  [found.stream.name, found.stream.title].filter(Boolean).join(' · ');
+const streamLength = (found: FoundStream) =>
+  hasParts(found.stream)
+    ? found.stream.parts.reduce((sum, p) => sum + p.durationMs, 0)
+    : (found.stream.durationMs ?? 0);
+
+/** The second line of a source: which add-on, how long, how many parts. */
+const sourceDetails = (found: FoundStream) => {
+  const ms = streamLength(found);
+  const count = hasParts(found.stream) ? found.stream.parts.length : 1;
+  return [
+    found.addon.manifest.name,
+    ms > 0 ? formatDuration(ms) : null,
+    count > 1 ? `${count} parts` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+};
+
+const addonCount = (n: number) => (n === 1 ? '1 add-on' : `${n} add-ons`);
+
+/** A language's English name; some engines lack `Intl.DisplayNames`, so fall back to the code. */
+function languageName(code: string): string {
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
 
 export default function ItemScreen() {
   const router = useRouter();
@@ -44,15 +76,31 @@ export default function ItemScreen() {
   const type: ContentType = isType(params.type) ? params.type : 'audiobook';
   const id = params.id ?? '';
   const addons = useAddons();
-  const [chosen, setChosen] = useState(0);
+  const [picked, setPicked] = useState<SourceChoice | null>(null);
   const [allParts, setAllParts] = useState(false);
   const [starting, setStarting] = useState(false);
 
   const meta = useQuery(queries.meta(addons, type, id));
-  const streams = useQuery(queries.streams(addons, type, id));
+  // Wait for the meta: its external IDs reach add-ons that know the work by another ID.
+  const sources = useQuery({
+    ...queries.sources(addons, type, id, meta.data?.meta.externalIds),
+    enabled: !meta.isPending,
+  });
 
-  const found = streams.data ?? [];
-  const stream = found[Math.min(chosen, found.length - 1)];
+  const found = sources.data?.found ?? [];
+  // `version` is the signal to re-read the database.
+  const remembered = useMemo(() => {
+    const own = findStreamedBook(db, type, id);
+    return [getSourceChoice(db, profileId, type, id), own ? bookSourceChoice(db, own) : null];
+  }, [type, id, version]);
+  const chosen = pickSource(found, [picked, ...remembered]);
+  const stream = found[chosen];
+
+  const choose = (f: FoundStream) => {
+    const choice = { addonUrl: f.addon.url, sourceKey: f.stream.sourceKey };
+    setPicked(choice);
+    setSourceChoice(db, profileId, type, id, choice, Date.now());
+  };
 
   // The book in the library for the chosen recording, else for this item.
   // `version` is the signal to re-read the database.
@@ -100,6 +148,9 @@ export default function ItemScreen() {
 
   const title = item?.name ?? saved?.book.title ?? '';
   const canPlay = (item !== undefined && stream !== undefined) || saved !== null;
+  const looking = (meta.isPending || sources.isPending) && !saved;
+  const noAudio = !saved && sources.isSuccess && found.length === 0;
+  const language = item?.language ? languageName(item.language) : null;
   const playLabel =
     saved && saved.book.finishedAt === null && progress > 0
       ? `Continue · ${Math.min(99, Math.floor(progress * 100))} %`
@@ -150,23 +201,36 @@ export default function ItemScreen() {
             </Text>
           </View>
 
-          <Pressable
-            disabled={!canPlay || starting}
-            onPress={() => void play()}
-            className={`items-center rounded-full py-3 ${canPlay ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
-          >
-            {starting ? (
-              <ActivityIndicator color="#1a1305" />
-            ) : (
-              <Text className={`text-base font-semibold ${canPlay ? 'text-ink' : 'text-muted'}`}>
-                {streams.isPending && !saved
-                  ? 'Looking for audio…'
-                  : canPlay
-                    ? playLabel
-                    : 'No audio for this book yet'}
+          {noAudio ? (
+            <NoAudio
+              asked={sources.data?.asked.length ?? 0}
+              failed={sources.data?.failed ?? []}
+              onAddons={() => router.push('/addons')}
+            />
+          ) : sources.isError && !saved ? (
+            <View className="items-center gap-2 rounded-2xl bg-raised p-4">
+              <Text className="text-center text-soft">
+                Your add-ons did not answer. Check the connection and try again.
               </Text>
-            )}
-          </Pressable>
+              <Pressable onPress={() => void sources.refetch()} className="py-1">
+                <Text className="font-semibold text-amber">Try again</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              disabled={!canPlay || starting}
+              onPress={() => void play()}
+              className={`items-center rounded-full py-3 ${canPlay ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
+            >
+              {starting ? (
+                <ActivityIndicator color="#1a1305" />
+              ) : (
+                <Text className={`text-base font-semibold ${canPlay ? 'text-ink' : 'text-muted'}`}>
+                  {looking ? 'Looking for audio…' : playLabel}
+                </Text>
+              )}
+            </Pressable>
+          )}
           {saved && (
             <Text className="-mt-3 text-center text-xs text-muted">
               {saved.book.downloaded
@@ -183,20 +247,42 @@ export default function ItemScreen() {
             />
           )}
 
-          {found.length > 1 && (
+          {found.length > 0 && (
             <View className="gap-2">
-              <Text className="text-xs uppercase tracking-wider text-muted">Recording</Text>
-              {found.map((f, index) => (
-                <Pressable
-                  key={`${f.addon.url} ${f.stream.sourceKey}`}
-                  onPress={() => setChosen(index)}
-                  className={`rounded-lg border px-3 py-2 ${index === chosen ? 'border-amber' : 'border-line'}`}
-                >
-                  <Text className={index === chosen ? 'text-paper' : 'text-soft'}>
-                    {streamLabel(f)}
-                  </Text>
-                </Pressable>
-              ))}
+              <Text className="text-xs uppercase tracking-wider text-muted">
+                {found.length === 1 ? 'Source' : `${found.length} sources`}
+              </Text>
+              {found.map((f, index) => {
+                const selected = index === chosen;
+                return (
+                  <Pressable
+                    key={`${f.addon.url} ${f.stream.sourceKey}`}
+                    onPress={() => choose(f)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected }}
+                    className={`flex-row items-center gap-3 rounded-xl border px-3 py-3 ${selected ? 'border-amber bg-raised' : 'border-line'}`}
+                  >
+                    {selected ? (
+                      <Icon name="check" size={24} color={COLORS.amber} />
+                    ) : (
+                      <View className="m-[3px] h-[18px] w-[18px] rounded-full border-2 border-line" />
+                    )}
+                    <View className="flex-1">
+                      <Text numberOfLines={2} className={selected ? 'text-paper' : 'text-soft'}>
+                        {sourceLabel(f)}
+                      </Text>
+                      <Text numberOfLines={1} className="text-xs text-muted">
+                        {sourceDetails(f)}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+              {(sources.data?.failed.length ?? 0) > 0 && (
+                <Text className="text-xs text-muted">
+                  {sources.data?.failed.join(', ')} did not answer.
+                </Text>
+              )}
             </View>
           )}
 
@@ -226,11 +312,71 @@ export default function ItemScreen() {
             </View>
           )}
 
-          {meta.data?.addon && (
-            <Text className="text-xs text-muted">From {meta.data.addon.manifest.name}</Text>
+          {(language || item?.genres?.length) && (
+            <View className="flex-row flex-wrap gap-2">
+              {[language, ...(item?.genres ?? []).slice(0, 6)].filter(Boolean).map((tag) => (
+                <Text
+                  key={tag}
+                  className="rounded-full border border-line px-3 py-1 text-xs text-soft"
+                >
+                  {tag}
+                </Text>
+              ))}
+            </View>
+          )}
+
+          {(meta.data?.addon || item?.link) && (
+            <View className="flex-row items-center justify-between gap-3">
+              {meta.data?.addon && (
+                <Text className="flex-1 text-xs text-muted">
+                  From {meta.data.addon.manifest.name}
+                </Text>
+              )}
+              {item?.link && (
+                <Pressable
+                  onPress={() => void Linking.openURL(item.link ?? '')}
+                  accessibilityRole="link"
+                  className="flex-row items-center gap-1 py-1"
+                >
+                  <Text className="text-sm text-amber">More about this book</Text>
+                  <Icon name="forward" size={16} color={COLORS.amber} />
+                </Pressable>
+              )}
+            </View>
           )}
         </View>
       )}
     </ScrollView>
+  );
+}
+
+/** The page for a work no installed add-on has audio for. */
+function NoAudio({
+  asked,
+  failed,
+  onAddons,
+}: {
+  asked: number;
+  failed: string[];
+  onAddons: () => void;
+}) {
+  const answered = asked - failed.length;
+  return (
+    <View className="items-center gap-2 rounded-2xl bg-raised px-4 py-5">
+      <Icon name="cloud" size={28} color={COLORS.muted} />
+      <Text className="text-center text-base font-semibold text-paper">
+        No audio for this book yet
+      </Text>
+      <Text className="text-center text-sm leading-5 text-soft">
+        {asked === 0
+          ? 'None of your add-ons has audio for books like this one.'
+          : `Asked ${addonCount(asked)}${failed.length > 0 ? `, ${answered} answered` : ''}; none has a recording.`}{' '}
+        An add-on that knows this work, such as one for your own server, can add it.
+      </Text>
+      <Pressable onPress={onAddons} className="flex-row items-center gap-1 pt-1">
+        <Text className="font-semibold text-amber">Manage add-ons</Text>
+        <Icon name="forward" size={16} color={COLORS.amber} />
+      </Pressable>
+    </View>
   );
 }
