@@ -2,6 +2,8 @@ package app.lelap.audio
 
 import android.app.PendingIntent
 import android.content.Intent
+import org.json.JSONArray
+import org.json.JSONObject
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -49,6 +51,8 @@ class PlaybackService : MediaLibraryService() {
 
   /** The loaded book, kept for the journal and playback resumption. */
   private var current: BookPlaylist? = null
+  private var currentHandsOver = false
+  private var queue: List<BookLoad> = emptyList()
 
   private var skipIntervalMs = 30_000L
   private var smartRewind = true
@@ -126,6 +130,7 @@ class PlaybackService : MediaLibraryService() {
     skipIntervalMs = prefs.getLong(Commands.KEY_SKIP_INTERVAL_MS, 30_000L)
     smartRewind = prefs.getBoolean(Commands.KEY_SMART_REWIND, true)
     focus.duckOnInterruption = rules.duckOnInterruption
+    queue = UpNext.decodeQueue(prefs.getString(Commands.PREF_QUEUE, null))
     player.addListener(object : Player.Listener {
       override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         if (playWhenReady) rewindAfterPause() else pausedAt = System.currentTimeMillis()
@@ -145,6 +150,10 @@ class PlaybackService : MediaLibraryService() {
           writeJournal(PositionJournal.Event.PAUSE)
           handler.postDelayed(pauseSettled, PAUSE_SETTLE_MS)
         }
+      }
+
+      override fun onPlaybackStateChanged(playbackState: Int) {
+        if (playbackState == Player.STATE_ENDED) onBookEnded()
       }
 
       override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -204,8 +213,25 @@ class PlaybackService : MediaLibraryService() {
     super.onDestroy()
   }
 
+  /** The book played to its end: log it, then hand over to Up Next if it is an episode. */
+  private fun onBookEnded() {
+    val ended = current ?: return
+    val log = UpNext.decodeFinished(prefs.getString(Commands.PREF_FINISHED, null)) +
+      Finished(ended.bookId, System.currentTimeMillis())
+    prefs.edit().putString(Commands.PREF_FINISHED, UpNext.encodeFinished(log.takeLast(100))).apply()
+    val (next, rest) = UpNext.afterEnd(currentHandsOver, queue)
+    if (next == null) return
+    queue = rest
+    prefs.edit().putString(Commands.PREF_QUEUE, encodeQueue(rest)).apply()
+    loadBook(next, autoplay = true)
+  }
+
+  private fun encodeQueue(list: List<BookLoad>): String =
+    JSONArray(list.map { JSONObject(PositionJournal.encodeLoad(it)) }).toString()
+
   private fun loadBook(load: BookLoad, autoplay: Boolean) {
     val playlist = load.playlist
+    currentHandsOver = load.handsOver
     // The book that is already loaded keeps its live place, which is newer than any saved one.
     if (PositionJournal.isSameBook(current, player.mediaItemCount, load)) {
       if (autoplay) player.play()
@@ -397,6 +423,7 @@ class PlaybackService : MediaLibraryService() {
         .add(SessionCommand(Commands.CANCEL_SLEEP_TIMER, Bundle.EMPTY))
         .add(SessionCommand(Commands.LOAD_BOOK, Bundle.EMPTY))
         .add(SessionCommand(Commands.UNLOAD, Bundle.EMPTY))
+        .add(SessionCommand(Commands.SET_QUEUE, Bundle.EMPTY))
         .build()
       return MediaSession.ConnectionResult.accept(
         commands,
@@ -437,6 +464,11 @@ class PlaybackService : MediaLibraryService() {
           player.pause()
           player.clearMediaItems()
           current = null
+        }
+        Commands.SET_QUEUE -> {
+          val json = args.getString(Commands.KEY_QUEUE_JSON).orEmpty()
+          queue = UpNext.decodeQueue(json)
+          prefs.edit().putString(Commands.PREF_QUEUE, encodeQueue(queue)).apply()
         }
         Commands.LOAD_BOOK -> {
           val load = PositionJournal.decodeLoad(args.getString(Commands.KEY_BOOK_JSON).orEmpty())

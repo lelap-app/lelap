@@ -15,6 +15,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M7 Sync                    | In progress |
 | M8 Release pipeline        | In progress |
 | M9 Profiles (v1.1)         | In progress |
+| M11 Background engine      | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
 v1.1. What comes next (v1.0 gaps, proposed M10–M19, smaller tasks): [`next.md`](next.md).
@@ -167,6 +168,15 @@ Netflix-style profiles inside one household, with no accounts.
 each with their own progress, without signing in anywhere.
 
 **Needs:** M2's `profile_id` columns and M7's household sync groups.
+
+## M11 Background engine
+
+**Status:** in progress (from [`next.md`](next.md#proposed-milestones)). Up Next hands over in the
+playback service with the app closed; feeds, auto-downloads and sync run in the background about
+once an hour. Phone checks are in [`apps/app/README.md`](../apps/app/README.md#m11-checks).
+
+**Done when** a queued episode starts after the previous one with the phone locked and the app
+swiped away, and a new episode of an auto-download podcast is on the phone the next morning.
 
 ## Environments
 

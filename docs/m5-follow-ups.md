@@ -22,9 +22,10 @@ Podcast search needs `PODCASTINDEX_KEY` and `PODCASTINDEX_SECRET` on the catalog
 
 ## 2. Known limits
 
-- Up Next hands over only while the app's JavaScript runs; with the app swiped away the service
-  stops at the end of an episode. Fix: give the playback service the queue.
-- Feeds refresh and auto-downloads start only when the app opens. Fix: a periodic WorkManager job.
+- Fixed in M11: the playback service holds Up Next and hands over at the end of an episode
+  itself, with the app closed; it logs what finished for the app to fold in.
+- Fixed in M11: feeds refresh, auto-downloads start and sync runs in the background about once an
+  hour (`expo-background-task`, WorkManager underneath).
 - Atom feeds are not read.
 - Unsubscribing keeps the podcast's episodes and their places (subscribing again picks them up),
   so episode books of unsubscribed podcasts stay in the database.

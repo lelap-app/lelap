@@ -2,7 +2,8 @@ import {
   continueListening,
   deviceValue,
   setDeviceValue,
-  finishAndNext,
+  finishFromPlayer,
+  listUpNext,
   getBook,
   getSettings,
   resumePoint,
@@ -146,32 +147,61 @@ async function load(bookId: string, autoplay: boolean, force = false): Promise<v
     return;
   }
   if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
-  const detail = getBook(db, profileId, bookId);
-  if (!detail || detail.files.length === 0)
-    throw new Error('The files of this book are not available.');
-  const start = resumePoint(db, profileId, bookId);
+  const book = bookLoad(bookId);
+  if (!book) throw new Error('The files of this book are not available.');
   setDeviceValue(db, PLAYER_PROFILE, profileId, Date.now());
-  await audio.load(
-    {
-      bookId,
-      title: detail.book.title,
-      author: detail.book.author,
-      coverUri: detail.book.coverPath ? `file://${detail.book.coverPath}` : detail.book.coverUrl,
-      files: detail.files.map((f) => ({
-        // A downloaded part plays from the phone; the rest stream.
-        uri: f.downloadPath ? `file://${f.downloadPath}` : f.uri,
-        location: f.location,
-        title: f.title ?? stripExtension(f.name),
-        durationMs: f.durationMs,
-      })),
-      chapters: detail.chapters,
-      startIndex: start.index,
-      startPositionMs: start.positionMs,
-      speed: detail.speed,
-      pausedAt: detail.book.lastPlayedAt,
-    },
-    autoplay,
-  );
+  await audio.load(book, autoplay);
+}
+
+/** What the player needs for a book, at its saved place; null when it has no files here. */
+function bookLoad(bookId: string): audio.BookLoad | null {
+  const detail = getBook(db, profileId, bookId);
+  if (!detail || detail.files.length === 0) return null;
+  const start = resumePoint(db, profileId, bookId);
+  return {
+    bookId,
+    title: detail.book.title,
+    author: detail.book.author,
+    coverUri: detail.book.coverPath ? `file://${detail.book.coverPath}` : detail.book.coverUrl,
+    files: detail.files.map((f) => ({
+      // A downloaded part plays from the phone; the rest stream.
+      uri: f.downloadPath ? `file://${f.downloadPath}` : f.uri,
+      location: f.location,
+      title: f.title ?? stripExtension(f.name),
+      durationMs: f.durationMs,
+    })),
+    chapters: detail.chapters,
+    startIndex: start.index,
+    startPositionMs: start.positionMs,
+    speed: detail.speed,
+    pausedAt: detail.book.lastPlayedAt,
+    handsOver: detail.book.source === 'feed',
+  };
+}
+
+/**
+ * Gives the playback service what plays after the loaded book: Up Next in order, up to and
+ * including the first book (a book stops at its end, so nothing after it can follow on).
+ */
+async function syncQueue(): Promise<void> {
+  if (playerProfile() !== profileId) return;
+  const loaded = (await audio.getState()).bookId;
+  const queue: audio.BookLoad[] = [];
+  for (const item of listUpNext(db, profileId)) {
+    if (item.bookId === loaded) continue;
+    const book = bookLoad(item.bookId);
+    if (!book) continue;
+    queue.push(book);
+    if (!book.handsOver) break;
+  }
+  await audio.setQueue(queue).catch(() => {});
+}
+
+/** Marks what the service played to its end as finished, in the profile it played for. */
+async function foldFinished(): Promise<boolean> {
+  const done = await audio.takeFinished().catch(() => []);
+  for (const item of done) finishFromPlayer(db, playerProfile(), item.bookId, item.at);
+  return done.length > 0;
 }
 
 /**
@@ -208,12 +238,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(() => setVersion((v) => v + 1), []);
   const lastSave = useRef(0);
   const wasPlaying = useRef(false);
-  const endedBook = useRef<string | null>(null);
 
   useEffect(() => {
     const subscription = audio.addStateListener(setState);
     const start = async () => {
       await foldJournal();
+      await foldFinished();
       await audio.setSettings(getSettings(db, profileId));
       const now = await audio.getState();
       setState(now);
@@ -225,7 +255,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
     void start().finally(refresh);
     const appState = AppState.addEventListener('change', (status) => {
-      if (status === 'active') void foldJournal().finally(refresh);
+      if (status === 'active') void foldJournal().then(foldFinished).finally(refresh);
     });
     return () => {
       subscription.remove();
@@ -244,19 +274,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (savePlace(state) && paused) refresh();
   }, [state, refresh]);
 
-  // The end of a book or episode: mark it finished; an episode hands over to Up Next. This runs
-  // while the app's JavaScript is alive; with the app swiped away the service just stops.
+  // The service hands over to Up Next by itself, also with the app closed. Here the app folds in
+  // what finished and sends the queue again whenever the book, its end or Up Next changes.
   useEffect(() => {
-    if (!state.ended || !state.bookId) {
-      endedBook.current = null;
-      return;
-    }
-    if (endedBook.current === state.bookId) return;
-    endedBook.current = state.bookId;
-    const next = finishAndNext(db, profileId, state.bookId, Date.now());
-    refresh();
-    if (next) void playBook(next).catch(() => {});
+    void foldFinished().then((changed) => {
+      if (changed) refresh();
+    });
   }, [state.ended, state.bookId, refresh]);
+
+  useEffect(() => {
+    void syncQueue();
+  }, [state.bookId, version]);
 
   const library = useMemo(() => ({ version, refresh }), [version, refresh]);
   return (

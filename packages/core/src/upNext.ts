@@ -118,3 +118,12 @@ export function finishAndNext(
   if (book?.source !== 'feed') return null;
   return listUpNext(db, profileId)[0]?.bookId ?? null;
 }
+
+/**
+ * The playback service played a book to its end (perhaps with the app closed, handing over to
+ * the next itself): it is finished and leaves Up Next.
+ */
+export function finishFromPlayer(db: Db, profileId: string, bookId: string, at: number): void {
+  setFinished(db, profileId, bookId, true, at);
+  removeFromUpNext(db, profileId, bookId, at);
+}
