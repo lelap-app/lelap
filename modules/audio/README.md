@@ -13,6 +13,10 @@ Kotlin Expo module for Android playback.
   adds ten minutes on a shake in the timer's last five minutes.
 - `ExpiringLinks`: a 403 or 410 from an audio host opens the item's own URL again, once, from the
   same byte, so an add-on's `/resolve/…` redirect hands out a fresh link.
+- `SoundChain` and `SoundProcessor`: mono, voice EQ (high-pass at 80 Hz, +4 dB around 3 kHz) and
+  a +6 dB volume boost behind a peak limiter that never lets a sample past full scale. The
+  processor sits in front of ExoPlayer's own audio processors and stays active for every PCM
+  stream, so switching an effect ramps over 50 ms instead of reconfiguring the sink.
 - `AudioModule`: the JavaScript bridge (`src/index.ts`), a `MediaController` on the main thread.
 
 Unit tests for the pure parts run on the JVM:

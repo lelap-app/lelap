@@ -17,6 +17,10 @@ object Commands {
 
   const val KEY_SKIP_INTERVAL_MS = "skipIntervalMs"
   const val KEY_SMART_REWIND = "smartRewind"
+  /** [SoundChain]'s switches. */
+  const val KEY_MONO = "mono"
+  const val KEY_VOICE_EQ = "voiceEq"
+  const val KEY_VOLUME_BOOST = "volumeBoost"
   const val KEY_DURATION_MS = "durationMs"
   /** A [SleepMode]'s wire name; minutes when missing. */
   const val KEY_SLEEP_MODE = "sleepMode"
@@ -26,7 +30,7 @@ object Commands {
   /** Media metadata extra naming the book an item belongs to. */
   const val METADATA_BOOK_ID = "bookId"
 
-  /** SharedPreferences file of the service's settings (duck, skip interval, smart rewind). */
+  /** SharedPreferences file of the service's settings (duck, skip interval, smart rewind, sound). */
   const val AUDIO_PREFS = "lelap_audio"
 
   /** SharedPreferences file and key of the position journal, read by the app in-process. */

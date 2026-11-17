@@ -26,7 +26,13 @@ import {
 import { bookIdForKey, bookKey, parseEpisodeKey, recordDeletion, type TombstoneKind } from './keys';
 
 /** Settings that follow the listener between devices; download rules stay with each device. */
-export const SYNCED_SETTINGS = ['duckOnInterruption', 'skipIntervalMs', 'smartRewind'];
+export const SYNCED_SETTINGS = [
+  'duckOnInterruption',
+  'skipIntervalMs',
+  'smartRewind',
+  'mono',
+  'voiceEq',
+];
 
 type Part = {
   location: string;

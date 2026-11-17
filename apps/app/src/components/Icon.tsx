@@ -176,6 +176,14 @@ const ICONS = {
       <Path d="M4.5 20a7.5 7.5 0 0 1 15 0" {...stroke(c)} />
     </>
   ),
+  sound: (c) => (
+    <>
+      <Path d="M6 4v16M12 4v16M18 4v16" {...stroke(c)} />
+      <Circle cx={6} cy={14} r={2} fill={c} />
+      <Circle cx={12} cy={8} r={2} fill={c} />
+      <Circle cx={18} cy={16} r={2} fill={c} />
+    </>
+  ),
 } satisfies Record<string, Draw>;
 
 export type IconName = keyof typeof ICONS;

@@ -110,12 +110,17 @@ class AudioModule : Module() {
       withController(promise) { it.setPlaybackSpeed(speed.coerceIn(0.5f, 3f)) }
     }.runOnQueue(Queues.MAIN)
 
-    AsyncFunction("setSettings") { duck: Boolean, skipIntervalMs: Double, smartRewind: Boolean, promise: Promise ->
+    AsyncFunction("setSettings") {
+        duck: Boolean, skipIntervalMs: Double, smartRewind: Boolean,
+        mono: Boolean, voiceEq: Boolean, volumeBoost: Boolean, promise: Promise ->
       withController(promise) { c ->
         val args = Bundle().apply {
           putBoolean(Commands.EXTRA_DUCK, duck)
           putLong(Commands.KEY_SKIP_INTERVAL_MS, skipIntervalMs.toLong())
           putBoolean(Commands.KEY_SMART_REWIND, smartRewind)
+          putBoolean(Commands.KEY_MONO, mono)
+          putBoolean(Commands.KEY_VOICE_EQ, voiceEq)
+          putBoolean(Commands.KEY_VOLUME_BOOST, volumeBoost)
         }
         c.sendCustomCommand(SessionCommand(Commands.SET_SETTINGS, Bundle.EMPTY), args)
       }

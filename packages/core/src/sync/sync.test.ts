@@ -236,6 +236,8 @@ describe('sync between two devices', () => {
     addToUpNext(phone, ME, bookId, 'last', 23);
     setSetting(phone, ME, 'skipIntervalMs', 15_000, 24);
     setSetting(phone, ME, 'downloadOnWifiOnly', false, 25);
+    setSetting(phone, ME, 'mono', true, 26);
+    setSetting(phone, ME, 'volumeBoost', true, 27);
 
     expect((await syncNow(phone, server, random, 100, newId)).pushed).toBeGreaterThan(0);
     const result = await syncNow(laptop, server, random, 200, newId);
@@ -259,6 +261,9 @@ describe('sync between two devices', () => {
       .map((s) => s.key);
     expect(synced).toContain('skipIntervalMs');
     expect(synced).not.toContain('downloadOnWifiOnly');
+    // Mono follows the listener's ears; the boost suits this phone's speaker.
+    expect(synced).toContain('mono');
+    expect(synced).not.toContain('volumeBoost');
     expect(result.handoffs).toEqual([
       { bookId: there, profileId: ME, bookPositionMs: 65_000, at: 20, deviceName: 'Phone' },
     ]);

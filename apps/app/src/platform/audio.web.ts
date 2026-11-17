@@ -16,6 +16,7 @@ import {
 } from '@lelap/core';
 
 import * as opfs from './opfs';
+import * as sound from './webaudio';
 
 export type {
   BookLoad,
@@ -50,6 +51,9 @@ let settings: PlayerSettings = {
   duckOnInterruption: true,
   skipIntervalMs: 30_000,
   smartRewind: true,
+  mono: false,
+  voiceEq: false,
+  volumeBoost: false,
 };
 // A minutes timer counts wall time while playing; a chapter or episode timer stops at a place on
 // the book timeline (shake to extend is Android only: browsers ask before giving motion data).
@@ -235,19 +239,24 @@ function player(): HTMLAudioElement {
   const audio = new Audio();
   audio.preload = 'auto';
   audio.preservesPitch = true;
-  audio.addEventListener('play', () => {
+  // A retired element (see retire) still fires events while it unloads; only the current one counts.
+  const on = (type: keyof HTMLMediaElementEventMap, listener: () => void) =>
+    audio.addEventListener(type, () => {
+      if (audio === element) listener();
+    });
+  on('play', () => {
     ended = false;
     seekingForLoad = false;
     startTicker();
     emit();
   });
-  audio.addEventListener('timeupdate', () => {
+  on('timeupdate', () => {
     if (audio.readyState > 0 && !audio.error) {
       lastPositionMs = positionMs();
       lastPlaying = playing();
     }
   });
-  audio.addEventListener('pause', () => {
+  on('pause', () => {
     clearBoundaryStop();
     pausedAt = Date.now();
     placeChangedAt = pausedAt;
@@ -255,16 +264,16 @@ function player(): HTMLAudioElement {
     stopTicker();
     emit();
   });
-  audio.addEventListener('waiting', () => {
+  on('waiting', () => {
     buffering = true;
     emit();
   });
-  audio.addEventListener('playing', () => {
+  on('playing', () => {
     buffering = false;
     linkRefreshed = false;
     emit();
   });
-  audio.addEventListener('seeked', () => {
+  on('seeked', () => {
     if (seekingForLoad) seekingForLoad = false;
     else {
       placeChangedAt = Date.now();
@@ -274,7 +283,7 @@ function player(): HTMLAudioElement {
     }
     emit();
   });
-  audio.addEventListener('error', () => {
+  on('error', () => {
     const file = book?.files[index];
     // An expired link: ask the stream (its `/resolve/…` URL) again, once, at the same place.
     if (file && audio.error && shouldRefreshLink(audio.error.code, file.uri, linkRefreshed)) {
@@ -285,7 +294,7 @@ function player(): HTMLAudioElement {
     error = audio.error ? `Media error ${audio.error.code}: ${audio.error.message}` : 'Cannot play';
     emit();
   });
-  audio.addEventListener('ended', () => {
+  on('ended', () => {
     const target = sleepBoundary !== null ? sleepFileTarget(sleepBoundary, durations()) : null;
     const sleepsHere = target !== null && target.atFileEnd && target.index === index;
     if (book && index < book.files.length - 1) {
@@ -311,9 +320,35 @@ function player(): HTMLAudioElement {
       emit();
     }
   });
-  window.addEventListener('pagehide', writeJournal);
+  if (!pageHideListened) window.addEventListener('pagehide', writeJournal);
+  pageHideListened = true;
   setUpMediaSession();
   element = audio;
+  return audio;
+}
+
+let pageHideListened = false;
+
+/** Lets the element go, so the next part gets a fresh one: a routed element cannot be unrouted. */
+function retire(): void {
+  const old = element;
+  if (!old) return;
+  element = null;
+  old.pause();
+  old.removeAttribute('src');
+  old.load();
+  sound.release(old);
+}
+
+/** The element for a source: routed through the sound effects when they are on and may read it. */
+async function playerFor(src: string): Promise<HTMLAudioElement> {
+  const routed = sound.soundOn(settings) && (await sound.canRoute(src));
+  if (element && sound.isRouted(element) !== routed) retire();
+  const audio = player();
+  if (routed && !sound.isRouted(audio)) {
+    audio.crossOrigin = 'anonymous';
+    sound.route(audio, settings);
+  }
   return audio;
 }
 
@@ -329,14 +364,15 @@ async function sourceFor(uri: string): Promise<string> {
 async function setPart(i: number, startMs: number, autoplay: boolean): Promise<void> {
   const file = book?.files[i];
   if (!file) return;
-  const audio = player();
   if (i !== index) linkRefreshed = false;
   index = i;
   ended = false;
   error = null;
   lastPositionMs = startMs;
   lastPlaying = autoplay;
-  audio.src = await sourceFor(file.uri);
+  const src = await sourceFor(file.uri);
+  const audio = await playerFor(src);
+  audio.src = src;
   audio.playbackRate = book?.speed ?? 1;
   await new Promise<void>((resolve) => {
     const ready = () => {
@@ -349,7 +385,10 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
   });
   seekingForLoad = true;
   audio.currentTime = startMs / 1000;
-  if (autoplay) await audio.play().catch(() => {});
+  if (autoplay) {
+    await sound.resume(audio);
+    await audio.play().catch(() => {});
+  }
   emit();
 }
 
@@ -396,6 +435,7 @@ export async function play(): Promise<void> {
     );
   }
   pausedAt = null;
+  await sound.resume(element);
   await element.play().catch((e: unknown) => {
     error = e instanceof Error ? e.message : String(e);
     emit();
@@ -428,6 +468,12 @@ export async function setSpeed(speed: number): Promise<void> {
 
 export async function setSettings(next: PlayerSettings): Promise<void> {
   settings = next;
+  const audio = element;
+  if (audio && sound.isRouted(audio)) sound.update(audio, next);
+  else if (audio && book && sound.soundOn(next) && (await sound.canRoute(audio.currentSrc))) {
+    // A plain element cannot take the effects: reload the part, routed, at the same place.
+    await setPart(index, positionMs(), playing());
+  }
   emit();
 }
 
