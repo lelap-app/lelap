@@ -4,17 +4,48 @@
   "description": "Types, schemas and a request handler for Lelap add-ons.",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lelap-app/lelap.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/lelap-app/lelap/tree/main/packages/sdk#readme",
+  "bugs": "https://github.com/lelap-app/lelap/issues",
+  "keywords": [
+    "lelap",
+    "addon",
+    "audiobook",
+    "podcast",
+    "sdk"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
   "files": [
-    "src",
     "dist"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./protocol.schema.json": "./dist/protocol.schema.json",
+      "./package.json": "./package.json"
+    },
+    "types": "./dist/index.d.ts"
+  },
   "scripts": {
-    "build": "node scripts/schema.mjs",
+    "build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node scripts/esm-paths.mjs && node scripts/schema.mjs",
     "check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "node -e \"console.error('Publish the tarball from pnpm pack instead: it applies publishConfig.exports. See README.md.'); process.exit(1)\""
   },
   "dependencies": {
     "zod": "^4.6.7"
