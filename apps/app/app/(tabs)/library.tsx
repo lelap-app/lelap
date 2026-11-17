@@ -25,6 +25,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../../src/i18n';
+import { openPlayer } from '../../src/navigation';
 import { showAlert } from '../../src/dialog';
 import { COLORS, Icon, IconButton } from '../../src/components/Icon';
 import { BookActions } from '../../src/components/BookActions';
@@ -106,7 +107,7 @@ export default function LibraryScreen() {
       }
       try {
         await playBook(book.id);
-        router.push('/player');
+        openPlayer(router);
       } catch (error) {
         showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error));
       }

@@ -31,7 +31,7 @@ import { CatalogRow } from '../../src/components/CatalogRow';
 import { ContinueCard } from '../../src/components/ContinueCard';
 import { db } from '../../src/db';
 import { formatBytes } from '../../src/format';
-import { openCatalog, openItem } from '../../src/navigation';
+import { openCatalog, openItem, openPlayer } from '../../src/navigation';
 import { canNotify } from '../../src/platform/downloads';
 import { playBook, useLibrary } from '../../src/player';
 import { profileId } from '../../src/profile';
@@ -109,7 +109,7 @@ export default function HomeScreen() {
     if (!next) return;
     try {
       await playBook(next.id);
-      router.push('/player');
+      openPlayer(router);
     } catch (error) {
       showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error));
     }

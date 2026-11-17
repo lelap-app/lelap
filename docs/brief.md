@@ -53,7 +53,8 @@ The repository layout is in [`AGENTS.md`](../AGENTS.md#repository-map).
   change and when the tab hides. expo-sqlite's web build needs cross-origin isolation, which blocks
   covers and audio from other sites and does not work in Safari.
 - **Audio:** one `<audio>` element and Media Session. The sleep timer fades the element's volume;
-  a Web Audio gain node would need CORS on every audio host.
+  a Web Audio gain node would need CORS on every audio host. Media keys reach it through Media
+  Session; the app's own shortcuts (Space or K, ← and →, < and >, / and ?) are listed under ?.
 - **Downloads:** fetch into OPFS while the tab is open, when the audio host allows CORS. No Wi-Fi
   or charging rules. Local library folders are Android only.
 - **Feeds** go through `proxy.lelap.app` (XML only, 10 MB, never audio); plain-http covers too, and

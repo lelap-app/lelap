@@ -17,6 +17,7 @@ import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
+import { openPlayer } from '../src/navigation';
 import { EmptyState } from '../src/components/Lori';
 import { BookActions } from '../src/components/BookActions';
 import { BookRow } from '../src/components/BookRow';
@@ -190,7 +191,7 @@ export default function ListScreen() {
     async (book: LibraryBook) => {
       try {
         await playBook(book.id);
-        router.push('/player');
+        openPlayer(router);
       } catch (error) {
         showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error));
       }

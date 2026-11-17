@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../i18n';
+import { openPlayer } from '../navigation';
 import { formatClock } from '../format';
 import * as audio from '../platform/audio';
 import { playBook, seekToBookPosition } from '../player';
@@ -26,7 +27,7 @@ export function HandoffBanner() {
     } else {
       await playBook(offer.bookId);
     }
-    router.push('/player');
+    openPlayer(router);
   };
 
   return (

@@ -18,6 +18,14 @@ theme's contrast. Text-only buttons use `TextButton`, small chips `Pill`, and se
 `RowLabel`, so a switch or a short “Open” is named by its row. Motion goes through
 `useReducedMotion`. TalkBack checks per screen: [`docs/m42-follow-ups.md`](../../docs/m42-follow-ups.md).
 
+## Wide screens
+
+A window at least 720 points wide and 480 tall (a tablet, a laptop browser) gets the tabs as a
+rail on the start edge and the player beside the open screen instead of the mini player; phones
+stay as they are, also sideways, where the Player puts the cover beside the controls. The rule
+and the keyboard shortcuts live in `packages/core/src/screen.ts`; `useWide()` in
+`src/layout.ts` reads it. Checks: [`docs/m44-follow-ups.md`](../../docs/m44-follow-ups.md).
+
 ## Run it on a phone
 
 You need Node 24, Android Studio (for the SDK and its bundled JDK) and a phone with USB debugging

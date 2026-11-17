@@ -152,6 +152,9 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M43] Cold start with the 10,000-book test library on a release build: Library rows on screen within 2 s on a mid-range phone, median of five screen recordings. ([m43](m43-follow-ups.md#cold-start))
 - [ ] [M43] Fast scroll through 10,000 books: no blank gaps that stay, no stutter over a second, under 300 MB in `dumpsys meminfo`. ([m43](m43-follow-ups.md#m43-follow-ups))
 - [ ] [M43] With 500 test podcasts the Podcasts tab opens at once, and no request goes out for a test feed. ([m43](m43-follow-ups.md#m43-follow-ups))
+- [ ] [M44] A 10-inch tablet (or a tablet emulator), upright and sideways: the tabs are a rail, the player stands beside the list once a book plays, and a book tapped in the Library plays there without the full-screen player. ([m44](m44-follow-ups.md#tablet))
+- [ ] [M44] On the tablet, car mode and the full-screen player hide the pane; Back returns to the two panes. ([m44](m44-follow-ups.md#tablet))
+- [ ] [M44] A phone turned sideways (`adb shell settings put system user_rotation 1` with auto-rotate off): the Player shows the cover beside the controls, nothing under the camera cut-out; upright again gives the usual Player. ([m44](m44-follow-ups.md#tablet))
 - [x] [M12] Player buttons carry names for TalkBack (Back 30 seconds, Play, Next chapter, …) in `uiautomator dump`. ([m12](m12-follow-ups.md)) **Passed 2026-11-17**: speed button now says Speed, 1× (#66).
 - [ ] [M9] Install the web app from Chrome on the phone: `listen.lelap.app` → Add to home screen. ([README](../apps/app/README.md#checks-after-m9-2026-11-16))
 - [ ] [M29] Expired link, playback and download: an add-on on the laptop (`adb reverse`) whose `/resolve/…` link answers 403 after a minute; playback continues, the download resumes, a link that keeps failing errors after one retry. ([m29](m29-follow-ups.md#phone-checks))
@@ -199,6 +202,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M42] TalkBack on the widget, the Quick Settings tile and the notification: each control is read with its name. ([m42](m42-follow-ups.md#m42-follow-ups))
 - [ ] [M43] A real folder of a few hundred books: a second scan is quicker than before M43, and no book loses its place, bookmarks or chapters. ([m43](m43-follow-ups.md#m43-follow-ups))
 - [ ] [M43] Android Auto (Desktop Head Unit) with the test library: the browse tree opens without delay. ([m43](m43-follow-ups.md#m43-follow-ups))
+- [ ] [M44] TalkBack on a tablet reads the rail's tabs, then the list, then the player pane. ([m44](m44-follow-ups.md#tablet))
 - [ ] [M2] Revoke Lelap's folder access in Android settings, reopen: a banner asks for the folder; no book is dimmed. ([README](../apps/app/README.md#m2-device-checklist))
 
 ### Accounts and servers
@@ -270,6 +274,8 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M29] Web: timer checks 1, 3, 6 and the expired link in Chrome and Firefox. ([m29](m29-follow-ups.md#phone-checks))
 - [ ] [M34] The AntennaPod file and its OPML export import in the web app. ([m34](m34-follow-ups.md))
 - [ ] [M41] Web: an Audiobookshelf server that allows the site lists, plays with `?token=` and reports places; one that does not shows the CORS hint. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M44] Web: media keys in Chrome, Firefox and Safari play, pause and skip 30 s with the tab in the background; the browser's media overlay shows the progress in the current file and can drag within it. ([m44](m44-follow-ups.md#media-keys))
+- [ ] [M44] Web, keyboard only: Tab moves through the rail, the list and the player; Space on a focused button presses it once without also playing or pausing. ([m44](m44-follow-ups.md#media-keys))
 
 ## C. Already covered elsewhere or obsolete
 

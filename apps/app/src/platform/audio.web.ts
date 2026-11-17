@@ -558,6 +558,23 @@ function setUpMediaSession(): void {
   session.setActionHandler('nexttrack', () => void skip(true));
   session.setActionHandler('seekbackward', () => void skip(false));
   session.setActionHandler('seekforward', () => void skip(true));
+  // The browser's media overlay and the system's media controls can drag within the file and stop.
+  const optional: [MediaSessionAction, MediaSessionActionHandler][] = [
+    [
+      'seekto',
+      (details) => {
+        if (details.seekTime !== undefined) void seekTo(index, details.seekTime * 1000);
+      },
+    ],
+    ['stop', () => void pause()],
+  ];
+  for (const [action, handler] of optional) {
+    try {
+      session.setActionHandler(action, handler);
+    } catch {
+      // Older browsers throw on actions they don't know.
+    }
+  }
 }
 
 let shownMeta = '';
@@ -576,4 +593,15 @@ function updateMediaSession(now: PlayerState): void {
     });
   }
   navigator.mediaSession.playbackState = now.playing ? 'playing' : 'paused';
+  if (now.durationMs > 0 && now.speed > 0) {
+    try {
+      navigator.mediaSession.setPositionState({
+        duration: now.durationMs / 1000,
+        position: Math.min(now.positionMs, now.durationMs) / 1000,
+        playbackRate: now.speed,
+      });
+    } catch {
+      // Not every browser has position state; the controls work without it.
+    }
+  }
 }

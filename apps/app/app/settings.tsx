@@ -16,6 +16,7 @@ import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LANGUAGES, setLanguage, t } from '../src/i18n';
+import { READABLE, useWide } from '../src/layout';
 import { exportBackup, importBackup } from '../src/backup';
 import { applyBedtime } from '../src/bedtime';
 import { allowDevices, followDevices } from '../src/devices';
@@ -25,6 +26,7 @@ import { showAlert } from '../src/dialog';
 import { ImportSheet } from '../src/components/ImportSheet';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
+import { SHORTCUTS_SUPPORTED, showShortcuts } from '../src/shortcuts';
 import { soundOptions, SoundRow } from '../src/components/SoundSheet';
 import { db } from '../src/db';
 import { applyRules } from '../src/downloads';
@@ -194,6 +196,7 @@ export default function SettingsScreen() {
   const { version, refresh } = useLibrary();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const wide = useWide();
   const [settings, setSettings] = useState(() => getSettings(db, profileId));
   const me = activeProfile();
   const [scanning, setScanning] = useState(false);
@@ -243,6 +246,7 @@ export default function SettingsScreen() {
           paddingTop: insets.top + 8,
           paddingHorizontal: 16,
           paddingBottom: 24,
+          ...(wide ? READABLE : {}),
         }}
       >
         <View className="-ms-2 self-start">
@@ -518,6 +522,14 @@ export default function SettingsScreen() {
         >
           {t('Playback')}
         </Text>
+        {SHORTCUTS_SUPPORTED && (
+          <Row
+            label={t('Keyboard shortcuts')}
+            detail={t('Play, pause, skip and change speed from the keyboard. Press ? anywhere.')}
+          >
+            <TextButton text={t('Show')} onPress={showShortcuts} />
+          </Row>
+        )}
         <Row
           label={t('Duck on calls')}
           detail={t('Lower the volume during calls instead of pausing.')}

@@ -719,4 +719,13 @@ export const ms: Record<string, string> = {
   'Change key': 'Tukar kunci',
   'Enter a new API key for this server. The server, its books and your places stay.':
     'Masukkan kunci API baharu untuk pelayan ini. Pelayan, bukunya dan kedudukan anda kekal.',
+  Faster: 'Lebih laju',
+  'Keyboard shortcuts': 'Pintasan papan kekunci',
+  'Play or pause': 'Main atau jeda',
+  'Play, pause, skip and change speed from the keyboard. Press ? anywhere.':
+    'Main, jeda, langkau dan tukar kelajuan dari papan kekunci. Tekan ? di mana-mana.',
+  Show: 'Tunjuk',
+  'Show these shortcuts': 'Tunjukkan pintasan ini',
+  Slower: 'Lebih perlahan',
+  Space: 'Space',
 };

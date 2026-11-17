@@ -20,8 +20,11 @@ import { COLORS, Icon } from '../../src/components/Icon';
 import { MetaTile } from '../../src/components/MetaCard';
 import { openItem } from '../../src/navigation';
 import { Pill } from '../../src/components/Pill';
+import { useWide } from '../../src/layout';
 
 const COLUMNS = 3;
+// On a wide screen, as many columns as fit tiles about this wide.
+const WIDE_TILE = 160;
 const GAP = 12;
 
 const keyOf = (ref: CatalogRef) => `${ref.addon.url} ${ref.catalog.type} ${ref.catalog.id}`;
@@ -43,6 +46,9 @@ export default function DiscoverScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  // Beside the tab rail and the player, the screen is narrower than the window.
+  const wide = useWide();
+  const [space, setSpace] = useState<number | null>(null);
   const params = useLocalSearchParams<{ addon?: string; catalog?: string }>();
   const addons = useAddons();
   const catalogs = useMemo(() => browseCatalogs(addons, SHOWN_TYPES), [addons]);
@@ -65,7 +71,10 @@ export default function DiscoverScreen() {
 
   const current = catalogs.find((ref) => keyOf(ref) === selected) ?? catalogs[0];
   const genres = current ? genreOptions(current.catalog) : [];
-  const tile = Math.floor((width - 32 - GAP * (COLUMNS - 1)) / COLUMNS);
+  const columns = wide
+    ? Math.max(COLUMNS, Math.floor(((space ?? width) - 32 + GAP) / (WIDE_TILE + GAP)))
+    : COLUMNS;
+  const tile = Math.floor(((wide ? (space ?? width) : width) - 32 - GAP * (columns - 1)) / columns);
 
   const query = useInfiniteQuery({
     queryKey: ['discover', current ? keyOf(current) : null, genre],
@@ -95,21 +104,25 @@ export default function DiscoverScreen() {
   const hiddenCount = items.length - shown.length;
 
   return (
-    <View className="flex-1 bg-night" style={{ paddingTop: insets.top + 12 }}>
+    <View
+      className="flex-1 bg-night"
+      style={{ paddingTop: insets.top + 12 }}
+      onLayout={(e) => setSpace(e.nativeEvent.layout.width)}
+    >
       <Text accessibilityRole="header" className="px-4 pb-3 text-3xl font-semibold text-paper">
         {t('Discover')}
       </Text>
-      {catalogs.length === 0 ? (
+      {wide && space === null ? null : catalogs.length === 0 ? (
         <Text className="px-4 text-muted">
           {t('No catalogs to browse. Add-ons in Settings bring them.')}
         </Text>
       ) : (
         <FlatList
-          key={COLUMNS}
+          key={columns}
           data={shown}
           extraData={availability}
           {...visible}
-          numColumns={COLUMNS}
+          numColumns={columns}
           keyExtractor={(m) => m.id}
           columnWrapperStyle={{ gap: GAP, paddingHorizontal: 16 }}
           contentContainerStyle={{ gap: 16, paddingBottom: 24 }}

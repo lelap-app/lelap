@@ -5,6 +5,7 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
+import { openPlayer } from '../src/navigation';
 import { showAlert } from '../src/dialog';
 import { COLORS, Icon, IconButton } from '../src/components/Icon';
 import { BookCover, coverUri } from '../src/components/BookCover';
@@ -63,7 +64,7 @@ export default function UpNextScreen() {
           <Pressable
             onPress={() =>
               void playBook(item.bookId)
-                .then(() => router.push('/player'))
+                .then(() => openPlayer(router))
                 .catch((error: unknown) =>
                   showAlert(
                     t('Cannot play'),

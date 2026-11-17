@@ -29,6 +29,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
+import { READABLE, useWide } from '../src/layout';
+import { openPlayer } from '../src/navigation';
 import { showAlert } from '../src/dialog';
 import { type Action, ActionSheet } from '../src/components/ActionSheet';
 import { COLORS, Icon, IconButton } from '../src/components/Icon';
@@ -111,6 +113,7 @@ function episodeStatus(e: EpisodeItem): string {
 export default function PodcastScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const wide = useWide();
   const { version, refresh } = useLibrary();
   const params = useLocalSearchParams<{ id?: string; item?: string }>();
   const addons = useAddons();
@@ -219,7 +222,11 @@ export default function PodcastScreen() {
         className="flex-1 bg-night"
         data={podcast ? rows : []}
         keyExtractor={(row) => row.key}
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{
+          paddingTop: insets.top + 8,
+          paddingBottom: insets.bottom + 24,
+          ...(wide ? READABLE : {}),
+        }}
         ListHeaderComponent={
           <View className="gap-4 px-4 pb-2">
             <View className="-ms-2 self-start">
@@ -358,7 +365,7 @@ export default function PodcastScreen() {
               onPress={() =>
                 void run(async () => {
                   await playEpisode(e.id);
-                  router.push('/player');
+                  openPlayer(router);
                 })
               }
               onLongPress={() => showActions(e)}

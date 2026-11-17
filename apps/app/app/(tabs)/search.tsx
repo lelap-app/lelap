@@ -1,7 +1,7 @@
 import { addonLabels, fetchCatalog, searchCatalogs } from '@lelap/core';
 import { useQueries } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { type ComponentRef, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, SectionList, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,6 +11,7 @@ import { fetcher, SHOWN_TYPES, useAddons } from '../../src/addons';
 import { useAskWhenVisible, useAvailability } from '../../src/availability';
 import { MetaListRow } from '../../src/components/MetaCard';
 import { openItem } from '../../src/navigation';
+import { useSearchFocus } from '../../src/shortcuts';
 
 const DEBOUNCE_MS = 400;
 
@@ -22,6 +23,8 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const availability = useAvailability();
   const visible = useAskWhenVisible();
+  const input = useRef<ComponentRef<typeof TextInput>>(null);
+  useSearchFocus(input);
 
   useEffect(() => {
     const timer = setTimeout(() => setQuery(text.trim()), DEBOUNCE_MS);
@@ -83,6 +86,7 @@ export default function SearchScreen() {
         {t('Search')}
       </Text>
       <TextInput
+        ref={input}
         value={text}
         onChangeText={setText}
         placeholder={t('Title, author or podcast')}

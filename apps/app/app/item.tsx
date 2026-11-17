@@ -19,6 +19,8 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'r
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
+import { READABLE, useWide } from '../src/layout';
+import { openPlayer } from '../src/navigation';
 import { showAlert } from '../src/dialog';
 import { COLORS, Icon, IconButton } from '../src/components/Icon';
 import { addItem, playItem, queries, useAddons, useArtwork } from '../src/addons';
@@ -78,6 +80,7 @@ function languageName(code: string): string {
 export default function ItemScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const wide = useWide();
   const { version, refresh } = useLibrary();
   const params = useLocalSearchParams<{ type?: string; id?: string }>();
   const type: ContentType = isType(params.type) ? params.type : 'audiobook';
@@ -158,7 +161,7 @@ export default function ItemScreen() {
       else if (saved) await playBook(saved.book.id);
       else return;
       refresh();
-      router.push('/player');
+      openPlayer(router);
     } catch (error) {
       showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error));
     } finally {
@@ -179,7 +182,11 @@ export default function ItemScreen() {
   return (
     <ScrollView
       className="flex-1 bg-night"
-      contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
+      contentContainerStyle={{
+        paddingTop: insets.top + 8,
+        paddingBottom: insets.bottom + 24,
+        ...(wide ? READABLE : {}),
+      }}
     >
       <View className="-ms-2 self-start px-2">
         <IconButton

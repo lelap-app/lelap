@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../i18n';
+import { useWide } from '../layout';
 import { useReducedMotion } from './Motion';
 
 /** A bottom sheet over a dimmed backdrop; tapping the backdrop closes it. */
@@ -19,6 +20,8 @@ export function Sheet({
 }) {
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
+  // On a wide screen the sheet keeps a phone's width in the middle.
+  const wide = useWide();
   return (
     <Modal
       visible={visible}
@@ -39,7 +42,7 @@ export function Sheet({
         />
         <View
           style={{ paddingBottom: insets.bottom + 12 }}
-          className="max-h-[70%] rounded-t-2xl bg-raised px-4 pt-4"
+          className={`max-h-[70%] rounded-t-2xl bg-raised px-4 pt-4 ${wide ? 'w-full max-w-[560px] self-center' : ''}`}
         >
           <Text accessibilityRole="header" className="pb-3 text-lg font-semibold text-paper">
             {title}
