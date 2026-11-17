@@ -149,13 +149,17 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * The item's own cover, else one from an add-on with an `artwork` resource for it (cached a day).
- * Null while asking or when no add-on has one; the cover then shows the title's letter.
+ * Null while asking or when no add-on has one; the cover then shows the title's letter. With
+ * `ask: false` it only reads what an earlier request found.
  */
-export function useArtwork(item: {
-  id: string;
-  type: ContentType;
-  cover?: string | undefined;
-}): string | null {
+export function useArtwork(
+  item: {
+    id: string;
+    type: ContentType;
+    cover?: string | undefined;
+  },
+  { ask = true }: { ask?: boolean } = {},
+): string | null {
   const addons = useAddons();
   const offered = useMemo(
     () => addons.some((a) => supports(a.manifest, 'artwork', item.type, item.id)),
@@ -163,7 +167,7 @@ export function useArtwork(item: {
   );
   const found = useQuery({
     queryKey: ['artwork', item.type, item.id],
-    enabled: !item.cover && offered,
+    enabled: ask && !item.cover && offered,
     staleTime: DAY_MS,
     gcTime: DAY_MS,
     queryFn: () => fetchArtwork(fetcher, addons, item.type, item.id),

@@ -2,8 +2,10 @@ import {
   browseCatalogs,
   continueListening,
   getProfile,
+  getSettings,
   listDownloads,
   listProfiles,
+  setSetting,
   setWantedAlertsAsked,
   WANT_TO_READ,
   wantedAlertsAsked,
@@ -36,6 +38,7 @@ import { canNotify } from '../../src/platform/downloads';
 import { playBook, useLibrary } from '../../src/player';
 import { profileId } from '../../src/profile';
 import { Pill } from '../../src/components/Pill';
+import { SuggestionRows } from '../../src/components/SuggestionRows';
 import { TextButton } from '../../src/components/TextButton';
 
 /**
@@ -79,6 +82,8 @@ export default function HomeScreen() {
     const done = listDownloads(db).filter((d) => d.state === 'done');
     return { count: done.length, bytes: done.reduce((sum, d) => sum + d.bytesTotal, 0) };
   }, [version]);
+  // `version` is the signal to re-read the database.
+  const suggest = useMemo(() => getSettings(db, profileId).homeSuggestions, [version]);
   const allRows = useMemo(() => browseCatalogs(addons, SHOWN_TYPES), [addons]);
   // Shelves of books the listener wants to read (from a reading tracker's add-on) come first.
   const wanted = allRows.filter((ref) => ref.catalog.shelf === WANT_TO_READ);
@@ -104,6 +109,12 @@ export default function HomeScreen() {
       setRefreshing(false);
     }
   }, [queryClient, refresh]);
+
+  const hideSuggestions = () => {
+    setSetting(db, profileId, 'homeSuggestions', false, Date.now());
+    refresh();
+    showAlert(t('Suggestions hidden'), t('Show them again in Settings → Catalogs.'));
+  };
 
   const resume = async () => {
     if (!next) return;
@@ -202,6 +213,9 @@ export default function HomeScreen() {
         />
       ))}
       {askAlerts && <WantedAlertsHint onDone={refresh} />}
+      {suggest && (
+        <SuggestionRows onOpen={(meta) => openItem(router, meta)} onHide={hideSuggestions} />
+      )}
       {rows.map((ref) => (
         <CatalogRow
           key={`${ref.addon.url} ${ref.catalog.type} ${ref.catalog.id}`}

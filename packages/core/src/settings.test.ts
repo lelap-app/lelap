@@ -26,6 +26,7 @@ describe('settings', () => {
       bedtimeMinutes: 30,
       headphoneBattery: false,
       carModeOffer: false,
+      homeSuggestions: true,
       language: 'en',
     });
   });

@@ -220,6 +220,8 @@ export default function SettingsScreen() {
     if (key.startsWith('bedtime')) void applyBedtime(next);
     if (key === 'headphoneBattery' || key === 'carModeOffer') void followDevices(next);
     if (key === 'language') setLanguage(next.language);
+    // Home reads it again on the library's signal.
+    if (key === 'homeSuggestions') refresh();
   };
 
   // Both need “nearby devices”, asked for only when one is turned on.
@@ -514,6 +516,19 @@ export default function SettingsScreen() {
         </Text>
         <Row label={t('Add-ons')} detail={t('Where Home, Discover and Search look for books.')}>
           <TextButton text={t('Manage')} onPress={() => router.push('/addons')} />
+        </Row>
+        <Row
+          label={t('Suggestions on Home')}
+          detail={
+            Platform.OS === 'web'
+              ? t('“Because you finished …” rows, worked out on this device from what you finish.')
+              : t('“Because you finished …” rows, worked out on this phone from what you finish.')
+          }
+        >
+          <Toggle
+            value={settings.homeSuggestions}
+            onValueChange={(v) => update('homeSuggestions', v)}
+          />
         </Row>
 
         <Text

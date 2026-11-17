@@ -158,6 +158,8 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M45] A library book without chapter tags: Chapters → Find chapters; after the scan the sheet lists Part 1, Part 2, … with “Found from long silences on this phone”; Remove takes them away. ([m45](m45-follow-ups.md#silences))
 - [ ] [M45] Battery at 10 % (`adb shell dumpsys battery set level 10`): a scan waits, and one running stops; back at 50 % it goes on from its checkpoint. ([m45](m45-follow-ups.md#silences))
 - [ ] [M45] A show with Skip intro and Skip outro at 30 s: a new episode starts at 0:30, ends 30 s early as played, and Up Next goes on, also with the app closed. ([m45](m45-follow-ups.md#intro-outro))
+- [ ] [M46] Mark a streamed LibriVox book finished: Home shows “Because you finished …” with books by the same author, none from the Library; a second finished book's row comes first. ([m46](m46-follow-ups.md#row))
+- [ ] [M46] Hide on the row removes it and the other profile keeps its rows; Settings → Catalogs → Suggestions on Home brings it back. `uiautomator dump`: Hide has the name “Hide suggestions” and 48 dp. ([m46](m46-follow-ups.md#row))
 - [x] [M12] Player buttons carry names for TalkBack (Back 30 seconds, Play, Next chapter, …) in `uiautomator dump`. ([m12](m12-follow-ups.md)) **Passed 2026-11-17**: speed button now says Speed, 1× (#66).
 - [ ] [M9] Install the web app from Chrome on the phone: `listen.lelap.app` → Add to home screen. ([README](../apps/app/README.md#checks-after-m9-2026-11-16))
 - [ ] [M29] Expired link, playback and download: an add-on on the laptop (`adb reverse`) whose `/resolve/…` link answers 403 after a minute; playback continues, the download resumes, a link that keeps failing errors after one retry. ([m29](m29-follow-ups.md#phone-checks))
@@ -207,6 +209,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M43] Android Auto (Desktop Head Unit) with the test library: the browse tree opens without delay. ([m43](m43-follow-ups.md#m43-follow-ups))
 - [ ] [M44] TalkBack on a tablet reads the rail's tabs, then the list, then the player pane. ([m44](m44-follow-ups.md#tablet))
 - [ ] [M45] Found chapters fall at the real chapter breaks of a few books (MP3 and M4B); a ten-hour book's scan finishes. ([m45](m45-follow-ups.md#silences))
+- [ ] [M46] A kids profile with a shelf: a finished shelf book gives a row; a grown-up's finished books never shape the kid's rows. ([m46](m46-follow-ups.md#row))
 - [ ] [M2] Revoke Lelap's folder access in Android settings, reopen: a banner asks for the folder; no book is dimmed. ([README](../apps/app/README.md#m2-device-checklist))
 
 ### Accounts and servers

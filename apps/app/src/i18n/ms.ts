@@ -749,4 +749,14 @@ export const ms: Record<string, string> = {
   'Every episode starts this far in.': 'Setiap episod bermula sejauh ini ke dalam.',
   'Every episode ends this long before its end.':
     'Setiap episod berakhir selama ini sebelum hujungnya.',
+  'Because you finished {title}': 'Kerana anda telah menghabiskan {title}',
+  Hide: 'Sembunyi',
+  'Hide suggestions': 'Sembunyikan cadangan',
+  'Suggestions hidden': 'Cadangan disembunyikan',
+  'Show them again in Settings → Catalogs.': 'Tunjukkannya semula dalam Tetapan → Katalog.',
+  'Suggestions on Home': 'Cadangan di Utama',
+  '“Because you finished …” rows, worked out on this device from what you finish.':
+    'Baris “Kerana anda telah menghabiskan …”, dikira dalam peranti ini daripada buku yang anda habiskan.',
+  '“Because you finished …” rows, worked out on this phone from what you finish.':
+    'Baris “Kerana anda telah menghabiskan …”, dikira dalam telefon ini daripada buku yang anda habiskan.',
 };

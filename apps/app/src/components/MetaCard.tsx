@@ -50,13 +50,16 @@ export const MetaTile = memo(function MetaTile({
   width,
   availability,
   onPress,
+  askArtwork = true,
 }: {
   meta: MetaPreview;
   width: number;
   availability?: Availability | undefined;
   onPress: (meta: MetaPreview) => void;
+  /** False: show only a cover the item has or an earlier request found. */
+  askArtwork?: boolean;
 }) {
-  const cover = useArtwork(meta);
+  const cover = useArtwork(meta, { ask: askArtwork });
   return (
     <Pressable
       onPress={() => onPress(meta)}
