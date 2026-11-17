@@ -34,6 +34,13 @@ export function createApp(platform: Platform, env: Env): Hono {
   const catalog = createCatalogAddon(upstream, podcastIndexCredentials(env));
 
   const app = new Hono();
+  // JSON only: never let a browser treat an answer as a page on this origin.
+  app.use('*', async (c, next) => {
+    await next();
+    c.res.headers.set('X-Content-Type-Options', 'nosniff');
+    c.res.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+    c.res.headers.set('Referrer-Policy', 'no-referrer');
+  });
   app.get('/', (c) => {
     const manifest = (path: string) => new URL(path, c.req.url).href;
     return c.json(

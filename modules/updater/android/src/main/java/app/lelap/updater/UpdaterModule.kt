@@ -57,7 +57,7 @@ class UpdaterModule : Module() {
     // Blocking work on Expo's background queue: the download, the hash and the session copy.
     AsyncFunction("install") { url: String, sha256: String, size: Double ->
       val apk = File(context.cacheDir, "update.apk")
-      download(url, apk)
+      download(url, apk, size.toLong())
       if (!Checksum.matches(apk, sha256, size.toLong())) {
         apk.delete()
         throw UpdateException("The download does not match the release. Try again.")
@@ -67,7 +67,7 @@ class UpdaterModule : Module() {
     }
   }
 
-  private fun download(url: String, target: File) {
+  private fun download(url: String, target: File, size: Long) {
     var current = URL(url)
     repeat(MAX_REDIRECTS) {
       if (current.protocol != "https") throw UpdateException("Updates come only over https.")
@@ -82,7 +82,12 @@ class UpdaterModule : Module() {
           return@repeat
         }
         if (code != 200) throw UpdateException("The download answered HTTP $code.")
-        c.inputStream.use { input -> target.outputStream().use { input.copyTo(it) } }
+        try {
+          c.inputStream.use { input -> target.outputStream().use { Checksum.copyLimited(input, it, size) } }
+        } catch (e: IOException) {
+          target.delete()
+          throw UpdateException(e.message ?: "The download failed.")
+        }
         return
       } finally {
         c.disconnect()

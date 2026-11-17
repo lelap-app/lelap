@@ -112,6 +112,20 @@ export async function offerPairing(db: Db, client: SyncClient, random: Random): 
   return code;
 }
 
+/** The group in an opened pairing; checked, since it becomes this device's sync identity. */
+function parsePairingSecret(secret: string): { groupId: string; groupKey: Uint8Array } {
+  try {
+    const parsed = JSON.parse(secret) as { groupId?: unknown; key?: unknown };
+    if (typeof parsed.groupId === 'string' && /^[0-9a-f]{32}$/.test(parsed.groupId)) {
+      const groupKey = typeof parsed.key === 'string' ? fromBase64Url(parsed.key) : null;
+      if (groupKey?.length === 32) return { groupId: parsed.groupId, groupKey };
+    }
+  } catch {
+    // Falls through to the error below.
+  }
+  throw new Error('That pairing is damaged. Make a new one.');
+}
+
 /** Joins the group another device offered with `code`. */
 export async function joinWithCode(
   db: Db,
@@ -128,8 +142,8 @@ export async function joinWithCode(
   if (!blob) throw new Error('That code has expired or was already used. Make a new one.');
   const secret = open(key, PAIRING_CONTEXT, blob);
   if (!secret) throw new Error('That code did not open the pairing. Make a new one.');
-  const { groupId, key: groupKey } = JSON.parse(secret) as { groupId: string; key: string };
-  const membership = member(groupId, fromBase64Url(groupKey), deviceName, random);
+  const { groupId, groupKey } = parsePairingSecret(secret);
+  const membership = member(groupId, groupKey, deviceName, random);
   saveMembership(db, membership, now);
   return membership;
 }

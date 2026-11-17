@@ -33,6 +33,8 @@ describe('the worker app', () => {
   it('points at both manifests from the root', async () => {
     const response = await setup().app.request('https://addons.test/');
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(response.headers.get('Content-Security-Policy')).toContain("default-src 'none'");
     expect(await response.json()).toEqual({
       name: 'Lelap add-ons',
       addons: ['https://addons.test/manifest.json', 'https://addons.test/librivox/manifest.json'],

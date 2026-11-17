@@ -54,6 +54,24 @@
         "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && cd services/sync && pnpm exec wrangler d1 migrations apply lelap-sync --local >/dev/null && pnpm exec wrangler dev --port 8789"
       ],
       "port": 8789
+    },
+    {
+      "name": "catalog",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && pnpm --filter @lelap/catalog exec wrangler dev --port 8787"
+      ],
+      "port": 8787
+    },
+    {
+      "name": "web-dist",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && cd services/proxy && pnpm exec wrangler pages dev ../../apps/app/dist-web --port 8083"
+      ],
+      "port": 8083
     }
   ]
 }

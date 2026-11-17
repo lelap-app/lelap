@@ -19,6 +19,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M11 Background engine      | In progress |
 | M13 Landing page 2         | In progress |
 | M14 Developer platform     | In progress |
+| M19 Security and hardening | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
 v1.1. What comes next (v1.0 gaps, proposed M10–M19, smaller tasks): [`next.md`](next.md).
@@ -212,6 +213,14 @@ hard-coded seasonal catalogs, are in [`examples/`](../examples) and tested in CI
 **Done when** someone outside the project builds an add-on from the docs alone and adds it in the
 app. Not yet checked: the samples' Dockerfiles have not been built, and none of the samples has
 been added to the app on a phone.
+
+## M19 Security and hardening
+
+**Status:** in progress (from [`next.md`](next.md#proposed-milestones)). The audit, its fixes and
+the decisions left for the maintainer are in [`security-audit.md`](security-audit.md); phone and
+dashboard checks in [`m19-follow-ups.md`](m19-follow-ups.md).
+
+**Done when** the audit's decisions are made and its follow-up checks pass.
 
 ## Environments
 

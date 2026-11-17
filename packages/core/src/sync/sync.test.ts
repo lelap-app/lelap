@@ -30,6 +30,7 @@ import {
   newPairingCode,
   normalizeCode,
   open,
+  pairingKeys,
   seal,
   toBase64Url,
 } from './crypto';
@@ -131,6 +132,21 @@ describe('sync between two devices', () => {
     await expect(joinWithCode(createTestDb(), server, code, 'Other', random, 4)).rejects.toThrow(
       'expired',
     );
+  });
+
+  it('refuses a pairing whose content is not a group', async () => {
+    for (const secret of [
+      '{"groupId":"x","key":"AAAA"}',
+      '[]',
+      JSON.stringify({ groupId: 'a'.repeat(32), key: toBase64Url(random(16)) }),
+    ]) {
+      const code = newPairingCode(random);
+      const { lookup, key } = await pairingKeys(code);
+      await server.putPairing(lookup, seal(key, 'lelap pairing', secret, random));
+      await expect(joinWithCode(createTestDb(), server, code, 'Odd', random, 5)).rejects.toThrow(
+        'damaged',
+      );
+    }
   });
 
   it('carries a streamed book with its place, bookmark, speed, Up Next and settings', async () => {
