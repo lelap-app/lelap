@@ -107,13 +107,41 @@ jobs:
         run: |
           mkdir -p out
           cp apps/app/android/app/build/outputs/apk/release/app-release.apk "out/lelap-$VERSION.apk"
+      # The same commit without self-updates, for F-Droid: its build server rebuilds this APK from
+      # source and, when the bytes match, ships it with our signature (docs/milestones/m28.md).
+      - name: Prebuild for F-Droid
+        env:
+          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
+          EXPO_PUBLIC_LELAP_DISTRIBUTION: fdroid
+        run: pnpm --filter @lelap/app exec expo prebuild --platform android --no-install --clean
+      - name: Build and sign for F-Droid
+        working-directory: apps/app/android
+        env:
+          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
+          EXPO_PUBLIC_LELAP_DISTRIBUTION: fdroid
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          LELAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          LELAP_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          LELAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          export LELAP_KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
+          trap 'rm -f "$LELAP_KEYSTORE_PATH"' EXIT
+          (umask 077 && printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$LELAP_KEYSTORE_PATH")
+          ./gradlew :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "../../../out/lelap-$VERSION-fdroid.apk"
+      - name: Checksums
+        working-directory: out
+        run: sha256sum *.apk | tee SHA256SUMS
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: out/*.apk
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: apk
-          path: out/*.apk
+          path: |
+            out/*.apk
+            out/SHA256SUMS
           retention-days: 7
 
   publish:
@@ -175,7 +203,8 @@ jobs:
         run: |
           flags=()
           if [ "$CHANNEL" = beta ]; then flags+=(--prerelease); fi
-          gh release create "$GITHUB_REF_NAME" "out/lelap-$VERSION.apk" out/release.json \
+          gh release create "$GITHUB_REF_NAME" "out/lelap-$VERSION.apk" \
+            "out/lelap-$VERSION-fdroid.apk" out/SHA256SUMS out/release.json \
             --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --title "Lelap $VERSION" "${flags[@]}"
 
   ota:

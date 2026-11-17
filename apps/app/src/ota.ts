@@ -6,11 +6,12 @@ import * as Updates from 'expo-updates';
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
+import { distribution } from './config';
 import { db } from './db';
 import { profileId } from './profile';
 
-/** False in development builds and in builds without a code-signing certificate. */
-export const OTA_UPDATES: boolean = Updates.isEnabled && !__DEV__;
+/** False in development builds, the F-Droid build and builds without a code-signing certificate. */
+export const OTA_UPDATES: boolean = Updates.isEnabled && !__DEV__ && distribution !== 'fdroid';
 
 /** Resume checks wait this long after the last one. */
 const RESUME_INTERVAL_MS = 30 * 60 * 1000;

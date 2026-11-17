@@ -1,4 +1,12 @@
 // Hosts come from the environment so forks and self-hosters build the app for their own domain.
+
+/**
+ * `fdroid` for the build F-Droid ships: no APK self-updates and no over-the-air bundles, since
+ * F-Droid delivers the updates. Anything else is the direct download from our own site.
+ */
+export const distribution: 'direct' | 'fdroid' =
+  process.env.EXPO_PUBLIC_LELAP_DISTRIBUTION === 'fdroid' ? 'fdroid' : 'direct';
+
 // `||`, not `??`: CI passes an unset repository variable as an empty string.
 const domain: string = process.env.EXPO_PUBLIC_LELAP_DOMAIN || 'lelap.app';
 

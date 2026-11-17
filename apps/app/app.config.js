@@ -15,9 +15,12 @@ module.exports = ({ config }) => {
     __dirname,
     path.resolve(__dirname, process.env.LELAP_UPDATES_CERTIFICATE || 'certs/certificate.pem'),
   );
-  const signed = existsSync(path.resolve(__dirname, certificate));
+  // The F-Droid build gets its updates from F-Droid, never over the air.
+  const fdroid = process.env.EXPO_PUBLIC_LELAP_DISTRIBUTION === 'fdroid';
+  const signed = !fdroid && existsSync(path.resolve(__dirname, certificate));
   return {
     ...config,
+    plugins: [...(config.plugins ?? []), './plugins/withReproducibleBuild'],
     // A new native build gets a new runtime; JavaScript-only releases reach older APKs of it.
     runtimeVersion: { policy: 'fingerprint' },
     updates: {
