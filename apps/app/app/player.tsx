@@ -7,6 +7,7 @@ import {
   setBookmarkNote,
   setSpeed,
   toBookPosition,
+  parseTime,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -19,7 +20,7 @@ import { BookmarksSheet } from '../src/components/BookmarksSheet';
 import { CastSheet } from '../src/components/CastSheet';
 import { ChaptersSheet } from '../src/components/ChaptersSheet';
 import { COLORS, Icon, IconButton, type IconName } from '../src/components/Icon';
-import { Scrubber } from '../src/components/Scrubber';
+import { Scrubber, type ScrubMark } from '../src/components/Scrubber';
 import { Sheet } from '../src/components/Sheet';
 import { soundActive, SoundSheet, useSoundSettings } from '../src/components/SoundSheet';
 import { CASTING_SUPPORTED, useCasting } from '../src/casting';
@@ -132,12 +133,15 @@ export default function Player() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [sheet, setSheet] = useState<
-    'chapters' | 'bookmarks' | 'speed' | 'sleep' | 'sound' | 'note' | 'cast' | null
+    'chapters' | 'bookmarks' | 'speed' | 'sleep' | 'sound' | 'note' | 'cast' | 'jump' | null
   >(null);
   const sound = useSoundSettings();
   const casting = useCasting();
   const [note, setNote] = useState('');
   const [lastBookmark, setLastBookmark] = useState<string | null>(null);
+  // The bar covers the chapter; a tap on the note under it switches to the whole book.
+  const [wholeBook, setWholeBook] = useState(false);
+  const [jumpText, setJumpText] = useState('');
 
   const bookId = state.bookId;
   // `version` is the signal to re-read the database.
@@ -168,16 +172,34 @@ export default function Player() {
   const position = toBookPosition(detail.files, state.fileLocation ?? '', state.positionMs);
   const current = chapterAt(chapters, position);
   const chapter = chapters[current];
-  const rangeStart = chapter?.startMs ?? 0;
-  const rangeEnd = chapter ? (chapters[current + 1]?.startMs ?? total) : total;
+  const chapterStart = chapter?.startMs ?? 0;
+  const chapterEnd = chapter ? (chapters[current + 1]?.startMs ?? total) : total;
+  const book = wholeBook || !chapter;
+  const rangeStart = book ? 0 : chapterStart;
+  const rangeEnd = book ? total : chapterEnd;
   const length = Math.max(1, rangeEnd - rangeStart);
   const elapsed = Math.min(length, Math.max(0, position - rangeStart));
+  const inRange = (at: number) => at >= rangeStart && at <= rangeEnd;
+  const marks: ScrubMark[] = [
+    ...(book && chapters.length > 1
+      ? chapters.slice(1).map((c) => ({ atMs: c.startMs - rangeStart, kind: 'chapter' as const }))
+      : []),
+    ...bookmarks
+      .filter((b) => inRange(b.bookPositionMs))
+      .map((b) => ({ atMs: b.bookPositionMs - rangeStart, kind: 'bookmark' as const })),
+  ];
+  const jumpTarget = parseTime(jumpText);
+  const jump = (bookPositionMs: number) => {
+    seek(Math.min(Math.max(0, bookPositionMs), Math.max(0, total - 1_000)));
+    setJumpText('');
+    setSheet(null);
+  };
 
   const seek = (bookPositionMs: number) => void seekToBookPosition(bookId, bookPositionMs);
   const previousChapter = () =>
     seek(
-      position - rangeStart > RESTART_WINDOW_MS
-        ? rangeStart
+      position - chapterStart > RESTART_WINDOW_MS
+        ? chapterStart
         : (chapters[current - 1]?.startMs ?? 0),
     );
   const nextChapter = () => {
@@ -280,10 +302,15 @@ export default function Player() {
         lengthMs={length}
         middle={
           total > 0
-            ? `${detail.book.source === 'feed' ? 'Episode' : 'Book'} ${percent}% · ${formatLeft(left)}`
+            ? book && chapter
+              ? `Whole ${detail.book.source === 'feed' ? 'episode' : 'book'} · ${formatLeft(left)}`
+              : `${detail.book.source === 'feed' ? 'Episode' : 'Book'} ${percent}% · ${formatLeft(left)}`
             : undefined
         }
+        marks={marks}
         onSeek={(offset) => seek(rangeStart + offset)}
+        onPressElapsed={() => setSheet('jump')}
+        {...(chapter ? { onPressMiddle: () => setWholeBook((v) => !v) } : {})}
       />
 
       <View className="flex-row items-center justify-between py-4">
@@ -445,6 +472,47 @@ export default function Player() {
             In the last five minutes, shake the phone for ten more.
           </Text>
         )}
+      </Sheet>
+      <Sheet visible={sheet === 'jump'} title="Jump to" onClose={() => setSheet(null)}>
+        <View className="gap-3 pb-2">
+          <View className="flex-row flex-wrap gap-2">
+            {[-5, -1, 1, 5].map((minutes) => (
+              <Chip
+                key={minutes}
+                label={`${minutes > 0 ? '+' : '−'}${Math.abs(minutes)} min`}
+                onPress={() => jump(position + minutes * 60_000)}
+              />
+            ))}
+          </View>
+          <Text className="text-sm text-muted">
+            Now at {formatClock(position)} in the{' '}
+            {detail.book.source === 'feed' ? 'episode' : 'book'}. Type a time to go there, such as
+            2:14:30, 14:30 or 90 (minutes).
+          </Text>
+          <View className="flex-row gap-2">
+            <TextInput
+              value={jumpText}
+              onChangeText={setJumpText}
+              onSubmitEditing={() => jumpTarget !== null && jump(jumpTarget)}
+              placeholder="2:14:30"
+              placeholderTextColor="#8d8a83"
+              keyboardType="numbers-and-punctuation"
+              returnKeyType="go"
+              autoFocus
+              className="flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+            />
+            <Pressable
+              disabled={jumpTarget === null}
+              onPress={() => jumpTarget !== null && jump(jumpTarget)}
+              accessibilityRole="button"
+              className={`justify-center rounded-lg px-4 ${jumpTarget === null ? 'bg-line' : 'bg-amber'}`}
+            >
+              <Text className={jumpTarget === null ? 'text-muted' : 'font-semibold text-ink'}>
+                Go
+              </Text>
+            </Pressable>
+          </View>
+        </View>
       </Sheet>
       <SoundSheet
         visible={sheet === 'sound'}
