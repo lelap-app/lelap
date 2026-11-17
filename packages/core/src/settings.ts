@@ -21,6 +21,28 @@ export const SettingsSchema = z.object({
   otaUpdates: z.boolean().default(true),
   /** Books to finish this year; 0 means no goal. Stays on this device. */
   yearlyGoalBooks: z.number().int().min(0).max(1000).default(0),
+  /** Bedtime (M33): a sleep timer starts by itself when playback starts inside the window. */
+  bedtimeTimer: z.boolean().default(false),
+  /** Minutes after local midnight; the window may cross midnight. */
+  bedtimeStart: z
+    .number()
+    .int()
+    .min(0)
+    .max(1439)
+    .default(22 * 60),
+  bedtimeEnd: z
+    .number()
+    .int()
+    .min(0)
+    .max(1439)
+    .default(2 * 60),
+  /** To the end of the chapter (or episode) instead of `bedtimeMinutes`. */
+  bedtimeChapter: z.boolean().default(false),
+  bedtimeMinutes: z.number().int().min(1).max(240).default(30),
+  /** Warn when the Bluetooth headphones' battery likely won't last; needs nearby devices. */
+  headphoneBattery: z.boolean().default(false),
+  /** Offer car mode when the phone connects to a car's Bluetooth; needs nearby devices. */
+  carModeOffer: z.boolean().default(false),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

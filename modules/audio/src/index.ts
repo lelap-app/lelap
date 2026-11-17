@@ -105,6 +105,7 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   takeFinished(): Promise<FinishedItem[]>;
   takeEarlierPlaces(): Promise<JournalEntry[]>;
   setCarLibrary(json: string): Promise<void>;
+  setBedtime(json: string | null): Promise<void>;
   getState(): Promise<PlayerState>;
 }
 
@@ -201,6 +202,23 @@ export type CarLibrary = {
 /** Hands the service what Android Auto lists, so it can answer with the app closed. */
 export function setCarLibrary(library: CarLibrary): Promise<void> {
   return native.setCarLibrary(JSON.stringify(library));
+}
+
+/**
+ * "Start a sleep timer at bedtime": when playback starts inside the window (minutes after local
+ * midnight; it may cross midnight), the service starts a timer by itself, once per night.
+ */
+export type Bedtime = {
+  startMinute: number;
+  endMinute: number;
+  /** To the end of the chapter instead of `minutes`. */
+  chapter: boolean;
+  minutes: number;
+};
+
+/** Hands the service the bedtime window; null turns it off. Works with the app closed. */
+export function setBedtime(bedtime: Bedtime | null): Promise<void> {
+  return native.setBedtime(bedtime ? JSON.stringify(bedtime) : null);
 }
 
 /** Empties the player: no book on the lock screen or in the notification. */

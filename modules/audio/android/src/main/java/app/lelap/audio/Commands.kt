@@ -16,6 +16,9 @@ object Commands {
   const val PREF_FINISHED = "finished"
   /** In [AUDIO_PREFS]: the app's [CarSnapshot], the books Android Auto can browse. */
   const val PREF_CAR_LIBRARY = "carLibrary"
+  /** In [AUDIO_PREFS]: the [Bedtime] window the app set (absent when off), and the last night it started a timer. */
+  const val PREF_BEDTIME = "bedtime"
+  const val PREF_BEDTIME_NIGHT = "bedtimeNight"
 
   const val KEY_SKIP_INTERVAL_MS = "skipIntervalMs"
   const val KEY_SMART_REWIND = "smartRewind"

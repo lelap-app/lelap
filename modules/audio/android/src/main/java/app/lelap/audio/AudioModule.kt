@@ -195,6 +195,14 @@ class AudioModule : Module() {
         .edit().putString(Commands.PREF_CAR_LIBRARY, snapshot).apply()
     }
 
+    // Same process: the service reads the window whenever playback starts. Null turns it off.
+    AsyncFunction("setBedtime") { json: String? ->
+      val bedtime = Bedtime.decode(json)
+      val edit = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE).edit()
+      if (bedtime == null) edit.remove(Commands.PREF_BEDTIME) else edit.putString(Commands.PREF_BEDTIME, bedtime.encode())
+      edit.apply()
+    }
+
     // Same process as the service: the log is read and cleared straight from its preferences.
     AsyncFunction("takeFinished") {
       val prefs = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE)

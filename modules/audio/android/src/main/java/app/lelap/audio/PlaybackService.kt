@@ -14,6 +14,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import java.util.TimeZone
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -70,6 +71,7 @@ class PlaybackService : MediaLibraryService() {
   // The step the notification's sleep timer button last started, and the button's last state.
   private var sleepPressed: SleepStep? = null
   private var sleepButtonStep: SleepStep? = null
+  private var buttonsSkipMs = 0L
   private var lastNowPlaying: String? = null
 
   private val sensors by lazy { getSystemService(SENSOR_SERVICE) as SensorManager }
@@ -207,6 +209,7 @@ class PlaybackService : MediaLibraryService() {
       override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         if (playWhenReady) rewindAfterPause() else pausedAt = System.currentTimeMillis()
         rules.onPlayWhenReadyChanged(playWhenReady)
+        if (playWhenReady) startBedtimeTimer()
         publishExtras()
       }
 
@@ -535,18 +538,48 @@ class PlaybackService : MediaLibraryService() {
     sleepPressed = next.takeIf { sleepTimer.isActive }
   }
 
-  /** Shows the timer's state on the notification and lock screen button; only when it changed. */
+  /**
+   * The buttons the notification, lock screen, watches and cars show: back and forward by the skip
+   * interval (with its number when there is an icon for it) and the sleep timer, whose icon and
+   * name say its state. Only sent when something changed.
+   */
   private fun updateSleepButton() {
     val step = SleepCycle.current(sleepTimer.isActive, sleepTimer.mode, sleepPressed)
-    if (step == sleepButtonStep) return
+    if (step == sleepButtonStep && skipIntervalMs == buttonsSkipMs) return
     sleepButtonStep = step
-    val button = CommandButton.Builder(CommandButton.ICON_UNDEFINED)
+    buttonsSkipMs = skipIntervalMs
+    val seconds = skipIntervalMs / 1_000L
+    val back = CommandButton.Builder(SkipIcons.back(skipIntervalMs))
+      .setPlayerCommand(Player.COMMAND_SEEK_BACK)
+      .setDisplayName("Back $seconds seconds")
+      .setSlots(CommandButton.SLOT_BACK)
+      .build()
+    val forward = CommandButton.Builder(SkipIcons.forward(skipIntervalMs))
+      .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
+      .setDisplayName("Forward $seconds seconds")
+      .setSlots(CommandButton.SLOT_FORWARD)
+      .build()
+    val sleep = CommandButton.Builder(CommandButton.ICON_UNDEFINED)
       .setCustomIconResId(if (step == SleepStep.OFF) R.drawable.lelap_sleep_timer_off else R.drawable.lelap_sleep_timer_on)
       .setDisplayName(SleepCycle.label(step))
       .setSessionCommand(SessionCommand(Commands.CYCLE_SLEEP_TIMER, Bundle.EMPTY))
       .setSlots(CommandButton.SLOT_OVERFLOW)
       .build()
-    session.setMediaButtonPreferences(listOf(button))
+    session.setMediaButtonPreferences(listOf(back, forward, sleep))
+  }
+
+  /** Starts the bedtime timer when Play falls inside the window the app set; once per night. */
+  private fun startBedtimeTimer() {
+    val bedtime = Bedtime.decode(prefs.getString(Commands.PREF_BEDTIME, null)) ?: return
+    val now = System.currentTimeMillis()
+    val (day, minute) = Bedtime.localClock(now, TimeZone.getDefault().getOffset(now))
+    val lastNight = if (prefs.contains(Commands.PREF_BEDTIME_NIGHT)) prefs.getLong(Commands.PREF_BEDTIME_NIGHT, 0L) else null
+    val night = Bedtime.nightToMark(bedtime, day, minute, lastNight) ?: return
+    // A timer the listener set first counts as tonight's, so turning it off later keeps it off.
+    prefs.edit().putLong(Commands.PREF_BEDTIME_NIGHT, night).apply()
+    if (sleepTimer.isActive) return
+    sleepPressed = null
+    if (bedtime.chapter) startSleepTimer(SleepMode.CHAPTER, 0L) else startSleepTimer(SleepMode.MINUTES, bedtime.minutes * 60_000L)
   }
 
   /** Saves what plays now for the widget and tile, and tells them; only when it changed. */

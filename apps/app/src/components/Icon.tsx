@@ -184,6 +184,22 @@ const ICONS = {
       <Circle cx={18} cy={16} r={2} fill={c} />
     </>
   ),
+  car: (c) => (
+    <>
+      <Path
+        d="M4 16v-4l2.2-5.2A1.5 1.5 0 0 1 7.6 6h8.8a1.5 1.5 0 0 1 1.4.8L20 12v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 12h16M7 17v2M17 17v2"
+        {...stroke(c)}
+      />
+      <Circle cx={7.5} cy={14.5} r={1} fill={c} />
+      <Circle cx={16.5} cy={14.5} r={1} fill={c} />
+    </>
+  ),
+  headphones: (c) => (
+    <Path
+      d="M4 17v-5a8 8 0 0 1 16 0v5M4 15h3v5H5a1 1 0 0 1-1-1zM20 15h-3v5h2a1 1 0 0 0 1-1z"
+      {...stroke(c)}
+    />
+  ),
 } satisfies Record<string, Draw>;
 
 export type IconName = keyof typeof ICONS;

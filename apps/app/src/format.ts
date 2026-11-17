@@ -31,3 +31,9 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1e9) return `${Math.round(bytes / 1e6)} MB`;
   return `${(bytes / 1e9).toFixed(bytes < 1e10 ? 1 : 0)} GB`;
 }
+
+/** `22:30` for minutes after midnight. */
+export function formatTimeOfDay(minutes: number): string {
+  const m = ((Math.round(minutes) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}

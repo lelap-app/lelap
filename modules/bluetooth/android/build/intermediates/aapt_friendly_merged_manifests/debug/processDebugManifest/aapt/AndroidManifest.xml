@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="app.lelap.bluetooth" >
+
+    <uses-sdk android:minSdkVersion="24" />
+    <!--
+       Asked for only when the listener turns on the headphone battery warning or the car mode
+       offer. Before Android 12 the plain Bluetooth permission is granted at install.
+    -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+</manifest>

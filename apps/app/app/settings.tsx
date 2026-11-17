@@ -8,10 +8,14 @@ import {
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { exportBackup, importBackup } from '../src/backup';
+import { applyBedtime } from '../src/bedtime';
+import { allowDevices, followDevices } from '../src/devices';
+import { formatTimeOfDay } from '../src/format';
+import { BLUETOOTH } from '../src/platform/bluetooth';
 import { showAlert } from '../src/dialog';
 import { ImportSheet } from '../src/components/ImportSheet';
 import { COLORS, IconButton } from '../src/components/Icon';
@@ -29,6 +33,66 @@ import { checkForUpdate, installUpdate } from '../src/updates';
 import { chooseFolder, scanLibrary } from '../src/scan';
 
 const SKIP_SECONDS = [10, 15, 30, 45, 60];
+const BEDTIME_MINUTES = [15, 30, 45, 60];
+const DAY_MINUTES = 24 * 60;
+// The bedtime window moves in half hours.
+const BEDTIME_STEP = 30;
+
+function Choice({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      className={`rounded-full border px-4 py-2 ${active ? 'border-amber bg-amber' : 'border-line'}`}
+    >
+      <Text className={active ? 'text-ink' : 'text-soft'}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** A time of day with − and + buttons, half an hour per press. */
+function TimeStepper({
+  label,
+  minutes,
+  onChange,
+}: {
+  label: string;
+  minutes: number;
+  onChange: (minutes: number) => void;
+}) {
+  const step = (by: number) => onChange((minutes + by + DAY_MINUTES) % DAY_MINUTES);
+  return (
+    <View className="flex-row items-center gap-3">
+      <Text className="w-12 text-soft">{label}</Text>
+      <Pressable
+        onPress={() => step(-BEDTIME_STEP)}
+        accessibilityRole="button"
+        accessibilityLabel={`${label} 30 minutes earlier`}
+        className="h-11 w-11 items-center justify-center rounded-full border border-line active:bg-raised"
+      >
+        <Text className="text-lg text-paper">−</Text>
+      </Pressable>
+      <Text className="w-16 text-center text-lg text-paper">{formatTimeOfDay(minutes)}</Text>
+      <Pressable
+        onPress={() => step(BEDTIME_STEP)}
+        accessibilityRole="button"
+        accessibilityLabel={`${label} 30 minutes later`}
+        className="h-11 w-11 items-center justify-center rounded-full border border-line active:bg-raised"
+      >
+        <Text className="text-lg text-paper">+</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 function Row({
   label,
@@ -130,6 +194,14 @@ export default function SettingsScreen() {
     setSettings(next);
     void audio.setSettings(next);
     if (key === 'downloadOnWifiOnly' || key === 'downloadWhileChargingOnly') void applyRules(next);
+    if (key.startsWith('bedtime')) void applyBedtime(next);
+    if (key === 'headphoneBattery' || key === 'carModeOffer') void followDevices(next);
+  };
+
+  // Both need “nearby devices”, asked for only when one is turned on.
+  const updateDevices = async (key: 'headphoneBattery' | 'carModeOffer', value: boolean) => {
+    if (value && !(await allowDevices())) return;
+    update(key, value);
   };
 
   const rescan = async () => {
@@ -374,6 +446,81 @@ export default function SettingsScreen() {
             })}
           </View>
         </View>
+
+        {Platform.OS === 'android' && (
+          <View className="gap-3 border-b border-line py-4">
+            <View className="flex-row items-center gap-4">
+              <View className="flex-1 gap-1">
+                <Text className="text-base text-paper">Start a sleep timer at bedtime</Text>
+                <Text className="text-sm text-muted">
+                  When you press Play in this window, once a night.
+                </Text>
+              </View>
+              <Switch
+                value={settings.bedtimeTimer}
+                onValueChange={(v) => update('bedtimeTimer', v)}
+              />
+            </View>
+            {settings.bedtimeTimer && (
+              <>
+                <TimeStepper
+                  label="From"
+                  minutes={settings.bedtimeStart}
+                  onChange={(m) => update('bedtimeStart', m)}
+                />
+                <TimeStepper
+                  label="To"
+                  minutes={settings.bedtimeEnd}
+                  onChange={(m) => update('bedtimeEnd', m)}
+                />
+                <View className="flex-row flex-wrap gap-2">
+                  {BEDTIME_MINUTES.map((m) => (
+                    <Choice
+                      key={m}
+                      label={`${m} min`}
+                      active={!settings.bedtimeChapter && settings.bedtimeMinutes === m}
+                      onPress={() => {
+                        update('bedtimeChapter', false);
+                        update('bedtimeMinutes', m);
+                      }}
+                    />
+                  ))}
+                  <Choice
+                    label="End of chapter"
+                    active={settings.bedtimeChapter}
+                    onPress={() => update('bedtimeChapter', true)}
+                  />
+                </View>
+              </>
+            )}
+          </View>
+        )}
+
+        {BLUETOOTH && (
+          <>
+            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">
+              Headphones and car
+            </Text>
+            <Row
+              label="Warn about low headphone battery"
+              detail="When your Bluetooth headphones or speaker likely won’t last the sleep timer or the chapter. Needs “nearby devices”; devices that don’t report a level show nothing."
+            >
+              <Switch
+                value={settings.headphoneBattery}
+                onValueChange={(v) => void updateDevices('headphoneBattery', v)}
+              />
+            </Row>
+            <Row
+              label="Offer car mode in the car"
+              detail="Big buttons when the phone connects to a car’s Bluetooth. Needs “nearby devices”. Car mode is always in the player."
+            >
+              <Switch
+                value={settings.carModeOffer}
+                onValueChange={(v) => void updateDevices('carModeOffer', v)}
+              />
+            </Row>
+          </>
+        )}
 
         {SELF_UPDATES && (
           <UpdateRows

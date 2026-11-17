@@ -1,4 +1,5 @@
 import type {
+  Bedtime,
   BookLoad,
   CarLibrary,
   FinishedItem,
@@ -19,6 +20,7 @@ import * as opfs from './opfs';
 import * as sound from './webaudio';
 
 export type {
+  Bedtime,
   BookLoad,
   CarLibrary,
   FinishedItem,
@@ -512,6 +514,11 @@ export async function takeEarlierPlaces(): Promise<JournalEntry[]> {
 
 export async function setCarLibrary(library: CarLibrary): Promise<void> {
   void library;
+}
+
+// Bedtime timers start in the Android service; the web player has no such setting.
+export async function setBedtime(bedtime: Bedtime | null): Promise<void> {
+  void bedtime;
 }
 
 export async function takeFinished(): Promise<FinishedItem[]> {

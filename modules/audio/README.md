@@ -17,6 +17,11 @@ Kotlin Expo module for Android playback.
   a +6 dB volume boost behind a peak limiter that never lets a sample past full scale. The
   processor sits in front of ExoPlayer's own audio processors and stays active for every PCM
   stream, so switching an effect ramps over 50 ms instead of reconfiguring the sink.
+- `Bedtime`: “start a sleep timer at bedtime”. The app writes the window to the service's
+  preferences; when Play falls inside it (the window may cross midnight), the service starts a
+  timer for minutes or to the end of the chapter, once per night.
+- Media button preferences: back and forward by the skip interval (`SkipIcons` picks Media3's
+  icon with the seconds) and the sleep timer button. Phones, watches and cars all read them.
 - `AudioModule`: the JavaScript bridge (`src/index.ts`), a `MediaController` on the main thread.
 
 Unit tests for the pure parts run on the JVM:
@@ -24,6 +29,21 @@ Unit tests for the pure parts run on the JVM:
 ```sh
 cd apps/app/android && ./gradlew :lelap-audio:testDebugUnitTest
 ```
+
+## Wear OS
+
+There is no watch app. Wear OS shows a phone's media session in its own media controls, so a watch
+paired with the phone gets, while a book plays:
+
+- Play and pause; the title (the chapter) and the book's title.
+- Back and forward by the skip interval, with the seconds on the icon for 5, 10, 15 and 30 s. They
+  are the session's `COMMAND_SEEK_BACK` and `COMMAND_SEEK_FORWARD`, which skip across files; the
+  older previous and next actions do the same for controllers that only know those.
+- The sleep timer button (15 min → 30 min → end of chapter → off) in the watch's extra actions.
+- The phone's volume, from the watch's own volume control.
+
+Nothing needs Google Play services: the watch talks to the phone's media session through the
+system, so the F-Droid build gets the same controls.
 
 ## M1 device checklist
 
