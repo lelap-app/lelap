@@ -1,7 +1,7 @@
 /** The platform calls the add-ons need, injected so Workers, Node and tests can each provide them. */
 export type FetchLike = (
   url: string,
-  init: { headers: Record<string, string>; signal?: AbortSignal },
+  init: { headers: Record<string, string>; signal?: AbortSignal; method?: string; body?: string },
 ) => Promise<Response>;
 
 /** A response cache keyed by URL, such as the Workers Cache API. */
@@ -12,6 +12,11 @@ export type ResponseCache = {
 
 export type Platform = {
   fetch: FetchLike;
+  /**
+   * For hosts a listener chooses (their gPodder server, podcast feeds), which on a self-hosted
+   * server must not reach its private network. Defaults to `fetch`.
+   */
+  userFetch?: FetchLike;
   cache?: ResponseCache;
   /** Unix time in milliseconds; tests pin it. */
   now?: () => number;

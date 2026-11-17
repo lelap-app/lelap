@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Example Show</title>
+    <item>
+      <title>Episode 2</title>
+      <guid isPermaLink="false"><![CDATA[ep-2]]></guid>
+      <enclosure url="https://media.example.org/ep2.mp3?a=1&amp;b=2" length="100" type="audio/mpeg"/>
+    </item>
+    <item>
+      <title>Episode 1, no guid</title>
+      <enclosure type="audio/mpeg" url='https://media.example.org/ep1.mp3' length="100"/>
+    </item>
+  </channel>
+</rss>

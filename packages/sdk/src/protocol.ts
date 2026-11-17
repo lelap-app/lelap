@@ -7,7 +7,7 @@ export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
 export type ContentType = z.infer<typeof ContentType>;
 
-export const RESOURCES = ['catalog', 'meta', 'stream'] as const;
+export const RESOURCES = ['catalog', 'meta', 'stream', 'scrobble'] as const;
 export const ResourceName = z.enum(RESOURCES);
 export type ResourceName = z.infer<typeof ResourceName>;
 
@@ -35,6 +35,11 @@ export const CatalogDefinition = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   extra: z.array(CatalogExtra).optional(),
+  /**
+   * What the list means to the listener, so the app can place it. `want-to-read` is a shelf of
+   * books they want to read, shown on Home. Unknown values are kept and ignored.
+   */
+  shelf: z.string().min(1).optional(),
 });
 export type CatalogDefinition = z.infer<typeof CatalogDefinition>;
 
@@ -170,6 +175,48 @@ export const StreamResponse = z.object({
 });
 export type StreamResponse = z.infer<typeof StreamResponse>;
 
+export const SCROBBLE_EVENTS = ['start', 'progress', 'pause', 'finish', 'abandon', 'rate'] as const;
+export const ScrobbleEventName = z.enum(SCROBBLE_EVENTS);
+export type ScrobbleEventName = z.infer<typeof ScrobbleEventName>;
+
+/** What was played. Never a source, stream or file URL. */
+export const ScrobbleItem = z.object({
+  type: ContentType,
+  /** The item's ID; missing for the listener's own files. */
+  id: ItemId.optional(),
+  /** The same work under other prefixes, such as `{ isbn: '9780141036144' }`. */
+  externalIds: z.record(z.string(), z.string()).optional(),
+  name: z.string().min(1),
+  author: z.string().optional(),
+  durationMs: Duration.optional(),
+  /** For episodes: the podcast's RSS feed and the episode's `guid`. */
+  podcast: z
+    .object({ feed: Url.optional(), guid: z.string().optional(), title: z.string().optional() })
+    .optional(),
+  episodeGuid: z.string().optional(),
+});
+export type ScrobbleItem = z.infer<typeof ScrobbleItem>;
+
+export const ScrobbleEvent = z.object({
+  /** Unique per event; the same event may be sent again after a failure, so ignore repeats. */
+  eventId: z.string().min(8).max(128),
+  event: ScrobbleEventName,
+  /** When it happened, as Unix time in milliseconds; offline listening arrives later. */
+  at: z.number().int().nonnegative(),
+  item: ScrobbleItem,
+  /** Where the listener was on the whole-item timeline. */
+  positionMs: Duration.optional(),
+  /** Where this listening session started, for `progress`, `pause` and `finish`. */
+  sessionStartMs: Duration.optional(),
+  /** For `rate`: 0.5 to 5 stars in steps of 0.5. */
+  rating: z.number().min(0.5).max(5).multipleOf(0.5).optional(),
+});
+export type ScrobbleEvent = z.infer<typeof ScrobbleEvent>;
+
+/** The body of `POST /scrobble`: oldest event first. */
+export const ScrobbleRequest = z.object({ events: z.array(ScrobbleEvent).min(1).max(100) });
+export type ScrobbleRequest = z.infer<typeof ScrobbleRequest>;
+
 /** Whether a stream has parts rather than one URL. */
 export function hasParts(stream: Stream): stream is z.infer<typeof MultiPartStream> {
   return 'parts' in stream;
@@ -185,6 +232,21 @@ export function prefixesFor(manifest: Manifest, resource: ResourceName): string[
     }
   }
   return [];
+}
+
+/**
+ * Whether the add-on wants scrobbles for this type. An `idPrefixes` on the `scrobble` entry itself
+ * narrows it to those IDs; the manifest's own prefixes are for `meta` and `stream`.
+ */
+export function wantsScrobble(manifest: Manifest, type: ContentType, id?: string): boolean {
+  const definition = manifest.resources.find(
+    (r) => (typeof r === 'string' ? r : r.name) === 'scrobble',
+  );
+  if (!definition) return false;
+  if (typeof definition === 'string') return manifest.types.includes(type);
+  if (!(definition.types ?? manifest.types).includes(type)) return false;
+  const prefixes = definition.idPrefixes;
+  return !prefixes || (id !== undefined && prefixes.some((prefix) => id.startsWith(prefix)));
 }
 
 /** Whether the add-on answers `resource` for this type and ID. */

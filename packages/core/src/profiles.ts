@@ -17,6 +17,7 @@ import {
   bookTags,
   playlists,
   listeningLog,
+  scrobbleOutbox,
 } from './schema';
 import { recordDeletion } from './sync/keys';
 
@@ -107,6 +108,7 @@ export function deleteProfile(db: Db, id: string, now: number): boolean {
     tx.delete(bookTags).where(eq(bookTags.profileId, id)).run();
     tx.delete(playlists).where(eq(playlists.profileId, id)).run();
     tx.delete(listeningLog).where(eq(listeningLog.profileId, id)).run();
+    tx.delete(scrobbleOutbox).where(eq(scrobbleOutbox.profileId, id)).run();
     tx.delete(tombstones).where(eq(tombstones.profileId, id)).run();
     tx.delete(profiles).where(eq(profiles.id, id)).run();
     recordDeletion(tx, 'profile', id, null, now);

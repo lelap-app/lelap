@@ -7,7 +7,7 @@ instead of D1).
 | Image                       | Port | What                                                  |
 | --------------------------- | ---- | ----------------------------------------------------- |
 | `ghcr.io/lelap-app/web`     | 8080 | The web app (static files behind Caddy)               |
-| `ghcr.io/lelap-app/catalog` | 8787 | Catalog and LibriVox add-ons                          |
+| `ghcr.io/lelap-app/catalog` | 8787 | Catalog, LibriVox, Hardcover and gPodder add-ons      |
 | `ghcr.io/lelap-app/proxy`   | 8788 | RSS, covers, transcripts for the web app; never audio |
 | `ghcr.io/lelap-app/sync`    | 8789 | Encrypted sync; data in the `/data` volume            |
 | `ghcr.io/lelap-app/updates` | 8790 | Signed app bundles (over the air); `/data`            |

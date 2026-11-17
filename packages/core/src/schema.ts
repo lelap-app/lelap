@@ -1,4 +1,4 @@
-import type { Meta } from '@lelap/sdk';
+import type { Meta, ScrobbleEvent } from '@lelap/sdk';
 
 import type { EpisodeExtras, PodcastExtras } from './podcasts/podcasting';
 import {
@@ -414,6 +414,29 @@ export const listeningLog = sqliteTable(
     ms: integer('ms').notNull(),
   },
   (t) => [primaryKey({ columns: [t.profileId, t.day, t.bookId] })],
+);
+
+/**
+ * Scrobble events waiting for an add-on, one row per event and add-on, so offline listening is
+ * reported later with its own timestamps. Kept on this device; never synced.
+ */
+export const scrobbleOutbox = sqliteTable(
+  'scrobble_outbox',
+  {
+    eventId: text('event_id').notNull(),
+    /** The add-on's manifest URL. */
+    addonUrl: text('addon_url').notNull(),
+    profileId: text('profile_id').notNull(),
+    /** The protocol's `ScrobbleEvent`. */
+    event: text('event', { mode: 'json' }).$type<ScrobbleEvent>().notNull(),
+    at: integer('at').notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: integer('next_attempt_at').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.eventId, t.addonUrl] }),
+    index('scrobble_outbox_due').on(t.nextAttemptAt),
+  ],
 );
 
 /** This device's sync settings and progress: group, key, device ID, cursor. Never synced. */

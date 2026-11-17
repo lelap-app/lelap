@@ -9,6 +9,8 @@ import {
   type Manifest,
   type MetaResponse,
   MetaResponse as MetaResponseSchema,
+  type ScrobbleEvent,
+  ScrobbleRequest,
   type StreamResponse,
   StreamResponse as StreamResponseSchema,
 } from './protocol';
@@ -17,6 +19,7 @@ type Awaitable<T> = T | Promise<T>;
 
 export type CatalogArgs = { type: ContentType; id: string; extra: Extra; request: Request };
 export type ItemArgs = { type: ContentType; id: string; request: Request };
+export type ScrobbleArgs = { events: ScrobbleEvent[]; request: Request };
 
 export type AddonHandlers = {
   manifest: Manifest;
@@ -24,6 +27,11 @@ export type AddonHandlers = {
   /** Return `null` when the ID is unknown; the response is then a 404. */
   meta?: (args: ItemArgs) => Awaitable<MetaResponse | null>;
   stream?: (args: ItemArgs) => Awaitable<StreamResponse>;
+  /**
+   * Events the app reports, oldest first. Resolve when they are handled (or deliberately
+   * ignored); throw an `AddonError` with a 4xx status for events that should not be sent again.
+   */
+  scrobble?: (args: ScrobbleArgs) => Awaitable<void>;
 };
 
 export type AddonOptions = {
@@ -42,7 +50,7 @@ export type Addon = {
 
 export const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': '*',
 };
 
@@ -92,13 +100,29 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
   const handle = async (request: Request): Promise<Response> => {
     if (request.method === 'OPTIONS')
       return new Response(null, { status: 204, headers: CORS_HEADERS });
-    if (request.method !== 'GET' && request.method !== 'HEAD')
-      return json({ error: 'Method not allowed' }, 405);
 
     const { pathname } = new URL(request.url);
     if (base && pathname !== base && !pathname.startsWith(`${base}/`))
       return json({ error: 'Not found' }, 404);
-    const route = parseRoute(pathname.slice(base.length));
+    const path = pathname.slice(base.length).replace(/^\/+/, '');
+    if (path === 'scrobble') {
+      if (!handlers.scrobble || !typesFor('scrobble').length)
+        return json({ error: 'Not found' }, 404);
+      if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+      let body: unknown;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: 'The body is not JSON' }, 400);
+      }
+      const parsed = ScrobbleRequest.safeParse(body);
+      if (!parsed.success) return json({ error: 'These are not scrobble events' }, 400);
+      await handlers.scrobble({ events: parsed.data.events, request });
+      return json({ received: parsed.data.events.length });
+    }
+    if (request.method !== 'GET' && request.method !== 'HEAD')
+      return json({ error: 'Method not allowed' }, 405);
+    const route = parseRoute(path);
     if (!route) return json({ error: 'Not found' }, 404);
 
     if (route.resource === 'manifest') return json(manifest, 200, 3600);

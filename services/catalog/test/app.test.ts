@@ -30,7 +30,7 @@ function setup(env = {}) {
 }
 
 describe('the worker app', () => {
-  it('points at both manifests from the root', async () => {
+  it('points at the manifests and configure pages from the root', async () => {
     const response = await setup().app.request('https://addons.test/');
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
     expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
@@ -38,6 +38,10 @@ describe('the worker app', () => {
     expect(await response.json()).toEqual({
       name: 'Lelap add-ons',
       addons: ['https://addons.test/manifest.json', 'https://addons.test/librivox/manifest.json'],
+      configure: [
+        'https://addons.test/hardcover/configure',
+        'https://addons.test/gpodder/configure',
+      ],
     });
   });
 

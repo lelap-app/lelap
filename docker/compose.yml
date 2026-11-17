@@ -20,6 +20,11 @@ services:
       # Optional: Podcast Index catalogs and podcast search.
       PODCASTINDEX_KEY: ${PODCASTINDEX_KEY:-}
       PODCASTINDEX_SECRET: ${PODCASTINDEX_SECRET:-}
+      # Optional: 32+ random characters, so listeners can configure the Hardcover and gPodder
+      # add-ons (their tokens are sealed into the add-on URL with it). Keep it stable.
+      CONFIG_SECRET: ${CONFIG_SECRET:-}
+      # A gPodder server on your own network: true lets the gPodder add-on reach private addresses.
+      SCROBBLE_ALLOW_PRIVATE: ${SCROBBLE_ALLOW_PRIVATE:-false}
     ports: ['8787:8787']
     restart: unless-stopped
 

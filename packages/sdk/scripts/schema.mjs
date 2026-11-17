@@ -8,6 +8,7 @@ import {
   Manifest,
   MetaResponse,
   PROTOCOL_VERSION,
+  ScrobbleRequest,
   StreamResponse,
 } from '../src/protocol.ts';
 
@@ -19,6 +20,7 @@ registry.add(Manifest, { id: 'Manifest' });
 registry.add(CatalogResponse, { id: 'CatalogResponse' });
 registry.add(MetaResponse, { id: 'MetaResponse' });
 registry.add(StreamResponse, { id: 'StreamResponse' });
+registry.add(ScrobbleRequest, { id: 'ScrobbleRequest' });
 
 const { schemas } = z.toJSONSchema(registry, {
   io: 'output',

@@ -4,6 +4,7 @@ import {
   getProfile,
   listDownloads,
   listProfiles,
+  WANT_TO_READ,
 } from '@lelap/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -40,7 +41,10 @@ export default function HomeScreen() {
     const done = listDownloads(db).filter((d) => d.state === 'done');
     return { count: done.length, bytes: done.reduce((sum, d) => sum + d.bytesTotal, 0) };
   }, [version]);
-  const rows = useMemo(() => browseCatalogs(addons, SHOWN_TYPES), [addons]);
+  const allRows = useMemo(() => browseCatalogs(addons, SHOWN_TYPES), [addons]);
+  // Shelves of books the listener wants to read (from a reading tracker's add-on) come first.
+  const wanted = allRows.filter((ref) => ref.catalog.shelf === WANT_TO_READ);
+  const rows = allRows.filter((ref) => ref.catalog.shelf !== WANT_TO_READ);
 
   const reload = useCallback(async () => {
     setRefreshing(true);
@@ -131,6 +135,15 @@ export default function HomeScreen() {
           <Icon name="forward" size={20} color={COLORS.muted} />
         </Pressable>
       )}
+      {wanted.map((ref) => (
+        <CatalogRow
+          key={`${ref.addon.url} ${ref.catalog.type} ${ref.catalog.id}`}
+          catalogRef={ref}
+          title={wanted.length > 1 ? `Want to read · ${ref.addon.manifest.name}` : 'Want to read'}
+          onOpen={(meta) => openItem(router, meta)}
+          onMore={() => openCatalog(router, ref.addon.url, ref.catalog.id)}
+        />
+      ))}
       {rows.map((ref) => (
         <CatalogRow
           key={`${ref.addon.url} ${ref.catalog.type} ${ref.catalog.id}`}
@@ -139,7 +152,7 @@ export default function HomeScreen() {
           onMore={() => openCatalog(router, ref.addon.url, ref.catalog.id)}
         />
       ))}
-      {rows.length === 0 && (
+      {allRows.length === 0 && (
         <View className="mx-4 gap-2 rounded-xl border border-line p-4">
           <Text className="text-base text-paper">No catalogs yet</Text>
           <Text className="text-sm text-muted">

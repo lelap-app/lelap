@@ -1,0 +1,113 @@
+---
+import Docs from '../../layouts/Docs.astro';
+import { site } from '../../site';
+
+const catalog = `catalog.${site.domain}`;
+---
+
+<Docs
+  title="Scrobbling"
+  toc={[
+    ['how', 'How it works'],
+    ['hardcover', 'Hardcover'],
+    ['gpodder', 'gPodder sync'],
+    ['privacy', 'Tokens and privacy'],
+    ['self-hosting', 'Self-hosting'],
+  ]}
+  description={`Report what you listen to in ${site.name} to Hardcover and to gPodder-compatible servers.`}
+>
+  <h1>Scrobbling</h1>
+  <p class="lead">
+    Add-ons can hear what you play and pass it on: your reading tracker learns which book you are in
+    the middle of, and your other podcast apps continue where you stopped. Two such add-ons come
+    with {site.name}’s catalog service: Hardcover and gPodder sync.
+  </p>
+
+  <h2 id="how">How it works</h2>
+  <p>
+    While you listen, the app notes when you start, about every five minutes of playing, when you
+    pause and when you finish. These notes wait on your device and go to every add-on you installed
+    that asks for them. Offline listening is sent once you are online again, with the times you
+    actually listened. A failing add-on is tried again later, for up to 30 days.
+  </p>
+  <p>
+    The notes say what you played (title, author, IDs such as ISBNs, or the podcast feed and
+    episode), where you were and when. They never contain where the audio comes from or the paths of
+    your own files. Add-ons follow the profile: hide one from a profile in its settings and that
+    profile’s listening isn’t reported to it. The protocol side is in{' '}
+    <a href="/docs/protocol/#scrobble">Protocol v1 → Scrobble</a>.
+  </p>
+
+  <h2 id="hardcover">Hardcover</h2>
+  <p>
+    <a href="https://hardcover.app">Hardcover</a> tracks what you read. With its add-on, a book you
+    start listening to moves to <strong>Currently reading</strong> with your progress, and moves to{' '}
+    <strong>Read</strong> when you finish it. Your <strong>Want to read</strong> shelf shows on
+    Home, and books on it that an add-on can play open as usual.
+  </p>
+  <ol>
+    <li>On Hardcover, open Settings → Hardcover API and copy your token.</li>
+    <li>
+      Open <code>https://{catalog}/hardcover/configure</code>, paste the token and make your add-on
+      link.
+    </li>
+    <li>In {site.name}, open Settings → Add-ons and paste the link.</li>
+  </ol>
+  <p>
+    Books are matched by ISBN or Audible ASIN when the add-on that lists them knows one, and
+    otherwise by title and author. Books Hardcover doesn’t know are skipped. Hardcover tokens expire
+    after a while; when yours does, make a new link the same way and replace the add-on.
+  </p>
+
+  <h2 id="gpodder">gPodder sync</h2>
+  <p>
+    gPodder-compatible servers keep the places of podcast episodes for several apps at once, such as
+    gpodder.net or a Nextcloud with the gPodder Sync app. With this add-on, every episode you play
+    in {site.name} is reported as a play action with where you started and stopped.
+  </p>
+  <ol>
+    <li>
+      Open <code>https://{catalog}/gpodder/configure</code> and choose the server type: the
+      gpodder.net API, or Nextcloud gPodder Sync.
+    </li>
+    <li>
+      Enter the server address (https only), your user name and your password. Use an app password
+      where the server offers one. The add-on checks the login before it makes the link.
+    </li>
+    <li>In {site.name}, open Settings → Add-ons and paste the link.</li>
+  </ol>
+  <p>
+    The gPodder API identifies episodes by their audio URL, which the app never sends. The add-on
+    reads the podcast’s public feed to look it up by the episode’s <code>guid</code>; only the
+    feed’s text passes through it, never audio.
+  </p>
+
+  <h2 id="privacy">Tokens and privacy</h2>
+  <ul>
+    <li>
+      Your token or password is sealed into the add-on link with a key only the catalog service has
+      (AES-256-GCM). It isn’t stored on the server, and a link copied out of a log or a screenshot
+      doesn’t show it.
+    </li>
+    <li>
+      The link itself still works for whoever has it, so keep it to yourself. {site.name} keeps it
+      on your device and syncs it end-to-end encrypted. To stop a leaked link, revoke the token or
+      change the password at the service.
+    </li>
+    <li>
+      The add-ons are stateless: they act on each batch of events and forget it. What you played is
+      kept by Hardcover or your gPodder server, under their terms.
+    </li>
+  </ul>
+
+  <h2 id="self-hosting">Self-hosting</h2>
+  <p>
+    Both add-ons are part of the catalog service, on Workers and in the <code>catalog</code> Docker
+    image. Set <code>CONFIG_SECRET</code> to at least 32 random characters (on Workers with{' '}
+    <code>wrangler secret put CONFIG_SECRET</code>); without it, the configure pages say they are
+    unavailable. Keep it stable: changing it makes every link stop working until it is configured
+    again. On Docker, the gPodder add-on can’t reach private addresses unless you set{' '}
+    <code>SCROBBLE_ALLOW_PRIVATE=true</code>, for a gPodder server on your own network. See{' '}
+    <a href="/docs/hosting/">Hosting</a>.
+  </p>
+</Docs>
