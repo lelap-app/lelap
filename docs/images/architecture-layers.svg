@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 724" width="1100" height="724" font-family="Inter, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" role="img" aria-label="Layers inside the app"><title>Layers inside the app</title><defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c4c8cf"/></marker><marker id="aa" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f5b041"/></marker><pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#1b1e25"/></pattern></defs><rect width="1100" height="724" rx="22" fill="#0d0e11"/><rect width="1100" height="724" rx="22" fill="url(#dots)"/><text x="40" y="52" font-size="22" fill="#f3f1ec" font-weight="700" text-anchor="start">Layers inside the app</text><text x="40" y="78" font-size="14" fill="#a3a8b2" font-weight="400" text-anchor="start">One codebase, stacked: native code stays behind small APIs at the bottom.</text><polygon points="170,130 192,116.8 812,116.8 790,130" fill="#3d321b" stroke="#f5b041" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="790,130 812,116.8 812,180.8 790,194" fill="#1f1a0f" stroke="#f5b041" stroke-opacity=".55" stroke-width="1"/>
+<rect x="170" y="130" width="620" height="64" fill="#2b2414" stroke="#f5b041" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="480.0" y="157.8" font-size="16" fill="#f3f1ec" font-weight="600" text-anchor="middle">Screens  ·  apps/app/app</text>
+<text x="480.0" y="177.8" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">Expo Router · NativeWind · t() for every text</text>
+<polygon points="170,222 192,208.8 812,208.8 790,222" fill="#3d321b" stroke="#f5b041" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="790,222 812,208.8 812,272.8 790,286" fill="#1f1a0f" stroke="#f5b041" stroke-opacity=".55" stroke-width="1"/>
+<rect x="170" y="222" width="620" height="64" fill="#2b2414" stroke="#f5b041" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="480.0" y="249.8" font-size="16" fill="#f3f1ec" font-weight="600" text-anchor="middle">App glue  ·  apps/app/src</text>
+<text x="480.0" y="269.8" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">hooks · player state · add-on queries · i18n</text>
+<polygon points="170,314 192,300.8 812,300.8 790,314" fill="#3d321b" stroke="#f5b041" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="790,314 812,300.8 812,364.8 790,378" fill="#1f1a0f" stroke="#f5b041" stroke-opacity=".55" stroke-width="1"/>
+<rect x="170" y="314" width="620" height="64" fill="#2b2414" stroke="#f5b041" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="480.0" y="332.8" font-size="16" fill="#f3f1ec" font-weight="600" text-anchor="middle">Core  ·  packages/core</text>
+<text x="480.0" y="352.8" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">library · add-on client · sync · stats · Drizzle schema</text>
+<text x="480.0" y="369.8" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">plain TypeScript, no React · tested with Vitest</text>
+<polygon points="170,406 192,392.8 812,392.8 790,406" fill="#3d321b" stroke="#f5b041" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="790,406 812,392.8 812,456.8 790,470" fill="#1f1a0f" stroke="#f5b041" stroke-opacity=".55" stroke-width="1"/>
+<rect x="170" y="406" width="620" height="64" fill="#2b2414" stroke="#f5b041" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="480.0" y="433.8" font-size="16" fill="#f3f1ec" font-weight="600" text-anchor="middle">Platform adapters  ·  apps/app/src/platform</text>
+<text x="480.0" y="453.8" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">foo.ts for Android · foo.web.ts for the web</text>
+<polygon points="850,318 868,307.2 1068,307.2 1050,318" fill="#2a5d5b" stroke="#4fa39f" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="1050,318 1068,307.2 1068,363.2 1050,374" fill="#173533" stroke="#4fa39f" stroke-opacity=".55" stroke-width="1"/>
+<rect x="850" y="318" width="200" height="56" fill="#1f4746" stroke="#4fa39f" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="950.0" y="332.5" font-size="15" fill="#f3f1ec" font-weight="600" text-anchor="middle">SDK</text>
+<text x="950.0" y="352.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">packages/sdk · protocol</text>
+<text x="950.0" y="369.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">zod schemas · MIT · npm</text>
+<path d="M814,346 L846,346" stroke="#c4c8cf" stroke-width="1.6" marker-end="url(#a)"/>
+<polygon points="170,504 192,490.8 592,490.8 570,504" fill="#2d4268" stroke="#5b7fc0" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="570,504 592,490.8 592,660.8 570,674" fill="#19253b" stroke="#5b7fc0" stroke-opacity=".55" stroke-width="1"/>
+<rect x="170" y="504" width="400" height="170" fill="#22324f" stroke="#5b7fc0" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="188" y="532" font-size="17" fill="#f3f1ec" font-weight="700" text-anchor="start">Android</text>
+<text x="270" y="532" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="start">Kotlin Expo modules</text>
+<polygon points="186,552 194,547.2 282,547.2 274,552" fill="#2a2e38" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="274,552 282,547.2 282,587.2 274,592" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<rect x="186" y="552" width="88" height="40" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="230.0" y="575.45" font-size="11.5" fill="#f3f1ec" font-weight="600" text-anchor="middle">Media3</text>
+<polygon points="282,552 290,547.2 378,547.2 370,552" fill="#2a2e38" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="370,552 378,547.2 378,587.2 370,592" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<rect x="282" y="552" width="88" height="40" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="326.0" y="575.45" font-size="11.5" fill="#f3f1ec" font-weight="600" text-anchor="middle">WorkManager</text>
+<polygon points="378,552 386,547.2 474,547.2 466,552" fill="#2a2e38" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="466,552 474,547.2 474,587.2 466,592" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<rect x="378" y="552" width="88" height="40" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="422.0" y="575.45" font-size="11.5" fill="#f3f1ec" font-weight="600" text-anchor="middle">Casting</text>
+<polygon points="474,552 482,547.2 570,547.2 562,552" fill="#2a2e38" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="562,552 570,547.2 570,587.2 562,592" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<rect x="474" y="552" width="88" height="40" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="518.0" y="575.45" font-size="11.5" fill="#f3f1ec" font-weight="600" text-anchor="middle">Updater</text>
+<polygon points="186,610 194,605.2 282,605.2 274,610" fill="#2a2e38" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="274,610 282,605.2 282,645.2 274,650" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<rect x="186" y="610" width="88" height="40" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="230.0" y="633.45" font-size="11.5" fill="#f3f1ec" font-weight="600" text-anchor="middle">Widget</text>
+<polygon points="282,610 290,605.2 378,605.2 370,610" fill="#2a2e38" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="370,610 378,605.2 378,645.2 370,650" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<rect x="282" y="610" width="88" height="40" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="326.0" y="633.45" font-size="11.5" fill="#f3f1ec" font-weight="600" text-anchor="middle">Bluetooth</text>
+<polygon points="378,610 386,605.2 474,605.2 466,610" fill="#2a2e38" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="466,610 474,605.2 474,645.2 466,650" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<rect x="378" y="610" width="88" height="40" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="422.0" y="633.45" font-size="11.5" fill="#f3f1ec" font-weight="600" text-anchor="middle">Folders</text>
+<polygon points="474,610 482,605.2 570,605.2 562,610" fill="#2a2e38" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="562,610 570,605.2 570,645.2 562,650" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<rect x="474" y="610" width="88" height="40" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="518.0" y="633.45" font-size="11.5" fill="#f3f1ec" font-weight="600" text-anchor="middle">SQLite</text>
+<polygon points="590,504 612,490.8 812,490.8 790,504" fill="#53385e" stroke="#a57bb8" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="790,504 812,490.8 812,660.8 790,674" fill="#2e1f35" stroke="#a57bb8" stroke-opacity=".55" stroke-width="1"/>
+<rect x="590" y="504" width="200" height="170" fill="#3f2a48" stroke="#a57bb8" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="608" y="532" font-size="17" fill="#f3f1ec" font-weight="700" text-anchor="start">Web</text>
+<polygon points="606,552 613,547.8 777,547.8 770,552" fill="#2a2e38" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="770,552 777,547.8 777,575.8 770,580" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<rect x="606" y="552" width="164" height="28" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="688.0" y="569.45" font-size="11.5" fill="#f3f1ec" font-weight="600" text-anchor="middle">Web Audio</text>
+<polygon points="606,590 613,585.8 777,585.8 770,590" fill="#2a2e38" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="770,590 777,585.8 777,613.8 770,618" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<rect x="606" y="590" width="164" height="28" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="688.0" y="607.45" font-size="11.5" fill="#f3f1ec" font-weight="600" text-anchor="middle">sql.js on OPFS</text>
+<polygon points="606,628 613,623.8 777,623.8 770,628" fill="#2a2e38" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="770,628 777,623.8 777,651.8 770,656" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<rect x="606" y="628" width="164" height="28" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="688.0" y="645.45" font-size="11.5" fill="#f3f1ec" font-weight="600" text-anchor="middle">Service worker</text>
+<path d="M120,140 L120,664" stroke="#f5b041" stroke-width="2" stroke-dasharray="2 6" stroke-linecap="round" marker-end="url(#aa)"/>
+<text x="106" y="407.0" font-size="12.5" fill="#a3a8b2" text-anchor="middle" transform="rotate(-90 106 407.0)">each layer only talks to the one below</text>
+<text x="850" y="544" font-size="14" fill="#f3f1ec" font-weight="600" text-anchor="start">Swap the bottom,</text>
+<text x="850" y="564" font-size="14" fill="#f3f1ec" font-weight="600" text-anchor="start">keep everything above:</text>
+<text x="850" y="588" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="start">the same screens and logic</text>
+<text x="850" y="606" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="start">run on a phone and in a</text>
+<text x="850" y="624" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="start">browser.</text></svg>

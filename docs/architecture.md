@@ -5,41 +5,11 @@ each milestone added is in [`milestones/`](milestones/).
 
 ## The big picture
 
-Three kinds of places, kept apart on purpose: the device, which does the work and holds the data;
+Kept apart on purpose: the device, which does the work and holds the data;
 services anyone can run, which only answer questions; and the sources audio comes from, reached
 directly.
 
-```mermaid
-flowchart TB
-  subgraph device["The device"]
-    direction LR
-    app["Lelap app<br/>Android and web, one codebase"]
-    db[("SQLite<br/>library, places, settings")]
-    keys["Keystore<br/>logins, sync key"]
-    app --- db
-    app --- keys
-  end
-
-  subgraph addons["Add-ons"]
-    first["First-party<br/>Catalog, LibriVox,<br/>Hardcover, gPodder"]
-    third["Third-party<br/>on the web, or in<br/>the app's sandbox"]
-  end
-
-  subgraph ours["Lelap services"]
-    sync["sync<br/>ciphertext only"]
-    proxy["proxy<br/>feeds and covers<br/>for the web app"]
-    updates["updates<br/>APKs, app updates"]
-  end
-
-  subgraph sources["Audio sources"]
-    open["LibriVox,<br/>podcast hosts"]
-    own["The user's storage<br/>folders, WebDAV,<br/>S3, Jellyfin"]
-  end
-
-  device -- "catalogs, metadata, streams" --> addons
-  device -- "sealed operations, update checks" --> ours
-  device == "audio, straight from the source" ==> sources
-```
+<img src="images/architecture-overview.svg" alt="The device does the work and keeps the data; add-ons and Lelap services answer questions; audio comes straight from open sources or your own storage, never through Lelap's services." width="100%">
 
 - **The app does the work.** It plays, downloads, keeps the library and runs the logic on the
   device. Nothing needs an account.
@@ -76,30 +46,7 @@ flowchart TB
 Each layer only talks to the one below it, so the same screens and logic run on Android and in the
 browser, and native code stays behind small APIs.
 
-```mermaid
-flowchart TB
-  screens["Screens · apps/app/app<br/>Expo Router, NativeWind, t() for text"]
-  hooks["App glue · apps/app/src<br/>hooks, player state, add-on queries"]
-  core["Core · packages/core<br/>library, add-on client, sync, stats, Drizzle schema<br/><i>plain TypeScript, no React, tested with Vitest</i>"]
-  platform["Platform adapters · apps/app/src/platform<br/>foo.ts for Android · foo.web.ts for the web"]
-  subgraph android["Android"]
-    kotlin["Kotlin modules · modules/*<br/>Media3 · WorkManager · casting · updater · widget"]
-    sqlite[("expo-sqlite")]
-  end
-  subgraph web["Web"]
-    browser["Web Audio · fetch · service worker"]
-    opfs[("sql.js on OPFS")]
-  end
-  sdk["SDK · packages/sdk<br/>protocol as zod schemas"]
-
-  screens --> hooks --> core
-  hooks --> platform
-  core --> sdk
-  platform --> kotlin
-  platform --> sqlite
-  platform --> browser
-  platform --> opfs
-```
+<img src="images/architecture-layers.svg" alt="Layers inside the app: screens, app glue, core with the SDK beside it, platform adapters, then Android's Kotlin modules and the web's browser APIs." width="100%">
 
 Platform differences live in sibling files: `foo.ts` for Android, `foo.web.ts` for the web.
 Native modules have a JavaScript API in `modules/<name>/src`; the app reaches them through
@@ -118,17 +65,11 @@ Native modules have a JavaScript API in `modules/<name>/src`; the app reaches th
 
 ### What leaves the device
 
-```mermaid
-flowchart LR
-  subgraph phone["Device"]
-    lib["Library, places, bookmarks,<br/>Up Next, profiles, stats"]
-    secret["Logins and the sync key"]
-  end
-  lib -- "sealed with the group key" --> server["sync service<br/>stores ciphertext"]
-  secret -. "never leaves" .-x server
-  lib -- "an ID or a search,<br/>never the library" --> addon["Add-ons"]
-  lib -- "a scrobble event,<br/>only if the user adds one" --> scrobble["Scrobble add-on"]
-```
+- **Sync** gets your library sealed with a key only your devices have; the server stores
+  ciphertext.
+- **Add-ons** get an ID or a search, never the library.
+- **Scrobble add-ons** get listening events, only if you add one.
+- **Logins and the sync key** never leave the device.
 
 ## Hosts
 
@@ -159,18 +100,7 @@ D1 and R2.
 
 A release tag (`v1.2.3`, or `v1.2.3-beta.4` for a beta):
 
-```mermaid
-flowchart LR
-  tag(["tag v*"]) --> verify["Verify<br/>stamp version, all checks"]
-  verify --> gate{{"Maintainer<br/>approves"}}
-  gate --> apk["Direct APK<br/>signed, attested"]
-  gate --> fdroid["F-Droid APK<br/>reproducible"]
-  apk --> publish["Publish<br/>R2 · GitHub release · SHA256SUMS"]
-  fdroid --> publish
-  apk --> ota["Over-the-air<br/>bundle"]
-  apk --> images["Docker images<br/>ghcr.io"]
-  verify --> prod["Sync to production<br/>stable tags only"]
-```
+<img src="images/release-pipeline.svg" alt="A version tag runs the checks, waits for a maintainer to approve, builds the direct and F-Droid APKs in parallel, then publishes them, the over-the-air bundle and the Docker images." width="100%">
 
 1. **Verify:** stamps the version into `app.json`, runs every check.
 2. **Approval:** jobs in the `release` environment wait for a maintainer; it holds the signing
