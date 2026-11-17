@@ -87,7 +87,7 @@ const channels: {
   {
     icon: 'grid',
     title: 'F-Droid',
-    text: 'Coming after version 1.0. F-Droid builds Lelap from source and, when the result matches ours, ships the same signed APK, so you can switch between F-Droid and the direct download without reinstalling.',
+    text: 'Coming after the first stable release. F-Droid builds Lelap from source and, when the result matches ours, ships the same signed APK, so you can switch between F-Droid and the direct download without reinstalling.',
     later: true,
   },
 ];
@@ -109,7 +109,7 @@ const services = [
 const compose = `services:
   web:
     image: ghcr.io/lelap-app/web
-    ports: ["8080:80"]
+    ports: ["8080:8080"]
   catalog:
     image: ghcr.io/lelap-app/catalog
     env_file: .env
@@ -305,7 +305,7 @@ const compose = `services:
             ? 'No Play Store and no account. Every channel ships the same signed APK.'
             : site.beta
               ? 'A beta for Android is out: a test version, with rough edges. It updates itself as new betas arrive.'
-              : 'Nothing to download yet. These are the ways you’ll get version 1.0.'}
+              : 'Nothing to download yet. These are the ways you’ll get the first version.'}
         </p>
       </div>
       <div class="download">
@@ -318,7 +318,7 @@ const compose = `services:
               <h3 class="get-title">Android</h3>
               <span class="mono-accent">.apk · Android 8.0 or newer</span>
             </div>
-            {!site.released && <span class="badge">{site.beta ? 'Beta' : 'Coming with v1.0'}</span>}
+            {!site.released && <span class="badge">{site.beta ? 'Beta' : 'Coming soon'}</span>}
           </div>
           <p>
             The full experience: background playback, downloads with the screen off, casting and
@@ -396,7 +396,7 @@ const compose = `services:
                 Start listening
               </a>
             ) : (
-              <span class="badge get-cta">Coming with v1.0</span>
+              <span class="badge get-cta">Coming soon</span>
             )}
           </div>
           <div class="card get" data-reveal style="--i: 2">
@@ -438,7 +438,11 @@ const compose = `services:
           </li>
         ))}
       </ul>
-      {!site.released && <p class="muted small">Images are published with the first release.</p>}
+      {!site.released && (
+        <p class="muted small">
+          Until the first stable release, use the <code>beta</code> tag of each image.
+        </p>
+      )}
     </div>
     <div class="terminal" data-reveal style="--i: 1">
       <div class="terminal-head">docker-compose.yml</div>
@@ -487,8 +491,9 @@ const compose = `services:
         <details open>
           <summary>When can I use it?</summary>
           <p>
-            {site.name} is in early development. Follow the repository on GitHub to see progress;
-            the plan and the v1.0 scope are in the open.
+            {site.beta
+              ? 'A beta for Android is out now. The first stable version follows after a round of testing on phones; the roadmap is in the open on GitHub.'
+              : `${site.name} is in early development. Follow the repository on GitHub to see progress; the plan and the roadmap are in the open.`}
           </p>
         </details>
       )}
@@ -511,8 +516,7 @@ const compose = `services:
       <details>
         <summary>Is it free?</summary>
         <p>
-          Yes. The code is open source, and the hosted web app at {site.appHost} will be free to
-          use.
+          Yes. The code is open source, and the hosted web app at {site.appHost} is free to use.
         </p>
       </details>
       <details>
@@ -532,8 +536,9 @@ const compose = `services:
       <details>
         <summary>Can I write my own add-on?</summary>
         <p>
-          Yes. An add-on is a small HTTP service that returns JSON. The protocol and an SDK will be
-          documented in the <a href={site.repoUrl}>repository</a>.
+          Yes. An add-on is a small HTTP service that returns JSON. The{' '}
+          <a href="/docs/">add-on docs</a> cover the protocol and the SDK, which is on npm as{' '}
+          <code>@lelap/sdk</code>.
         </p>
       </details>
       <details>

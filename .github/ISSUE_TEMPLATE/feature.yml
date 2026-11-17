@@ -15,4 +15,4 @@ body:
       label: What would help?
   - type: markdown
     attributes:
-      value: Check docs/brief.md first; many ideas are already planned for v1.0 or later.
+      value: Check docs/roadmap.md first; many ideas are already planned.

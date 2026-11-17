@@ -8,7 +8,7 @@ rules for their own folder.
 Lelap is an open-source audiobook and podcast player. The app plays, downloads, remembers and
 syncs; add-ons (stateless HTTP services returning JSON, modelled on Stremio's add-on protocol)
 bring catalogs, metadata and audio sources. Android first, the same code on the web, and a
-self-hostable backend. The full plan, decisions and v1.0 scope are in
+self-hostable backend. Decisions, principles and architecture are in
 [`docs/brief.md`](docs/brief.md). Read it before making architectural choices. Milestones, their
 status and the infrastructure each needs are in [`docs/milestones/`](docs/milestones/), one file
 per milestone; [`docs/roadmap.md`](docs/roadmap.md) lists them all. When you start or finish one,
@@ -50,7 +50,7 @@ modules/bluetooth Kotlin Expo module: connected Bluetooth audio devices, battery
 examples/       add-on samples: plain Node, Python (stdlib), seasonal catalogs; tested in CI
 docker/         Node entries, Dockerfiles and compose for self-hosting      → docker/README.md
 scripts/        release helpers for the tag workflow (Node, type stripping)
-docs/brief.md   decisions, stack, infrastructure, v1.0 scope
+docs/brief.md   decisions, architecture, stack, protocol, infrastructure
 docs/roadmap.md every milestone M0–M38 at a glance, environments
 docs/milestones/ one file per milestone: status, resources, done when
 ```

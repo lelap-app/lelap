@@ -6,31 +6,35 @@ Lelap is an open-source player for audiobooks and podcasts. The app plays, downl
 your place and syncs it; add-ons bring the catalogs, metadata and audio sources. It runs on Android
 and on the web from one codebase, and every server piece can be self-hosted with Docker.
 
-> **Status:** early development. There is nothing to install yet. The landing page lives in
-> [`apps/site`](apps/site); the plan is in [`docs/brief.md`](docs/brief.md) and progress in
-> [`docs/roadmap.md`](docs/roadmap.md).
+> **Status:** beta. The Android beta is on
+> [GitHub Releases](https://github.com/lelap-app/lelap/releases) and updates itself; the first
+> stable version follows a round of testing on phones. Decisions and architecture are in
+> [`docs/brief.md`](docs/brief.md), progress in [`docs/roadmap.md`](docs/roadmap.md).
 
-## What it will do
+## What it does
 
-- Play audiobooks and podcasts in the background, with the screen off and through calls.
-- Download for offline listening, and work fully in airplane mode.
-- Remember speed per book, rewind smartly after pauses, and fade out with the sleep timer.
-- Organise with tags, playlists, smart lists and one Up Next queue.
-- Sync progress between devices with a pairing code. No account, end-to-end encrypted.
-- Get content from add-ons: LibriVox, Open Library, Podcast Index, RSS feeds, your own files, your
-  own WebDAV server, or add-ons you write yourself.
+- Plays audiobooks and podcasts in the background, with the screen off and through calls.
+- Downloads for offline listening, and works fully in airplane mode.
+- Remembers speed per book, rewinds smartly after pauses, and fades out with the sleep timer.
+- Organises with tags, playlists, smart lists and one Up Next queue.
+- Syncs progress between devices with a pairing code. No account, end-to-end encrypted.
+- Plays from your own files and folders, your own WebDAV, S3-compatible or Jellyfin server, and
+  add-ons: LibriVox, Open Library, Podcast Index, RSS feeds, or add-ons you write yourself.
+- Casts to Sonos, DLNA and Google Cast speakers without Google's SDK, and works in Android Auto.
+- Profiles for a household, and the app in English and Bahasa Melayu.
 
 ## Repository layout
 
-| Path            | What                                              | Status  |
-| --------------- | ------------------------------------------------- | ------- |
-| `apps/site`     | Landing page for lelap.app (Astro, static)        | Started |
-| `apps/app`      | The app: Expo for Android and the web             | Planned |
-| `packages/core` | Domain model, add-on client, sync, ID graph       | Planned |
-| `packages/sdk`  | Add-on SDK and protocol types, published to npm   | Planned |
-| `services/*`    | Catalog, proxy, sync and update services (Hono)   | Planned |
-| `modules/*`     | Native Android modules: audio, downloads, casting | Planned |
-| `docs/`         | Project brief and, later, the add-on protocol     | Started |
+| Path            | What                                                         |
+| --------------- | ------------------------------------------------------------ |
+| `apps/app`      | The app: Expo for Android and the web                        |
+| `apps/site`     | Landing page and add-on docs for lelap.app (Astro, static)   |
+| `packages/core` | Domain model, library, add-on client, sync                   |
+| `packages/sdk`  | Add-on SDK and protocol types, on npm as `@lelap/sdk`        |
+| `services/*`    | Catalog, proxy, sync and update services (Hono)              |
+| `modules/*`     | Native Android modules: audio, library, downloads, casting … |
+| `docker/`       | Images and compose file for self-hosting                     |
+| `docs/`         | Brief, roadmap, one file per milestone, test lists           |
 
 ## Getting started
 
@@ -39,27 +43,35 @@ You need Node 24 (see `.nvmrc`) and pnpm through Corepack.
 ```bash
 corepack enable
 pnpm install
-pnpm dev:site
+pnpm dev:app
 ```
 
-The site runs on http://localhost:4321.
+`pnpm dev:app` starts the app's dev server; press `w` for the web app. For the Android app on a
+phone, see [`apps/app/README.md`](apps/app/README.md).
 
 Useful commands from the root:
 
-| Command         | What it does                        |
-| --------------- | ----------------------------------- |
-| `pnpm dev:site` | Start the landing page locally      |
-| `pnpm build`    | Build every package                 |
-| `pnpm check`    | Type-check every package            |
-| `pnpm lint`     | Lint with ESLint                    |
-| `pnpm format`   | Format the repository with Prettier |
+| Command         | What it does                              |
+| --------------- | ----------------------------------------- |
+| `pnpm dev:app`  | Start the app's dev server                |
+| `pnpm android`  | Build and run the app on a phone over USB |
+| `pnpm dev:site` | Start the landing page on localhost:4321  |
+| `pnpm build`    | Build every package                       |
+| `pnpm check`    | Type-check every package                  |
+| `pnpm test`     | Run every package's tests                 |
+| `pnpm lint`     | Lint with ESLint                          |
+| `pnpm format`   | Format the repository with Prettier       |
 
 A pre-commit hook runs ESLint and Prettier on staged files. It is installed by `pnpm install`.
 
 ## Deployment
 
-The landing page deploys to Cloudflare Pages from GitHub Actions on every push to `main` that
-touches it. See [`apps/site/README.md`](apps/site/README.md) for the one-time setup.
+GitHub Actions deploys from `main`: the landing page and the web app to Cloudflare Pages, and the
+catalog, proxy and updates services to Cloudflare Workers (sync to staging). A `v*` tag builds the
+signed APKs, publishes them to GitHub Releases and the downloads host with an over-the-air bundle
+and the Docker images, and deploys sync to production. Setup is in
+[`apps/site/README.md`](apps/site/README.md) and [`services/README.md`](services/README.md);
+self-hosting with Docker in [`docker/README.md`](docker/README.md).
 
 ## Contributing
 
@@ -79,4 +91,4 @@ repository or in one of our own add-ons, write to **copyright@lelap.app**.
 ## License
 
 [GNU AGPL-3.0](LICENSE). If you run a modified Lelap service for others, you share your changes.
-The add-on SDK will be published under MIT, so anyone can build add-ons with it.
+The add-on SDK, [`@lelap/sdk`](packages/sdk), is MIT, so anyone can build add-ons with it.

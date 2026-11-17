@@ -1,7 +1,7 @@
 # Lelap project brief
 
-The single place for decisions, architecture and scope. Change it in the same pull request as any
-change that makes it untrue.
+Decisions, principles and architecture. Change it in the same pull request as any change that makes
+it untrue. What gets built when is in [`roadmap.md`](roadmap.md).
 
 ## Decisions
 
@@ -18,6 +18,7 @@ change that makes it untrue.
 | Distribution | APK outside Google Play: R2 download, GitHub Releases, Obtainium            | No store review. In-app updater for APKs, OTA for JavaScript changes.                                                                                                                                                                 |
 | Releases     | Signed in CI on `v*` tags, behind an environment approval                   | No manual signing.                                                                                                                                                                                                                    |
 | Accounts     | None. Optional sync with a pairing code, end-to-end encrypted               | The server only sees ciphertext, including add-on URLs.                                                                                                                                                                               |
+| License      | AGPL-3.0 for the app and services, MIT for the add-on SDK                   | Changes to a hosted Lelap service stay open; add-on authors can use the SDK anywhere.                                                                                                                                                 |
 | Content      | Neutral core; content comes from add-ons                                    | See Policy.                                                                                                                                                                                                                           |
 | Own storage  | WebDAV, S3, Jellyfin and Audiobookshelf built into the app, not add-ons     | Logins stay sealed on the phone; home servers are only reachable from it; Media3 sends login headers that add-on streams can't carry, and audio never goes through our servers. Each type is a module in `packages/core/src/remote/`. |
 
@@ -40,22 +41,36 @@ Kotlin modules                        Media3 MediaLibraryService, downloads, cas
 Storage                               SQLite (Android), SQLite WASM on OPFS (web)
 ```
 
-Planned repository layout:
+The repository layout is in [`AGENTS.md`](../AGENTS.md#repository-map).
 
-```
-apps/app          Expo app: Android and web (listen.lelap.app)
-apps/site         landing page and docs: Astro (lelap.app)
-packages/core     domain model, add-on client, sync, ID graph
-packages/sdk      add-on SDK and types (npm)
-modules/audio     Kotlin: Media3 service, focus, fade
-modules/download  Kotlin: background downloads
-modules/cast      Kotlin: UPnP, own Cast v2 client, FCast; no Google SDK
-services/catalog  catalog add-on (Hono)
-services/proxy    RSS, cover and transcript proxy for the web (Hono)
-services/sync     encrypted sync (Hono)
-services/updates  expo-updates server and latest.json (Hono)
-docker/           compose file and images for self-hosting
-```
+### Web
+
+- **Database:** sql.js in memory, with the whole file written to OPFS about a second after each
+  change and when the tab hides. expo-sqlite's web build needs cross-origin isolation, which blocks
+  covers and audio from other sites and does not work in Safari.
+- **Audio:** one `<audio>` element and Media Session. The sleep timer fades the element's volume;
+  a Web Audio gain node would need CORS on every audio host.
+- **Downloads:** fetch into OPFS while the tab is open, when the audio host allows CORS. No Wi-Fi
+  or charging rules. Local library folders are Android only.
+- **Feeds** go through `proxy.lelap.app` (XML only, 10 MB, never audio); plain-http covers too, and
+  Podcasting 2.0 chapters files and transcripts (UTF-8 text only, 5 MB).
+
+### Sync
+
+- **Group:** devices that sync share a random 32-byte key. The server knows a random group ID and
+  the SHA-256 of an auth token derived from the key (HKDF), never the key.
+- **Oplog:** each sync pushes the rows changed since the last push as operations, sealed with
+  XChaCha20-Poly1305 (`@noble/ciphers`: pure JavaScript, so the same code runs in Hermes, browsers
+  and Workers; libsodium needs WebAssembly, which Hermes lacks). The newest change to a row wins.
+  Deletions travel as tombstones. Books are named by what they are (location, or feed URL and
+  episode guid), since row IDs differ per device.
+- **Pairing:** a 12-character code (60 bits). Its scrypt output gives the server a lookup ID and a
+  key that seals the group secret; the server keeps the blob ten minutes and hands it out once.
+- **What syncs:** places, finished and speed, bookmarks, streamed books, podcast subscriptions and
+  episode places, Up Next, playback settings, profiles. Not: local files, downloads, download
+  rules, add-on lists.
+- **Journal times:** the playback journal carries when the place last moved, not when it was
+  written, so a stale place loaded on one device never outranks a newer one from another.
 
 ## Stack
 
@@ -105,15 +120,15 @@ Audiobookshelf) are built into the app; see Decisions.
 
 ## Infrastructure
 
-| Host                | What                                  | Runs on                       |
-| ------------------- | ------------------------------------- | ----------------------------- |
-| `lelap.app`         | Landing page, `/docs`, terms, privacy | Pages                         |
-| `listen.lelap.app`  | The PWA                               | Pages                         |
-| `dl.lelap.app`      | APKs, `latest.json`, OTA bundles      | R2                            |
-| `updates.lelap.app` | expo-updates manifests                | Worker + R2                   |
-| `catalog.lelap.app` | Catalog add-on                        | Worker + Cache API            |
-| `proxy.lelap.app`   | RSS, covers, transcripts; never audio | Worker + Cache API            |
-| `sync.lelap.app`    | Encrypted blobs and oplogs            | Worker + D1 or Durable Object |
+| Host                | What                                  | Runs on            |
+| ------------------- | ------------------------------------- | ------------------ |
+| `lelap.app`         | Landing page, `/docs`, terms, privacy | Pages              |
+| `listen.lelap.app`  | The PWA                               | Pages              |
+| `dl.lelap.app`      | APKs, `latest.json`, OTA bundles      | R2                 |
+| `updates.lelap.app` | expo-updates manifests                | Worker + R2        |
+| `catalog.lelap.app` | Catalog add-on                        | Worker + Cache API |
+| `proxy.lelap.app`   | RSS, covers, transcripts; never audio | Worker + Cache API |
+| `sync.lelap.app`    | Encrypted blobs and oplogs            | Worker + D1        |
 
 Self-hosting: images `web`, `catalog`, `proxy`, `sync` on `ghcr.io`; storage adapters swap D1 for
 SQLite and R2 for disk or MinIO.
@@ -145,66 +160,4 @@ Protection: tag ruleset for `v*`, required reviewer on `release`, branch protect
 - First-party add-ons only for open sources and storage the user controls.
 - No list, store or recommendations of third-party add-ons.
 - No audio through Lelap infrastructure.
-- Rights holders reach us at `copyright@lelap.app`; the landing page shows it.
 - Moderate project channels; remove requests for and links to pirated content.
-
-## Milestones
-
-M0 to M8, their status, “done when” criteria and the Cloudflare resources each one needs are in
-[`roadmap.md`](roadmap.md).
-
-## v1.0 scope
-
-- **Player:** background playback, call ducking, speed per book, smart rewind, chapters, bookmarks,
-  sleep timer with fade and shake to extend.
-- **Library:** local files, background downloads, airplane mode, tags, playlists, smart lists,
-  Up Next, RSS with OPML, full export.
-- **Add-ons:** protocol v1 (catalog, meta, stream, search), SDK, Catalog and LibriVox add-ons,
-  Home rows, Discover, merged search. WebDAV is built into the app.
-- **Platform:** PWA, encrypted sync, APK updater and OTA, Docker compose, Android Auto browsing,
-  landing page with terms, privacy and copyright contact.
-
-## Later
-
-Profiles for a household with optional PIN, avatars and a kids profile
-([M9 in the roadmap](milestones/m9.md)), casting (Chromecast, Sonos), scrobbling
-(Hardcover, gPodder, Goodreads CSV), Audiobookshelf and Jellyfin add-ons, artwork add-ons with
-app-drawn rating badges, on-device recommendations, silence auto-chapters and Podcasting 2.0
-transcripts, voice boost and intro trimming, widgets and Wear OS, stats, importers, sandboxed local
-add-ons, add-on health and permissions, and the output device (Bluetooth headphones, car) named in
-the Player.
-
-## Web build (M6)
-
-- **Database:** sql.js in memory, with the whole file written to OPFS about a second after each
-  change and when the tab hides. expo-sqlite's web build needs cross-origin isolation, which blocks
-  covers and audio from other sites and does not work in Safari.
-- **Audio:** one `<audio>` element and Media Session. The sleep timer fades the element's volume;
-  a Web Audio gain node would need CORS on every audio host.
-- **Downloads:** fetch into OPFS while the tab is open, when the audio host allows CORS. No Wi-Fi
-  or charging rules. Local library folders are Android only.
-- **Feeds** go through `proxy.lelap.app` (XML only, 10 MB, never audio); plain-http covers too, and
-  Podcasting 2.0 chapters files and transcripts (UTF-8 text only, 5 MB).
-
-## Sync (M7)
-
-- **Group:** devices that sync share a random 32-byte key. The server knows a random group ID and
-  the SHA-256 of an auth token derived from the key (HKDF), never the key.
-- **Oplog:** each sync pushes the rows changed since the last push as operations, sealed with
-  XChaCha20-Poly1305 (`@noble/ciphers`: pure JavaScript, so the same code runs in Hermes, browsers
-  and Workers; libsodium needs WebAssembly, which Hermes lacks). The newest change to a row wins.
-  Deletions travel as tombstones. Books are named by what they are (location, or feed URL and
-  episode guid), since row IDs differ per device.
-- **Pairing:** a 12-character code (60 bits). Its scrypt output gives the server a lookup ID and a
-  key that seals the group secret; the server keeps the blob ten minutes and hands it out once.
-- **What syncs:** places, finished and speed, bookmarks, streamed books, podcast subscriptions and
-  episode places, Up Next, playback settings, profiles. Not: local files, downloads, download
-  rules, add-on lists.
-- **Journal times:** the playback journal carries when the place last moved, not when it was
-  written, so a stale place loaded on one device never outranks a newer one from another.
-
-## Open questions
-
-- License: AGPL-3.0 for app and services with MIT for the SDK, or something simpler.
-- Google's developer verification for sideloaded apps: current requirements.
-- F-Droid: a `foss` flavor without the Google Cast SDK; reproducible builds or F-Droid's own key.

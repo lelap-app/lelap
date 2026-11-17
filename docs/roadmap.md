@@ -2,9 +2,8 @@
 
 Milestones in the order we plan them. Each has its own file in [`milestones/`](milestones/) with
 its status, what it needs and when it is done. Change the status line there, never this table, so
-pull requests for different milestones never touch the same lines. Scope
-and architecture live in [`brief.md`](brief.md); plans for milestones not started yet in
-[`next.md`](next.md).
+pull requests for different milestones never touch the same lines. Decisions and architecture live
+in [`brief.md`](brief.md); plans for milestones not started yet in [`next.md`](next.md).
 
 | Milestone                                            | In short                                                                                                |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -17,7 +16,7 @@ and architecture live in [`brief.md`](brief.md); plans for milestones not starte
 | [M6 Web build](milestones/m6.md)                     | The same app on the web: OPFS storage, web audio, feed and cover proxy                                  |
 | [M7 Sync](milestones/m7.md)                          | Pairing code and end-to-end encrypted sync of places and lists                                          |
 | [M8 Release pipeline](milestones/m8.md)              | Signed APK in CI, in-app updater, Docker images, landing page live                                      |
-| [M9 Profiles (v1.1)](milestones/m9.md)               | Profiles with avatars, PINs and kids limits                                                             |
+| [M9 Profiles](milestones/m9.md)                      | Profiles with avatars, PINs and kids limits                                                             |
 | [M10 Your own storage](milestones/m10.md)            | WebDAV (Nextcloud, ownCloud, any server), S3-compatible buckets, Audiobookshelf                         |
 | [M11 Background engine](milestones/m11.md)           | Up Next with the app closed, feed refresh and auto-download in the background, background sync          |
 | [M12 Look and feel](milestones/m12.md)               | UI pass against the design sketch, one icon set, player polish, simple motion                           |
@@ -65,8 +64,8 @@ and architecture live in [`brief.md`](brief.md); plans for milestones not starte
 | [M54 Faster builds, smaller APKs](milestones/m54.md) | Build unsigned with caches and sign separately; one APK per CPU type                                    |
 | [M55 Light landing page](milestones/m55.md)          | The site and docs in a light theme too, following the system, with a switch                             |
 
-v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
-v1.1.
+The first stable release is `v0.1.0`, shipped by [M40](milestones/m40.md) with everything built so
+far.
 
 ## Environments
 
