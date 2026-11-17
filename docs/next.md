@@ -49,6 +49,7 @@ In [the brief's v1.0 scope](brief.md#v10-scope) but not built by M1–M9:
 | M36 | Jellyfin               | Jellyfin as a source, next to Audiobookshelf                                                            |
 | M37 | Kids profile           | A profile with its own library and no add-on installation                                               |
 | M38 | Add-ons in the app     | Sandboxed JavaScript add-ons (QuickJS) with network only to declared hosts, for LAN sources             |
+| M39 | Precise seeking        | Bookmarks on the progress bar with snapping, fine scrubbing and jump-to-time for long books             |
 
 M29 and M32 close gaps in the brief's v1.0 scope; they can run before the others.
 
