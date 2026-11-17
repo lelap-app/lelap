@@ -1,0 +1,209 @@
+import { readFileSync } from 'node:fs';
+
+import { eq } from 'drizzle-orm';
+import { beforeEach, describe, expect, it } from 'vitest';
+
+import { createTestDb } from '../../test/db';
+import type { Db } from '../db';
+import { getBook } from '../library/queries';
+import { DEFAULT_PROFILE_ID as ME } from '../profiles';
+import { bookFiles, podcasts } from '../schema';
+import { cueAt, parseChaptersFile, parseTranscript, pickTranscript } from './podcasting';
+import {
+  episodeBook,
+  episodeDetail,
+  feedCache,
+  listEpisodes,
+  saveEpisodeChapters,
+  saveFeed,
+} from './repository';
+import { parseFeed } from './rss';
+
+const fixture = (name: string) =>
+  readFileSync(new URL(`../../test/fixtures/${name}`, import.meta.url), 'utf8');
+
+let n = 0;
+const newId = () => `id-${String(++n).padStart(6, '0')}`;
+const FEED_URL = 'https://example.org/night-sky.xml';
+
+describe('Podcasting 2.0 feed tags', () => {
+  const feed = parseFeed(fixture('podcasting2.xml'));
+  const [orion, plain] = feed.episodes;
+
+  it('reads people and funding links of the show', () => {
+    expect(feed.guid).toBe('c9a1b4f2-0000-5000-8000-000000000001');
+    expect(feed.extras.persons).toEqual([
+      {
+        name: 'Ada Lovelace',
+        role: 'host',
+        group: 'cast',
+        img: 'https://img.example.org/ada.jpg',
+        href: 'https://example.org/ada',
+      },
+      { name: 'Charles Babbage', role: 'host', group: 'cast', img: null, href: null },
+    ]);
+    // Only web addresses: a `javascript:` link is dropped.
+    expect(feed.extras.funding).toEqual([
+      { url: 'https://example.org/support', label: 'Support the show!' },
+      { url: 'https://example.org/members', label: null },
+    ]);
+  });
+
+  it('reads chapters, transcripts, guests and seasons of an episode', () => {
+    expect(orion?.season).toBe(2);
+    expect(orion?.number).toBe(4);
+    expect(orion?.extras.seasonName).toBe('Winter & spring');
+    expect(orion?.extras.chaptersUrl).toBe('https://example.org/orion/chapters.json');
+    expect(orion?.extras.transcripts.map((t) => t.type)).toEqual([
+      'text/html',
+      'application/x-subrip',
+      'application/json',
+    ]);
+    expect(orion?.extras.transcripts[1]?.rel).toBe('captions');
+    expect(orion?.extras.persons).toEqual([
+      {
+        name: 'Grace Hopper',
+        role: 'guest',
+        group: 'cast',
+        img: null,
+        href: 'https://example.org/grace',
+      },
+    ]);
+  });
+
+  it('prefers itunes numbers and ignores addresses that are not http', () => {
+    expect(plain?.season).toBe(1);
+    expect(plain?.extras).toEqual({
+      chaptersUrl: null,
+      transcripts: [],
+      persons: [],
+      seasonName: null,
+    });
+  });
+
+  it('picks a timed transcript over HTML', () => {
+    expect(pickTranscript(orion?.extras.transcripts ?? [])?.type).toBe('application/json');
+    expect(
+      pickTranscript([
+        { url: 'https://a/t.html', type: 'text/html', language: null, rel: null },
+        { url: 'https://a/t.vtt', type: 'text/vtt', language: null, rel: null },
+      ])?.url,
+    ).toBe('https://a/t.vtt');
+    expect(
+      pickTranscript([
+        { url: 'https://a/t.pdf', type: 'application/pdf', language: null, rel: null },
+      ]),
+    ).toBeNull();
+  });
+});
+
+describe('chapters files', () => {
+  it('sorts, skips artwork-only entries and fills empty titles', () => {
+    expect(parseChaptersFile(fixture('chapters.json'))).toEqual([
+      { title: 'Intro', startMs: 0 },
+      { title: 'Finding Orion', startMs: 95_500 },
+      { title: 'Chapter 3', startMs: 300_000 },
+    ]);
+  });
+
+  it('gives nothing for a file that is not a chapters file', () => {
+    expect(parseChaptersFile('<html>')).toEqual([]);
+    expect(parseChaptersFile('{"chapters": 3}')).toEqual([]);
+  });
+});
+
+describe('transcripts', () => {
+  it('joins word-level JSON segments into sentences per speaker', () => {
+    expect(parseTranscript(fixture('transcript.json'), 'application/json')).toEqual([
+      { startMs: 500, endMs: 1800, speaker: 'Ada', text: 'Welcome back, everyone.' },
+      { startMs: 2000, endMs: 2400, speaker: 'Ada', text: 'Tonight' },
+      { startMs: 3000, endMs: 3500, speaker: 'Grace', text: 'Hello!' },
+      { startMs: 4000, endMs: 4500, speaker: 'Grace', text: 'Thanks' },
+    ]);
+  });
+
+  it('reads SRT with speakers written before the line', () => {
+    expect(parseTranscript(fixture('transcript.srt'), 'application/srt')).toEqual([
+      { startMs: 500, endMs: 2000, speaker: 'Ada', text: 'Welcome back, everyone.' },
+      { startMs: 2000, endMs: 4250, speaker: null, text: 'Tonight we look at Orion.' },
+    ]);
+  });
+
+  it('reads WebVTT with voice tags and hours', () => {
+    expect(parseTranscript(fixture('transcript.vtt'), 'text/vtt')).toEqual([
+      { startMs: 500, endMs: 2000, speaker: 'Ada', text: 'Welcome back, everyone.' },
+      { startMs: 3_602_000, endMs: 3_604_000, speaker: 'Grace Hopper', text: 'Hello & goodbye!' },
+    ]);
+  });
+
+  it('shows HTML as untimed paragraphs', () => {
+    expect(parseTranscript('<p>One</p><p>Two &amp; three</p>', 'text/html')).toEqual([
+      { startMs: null, endMs: null, speaker: null, text: 'One' },
+      { startMs: null, endMs: null, speaker: null, text: 'Two & three' },
+    ]);
+  });
+
+  it('finds the line playing at a position', () => {
+    const cues = parseTranscript(fixture('transcript.srt'), 'text/srt');
+    expect(cueAt(cues, 0)).toBe(-1);
+    expect(cueAt(cues, 1000)).toBe(0);
+    expect(cueAt(cues, 9000)).toBe(1);
+  });
+});
+
+describe('storing Podcasting 2.0 fields', () => {
+  let db: Db;
+  beforeEach(async () => {
+    db = await createTestDb();
+  });
+
+  const save = () =>
+    saveFeed(
+      db,
+      FEED_URL,
+      parseFeed(fixture('podcasting2.xml')),
+      { etag: '"v1"', lastModified: null },
+      1,
+      newId,
+    );
+
+  it('keeps extras on the podcast and its episodes', () => {
+    const { podcastId } = save();
+    const orion = listEpisodes(db, ME, podcastId).find((e) => e.title === 'Orion in winter');
+    const bookId = episodeBook(db, orion?.id ?? '', 2, newId);
+    const detail = episodeDetail(db, bookId);
+    expect(detail?.podcastTitle).toBe('Night Sky Notes');
+    expect(detail?.extras?.chaptersUrl).toBe('https://example.org/orion/chapters.json');
+    expect(detail?.podcastExtras?.funding).toHaveLength(2);
+    expect(episodeDetail(db, 'not-an-episode')).toBeNull();
+  });
+
+  it('reads a feed stored before the fields existed in full once', () => {
+    const { podcastId } = save();
+    expect(feedCache(db, FEED_URL)).toEqual({ etag: '"v1"', lastModified: null });
+    db.update(podcasts).set({ extras: null }).where(eq(podcasts.id, podcastId)).run();
+    expect(feedCache(db, FEED_URL)).toEqual({ etag: null, lastModified: null });
+  });
+
+  it('gives an episode without chapters the chapters file, once', () => {
+    const { podcastId } = save();
+    const orion = listEpisodes(db, ME, podcastId).find((e) => e.title === 'Orion in winter');
+    const bookId = episodeBook(db, orion?.id ?? '', 2, newId);
+    const list = parseChaptersFile(fixture('chapters.json'));
+    expect(saveEpisodeChapters(db, bookId, list, 3, newId)).toBe(true);
+    expect(getBook(db, ME, bookId)?.chapters).toEqual(list);
+    expect(saveEpisodeChapters(db, bookId, [{ title: 'Other', startMs: 0 }], 4, newId)).toBe(false);
+    expect(getBook(db, ME, bookId)?.chapters).toEqual(list);
+  });
+
+  it('never replaces chapters embedded in the audio', () => {
+    const { podcastId } = save();
+    const orion = listEpisodes(db, ME, podcastId).find((e) => e.title === 'Orion in winter');
+    const bookId = episodeBook(db, orion?.id ?? '', 2, newId);
+    db.update(bookFiles)
+      .set({ chaptersJson: [{ title: 'Embedded', startMs: 0 }] })
+      .where(eq(bookFiles.bookId, bookId))
+      .run();
+    expect(saveEpisodeChapters(db, bookId, [{ title: 'File', startMs: 0 }], 3, newId)).toBe(false);
+  });
+});

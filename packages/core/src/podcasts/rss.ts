@@ -1,3 +1,9 @@
+import {
+  episodeExtrasOf,
+  type EpisodeExtras,
+  podcastExtrasOf,
+  type PodcastExtras,
+} from './podcasting';
 import { asArray, attrOf, FeedError, htmlToText, isNode, parseXml, textOf } from './xml';
 
 export type FeedEpisode = {
@@ -11,6 +17,7 @@ export type FeedEpisode = {
   url: string;
   mime: string | null;
   size: number;
+  extras: EpisodeExtras;
 };
 
 export type ParsedFeed = {
@@ -20,6 +27,7 @@ export type ParsedFeed = {
   coverUrl: string | null;
   link: string | null;
   guid: string | null;
+  extras: PodcastExtras;
   episodes: FeedEpisode[];
 };
 
@@ -27,6 +35,7 @@ const isHttp = (url: string) => /^https?:\/\//i.test(url);
 const orNull = (text: string) => (text === '' ? null : text);
 
 function positiveInt(text: string): number | null {
+  if (text === '') return null;
   const n = Number(text);
   return Number.isInteger(n) && n >= 0 ? n : null;
 }
@@ -86,10 +95,13 @@ export function parseFeed(xml: string): ParsedFeed {
         'Untitled episode',
       description: orNull(description),
       publishedAt: Number.isFinite(published) ? published : null,
-      season: positiveInt(textOf(item['itunes:season'])),
-      number: positiveInt(textOf(item['itunes:episode'])),
+      season:
+        positiveInt(textOf(item['itunes:season'])) ?? positiveInt(textOf(item['podcast:season'])),
+      number:
+        positiveInt(textOf(item['itunes:episode'])) ?? positiveInt(textOf(item['podcast:episode'])),
       durationMs: parseDuration(textOf(item['itunes:duration'])),
       ...enclosure,
+      extras: episodeExtrasOf(item),
     });
   }
 
@@ -105,6 +117,7 @@ export function parseFeed(xml: string): ParsedFeed {
     coverUrl: isHttp(cover) ? cover : null,
     link: orNull(link),
     guid: orNull(textOf(channel['podcast:guid'])),
+    extras: podcastExtrasOf(channel),
     episodes,
   };
 }

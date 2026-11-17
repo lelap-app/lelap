@@ -1,10 +1,12 @@
 import { and, desc, eq } from 'drizzle-orm';
 
 import type { Db } from '../db';
+import type { StoredChapter } from '../schema';
 import type { IdGenerator } from '../ids';
 import {
   bookFiles,
   books,
+  chapters,
   downloads,
   episodes,
   libraryEntries,
@@ -13,6 +15,7 @@ import {
   subscriptions,
 } from '../schema';
 import { recordDeletion } from '../sync/keys';
+import type { EpisodeExtras, PodcastExtras } from './podcasting';
 import type { ParsedFeed } from './rss';
 
 export type FeedCache = { etag: string | null; lastModified: string | null };
@@ -40,6 +43,7 @@ export function saveFeed(
       description: feed.description,
       coverUrl: feed.coverUrl,
       link: feed.link,
+      extras: feed.extras,
       etag: cache.etag,
       lastModified: cache.lastModified,
       fetchedAt: now,
@@ -77,6 +81,7 @@ export function saveFeed(
         url: episode.url,
         mime: episode.mime,
         size: episode.size,
+        extras: episode.extras,
         updatedAt: now,
       };
       const found = known.get(episode.guid);
@@ -102,13 +107,15 @@ export function saveFeed(
 }
 
 export function feedCache(db: Db, feedUrl: string): FeedCache | null {
-  return (
-    db
-      .select({ etag: podcasts.etag, lastModified: podcasts.lastModified })
-      .from(podcasts)
-      .where(eq(podcasts.feedUrl, feedUrl))
-      .get() ?? null
-  );
+  const row = db
+    .select({ etag: podcasts.etag, lastModified: podcasts.lastModified, extras: podcasts.extras })
+    .from(podcasts)
+    .where(eq(podcasts.feedUrl, feedUrl))
+    .get();
+  if (!row) return null;
+  // Stored before Podcasting 2.0 fields were read: fetch the whole feed once to fill them in.
+  if (row.extras === null) return { etag: null, lastModified: null };
+  return { etag: row.etag, lastModified: row.lastModified };
 }
 
 export function subscribe(db: Db, profileId: string, podcastId: string, now: number): void {
@@ -344,4 +351,77 @@ export function autoDownloadWork(
       if (e.finished && e.downloadState !== null && e.bookId) remove.push(e.bookId);
   }
   return { download, remove };
+}
+
+export type EpisodeDetail = {
+  episodeId: string;
+  podcastId: string;
+  podcastTitle: string;
+  title: string;
+  extras: EpisodeExtras | null;
+  podcastExtras: PodcastExtras | null;
+};
+
+/** The Podcasting 2.0 fields of the episode a book plays, or null for any other book. */
+export function episodeDetail(db: Db, bookId: string): EpisodeDetail | null {
+  const row = db
+    .select({ episode: episodes, podcast: podcasts })
+    .from(episodes)
+    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .where(eq(episodes.bookId, bookId))
+    .get();
+  if (!row) return null;
+  return {
+    episodeId: row.episode.id,
+    podcastId: row.podcast.id,
+    podcastTitle: row.podcast.title,
+    title: row.episode.title,
+    extras: row.episode.extras,
+    podcastExtras: row.podcast.extras,
+  };
+}
+
+/**
+ * Chapters from an episode's chapters file. Only an episode book without chapters takes them, so
+ * chapters embedded in the audio always win. Returns whether they were stored.
+ */
+export function saveEpisodeChapters(
+  db: Db,
+  bookId: string,
+  list: StoredChapter[],
+  now: number,
+  newId: IdGenerator,
+): boolean {
+  if (list.length === 0) return false;
+  return db.transaction((tx) => {
+    const files = tx
+      .select({ id: bookFiles.id, chaptersJson: bookFiles.chaptersJson })
+      .from(bookFiles)
+      .where(eq(bookFiles.bookId, bookId))
+      .all();
+    const episode = tx
+      .select({ id: episodes.id })
+      .from(episodes)
+      .where(eq(episodes.bookId, bookId))
+      .get();
+    const file = files[0];
+    if (!episode || !file || files.length !== 1 || file.chaptersJson.length > 0) return false;
+    const existing = tx
+      .select({ id: chapters.id })
+      .from(chapters)
+      .where(eq(chapters.bookId, bookId))
+      .get();
+    if (existing) return false;
+    tx.update(bookFiles)
+      .set({ chaptersJson: list, updatedAt: now })
+      .where(eq(bookFiles.id, file.id))
+      .run();
+    list.forEach((c, idx) =>
+      tx
+        .insert(chapters)
+        .values({ id: newId(), bookId, idx, title: c.title, startMs: c.startMs, updatedAt: now })
+        .run(),
+    );
+    return true;
+  });
 }

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Night Sky Notes</title>
+    <link>https://example.org/night-sky</link>
+    <description>Stargazing for beginners.</description>
+    <podcast:guid>c9a1b4f2-0000-5000-8000-000000000001</podcast:guid>
+    <podcast:funding url="https://example.org/support">Support the show!</podcast:funding>
+    <podcast:funding url="javascript:alert(1)">Not a link</podcast:funding>
+    <podcast:funding url="https://example.org/members"/>
+    <podcast:person role="Host" img="https://img.example.org/ada.jpg" href="https://example.org/ada">Ada Lovelace</podcast:person>
+    <podcast:person>Charles Babbage</podcast:person>
+    <item>
+      <title>Orion in winter</title>
+      <guid>orion</guid>
+      <pubDate>Tue, 02 Jun 2026 08:00:00 GMT</pubDate>
+      <enclosure url="https://cdn.example.org/orion.mp3" type="audio/mpeg" length="1000"/>
+      <podcast:season name="Winter &amp; spring">2</podcast:season>
+      <podcast:episode display="Ep. 4">4</podcast:episode>
+      <podcast:chapters url="https://example.org/orion/chapters.json" type="application/json+chapters"/>
+      <podcast:transcript url="https://example.org/orion/transcript.html" type="text/html"/>
+      <podcast:transcript url="https://example.org/orion/transcript.srt" type="application/x-subrip" rel="captions"/>
+      <podcast:transcript url="https://example.org/orion/transcript.json" type="application/json" language="en"/>
+      <podcast:person role="guest" group="cast" href="https://example.org/grace">Grace Hopper</podcast:person>
+    </item>
+    <item>
+      <title>Plain old episode</title>
+      <guid>plain</guid>
+      <pubDate>Mon, 01 Jun 2026 08:00:00 GMT</pubDate>
+      <itunes:season>1</itunes:season>
+      <podcast:season>3</podcast:season>
+      <enclosure url="https://cdn.example.org/plain.mp3" type="audio/mpeg" length="1000"/>
+      <podcast:chapters url="ftp://example.org/chapters.json" type="application/json+chapters"/>
+    </item>
+  </channel>
+</rss>
