@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import {
   applyDownloadStatuses,
   type DownloadEntry,
@@ -43,11 +44,13 @@ async function askForBackgroundWork(): Promise<void> {
   }
   if (native.isIgnoringBatteryOptimizations()) return;
   showAlert(
-    'Download while the phone sleeps',
-    'Android holds background work back while the screen is off. Let Lelap run in the background so a book can download overnight.',
+    t('Download while the phone sleeps'),
+    t(
+      'Android holds background work back while the screen is off. Let Lelap run in the background so a book can download overnight.',
+    ),
     [
-      { text: 'Not now', style: 'cancel' },
-      { text: 'Allow', onPress: () => void native.requestBatteryExemption() },
+      { text: t('Not now'), style: 'cancel' },
+      { text: t('Allow'), onPress: () => void native.requestBatteryExemption() },
     ],
   );
 }

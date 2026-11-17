@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../../src/i18n';
 import { EmptyState } from '../../src/components/Lori';
 import { showAlert } from '../../src/dialog';
 import { BookCover } from '../../src/components/BookCover';
@@ -40,7 +41,7 @@ export default function PodcastsScreen() {
     try {
       await task();
     } catch (error) {
-      showAlert('Podcasts', message(error));
+      showAlert(t('Podcasts'), message(error));
     } finally {
       setBusy(false);
       refresh();
@@ -61,8 +62,10 @@ export default function PodcastsScreen() {
       if (!asset) return;
       const result = await importOpml(await readPickedText(asset));
       showAlert(
-        `${result.added} podcasts added`,
-        result.failed.length > 0 ? `Could not read: ${result.failed.join(', ')}` : undefined,
+        t('{n} podcasts added', { n: result.added }),
+        result.failed.length > 0
+          ? t('Could not read: {names}', { names: result.failed.join(', ') })
+          : undefined,
       );
     });
 
@@ -89,9 +92,9 @@ export default function PodcastsScreen() {
       ListHeaderComponent={
         <View className="gap-4 px-4 pb-4">
           <View className="flex-row items-center justify-between">
-            <Text className="text-3xl font-semibold text-paper">Podcasts</Text>
+            <Text className="text-3xl font-semibold text-paper">{t('Podcasts')}</Text>
             <Pressable onPress={() => router.push('/up-next')} hitSlop={8}>
-              <Text className="text-amber">Up Next</Text>
+              <Text className="text-amber">{t('Up Next')}</Text>
             </Pressable>
           </View>
           {/* Kids subscribe from the catalogs they are allowed; feed addresses and OPML stay with grown-ups. */}
@@ -101,7 +104,7 @@ export default function PodcastsScreen() {
                 <TextInput
                   value={feedUrl}
                   onChangeText={setFeedUrl}
-                  placeholder="Feed address (RSS)"
+                  placeholder={t('Feed address (RSS)')}
                   placeholderTextColor="#8d8a83"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -113,19 +116,21 @@ export default function PodcastsScreen() {
                   {busy ? (
                     <ActivityIndicator color="#f5b041" />
                   ) : (
-                    <Text className={feedUrl.trim() === '' ? 'text-muted' : 'text-amber'}>Add</Text>
+                    <Text className={feedUrl.trim() === '' ? 'text-muted' : 'text-amber'}>
+                      {t('Add')}
+                    </Text>
                   )}
                 </Pressable>
               </View>
               <View className="flex-row gap-4">
                 <Pressable disabled={busy} onPress={() => void importFile()}>
-                  <Text className="text-amber">Import OPML</Text>
+                  <Text className="text-amber">{t('Import OPML')}</Text>
                 </Pressable>
                 {subs.length > 0 && (
                   <Pressable
                     onPress={() => void shareText('lelap-subscriptions.opml', exportOpml())}
                   >
-                    <Text className="text-amber">Export OPML</Text>
+                    <Text className="text-amber">{t('Export OPML')}</Text>
                   </Pressable>
                 )}
               </View>
@@ -135,11 +140,13 @@ export default function PodcastsScreen() {
       }
       ListEmptyComponent={
         <EmptyState
-          title="No podcasts yet."
+          title={t('No podcasts yet.')}
           hint={
             kids
-              ? 'Find podcasts in Search and subscribe there.'
-              : 'Find podcasts in Search, paste a feed address, or import an OPML file from another app. A podcast folder in your Library can become a subscription too: long-press it there.'
+              ? t('Find podcasts in Search and subscribe there.')
+              : t(
+                  'Find podcasts in Search, paste a feed address, or import an OPML file from another app. A podcast folder in your Library can become a subscription too: long-press it there.',
+                )
           }
         />
       }
@@ -156,8 +163,8 @@ export default function PodcastsScreen() {
             <Text numberOfLines={1} className="text-sm text-muted">
               {[
                 sub.author,
-                sub.unplayed > 0 ? `${sub.unplayed} unplayed` : 'All played',
-                sub.autoDownload ? 'Auto-download' : null,
+                sub.unplayed > 0 ? t('{n} unplayed', { n: sub.unplayed }) : t('All played'),
+                sub.autoDownload ? t('Auto-download') : null,
               ]
                 .filter(Boolean)
                 .join(' · ')}

@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../i18n';
 import { FadeIn } from './Motion';
 import { COLORS, Icon } from './Icon';
 import * as audio from '../platform/audio';
@@ -44,7 +45,7 @@ export function MiniPlayer({ inset = true }: { inset?: boolean }) {
             onPress={() => void (state.playing ? audio.pause() : audio.play())}
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel={state.playing ? 'Pause' : 'Play'}
+            accessibilityLabel={state.playing ? t('Pause') : t('Play')}
             className="h-11 w-11 items-center justify-center rounded-full bg-amber"
           >
             <Icon name={state.playing ? 'pause' : 'play'} size={20} color={COLORS.ink} />

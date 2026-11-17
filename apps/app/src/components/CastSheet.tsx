@@ -12,6 +12,7 @@ import {
   stopDiscovery,
   useCasting,
 } from '../casting';
+import { t } from '../i18n';
 import { bookLoad } from '../player';
 import { COLORS, Icon } from './Icon';
 import { Sheet } from './Sheet';
@@ -82,22 +83,22 @@ export function CastSheet({
   };
 
   return (
-    <Sheet visible={visible} title="Play on" onClose={onClose}>
+    <Sheet visible={visible} title={t('Play on')} onClose={onClose}>
       {casting.device && (
         <View className="gap-3 pb-4">
           <Text className="text-soft">
-            Playing on <Text className="text-amber">{casting.device.name}</Text>
+            {t('Playing on')} <Text className="text-amber">{casting.device.name}</Text>
           </Text>
           <View className="flex-row flex-wrap items-center gap-2">
             {volume !== null && (
               <>
-                <Chip label="Volume −" onPress={() => changeVolume(-0.1)} />
+                <Chip label={t('Volume −')} onPress={() => changeVolume(-0.1)} />
                 <Text className="w-12 text-center text-soft">{Math.round(volume * 100)}%</Text>
-                <Chip label="Volume +" onPress={() => changeVolume(0.1)} />
+                <Chip label={t('Volume +')} onPress={() => changeVolume(0.1)} />
               </>
             )}
             <Chip
-              label="Play on this phone"
+              label={t('Play on this phone')}
               onPress={() => {
                 void stopCasting();
                 onClose();
@@ -134,8 +135,9 @@ export function CastSheet({
         <View className="flex-row items-center gap-3 py-3">
           <ActivityIndicator color={COLORS.muted} />
           <Text className="flex-1 text-sm text-muted">
-            Looking for speakers and TVs on this Wi-Fi. Sonos, DLNA, Google Cast and FCast receivers
-            play the book themselves; files on this phone are shared with them only while casting.
+            {t(
+              'Looking for speakers and TVs on this Wi-Fi. Sonos, DLNA, Google Cast and FCast receivers play the book themselves; files on this phone are shared with them only while casting.',
+            )}
           </Text>
         </View>
       </ScrollView>

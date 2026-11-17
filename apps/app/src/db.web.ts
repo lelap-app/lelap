@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { createIdGenerator, type Db, migrateSafely, schema } from '@lelap/core';
 import migrations from '@lelap/core/migrations';
 import type { ExpoSQLiteDatabase } from 'drizzle-orm/expo-sqlite';
@@ -88,7 +89,7 @@ let opening: Promise<void> | null = null;
 function open(): Promise<void> {
   opening ??= (async () => {
     if (!(await holdTabLock())) {
-      throw new Error('Lelap is open in another tab or window. Close that one and reload this.');
+      throw new Error(t('Lelap is open in another tab or window. Close that one and reload this.'));
     }
     const SQL = await initSqlJs({
       locateFile: () => (typeof wasmUrl === 'string' ? wasmUrl : wasmUrl.uri),

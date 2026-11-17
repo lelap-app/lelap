@@ -49,7 +49,7 @@ describe('createAddon', () => {
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
     expect(await response.json()).toEqual({
       ...manifest,
-      protocolVersion: 2,
+      protocolVersion: 3,
       behaviorHints: { health: true },
     });
   });
@@ -333,5 +333,33 @@ describe('createAddon health', () => {
     });
     const bad = addon({ health: () => ({ status: 'fine' }) as never });
     expect((await get(bad, 'health')).status).toBe(500);
+  });
+});
+
+describe('artwork', () => {
+  it('serves artwork from its handler', async () => {
+    const app = createAddon({
+      manifest: {
+        id: 'org.example.art',
+        version: '1.0.0',
+        protocol: 1,
+        name: 'Art',
+        description: 'Covers',
+        types: ['audiobook'],
+        resources: ['artwork'],
+        idPrefixes: ['test:'],
+        catalogs: [],
+      },
+      artwork: ({ id }) => ({
+        artwork: [{ url: `https://img.example/${id}.jpg`, kind: 'cover', width: 600, height: 600 }],
+      }),
+    });
+    const response = await app.fetch(
+      new Request('https://addon.example/artwork/audiobook/test%3A1.json'),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      artwork: [{ url: 'https://img.example/test:1.jpg', kind: 'cover', width: 600, height: 600 }],
+    });
   });
 });

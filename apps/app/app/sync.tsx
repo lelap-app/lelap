@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { useLibrary } from '../src/player';
@@ -47,7 +48,7 @@ export default function SyncScreen() {
     try {
       await task();
     } catch (error) {
-      showAlert('Sync', message(error));
+      showAlert(t('Sync'), message(error));
     } finally {
       setBusy(false);
       setMember(membership());
@@ -70,13 +71,18 @@ export default function SyncScreen() {
       }}
     >
       <View className="-ml-2 self-start">
-        <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+        <IconButton
+          name="back"
+          label={t('Back')}
+          color={COLORS.soft}
+          onPress={() => router.back()}
+        />
       </View>
-      <Text className="text-3xl font-semibold text-paper">Sync</Text>
+      <Text className="text-3xl font-semibold text-paper">{t('Sync')}</Text>
       <Text className="text-soft">
-        Your places, bookmarks, streamed books, podcasts and Up Next follow you between your
-        devices. Everything is encrypted on this device with a key only your devices have; the
-        server stores what it cannot read. No account.
+        {t(
+          'Your places, bookmarks, streamed books, podcasts and Up Next follow you between your devices. Everything is encrypted on this device with a key only your devices have; the server stores what it cannot read. No account.',
+        )}
       </Text>
 
       {busy && <ActivityIndicator color="#f5b041" />}
@@ -86,16 +92,20 @@ export default function SyncScreen() {
           {removed && (
             <Text className="text-amber">
               {removed.reason === 'restore'
-                ? 'The sync key stays on the phone it was made on and is not in backups. Your library is here; join again with a code from one of your devices.'
-                : 'Another device reset sync, so this one stopped syncing. Your library is still here. Join again with a code from one of your devices.'}
+                ? t(
+                    'The sync key stays on the phone it was made on and is not in backups. Your library is here; join again with a code from one of your devices.',
+                  )
+                : t(
+                    'Another device reset sync, so this one stopped syncing. Your library is still here. Join again with a code from one of your devices.',
+                  )}
             </Text>
           )}
           <View className="gap-2">
-            <Text className="text-xs uppercase tracking-wider text-muted">This device</Text>
+            <Text className="text-xs uppercase tracking-wider text-muted">{t('This device')}</Text>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="Name, such as Kitchen tablet"
+              placeholder={t('Name, such as Kitchen tablet')}
               placeholderTextColor="#8d8a83"
               className="rounded-lg border border-line px-3 py-2 text-paper"
             />
@@ -107,17 +117,17 @@ export default function SyncScreen() {
             }
             className="items-center rounded-full bg-amber py-3 active:opacity-80"
           >
-            <Text className="font-semibold text-ink">Start syncing from this device</Text>
+            <Text className="font-semibold text-ink">{t('Start syncing from this device')}</Text>
           </Pressable>
           <View className="gap-2">
             <Text className="text-xs uppercase tracking-wider text-muted">
-              Or join with a code from another device
+              {t('Or join with a code from another device')}
             </Text>
             <View className="flex-row items-center gap-2">
               <TextInput
                 value={code}
                 onChangeText={setCode}
-                placeholder="7KQM-2XPA-9HRT"
+                placeholder={'7KQM-2XPA-9HRT'}
                 placeholderTextColor="#8d8a83"
                 autoCapitalize="characters"
                 autoCorrect={false}
@@ -133,7 +143,9 @@ export default function SyncScreen() {
                   })
                 }
               >
-                <Text className={code.trim() === '' ? 'text-muted' : 'text-amber'}>Join</Text>
+                <Text className={code.trim() === '' ? 'text-muted' : 'text-amber'}>
+                  {t('Join')}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -145,11 +157,11 @@ export default function SyncScreen() {
             {member.lastSyncAt ? ` · last ${new Date(member.lastSyncAt).toLocaleTimeString()}` : ''}
           </Text>
           <Pressable disabled={busy} onPress={() => void run(async () => void (await syncOnce()))}>
-            <Text className="text-amber">Sync now</Text>
+            <Text className="text-amber">{t('Sync now')}</Text>
           </Pressable>
 
           <View className="gap-2 rounded-xl border border-line p-3">
-            <Text className="text-paper">Add a device</Text>
+            <Text className="text-paper">{t('Add a device')}</Text>
             {offered && left > 0 ? (
               <>
                 <Text selectable className="font-mono text-3xl tracking-widest text-amber">
@@ -172,17 +184,17 @@ export default function SyncScreen() {
                   )
                 }
               >
-                <Text className="text-amber">Show a pairing code</Text>
+                <Text className="text-amber">{t('Show a pairing code')}</Text>
               </Pressable>
             )}
           </View>
 
           <View className="gap-2 rounded-xl border border-line p-3">
-            <Text className="text-paper">Remove a lost device</Text>
+            <Text className="text-paper">{t('Remove a lost device')}</Text>
             <Text className="text-sm text-muted">
-              Starts a new sync group with a new key and deletes the old one from the server, so a
-              lost or sold device can't read anything from now on. Your other devices stop syncing
-              until you add them again with a pairing code.
+              {t(
+                "Starts a new sync group with a new key and deletes the old one from the server, so a lost or sold device can't read anything from now on. Your other devices stop syncing until you add them again with a pairing code.",
+              )}
             </Text>
             {confirmReset ? (
               <View className="flex-row gap-6">
@@ -197,15 +209,15 @@ export default function SyncScreen() {
                     })
                   }
                 >
-                  <Text className="text-danger">Reset sync</Text>
+                  <Text className="text-danger">{t('Reset sync')}</Text>
                 </Pressable>
                 <Pressable onPress={() => setConfirmReset(false)}>
-                  <Text className="text-muted">Cancel</Text>
+                  <Text className="text-muted">{t('Cancel')}</Text>
                 </Pressable>
               </View>
             ) : (
               <Pressable disabled={busy} onPress={() => setConfirmReset(true)}>
-                <Text className="text-amber">Remove a lost device…</Text>
+                <Text className="text-amber">{t('Remove a lost device…')}</Text>
               </Pressable>
             )}
           </View>
@@ -213,12 +225,12 @@ export default function SyncScreen() {
           <Pressable
             onPress={() =>
               showAlert(
-                'Stop syncing on this device?',
-                'Your library stays here. Other devices keep syncing with each other.',
+                t('Stop syncing on this device?'),
+                t('Your library stays here. Other devices keep syncing with each other.'),
                 [
-                  { text: 'Keep syncing', style: 'cancel' },
+                  { text: t('Keep syncing'), style: 'cancel' },
                   {
-                    text: 'Stop',
+                    text: t('Stop'),
                     style: 'destructive',
                     onPress: () => {
                       stopSyncing();
@@ -229,7 +241,7 @@ export default function SyncScreen() {
               )
             }
           >
-            <Text className="text-danger">Stop syncing on this device</Text>
+            <Text className="text-danger">{t('Stop syncing on this device')}</Text>
           </Pressable>
         </View>
       )}

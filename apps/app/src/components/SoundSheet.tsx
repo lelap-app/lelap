@@ -2,6 +2,7 @@ import { getSettings, type Settings, setSetting } from '@lelap/core';
 import { useMemo, useState } from 'react';
 import { Switch, Text, View } from 'react-native';
 
+import { t } from '../i18n';
 import { db } from '../db';
 import * as audio from '../platform/audio';
 import { useLibrary } from '../player';
@@ -11,22 +12,23 @@ import { Sheet } from './Sheet';
 export type SoundKey = 'volumeBoost' | 'voiceEq' | 'mono';
 
 /** The sound switches, in the player's sheet and in Settings → Playback. */
-export const SOUND_OPTIONS: { key: SoundKey; label: string; detail: string }[] = [
+export const soundOptions = (): { key: SoundKey; label: string; detail: string }[] => [
   {
     key: 'volumeBoost',
-    label: 'Volume boost',
-    detail:
+    label: t('Volume boost'),
+    detail: t(
       'Louder, for quiet recordings and speakers. Loud parts are held back so they never distort.',
+    ),
   },
   {
     key: 'voiceEq',
-    label: 'Voice clarity',
-    detail: 'Cuts rumble and lifts the consonants, so voices are easier to follow.',
+    label: t('Voice clarity'),
+    detail: t('Cuts rumble and lifts the consonants, so voices are easier to follow.'),
   },
-  { key: 'mono', label: 'Mono', detail: 'Both channels in each ear, for one earbud.' },
+  { key: 'mono', label: t('Mono'), detail: t('Both channels in each ear, for one earbud.') },
 ];
 
-export const soundActive = (s: Settings): boolean => SOUND_OPTIONS.some((o) => s[o.key]);
+export const soundActive = (s: Settings): boolean => soundOptions().some((o) => s[o.key]);
 
 /** The listener's settings, with a setter that also tells the player. */
 export function useSoundSettings() {
@@ -77,9 +79,9 @@ export function SoundSheet({
   onClose: () => void;
 }) {
   return (
-    <Sheet visible={visible} title="Sound" onClose={onClose}>
+    <Sheet visible={visible} title={t('Sound')} onClose={onClose}>
       <View className="pb-2">
-        {SOUND_OPTIONS.map((o) => (
+        {soundOptions().map((o) => (
           <SoundRow
             key={o.key}
             label={o.label}

@@ -3,7 +3,15 @@ import { and, asc, eq, like, sql } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
-import { addons, books, profiles, removedAddons, scrobbleOutbox, settings } from '../schema';
+import {
+  addons,
+  books,
+  localAddonCode,
+  profiles,
+  removedAddons,
+  scrobbleOutbox,
+  settings,
+} from '../schema';
 import { type Fetcher, fetchManifest, type InstalledAddon } from './client';
 
 /** Installed add-ons in the user's order. Rows whose stored manifest no longer parses are skipped. */
@@ -142,6 +150,8 @@ export function removeAddon(db: Db, url: string, now: number): void {
     const row = tx.select().from(addons).where(eq(addons.url, url)).get();
     if (!row) return;
     tx.delete(addons).where(eq(addons.url, url)).run();
+    // An add-on that ran inside the app takes its code with it.
+    tx.delete(localAddonCode).where(eq(localAddonCode.url, url)).run();
     if (row.builtin) {
       tx.insert(removedAddons)
         .values({ url, removedAt: now, updatedAt: now })

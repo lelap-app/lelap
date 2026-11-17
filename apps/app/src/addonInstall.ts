@@ -1,12 +1,14 @@
+import { t } from './i18n';
 import { fetchManifest, findAddonById, installAddon, replaceAddonUrl } from '@lelap/core';
 import { type Manifest, needsConfiguration } from '@lelap/sdk';
 import { Linking } from 'react-native';
 
 import { configurePageUrl, fetcher } from './addons';
 import { db, newId } from './db';
+import { reviewAddon } from './addonReview';
 import { showAlert } from './dialog';
 
-const TRUST = 'Add-ons are run by their authors, not by Lelap. Only add ones you trust.';
+const trust = () => t('Add-ons are run by their authors, not by Lelap. Only add ones you trust.');
 
 const host = (url: string) => /^https?:\/\/([^/?#]+)/i.exec(url)?.[1] ?? url;
 
@@ -24,7 +26,7 @@ export async function confirmAddon(manifestUrl: string): Promise<'added' | 'canc
   const manifest: Manifest = await fetchManifest(fetcher, manifestUrl);
   return new Promise((resolve) => {
     const cancel = {
-      text: 'Cancel',
+      text: t('Cancel'),
       style: 'cancel' as const,
       onPress: () => resolve('cancelled'),
     };
@@ -32,12 +34,12 @@ export async function confirmAddon(manifestUrl: string): Promise<'added' | 'canc
     const options = { cancelable: true, onDismiss: () => resolve('cancelled') };
     if (needsConfiguration(manifest)) {
       showAlert(
-        `${manifest.name} needs settings`,
-        `Set it up on its own page, then come back to Lelap.\n\n${TRUST}`,
+        t('{name} needs settings', { name: manifest.name }),
+        `${t('Set it up on its own page, then come back to Lelap.')}\n\n${trust()}`,
         [
           cancel,
           {
-            text: 'Configure',
+            text: t('Configure'),
             onPress: () => {
               openConfigure(manifestUrl);
               resolve('cancelled');
@@ -51,12 +53,12 @@ export async function confirmAddon(manifestUrl: string): Promise<'added' | 'canc
     const existing = findAddonById(db, manifest.id);
     if (existing && existing.url !== manifestUrl) {
       showAlert(
-        `Update ${manifest.name}?`,
-        `Lelap will use the new settings from ${host(manifestUrl)}. Books you play from it stay in your library.\n\n${TRUST}`,
+        t('Update {name}?', { name: manifest.name }),
+        `${t('Lelap will use the new settings from {host}. Books you play from it stay in your library.', { host: host(manifestUrl) })}\n\n${trust()}`,
         [
           cancel,
           {
-            text: 'Update',
+            text: t('Update'),
             onPress: () => {
               replaceAddonUrl(db, {
                 oldUrl: existing.url,
@@ -72,20 +74,13 @@ export async function confirmAddon(manifestUrl: string): Promise<'added' | 'canc
       );
       return;
     }
-    showAlert(
-      `Add ${manifest.name}?`,
-      `${manifest.description}\n\n${TRUST}`,
-      [
-        cancel,
-        {
-          text: existing ? 'Refresh' : 'Add',
-          onPress: () => {
-            installAddon(db, { url: manifestUrl, manifest, now: Date.now(), newId });
-            resolve('added');
-          },
-        },
-      ],
-      options,
-    );
+    void reviewAddon(manifest, manifestUrl, existing ? t('Refresh') : t('Add')).then((accepted) => {
+      if (!accepted) {
+        resolve('cancelled');
+        return;
+      }
+      installAddon(db, { url: manifestUrl, manifest, now: Date.now(), newId });
+      resolve('added');
+    });
   });
 }

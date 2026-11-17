@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import {
   exportLibrary,
   fetchManifest,
@@ -46,22 +47,26 @@ export async function importBackup(canAddAddons: boolean, done: () => void): Pro
   const backup = parseBackup(await readPickedText(asset));
   const result = importLibrary(db, backup, Date.now(), newId);
   done();
-  const summary = `${result.changes} changes merged. Places, lists and tags that were newer here stayed.`;
+  const summary = t('{n} changes merged. Places, lists and tags that were newer here stayed.', {
+    n: result.changes,
+  });
   if (!canAddAddons || result.addons.length === 0) {
-    showAlert('Library imported', summary);
+    showAlert(t('Library imported'), summary);
     return;
   }
   showAlert(
-    'Library imported',
-    `${summary}\n\nThe file also lists ${result.addons.length} add-on${result.addons.length === 1 ? '' : 's'} you don't have here. Add-ons are run by their authors, not by Lelap.\n\n${result.addons.join('\n')}`,
+    t('Library imported'),
+    `${summary}\n\n${t('The file also lists add-ons you don’t have here: {n}. Add-ons are run by their authors, not by Lelap.', { n: result.addons.length })}\n\n${result.addons.join('\n')}`,
     [
-      { text: 'Skip', style: 'cancel' },
+      { text: t('Skip'), style: 'cancel' },
       {
-        text: 'Add them',
+        text: t('Add them'),
         onPress: () =>
           void addAddons(result.addons).then((added) => {
             done();
-            showAlert(`${added} of ${result.addons.length} add-ons added`);
+            showAlert(
+              t('{added} of {total} add-ons added', { added, total: result.addons.length }),
+            );
           }),
       },
     ],

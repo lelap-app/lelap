@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import {
   episodeDetail,
   getBook,
@@ -26,7 +27,8 @@ export async function fetchText(url: string): Promise<string> {
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(target, { signal: controller.signal });
-    if (!response.ok) throw new Error(`The file answered HTTP ${response.status}.`);
+    if (!response.ok)
+      throw new Error(t('The file answered HTTP {status}.', { status: response.status }));
     return await response.text();
   } finally {
     clearTimeout(timer);

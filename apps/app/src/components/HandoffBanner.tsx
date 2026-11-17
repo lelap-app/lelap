@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../i18n';
 import { formatClock } from '../format';
 import * as audio from '../platform/audio';
 import { playBook, seekToBookPosition } from '../player';
@@ -41,10 +42,10 @@ export function HandoffBanner() {
         </Text>
       </View>
       <Pressable onPress={dismiss} hitSlop={8}>
-        <Text className="text-muted">Not now</Text>
+        <Text className="text-muted">{t('Not now')}</Text>
       </Pressable>
       <Pressable onPress={() => void accept()} hitSlop={8}>
-        <Text className="font-semibold text-amber">Continue</Text>
+        <Text className="font-semibold text-amber">{t('Continue')}</Text>
       </Pressable>
     </View>
   );

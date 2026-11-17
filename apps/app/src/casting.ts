@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import * as local from '@lelap/audio';
 import type { BookLoad, PlayerSettings, PlayerState } from '@lelap/audio';
 import * as cast from '@lelap/cast';
@@ -108,7 +109,7 @@ function castState(s: Session): PlayerState {
 
 function media(book: BookLoad, index: number): CastMedia {
   const file = book.files[index];
-  if (!file) throw new Error('This part of the book is missing.');
+  if (!file) throw new Error(t('This part of the book is missing.'));
   return {
     uri: file.uri,
     title: book.files.length > 1 ? file.title : book.title,

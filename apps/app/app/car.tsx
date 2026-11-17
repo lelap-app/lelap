@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { COLORS, Icon, type IconName } from '../src/components/Icon';
 import { db } from '../src/db';
 import { HeadphoneBanner } from '../src/devices';
@@ -93,7 +94,7 @@ export default function CarMode() {
       <View className="flex-row items-center gap-3">
         <View className="flex-1">
           <Text numberOfLines={1} className="text-2xl font-bold text-white">
-            {detail?.book.title ?? 'Nothing is playing'}
+            {detail?.book.title ?? t('Nothing is playing')}
           </Text>
           {chapters[current] && (
             <Text numberOfLines={1} className="text-lg text-[#d8d4cc]">
@@ -104,10 +105,10 @@ export default function CarMode() {
         <Pressable
           onPress={() => router.back()}
           accessibilityRole="button"
-          accessibilityLabel="Leave car mode"
+          accessibilityLabel={t('Leave car mode')}
           className="h-16 min-w-24 items-center justify-center rounded-2xl border-2 border-[#5a5d66] px-4 active:bg-[#22252b]"
         >
-          <Text className="text-lg font-bold text-white">Exit</Text>
+          <Text className="text-lg font-bold text-white">{t('Exit')}</Text>
         </Pressable>
       </View>
 
@@ -117,23 +118,23 @@ export default function CarMode() {
         <View className="flex-[2] flex-row gap-4">
           <BigButton
             icon="back30"
-            label="Back 30 seconds"
-            caption="Back"
+            label={t('Back 30 seconds')}
+            caption={t('Back')}
             disabled={!bookId}
             onPress={() => void audio.skip(false)}
           />
           <BigButton
             icon={state.playing ? 'pause' : 'play'}
-            label={state.playing ? 'Pause' : 'Play'}
-            caption={state.playing ? 'Pause' : 'Play'}
+            label={state.playing ? t('Pause') : t('Play')}
+            caption={state.playing ? t('Pause') : t('Play')}
             primary
             disabled={!bookId}
             onPress={() => void (state.playing ? audio.pause() : audio.play())}
           />
           <BigButton
             icon="forward30"
-            label="Forward 30 seconds"
-            caption="Forward"
+            label={t('Forward 30 seconds')}
+            caption={t('Forward')}
             disabled={!bookId}
             onPress={() => void audio.skip(true)}
           />
@@ -141,8 +142,8 @@ export default function CarMode() {
         <View className="flex-1 flex-row gap-4">
           <BigButton
             icon="next"
-            label="Next chapter"
-            caption="Next chapter"
+            label={t('Next chapter')}
+            caption={t('Next chapter')}
             disabled={!bookId || !next}
             onPress={() => {
               if (bookId && next) void seekToBookPosition(bookId, next.startMs);
@@ -150,8 +151,12 @@ export default function CarMode() {
           />
           <BigButton
             icon="moon"
-            label={timer === null ? 'Sleep timer off' : `Sleep timer, ${formatClock(timer)} left`}
-            caption={timer === null ? 'Sleep' : formatClock(timer)}
+            label={
+              timer === null
+                ? t('Sleep timer off')
+                : t('Sleep timer, {time} left', { time: formatClock(timer) })
+            }
+            caption={timer === null ? t('Sleep') : formatClock(timer)}
             disabled={!bookId}
             onPress={cycleSleep}
           />

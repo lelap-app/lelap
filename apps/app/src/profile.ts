@@ -2,11 +2,13 @@ import {
   DEFAULT_PROFILE_ID,
   getActiveProfile,
   getProfile,
+  getSettings,
   type Profile,
   setActiveProfile,
 } from '@lelap/core';
 
 import { db } from './db';
+import { loadLanguage, setLanguage } from './i18n';
 
 /**
  * The profile everything is read and saved for. A live binding: modules that import it see the
@@ -17,11 +19,13 @@ export let profileId: string = DEFAULT_PROFILE_ID;
 /** Reads the profile this device used last; called once the database is open. */
 export function loadActiveProfile(): void {
   profileId = getActiveProfile(db);
+  loadLanguage(getSettings(db, profileId).language);
 }
 
 export function setProfileId(id: string): void {
   profileId = id;
   setActiveProfile(db, id, Date.now());
+  setLanguage(getSettings(db, id).language);
 }
 
 export const activeProfile = (): Profile | null => getProfile(db, profileId);

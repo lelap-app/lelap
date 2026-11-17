@@ -7,6 +7,7 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "check": "tsc --noEmit",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-translations.mjs",
     "build": "expo export --platform web --output-dir dist-web && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/fix-web-export.mjs dist-web"
   },
   "dependencies": {
@@ -47,6 +48,7 @@
     "react-native-screens": "~4.30.1",
     "react-native-svg": "15.16.0",
     "react-native-web": "^0.21.4",
+    "react-native-webview": "14.0.1",
     "react-native-worklets": "~0.13.1",
     "sql.js": "^1.15.2",
     "zod": "^4.6.7"

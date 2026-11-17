@@ -1,4 +1,6 @@
 import {
+  ArtworkImage,
+  artworkPath,
   catalogPath,
   type CatalogDefinition,
   type ContentType,
@@ -178,6 +180,46 @@ export async function searchAll(
           error: result?.reason instanceof Error ? result.reason.message : 'Search failed',
         };
   });
+}
+
+/** The best square cover among pictures: square first, then the largest, at least 300 px. */
+export function bestCover(images: ArtworkImage[]): string | null {
+  const covers = images.filter((i) => i.kind === 'cover');
+  const square = (i: ArtworkImage) =>
+    i.width !== undefined && i.height !== undefined
+      ? Math.abs(i.width - i.height) / Math.max(i.width, i.height) <= 0.05
+      : false;
+  const size = (i: ArtworkImage) => Math.min(i.width ?? 0, i.height ?? 0);
+  const ranked = [...covers].sort(
+    (a, b) =>
+      Number(square(b) && size(b) >= 300) - Number(square(a) && size(a) >= 300) ||
+      Number(square(b)) - Number(square(a)) ||
+      size(b) - size(a),
+  );
+  return ranked[0]?.url ?? null;
+}
+
+/**
+ * A cover from the add-ons with an `artwork` resource for this ID, for items that come without
+ * one. Add-ons that fail are skipped; null when none has a picture.
+ */
+export async function fetchArtwork(
+  fetcher: Fetcher,
+  addons: InstalledAddon[],
+  type: ContentType,
+  id: string,
+): Promise<string | null> {
+  for (const addon of addons) {
+    if (!supports(addon.manifest, 'artwork', type, id)) continue;
+    try {
+      const body = await getJson(fetcher, addonBase(addon.url) + artworkPath(type, id));
+      const cover = bestCover(validEntries(body, 'artwork', parseWith(ArtworkImage)));
+      if (cover) return cover;
+    } catch {
+      // The next add-on may have one.
+    }
+  }
+  return null;
 }
 
 /** Meta from the first add-on that answers for this ID. */

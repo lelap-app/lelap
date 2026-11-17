@@ -18,9 +18,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
 import { COLORS, Icon, IconButton } from '../src/components/Icon';
-import { addItem, playItem, queries, useAddons } from '../src/addons';
+import { addItem, playItem, queries, useAddons, useArtwork } from '../src/addons';
 import { sourceCache } from '../src/availability';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { DownloadButton } from '../src/components/DownloadButton';
@@ -37,7 +38,11 @@ const isType = (value: string | undefined): value is ContentType =>
 
 const seriesLabel = (series: Meta['series']) => {
   const main = series?.[0];
-  return main ? (main.position ? `${main.name}, book ${main.position}` : main.name) : null;
+  return main
+    ? main.position
+      ? t('{series}, book {n}', { series: main.name, n: main.position })
+      : main.name
+    : null;
 };
 
 const streamLength = (found: FoundStream) =>
@@ -52,13 +57,13 @@ const sourceDetails = (found: FoundStream) => {
   return [
     found.addon.manifest.name,
     ms > 0 ? formatDuration(ms) : null,
-    count > 1 ? `${count} parts` : null,
+    count > 1 ? t('{n} parts', { n: count }) : null,
   ]
     .filter(Boolean)
     .join(' · ');
 };
 
-const addonCount = (n: number) => (n === 1 ? '1 add-on' : `${n} add-ons`);
+const addonCount = (n: number) => (n === 1 ? t('1 add-on') : t('{n} add-ons', { n }));
 
 /** A language's English name; some engines lack `Intl.DisplayNames`, so fall back to the code. */
 function languageName(code: string): string {
@@ -122,6 +127,11 @@ export default function ItemScreen() {
   // Offline, a downloaded book shows the metadata saved with its download.
   const snapshot = useMemo(() => (saved ? downloadSnapshot(db, saved.book.id) : null), [saved]);
   const item = meta.data?.meta ?? snapshot ?? undefined;
+  const artwork = useArtwork({
+    id,
+    type,
+    cover: item?.cover ?? saved?.book.coverUrl ?? undefined,
+  });
   const parts = stream && hasParts(stream.stream) ? stream.stream.parts : [];
   const sizeBytes = stream
     ? hasParts(stream.stream)
@@ -149,7 +159,7 @@ export default function ItemScreen() {
       refresh();
       router.push('/player');
     } catch (error) {
-      showAlert('Cannot play', error instanceof Error ? error.message : String(error));
+      showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error));
     } finally {
       setStarting(false);
     }
@@ -162,8 +172,8 @@ export default function ItemScreen() {
   const language = item?.language ? languageName(item.language) : null;
   const playLabel =
     saved && saved.book.finishedAt === null && progress > 0
-      ? `Continue · ${Math.min(99, Math.floor(progress * 100))} %`
-      : 'Play';
+      ? t('Continue · {percent} %', { percent: Math.min(99, Math.floor(progress * 100)) })
+      : t('Play');
 
   return (
     <ScrollView
@@ -171,7 +181,12 @@ export default function ItemScreen() {
       contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
     >
       <View className="-ml-2 self-start px-2">
-        <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+        <IconButton
+          name="back"
+          label={t('Back')}
+          color={COLORS.soft}
+          onPress={() => router.back()}
+        />
       </View>
 
       {meta.isPending && !saved ? (
@@ -179,16 +194,14 @@ export default function ItemScreen() {
       ) : !item && !saved ? (
         <Text className="px-4 pt-24 text-center text-muted">
           {meta.isError
-            ? 'The add-on did not answer. Try again later.'
-            : 'This item was not found.'}
+            ? t('The add-on did not answer. Try again later.')
+            : t('This item was not found.')}
         </Text>
       ) : (
         <View className="gap-5 px-4">
           <View className="items-center gap-3">
             <BookCover
-              uri={
-                saved?.book.coverPath ? coverUri(saved.book) : (item?.cover ?? saved?.book.coverUrl)
-              }
+              uri={saved?.book.coverPath ? coverUri(saved.book) : artwork}
               title={title}
               size={220}
             />
@@ -201,7 +214,9 @@ export default function ItemScreen() {
             <Text className="text-center text-sm text-muted">
               {[
                 seriesLabel(item?.series),
-                item?.narrators?.length ? `Read by ${item.narrators.join(', ')}` : null,
+                item?.narrators?.length
+                  ? t('Read by {names}', { names: item.narrators.join(', ') })
+                  : null,
                 item?.durationMs ? formatDuration(item.durationMs) : null,
                 item?.year ? String(item.year) : null,
               ]
@@ -219,10 +234,10 @@ export default function ItemScreen() {
           ) : sources.isError && !saved ? (
             <View className="items-center gap-2 rounded-2xl bg-raised p-4">
               <Text className="text-center text-soft">
-                Your add-ons did not answer. Check the connection and try again.
+                {t('Your add-ons did not answer. Check the connection and try again.')}
               </Text>
               <Pressable onPress={() => void sources.refetch()} className="py-1">
-                <Text className="font-semibold text-amber">Try again</Text>
+                <Text className="font-semibold text-amber">{t('Try again')}</Text>
               </Pressable>
             </View>
           ) : (
@@ -235,7 +250,7 @@ export default function ItemScreen() {
                 <ActivityIndicator color="#1a1305" />
               ) : (
                 <Text className={`text-base font-semibold ${canPlay ? 'text-ink' : 'text-muted'}`}>
-                  {looking ? 'Looking for audio…' : playLabel}
+                  {looking ? t('Looking for audio…') : playLabel}
                 </Text>
               )}
             </Pressable>
@@ -243,8 +258,8 @@ export default function ItemScreen() {
           {saved && (
             <Text className="-mt-3 text-center text-xs text-muted">
               {saved.book.downloaded
-                ? 'In your library · plays offline'
-                : 'In your library · streams while online'}
+                ? t('In your library · plays offline')
+                : t('In your library · streams while online')}
             </Text>
           )}
 
@@ -259,7 +274,7 @@ export default function ItemScreen() {
           {found.length > 0 && (
             <View className="gap-2">
               <Text className="text-xs uppercase tracking-wider text-muted">
-                {found.length === 1 ? 'Source' : `${found.length} sources`}
+                {found.length === 1 ? t('Source') : t('{n} sources', { n: found.length })}
               </Text>
               {found.map((f, index) => {
                 const selected = index === chosen;
@@ -308,7 +323,7 @@ export default function ItemScreen() {
                 <View key={part.url} className="flex-row gap-3 border-b border-line py-2">
                   <Text className="w-6 text-right text-muted">{index + 1}</Text>
                   <Text numberOfLines={1} className="flex-1 text-paper">
-                    {part.title ?? `Part ${index + 1}`}
+                    {part.title ?? t('Part {n}', { n: index + 1 })}
                   </Text>
                   <Text className="text-muted">{formatClock(part.durationMs)}</Text>
                 </View>
@@ -347,7 +362,7 @@ export default function ItemScreen() {
                   accessibilityRole="link"
                   className="flex-row items-center gap-1 py-1"
                 >
-                  <Text className="text-sm text-amber">More about this book</Text>
+                  <Text className="text-sm text-amber">{t('More about this book')}</Text>
                   <Icon name="forward" size={16} color={COLORS.amber} />
                 </Pressable>
               )}
@@ -374,16 +389,16 @@ function NoAudio({
     <View className="items-center gap-2 rounded-2xl bg-raised px-4 py-5">
       <Icon name="cloud" size={28} color={COLORS.muted} />
       <Text className="text-center text-base font-semibold text-paper">
-        No audio for this book yet
+        {t('No audio for this book yet')}
       </Text>
       <Text className="text-center text-sm leading-5 text-soft">
         {asked === 0
-          ? 'None of your add-ons has audio for books like this one.'
+          ? t('None of your add-ons has audio for books like this one.')
           : `Asked ${addonCount(asked)}${failed.length > 0 ? `, ${answered} answered` : ''}; none has a recording.`}{' '}
         An add-on that knows this work, such as one for your own server, can add it.
       </Text>
       <Pressable onPress={onAddons} className="flex-row items-center gap-1 pt-1">
-        <Text className="font-semibold text-amber">Manage add-ons</Text>
+        <Text className="font-semibold text-amber">{t('Manage add-ons')}</Text>
         <Icon name="forward" size={16} color={COLORS.amber} />
       </Pressable>
     </View>

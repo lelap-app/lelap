@@ -43,6 +43,8 @@ export const SettingsSchema = z.object({
   headphoneBattery: z.boolean().default(false),
   /** Offer car mode when the phone connects to a car's Bluetooth; needs nearby devices. */
   carModeOffer: z.boolean().default(false),
+  /** The app's language for this profile; a new profile starts with its creator's. */
+  language: z.enum(['en', 'ms']).default('en'),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

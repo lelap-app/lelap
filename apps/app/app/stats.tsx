@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { Sheet } from '../src/components/Sheet';
@@ -16,10 +17,10 @@ const WEEKDAY = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 /** “3 h 20 min”, “45 min”, “under 1 min”, “0 min”. */
 function hours(ms: number): string {
-  if (ms > 0 && ms < 60_000) return 'under 1 min';
+  if (ms > 0 && ms < 60_000) return t('under 1 min');
   const minutes = Math.round(ms / 60_000);
   const h = Math.floor(minutes / 60);
-  return h > 0 ? `${h} h ${minutes % 60} min` : `${minutes} min`;
+  return h > 0 ? t('{h} h {m} min', { h, m: minutes % 60 }) : t('{n} min', { n: minutes });
 }
 
 function Figure({ label, value }: { label: string; value: string }) {
@@ -64,21 +65,26 @@ export default function StatsScreen() {
         className="px-4"
       >
         <View className="-ml-2 self-start">
-          <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+          <IconButton
+            name="back"
+            label={t('Back')}
+            color={COLORS.soft}
+            onPress={() => router.back()}
+          />
         </View>
-        <Text className="pb-4 text-3xl font-semibold text-paper">Listening</Text>
+        <Text className="pb-4 text-3xl font-semibold text-paper">{t('Listening')}</Text>
 
         <View className="flex-row gap-3">
-          <Figure label="Today" value={hours(stats.todayMs)} />
-          <Figure label="7 days" value={hours(weekMs)} />
+          <Figure label={t('Today')} value={hours(stats.todayMs)} />
+          <Figure label={t('7 days')} value={hours(weekMs)} />
         </View>
         <View className="flex-row gap-3 pt-3">
-          <Figure label="This year" value={hours(stats.yearMs)} />
+          <Figure label={t('This year')} value={hours(stats.yearMs)} />
           <Figure
-            label="Streak"
+            label={t('Streak')}
             value={
               stats.streak === 1
-                ? '1 day'
+                ? t('1 day')
                 : `${stats.streak} days${stats.longestStreak > stats.streak ? ` · best ${stats.longestStreak}` : ''}`
             }
           />
@@ -113,8 +119,10 @@ export default function StatsScreen() {
           className="mt-6 gap-2 rounded-xl border border-line p-4 active:bg-raised"
         >
           <View className="flex-row items-baseline justify-between">
-            <Text className="font-semibold text-paper">Finished this year</Text>
-            <Text className="text-sm text-amber">{goal > 0 ? 'Change goal' : 'Set a goal'}</Text>
+            <Text className="font-semibold text-paper">{t('Finished this year')}</Text>
+            <Text className="text-sm text-amber">
+              {goal > 0 ? t('Change goal') : t('Set a goal')}
+            </Text>
           </View>
           <Text className="text-2xl font-semibold text-paper">
             {stats.finishedThisYear}
@@ -133,13 +141,13 @@ export default function StatsScreen() {
         {stats.topThisYear.length > 0 && (
           <View className="mt-6 gap-2">
             <Text className="text-xs uppercase tracking-wider text-muted">
-              Most listened this year
+              {t('Most listened this year')}
             </Text>
             {stats.topThisYear.map((b, index) => (
               <View key={b.bookId} className="flex-row items-center gap-3 py-1">
                 <Text className="w-5 text-muted">{index + 1}</Text>
                 <Text numberOfLines={1} className="flex-1 text-paper">
-                  {b.title || 'Untitled'}
+                  {b.title || t('Untitled')}
                 </Text>
                 <Text className="text-sm text-soft">{hours(b.ms)}</Text>
               </View>
@@ -155,7 +163,7 @@ export default function StatsScreen() {
 
       <Sheet
         visible={choosingGoal}
-        title="Books to finish this year"
+        title={t('Books to finish this year')}
         onClose={() => setChoosingGoal(false)}
       >
         <View className="flex-row flex-wrap gap-2 pb-2">
@@ -170,7 +178,7 @@ export default function StatsScreen() {
               className={`rounded-full border px-4 py-2 ${n === goal ? 'border-amber bg-amber' : 'border-line'}`}
             >
               <Text className={n === goal ? 'text-ink' : 'text-soft'}>
-                {n === 0 ? 'No goal' : n}
+                {n === 0 ? t('No goal') : n}
               </Text>
             </Pressable>
           ))}

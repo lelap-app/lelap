@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../i18n';
 import { COLORS, Icon } from './Icon';
 import { db } from '../db';
 import { switchProfile, useLibrary } from '../player';
@@ -63,7 +64,7 @@ export function ProfilePicker({
       className="flex-1 items-center gap-8 bg-night px-6"
     >
       <Text className="text-3xl font-semibold text-paper">
-        {asking ? asking.name : 'Who’s listening?'}
+        {asking ? asking.name : t('Who’s listening?')}
       </Text>
       {asking ? (
         <View className="items-center gap-4">
@@ -75,13 +76,13 @@ export function ProfilePicker({
             keyboardType="number-pad"
             secureTextEntry
             maxLength={4}
-            placeholder="PIN"
+            placeholder={t('PIN')}
             placeholderTextColor="#8d8a83"
             className="w-40 rounded-lg border border-line px-3 py-3 text-center text-2xl tracking-[12px] text-paper"
           />
-          {wrong && <Text className="text-danger">That PIN is not right.</Text>}
+          {wrong && <Text className="text-danger">{t('That PIN is not right.')}</Text>}
           <Pressable onPress={() => setAsking(null)} hitSlop={8}>
-            <Text className="text-muted">Back</Text>
+            <Text className="text-muted">{t('Back')}</Text>
           </Pressable>
         </View>
       ) : (
@@ -95,7 +96,9 @@ export function ProfilePicker({
               <Avatar avatar={p.avatar} name={p.name} size={96} />
               <View className="flex-row items-center gap-1">
                 <Text className="text-paper">{p.name}</Text>
-                {p.pinHash ? <Icon name="lock" size={14} color={COLORS.muted} label="PIN" /> : null}
+                {p.pinHash ? (
+                  <Icon name="lock" size={14} color={COLORS.muted} label={t('PIN')} />
+                ) : null}
               </View>
             </Pressable>
           ))}

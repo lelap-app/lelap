@@ -4,6 +4,7 @@ import {
   checkHealth,
   type AddonHealth,
   type Fetcher,
+  fetchArtwork,
   fetchManifest,
   fetchMeta,
   fetchStreams,
@@ -13,11 +14,12 @@ import {
   HealthTracker,
   type InstalledAddon,
   listAddons,
+  splitLocalUrl,
   syncAddons,
   trackedFetcher,
 } from '@lelap/core';
-import { type ContentType, type Meta, offersHealth } from '@lelap/sdk';
-import { QueryClient } from '@tanstack/react-query';
+import { type ContentType, type Meta, offersHealth, supports } from '@lelap/sdk';
+import { QueryClient, useQuery } from '@tanstack/react-query';
 import { useMemo, useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 
@@ -25,6 +27,7 @@ import { defaultAddons } from './config';
 import { db, newId } from './db';
 import { profileId } from './profile';
 import { playBook, useLibrary } from './player';
+import { callLocalAddon } from './sandbox';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,7 +38,15 @@ export const queryClient = new QueryClient({
 /** What each add-on's requests did during this run, for Settings → Add-ons. Kept in memory only. */
 export const addonHealth = new HealthTracker();
 
-export const fetcher: Fetcher = trackedFetcher((url, init) => fetch(url, init), addonHealth);
+// Add-ons that run inside the app answer through their sandbox; all others over the network.
+const route: Fetcher = async (url, init) => {
+  const local = splitLocalUrl(url);
+  if (!local) return fetch(url, init);
+  const { status, body } = await callLocalAddon(local.manifestUrl, local.path);
+  return { ok: status >= 200 && status < 300, status, json: async () => body };
+};
+
+export const fetcher: Fetcher = trackedFetcher(route, addonHealth);
 
 /** One add-on's health, re-rendered when any request finishes. */
 export function useAddonHealth(url: string): AddonHealth {
@@ -133,3 +144,29 @@ export const queries = {
     queryFn: () => findSources(fetcher, addons, type, id, externalIds),
   }),
 };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The item's own cover, else one from an add-on with an `artwork` resource for it (cached a day).
+ * Null while asking or when no add-on has one; the cover then shows the title's letter.
+ */
+export function useArtwork(item: {
+  id: string;
+  type: ContentType;
+  cover?: string | undefined;
+}): string | null {
+  const addons = useAddons();
+  const offered = useMemo(
+    () => addons.some((a) => supports(a.manifest, 'artwork', item.type, item.id)),
+    [addons, item.type, item.id],
+  );
+  const found = useQuery({
+    queryKey: ['artwork', item.type, item.id],
+    enabled: !item.cover && offered,
+    staleTime: DAY_MS,
+    gcTime: DAY_MS,
+    queryFn: () => fetchArtwork(fetcher, addons, item.type, item.id),
+  });
+  return item.cover ?? found.data ?? null;
+}

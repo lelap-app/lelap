@@ -1,3 +1,4 @@
+import { t } from './i18n';
 // Over-the-air JavaScript updates (expo-updates, M18). The APK updater in `updates.ts` replaces
 // the whole app; this only swaps the JavaScript bundle within one native build (runtime version).
 import { getSettings } from '@lelap/core';
@@ -55,9 +56,12 @@ export function fetchOtaUpdate(): Promise<OtaResult> {
 /** A line for Settings: which bundle runs now. */
 export function otaDescription(): string | null {
   if (!OTA_UPDATES) return null;
-  if (Updates.isEmbeddedLaunch) return 'Running the version that came with this install.';
+  if (Updates.isEmbeddedLaunch) return t('Running the version that came with this install.');
   const date = Updates.createdAt?.toLocaleDateString() ?? '';
-  return `Running update ${Updates.updateId?.slice(0, 8) ?? '?'}${date ? ` from ${date}` : ''}.`;
+  const id = Updates.updateId?.slice(0, 8) ?? '?';
+  return date
+    ? t('Running update {id} from {date}.', { id, date })
+    : t('Running update {id}.', { id });
 }
 
 /** Checks on start and when the app comes back, if the user allows it. */

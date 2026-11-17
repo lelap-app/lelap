@@ -1,5 +1,6 @@
 import { FlatList, Pressable, Text } from 'react-native';
 
+import { t } from '../i18n';
 import { formatClock } from '../format';
 import { Sheet } from './Sheet';
 
@@ -17,7 +18,7 @@ export function ChaptersSheet({
   onClose: () => void;
 }) {
   return (
-    <Sheet visible={visible} title="Chapters" onClose={onClose}>
+    <Sheet visible={visible} title={t('Chapters')} onClose={onClose}>
       <FlatList
         data={chapters}
         keyExtractor={(_, i) => String(i)}

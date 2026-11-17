@@ -3,10 +3,13 @@ import '../global.css';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Text, View } from 'react-native';
 
+import { AddonReviewHost } from '../src/addonReview';
+import { currentLanguage, subscribeLanguage } from '../src/i18n';
 import { DialogHost } from '../src/dialog';
+import { SandboxHost } from '../src/sandbox/SandboxHost';
 import { queryClient, syncAddonsNow } from '../src/addons';
 import { listProfiles } from '@lelap/core';
 
@@ -47,6 +50,8 @@ function ProfileGate() {
 
 export default function RootLayout() {
   const { ready, error } = useDbReady();
+  // Text is read at render time, so a new language (a switch, or another profile) redraws it all.
+  const language = useSyncExternalStore(subscribeLanguage, currentLanguage, currentLanguage);
   // Before anything reads or saves: the profile this device used last.
   const profileLoaded = useMemo(() => {
     if (ready) loadActiveProfile();
@@ -71,7 +76,10 @@ export default function RootLayout() {
         <SyncRunner />
         <OtaRunner />
         <DeviceRunner />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0d0e11' } }}>
+        <Stack
+          key={language}
+          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0d0e11' } }}
+        >
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
             name="player"
@@ -82,6 +90,8 @@ export default function RootLayout() {
         </Stack>
         <HandoffBanner />
         <DialogHost />
+        <AddonReviewHost />
+        <SandboxHost />
         <ProfileGate />
         <StatusBar style="light" />
       </PlayerProvider>

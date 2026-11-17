@@ -129,6 +129,13 @@ const ICONS = {
       <Path d="m8 12 3 3 5-6" {...stroke(c)} />
     </>
   ),
+  info: (c) => (
+    <>
+      <Circle cx={12} cy={12} r={9} {...stroke(c)} />
+      <Path d="M12 11v6" {...stroke(c)} />
+      <Circle cx={12} cy={7.5} r={1.2} fill={c} />
+    </>
+  ),
   download: (c) => <Path d="M12 4v11M7 10l5 5 5-5M5 20h14" {...stroke(c)} />,
   cloud: (c) => (
     <Path d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6 9a4.5 4.5 0 0 0 1 9z" {...stroke(c)} />

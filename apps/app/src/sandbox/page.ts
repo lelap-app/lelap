@@ -1,0 +1,102 @@
+// The page an in-app add-on runs in (M38). Its content policy allows inline scripts and nothing
+// else: no network, no frames, no storage beyond the page. The add-on reaches the outside only
+// through `lelap.fetch`, which asks the app, and the app fetches only from the hosts the add-on
+// declared. The bootstrap answers the same routes as a web add-on.
+
+const BOOTSTRAP = `
+(function () {
+  var post = function (m) {
+    var text = JSON.stringify(m);
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(text);
+    else window.parent.postMessage(text, '*');
+  };
+  var pending = {};
+  var seq = 0;
+  var def = null;
+  window.addon = function (d) { def = d; };
+  window.lelap = {
+    fetch: function (url, init) {
+      return new Promise(function (resolve, reject) {
+        var id = 'f' + (++seq);
+        pending[id] = { resolve: resolve, reject: reject };
+        post({ t: 'fetch', id: id, url: String(url), init: init ? {
+          method: init.method, headers: init.headers,
+          body: typeof init.body === 'string' ? init.body : undefined
+        } : undefined });
+      });
+    }
+  };
+  var dec = function (s) { try { return decodeURIComponent(s); } catch (e) { return s; } };
+  var route = function (path) {
+    var clean = path.replace(/^\\/+/, '');
+    if (clean === 'manifest.json') return { resource: 'manifest' };
+    if (!/\\.json$/.test(clean)) return null;
+    var p = clean.slice(0, -5).split('/');
+    var types = ['audiobook', 'podcast', 'episode'];
+    if (p.length < 3 || types.indexOf(dec(p[1])) < 0) return null;
+    var r = { resource: p[0], type: dec(p[1]), id: dec(p[2]) };
+    if (p[0] === 'catalog') {
+      var extra = {};
+      (p[3] || '').split('&').forEach(function (pair) {
+        if (!pair) return;
+        var at = pair.indexOf('=');
+        extra[dec(at < 0 ? pair : pair.slice(0, at))] = at < 0 ? '' : dec(pair.slice(at + 1));
+      });
+      r.extra = extra;
+      return p.length <= 4 ? r : null;
+    }
+    return p.length === 3 ? r : null;
+  };
+  var handle = function (id, path) {
+    Promise.resolve().then(function () {
+      if (!def) throw new Error('The file never called addon({...}).');
+      var r = route(path);
+      if (!r) return { status: 404, body: { error: 'Not found' } };
+      if (r.resource === 'manifest') return { status: 200, body: def.manifest };
+      var h = def[r.resource];
+      if (typeof h !== 'function') return { status: 404, body: { error: 'Not found' } };
+      return Promise.resolve(h(r)).then(function (b) {
+        return b == null ? { status: 404, body: { error: 'Not found' } } : { status: 200, body: b };
+      });
+    }).then(function (res) {
+      post({ t: 'result', id: id, status: res.status, body: res.body });
+    }, function (err) {
+      post({ t: 'result', id: id, status: 500, body: { error: String((err && err.message) || err) } });
+    });
+  };
+  var onMessage = function (e) {
+    var m;
+    try { m = JSON.parse(typeof e.data === 'string' ? e.data : ''); } catch (x) { return; }
+    if (m.t === 'fetched') {
+      var p = pending[m.id];
+      if (!p) return;
+      delete pending[m.id];
+      if (m.error) { p.reject(new Error(m.error)); return; }
+      var headers = m.headers || {};
+      p.resolve({
+        ok: m.status >= 200 && m.status < 300,
+        status: m.status,
+        headers: { get: function (k) { return headers[String(k).toLowerCase()] || null; } },
+        text: function () { return Promise.resolve(m.text); },
+        json: function () { return Promise.resolve(JSON.parse(m.text)); }
+      });
+    } else if (m.t === 'call') {
+      handle(m.id, m.path);
+    }
+  };
+  window.addEventListener('message', onMessage);
+  document.addEventListener('message', onMessage);
+  window.onerror = function (msg) { post({ t: 'log', message: String(msg) }); };
+})();
+`;
+
+/** The add-on's code inside a closed page. */
+export function sandboxPage(code: string): string {
+  // The code can't close its own script element and escape into the page.
+  const safe = code.replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
+  return `<!doctype html><html><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'">
+</head><body><script>${BOOTSTRAP}</script><script>${safe}</script>
+<script>(window.ReactNativeWebView ? window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'ready' })) : window.parent.postMessage(JSON.stringify({ t: 'ready' }), '*'));</script>
+</body></html>`;
+}

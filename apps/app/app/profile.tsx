@@ -14,6 +14,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { useAllAddons } from '../src/addons';
@@ -42,7 +43,7 @@ export default function ProfileScreen() {
   if (!profile) {
     return (
       <View className="flex-1 items-center justify-center bg-night">
-        <Text className="text-muted">This profile is gone.</Text>
+        <Text className="text-muted">{t('This profile is gone.')}</Text>
       </View>
     );
   }
@@ -55,12 +56,14 @@ export default function ProfileScreen() {
 
   const remove = () =>
     showAlert(
-      `Delete ${profile.name}?`,
-      'Their places, bookmarks, Up Next, podcasts and settings go too, on every synced device. Downloads stay.',
+      t('Delete {name}?', { name: profile.name }),
+      t(
+        'Their places, bookmarks, Up Next, podcasts and settings go too, on every synced device. Downloads stay.',
+      ),
       [
-        { text: 'Keep', style: 'cancel' },
+        { text: t('Keep'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('Delete'),
           style: 'destructive',
           onPress: () =>
             void (async () => {
@@ -88,7 +91,12 @@ export default function ProfileScreen() {
       }}
     >
       <View className="-ml-2 self-start">
-        <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+        <IconButton
+          name="back"
+          label={t('Back')}
+          color={COLORS.soft}
+          onPress={() => router.back()}
+        />
       </View>
       <View className="flex-row items-center gap-4">
         <Avatar avatar={profile.avatar} name={profile.name} size={72} />
@@ -100,7 +108,7 @@ export default function ProfileScreen() {
         />
       </View>
 
-      <Text className="text-xs uppercase tracking-wider text-muted">Avatar</Text>
+      <Text className="text-xs uppercase tracking-wider text-muted">{t('Avatar')}</Text>
       <View className="flex-row flex-wrap gap-3">
         {AVATAR_IDS.map((a) => (
           <Pressable
@@ -119,10 +127,11 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      <Text className="pt-2 text-xs uppercase tracking-wider text-muted">PIN</Text>
+      <Text className="pt-2 text-xs uppercase tracking-wider text-muted">{t('PIN')}</Text>
       <Text className="text-sm text-muted">
-        A four-digit PIN keeps others from opening this profile on this device. It doesn’t encrypt
-        anything.
+        {t(
+          'A four-digit PIN keeps others from opening this profile on this device. It doesn’t encrypt anything.',
+        )}
       </Text>
       <View className="flex-row items-center gap-3">
         <TextInput
@@ -131,7 +140,7 @@ export default function ProfileScreen() {
           keyboardType="number-pad"
           secureTextEntry
           maxLength={4}
-          placeholder={profile.pinHash ? 'New PIN' : 'PIN'}
+          placeholder={profile.pinHash ? t('New PIN') : 'PIN'}
           placeholderTextColor="#8d8a83"
           className="w-32 rounded-lg border border-line px-3 py-2 text-paper"
         />
@@ -143,7 +152,7 @@ export default function ProfileScreen() {
             refresh();
           }}
         >
-          <Text className={isPin(pin) ? 'text-amber' : 'text-muted'}>Set</Text>
+          <Text className={isPin(pin) ? 'text-amber' : 'text-muted'}>{t('Set')}</Text>
         </Pressable>
         {profile.pinHash && (
           <Pressable
@@ -152,17 +161,18 @@ export default function ProfileScreen() {
               refresh();
             }}
           >
-            <Text className="text-danger">Remove PIN</Text>
+            <Text className="text-danger">{t('Remove PIN')}</Text>
           </Pressable>
         )}
       </View>
 
       <View className="flex-row items-center gap-3 pt-2">
         <View className="flex-1">
-          <Text className="text-paper">Kids profile</Text>
+          <Text className="text-paper">{t('Kids profile')}</Text>
           <Text className="text-sm text-muted">
-            Can’t change add-ons, servers or backups. Sees only the books on its shelf, and streamed
-            books it starts itself.
+            {t(
+              'Can’t change add-ons, servers or backups. Sees only the books on its shelf, and streamed books it starts itself.',
+            )}
           </Text>
         </View>
         <Switch value={profile.kids} onValueChange={(kids) => save({ kids })} />
@@ -170,10 +180,12 @@ export default function ProfileScreen() {
 
       {profile.kids && (
         <>
-          <Text className="pt-2 text-xs uppercase tracking-wider text-muted">Shelf</Text>
+          <Text className="pt-2 text-xs uppercase tracking-wider text-muted">{t('Shelf')}</Text>
           {shelf.length === 0 ? (
             <Text className="text-sm text-muted">
-              Nothing yet. In your own Library, hold a book and choose “Put on a kid’s shelf…”.
+              {t(
+                'Nothing yet. In your own Library, hold a book and choose “Put on a kid’s shelf…”.',
+              )}
             </Text>
           ) : (
             shelf.map((b) => (
@@ -188,7 +200,7 @@ export default function ProfileScreen() {
                   }}
                   hitSlop={8}
                 >
-                  <Text className="text-danger">Remove</Text>
+                  <Text className="text-danger">{t('Remove')}</Text>
                 </Pressable>
               </View>
             ))
@@ -197,7 +209,7 @@ export default function ProfileScreen() {
       )}
 
       <Text className="pt-2 text-xs uppercase tracking-wider text-muted">
-        Catalogs this profile sees
+        {t('Catalogs this profile sees')}
       </Text>
       {addons.map((a) => (
         <View key={a.url} className="flex-row items-center gap-3 border-b border-line py-2">
@@ -216,7 +228,7 @@ export default function ProfileScreen() {
       ))}
 
       <Pressable onPress={remove} className="pt-4">
-        <Text className="text-danger">Delete this profile</Text>
+        <Text className="text-danger">{t('Delete this profile')}</Text>
       </Pressable>
     </ScrollView>
   );

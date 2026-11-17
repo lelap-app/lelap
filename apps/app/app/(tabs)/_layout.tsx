@@ -1,6 +1,7 @@
 import { BottomTabBar, Tabs } from 'expo-router/js-tabs';
 import { View } from 'react-native';
 
+import { t } from '../../src/i18n';
 import { useAddons } from '../../src/addons';
 import { useSourceCacheAddons } from '../../src/availability';
 import { Icon, type IconName } from '../../src/components/Icon';
@@ -35,11 +36,11 @@ export default function TabsLayout() {
         ),
       })}
     >
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="discover" options={{ title: 'Discover' }} />
-      <Tabs.Screen name="search" options={{ title: 'Search' }} />
-      <Tabs.Screen name="podcasts" options={{ title: 'Podcasts' }} />
-      <Tabs.Screen name="library" options={{ title: 'Library' }} />
+      <Tabs.Screen name="index" options={{ title: t('Home') }} />
+      <Tabs.Screen name="discover" options={{ title: t('Discover') }} />
+      <Tabs.Screen name="search" options={{ title: t('Search') }} />
+      <Tabs.Screen name="podcasts" options={{ title: t('Podcasts') }} />
+      <Tabs.Screen name="library" options={{ title: t('Library') }} />
     </Tabs>
   );
 }

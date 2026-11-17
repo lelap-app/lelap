@@ -2,14 +2,15 @@ import type { LibraryBook } from '@lelap/core';
 import { memo } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 
+import { t } from '../i18n';
 import { BookCover, coverUri } from './BookCover';
 import { COLORS, IconButton } from './Icon';
 
 function status(book: LibraryBook): string {
-  if (book.missing) return 'Files not found';
-  if (book.finishedAt !== null) return '✓ Finished';
-  if (book.bookPositionMs <= 0) return 'New';
-  if (book.durationMs <= 0) return 'Started';
+  if (book.missing) return t('Files not found');
+  if (book.finishedAt !== null) return t('✓ Finished');
+  if (book.bookPositionMs <= 0) return t('New');
+  if (book.durationMs <= 0) return t('Started');
   return `${Math.min(99, Math.floor((book.bookPositionMs / book.durationMs) * 100))} %`;
 }
 
@@ -41,7 +42,7 @@ export const BookRow = memo(function BookRow({
           <Text numberOfLines={1} className="text-sm text-muted">
             {[
               book.author,
-              book.source === 'addon' ? (book.downloaded ? 'Downloaded' : 'Streaming') : null,
+              book.source === 'addon' ? (book.downloaded ? t('Downloaded') : t('Streaming')) : null,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -54,13 +55,13 @@ export const BookRow = memo(function BookRow({
         )}
       </View>
       <Text className={`text-sm ${book.finishedAt !== null ? 'text-amber' : 'text-muted'}`}>
-        {unavailable ? 'Not on this phone' : status(book)}
+        {unavailable ? t('Not on this phone') : status(book)}
       </Text>
       {/* A mouse can't long-press comfortably, so the web shows the menu as a button. */}
       {Platform.OS === 'web' && (
         <IconButton
           name="more"
-          label={`More for ${book.title}`}
+          label={t('More for {name}', { name: book.title })}
           size={20}
           color={COLORS.muted}
           onPress={() => onLongPress(book)}

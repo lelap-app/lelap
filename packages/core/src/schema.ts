@@ -21,6 +21,7 @@ export const SHARED_TABLES = [
   'profiles',
   'addons',
   'removed_addons',
+  'local_addon_code',
   'downloads',
   'podcasts',
   'episodes',
@@ -247,6 +248,20 @@ export const addons = sqliteTable('addons', {
   /** Installed by the app from its configuration rather than by the user. */
   builtin: integer('builtin', { mode: 'boolean' }).notNull().default(false),
   installedAt: integer('installed_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+/**
+ * The code of add-ons that run inside the app (M38), by their `lelap-local://` manifest URL. Kept
+ * on this device; the sandbox loads it from here, never from the network after install.
+ */
+export const localAddonCode = sqliteTable('local_addon_code', {
+  url: text('url').primaryKey(),
+  /** Where it was installed from, for updates. */
+  sourceUrl: text('source_url').notNull(),
+  code: text('code').notNull(),
+  /** SHA-256 of `code`, shown at install so a listener can compare it with the author's. */
+  sha256: text('sha256').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
 

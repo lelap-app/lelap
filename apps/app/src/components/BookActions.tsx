@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
+import { t } from '../i18n';
 import { db, newId } from '../db';
 import { showAlert } from '../dialog';
 import { deleteDownload, startDownload } from '../downloads';
@@ -117,11 +118,11 @@ export function BookActions({
 
   const title =
     mode === 'tags'
-      ? 'Tags'
+      ? t('Tags')
       : mode === 'lists'
-        ? 'Add to a list'
+        ? t('Add to a list')
         : mode === 'shelf'
-          ? 'Kids’ shelves'
+          ? t('Kids’ shelves')
           : book.title;
 
   return (
@@ -130,7 +131,7 @@ export function BookActions({
         <ScrollView>
           <Row
             icon="check"
-            label={book.finishedAt === null ? 'Mark as finished' : 'Mark as not finished'}
+            label={book.finishedAt === null ? t('Mark as finished') : t('Mark as not finished')}
             onPress={() => {
               setFinished(db, profileId, book.id, book.finishedAt === null, now());
               done();
@@ -138,21 +139,25 @@ export function BookActions({
           />
           <Row
             icon="queue"
-            label="Add to Up Next"
+            label={t('Add to Up Next')}
             onPress={() => {
               addToUpNext(db, profileId, book.id, 'last', now());
               done();
             }}
           />
-          <Row icon="bookmark" label="Tags…" onPress={() => setMode('tags')} />
-          <Row icon="chapters" label="Add to a list…" onPress={() => setMode('lists')} />
+          <Row icon="bookmark" label={t('Tags…')} onPress={() => setMode('tags')} />
+          <Row icon="chapters" label={t('Add to a list…')} onPress={() => setMode('lists')} />
           {kids.length > 0 && (
-            <Row icon="library" label="Put on a kid’s shelf…" onPress={() => setMode('shelf')} />
+            <Row
+              icon="library"
+              label={t('Put on a kid’s shelf…')}
+              onPress={() => setMode('shelf')}
+            />
           )}
           {listId !== undefined && (
             <Row
               icon="close"
-              label="Remove from this list"
+              label={t('Remove from this list')}
               onPress={() => {
                 removeFromPlaylist(db, profileId, listId, book.id, now());
                 done();
@@ -162,7 +167,7 @@ export function BookActions({
           {book.source === 'local' && (
             <Row
               icon="podcast"
-              label="This is a podcast…"
+              label={t('This is a podcast…')}
               onPress={() => {
                 onClose();
                 router.push({ pathname: '/convert', params: { bookId: book.id } });
@@ -173,7 +178,7 @@ export function BookActions({
             (book.downloaded ? (
               <Row
                 icon="close"
-                label="Remove download"
+                label={t('Remove download')}
                 onPress={() => {
                   void deleteDownload(book.id).finally(onChanged);
                   onClose();
@@ -182,11 +187,14 @@ export function BookActions({
             ) : (
               <Row
                 icon="download"
-                label="Download"
+                label={t('Download')}
                 onPress={() => {
                   void startDownload(book.id, null)
                     .catch((error: unknown) =>
-                      showAlert('Download', error instanceof Error ? error.message : String(error)),
+                      showAlert(
+                        t('Download'),
+                        error instanceof Error ? error.message : String(error),
+                      ),
                     )
                     .finally(onChanged);
                   onClose();
@@ -196,16 +204,16 @@ export function BookActions({
           {book.source === 'addon' && (
             <Row
               icon="close"
-              label="Remove from library"
+              label={t('Remove from library')}
               danger
               onPress={() =>
                 showAlert(
-                  'Remove from library?',
-                  'Your place and bookmarks in this book are removed too.',
+                  t('Remove from library?'),
+                  t('Your place and bookmarks in this book are removed too.'),
                   [
-                    { text: 'Cancel', style: 'cancel' },
+                    { text: t('Cancel'), style: 'cancel' },
                     {
-                      text: 'Remove',
+                      text: t('Remove'),
                       style: 'destructive',
                       onPress: () => {
                         removeStreamedBook(db, book.id);
@@ -245,7 +253,7 @@ export function BookActions({
               value={draft}
               onChangeText={setDraft}
               onSubmitEditing={addDraft}
-              placeholder="New tag"
+              placeholder={t('New tag')}
               placeholderTextColor={COLORS.muted}
               autoCapitalize="none"
               returnKeyType="done"
@@ -256,11 +264,11 @@ export function BookActions({
               accessibilityRole="button"
               className="justify-center rounded-lg bg-amber px-4"
             >
-              <Text className="font-semibold text-ink">Add</Text>
+              <Text className="font-semibold text-ink">{t('Add')}</Text>
             </Pressable>
           </View>
           <Pressable onPress={onClose} className="self-end py-2">
-            <Text className="text-amber">Done</Text>
+            <Text className="text-amber">{t('Done')}</Text>
           </Pressable>
         </View>
       )}
@@ -273,7 +281,11 @@ export function BookActions({
               <Row
                 key={kid.id}
                 icon={on ? 'check' : 'plus'}
-                label={on ? `On ${kid.name}’s shelf` : `Put on ${kid.name}’s shelf`}
+                label={
+                  on
+                    ? t('On {name}’s shelf', { name: kid.name })
+                    : t('Put on {name}’s shelf', { name: kid.name })
+                }
                 onPress={() => {
                   if (on) removeFromShelf(db, kid.id, book.id, now());
                   else addToShelf(db, kid.id, book.id, now());
@@ -287,7 +299,7 @@ export function BookActions({
             );
           })}
           <Text className="px-2 pb-3 pt-1 text-xs text-muted">
-            A kids profile sees the books on its shelf, and streamed books it starts itself.
+            {t('A kids profile sees the books on its shelf, and streamed books it starts itself.')}
           </Text>
         </ScrollView>
       )}
@@ -307,13 +319,13 @@ export function BookActions({
           ))}
           <Row
             icon="plus"
-            label="New list with this book"
+            label={t('New list with this book')}
             onPress={() => {
               const id = createPlaylist(
                 db,
                 profileId,
                 newId,
-                { name: 'New list', rule: null },
+                { name: t('New list'), rule: null },
                 now(),
               );
               addToPlaylist(db, profileId, id, book.id, now());

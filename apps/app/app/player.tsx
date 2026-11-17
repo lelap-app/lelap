@@ -7,19 +7,21 @@ import {
   setBookmarkNote,
   setSpeed,
   toBookPosition,
+  parseTime,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { PressScale } from '../src/components/Motion';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { BookmarksSheet } from '../src/components/BookmarksSheet';
 import { CastSheet } from '../src/components/CastSheet';
 import { ChaptersSheet } from '../src/components/ChaptersSheet';
 import { COLORS, Icon, IconButton, type IconName } from '../src/components/Icon';
-import { Scrubber } from '../src/components/Scrubber';
+import { Scrubber, type ScrubMark } from '../src/components/Scrubber';
 import { Sheet } from '../src/components/Sheet';
 import { soundActive, SoundSheet, useSoundSettings } from '../src/components/SoundSheet';
 import { CASTING_SUPPORTED, useCasting } from '../src/casting';
@@ -132,12 +134,15 @@ export default function Player() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [sheet, setSheet] = useState<
-    'chapters' | 'bookmarks' | 'speed' | 'sleep' | 'sound' | 'note' | 'cast' | null
+    'chapters' | 'bookmarks' | 'speed' | 'sleep' | 'sound' | 'note' | 'cast' | 'jump' | null
   >(null);
   const sound = useSoundSettings();
   const casting = useCasting();
   const [note, setNote] = useState('');
   const [lastBookmark, setLastBookmark] = useState<string | null>(null);
+  // The bar covers the chapter; a tap on the note under it switches to the whole book.
+  const [wholeBook, setWholeBook] = useState(false);
+  const [jumpText, setJumpText] = useState('');
 
   const bookId = state.bookId;
   // `version` is the signal to re-read the database.
@@ -157,8 +162,8 @@ export default function Player() {
         style={{ paddingTop: insets.top }}
         className="flex-1 items-center justify-center gap-4 bg-night"
       >
-        <Text className="text-soft">Nothing is playing.</Text>
-        <Chip label="Back to the library" onPress={() => router.back()} />
+        <Text className="text-soft">{t('Nothing is playing.')}</Text>
+        <Chip label={t('Back to the library')} onPress={() => router.back()} />
       </View>
     );
   }
@@ -168,16 +173,34 @@ export default function Player() {
   const position = toBookPosition(detail.files, state.fileLocation ?? '', state.positionMs);
   const current = chapterAt(chapters, position);
   const chapter = chapters[current];
-  const rangeStart = chapter?.startMs ?? 0;
-  const rangeEnd = chapter ? (chapters[current + 1]?.startMs ?? total) : total;
+  const chapterStart = chapter?.startMs ?? 0;
+  const chapterEnd = chapter ? (chapters[current + 1]?.startMs ?? total) : total;
+  const book = wholeBook || !chapter;
+  const rangeStart = book ? 0 : chapterStart;
+  const rangeEnd = book ? total : chapterEnd;
   const length = Math.max(1, rangeEnd - rangeStart);
   const elapsed = Math.min(length, Math.max(0, position - rangeStart));
+  const inRange = (at: number) => at >= rangeStart && at <= rangeEnd;
+  const marks: ScrubMark[] = [
+    ...(book && chapters.length > 1
+      ? chapters.slice(1).map((c) => ({ atMs: c.startMs - rangeStart, kind: 'chapter' as const }))
+      : []),
+    ...bookmarks
+      .filter((b) => inRange(b.bookPositionMs))
+      .map((b) => ({ atMs: b.bookPositionMs - rangeStart, kind: 'bookmark' as const })),
+  ];
+  const jumpTarget = parseTime(jumpText);
+  const jump = (bookPositionMs: number) => {
+    seek(Math.min(Math.max(0, bookPositionMs), Math.max(0, total - 1_000)));
+    setJumpText('');
+    setSheet(null);
+  };
 
   const seek = (bookPositionMs: number) => void seekToBookPosition(bookId, bookPositionMs);
   const previousChapter = () =>
     seek(
-      position - rangeStart > RESTART_WINDOW_MS
-        ? rangeStart
+      position - chapterStart > RESTART_WINDOW_MS
+        ? chapterStart
         : (chapters[current - 1]?.startMs ?? 0),
     );
   const nextChapter = () => {
@@ -216,7 +239,11 @@ export default function Player() {
   // Podcasts stop at the end of the episode, books at the end of the chapter (or file).
   const endMode = detail.book.source === 'feed' ? 'episode' : 'chapter';
   const timerPrefix =
-    state.sleepTimerMode === 'chapter' ? 'ch. ' : state.sleepTimerMode === 'episode' ? 'ep. ' : '';
+    state.sleepTimerMode === 'chapter'
+      ? t('ch. ')
+      : state.sleepTimerMode === 'episode'
+        ? t('ep. ')
+        : '';
 
   const left = total > 0 ? (total - position) / Math.max(0.5, state.speed) : 0;
   const percent = total > 0 ? Math.round((position / total) * 100) : 0;
@@ -227,7 +254,7 @@ export default function Player() {
       className="flex-1 bg-night px-6"
     >
       <View className="flex-row items-center justify-between">
-        <IconButton name="down" label="Close player" size={26} onPress={() => router.back()} />
+        <IconButton name="down" label={t('Close player')} size={26} onPress={() => router.back()} />
         {chapters.length > 1 && (
           <Text className="text-xs uppercase tracking-widest text-muted">
             Chapter {current + 1} of {chapters.length}
@@ -236,7 +263,7 @@ export default function Player() {
         {Platform.OS === 'android' ? (
           <IconButton
             name="car"
-            label="Car mode"
+            label={t('Car mode')}
             color={COLORS.soft}
             onPress={() => router.push('/car')}
           />
@@ -268,7 +295,7 @@ export default function Player() {
         <Pressable
           onPress={bookmark}
           accessibilityRole="button"
-          accessibilityLabel="Add bookmark"
+          accessibilityLabel={t('Add bookmark')}
           className="h-11 w-11 items-center justify-center rounded-full bg-raised active:opacity-70"
         >
           <Icon name="bookmarkAdd" size={22} />
@@ -280,23 +307,32 @@ export default function Player() {
         lengthMs={length}
         middle={
           total > 0
-            ? `${detail.book.source === 'feed' ? 'Episode' : 'Book'} ${percent}% · ${formatLeft(left)}`
+            ? book && chapter
+              ? `${detail.book.source === 'feed' ? t('Whole episode') : t('Whole book')} · ${formatLeft(left)}`
+              : `${detail.book.source === 'feed' ? t('Episode') : t('Book')} ${percent}% · ${formatLeft(left)}`
             : undefined
         }
+        marks={marks}
         onSeek={(offset) => seek(rangeStart + offset)}
+        onPressElapsed={() => setSheet('jump')}
+        {...(chapter ? { onPressMiddle: () => setWholeBook((v) => !v) } : {})}
       />
 
       <View className="flex-row items-center justify-between py-4">
-        <Control icon="back30" label="Back 30 seconds" onPress={() => void audio.skip(false)} />
+        <Control
+          icon="back30"
+          label={t('Back 30 seconds')}
+          onPress={() => void audio.skip(false)}
+        />
         {chapters.length > 0 ? (
-          <Control icon="previous" label="Previous chapter" onPress={previousChapter} />
+          <Control icon="previous" label={t('Previous chapter')} onPress={previousChapter} />
         ) : (
           <View className="w-14" />
         )}
         <PressScale
           onPress={() => void (state.playing ? audio.pause() : audio.play())}
           accessibilityRole="button"
-          accessibilityLabel={state.playing ? 'Pause' : 'Play'}
+          accessibilityLabel={state.playing ? t('Pause') : t('Play')}
           style={{
             width: 80,
             height: 80,
@@ -309,19 +345,21 @@ export default function Player() {
           <Icon name={state.playing ? 'pause' : 'play'} size={32} color={COLORS.ink} />
         </PressScale>
         {chapters.length > 0 ? (
-          <Control icon="next" label="Next chapter" onPress={nextChapter} />
+          <Control icon="next" label={t('Next chapter')} onPress={nextChapter} />
         ) : (
           <View className="w-14" />
         )}
         <Control
           icon="forward30"
-          label="Forward 30 seconds"
+          label={t('Forward 30 seconds')}
           onPress={() => void audio.skip(true)}
         />
       </View>
 
       {state.waitingForCall && (
-        <Text className="pb-2 text-center text-sm text-amber">Starts when the call ends</Text>
+        <Text className="pb-2 text-center text-sm text-amber">
+          {t('Starts when the call ends')}
+        </Text>
       )}
       {state.error !== null && (
         <Text className="pb-2 text-center text-sm text-danger">{state.error}</Text>
@@ -331,36 +369,42 @@ export default function Player() {
         <Tool
           icon="speed"
           label={`${Number(state.speed.toFixed(2))}×`}
-          spoken={`Speed, ${Number(state.speed.toFixed(2))}×`}
+          spoken={t('Speed, {speed}×', { speed: Number(state.speed.toFixed(2)) })}
           onPress={() => setSheet('speed')}
         />
         <Tool
           icon="sound"
-          label="Sound"
+          label={t('Sound')}
           active={soundActive(sound.settings)}
           onPress={() => setSheet('sound')}
         />
         <Tool
           icon="moon"
-          label={timer === null ? 'Sleep' : `${timerPrefix}${formatClock(timer)}`}
+          label={timer === null ? t('Sleep') : `${timerPrefix}${formatClock(timer)}`}
           active={timer !== null}
           onPress={() => setSheet('sleep')}
         />
         {chapters.length > 0 && (
-          <Tool icon="chapters" label="Chapters" onPress={() => setSheet('chapters')} />
+          <Tool icon="chapters" label={t('Chapters')} onPress={() => setSheet('chapters')} />
         )}
         {hasTranscript && (
-          <Tool icon="transcript" label="Transcript" onPress={() => router.push('/transcript')} />
+          <Tool
+            icon="transcript"
+            label={t('Transcript')}
+            onPress={() => router.push('/transcript')}
+          />
         )}
         <Tool
           icon="bookmark"
-          label={bookmarks.length === 1 ? '1 bookmark' : `${bookmarks.length} bookmarks`}
+          label={
+            bookmarks.length === 1 ? t('1 bookmark') : t('{n} bookmarks', { n: bookmarks.length })
+          }
           onPress={() => setSheet('bookmarks')}
         />
         {CASTING_SUPPORTED && (
           <Tool
             icon="cast"
-            label={casting.device?.name ?? 'Cast'}
+            label={casting.device?.name ?? t('Cast')}
             active={casting.device !== null}
             onPress={() => setSheet('cast')}
           />
@@ -391,28 +435,28 @@ export default function Player() {
         onClose={() => setSheet(null)}
       />
       <CastSheet visible={sheet === 'cast'} bookId={bookId} onClose={() => setSheet(null)} />
-      <Sheet visible={sheet === 'speed'} title="Speed" onClose={() => setSheet(null)}>
+      <Sheet visible={sheet === 'speed'} title={t('Speed')} onClose={() => setSheet(null)}>
         <View className="flex-row flex-wrap gap-2 pb-2">
           {SPEEDS.map((s) => (
             <Chip key={s} label={`${s}×`} onPress={() => changeSpeed(s)} />
           ))}
         </View>
       </Sheet>
-      <Sheet visible={sheet === 'sleep'} title="Sleep timer" onClose={() => setSheet(null)}>
+      <Sheet visible={sheet === 'sleep'} title={t('Sleep timer')} onClose={() => setSheet(null)}>
         {timer !== null && (
           <Text className="pb-3 text-amber">
             {state.sleepTimerMode === 'chapter'
-              ? `Stops at the end of this chapter, in ${formatClock(timer)}`
+              ? t('Stops at the end of this chapter, in {time}', { time: formatClock(timer) })
               : state.sleepTimerMode === 'episode'
-                ? `Stops at the end of this episode, in ${formatClock(timer)}`
-                : `Stops in ${formatClock(timer)}`}
+                ? t('Stops at the end of this episode, in {time}', { time: formatClock(timer) })
+                : t('Stops in {time}', { time: formatClock(timer) })}
           </Text>
         )}
         <View className="gap-1 pb-2">
           {SLEEP_MINUTES.map((m) => (
             <SleepOption
               key={m}
-              label={`${m} minutes`}
+              label={t('{n} minutes', { n: m })}
               onPress={() => {
                 void audio.startSleepTimer(m);
                 setSheet(null);
@@ -420,7 +464,7 @@ export default function Player() {
             />
           ))}
           <SleepOption
-            label={endMode === 'episode' ? 'End of episode' : 'End of chapter'}
+            label={endMode === 'episode' ? t('End of episode') : t('End of chapter')}
             active={state.sleepTimerMode === endMode}
             onPress={() => {
               void audio.startSleepTimerAtEnd(endMode);
@@ -430,7 +474,7 @@ export default function Player() {
           {timer !== null && (
             <View className="mt-2 border-t border-line pt-2">
               <SleepOption
-                label="Turn off"
+                label={t('Turn off')}
                 muted
                 onPress={() => {
                   void audio.cancelSleepTimer();
@@ -442,9 +486,50 @@ export default function Player() {
         </View>
         {Platform.OS === 'android' && (
           <Text className="pb-2 text-sm text-muted">
-            In the last five minutes, shake the phone for ten more.
+            {t('In the last five minutes, shake the phone for ten more.')}
           </Text>
         )}
+      </Sheet>
+      <Sheet visible={sheet === 'jump'} title={t('Jump to')} onClose={() => setSheet(null)}>
+        <View className="gap-3 pb-2">
+          <View className="flex-row flex-wrap gap-2">
+            {[-5, -1, 1, 5].map((minutes) => (
+              <Chip
+                key={minutes}
+                label={`${minutes > 0 ? '+' : '−'}${t('{n} min', { n: Math.abs(minutes) })}`}
+                onPress={() => jump(position + minutes * 60_000)}
+              />
+            ))}
+          </View>
+          <Text className="text-sm text-muted">
+            Now at {formatClock(position)} in the{' '}
+            {detail.book.source === 'feed' ? 'episode' : 'book'}. Type a time to go there, such as
+            2:14:30, 14:30 or 90 (minutes).
+          </Text>
+          <View className="flex-row gap-2">
+            <TextInput
+              value={jumpText}
+              onChangeText={setJumpText}
+              onSubmitEditing={() => jumpTarget !== null && jump(jumpTarget)}
+              placeholder="2:14:30"
+              placeholderTextColor="#8d8a83"
+              keyboardType="numbers-and-punctuation"
+              returnKeyType="go"
+              autoFocus
+              className="flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+            />
+            <Pressable
+              disabled={jumpTarget === null}
+              onPress={() => jumpTarget !== null && jump(jumpTarget)}
+              accessibilityRole="button"
+              className={`justify-center rounded-lg px-4 ${jumpTarget === null ? 'bg-line' : 'bg-amber'}`}
+            >
+              <Text className={jumpTarget === null ? 'text-muted' : 'font-semibold text-ink'}>
+                {t('Go')}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
       </Sheet>
       <SoundSheet
         visible={sheet === 'sound'}
@@ -452,18 +537,18 @@ export default function Player() {
         onChange={sound.set}
         onClose={() => setSheet(null)}
       />
-      <Sheet visible={sheet === 'note'} title="Bookmark saved" onClose={saveNote}>
+      <Sheet visible={sheet === 'note'} title={t('Bookmark saved')} onClose={saveNote}>
         <TextInput
           value={note}
           onChangeText={setNote}
-          placeholder="Add a note (optional)"
+          placeholder={t('Add a note (optional)')}
           placeholderTextColor="#8d8a83"
           autoFocus
           onSubmitEditing={saveNote}
           className="rounded-lg border border-line px-3 py-2 text-paper"
         />
         <View className="flex-row justify-end gap-2 py-3">
-          <Chip label="Done" onPress={saveNote} />
+          <Chip label={t('Done')} onPress={saveNote} />
         </View>
       </Sheet>
     </View>

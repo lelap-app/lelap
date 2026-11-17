@@ -3,16 +3,18 @@ import type { MetaPreview } from '@lelap/sdk';
 import { memo } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 
+import { t } from '../i18n';
+import { useArtwork } from '../addons';
 import { formatDuration } from '../format';
 import { BookCover } from './BookCover';
 
-const ON_DEVICE = Platform.OS === 'web' ? 'On this device' : 'On this phone';
+const onDevice = () => (Platform.OS === 'web' ? t('On this device') : t('On this phone'));
 
 /** The words on a badge, also used as the cover's accessibility hint. */
 export function badgeLabel(availability: Availability): string {
-  if (availability.kind === 'local') return ON_DEVICE;
+  if (availability.kind === 'local') return onDevice();
   if (availability.kind === 'stream') return availability.addon;
-  return 'Metadata only';
+  return t('Metadata only');
 }
 
 /**
@@ -54,10 +56,11 @@ export const MetaTile = memo(function MetaTile({
   availability?: Availability | undefined;
   onPress: (meta: MetaPreview) => void;
 }) {
+  const cover = useArtwork(meta);
   return (
     <Pressable onPress={() => onPress(meta)} style={{ width }} className="gap-1 active:opacity-70">
       <View>
-        <BookCover uri={meta.cover} title={meta.name} size={width} />
+        <BookCover uri={cover} title={meta.name} size={width} />
         <View className="absolute bottom-1.5 left-1.5 right-1.5">
           <SourceBadge availability={availability} />
         </View>
@@ -84,12 +87,13 @@ export const MetaListRow = memo(function MetaListRow({
   availability?: Availability | undefined;
   onPress: (meta: MetaPreview) => void;
 }) {
+  const cover = useArtwork(meta);
   return (
     <Pressable
       onPress={() => onPress(meta)}
       className="flex-row items-center gap-3 px-4 py-2 active:bg-raised"
     >
-      <BookCover uri={meta.cover} title={meta.name} size={56} />
+      <BookCover uri={cover} title={meta.name} size={56} />
       <View className="flex-1 gap-1">
         <Text numberOfLines={2} className="text-base text-paper">
           {meta.name}

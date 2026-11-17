@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
+import { t } from '../src/i18n';
 import { confirmAddon } from '../src/addonInstall';
 import { useLibrary } from '../src/player';
 import { activeProfile } from '../src/profile';
@@ -40,9 +41,9 @@ export default function AddonLinkScreen() {
   }, [manifestUrl, kids, refresh, queryClient, router]);
 
   const message = kids
-    ? 'Ask a grown-up to change add-ons.'
+    ? t('Ask a grown-up to change add-ons.')
     : !manifestUrl
-      ? 'This link has no add-on address in it.'
+      ? t('This link has no add-on address in it.')
       : error;
 
   return (
@@ -50,13 +51,13 @@ export default function AddonLinkScreen() {
       {message === null ? (
         <>
           <ActivityIndicator color="#f5b041" />
-          <Text className="text-soft">Opening the add-on…</Text>
+          <Text className="text-soft">{t('Opening the add-on…')}</Text>
         </>
       ) : (
         <>
           <Text className="text-center text-paper">{message}</Text>
           <Pressable onPress={() => router.replace('/addons')} accessibilityRole="button">
-            <Text className="text-amber">Add-ons</Text>
+            <Text className="text-amber">{t('Add-ons')}</Text>
           </Pressable>
         </>
       )}

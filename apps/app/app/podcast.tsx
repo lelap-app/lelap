@@ -28,6 +28,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
 import { type Action, ActionSheet } from '../src/components/ActionSheet';
 import { COLORS, Icon, IconButton } from '../src/components/Icon';
@@ -49,7 +50,7 @@ type Row =
 const roleLabel = (role: string) => role.charAt(0).toUpperCase() + role.slice(1);
 
 function openLink(url: string) {
-  Linking.openURL(url).catch(() => showAlert('Podcast', 'This link could not be opened.'));
+  Linking.openURL(url).catch(() => showAlert(t('Podcast'), t('This link could not be opened.')));
 }
 
 /** Hosts, guests and crew from `podcast:person`; a tap opens the person's page if there is one. */
@@ -86,16 +87,20 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 function episodeStatus(e: EpisodeItem): string {
   const guests = (e.extras?.persons ?? []).filter((p) => p.role === 'guest').map((p) => p.name);
   const parts = [
-    guests.length > 0 ? `With ${guests.join(', ')}` : null,
+    guests.length > 0 ? t('With {names}', { names: guests.join(', ') }) : null,
     e.publishedAt ? new Date(e.publishedAt).toLocaleDateString() : null,
     e.finished
-      ? 'Played'
+      ? t('Played')
       : e.positionMs > 0 && e.durationMs > 0
         ? formatLeft(e.durationMs - e.positionMs)
         : e.durationMs > 0
           ? formatDuration(e.durationMs)
           : null,
-    e.downloadState === 'done' ? 'Downloaded' : e.downloadState === 'queued' ? 'Downloading' : null,
+    e.downloadState === 'done'
+      ? t('Downloaded')
+      : e.downloadState === 'queued'
+        ? t('Downloading')
+        : null,
   ];
   return parts.filter(Boolean).join(' · ');
 }
@@ -147,10 +152,10 @@ export default function PodcastScreen() {
         key: `season-${g.season ?? 'none'}`,
         title:
           g.season === null
-            ? 'Other episodes'
+            ? t('Other episodes')
             : g.name
-              ? `Season ${g.season} · ${g.name}`
-              : `Season ${g.season}`,
+              ? `${t('Season {n}', { n: g.season ?? '' })} · ${g.name}`
+              : t('Season {n}', { n: g.season ?? '' }),
         count: g.episodes.length,
       },
       ...g.episodes.map((e): Row => ({ kind: 'episode', key: e.id, episode: e })),
@@ -164,7 +169,7 @@ export default function PodcastScreen() {
     try {
       await task();
     } catch (error) {
-      showAlert('Podcast', message(error));
+      showAlert(t('Podcast'), message(error));
     } finally {
       setBusy(false);
       refresh();
@@ -184,17 +189,17 @@ export default function PodcastScreen() {
     return [
       {
         icon: 'queue',
-        label: 'Play next',
+        label: t('Play next'),
         onPress: () => addToUpNext(db, profileId, bookId(), 'next', Date.now()),
       },
       {
         icon: 'chapters',
-        label: 'Add to Up Next',
+        label: t('Add to Up Next'),
         onPress: () => addToUpNext(db, profileId, bookId(), 'last', Date.now()),
       },
       {
         icon: 'check',
-        label: e.finished ? 'Mark as unplayed' : 'Mark as played',
+        label: e.finished ? t('Mark as unplayed') : t('Mark as played'),
         onPress: () => {
           setFinished(db, profileId, bookId(), !e.finished, Date.now());
           refresh();
@@ -218,7 +223,7 @@ export default function PodcastScreen() {
             <View className="-ml-2 self-start">
               <IconButton
                 name="back"
-                label="Back"
+                label={t('Back')}
                 color={COLORS.soft}
                 onPress={() => router.back()}
               />
@@ -227,10 +232,10 @@ export default function PodcastScreen() {
             {failed && (
               <Text className="pt-24 text-center text-muted">
                 {fetched.isError
-                  ? `The feed could not be read: ${message(fetched.error)}`
+                  ? t('The feed could not be read: {error}', { error: message(fetched.error) })
                   : meta.data && !feedUrl
-                    ? 'This podcast has no feed address.'
-                    : 'This podcast was not found.'}
+                    ? t('This podcast has no feed address.')
+                    : t('This podcast was not found.')}
               </Text>
             )}
             {podcast && (
@@ -257,7 +262,7 @@ export default function PodcastScreen() {
                   >
                     <Icon name="heart" size={20} color={COLORS.amber} />
                     <View className="flex-1">
-                      <Text className="text-paper">Support this show</Text>
+                      <Text className="text-paper">{t('Support this show')}</Text>
                       {f.label && (
                         <Text numberOfLines={1} className="text-sm text-muted">
                           {f.label}
@@ -270,9 +275,11 @@ export default function PodcastScreen() {
                   <View className="gap-3 rounded-xl border border-line p-3">
                     <View className="flex-row items-center gap-3">
                       <View className="flex-1">
-                        <Text className="text-paper">Auto-download</Text>
+                        <Text className="text-paper">{t('Auto-download')}</Text>
                         <Text className="text-sm text-muted">
-                          Keep the newest unplayed episodes on the phone; played ones are removed.
+                          {t(
+                            'Keep the newest unplayed episodes on the phone; played ones are removed.',
+                          )}
                         </Text>
                       </View>
                       <Switch
@@ -301,7 +308,7 @@ export default function PodcastScreen() {
                         refresh();
                       }}
                     >
-                      <Text className="text-danger">Unsubscribe</Text>
+                      <Text className="text-danger">{t('Unsubscribe')}</Text>
                     </Pressable>
                   </View>
                 ) : (
@@ -315,7 +322,7 @@ export default function PodcastScreen() {
                     {busy ? (
                       <ActivityIndicator color="#1a1305" />
                     ) : (
-                      <Text className="text-base font-semibold text-ink">Subscribe</Text>
+                      <Text className="text-base font-semibold text-ink">{t('Subscribe')}</Text>
                     )}
                   </Pressable>
                 )}
@@ -360,7 +367,7 @@ export default function PodcastScreen() {
                 <Pressable
                   hitSlop={10}
                   accessibilityRole="button"
-                  accessibilityLabel="Download episode"
+                  accessibilityLabel={t('Download episode')}
                   onPress={() =>
                     void run(() => startDownload(episodeBook(db, e.id, Date.now(), newId), null))
                   }

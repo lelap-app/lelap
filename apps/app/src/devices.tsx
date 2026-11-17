@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { Text, View } from 'react-native';
 
+import { t } from './i18n';
 import { showAlert } from './dialog';
 import { Icon } from './components/Icon';
 import { db } from './db';
@@ -67,8 +68,10 @@ export async function followDevices(settings: Settings): Promise<void> {
 export async function allowDevices(): Promise<boolean> {
   if (await bluetooth.requestPermission()) return true;
   showAlert(
-    'Nearby devices not allowed',
-    'Lelap needs it to see which headphones or car are connected. You can allow it in the app’s settings in Android.',
+    t('Nearby devices not allowed'),
+    t(
+      'Lelap needs it to see which headphones or car are connected. You can allow it in the app’s settings in Android.',
+    ),
   );
   return false;
 }
@@ -94,9 +97,9 @@ export function DeviceRunner() {
   useEffect(() => {
     if (!settings.carModeOffer) return;
     const offer = (car: bluetooth.AudioDevice) =>
-      showAlert('Car mode?', `Connected to ${car.name}. Big buttons for the road.`, [
-        { text: 'Not now', style: 'cancel' },
-        { text: 'Open car mode', onPress: () => router.push('/car') },
+      showAlert(t('Car mode?'), `Connected to ${car.name}. Big buttons for the road.`, [
+        { text: t('Not now'), style: 'cancel' },
+        { text: t('Open car mode'), onPress: () => router.push('/car') },
       ]);
     carListeners.add(offer);
     return () => {
@@ -153,7 +156,7 @@ export function HeadphoneBanner({ className = '' }: { className?: string }) {
       <Icon name="headphones" size={20} color="#f7d9a0" />
       <Text className="flex-1 text-sm text-[#f7d9a0]">
         {warning.name} at {warning.level}%.
-        {warning.what ? ` It may not last ${warning.what}.` : ' Charge it soon.'}
+        {warning.what ? ` It may not last ${warning.what}.` : t(' Charge it soon.')}
       </Text>
     </View>
   );
