@@ -2,19 +2,32 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { createPlannedDb } from '../test/db';
 import { hasBigLibrary, removeBigLibrary, seedBigLibrary } from './bigLibrary';
-import { bookFiles, books, chapters, episodes, playlists, podcasts, progress } from './schema';
+import {
+  bookFiles,
+  books,
+  chapters,
+  episodes,
+  playlists,
+  podcasts,
+  progress,
+  subscriptions,
+} from './schema';
 import { carShelves } from './car';
 import type { Db } from './db';
 import { continueListening, getBook, listBooks } from './library/queries';
 import { listPlaylists, listPlaylistsWithCounts, playlistBooks } from './organise';
 import {
+  autoDownloadWork,
   getSubscription,
   listEpisodes,
   listSubscriptions,
   newestUnfinishedEpisodes,
 } from './podcasts/repository';
+import { isPlaceholderFeed } from './podcasts/placeholder';
+import { refreshFeeds } from './podcasts/refresh';
 import { DEFAULT_PROFILE_ID as ME } from './profiles';
 import { bookKey } from './sync/keys';
+import { collectOps } from './sync/ops';
 
 // A small copy of M43's big library: the same shape, so the answers and the query plans are
 // those of 10,000 books. The timings are in bench/library.bench.ts.
@@ -70,6 +83,58 @@ describe('a big library', () => {
         count: playlistBooks(db, ME, list).length,
       })),
     );
+  });
+});
+
+describe('the test library stays off the network', () => {
+  const setup = () => {
+    const { db: own } = createPlannedDb();
+    seedBigLibrary(own, ME, { books: 30, podcasts: 5, episodesPerPodcast: 3 });
+    own
+      .insert(podcasts)
+      .values({ id: 'real', feedUrl: 'https://example.org/feed.xml', title: 'Real', updatedAt: 0 })
+      .run();
+    own
+      .insert(subscriptions)
+      .values({ profileId: ME, podcastId: 'real', subscribedAt: 0, updatedAt: 0 })
+      .run();
+    // Auto-download on everywhere, so only the feed decides.
+    own.update(subscriptions).set({ autoDownload: true }).run();
+    return own;
+  };
+
+  it('fetches no made-up feed when refreshing', async () => {
+    const own = setup();
+    const fetched: string[] = [];
+    await refreshFeeds(own, ME, async (url) => fetched.push(url));
+    expect(fetched).toEqual(['https://example.org/feed.xml']);
+    expect(isPlaceholderFeed('https://feeds.invalid/bench/1.xml')).toBe(true);
+    expect(isPlaceholderFeed('https://invalid.example.org/feed')).toBe(false);
+  });
+
+  it('downloads none of its episodes', () => {
+    const own = setup();
+    own
+      .insert(episodes)
+      .values({
+        id: 'real-1',
+        podcastId: 'real',
+        guid: 'r1',
+        title: 'Real one',
+        durationMs: 1,
+        url: 'https://example.org/1.mp3',
+        size: 1,
+        updatedAt: 0,
+      })
+      .run();
+    expect(autoDownloadWork(own, ME).download).toEqual(['real-1']);
+  });
+
+  it('syncs none of its books, places, lists or subscriptions', () => {
+    const own = setup();
+    const ops = collectOps(own, -1);
+    expect(ops.map((op) => op.key).filter((key) => /bench|\.invalid/.test(key))).toEqual([]);
+    expect(ops.map((op) => op.key)).toContain('https://example.org/feed.xml');
   });
 });
 

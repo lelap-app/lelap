@@ -4,6 +4,8 @@ import {
   carryFolderPlace,
   episodeBook,
   FeedError,
+  isPlaceholderFeed,
+  refreshFeeds,
   feedCache,
   findPodcast,
   listSubscriptions,
@@ -26,7 +28,6 @@ import { profileId } from './profile';
 const FETCH_TIMEOUT_MS = 20_000;
 // Feeds are read from the phone, so refreshing often costs the listener's data, not ours.
 const REFRESH_EVERY_MS = 30 * 60_000;
-const FEEDS_AT_ONCE = 6;
 
 // The proxy is rate limited per address; the web app spaces its feed requests out.
 const PROXY_SPACING_MS = 150;
@@ -59,6 +60,8 @@ function feedRequest(feedUrl: string, etag: string | null, lastModified: string 
 
 /** Fetches and stores a feed. An unchanged feed (304) keeps what is stored. */
 export async function fetchFeed(feedUrl: string): Promise<string> {
+  // The test library's feeds: no request, not even to the proxy.
+  if (isPlaceholderFeed(feedUrl)) throw new FeedError('This feed is made up for testing.');
   const cache = feedCache(db, feedUrl);
   const { url, headers } = feedRequest(feedUrl, cache?.etag ?? null, cache?.lastModified ?? null);
   if (Platform.OS === 'web') await proxySlot();
@@ -104,14 +107,7 @@ let lastRefresh = 0;
 export async function refreshPodcasts(force = false): Promise<void> {
   if (!force && Date.now() - lastRefresh < REFRESH_EVERY_MS) return;
   lastRefresh = Date.now();
-  const feeds = listSubscriptions(db, profileId).map((s) => s.feedUrl);
-  // A few at a time: 500 feeds at once would crowd out the app's own start and the network.
-  const worker = async () => {
-    for (let feed = feeds.shift(); feed !== undefined; feed = feeds.shift()) {
-      await fetchFeed(feed).catch(() => null);
-    }
-  };
-  await Promise.all(Array.from({ length: FEEDS_AT_ONCE }, worker));
+  await refreshFeeds(db, profileId, fetchFeed);
   await runAutoDownload();
 }
 

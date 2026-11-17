@@ -29,8 +29,8 @@ Open on a phone:
   stutter over a second; memory in `adb shell dumpsys meminfo app.lelap` stays under 300 MB.
 - A real folder of a few hundred books: the second scan (pull down in the Library) finishes
   noticeably faster than before M43, and no book loses its place, bookmarks or chapters.
-- With 500 test podcasts, the Podcasts tab opens at once, and starting the app does not slow
-  down while the feeds refresh (they fail quickly: the test feeds don't exist).
+- With 500 test podcasts, the Podcasts tab opens at once, and starting the app or pulling down
+  there sends no request for a test feed (none to `feeds.invalid` or the proxy in `adb logcat`).
 - Android Auto (Desktop Head Unit) with the test library: the browse tree opens without delay.
 
 ## Decisions to confirm
@@ -41,7 +41,9 @@ Open on a phone:
   zod update that moves its locale list would make the rule do nothing (the bundle grows again,
   nothing breaks).
 - **The test library is in debug builds only** and its books have no files, so they never play;
-  their podcasts point at `feeds.invalid`, so refreshing them fails at once.
+  their podcasts point at `feeds.invalid` (a reserved host, RFC 2606). Feeds on `.invalid` hosts
+  are never fetched, auto-downloaded or synced, and nothing of the test library leaves the
+  device through sync; it has no covers to load.
 
 ## Review notes (minor)
 

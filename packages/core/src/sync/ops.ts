@@ -2,6 +2,8 @@ import { and, asc, eq, gt, inArray } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
+import { BIG_LIBRARY_PREFIX } from '../bigLibrary';
+import { isPlaceholderFeed } from '../podcasts/placeholder';
 import { episodeBook } from '../podcasts/repository';
 import {
   type AddonItemRef,
@@ -386,7 +388,16 @@ export function collectOps(db: Db, since: number): Op[] {
   for (const t of db.select().from(tombstones).where(gt(tombstones.updatedAt, since)).all()) {
     ops.push({ type: 'delete', kind: t.kind, profile: t.profileId, key: t.key, at: t.deletedAt });
   }
-  return ops;
+  return ops.filter((op) => !isTestLibraryKey(op.key));
+}
+
+/**
+ * The test library (Settings → Developer) stays on the device that made it: its books, lists
+ * and bookmarks have `bench` keys, its podcasts `.invalid` feeds.
+ */
+function isTestLibraryKey(key: string): boolean {
+  if (key.startsWith(BIG_LIBRARY_PREFIX) || key.startsWith('bench-')) return true;
+  return isPlaceholderFeed(parseEpisodeKey(key)?.feedUrl ?? key);
 }
 
 /** A place another device saved, for the “continue from there?” prompt. */

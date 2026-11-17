@@ -15,6 +15,7 @@ import {
   subscriptions,
 } from '../schema';
 import { recordDeletion } from '../sync/keys';
+import { isPlaceholderFeed } from './placeholder';
 import type { EpisodeExtras, PodcastExtras } from './podcasting';
 import type { ParsedFeed } from './rss';
 
@@ -386,11 +387,17 @@ export function autoDownloadWork(
   const download: string[] = [];
   const remove: string[] = [];
   const auto = db
-    .select({ podcastId: subscriptions.podcastId, keepLatest: subscriptions.keepLatest })
+    .select({
+      podcastId: subscriptions.podcastId,
+      keepLatest: subscriptions.keepLatest,
+      feedUrl: podcasts.feedUrl,
+    })
     .from(subscriptions)
+    .innerJoin(podcasts, eq(podcasts.id, subscriptions.podcastId))
     .where(and(eq(subscriptions.profileId, profileId), eq(subscriptions.autoDownload, true)))
     .all();
-  for (const { podcastId, keepLatest } of auto) {
+  for (const { podcastId, keepLatest, feedUrl } of auto) {
+    if (isPlaceholderFeed(feedUrl)) continue;
     const list = listEpisodes(db, profileId, podcastId);
     const wanted = list.filter((e) => !e.finished).slice(0, keepLatest);
     for (const e of wanted) if (e.downloadState === null) download.push(e.id);
