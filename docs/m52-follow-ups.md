@@ -9,7 +9,7 @@ snapshot, a device behind one catching up with its own newer changes kept, chang
 compacting device lacks surviving, a snapshot built on the one before, nothing dropped that can't
 be read (core, Vitest). On the Worker with local D1 (wrangler's `getPlatformProxy`): uploads,
 commits, paging, old clients stopped with 410 behind a snapshot, the 50 MB cap with a snapshot,
-unfinished uploads dropped, the cron handler with `SYNC_IDLE_EXPIRY_DAYS` set and unset, the
+two uploads at once never mixing, the cron handler with `SYNC_IDLE_EXPIRY_DAYS` set and unset, the
 migration on a database with groups, and the app engine compacting and joining end to end. The
 Node store for Docker runs the same SQL (Vitest on `node:sqlite`).
 
@@ -41,9 +41,20 @@ id, last_push_at, snapshot_seq FROM groups"` shows dates from the last push, and
 - A device whose group expired shows “Another device reset sync”: the server can't tell a deleted
   group from an expired one. The text could say “Sync stopped” for both.
 - A message that does not open with the group key (damaged, or from a newer version that changes
-  the format) stops compaction for that group until it is younger than the snapshot point, which
-  it never becomes. Nothing is lost; the group just keeps its log.
+  the format) stops compaction for that group for good. Nothing is lost; the group keeps its log
+  and can fill up again.
 - An app from before M52 that is more than 30 days behind, or pairs into a group with a snapshot,
   stops syncing until it is updated. It keeps its own data and pushes it after the update.
-- While a snapshot uploads, the group may hold up to one extra snapshot beyond the 50 MB cap; the
-  commit frees it.
+- Uploads in progress don't count towards the 50 MB cap until committed, so a full group can
+  still be compacted (a push refused as full triggers a snapshot and one retry). An abandoned
+  upload stays until a newer one starts or a snapshot is committed.
+
+## 4. Minor findings from the review
+
+- Expiry counts pushes only. A device that only pulls (nothing changed for 2 years) loses the
+  group like an idle one. Touching `last_push_at` on pulls (throttled) would avoid that.
+- An app version that meets operation types it does not know keeps all of them unfolded, so each
+  snapshot it writes carries them forward. Newer versions fold them; worth a cap if old versions
+  linger.
+- One change larger than about 180 KB (a book with thousands of chapters) can't go into a
+  snapshot part; compaction then stops for that group (checked before upload, nothing is lost).

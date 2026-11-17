@@ -284,7 +284,7 @@ export async function syncNow(
       if (error instanceof SyncError && error.status === 410) {
         const snapshot = await readSnapshot(client, membership.groupId, token, enc);
         if (snapshot.covers <= cursor) throw error;
-        const applied = applySnapshot(db, snapshot.entries, membership.deviceId, now, newId);
+        const applied = applySnapshot(db, snapshot.entries, now, newId);
         result.pulled += applied.pulled;
         result.handoffs.push(...applied.handoffs);
         cursor = snapshot.covers;
@@ -319,17 +319,29 @@ export async function syncNow(
     };
     messages.push(seal(enc, context, JSON.stringify(envelope), random));
   }
-  await client.push(membership.groupId, token, membership.deviceId, messages);
+  // Before the push, so a full group gets room. Upkeep only: a failure is tried again tomorrow
+  // and never fails the sync; the day is saved first, so a crash mid-way doesn't repeat it.
+  let current: SyncMembership = { ...membership, cursor };
+  if (now - (membership.compactCheckedAt ?? 0) >= COMPACT_CHECK_MS) {
+    current = { ...current, compactCheckedAt: now };
+    saveMembership(db, current, now);
+    await compact(client, membership.groupId, token, enc, random).catch(() => false);
+  }
+  const push = () => client.push(membership.groupId, token, membership.deviceId, messages);
+  try {
+    await push();
+  } catch (error) {
+    // The group is full: whatever is old enough goes into a snapshot, then try once more.
+    if (!(error instanceof SyncError && error.status === 413)) throw error;
+    const freed = await compact(client, membership.groupId, token, enc, random, 0).catch(
+      () => false,
+    );
+    if (!freed) throw error;
+    await push();
+  }
   result.pushed = ops.length;
 
-  const synced: SyncMembership = { ...membership, cursor, pushedAt: now, lastSyncAt: now };
-  const compactDue = now - (membership.compactCheckedAt ?? 0) >= COMPACT_CHECK_MS;
-  if (compactDue) synced.compactCheckedAt = now;
-  saveMembership(db, synced, now);
-  // Upkeep only: a failure here is tried again tomorrow, and never fails the sync.
-  if (compactDue) {
-    await compact(client, membership.groupId, token, enc, random, now).catch(() => false);
-  }
+  saveMembership(db, { ...current, pushedAt: now, lastSyncAt: now }, now);
   return result;
 }
 
@@ -339,23 +351,25 @@ async function readSnapshot(
   groupId: string,
   token: string,
   enc: Uint8Array,
-): Promise<{ covers: number; entries: SnapshotEntry[] }> {
+): Promise<{ covers: number; upload: string; entries: SnapshotEntry[] }> {
   const sealed: string[] = [];
   let covers = 0;
+  let upload = '';
   let parts = 1;
   while (sealed.length < parts) {
     const page = await client.snapshot(groupId, token, sealed.length, SNAPSHOT_PAGE);
     if (!page) throw new Error('The sync group has no snapshot.');
     // Replaced by a newer one while reading: the caller tries again on the next sync.
-    if (sealed.length > 0 && page.covers !== covers) {
+    if (sealed.length > 0 && (page.covers !== covers || page.upload !== upload)) {
       throw new Error('The sync snapshot changed while it was read.');
     }
     if (page.data.length === 0) throw new Error('The sync snapshot is incomplete.');
     covers = page.covers;
+    upload = page.upload;
     parts = page.parts;
     sealed.push(...page.data);
   }
-  return { covers, entries: openSnapshot(enc, groupId, covers, sealed) };
+  return { covers, upload, entries: openSnapshot(enc, groupId, covers, upload, sealed) };
 }
 
 /**
@@ -369,11 +383,11 @@ export async function compact(
   token: string,
   enc: Uint8Array,
   random: Random,
-  now: number,
   minBytes = COMPACT_MIN_BYTES,
 ): Promise<boolean> {
-  const cutoff = now - COMPACT_KEEP_MS;
-  const info = await client.info(groupId, token, cutoff);
+  // The server's clock decides what is old enough, not this device's.
+  const info = await client.info(groupId, token, COMPACT_KEEP_MS);
+  const cutoff = info.before;
   if (info.older.messages === 0 || info.older.bytes < minBytes) return false;
 
   const reducer = snapshotReducer();
@@ -402,9 +416,11 @@ export async function compact(
   }
   if (covers === from) return false;
 
-  const sealed = sealSnapshot(enc, groupId, covers, reducer.entries(), random);
+  const upload = toHex(random(16));
+  const sealed = sealSnapshot(enc, groupId, covers, upload, reducer.entries(), random);
   for (let i = 0; i < sealed.length; i += SNAPSHOT_UPLOAD) {
-    await client.putSnapshotParts(groupId, token, covers, i, sealed.slice(i, i + SNAPSHOT_UPLOAD));
+    const parts = sealed.slice(i, i + SNAPSHOT_UPLOAD);
+    await client.putSnapshotParts(groupId, token, upload, covers, i, parts);
   }
-  return client.commitSnapshot(groupId, token, covers, sealed.length);
+  return client.commitSnapshot(groupId, token, upload, covers, sealed.length);
 }

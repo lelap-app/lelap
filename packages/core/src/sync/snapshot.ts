@@ -66,15 +66,27 @@ export function snapshotReducer() {
   };
 }
 
-/** Each part is bound to its group, the message it covers and its place among the parts. */
-const partContext = (groupId: string, covers: number, index: number, count: number) =>
-  `${groupId} snapshot ${covers} ${index}/${count}`;
+/**
+ * Each part is bound to its group, the message it covers, its upload (a random ID, so parts of
+ * two devices' snapshots never mix) and its place among the parts.
+ */
+const partContext = (
+  groupId: string,
+  covers: number,
+  upload: string,
+  index: number,
+  count: number,
+) => `${groupId} snapshot ${covers} ${upload} ${index}/${count}`;
+
+/** The server's limit per part, as for messages. */
+const MAX_SEALED = 256 * 1024;
 
 /** Splits a snapshot into parts and seals each with the group's key. */
 export function sealSnapshot(
   enc: Uint8Array,
   groupId: string,
   covers: number,
+  upload: string,
   entries: SnapshotEntry[],
   random: Random,
 ): string[] {
@@ -103,14 +115,19 @@ export function sealSnapshot(
   }
   // An empty group still gets one part, so the snapshot says “nothing before this”.
   if (current.length > 0 || parts.length === 0) parts.push(current);
-  return parts.map((partEntries, i) =>
+  const sealed = parts.map((partEntries, i) =>
     seal(
       enc,
-      partContext(groupId, covers, i, parts.length),
+      partContext(groupId, covers, upload, i, parts.length),
       JSON.stringify({ v: 1, entries: partEntries } satisfies Part),
       random,
     ),
   );
+  // One change alone larger than a part: the server would refuse it, so don't upload at all.
+  if (sealed.some((part) => part.length > MAX_SEALED)) {
+    throw new Error('A change is too large for a sync snapshot.');
+  }
+  return sealed;
 }
 
 /** The entries of a snapshot; throws when a part does not open or is from a newer version. */
@@ -118,10 +135,11 @@ export function openSnapshot(
   enc: Uint8Array,
   groupId: string,
   covers: number,
+  upload: string,
   sealed: string[],
 ): SnapshotEntry[] {
   return sealed.flatMap((data, i) => {
-    const text = open(enc, partContext(groupId, covers, i, sealed.length), data);
+    const text = open(enc, partContext(groupId, covers, upload, i, sealed.length), data);
     if (text === null) throw new Error('The sync snapshot did not open with this group’s key.');
     const part = JSON.parse(text) as Part;
     if (part.v !== 1) {
@@ -131,18 +149,19 @@ export function openSnapshot(
   });
 }
 
-/** Applies a snapshot here, leaving out what this device sent itself (it has that). */
+/**
+ * Applies a snapshot here. This device's own changes too: a row may hold fields another device
+ * sent, and applying what this device already has changes nothing.
+ */
 export function applySnapshot(
   db: Db,
   entries: SnapshotEntry[],
-  deviceId: string,
   now: number,
   newId: IdGenerator,
 ): { pulled: number; handoffs: (Handoff & { deviceName: string })[] } {
   const ops: Op[] = [];
   const placeFrom = new Map<string, string>();
-  for (const { device, name, ops: list } of entries) {
-    if (device === deviceId) continue;
+  for (const { name, ops: list } of entries) {
     for (const op of list) {
       ops.push(op);
       if (op.type === 'progress') placeFrom.set(`${op.profile}\u0000${op.key}`, name);

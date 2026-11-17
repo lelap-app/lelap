@@ -25,6 +25,8 @@ const GROUP = 'a'.repeat(32);
 const OTHER = 'c'.repeat(32);
 const DEVICE = 'b'.repeat(32);
 const DAY = 24 * 60 * 60_000;
+const UPLOAD = 'e'.repeat(32);
+const OTHER_UPLOAD = 'f'.repeat(32);
 
 let d1: Awaited<ReturnType<typeof localD1>>;
 beforeAll(async () => {
@@ -50,6 +52,7 @@ const json = (method: string, body: unknown, token?: string): RequestInit => ({
 type Info = {
   bytes: number;
   snapshot: { covers: number; parts: number } | null;
+  before: number;
   older: { messages: number; bytes: number };
 };
 
@@ -68,11 +71,13 @@ async function withGroup(clock = { now: 1_000 }) {
     const page = await (await pull(after)).json<{ messages: { seq: number }[] }>();
     return page.messages.map((m) => m.seq);
   };
-  const stage = async (covers: number, from: number, parts: string[]) =>
-    (await call(`${route}/snapshot/parts`, json('POST', { covers, from, parts }, 't'))).status;
-  const commit = async (covers: number, parts: number) =>
-    (await call(`${route}/snapshot`, json('POST', { covers, parts }, 't'))).status;
-  const info = async (before = 0) => (await call(`${route}?before=${before}`, auth)).json<Info>();
+  const stage = async (covers: number, from: number, parts: string[], upload = UPLOAD) =>
+    (await call(`${route}/snapshot/parts`, json('POST', { upload, covers, from, parts }, 't')))
+      .status;
+  const commit = async (covers: number, parts: number, upload = UPLOAD) =>
+    (await call(`${route}/snapshot`, json('POST', { upload, covers, parts }, 't'))).status;
+  /** Sizes, with messages older than `keep` before the server's now. */
+  const info = async (keep = clock.now) => (await call(`${route}?keep=${keep}`, auth)).json<Info>();
   return { app, call, auth, push, pull, seqs, stage, commit, info, clock };
 }
 
@@ -88,9 +93,10 @@ describe('snapshots', () => {
     g.clock.now = 5_000;
     await g.push(['dddd']);
     const [one, two, three, four] = (await g.seqs()).map(must);
-    expect(await g.info(5_000)).toEqual({
+    expect(await g.info(0)).toEqual({
       bytes: 16,
       snapshot: null,
+      before: 5_000,
       older: { messages: 3, bytes: 12 },
     });
 
@@ -102,13 +108,18 @@ describe('snapshots', () => {
     expect(await g.commit(must(three), 25)).toBe(204);
 
     expect(await g.seqs(three)).toEqual([four]);
-    const info = await g.info(5_000);
+    const info = await g.info(0);
     expect(info.snapshot).toEqual({ covers: three, parts: 25 });
     expect(info.older).toEqual({ messages: 0, bytes: 0 });
     expect(info.bytes).toBe(4 + parts.join('').length);
 
     const first = await g.call(`/v1/groups/${GROUP}/snapshot`, g.auth);
-    expect(await first.json()).toEqual({ covers: three, parts: 25, data: parts.slice(0, 20) });
+    expect(await first.json()).toEqual({
+      covers: three,
+      upload: UPLOAD,
+      parts: 25,
+      data: parts.slice(0, 20),
+    });
     const rest = await g.call(`/v1/groups/${GROUP}/snapshot?from=20&limit=100`, g.auth);
     expect((await rest.json<{ data: string[] }>()).data).toEqual(parts.slice(20));
 
@@ -141,17 +152,28 @@ describe('snapshots', () => {
     expect(await g.push(['cccc'])).toBe(204);
   });
 
-  it('drop an unfinished upload once a newer one starts', async () => {
+  it('never mix two uploads, and drop the one that started first', async () => {
     const g = await withGroup();
     await g.push(['aaaa', 'bbbb']);
-    const [one, two] = (await g.seqs()).map(must);
-    await g.stage(must(one), 0, ['olderupload']);
-    expect((await g.info()).bytes).toBe(8 + 11);
-    await g.stage(must(two), 0, ['new']);
-    expect((await g.info()).bytes).toBe(8 + 3);
-    expect(await g.commit(must(one), 1)).toBe(409);
-    expect(await g.commit(must(two), 1)).toBe(204);
-    expect((await g.info()).bytes).toBe(3);
+    const [, two] = (await g.seqs()).map(must);
+    // Two devices write a snapshot of the same point at once; uploads don't count until committed.
+    await g.stage(must(two), 0, ['first0', 'first1'], UPLOAD);
+    expect((await g.info()).bytes).toBe(8);
+    await g.stage(must(two), 1, ['second1'], OTHER_UPLOAD);
+    await g.stage(must(two), 0, ['second0'], OTHER_UPLOAD);
+    expect(await g.commit(must(two), 2, UPLOAD)).toBe(409);
+    expect(await g.commit(must(two), 2, OTHER_UPLOAD)).toBe(204);
+    expect((await g.info()).bytes).toBe(14);
+
+    // A late part from either upload never lands on the committed snapshot.
+    expect(await g.stage(must(two), 0, ['late'], OTHER_UPLOAD)).toBe(409);
+    expect(await g.stage(must(two), 0, ['late'], UPLOAD)).toBe(409);
+    const read = await g.call(`/v1/groups/${GROUP}/snapshot`, g.auth);
+    expect((await read.json<{ data: string[] }>()).data).toEqual(['second0', 'second1']);
+    const left = await d1.db.prepare('SELECT COUNT(*) AS n FROM snapshot_parts').first<{
+      n: number;
+    }>();
+    expect(left?.n).toBe(2);
   });
 
   it('keep the group cap: a full group refuses pushes until a snapshot frees it', async () => {
@@ -180,16 +202,23 @@ describe('snapshots', () => {
     const g = await withGroup();
     await g.push(['aaaa']);
     for (const body of [
-      { covers: 1, from: 0, parts: [] },
-      { covers: 1, from: -1, parts: ['a'] },
-      { covers: 1.5, from: 0, parts: ['a'] },
-      { covers: 1, from: 0, parts: ['not base64!'] },
-      { covers: 1, from: 0, parts: Array.from({ length: 51 }, () => 'a') },
+      { upload: UPLOAD, covers: 1, from: 0, parts: [] },
+      { upload: UPLOAD, covers: 1, from: -1, parts: ['a'] },
+      { upload: UPLOAD, covers: 1.5, from: 0, parts: ['a'] },
+      { upload: UPLOAD, covers: 1, from: 0, parts: ['not base64!'] },
+      { upload: UPLOAD, covers: 1, from: 0, parts: Array.from({ length: 51 }, () => 'a') },
+      { covers: 1, from: 0, parts: ['a'] },
+      { upload: 'short', covers: 1, from: 0, parts: ['a'] },
     ]) {
       const response = await g.call(`/v1/groups/${GROUP}/snapshot/parts`, json('POST', body, 't'));
       expect(response.status, JSON.stringify(body).slice(0, 60)).toBe(400);
     }
-    for (const body of [{ covers: 0, parts: 1 }, { covers: 1, parts: 0 }, { covers: 1 }]) {
+    for (const body of [
+      { upload: UPLOAD, covers: 0, parts: 1 },
+      { upload: UPLOAD, covers: 1, parts: 0 },
+      { upload: UPLOAD, covers: 1 },
+      { covers: 1, parts: 1 },
+    ]) {
       const response = await g.call(`/v1/groups/${GROUP}/snapshot`, json('POST', body, 't'));
       expect(response.status).toBe(400);
     }
@@ -238,8 +267,13 @@ describe('idle groups', () => {
 
   it('expire after the configured days without a push', async () => {
     await twoGroups();
+    // Made by the Worker before the migration's deploy: no push time yet, but new.
+    await d1.db
+      .prepare("INSERT INTO groups (id, auth_hash, created_at) VALUES (?1, 'h', ?2)")
+      .bind('9'.repeat(32), Date.now())
+      .run();
     await runCron('730');
-    expect(await groups()).toEqual([OTHER]);
+    expect(await groups()).toEqual(['9'.repeat(32), OTHER]);
     expect(await count('messages')).toBe(1);
     // Pairings go after ten minutes either way.
     expect(await count('pairings')).toBe(0);
@@ -307,8 +341,9 @@ describe('the app with snapshots against this server', () => {
     const key = fromBase64Url(membership.key);
     const token = authToken(key);
     const { enc } = deriveKeys(key);
-    expect(await compact(client, membership.groupId, token, enc, random, clock.now, 0)).toBe(true);
-    const info = await client.info(membership.groupId, token, clock.now + 1);
+    expect(await compact(client, membership.groupId, token, enc, random, 0)).toBe(true);
+    clock.now += 1;
+    const info = await client.info(membership.groupId, token, 0);
     expect(info.older.messages).toBe(1);
     expect(info.snapshot?.parts).toBe(1);
 

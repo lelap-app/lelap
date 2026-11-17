@@ -31,26 +31,26 @@ export function d1Store(db: D1Database): SyncStore {
       const row = await q(SQL.older, id, before).first<{ messages: number; bytes: number }>();
       return row ?? { messages: 0, bytes: 0 };
     },
-    async readParts(id, covers, from, to) {
-      const { results } = await q(SQL.readParts, id, covers, from, to).all<{ data: string }>();
+    async readParts(id, upload, from, to) {
+      const { results } = await q(SQL.readParts, id, upload, from, to).all<{ data: string }>();
       return results.map((r) => r.data);
     },
-    async stageParts(id, covers, from, parts, maxBytes) {
-      const staged = await q(SQL.stagedBytes, id, covers, from, from + parts.length).first<{
+    async stageParts(id, upload, covers, from, parts, maxBytes) {
+      const staged = await q(SQL.stagedBytes, id, upload, from, from + parts.length).first<{
         bytes: number;
       }>();
       const size = parts.reduce((sum, p) => sum + p.length, 0);
       if ((staged?.bytes ?? 0) + size > maxBytes) return false;
       await db.batch([
-        q(SQL.dropOlderUploads, id, covers),
-        ...parts.map((data, i) => q(SQL.putPart, id, covers, from + i, data)),
+        q(SQL.dropOtherUploads, id, covers, upload),
+        ...parts.map((data, i) => q(SQL.putPart, id, upload, covers, from + i, data)),
         q(SQL.recount, id),
       ]);
       return true;
     },
-    async commitSnapshot(id, covers, parts, now) {
+    async commitSnapshot(id, upload, covers, parts, now) {
       const [commit] = await db.batch([
-        q(SQL.commit, id, covers, parts, now),
+        q(SQL.commit, id, covers, parts, upload, now),
         q(SQL.dropReplacedParts, id),
         q(SQL.dropCovered, id),
         q(SQL.recount, id),
@@ -62,14 +62,14 @@ export function d1Store(db: D1Database): SyncStore {
       for (;;) {
         const { results } = await q(SQL.idle, before, EXPIRE_BATCH).all<{ id: string }>();
         if (results.length === 0) return removed;
-        await db.batch(
+        const done = await db.batch(
           results.flatMap(({ id }) => [
-            q(SQL.deleteMessages, id),
-            q(SQL.deleteParts, id),
-            q(SQL.deleteGroup, id),
+            q(SQL.dropIdleMessages, id, before),
+            q(SQL.dropIdleParts, id, before),
+            q(SQL.dropIdleGroup, id, before),
           ]),
         );
-        removed += results.length;
+        removed += done.filter((r, i) => i % 3 === 2 && r.meta.changes > 0).length;
         if (results.length < EXPIRE_BATCH) return removed;
       }
     },

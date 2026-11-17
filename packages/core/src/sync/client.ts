@@ -19,11 +19,13 @@ export class SyncError extends Error {
 export type GroupInfo = {
   bytes: number;
   snapshot: { covers: number; parts: number } | null;
-  /** Messages stored before the `before` asked for. */
+  /** The server's time minus the `keep` asked for. */
+  before: number;
+  /** Messages stored before `before`. */
   older: { messages: number; bytes: number };
 };
 
-export type SnapshotPage = { covers: number; parts: number; data: string[] };
+export type SnapshotPage = { covers: number; upload: string; parts: number; data: string[] };
 
 export type SyncClient = ReturnType<typeof createSyncClient>;
 
@@ -71,8 +73,8 @@ export function createSyncClient(fetcher: Fetch, baseUrl: string) {
       return (await response.json()) as { messages: PulledMessage[]; last: number };
     },
     /** Sizes, for deciding whether to write a snapshot. */
-    async info(groupId: string, token: string, before: number): Promise<GroupInfo> {
-      const response = await call(`/v1/groups/${groupId}?before=${before}`, { token });
+    async info(groupId: string, token: string, keepMs: number): Promise<GroupInfo> {
+      const response = await call(`/v1/groups/${groupId}?keep=${keepMs}`, { token });
       return (await response.json()) as GroupInfo;
     },
     /** A page of the group's snapshot parts, or null when it has none. */
@@ -95,6 +97,7 @@ export function createSyncClient(fetcher: Fetch, baseUrl: string) {
     async putSnapshotParts(
       groupId: string,
       token: string,
+      upload: string,
       covers: number,
       from: number,
       parts: string[],
@@ -102,13 +105,14 @@ export function createSyncClient(fetcher: Fetch, baseUrl: string) {
       await call(`/v1/groups/${groupId}/snapshot/parts`, {
         method: 'POST',
         token,
-        body: JSON.stringify({ covers, from, parts }),
+        body: JSON.stringify({ upload, covers, from, parts }),
       });
     },
     /** False when another device wrote a newer snapshot first. */
     async commitSnapshot(
       groupId: string,
       token: string,
+      upload: string,
       covers: number,
       parts: number,
     ): Promise<boolean> {
@@ -116,7 +120,7 @@ export function createSyncClient(fetcher: Fetch, baseUrl: string) {
         await call(`/v1/groups/${groupId}/snapshot`, {
           method: 'POST',
           token,
-          body: JSON.stringify({ covers, parts }),
+          body: JSON.stringify({ upload, covers, parts }),
         });
         return true;
       } catch (error) {

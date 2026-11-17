@@ -13,6 +13,7 @@ import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { saveProgress } from '../progress';
 import { books } from '../schema';
 import { getSettings, setSetting } from '../settings';
+import { SyncError } from './client';
 import { authToken, deriveKeys, fromBase64Url, seal } from './crypto';
 import {
   COMPACT_KEEP_MS,
@@ -95,13 +96,15 @@ describe('folding operations', () => {
       'Phone',
       Array.from({ length: 3000 }, (_, i) => ({ ...progress(i, i), key: `book-${i}` })),
     );
-    const sealed = sealSnapshot(key, 'g', 42, r.entries(), random);
+    const sealed = sealSnapshot(key, 'g', 42, 'u', r.entries(), random);
     expect(sealed.length).toBeGreaterThan(1);
     for (const part of sealed) expect(part.length).toBeLessThan(256 * 1024);
-    expect(openSnapshot(key, 'g', 42, sealed).flatMap((e) => e.ops)).toHaveLength(3000);
-    expect(() => openSnapshot(key, 'g', 42, [...sealed].reverse())).toThrow('did not open');
-    expect(() => openSnapshot(key, 'g', 43, sealed)).toThrow('did not open');
-    expect(() => openSnapshot(key, 'g', 42, sealed.slice(1))).toThrow('did not open');
+    expect(openSnapshot(key, 'g', 42, 'u', sealed).flatMap((e) => e.ops)).toHaveLength(3000);
+    expect(() => openSnapshot(key, 'g', 42, 'u', [...sealed].reverse())).toThrow('did not open');
+    expect(() => openSnapshot(key, 'g', 43, 'u', sealed)).toThrow('did not open');
+    expect(() => openSnapshot(key, 'g', 42, 'u', sealed.slice(1))).toThrow('did not open');
+    // Another device's upload for the same point never opens as part of this one.
+    expect(() => openSnapshot(key, 'g', 42, 'v', sealed)).toThrow('did not open');
   });
 });
 
@@ -120,7 +123,7 @@ describe('snapshots between devices', () => {
     const m = getMembership(db);
     if (!m) throw new Error('not syncing');
     const key = fromBase64Url(m.key);
-    return compact(server, m.groupId, authToken(key), deriveKeys(key).enc, random, at, minBytes);
+    return compact(server, m.groupId, authToken(key), deriveKeys(key).enc, random, minBytes);
   };
   const join = async (name: string, at: number) => {
     const db = createTestDb();
@@ -287,6 +290,26 @@ describe('snapshots between devices', () => {
     const before = server.log(m?.groupId ?? '').length;
     expect(await compactNow(phone, T0 + 40 * DAY)).toBe(false);
     expect(server.log(m?.groupId ?? '')).toHaveLength(before);
+  });
+
+  it('makes room in a full group before giving up on a push', async () => {
+    await history();
+    const groupId = getMembership(phone)?.groupId ?? '';
+    // The group is just full: nothing more fits until a snapshot replaces the old log.
+    const cap = server.log(groupId).reduce((sum, m) => sum + m.data.length, 0);
+    const push = server.push;
+    let pushes = 0;
+    server.push = async (id, token, device, messages) => {
+      pushes++;
+      const used = server.log(groupId).reduce((sum, m) => sum + m.data.length, 0);
+      if (used + messages.join('').length > cap) throw new SyncError(413, 'This group is full.');
+      return push(id, token, device, messages);
+    };
+    setSetting(phone, ME, 'mono', true, T0 + 40 * DAY);
+    await sync(phone, T0 + 40 * DAY + 1);
+    expect(pushes).toBe(2);
+    expect(server.log(groupId).length).toBeLessThan(5);
+    expect(getMembership(phone)?.pushedAt).toBe(T0 + 40 * DAY + 1);
   });
 
   it('checks once a day during sync, and only compacts a large enough log', async () => {

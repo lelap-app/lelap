@@ -47,26 +47,26 @@ export function sqliteStore(db: DatabaseSync): SyncStore {
     async older(id, before) {
       return db.prepare(SQL.older).get(id, before) as { messages: number; bytes: number };
     },
-    async readParts(id, covers, from, to) {
-      const rows = db.prepare(SQL.readParts).all(id, covers, from, to) as { data: string }[];
+    async readParts(id, upload, from, to) {
+      const rows = db.prepare(SQL.readParts).all(id, upload, from, to) as { data: string }[];
       return rows.map((r) => r.data);
     },
-    async stageParts(id, covers, from, parts, maxBytes) {
+    async stageParts(id, upload, covers, from, parts, maxBytes) {
       return transaction(() => {
-        const staged = db.prepare(SQL.stagedBytes).get(id, covers, from, from + parts.length) as {
+        const staged = db.prepare(SQL.stagedBytes).get(id, upload, from, from + parts.length) as {
           bytes: number;
         };
         const size = parts.reduce((sum, p) => sum + p.length, 0);
         if (staged.bytes + size > maxBytes) return false;
-        run(SQL.dropOlderUploads, id, covers);
-        parts.forEach((data, i) => run(SQL.putPart, id, covers, from + i, data));
+        run(SQL.dropOtherUploads, id, covers, upload);
+        parts.forEach((data, i) => run(SQL.putPart, id, upload, covers, from + i, data));
         run(SQL.recount, id);
         return true;
       });
     },
-    async commitSnapshot(id, covers, parts, now) {
+    async commitSnapshot(id, upload, covers, parts, now) {
       return transaction(() => {
-        const committed = Number(run(SQL.commit, id, covers, parts, now).changes) > 0;
+        const committed = Number(run(SQL.commit, id, covers, parts, upload, now).changes) > 0;
         run(SQL.dropReplacedParts, id);
         run(SQL.dropCovered, id);
         run(SQL.recount, id);
@@ -78,9 +78,12 @@ export function sqliteStore(db: DatabaseSync): SyncStore {
       for (;;) {
         const ids = db.prepare(SQL.idle).all(before, EXPIRE_BATCH) as { id: string }[];
         transaction(() => {
-          for (const { id } of ids) dropGroup(id);
+          for (const { id } of ids) {
+            run(SQL.dropIdleMessages, id, before);
+            run(SQL.dropIdleParts, id, before);
+            removed += Number(run(SQL.dropIdleGroup, id, before).changes);
+          }
         });
-        removed += ids.length;
         if (ids.length < EXPIRE_BATCH) return removed;
       }
     },

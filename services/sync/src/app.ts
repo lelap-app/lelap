@@ -155,13 +155,17 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
     const id = c.req.param('id');
     const group = await authorized(id, c.req.header('authorization'));
     if (!group) return c.json({ error: 'Not allowed.' }, 403);
-    const before = Number(c.req.query('before') ?? 0);
-    if (!whole(before)) return c.json({ error: 'before is a time in milliseconds.' }, 400);
+    // The server's clock decides what is old, so a phone with a wrong clock can't fold in
+    // messages younger than `keep`.
+    const keep = Number(c.req.query('keep') ?? 0);
+    if (!whole(keep)) return c.json({ error: 'keep is a time in milliseconds.' }, 400);
+    const before = now() - keep;
     return c.json({
       bytes: group.bytes,
       snapshot: group.snapshotSeq
         ? { covers: group.snapshotSeq, parts: group.snapshotParts }
         : null,
+      before,
       older: await store.older(id, before),
     });
   });
@@ -177,12 +181,17 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
       return c.json({ error: 'from and limit are whole numbers.' }, 400);
     }
     const to = Math.min(group.snapshotParts, from + Math.min(limit, LIMITS.partsPerPage));
-    const data = from < to ? await store.readParts(id, group.snapshotSeq, from, to) : [];
+    const data = from < to ? await store.readParts(id, group.snapshotUpload, from, to) : [];
     // A newer snapshot replaced this one while it was read.
     if (data.length !== Math.max(0, to - from)) {
       return c.json({ error: 'The snapshot changed. Try again.' }, 409);
     }
-    return c.json({ covers: group.snapshotSeq, parts: group.snapshotParts, data });
+    return c.json({
+      covers: group.snapshotSeq,
+      upload: group.snapshotUpload,
+      parts: group.snapshotParts,
+      data,
+    });
   });
 
   app.post('/v1/groups/:id/snapshot/parts', async (c) => {
@@ -190,10 +199,12 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
     const group = await authorized(id, c.req.header('authorization'));
     if (!group) return c.json({ error: 'Not allowed.' }, 403);
     const body = await c.req
-      .json<{ covers?: unknown; from?: unknown; parts?: unknown }>()
-      .catch(() => ({ covers: undefined, from: undefined, parts: undefined }));
-    const { covers, from, parts } = body;
+      .json<{ upload?: unknown; covers?: unknown; from?: unknown; parts?: unknown }>()
+      .catch(() => ({ upload: undefined, covers: undefined, from: undefined, parts: undefined }));
+    const { upload, covers, from, parts } = body;
     if (
+      typeof upload !== 'string' ||
+      !HEX32.test(upload) ||
       !whole(covers) ||
       !whole(from) ||
       !Array.isArray(parts) ||
@@ -202,14 +213,14 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
       from + parts.length > MAX_PARTS ||
       !parts.every(sealedText)
     ) {
-      return c.json({ error: 'Send covers, from and up to 50 sealed parts.' }, 400);
+      return c.json({ error: 'Send an upload ID, covers, from and up to 50 sealed parts.' }, 400);
     }
     if (covers <= group.snapshotSeq) {
       return c.json({ error: 'A newer snapshot is already here.' }, 409);
     }
-    // The upload counts towards the group's bytes; on its own it may be as large as the cap, so
-    // a full group can still be compacted.
-    const stored = await store.stageParts(id, covers, from, parts, LIMITS.groupBytes);
+    // Uploads don't count towards the group's bytes until committed, so a full group can still
+    // be compacted; on its own an upload may be as large as the cap.
+    const stored = await store.stageParts(id, upload, covers, from, parts, LIMITS.groupBytes);
     return stored ? c.body(null, 204) : c.json({ error: 'This snapshot is too large.' }, 413);
   });
 
@@ -218,13 +229,21 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
     if (!(await authorized(id, c.req.header('authorization'))))
       return c.json({ error: 'Not allowed.' }, 403);
     const body = await c.req
-      .json<{ covers?: unknown; parts?: unknown }>()
-      .catch(() => ({ covers: undefined, parts: undefined }));
-    const { covers, parts } = body;
-    if (!whole(covers) || covers < 1 || !whole(parts) || parts < 1 || parts > MAX_PARTS) {
-      return c.json({ error: 'Send covers and the number of parts.' }, 400);
+      .json<{ upload?: unknown; covers?: unknown; parts?: unknown }>()
+      .catch(() => ({ upload: undefined, covers: undefined, parts: undefined }));
+    const { upload, covers, parts } = body;
+    if (
+      typeof upload !== 'string' ||
+      !HEX32.test(upload) ||
+      !whole(covers) ||
+      covers < 1 ||
+      !whole(parts) ||
+      parts < 1 ||
+      parts > MAX_PARTS
+    ) {
+      return c.json({ error: 'Send the upload ID, covers and the number of parts.' }, 400);
     }
-    const committed = await store.commitSnapshot(id, covers, parts, now());
+    const committed = await store.commitSnapshot(id, upload, covers, parts, now());
     return committed
       ? c.body(null, 204)
       : c.json({ error: 'That snapshot is incomplete, or a newer one is already here.' }, 409);

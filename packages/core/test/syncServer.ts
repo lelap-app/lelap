@@ -4,8 +4,8 @@ import { authHash } from '../src/sync/crypto';
 type Group = {
   authHash: string;
   log: (PulledMessage & { at: number })[];
-  snapshot: { covers: number; parts: string[] } | null;
-  uploads: Map<number, string[]>;
+  snapshot: { covers: number; upload: string; parts: string[] } | null;
+  uploads: Map<string, { covers: number; parts: string[] }>;
 };
 
 /**
@@ -37,37 +37,40 @@ export function fakeSyncServer(clock = { now: 0 }) {
       const messages = g.log.filter((m) => m.seq > after).slice(0, limit);
       return { messages, last: messages.at(-1)?.seq ?? after };
     },
-    info: async (id, token, before): Promise<GroupInfo> => {
+    info: async (id, token, keepMs): Promise<GroupInfo> => {
       const g = group(id, token);
+      const before = clock.now - keepMs;
       const older = g.log.filter((m) => m.at < before);
       const snapshotBytes = g.snapshot?.parts.reduce((sum, p) => sum + p.length, 0) ?? 0;
       return {
         bytes: bytesOf(g.log) + snapshotBytes,
         snapshot: g.snapshot ? { covers: g.snapshot.covers, parts: g.snapshot.parts.length } : null,
+        before,
         older: { messages: older.length, bytes: bytesOf(older) },
       };
     },
     snapshot: async (id, token, from, limit) => {
       const g = group(id, token);
       if (!g.snapshot) return null;
-      const { covers, parts } = g.snapshot;
-      return { covers, parts: parts.length, data: parts.slice(from, from + limit) };
+      const { covers, upload, parts } = g.snapshot;
+      return { covers, upload, parts: parts.length, data: parts.slice(from, from + limit) };
     },
-    putSnapshotParts: async (id, token, covers, from, parts) => {
+    putSnapshotParts: async (id, token, upload, covers, from, parts) => {
       const g = group(id, token);
       if (g.snapshot && covers <= g.snapshot.covers) throw new SyncError(409, 'Newer here.');
-      const upload = g.uploads.get(covers) ?? [];
-      parts.forEach((p, i) => (upload[from + i] = p));
-      g.uploads.set(covers, upload);
+      const staged = g.uploads.get(upload) ?? { covers, parts: [] };
+      parts.forEach((p, i) => (staged.parts[from + i] = p));
+      g.uploads.set(upload, staged);
     },
-    commitSnapshot: async (id, token, covers, count) => {
+    commitSnapshot: async (id, token, upload, covers, count) => {
       const g = group(id, token);
-      const upload = g.uploads.get(covers);
+      const staged = g.uploads.get(upload);
       const last = g.log.at(-1)?.seq ?? 0;
-      if (!upload || (g.snapshot && covers <= g.snapshot.covers) || covers > last) return false;
-      const parts = upload.slice(0, count);
+      if (!staged || staged.covers !== covers) return false;
+      if ((g.snapshot && covers <= g.snapshot.covers) || covers > last) return false;
+      const parts = staged.parts.slice(0, count);
       if (parts.length !== count || parts.some((p) => p === undefined)) return false;
-      g.snapshot = { covers, parts };
+      g.snapshot = { covers, upload, parts };
       g.uploads.clear();
       g.log = g.log.filter((m) => m.seq > covers);
       return true;

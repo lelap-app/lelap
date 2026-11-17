@@ -8,6 +8,8 @@ export type Group = {
   /** The last message the snapshot covers; 0 without a snapshot. */
   snapshotSeq: number;
   snapshotParts: number;
+  /** The random ID of the upload that became the snapshot. */
+  snapshotUpload: string;
   lastPushAt: number;
 };
 
@@ -19,14 +21,15 @@ export type SyncStore = {
   read(id: string, after: number, limit: number): Promise<Message[]>;
   /** How many messages, and how many bytes of them, arrived before `before`. */
   older(id: string, before: number): Promise<{ messages: number; bytes: number }>;
-  /** Parts `from` up to `to` of the snapshot that covers `covers`, in order. */
-  readParts(id: string, covers: number, from: number, to: number): Promise<string[]>;
+  /** Parts `from` up to `to` of an upload, in order. */
+  readParts(id: string, upload: string, from: number, to: number): Promise<string[]>;
   /**
    * Stores parts of a snapshot upload. False, storing nothing, when the upload would grow past
    * `maxBytes`.
    */
   stageParts(
     id: string,
+    upload: string,
     covers: number,
     from: number,
     parts: string[],
@@ -36,7 +39,13 @@ export type SyncStore = {
    * Makes a complete upload the group's snapshot and drops the messages it covers and the
    * snapshot it replaces. False when it is not newer, not complete, or covers nothing.
    */
-  commitSnapshot(id: string, covers: number, parts: number, now: number): Promise<boolean>;
+  commitSnapshot(
+    id: string,
+    upload: string,
+    covers: number,
+    parts: number,
+    now: number,
+  ): Promise<boolean>;
   /** Deletes groups no device pushed to since `before`; returns how many. */
   expireIdle(before: number): Promise<number>;
   putPairing(lookup: string, blob: string, expiresAt: number, now: number): Promise<boolean>;

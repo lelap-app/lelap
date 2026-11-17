@@ -60,14 +60,14 @@ describe('sync on Node SQLite', () => {
     await store.createGroup('i'.repeat(32), 'h', 1_000);
     await store.append('g'.repeat(32), 'd', ['aaaa', 'bbbb', 'cccc'], 2_000);
     const [, two, three] = (await store.read('g'.repeat(32), 0, 10)).map((m) => m.seq);
-    expect(await store.stageParts('g'.repeat(32), two ?? 0, 0, ['snap'], 100)).toBe(true);
-    expect(await store.stageParts('g'.repeat(32), three ?? 0, 0, ['x'.repeat(101)], 100)).toBe(
-      false,
-    );
-    expect(await store.commitSnapshot('g'.repeat(32), two ?? 0, 1, 3_000)).toBe(true);
-    expect(await store.commitSnapshot('g'.repeat(32), two ?? 0, 1, 3_000)).toBe(false);
+    expect(await store.stageParts('g'.repeat(32), 'u1', two ?? 0, 0, ['snap'], 100)).toBe(true);
+    expect(
+      await store.stageParts('g'.repeat(32), 'u2', three ?? 0, 0, ['x'.repeat(101)], 100),
+    ).toBe(false);
+    expect(await store.commitSnapshot('g'.repeat(32), 'u1', two ?? 0, 1, 3_000)).toBe(true);
+    expect(await store.commitSnapshot('g'.repeat(32), 'u1', two ?? 0, 1, 3_000)).toBe(false);
     expect((await store.read('g'.repeat(32), 0, 10)).map((m) => m.data)).toEqual(['cccc']);
-    expect(await store.readParts('g'.repeat(32), two ?? 0, 0, 5)).toEqual(['snap']);
+    expect(await store.readParts('g'.repeat(32), 'u1', 0, 5)).toEqual(['snap']);
     expect(await store.group('g'.repeat(32))).toMatchObject({
       bytes: 8,
       snapshotSeq: two,
