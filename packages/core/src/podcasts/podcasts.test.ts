@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createTestDb } from '../../test/db';
@@ -97,8 +98,70 @@ describe('RSS', () => {
   });
 
   it('refuses what is not a feed', () => {
-    expect(() => parseFeed('<html><body>Hi</body></html>')).toThrow('not an RSS feed');
+    expect(() => parseFeed('<html><body>Hi</body></html>')).toThrow('not an RSS or Atom feed');
     expect(() => parseFeed('<rss><channel><title></title></channel></rss>')).toThrow('no title');
+    expect(() => parseFeed('<feed><title/></feed>')).toThrow('no title');
+  });
+});
+
+describe('Atom', () => {
+  const atom = readFileSync(new URL('../../test/fixtures/atom.xml', import.meta.url), 'utf8');
+
+  it('reads the podcast and the entries with an audio enclosure', () => {
+    const feed = parseFeed(atom);
+    expect(feed).toMatchObject({
+      title: 'Night Shift Radio',
+      author: 'Mira Okafor',
+      description: 'Quiet talk for late listeners.',
+      coverUrl: 'https://img.example.org/night-shift.png',
+      link: 'https://example.org/night-shift',
+      guid: '3c1fd7a7-9b2a-5a5b-9b5e-0d3b0b2f1a11',
+    });
+    expect(feed.episodes).toEqual([
+      {
+        guid: 'tag:example.org,2026:night-shift/2',
+        title: 'Episode 2: Owls',
+        description: 'Who is awake at three.',
+        publishedAt: Date.parse('2026-10-02T21:00:00Z'),
+        season: null,
+        number: 2,
+        durationMs: 1_500_000,
+        url: 'https://cdn.example.org/ns2.mp3',
+        mime: 'audio/mpeg',
+        size: 24_000_000,
+        extras: {
+          chaptersUrl: 'https://cdn.example.org/ns2.json',
+          transcripts: [],
+          persons: [],
+          seasonName: null,
+        },
+      },
+      expect.objectContaining({
+        guid: 'tag:example.org,2026:night-shift/1',
+        description: 'Moths and lamps.',
+        // No <published>: <updated> stands in.
+        publishedAt: Date.parse('2026-09-25T21:00:00Z'),
+        url: 'https://cdn.example.org/ns1.ogg',
+        mime: 'audio/ogg',
+        size: 0,
+      }),
+    ]);
+  });
+
+  it('subscribes like an RSS feed', () => {
+    const db = createTestDb();
+    const saved = saveFeed(
+      db,
+      'https://feeds.example.org/night-shift.atom',
+      parseFeed(atom),
+      { etag: null, lastModified: null },
+      100,
+      newId,
+    );
+    expect(listEpisodes(db, ME, saved.podcastId).map((e) => e.title)).toEqual([
+      'Episode 2: Owls',
+      'Episode 1: Moths',
+    ]);
   });
 });
 
@@ -108,11 +171,13 @@ describe('OPML', () => {
       <outline text="Garden" type="rss" xmlUrl="https://a.example/feed"/>
       <outline text="Folder"><outline title="Tom &amp; Jerry" xmlUrl="https://b.example/rss"/>
       <outline text="Again" xmlUrl="https://a.example/feed"/></outline>
+      <outline text="Night shift" type="atom" xmlUrl="https://c.example/night.atom"/>
     </body></opml>`;
     const feeds = parseOpml(xml);
     expect(feeds).toEqual([
       { title: 'Garden', feedUrl: 'https://a.example/feed' },
       { title: 'Tom & Jerry', feedUrl: 'https://b.example/rss' },
+      { title: 'Night shift', feedUrl: 'https://c.example/night.atom' },
     ]);
     expect(parseOpml(buildOpml(feeds, 0))).toEqual(feeds);
   });
