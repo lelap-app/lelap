@@ -1,5 +1,7 @@
 import {
+  carShelves,
   continueListening,
+  episodeBook,
   deviceValue,
   setDeviceValue,
   finishFromPlayer,
@@ -21,9 +23,9 @@ import {
   useRef,
   useState,
 } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
-import { db } from './db';
+import { db, newId } from './db';
 import * as audio from './platform/audio';
 import { profileId, setProfileId } from './profile';
 import { fileAccess } from './remote';
@@ -89,6 +91,9 @@ const PLAYER_PROFILE = 'playerProfile';
 export const playerProfile = () => deviceValue(db, PLAYER_PROFILE) ?? profileId;
 
 async function foldJournal(): Promise<void> {
+  // Books the service replaced by itself (Up Next, Android Auto) first: they are older.
+  const earlier = await audio.takeEarlierPlaces().catch(() => []);
+  for (const place of earlier) saveProgress(db, playerProfile(), place, 'journal');
   const entry = await audio.takeJournal();
   if (entry) saveProgress(db, playerProfile(), entry, 'journal');
 }
@@ -202,6 +207,29 @@ async function syncQueue(): Promise<void> {
   await audio.setQueue(queue).catch(() => {});
 }
 
+/**
+ * Gives the playback service the books Android Auto lists, so the car can browse and play them
+ * with the app closed. Only the listener's own profile is offered.
+ */
+async function syncCar(): Promise<void> {
+  if (playerProfile() !== profileId) return;
+  const shelves = carShelves(db, profileId);
+  const loads = (ids: string[]) =>
+    ids.map((id) => bookLoad(id)).filter((b): b is audio.BookLoad => b !== null);
+  // An episode needs its library book before it can play; it is made here, like on first play.
+  const episodes = shelves.latestEpisodes.map(
+    (e) => e.bookId ?? episodeBook(db, e.episodeId, Date.now(), newId),
+  );
+  await audio
+    .setCarLibrary({
+      continueListening: loads(shelves.continueListening),
+      onPhone: loads(shelves.onPhone),
+      podcasts: loads(episodes),
+      upNext: loads(shelves.upNext),
+    })
+    .catch(() => {});
+}
+
 /** Marks what the service played to its end as finished, in the profile it played for. */
 async function foldFinished(): Promise<boolean> {
   const done = await audio.takeFinished().catch(() => []);
@@ -289,6 +317,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void syncQueue();
+    if (Platform.OS === 'android') void syncCar();
   }, [state.bookId, version]);
 
   const library = useMemo(() => ({ version, refresh }), [version, refresh]);

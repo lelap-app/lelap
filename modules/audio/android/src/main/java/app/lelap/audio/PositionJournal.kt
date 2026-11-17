@@ -81,6 +81,30 @@ object PositionJournal {
     null
   }
 
+  /** Keeps the last [max] places, so the app can fold each in when it next starts. */
+  fun appendEarlier(json: String?, entry: JournalEntry, max: Int = 20): String =
+    encodeEntries((decodeEntries(json).filter { it.bookId != entry.bookId } + entry).takeLast(max))
+
+  fun encodeEntries(list: List<JournalEntry>): String = JSONArray(
+    list.map {
+      JSONObject()
+        .put("bookId", it.bookId)
+        .put("fileLocation", it.fileLocation)
+        .put("filePositionMs", it.filePositionMs)
+        .put("savedAt", it.savedAt)
+    },
+  ).toString()
+
+  fun decodeEntries(json: String?): List<JournalEntry> = try {
+    val array = JSONArray(json ?: "[]")
+    List(array.length()) {
+      val e = array.getJSONObject(it)
+      JournalEntry(e.getString("bookId"), e.getString("fileLocation"), e.getLong("filePositionMs"), e.getLong("savedAt"))
+    }
+  } catch (e: JSONException) {
+    emptyList()
+  }
+
   /** The app's `BookLoad`, as JSON. */
   fun decodeLoad(json: String): BookLoad? = try {
     val root = JSONObject(json)

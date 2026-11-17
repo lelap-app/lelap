@@ -2,6 +2,7 @@ package app.lelap.audio
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
 import android.net.Uri
@@ -30,6 +31,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
+import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 
@@ -68,6 +70,15 @@ class PlaybackService : MediaLibraryService() {
       headersByUri[spec.uri.toString()]?.let(spec::withAdditionalHeaders) ?: spec
     }
   private var currentHandsOver = false
+
+  // The app writes the car snapshot straight into the preferences; Android Auto then re-reads it.
+  private val carListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+    if (key == Commands.PREF_CAR_LIBRARY && ::session.isInitialized) {
+      for (shelf in CarLibrary.children(CarLibrary.ROOT, CarSnapshot(), null).orEmpty()) {
+        session.notifyChildrenChanged(shelf.id, Int.MAX_VALUE, null)
+      }
+    }
+  }
   private var queue: List<BookLoad> = emptyList()
 
   private var skipIntervalMs = 30_000L
@@ -205,6 +216,7 @@ class PlaybackService : MediaLibraryService() {
       )
     }
     session = builder.build()
+    prefs.registerOnSharedPreferenceChangeListener(carListener)
     publishExtras()
   }
 
@@ -223,6 +235,7 @@ class PlaybackService : MediaLibraryService() {
     handler.removeCallbacks(timerTicker)
     handler.removeCallbacks(pauseSettled)
     sleepTimer.cancel()
+    prefs.unregisterOnSharedPreferenceChangeListener(carListener)
     focus.abandon()
     session.release()
     player.release()
@@ -254,6 +267,7 @@ class PlaybackService : MediaLibraryService() {
       return
     }
     if (!autoplay) player.pause()
+    keepEarlierPlace(playlist.bookId)
     current = playlist
     val start = load.startPositionMs.coerceAtLeast(0L)
     val position = if (autoplay) SeekRules.resumePosition(start, load.pausedAt, System.currentTimeMillis(), smartRewind) else start
@@ -268,6 +282,66 @@ class PlaybackService : MediaLibraryService() {
     player.prepare()
     if (autoplay) player.play()
     writeJournal(PositionJournal.Event.ITEM_CHANGE)
+  }
+
+  /**
+   * Before the service replaces the book by itself (Up Next, Android Auto), keeps its place in a
+   * list the app folds in, since the journal only holds the book that plays now.
+   */
+  private fun keepEarlierPlace(nextBookId: String) {
+    val playing = current ?: return
+    if (playing.bookId == nextBookId) return
+    writeJournal(PositionJournal.Event.ITEM_CHANGE)
+    val (entry, _) = journalPrefs.getString(Commands.JOURNAL_KEY, null)?.let(PositionJournal::decode) ?: return
+    if (entry.bookId != playing.bookId) return
+    journalPrefs.edit()
+      .putString(Commands.EARLIER_KEY, PositionJournal.appendEarlier(journalPrefs.getString(Commands.EARLIER_KEY, null), entry))
+      .apply()
+  }
+
+  private fun carSnapshot(): CarSnapshot = CarLibrary.decode(prefs.getString(Commands.PREF_CAR_LIBRARY, null))
+
+  private fun journalLoad(): BookLoad? = journalPrefs.getString(Commands.JOURNAL_KEY, null)
+    ?.let(PositionJournal::decode)
+    ?.let { (entry, playlist) -> CarLibrary.journalLoad(entry, playlist) }
+
+  private fun carItem(node: CarNode): MediaItem = MediaItem.Builder()
+    .setMediaId(node.id)
+    .setMediaMetadata(
+      MediaMetadata.Builder()
+        .setTitle(node.title)
+        .setArtist(node.subtitle)
+        .setArtworkUri(node.artworkUri?.let(Uri::parse))
+        .setIsBrowsable(node.browsable)
+        .setIsPlayable(node.playable)
+        .apply { if (node.browsable) setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED) }
+        .build(),
+    )
+    .build()
+
+  /** A book picked in Android Auto, loaded like the app loads one and played from its place. */
+  private fun carPlay(load: BookLoad): MediaSession.MediaItemsWithStartPosition {
+    val playlist = load.playlist
+    if (PositionJournal.isSameBook(current, player.mediaItemCount, load)) {
+      currentHandsOver = load.handsOver
+      return MediaSession.MediaItemsWithStartPosition(
+        mediaItems(playlist),
+        player.currentMediaItemIndex,
+        player.currentPosition,
+      )
+    }
+    keepEarlierPlace(playlist.bookId)
+    current = playlist
+    currentHandsOver = load.handsOver
+    pausedAt = null
+    placeChangedAt = load.pausedAt ?: 0L
+    player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
+    val start = SeekRules.resumePosition(load.startPositionMs.coerceAtLeast(0L), load.pausedAt, System.currentTimeMillis(), smartRewind)
+    return MediaSession.MediaItemsWithStartPosition(
+      mediaItems(playlist),
+      load.startIndex.coerceIn(0, playlist.files.lastIndex),
+      start,
+    )
   }
 
   private fun mediaItems(playlist: BookPlaylist): List<MediaItem> = playlist.files.mapIndexed { index, file ->
@@ -546,14 +620,48 @@ class PlaybackService : MediaLibraryService() {
       session: MediaLibrarySession,
       browser: MediaSession.ControllerInfo,
       params: LibraryParams?,
+    ): ListenableFuture<LibraryResult<MediaItem>> =
+      Futures.immediateFuture(LibraryResult.ofItem(carItem(CarLibrary.root()), params))
+
+    override fun onGetChildren(
+      session: MediaLibrarySession,
+      browser: MediaSession.ControllerInfo,
+      parentId: String,
+      page: Int,
+      pageSize: Int,
+      params: LibraryParams?,
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+      val nodes = CarLibrary.children(parentId, carSnapshot(), journalLoad())
+        ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
+      val from = (page.toLong() * pageSize).coerceAtMost(nodes.size.toLong()).toInt()
+      val to = (from.toLong() + pageSize).coerceAtMost(nodes.size.toLong()).toInt()
+      return Futures.immediateFuture(
+        LibraryResult.ofItemList(ImmutableList.copyOf(nodes.subList(from, to).map(::carItem)), params),
+      )
+    }
+
+    override fun onGetItem(
+      session: MediaLibrarySession,
+      browser: MediaSession.ControllerInfo,
+      mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> {
-      val root = MediaItem.Builder()
-        .setMediaId("root")
-        .setMediaMetadata(
-          MediaMetadata.Builder().setIsBrowsable(true).setIsPlayable(false).build(),
-        )
-        .build()
-      return Futures.immediateFuture(LibraryResult.ofItem(root, params))
+      val node = CarLibrary.item(mediaId, carSnapshot(), journalLoad())
+        ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
+      return Futures.immediateFuture(LibraryResult.ofItem(carItem(node), null))
+    }
+
+    // A controller (Android Auto) picked an item from the browse tree: load that whole book.
+    override fun onSetMediaItems(
+      mediaSession: MediaSession,
+      controller: MediaSession.ControllerInfo,
+      mediaItems: MutableList<MediaItem>,
+      startIndex: Int,
+      startPositionMs: Long,
+    ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+      val picked = mediaItems.singleOrNull()?.takeIf { it.localConfiguration == null }
+      val load = picked?.let { CarLibrary.resolve(it.mediaId, carSnapshot(), journalLoad()) }
+        ?: return super.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
+      return Futures.immediateFuture(carPlay(load))
     }
   }
 }

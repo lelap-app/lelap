@@ -6,8 +6,12 @@
 // It also writes `_headers` (Cloudflare Pages) with the Content-Security-Policy and other security
 // headers, built from the same configuration as the app, and the same headers as a Caddy snippet
 // when LELAP_CADDY_HEADERS names a file (the Docker image).
+//
+// Last, it writes the service worker (`web/sw.js` with the list of files to cache) and the
+// script that registers it, after the renames so the cached paths are the served ones.
+import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
 
 import { defaultAddons, downloadsBase, proxyBase, syncBase } from '../src/config.ts';
 
@@ -110,18 +114,66 @@ function securityHeaders() {
 
 function writeHeaders(dir) {
   const headers = Object.entries(securityHeaders());
+  // The worker is checked on every visit, so a new build is found right away.
   writeFileSync(
     join(dir, '_headers'),
-    `/*\n${headers.map(([name, value]) => `  ${name}: ${value}`).join('\n')}\n`,
+    `/*\n${headers.map(([name, value]) => `  ${name}: ${value}`).join('\n')}\n` +
+      `/sw.js\n  Cache-Control: no-cache\n`,
   );
   const caddy = process.env.LELAP_CADDY_HEADERS;
   if (caddy) {
     const lines = headers.map(([name, value]) => `\t${name} "${value}"`).join('\n');
-    writeFileSync(caddy, `header {\n${lines}\n}\n`);
+    writeFileSync(caddy, `header {\n${lines}\n}\nheader /sw.js Cache-Control "no-cache"\n`);
   }
+}
+
+/** Every file of the export, as the URL paths the browser asks for. */
+function listFiles(dir) {
+  return readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name);
+    return statSync(path).isDirectory() ? listFiles(path) : [path];
+  });
+}
+
+// Not part of the shell: headers for the host, source maps, and the worker itself.
+const NOT_SHELL = /(^\/_headers$|^\/_redirects$|^\/sw\.js$|\.map$)/;
+
+function writeServiceWorker(dir) {
+  const files = listFiles(dir)
+    .map((path) => ({ path, url: `/${relative(dir, path).split(sep).join('/')}` }))
+    .filter(({ url }) => !NOT_SHELL.test(url))
+    .sort((a, b) => (a.url < b.url ? -1 : 1));
+  const source = readFileSync(new URL('../web/sw.js', import.meta.url), 'utf8');
+  // The worker's own code counts too: a changed worker starts from a fresh cache.
+  const hash = createHash('sha256').update(source);
+  for (const { path, url } of files) hash.update(url).update(readFileSync(path));
+  const build = hash.digest('hex').slice(0, 16);
+  // Cloudflare Pages redirects `/index.html` to `/`, and a redirect can't answer a navigation.
+  const shell = files.map(({ url }) => (url === '/index.html' ? '/' : encodeURI(url)));
+  const constants = [
+    `const BUILD = ${JSON.stringify(build)};`,
+    `const SHELL = ${JSON.stringify(shell)};`,
+    `const NEVER_CACHE = ${JSON.stringify([origin(syncBase)].filter(Boolean))};`,
+  ].join('\n');
+  writeFileSync(join(dir, 'sw.js'), `${constants}\n${source}`);
+  // A file, not inline code: the Content-Security-Policy allows scripts from this origin only.
+  writeFileSync(
+    join(dir, 'sw-register.js'),
+    "if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));\n",
+  );
+  const index = join(dir, 'index.html');
+  const html = readFileSync(index, 'utf8');
+  if (!html.includes('sw-register.js'))
+    writeFileSync(
+      index,
+      html.replace('</head>', '<script src="/sw-register.js" defer></script></head>'),
+    );
+  return { build, files: shell.length };
 }
 
 renameFolders(root);
 addInstallLinks(root);
 writeHeaders(root);
 console.log(`fix-web-export: rewrote references in ${rewrite(root)} files`);
+const worker = writeServiceWorker(root);
+console.log(`fix-web-export: service worker ${worker.build} caches ${worker.files} files`);

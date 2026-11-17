@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android Auto lists Lelap as a media app and browses PlaybackService's library tree. -->
+<automotiveApp>
+  <uses name="media" />
+</automotiveApp>

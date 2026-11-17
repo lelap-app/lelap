@@ -19,7 +19,9 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M11 Background engine      | In progress |
 | M13 Landing page 2         | In progress |
 | M14 Developer platform     | In progress |
+| M17 Car and offline web    | In progress |
 | M19 Security and hardening | In progress |
+| M20 SDK on npm             | In progress |
 | M32 Audnexus               | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
@@ -215,6 +217,15 @@ hard-coded seasonal catalogs, are in [`examples/`](../examples) and tested in CI
 app. Not yet checked: the samples' Dockerfiles have not been built, and none of the samples has
 been added to the app on a phone.
 
+## M17 Car and offline web
+
+**Status:** in progress (from [`next.md`](next.md#proposed-milestones)). Android Auto browses
+Continue listening, On this phone, Podcasts and Up Next from a snapshot the app hands the playback
+service, so the car works with the app closed. A service worker keeps the web app's shell so
+`listen.` starts offline. Car and phone checks in [`m17-follow-ups.md`](m17-follow-ups.md).
+
+**Done when** the car checks pass on a head unit or the Desktop Head Unit.
+
 ## M19 Security and hardening
 
 **Status:** in progress (from [`next.md`](next.md#proposed-milestones)). The audit, its fixes and
@@ -222,6 +233,17 @@ the decisions left for the maintainer are in [`security-audit.md`](security-audi
 dashboard checks in [`m19-follow-ups.md`](m19-follow-ups.md).
 
 **Done when** the audit's decisions are made and its follow-up checks pass.
+
+## M20 SDK on npm
+
+**Status:** in progress (from [`next.md`](next.md#m20-sdk-on-npm)). `@lelap/sdk` builds to ESM and
+type declarations with `tsc`, Changesets versions it, and the `SDK` workflow publishes it with
+provenance from the `npm` environment. How to release: [`packages/sdk`](../packages/sdk/README.md#releasing).
+The samples' docs install it from npm. What the maintainer sets up on npm and GitHub:
+[`m20-follow-ups.md`](m20-follow-ups.md).
+
+**Done when** `npm install @lelap/sdk` gets a published version with a provenance statement, and a
+copy of `services/template` outside the repository builds against it.
 
 ## Environments
 

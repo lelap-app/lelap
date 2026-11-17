@@ -57,6 +57,12 @@ pnpm dev             # http://localhost:8787/manifest.json
 pnpm test
 `;
 
+// The samples link the SDK from the monorepo; a copy outside it installs the SDK from npm.
+const fromNpm = `
+npm pkg delete dependencies.@lelap/sdk
+npm install @lelap/sdk
+`;
+
 const toc: [string, string][] = [
   ['hono', 'Hono on Workers'],
   ['node', 'Plain Node'],
@@ -150,6 +156,11 @@ const toc: [string, string][] = [
   <CodeBlock code={honoAddon} label="services/template/src/addon.ts" />
   <CodeBlock code={honoIndex} label="services/template/src/index.ts" />
   <CodeBlock code={honoRun} label="Terminal" />
+  <p>
+    In the repository the template uses the SDK from the workspace. Copy the folder out to start
+    your own add-on, then install the SDK from npm:
+  </p>
+  <CodeBlock code={fromNpm} label="Terminal" />
 
   <h2 id="node">Plain Node</h2>
   <p>
@@ -206,6 +217,10 @@ const toc: [string, string][] = [
   />
   <CodeBlock code={seasonalAddon} label="examples/seasonal-catalogs/src/addon.ts" />
   <CodeBlock code={seasonalRun} label="Terminal" />
+  <p>
+    A copy outside the repository installs the SDK from npm the same way as the{' '}
+    <a href="#hono">template</a>.
+  </p>
   <p>
     To change the lists, edit the JSON: each catalog has an <code>id</code>, a <code>name</code> and
     a list of <a href="/docs/protocol/#meta-preview">MetaPreview</a> objects. The add-on checks the
