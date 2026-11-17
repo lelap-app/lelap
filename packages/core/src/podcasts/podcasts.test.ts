@@ -7,7 +7,7 @@ import { applyDownloadStatuses, planDownload, requestDownload } from '../downloa
 import { getBook, listBooks, setFinished } from '../library/queries';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { saveProgress } from '../progress';
-import { addToUpNext, finishAndNext, listUpNext, moveInUpNext } from '../upNext';
+import { addToUpNext, finishAndNext, finishFromPlayer, listUpNext, moveInUpNext } from '../upNext';
 import { carryFolderPlace, episodeCode, matchFiles } from './folder';
 import { buildOpml, parseOpml } from './opml';
 import {
@@ -206,6 +206,18 @@ describe('Up Next', () => {
     // A book that ends stops; it still leaves the queue.
     expect(finishAndNext(db, ME, novel, 4)).toBeNull();
     expect(listUpNext(db, ME).map((i) => i.bookId)).toEqual([a, b]);
+  });
+
+  it('folds in what the playback service finished with the app closed', () => {
+    const { podcastId } = save(db, 2);
+    const [first, second] = listEpisodes(db, ME, podcastId).map((e) =>
+      episodeBook(db, e.id, 1, newId),
+    );
+    addToUpNext(db, ME, must(first), 'last', 1);
+    addToUpNext(db, ME, must(second), 'last', 1);
+    finishFromPlayer(db, ME, must(first), 50);
+    expect(getBook(db, ME, must(first))?.book.finishedAt).toBe(50);
+    expect(listUpNext(db, ME).map((i) => i.bookId)).toEqual([second]);
   });
 });
 

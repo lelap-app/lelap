@@ -152,6 +152,21 @@ class AudioModule : Module() {
       }
     }.runOnQueue(Queues.MAIN)
 
+    AsyncFunction("setQueue") { queueJson: String, promise: Promise ->
+      withController(promise) { c ->
+        val args = Bundle().apply { putString(Commands.KEY_QUEUE_JSON, queueJson) }
+        c.sendCustomCommand(SessionCommand(Commands.SET_QUEUE, Bundle.EMPTY), args)
+      }
+    }.runOnQueue(Queues.MAIN)
+
+    // Same process as the service: the log is read and cleared straight from its preferences.
+    AsyncFunction("takeFinished") {
+      val prefs = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE)
+      val list = UpNext.decodeFinished(prefs.getString(Commands.PREF_FINISHED, null))
+      prefs.edit().remove(Commands.PREF_FINISHED).apply()
+      list.map { mapOf("bookId" to it.bookId, "at" to it.at.toDouble()) }
+    }
+
     AsyncFunction("unload") { promise: Promise ->
       withController(promise) { c ->
         c.sendCustomCommand(SessionCommand(Commands.UNLOAD, Bundle.EMPTY), Bundle.EMPTY)

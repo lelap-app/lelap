@@ -18,6 +18,7 @@ import { HandoffBanner } from '../src/components/HandoffBanner';
 import { PodcastSync } from '../src/podcasts';
 import { SyncRunner } from '../src/sync';
 import { offerUpdateOnStart } from '../src/updates';
+import { registerBackgroundRefresh } from '../src/background';
 
 /** Installs the default add-ons on first start and refreshes manifests on every start. */
 function AddonSync() {
@@ -25,6 +26,7 @@ function AddonSync() {
   useEffect(() => {
     void syncAddonsNow().finally(refresh);
     void offerUpdateOnStart();
+    void registerBackgroundRefresh().catch(() => {});
   }, [refresh]);
   return null;
 }

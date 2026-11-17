@@ -7,6 +7,11 @@ object Commands {
   const val CANCEL_SLEEP_TIMER = "app.lelap.audio.CANCEL_SLEEP_TIMER"
   const val LOAD_BOOK = "app.lelap.audio.LOAD_BOOK"
   const val UNLOAD = "app.lelap.audio.UNLOAD"
+  const val SET_QUEUE = "app.lelap.audio.SET_QUEUE"
+  const val KEY_QUEUE_JSON = "queue"
+  /** In [AUDIO_PREFS]: the queue, and the books that ended while the app may have been closed. */
+  const val PREF_QUEUE = "upNextQueue"
+  const val PREF_FINISHED = "finished"
 
   const val KEY_SKIP_INTERVAL_MS = "skipIntervalMs"
   const val KEY_SMART_REWIND = "smartRewind"

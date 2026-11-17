@@ -22,8 +22,18 @@ data class BookPlaylist(
 /** The last known place. Mirrors `JournalEntry` in `@lelap/core`. */
 data class JournalEntry(val bookId: String, val fileLocation: String, val filePositionMs: Long, val savedAt: Long)
 
-/** [pausedAt] is when the place was saved, for smart rewind on the first Play after loading. */
-data class BookLoad(val playlist: BookPlaylist, val startIndex: Int, val startPositionMs: Long, val pausedAt: Long? = null)
+/**
+ * [pausedAt] is when the place was saved, for smart rewind on the first Play after loading.
+ * [handsOver]: when this book ends, the next item in Up Next plays (podcast episodes do; books
+ * stop at their end).
+ */
+data class BookLoad(
+  val playlist: BookPlaylist,
+  val startIndex: Int,
+  val startPositionMs: Long,
+  val pausedAt: Long? = null,
+  val handsOver: Boolean = false,
+)
 
 /**
  * The service's own record of the place, written while the app may not be running and folded
@@ -78,10 +88,19 @@ object PositionJournal {
       root.getInt("startIndex"),
       root.getLong("startPositionMs"),
       if (root.isNull("pausedAt")) null else root.getLong("pausedAt"),
+      root.optBoolean("handsOver", false),
     )
   } catch (e: JSONException) {
     null
   }
+
+  /** The inverse of [decodeLoad], for keeping the queue across a restart of the service. */
+  fun encodeLoad(load: BookLoad): String = encodePlaylist(load.playlist)
+    .put("startIndex", load.startIndex)
+    .put("startPositionMs", load.startPositionMs)
+    .put("pausedAt", load.pausedAt ?: JSONObject.NULL)
+    .put("handsOver", load.handsOver)
+    .toString()
 
   private fun encodePlaylist(p: BookPlaylist): JSONObject = JSONObject()
     .put("bookId", p.bookId)

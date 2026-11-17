@@ -15,7 +15,12 @@ export type BookLoad = {
   speed: number;
   /** When the place was saved, so the first Play can rewind a little. */
   pausedAt: number | null;
+  /** At its end, play the next item in Up Next (podcast episodes); books stop at their end. */
+  handsOver?: boolean;
 };
+
+/** A book or episode that played to its end, possibly with the app closed. */
+export type FinishedItem = { bookId: string; at: number };
 
 /** Player settings that must also work with the app closed. */
 export type PlayerSettings = {
@@ -75,6 +80,8 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   startSleepTimer(minutes: number): Promise<void>;
   cancelSleepTimer(): Promise<void>;
   unload(): Promise<void>;
+  setQueue(queueJson: string): Promise<void>;
+  takeFinished(): Promise<FinishedItem[]>;
   getState(): Promise<PlayerState>;
 }
 
@@ -132,6 +139,16 @@ export function startSleepTimer(minutes: number): Promise<void> {
 
 export function cancelSleepTimer(): Promise<void> {
   return native.cancelSleepTimer();
+}
+
+/** What plays after the current book when it hands over (Up Next, in order). */
+export function setQueue(queue: BookLoad[]): Promise<void> {
+  return native.setQueue(JSON.stringify(queue));
+}
+
+/** Books that ended since the last call, for the app to mark finished. */
+export function takeFinished(): Promise<FinishedItem[]> {
+  return native.takeFinished();
 }
 
 /** Empties the player: no book on the lock screen or in the notification. */

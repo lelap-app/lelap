@@ -1,8 +1,14 @@
-import type { BookLoad, JournalEntry, PlayerSettings, PlayerState } from '@lelap/audio';
+import type {
+  BookLoad,
+  FinishedItem,
+  JournalEntry,
+  PlayerSettings,
+  PlayerState,
+} from '@lelap/audio';
 
 import * as opfs from './opfs';
 
-export type { BookLoad, JournalEntry, PlayerSettings, PlayerState };
+export type { BookLoad, FinishedItem, JournalEntry, PlayerSettings, PlayerState };
 
 // The web player: one <audio> element playing the book's files in order, with the same API as
 // the Android module. Media Session gives the lock screen, keyboard and headset controls. The
@@ -17,6 +23,8 @@ const FADE_MS = 60_000;
 
 let element: HTMLAudioElement | null = null;
 let book: BookLoad | null = null;
+let queue: BookLoad[] = [];
+let finished: FinishedItem[] = [];
 let index = -1;
 let ended = false;
 let buffering = false;
@@ -181,9 +189,16 @@ function player(): HTMLAudioElement {
     if (book && index < book.files.length - 1) {
       void setPart(index + 1, 0, true);
     } else {
-      ended = true;
       placeChangedAt = Date.now();
       writeJournal();
+      // As on Android: log the end, and an episode hands over to Up Next.
+      if (book) finished.push({ bookId: book.bookId, at: Date.now() });
+      const next = book?.handsOver ? queue.shift() : undefined;
+      if (next) {
+        void load(next, true);
+        return;
+      }
+      ended = true;
       stopTicker();
       emit();
     }
@@ -311,6 +326,16 @@ export async function cancelSleepTimer(): Promise<void> {
   sleepRemainingMs = null;
   if (element) element.volume = 1;
   emit();
+}
+
+export async function setQueue(next: BookLoad[]): Promise<void> {
+  queue = [...next];
+}
+
+export async function takeFinished(): Promise<FinishedItem[]> {
+  const list = finished;
+  finished = [];
+  return list;
 }
 
 export async function unload(): Promise<void> {

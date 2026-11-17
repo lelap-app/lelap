@@ -144,3 +144,12 @@ proxy and an episode plays.
 | 1   | **Pause journal:** pause, swipe the app away, reopen. The place matches the lock screen to the second.        |        |
 | 2   | **Unload:** with two profiles, play a book as one, switch to one with nothing played. The lock screen clears. |        |
 | 3   | **Install the web app:** open `listen.lelap.app` in Chrome on the phone → Add to home screen.                 |        |
+
+## M11 checks
+
+| #   | Check                                                                                                                       | Result |
+| --- | --------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Hand-over, app closed:** queue two episodes, start the first near its end, swipe the app away. The second starts.         |        |
+| 2   | **Finished log:** reopen the app. The first episode is marked played and has left Up Next.                                  |        |
+| 3   | **A book stops:** queue an episode after a book; at the book's end nothing else starts.                                     |        |
+| 4   | **Background refresh:** turn on auto-download for a podcast, leave the app closed overnight. New episodes are on the phone. |        |
