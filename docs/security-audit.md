@@ -15,10 +15,10 @@ layer that matters), Low (hardening), Info (checked and fine, or by design).
 | 1   | High     | Docker proxy    | Fetches private and loopback addresses (SSRF), also through redirects   | Fixed    |
 | 2   | Medium   | Proxy           | Any XML or image is served from the proxy's origin and could run there  | Fixed    |
 | 3   | Medium   | Sync server     | Request bodies read in full before size checks (memory on Node)         | Fixed    |
-| 4   | Medium   | Sync, proxy     | No rate limits: unlimited groups, pairings and proxy fetches            | Decision |
+| 4   | Medium   | Sync, proxy     | No rate limits in code: groups, pairings and proxy fetches              | In place |
 | 5   | Medium   | Android audio   | Any app could send Lelap's custom playback commands                     | Fixed    |
 | 6   | Medium   | Android, web    | Sync group key and server passwords in plain SQLite; in Android backups | Decision |
-| 7   | Medium   | Sync crypto     | No way to remove a lost device: the group key never changes             | Decision |
+| 7   | Medium   | Sync crypto     | No way to remove a lost device: the group key never changes             | Fixed    |
 | 8   | Medium   | Web app         | No Content-Security-Policy or security headers                          | Fixed    |
 | 9   | Medium   | GitHub Actions  | Release jobs with secrets restored shared caches                        | Fixed    |
 | 10  | Medium   | GitHub Actions  | Docker images and `latest` published without the release approval       | Fixed    |
@@ -71,18 +71,16 @@ cap requests at 100 MB, but the Node build has no cap, so one large request coul
 8 KB with 413, while the body arrives. Tested, including that a full push of maximum-size messages
 still fits.
 
-### 4. No rate limits (Medium, decision)
+### 4. Rate limits (Medium, in place)
 
 **Where:** `services/sync`, `services/proxy`, Cloudflare dashboard.
 **What:** Anyone can create sync groups (up to 50 MB each), store 4 KB pairings and use the proxy to
-fetch any feed or image. Nothing in the code limits how often. Pairing codes are safe from
+fetch any feed or image, and nothing in the code limits how often. Pairing codes are safe from
 guessing (see 20); the risk is storage and bandwidth abuse.
-**Decision:** Add Cloudflare rate limiting rules for `sync.` (`PUT /v1/groups/*` and
-`PUT /v1/pairings/*`, for example 10 per minute per IP) and `proxy.` (for example 120 per minute
-per IP). The free plan has one rule; a Workers Rate Limiting binding in `wrangler.toml` is the
-alternative that also ships with the code. For Docker, the README now says rate limits belong in
-the reverse proxy. Also set the `WEB_ORIGIN` variable in the `web` environment, so the proxy only
-answers the web app's origin in browsers (it does not stop scripts outside browsers).
+**Status:** Cloudflare rate limiting rules already cover the hosted services. For Docker, the README
+now says rate limits belong in the reverse proxy. Also set the `WEB_ORIGIN` variable in the `web`
+environment, so the proxy only answers the web app's origin in browsers (it does not stop scripts
+outside browsers).
 
 ### 14. Sync cursor parsing and caching (Low, fixed)
 
@@ -157,15 +155,18 @@ with the code can seal a pairing, so this is robustness more than attack surface
 **Fix:** The group ID must be 32 hex digits and the key 32 bytes, or the join fails with “That
 pairing is damaged”. Tested.
 
-### 7. No device removal (Medium, decision)
+### 7. No device removal (Medium, fixed)
 
-**Where:** sync design.
-**What:** Every device keeps the group key for good. A lost or sold phone can read everything the
-group syncs later, as long as it can reach the server with the token. “Stop syncing” only forgets
+**Where:** `packages/core/src/sync/engine.ts`, `apps/app/app/sync.tsx`.
+**What:** Every device kept the group key for good. A lost or sold phone could read everything the
+group synced later, as long as it reached the server with the token. “Stop syncing” only forgets
 the key on that device.
-**Decision:** Add a “Reset sync” that makes a new group and key on this device and re-pairs the
-others, and deletes the old group on the server (`DELETE /v1/groups/:id`). That needs UI and copy,
-so it is left for the next sync milestone.
+**Fix:** Settings → Sync → “Remove a lost device” (`resetSync`) makes a new group and key on this
+device, deletes the old group on the server (`DELETE /v1/groups/:id`; already gone counts as done)
+and pushes everything to the new group on the next sync. Devices still in the old group get 403 on
+their next pull, stop syncing, keep their data, and the Sync screen says another device reset sync
+and to join again with a code. The lost device's old key now opens nothing new. Tested end to end
+against the fake server: reset, the old device drops out, a re-paired device gets the data.
 
 ## 3. GitHub Actions
 

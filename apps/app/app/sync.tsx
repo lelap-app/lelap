@@ -17,6 +17,8 @@ import {
   joinSyncing,
   makePairingCode,
   membership,
+  removedAt,
+  resetSyncing,
   startSyncing,
   stopSyncing,
   syncOnce,
@@ -36,6 +38,8 @@ export default function SyncScreen() {
   const [code, setCode] = useState('');
   const [offered, setOffered] = useState<{ code: string; until: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [removed, setRemoved] = useState(removedAt);
   const [, tick] = useState(0);
 
   useEffect(() => {
@@ -53,6 +57,7 @@ export default function SyncScreen() {
     } finally {
       setBusy(false);
       setMember(membership());
+      setRemoved(removedAt());
       refresh();
     }
   };
@@ -84,6 +89,12 @@ export default function SyncScreen() {
 
       {!member ? (
         <View className="gap-4">
+          {removed && (
+            <Text className="text-amber">
+              Another device reset sync, so this one stopped syncing. Your library is still here.
+              Join again with a code from one of your devices.
+            </Text>
+          )}
           <View className="gap-2">
             <Text className="text-xs uppercase tracking-wider text-muted">This device</Text>
             <TextInput
@@ -167,6 +178,39 @@ export default function SyncScreen() {
                 }
               >
                 <Text className="text-amber">Show a pairing code</Text>
+              </Pressable>
+            )}
+          </View>
+
+          <View className="gap-2 rounded-xl border border-line p-3">
+            <Text className="text-paper">Remove a lost device</Text>
+            <Text className="text-sm text-muted">
+              Starts a new sync group with a new key and deletes the old one from the server, so a
+              lost or sold device can't read anything from now on. Your other devices stop syncing
+              until you add them again with a pairing code.
+            </Text>
+            {confirmReset ? (
+              <View className="flex-row gap-6">
+                <Pressable
+                  disabled={busy}
+                  onPress={() =>
+                    void run(async () => {
+                      setConfirmReset(false);
+                      setOffered(null);
+                      await resetSyncing();
+                      await syncOnce();
+                    })
+                  }
+                >
+                  <Text className="text-danger">Reset sync</Text>
+                </Pressable>
+                <Pressable onPress={() => setConfirmReset(false)}>
+                  <Text className="text-muted">Cancel</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable disabled={busy} onPress={() => setConfirmReset(true)}>
+                <Text className="text-amber">Remove a lost device…</Text>
               </Pressable>
             )}
           </View>

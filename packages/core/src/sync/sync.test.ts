@@ -20,9 +20,9 @@ import { parseFeed } from '../podcasts/rss';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { saveProgress } from '../progress';
 import { books, settings } from '../schema';
-import { setSetting } from '../settings';
+import { getSettings, setSetting } from '../settings';
 import { addToUpNext, listUpNext } from '../upNext';
-import type { PulledMessage, SyncClient } from './client';
+import { type PulledMessage, type SyncClient, SyncError } from './client';
 import {
   authHash,
   authToken,
@@ -34,7 +34,15 @@ import {
   seal,
   toBase64Url,
 } from './crypto';
-import { getMembership, joinWithCode, offerPairing, startSync, syncNow } from './engine';
+import {
+  getMembership,
+  joinWithCode,
+  offerPairing,
+  removedFromSyncAt,
+  resetSync,
+  startSync,
+  syncNow,
+} from './engine';
 import { bookIdForKey } from './keys';
 
 const random = (n: number) => new Uint8Array(randomBytes(n));
@@ -47,7 +55,7 @@ function fakeServer(): SyncClient & { stored: () => string[] } {
   const pairings = new Map<string, string>();
   const group = (id: string, token: string) => {
     const g = groups.get(id);
-    if (!g || g.authHash !== authHash(token)) throw new Error('403');
+    if (!g || g.authHash !== authHash(token)) throw new SyncError(403, 'Not allowed.');
     return g;
   };
   let seq = 0;
@@ -63,7 +71,10 @@ function fakeServer(): SyncClient & { stored: () => string[] } {
         .slice(0, limit);
       return { messages, last: messages.at(-1)?.seq ?? after };
     },
-    leave: async (id) => void groups.delete(id),
+    leave: async (id, token) => {
+      group(id, token);
+      groups.delete(id);
+    },
     putPairing: async (lookup, blob) => void pairings.set(lookup, blob),
     takePairing: async (lookup) => {
       const blob = pairings.get(lookup) ?? null;
@@ -147,6 +158,42 @@ describe('sync between two devices', () => {
         'damaged',
       );
     }
+  });
+
+  it('removes a lost device by resetting the group; the others pair again', async () => {
+    setSetting(phone, ME, 'skipIntervalMs', 45_000, 10);
+    await syncNow(phone, server, random, 11, newId);
+    const before = getMembership(phone);
+    const after = await resetSync(phone, server, random, 12);
+    expect(after.groupId).not.toBe(before?.groupId);
+    expect(after.key).not.toBe(before?.key);
+    expect(after.deviceName).toBe('Phone');
+
+    // The laptop (or a lost phone) finds its group gone and stops, keeping its data.
+    await syncNow(laptop, server, random, 13, newId);
+    expect(getMembership(laptop)).toBeNull();
+    expect(removedFromSyncAt(laptop)).toBe(13);
+
+    // Everything goes to the new group; a device that pairs again gets it.
+    await syncNow(phone, server, random, 14, newId);
+    const code = await offerPairing(phone, server, random);
+    await joinWithCode(laptop, server, code, 'Laptop', random, 15);
+    expect(removedFromSyncAt(laptop)).toBeNull();
+    const tablet = createTestDb();
+    await joinWithCode(
+      tablet,
+      server,
+      await offerPairing(phone, server, random),
+      'Tablet',
+      random,
+      16,
+    );
+    await syncNow(tablet, server, random, 17, newId);
+    expect(getSettings(tablet, ME).skipIntervalMs).toBe(45_000);
+
+    // Resetting again after the old group is already gone still works.
+    await server.leave(after.groupId, authToken(fromBase64Url(after.key)));
+    await expect(resetSync(phone, server, random, 18)).resolves.toBeTruthy();
   });
 
   it('carries a streamed book with its place, bookmark, speed, Up Next and settings', async () => {

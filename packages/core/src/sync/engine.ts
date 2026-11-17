@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
 import { syncState } from '../schema';
-import type { SyncClient } from './client';
+import { type SyncClient, SyncError } from './client';
 import {
   authHash,
   authToken,
@@ -37,6 +37,8 @@ export type SyncMembership = {
 type Envelope = { v: 1; device: string; name: string; ops: Op[] };
 
 const STATE_KEY = 'membership';
+/** Set when the server no longer knows this device's group: another device reset sync. */
+const REMOVED_KEY = 'removed';
 const OPS_PER_MESSAGE = 200;
 const PULL_LIMIT = 200;
 
@@ -61,6 +63,16 @@ function saveMembership(db: Db, membership: SyncMembership, now: number): void {
 /** Stops syncing on this device. The data stays; other devices keep syncing. */
 export function leaveSync(db: Db): void {
   db.delete(syncState).where(eq(syncState.key, STATE_KEY)).run();
+}
+
+/** When this device was dropped because its group was reset elsewhere, or null. */
+export function removedFromSyncAt(db: Db): number | null {
+  const row = db.select().from(syncState).where(eq(syncState.key, REMOVED_KEY)).get();
+  return row ? row.updatedAt : null;
+}
+
+function clearRemoved(db: Db): void {
+  db.delete(syncState).where(eq(syncState.key, REMOVED_KEY)).run();
 }
 
 function member(
@@ -92,6 +104,34 @@ export async function startSync(
   const groupId = toHex(random(16));
   await client.createGroup(groupId, authHash(authToken(key)));
   const membership = member(groupId, key, deviceName, random);
+  saveMembership(db, membership, now);
+  clearRemoved(db);
+  return membership;
+}
+
+/**
+ * For a lost or sold device: moves this device to a new group with a new key and deletes the old
+ * group on the server, so the old key opens nothing from now on. The next sync pushes everything
+ * to the new group; the other devices stop syncing until they pair again with a code.
+ */
+export async function resetSync(
+  db: Db,
+  client: SyncClient,
+  random: Random,
+  now: number,
+): Promise<SyncMembership> {
+  const old = getMembership(db);
+  if (!old) throw new Error('This device does not sync yet.');
+  const key = random(32);
+  const groupId = toHex(random(16));
+  await client.createGroup(groupId, authHash(authToken(key)));
+  try {
+    await client.leave(old.groupId, authToken(fromBase64Url(old.key)));
+  } catch (error) {
+    // 403: the old group is already gone, which is what this is for.
+    if (!(error instanceof SyncError && error.status === 403)) throw error;
+  }
+  const membership = member(groupId, key, old.deviceName, random);
   saveMembership(db, membership, now);
   return membership;
 }
@@ -145,6 +185,7 @@ export async function joinWithCode(
   const { groupId, groupKey } = parsePairingSecret(secret);
   const membership = member(groupId, groupKey, deviceName, random);
   saveMembership(db, membership, now);
+  clearRemoved(db);
   return membership;
 }
 
@@ -173,7 +214,21 @@ export async function syncNow(
 
   let cursor = membership.cursor;
   for (;;) {
-    const page = await client.pull(membership.groupId, token, cursor, PULL_LIMIT);
+    let page: Awaited<ReturnType<SyncClient['pull']>>;
+    try {
+      page = await client.pull(membership.groupId, token, cursor, PULL_LIMIT);
+    } catch (error) {
+      // The group is gone: another device reset sync. Stop here; the data stays.
+      if (error instanceof SyncError && error.status === 403) {
+        leaveSync(db);
+        db.insert(syncState)
+          .values({ key: REMOVED_KEY, value: membership.groupId, updatedAt: now })
+          .onConflictDoUpdate({ target: syncState.key, set: { updatedAt: now } })
+          .run();
+        return { pulled: 0, pushed: 0, handoffs: [] };
+      }
+      throw error;
+    }
     for (const message of page.messages) {
       if (message.device === membership.deviceId) continue;
       const text = open(enc, context, message.data);
