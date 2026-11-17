@@ -19,7 +19,8 @@ import { proxyBase } from './config';
 
 import { db, newId } from './db';
 import { deleteDownload, startDownload } from './downloads';
-import { playBook, useLibrary } from './player';
+import { loadEpisodeChapters, loadEpisodeChaptersWithin } from './podcasting';
+import { playBook, useLibrary, usePlayerState } from './player';
 import { profileId } from './profile';
 
 const FETCH_TIMEOUT_MS = 20_000;
@@ -107,9 +108,22 @@ export async function refreshPodcasts(force = false): Promise<void> {
   await runAutoDownload();
 }
 
-/** Refreshes feeds on start and when the app comes back, at most every half hour. */
+// How long playing an episode waits for its chapters file, so the player starts with chapters.
+const CHAPTERS_WAIT_MS = 2_500;
+
+/**
+ * Refreshes feeds on start and when the app comes back, at most every half hour. Also gives an
+ * episode that starts playing (from anywhere) the chapters of its feed's chapters file.
+ */
 export function PodcastSync() {
   const { refresh } = useLibrary();
+  const { bookId } = usePlayerState();
+  useEffect(() => {
+    if (!bookId) return;
+    void loadEpisodeChapters(bookId).then((added) => {
+      if (added) refresh();
+    });
+  }, [bookId, refresh]);
   useEffect(() => {
     void refreshPodcasts().finally(refresh);
     const subscription = AppState.addEventListener('change', (status) => {
@@ -121,7 +135,9 @@ export function PodcastSync() {
 }
 
 export async function playEpisode(episodeId: string): Promise<void> {
-  await playBook(episodeBook(db, episodeId, Date.now(), newId));
+  const bookId = episodeBook(db, episodeId, Date.now(), newId);
+  await loadEpisodeChaptersWithin(bookId, CHAPTERS_WAIT_MS);
+  await playBook(bookId);
 }
 
 /** Subscribes to every feed in an OPML file. Returns how many were added and which failed. */

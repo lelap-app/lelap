@@ -8,7 +8,14 @@ import type { Db } from '../db';
 import { getBook } from '../library/queries';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { bookFiles, podcasts } from '../schema';
-import { cueAt, parseChaptersFile, parseTranscript, pickTranscript } from './podcasting';
+import {
+  castOf,
+  cueAt,
+  groupBySeason,
+  parseChaptersFile,
+  parseTranscript,
+  pickTranscript,
+} from './podcasting';
 import {
   episodeBook,
   episodeDetail,
@@ -205,5 +212,44 @@ describe('storing Podcasting 2.0 fields', () => {
       .where(eq(bookFiles.bookId, bookId))
       .run();
     expect(saveEpisodeChapters(db, bookId, [{ title: 'File', startMs: 0 }], 3, newId)).toBe(false);
+  });
+});
+
+describe('seasons and people on the podcast page', () => {
+  const ep = (season: number | null, seasonName: string | null = null) => ({
+    season,
+    extras: { chaptersUrl: null, transcripts: [], persons: [], seasonName },
+  });
+
+  it('groups by season, newest season first, unnumbered episodes last', () => {
+    const list = [ep(2, 'Winter'), ep(null), ep(2), ep(1)];
+    const groups = groupBySeason(list);
+    expect(groups.map((g) => [g.season, g.name, g.episodes.length])).toEqual([
+      [2, 'Winter', 2],
+      [1, null, 1],
+      [null, null, 1],
+    ]);
+  });
+
+  it('keeps a feed with one season as a single list', () => {
+    expect(groupBySeason([ep(1), ep(1), ep(null)])).toHaveLength(1);
+  });
+
+  it('lists hosts before guests and each name once', () => {
+    const person = (name: string, role: string) => ({
+      name,
+      role,
+      group: 'cast',
+      img: null,
+      href: null,
+    });
+    expect(
+      castOf([
+        person('Grace', 'guest'),
+        person('Ada', 'host'),
+        person('ada', 'guest'),
+        person('Sam', 'producer'),
+      ]).map((p) => p.name),
+    ).toEqual(['Ada', 'Grace', 'Sam']);
   });
 });

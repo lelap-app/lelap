@@ -227,6 +227,8 @@ export type EpisodeItem = {
   positionMs: number;
   finished: boolean;
   downloadState: 'queued' | 'done' | 'failed' | null;
+  /** Podcasting 2.0 fields; null for episodes stored before they were read. */
+  extras: EpisodeExtras | null;
 };
 
 /** Newest first, with each episode's place, played state and download. */
@@ -265,6 +267,7 @@ export function listEpisodes(db: Db, profileId: string, podcastId: string): Epis
       positionMs: positionMs ?? 0,
       finished: finishedAt !== null && finishedAt !== undefined,
       downloadState: downloadState ?? null,
+      extras: episode.extras,
     }));
 }
 

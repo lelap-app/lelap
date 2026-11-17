@@ -262,3 +262,41 @@ export function cueAt(cues: TranscriptCue[], positionMs: number): number {
   }
   return found;
 }
+
+export type SeasonGroup<T> = { season: number | null; name: string | null; episodes: T[] };
+
+/**
+ * Episodes by season, newest season first, keeping each season's order. A feed with fewer than
+ * two seasons gives one group with `season` null; episodes without a season come last.
+ */
+export function groupBySeason<T extends { season: number | null; extras: EpisodeExtras | null }>(
+  list: T[],
+): SeasonGroup<T>[] {
+  const seasons = new Set(list.map((e) => e.season).filter((s) => s !== null));
+  if (seasons.size < 2) return [{ season: null, name: null, episodes: list }];
+  const groups = new Map<number | null, SeasonGroup<T>>();
+  for (const e of list) {
+    let group = groups.get(e.season);
+    if (!group) {
+      group = { season: e.season, name: null, episodes: [] };
+      groups.set(e.season, group);
+    }
+    group.name ??= e.extras?.seasonName ?? null;
+    group.episodes.push(e);
+  }
+  return [...groups.values()].sort((a, b) => (b.season ?? -1) - (a.season ?? -1));
+}
+
+/** People in the order hosts, guests, then everyone else; the same name only once. */
+export function castOf(persons: FeedPerson[]): FeedPerson[] {
+  const rank = (role: string) => (role === 'host' ? 0 : role === 'guest' ? 1 : 2);
+  const seen = new Set<string>();
+  return [...persons]
+    .sort((a, b) => rank(a.role) - rank(b.role))
+    .filter((p) => {
+      const key = p.name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}

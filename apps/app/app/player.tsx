@@ -24,6 +24,7 @@ import { db, newId } from '../src/db';
 import { formatClock, formatLeft } from '../src/format';
 import * as audio from '../src/platform/audio';
 import { seekToBookPosition, useLibrary, usePlayerState } from '../src/player';
+import { transcriptOf } from '../src/podcasting';
 import { profileId } from '../src/profile';
 
 const SPEEDS = [0.8, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
@@ -99,6 +100,10 @@ export default function Player() {
   const detail = useMemo(() => (bookId ? getBook(db, profileId, bookId) : null), [bookId, version]);
   const bookmarks = useMemo(
     () => (bookId ? listBookmarks(db, profileId, bookId) : []),
+    [bookId, version],
+  );
+  const hasTranscript = useMemo(
+    () => (bookId ? transcriptOf(bookId) !== null : false),
     [bookId, version],
   );
 
@@ -278,6 +283,9 @@ export default function Player() {
         />
         {chapters.length > 0 && (
           <Tool icon="chapters" label="Chapters" onPress={() => setSheet('chapters')} />
+        )}
+        {hasTranscript && (
+          <Tool icon="transcript" label="Transcript" onPress={() => router.push('/transcript')} />
         )}
         <Tool
           icon="bookmark"
