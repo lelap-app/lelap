@@ -15,6 +15,8 @@ export * as schema from './schema';
 export * from './addons';
 export * from './downloads';
 export * from './podcasts';
+export * from './backup';
+export * from './organise';
 export * from './upNext';
 export * from './sync';
 export * from './release';

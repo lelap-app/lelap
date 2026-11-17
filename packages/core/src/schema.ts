@@ -343,6 +343,54 @@ export const upNext = sqliteTable(
   (t) => [primaryKey({ columns: [t.profileId, t.bookId] })],
 );
 
+/** A listener's tags on a book, as one list so a change syncs as a whole. */
+export const bookTags = sqliteTable(
+  'book_tags',
+  {
+    profileId: text('profile_id')
+      .notNull()
+      .references(() => profiles.id),
+    bookId: text('book_id')
+      .notNull()
+      .references(() => books.id, { onDelete: 'cascade' }),
+    tags: text('tags', { mode: 'json' }).$type<string[]>().notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.bookId] })],
+);
+
+/** What a smart list shows; every set field must match. */
+export type SmartRule = {
+  /** The book has every one of these tags. */
+  tags?: string[];
+  status?: 'notStarted' | 'inProgress' | 'finished';
+  kind?: 'book' | 'episode';
+  /** Local files and finished downloads only. */
+  offline?: boolean;
+  /** Length at most this. */
+  maxDurationMs?: number;
+};
+
+/**
+ * Hand-made lists (`rule` null, `items` in order) and smart lists (`rule` set). Items are synced
+ * book keys, not row IDs, so a list keeps books that are not on this device yet.
+ */
+export const playlists = sqliteTable(
+  'playlists',
+  {
+    id: text('id').primaryKey(),
+    profileId: text('profile_id')
+      .notNull()
+      .references(() => profiles.id),
+    name: text('name').notNull(),
+    rule: text('rule', { mode: 'json' }).$type<SmartRule>(),
+    items: text('items', { mode: 'json' }).$type<string[]>().notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [index('playlists_profile_idx').on(t.profileId)],
+);
+
 /** This device's sync settings and progress: group, key, device ID, cursor. Never synced. */
 export const syncState = sqliteTable('sync_state', {
   key: text('key').primaryKey(),
@@ -358,7 +406,7 @@ export const tombstones = sqliteTable(
   'tombstones',
   {
     kind: text('kind', {
-      enum: ['bookmark', 'upNext', 'subscription', 'book', 'profile'],
+      enum: ['bookmark', 'upNext', 'subscription', 'book', 'profile', 'playlist'],
     }).notNull(),
     key: text('key').notNull(),
     profileId: text('profile_id').notNull().default(''),

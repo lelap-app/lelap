@@ -17,6 +17,15 @@ import {
   episodeBook,
 } from '../podcasts/repository';
 import { parseFeed } from '../podcasts/rss';
+import {
+  addToPlaylist,
+  createPlaylist,
+  deletePlaylist,
+  getTags,
+  listPlaylists,
+  playlistBooks,
+  setTags,
+} from '../organise';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { saveProgress } from '../progress';
 import { books, settings } from '../schema';
@@ -44,6 +53,11 @@ import {
   syncNow,
 } from './engine';
 import { bookIdForKey } from './keys';
+
+function must<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('missing');
+  return value;
+}
 
 const random = (n: number) => new Uint8Array(randomBytes(n));
 let n = 0;
@@ -297,6 +311,42 @@ describe('sync between two devices', () => {
     expect(getBook(phone, ME, bookId)?.book.bookPositionMs).toBe(69_000);
     expect(getBook(laptop, ME, there)?.book.bookPositionMs).toBe(69_000);
     expect(listBookmarks(laptop, ME, there)).toEqual([]);
+  });
+
+  it('carries tags and playlists, and a deleted playlist', async () => {
+    const bookId = addStreamedBook(phone, {
+      addonUrl: 'https://a.example/manifest.json',
+      meta,
+      stream,
+      now: 10,
+      newId,
+    });
+    setTags(phone, ME, bookId, ['Classic', 'sleep'], 20);
+    const list = createPlaylist(phone, ME, newId, { name: 'Bedtime', rule: null }, 21);
+    addToPlaylist(phone, ME, list, bookId, 22);
+    const smart = createPlaylist(
+      phone,
+      ME,
+      newId,
+      { name: 'Done', rule: { status: 'finished' } },
+      23,
+    );
+    await syncNow(phone, server, random, 100, newId);
+    await syncNow(laptop, server, random, 110, newId);
+
+    const there = bookIdForKey(laptop, 'addon:audiobook:librivox:garden') ?? '';
+    expect(getTags(laptop, ME, there)).toEqual(['classic', 'sleep']);
+    const lists = listPlaylists(laptop, ME);
+    expect(lists.map((p) => [p.name, p.rule])).toEqual([
+      ['Bedtime', null],
+      ['Done', { status: 'finished' }],
+    ]);
+    expect(playlistBooks(laptop, ME, must(lists[0])).map((b) => b.id)).toEqual([there]);
+
+    deletePlaylist(laptop, ME, smart, 300);
+    await syncNow(laptop, server, random, 400, newId);
+    await syncNow(phone, server, random, 410, newId);
+    expect(listPlaylists(phone, ME).map((p) => p.name)).toEqual(['Bedtime']);
   });
 
   it('carries profiles with avatar, PIN and kids limits, and their deletion', async () => {

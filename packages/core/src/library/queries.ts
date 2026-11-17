@@ -80,6 +80,11 @@ const SORTS: Record<LibrarySort, (a: LibraryBook, b: LibraryBook) => number> = {
     compareNatural(a.author ?? '￿', b.author ?? '￿') || compareNatural(a.title, b.title),
 };
 
+/** Every book and episode with this profile's progress, in no particular order. */
+export function listAllBooks(db: Db, profileId: string): LibraryBook[] {
+  return selectBooks(db, profileId);
+}
+
 /** Books in the Library; podcast episodes are listed under their podcast instead. */
 export function listBooks(db: Db, profileId: string, sort: LibrarySort): LibraryBook[] {
   return selectBooks(db, profileId)
