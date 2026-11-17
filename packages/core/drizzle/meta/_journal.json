@@ -85,6 +85,13 @@
       "when": 1794911900124,
       "tag": "0011_scrobble_outbox",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794918772500,
+      "tag": "0012_local_addons",
+      "breakpoints": true
     }
   ]
 }

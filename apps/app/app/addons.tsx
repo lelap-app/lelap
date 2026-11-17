@@ -20,6 +20,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { reviewAddon } from '../src/addonReview';
+import { installAddonFile, isAddonFile } from '../src/localAddons';
 import { ActionSheet, type Action } from '../src/components/ActionSheet';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { showAlert } from '../src/dialog';
@@ -158,6 +159,20 @@ function AddonsManager() {
 
   const add = async () => {
     // A link from a configure page works here too, for the web app or a copied link.
+    if (isAddonFile(url)) {
+      setAdding(true);
+      try {
+        if (await installAddonFile(url.trim())) {
+          setUrl('');
+          changed();
+        }
+      } catch (error) {
+        showAlert('Cannot add', error instanceof Error ? error.message : String(error));
+      } finally {
+        setAdding(false);
+      }
+      return;
+    }
     const manifestUrl = parseAddonLink(url) ?? normalizeManifestUrl(url);
     if (!manifestUrl) {
       showAlert('Not a web address', 'Paste the add-on’s manifest URL.');

@@ -19,6 +19,7 @@ const ICONS: Record<Permission['kind'], IconName> = {
   settings: 'lock',
   insecure: 'close',
   host: 'cloud',
+  sandbox: 'lock',
 };
 
 type Review = {
@@ -26,6 +27,8 @@ type Review = {
   url: string;
   /** Null: shown for information, with Close only. */
   action: string | null;
+  /** A small line under the list, such as the code's fingerprint. */
+  note: string | undefined;
   resolve: (accepted: boolean) => void;
 };
 
@@ -45,9 +48,10 @@ export function reviewAddon(
   manifest: Manifest,
   url: string,
   action: string | null,
+  note?: string,
 ): Promise<boolean> {
   current?.resolve(false);
-  return new Promise((resolve) => set({ manifest, url, action, resolve }));
+  return new Promise((resolve) => set({ manifest, url, action, note, resolve }));
 }
 
 /** Mounted once at the root. */
@@ -62,7 +66,7 @@ export function AddonReviewHost() {
     set(null);
     review.resolve(accepted);
   };
-  const { manifest, url, action } = review;
+  const { manifest, url, action, note } = review;
 
   return (
     <Sheet
@@ -85,8 +89,9 @@ export function AddonReviewHost() {
             </View>
           ))}
         </View>
+        {note !== undefined && <Text className="pb-2 text-xs text-muted">{note}</Text>}
         <Text className="pb-4 text-xs text-muted">
-          Add-ons are run by their authors, not by Lelap. Only add ones you trust.
+          Add-ons are made by their authors, not by Lelap. Only add ones you trust.
         </Text>
         <View className="flex-row justify-end gap-2 pb-2">
           <Pressable

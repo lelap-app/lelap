@@ -14,6 +14,7 @@ import {
   HealthTracker,
   type InstalledAddon,
   listAddons,
+  splitLocalUrl,
   syncAddons,
   trackedFetcher,
 } from '@lelap/core';
@@ -26,6 +27,7 @@ import { defaultAddons } from './config';
 import { db, newId } from './db';
 import { profileId } from './profile';
 import { playBook, useLibrary } from './player';
+import { callLocalAddon } from './sandbox';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,7 +38,15 @@ export const queryClient = new QueryClient({
 /** What each add-on's requests did during this run, for Settings → Add-ons. Kept in memory only. */
 export const addonHealth = new HealthTracker();
 
-export const fetcher: Fetcher = trackedFetcher((url, init) => fetch(url, init), addonHealth);
+// Add-ons that run inside the app answer through their sandbox; all others over the network.
+const route: Fetcher = async (url, init) => {
+  const local = splitLocalUrl(url);
+  if (!local) return fetch(url, init);
+  const { status, body } = await callLocalAddon(local.manifestUrl, local.path);
+  return { ok: status >= 200 && status < 300, status, json: async () => body };
+};
+
+export const fetcher: Fetcher = trackedFetcher(route, addonHealth);
 
 /** One add-on's health, re-rendered when any request finishes. */
 export function useAddonHealth(url: string): AddonHealth {

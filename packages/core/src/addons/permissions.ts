@@ -5,7 +5,16 @@ import type { Manifest } from '@lelap/sdk';
 // reveals, so the listener decides with the facts in front of them.
 
 export type Permission = {
-  kind: 'catalog' | 'meta' | 'stream' | 'scrobble' | 'artwork' | 'settings' | 'insecure' | 'host';
+  kind:
+    | 'catalog'
+    | 'meta'
+    | 'stream'
+    | 'scrobble'
+    | 'artwork'
+    | 'settings'
+    | 'insecure'
+    | 'host'
+    | 'sandbox';
   text: string;
   /** Worth a second look: it sends the listener's data, or the connection is not encrypted. */
   notable: boolean;
@@ -26,7 +35,10 @@ export function addonPermissions(manifest: Manifest, manifestUrl: string): Permi
   let host = manifestUrl;
   let secure = true;
   let query = false;
+  // An add-on inside the app has no address of its own to judge.
+  const local = manifestUrl.startsWith('lelap-local://');
   try {
+    if (local) throw new Error('local');
     const url = new URL(manifestUrl);
     host = url.host;
     secure =
@@ -34,6 +46,10 @@ export function addonPermissions(manifest: Manifest, manifestUrl: string): Permi
     query = url.search.length > 1 || url.pathname.split('/').some((p) => p.length > 40);
   } catch {
     // Shown as typed.
+  }
+  if (local) {
+    secure = true;
+    query = false;
   }
   const types = [...new Set(manifest.types.map((t) => KINDS[t] ?? t))].join(' and ');
 
@@ -87,6 +103,18 @@ export function addonPermissions(manifest: Manifest, manifestUrl: string): Permi
       text: 'Not encrypted (http). Others on the network can see what Lelap asks it.',
       notable: true,
     });
+  }
+  if (manifest.sandbox) {
+    const hosts = manifest.sandbox.hosts;
+    list.push({
+      kind: 'sandbox',
+      text:
+        hosts.length > 0
+          ? `Runs on this device, in a sandbox. It can reach only ${hosts.join(', ')}.`
+          : 'Runs on this device, in a sandbox, with no network at all.',
+      notable: hosts.some((h) => h.startsWith('*')),
+    });
+    return list;
   }
   list.push({
     kind: 'host',

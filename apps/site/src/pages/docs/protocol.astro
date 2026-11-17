@@ -1120,6 +1120,80 @@ const toc: [string, string][] = [
     resources you serve.
   </p>
 
+  <h2 id="in-app">Add-ons inside the app</h2>
+  <p>
+    Since revision 3, an add-on can also be a single JavaScript file that runs inside the app, for
+    sources on the listener's own network that have no server for an add-on: a NAS, a shelf of files
+    behind a small web server. The listener pastes the file's address in Settings → Add-ons; the app
+    keeps the code on the device and shows its fingerprint before installing.
+  </p>
+  <ul>
+    <li>
+      The file calls <code>addon({'{ manifest, catalog, meta, stream, artwork }'})</code>. Handlers
+      get <code>{'{ type, id, extra }'}</code> and return the same JSON a web add-on answers;{' '}
+      <code>null</code> means not found.
+    </li>
+    <li>
+      The manifest declares <code>sandbox.hosts</code>, such as <code>192.168.1.20:8096</code>,{' '}
+      <code>nas.local</code> or <code>*.home.arpa</code>. The code runs with no network of its own;{' '}
+      <code>lelap.fetch(url, init)</code> asks the app, which fetches only from those hosts, without
+      the app's cookies, and refuses everything else.
+    </li>
+    <li>
+      Limits: 20 seconds per call and per fetch, 5 MB per answer, 1 MB of code. Audio URLs it
+      returns are played directly, like any stream.
+    </li>
+    <li>
+      In the web app, a browser blocks plain <code>http</code> requests from an <code>https</code>{' '}
+      page and needs CORS headers, so in-app add-ons are mostly for the Android app.
+    </li>
+  </ul>
+  <p>
+    <a href={`${site.repoUrl}/blob/main/examples/in-app-addon/home-shelf.js`}>
+      examples/in-app-addon/home-shelf.js
+    </a>{' '}
+    reads a <code>books.json</code> from a server at home.
+  </p>
+
+  <h2 id="speed">Making it fast</h2>
+  <p>
+    Listeners feel every add-on in Home, Discover and Search. The app shows each add-on's answer as
+    soon as it arrives and gives up on a request after 10 seconds, but how quickly results appear is
+    up to the add-on:
+  </p>
+  <ul>
+    <li>
+      <strong>Answer in well under a second.</strong> Search runs on every few keystrokes; aim for a
+      few hundred milliseconds, and return fewer results rather than slower ones.
+    </li>
+    <li>
+      <strong>Cache what you fetch.</strong> Keep answers from the services you call (Cache API or
+      KV on Workers, memory or Redis elsewhere), and search results for popular queries for a few
+      minutes.
+    </li>
+    <li>
+      <strong>Say how long an answer stays good:</strong> <code>cacheMaxAge</code> in the JSON and a
+      matching <code>Cache-Control</code> header, long for metadata that rarely changes, short for
+      new and trending lists.
+    </li>
+    <li>
+      <strong>Keep lists small:</strong> previews only (title, author, cover), around 20–50 per
+      page, with <code>skip</code> for more; full details belong in <code>meta</code>.
+    </li>
+    <li>
+      <strong>Don't fan out per item:</strong> one upstream call per catalog page, not one per book.
+      Pre-build lists that don't depend on the listener.
+    </li>
+    <li>
+      <strong>Fail fast:</strong> if a service you depend on is down, answer with what you have or
+      an error at once instead of waiting for your own timeouts; report it in{' '}
+      <a href="#health">/health</a>.
+    </li>
+    <li>
+      <strong>Serve covers small:</strong> square, around 300–600 px, from a CDN.
+    </li>
+  </ul>
+
   <h2 id="schema">JSON Schema</h2>
   <p>
     <a href="/docs/protocol.schema.json">

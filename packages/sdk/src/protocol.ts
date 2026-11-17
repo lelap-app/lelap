@@ -95,6 +95,12 @@ export const Manifest = z.object({
   configurable: z.boolean().optional(),
   /** Since revision 2. Unknown hints are ignored. */
   behaviorHints: BehaviorHints.optional(),
+  /**
+   * Since revision 3, for add-ons that run inside the app (a single JavaScript file) instead of on
+   * a server. `hosts` are the only places the app fetches for it, such as `192.168.1.20:8096` or
+   * `*.local`; nothing else is reachable.
+   */
+  sandbox: z.object({ hosts: z.array(z.string().min(1)).max(32) }).optional(),
 });
 export type Manifest = z.infer<typeof Manifest>;
 

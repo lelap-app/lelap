@@ -8,6 +8,7 @@ import { Text, View } from 'react-native';
 
 import { AddonReviewHost } from '../src/addonReview';
 import { DialogHost } from '../src/dialog';
+import { SandboxHost } from '../src/sandbox/SandboxHost';
 import { queryClient, syncAddonsNow } from '../src/addons';
 import { listProfiles } from '@lelap/core';
 
@@ -84,6 +85,7 @@ export default function RootLayout() {
         <HandoffBanner />
         <DialogHost />
         <AddonReviewHost />
+        <SandboxHost />
         <ProfileGate />
         <StatusBar style="light" />
       </PlayerProvider>
