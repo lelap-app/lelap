@@ -69,6 +69,8 @@ export type RemoteSource =
       userId: string;
       /** An API key, made in Audiobookshelf's settings. */
       token: string;
+      /** The server refused the key (expired or turned off); Settings asks for a new one. */
+      keyRefused?: boolean;
       libraryIds: string[];
       profileId: string;
     }

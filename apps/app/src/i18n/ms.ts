@@ -634,4 +634,9 @@ export const ms: Record<string, string> = {
   'Make one in Audiobookshelf under Settings → API Keys. Audiobookshelf 2.26 or later; older servers are not supported.':
     'Buat satu dalam Audiobookshelf di Settings → API Keys. Audiobookshelf 2.26 atau lebih baharu; pelayan yang lebih lama tidak disokong.',
   'API key needed: it is not in backups.': 'Kunci API diperlukan: ia tiada dalam sandaran.',
+  'Audiobookshelf refused the API key. Change it to keep syncing.':
+    'Audiobookshelf menolak kunci API. Tukar kunci untuk terus menyegerak.',
+  'Change key': 'Tukar kunci',
+  'Enter a new API key for this server. The server, its books and your places stay.':
+    'Masukkan kunci API baharu untuk pelayan ini. Pelayan, bukunya dan kedudukan anda kekal.',
 };

@@ -20,7 +20,7 @@ import {
 } from '@lelap/core';
 import { Directory, Paths } from 'expo-file-system';
 
-import { forgetAudiobookshelfParts } from './audiobookshelf';
+import { forgetAudiobookshelfParts, withKey } from './audiobookshelf';
 import { db, newId } from './db';
 import {
   FOLDER_UNAVAILABLE,
@@ -184,8 +184,13 @@ async function scanAudiobookshelf(
 ): Promise<{ added: number; missing: number }> {
   if (root.needsLogin) throw new Error(t('The Audiobookshelf API key is needed again.'));
   const fetcher = (u: string, i?: RequestInit) => fetch(u, i);
-  const items = await listAudiobookshelfItems(fetcher, remote, remote.token);
-  const me = await audiobookshelfMe(fetcher, remote.url, remote.token);
+  const [items, me] = await withKey(
+    root.id,
+    Promise.all([
+      listAudiobookshelfItems(fetcher, remote, remote.token),
+      audiobookshelfMe(fetcher, remote.url, remote.token),
+    ]),
+  );
   const scan = audiobookshelfScan(remote, items, me.mediaProgress);
   const now = Date.now();
   const result = applyScan(db, {

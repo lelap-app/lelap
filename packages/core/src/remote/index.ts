@@ -35,6 +35,7 @@ export {
   audiobookshelfRootLocation,
   audiobookshelfScan,
   audiobookshelfStream,
+  isKeyRefused,
   listAudiobookshelfItems,
   listAudiobookshelfLibraries,
   reportAudiobookshelfProgress,

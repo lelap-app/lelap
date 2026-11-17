@@ -5,9 +5,11 @@ import {
   audiobookshelfPlaces,
   type AudiobookshelfSource,
   getBook,
+  isKeyRefused,
   listRoots,
   reportAudiobookshelfProgress,
   ScrobbleTracker,
+  setAudiobookshelfKeyRefused,
   type TimelineFile,
   toBookPosition,
   type TrackedEvent,
@@ -31,6 +33,21 @@ const serverById = (rootId: string | null | undefined) =>
   rootId ? serverOf(listRoots(db).find((r) => r.id === rootId)) : null;
 
 /**
+ * Notes whether a server took its API key: a refused key shows “Change key” in Settings, and the
+ * mark goes as soon as a request with the key works again. Rethrows the error, if any.
+ */
+export async function withKey<T>(rootId: string, request: Promise<T>): Promise<T> {
+  try {
+    const result = await request;
+    setAudiobookshelfKeyRefused(db, rootId, false, Date.now());
+    return result;
+  } catch (error) {
+    if (isKeyRefused(error)) setAudiobookshelfKeyRefused(db, rootId, true, Date.now());
+    throw error;
+  }
+}
+
+/**
  * Before a book plays: takes the place from Audiobookshelf when it is newer, so a book left in
  * Audiobookshelf's own player continues there without a rescan. Gives up after 5 s.
  */
@@ -39,9 +56,10 @@ export async function prepareAudiobookshelfBook(bookId: string, profile: string)
   const server = serverById(files[0]?.rootId);
   const itemId = audiobookshelfItemId(files[0]?.location ?? '');
   if (!server || !itemId || server.profileId !== profile) return;
-  const progress = await audiobookshelfItemProgress(send, server.url, server.token, itemId).catch(
-    () => null,
-  );
+  const progress = await withKey(
+    server.rootId,
+    audiobookshelfItemProgress(send, server.url, server.token, itemId),
+  ).catch(() => null);
   if (progress) applyRemotePlaces(db, profile, audiobookshelfPlaces(progress, files), Date.now());
 }
 
@@ -70,11 +88,14 @@ async function report(event: TrackedEvent, profile: string): Promise<void> {
   const server = serverById(parts[0]?.rootId);
   const itemId = audiobookshelfItemId(parts[0]?.location ?? '');
   if (!server || server.profileId !== profile || !itemId) return;
-  await reportAudiobookshelfProgress(send, server.url, server.token, itemId, {
-    positionMs: event.positionMs,
-    durationMs: parts.reduce((sum, p) => sum + Math.max(0, p.durationMs), 0),
-    finished: event.event === 'finish',
-  });
+  await withKey(
+    server.rootId,
+    reportAudiobookshelfProgress(send, server.url, server.token, itemId, {
+      positionMs: event.positionMs,
+      durationMs: parts.reduce((sum, p) => sum + Math.max(0, p.durationMs), 0),
+      finished: event.event === 'finish',
+    }),
+  );
 }
 
 function reportAll(events: TrackedEvent[], profile: string): void {

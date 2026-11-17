@@ -306,18 +306,22 @@ export default function SettingsScreen() {
                     ? s.remote?.type === 'audiobookshelf'
                       ? t('API key needed: it is not in backups.')
                       : t('Password needed: it is not in backups.')
-                    : s.remote?.type === 's3'
-                      ? t('S3 bucket')
-                      : s.remote?.type === 'jellyfin'
-                        ? 'Jellyfin'
-                        : s.remote?.type === 'audiobookshelf'
-                          ? 'Audiobookshelf'
-                          : 'WebDAV'
+                    : s.remote?.type === 'audiobookshelf' && s.remote.keyRefused
+                      ? t('Audiobookshelf refused the API key. Change it to keep syncing.')
+                      : s.remote?.type === 's3'
+                        ? t('S3 bucket')
+                        : s.remote?.type === 'jellyfin'
+                          ? 'Jellyfin'
+                          : s.remote?.type === 'audiobookshelf'
+                            ? 'Audiobookshelf'
+                            : 'WebDAV'
                 }
               >
-                {s.needsLogin && (
+                {(s.needsLogin || (s.remote?.type === 'audiobookshelf' && s.remote.keyRefused)) && (
                   <Pressable onPress={() => router.push(`/server?root=${s.id}`)}>
-                    <Text className="text-amber">{t('Log in')}</Text>
+                    <Text className="text-amber">
+                      {s.remote?.type === 'audiobookshelf' ? t('Change key') : t('Log in')}
+                    </Text>
                   </Pressable>
                 )}
                 <Pressable

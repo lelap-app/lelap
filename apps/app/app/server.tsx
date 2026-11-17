@@ -322,16 +322,18 @@ export default function ServerScreen() {
         />
       </View>
       <Text className="text-3xl font-semibold text-paper">
-        {locked ? t('Log in again') : t('Add a server')}
+        {abs ? t('Change key') : locked ? t('Log in again') : t('Add a server')}
       </Text>
       <Text className="text-soft">
-        {locked
-          ? t(
-              'Passwords stay on the phone they were entered on and are not in backups. Enter it again; your books and places stay.',
-            )
-          : t(
-              'Books on your own storage, played straight from it. The address and login stay on this device and are never synced.',
-            )}
+        {abs
+          ? t('Enter a new API key for this server. The server, its books and your places stay.')
+          : locked
+            ? t(
+                'Passwords stay on the phone they were entered on and are not in backups. Enter it again; your books and places stay.',
+              )
+            : t(
+                'Books on your own storage, played straight from it. The address and login stay on this device and are never synced.',
+              )}
       </Text>
 
       <View className={`flex-row flex-wrap gap-2 ${locked ? 'hidden' : ''}`}>

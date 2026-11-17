@@ -4,7 +4,14 @@ import { describe, expect, it } from 'vitest';
 
 import { createTestDb } from '../../test/db';
 import { getBook, listBooks } from '../library/queries';
-import { addRemoteRoot, applyScan, listRoots, remoteName } from '../library/scan';
+import {
+  addRemoteRoot,
+  applyScan,
+  listRoots,
+  remoteName,
+  setAudiobookshelfKeyRefused,
+  updateRemoteRoot,
+} from '../library/scan';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { saveProgress } from '../progress';
 import type { RemoteSource } from '../schema';
@@ -16,6 +23,7 @@ import {
   audiobookshelfScan,
   type AudiobookshelfSource,
   audiobookshelfStream,
+  isKeyRefused,
   listAudiobookshelfItems,
   listAudiobookshelfLibraries,
   reportAudiobookshelfProgress,
@@ -341,5 +349,34 @@ describe('Audiobookshelf in the library', () => {
     const carol = listBooks(db, ME, 'title')[0];
     expect(applyRemotePlaces(db, ME, scan.places, 600)).toBe(1);
     expect(getBook(db, ME, carol?.id ?? '')?.book.finishedAt).toBe(400);
+  });
+
+  it('marks a refused key, keeps the sealed key and books, and clears the mark with a new key', async () => {
+    const { db, rootId } = await scanned();
+    const refused = server(() => new Response('', { status: 401 }));
+    const error = await audiobookshelfMe(refused.fetcher, source.url, 'old').catch(
+      (e: unknown) => e,
+    );
+    expect(isKeyRefused(error)).toBe(true);
+    expect(isKeyRefused(new Error('offline'))).toBe(false);
+
+    expect(setAudiobookshelfKeyRefused(db, rootId, true, 5)).toBe(true);
+    expect(setAudiobookshelfKeyRefused(db, rootId, true, 6)).toBe(false);
+    const marked = listRoots(db).find((r) => r.id === rootId);
+    expect(marked?.remote).toMatchObject({ keyRefused: true, token: source.token });
+    expect(listBooks(db, ME, 'title')).toHaveLength(2);
+
+    // A request with the key worked again: the mark goes.
+    expect(setAudiobookshelfKeyRefused(db, rootId, false, 7)).toBe(true);
+    expect(listRoots(db).find((r) => r.id === rootId)?.remote).not.toHaveProperty('keyRefused');
+
+    // Change key: the new key replaces the old in place, without the mark; books stay.
+    setAudiobookshelfKeyRefused(db, rootId, true, 8);
+    updateRemoteRoot(db, rootId, { type: 'audiobookshelf', ...source, token: 'api-key-2' }, 9);
+    const changed = listRoots(db).find((r) => r.id === rootId);
+    expect(changed?.remote).toMatchObject({ token: 'api-key-2' });
+    expect(changed?.remote).not.toHaveProperty('keyRefused');
+    expect(listBooks(db, ME, 'title')).toHaveLength(2);
+    expect(setAudiobookshelfKeyRefused(db, 'missing', true, 10)).toBe(false);
   });
 });

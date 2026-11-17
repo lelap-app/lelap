@@ -28,6 +28,10 @@ function refused(status: number): RemoteError {
   return failure(status, WHAT);
 }
 
+/** Whether an error means the server refused the API key (expired, turned off, unknown). */
+export const isKeyRefused = (error: unknown) =>
+  error instanceof RemoteError && (error.status === 401 || error.status === 403);
+
 export const audiobookshelfBase = (url: string) => url.trim().replace(/\/+$/, '');
 
 type Call = {
