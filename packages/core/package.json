@@ -10,7 +10,8 @@
   },
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bench": "vitest run --config vitest.bench.config.ts"
   },
   "devDependencies": {
     "@types/sql.js": "^1.4.11",

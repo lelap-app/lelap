@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { StoredChapter } from '../schema';
@@ -171,37 +171,81 @@ export type Subscription = {
   unplayed: number;
 };
 
-export function listSubscriptions(db: Db, profileId: string): Subscription[] {
-  const rows = db
-    .select({ podcast: podcasts, sub: subscriptions })
+/** Newest episode first. Counted in one query: 500 podcasts are 20,000 episodes or more. */
+export function listSubscriptions(db: Db, profileId: string, podcastId?: string): Subscription[] {
+  return db
+    .select({
+      podcastId: podcasts.id,
+      feedUrl: podcasts.feedUrl,
+      title: podcasts.title,
+      author: podcasts.author,
+      description: podcasts.description,
+      coverUrl: podcasts.coverUrl,
+      link: podcasts.link,
+      guid: podcasts.guid,
+      autoDownload: subscriptions.autoDownload,
+      keepLatest: subscriptions.keepLatest,
+      subscribedAt: subscriptions.subscribedAt,
+      latestAt: sql<number | null>`max(${episodes.publishedAt})`,
+      // count() of a column skips nulls: every episode, less those this profile finished.
+      unplayed: sql<number>`count(${episodes.id}) - count(${libraryEntries.finishedAt})`.mapWith(
+        Number,
+      ),
+    })
     .from(subscriptions)
     .innerJoin(podcasts, eq(podcasts.id, subscriptions.podcastId))
-    .where(eq(subscriptions.profileId, profileId))
-    .all();
-  return rows
-    .map(({ podcast, sub }) => {
-      const list = listEpisodes(db, profileId, podcast.id);
-      return {
-        podcastId: podcast.id,
-        feedUrl: podcast.feedUrl,
-        title: podcast.title,
-        author: podcast.author,
-        description: podcast.description,
-        coverUrl: podcast.coverUrl,
-        link: podcast.link,
-        guid: podcast.guid,
-        autoDownload: sub.autoDownload,
-        keepLatest: sub.keepLatest,
-        subscribedAt: sub.subscribedAt,
-        latestAt: list[0]?.publishedAt ?? null,
-        unplayed: list.filter((e) => !e.finished).length,
-      };
-    })
+    .leftJoin(episodes, eq(episodes.podcastId, podcasts.id))
+    .leftJoin(
+      libraryEntries,
+      and(eq(libraryEntries.bookId, episodes.bookId), eq(libraryEntries.profileId, profileId)),
+    )
+    .where(
+      and(
+        eq(subscriptions.profileId, profileId),
+        podcastId === undefined ? undefined : eq(subscriptions.podcastId, podcastId),
+      ),
+    )
+    .groupBy(subscriptions.podcastId)
+    .all()
     .sort((a, b) => (b.latestAt ?? 0) - (a.latestAt ?? 0));
 }
 
+/** The newest episode of each subscription that this profile has not finished. */
+export function newestUnfinishedEpisodes(
+  db: Db,
+  profileId: string,
+): { id: string; bookId: string | null; publishedAt: number | null }[] {
+  const newest = new Map<
+    string,
+    { id: string; bookId: string | null; publishedAt: number | null }
+  >();
+  const rows = db
+    .select({
+      id: episodes.id,
+      podcastId: episodes.podcastId,
+      bookId: episodes.bookId,
+      publishedAt: episodes.publishedAt,
+    })
+    .from(episodes)
+    .innerJoin(
+      subscriptions,
+      and(eq(subscriptions.podcastId, episodes.podcastId), eq(subscriptions.profileId, profileId)),
+    )
+    .leftJoin(
+      libraryEntries,
+      and(eq(libraryEntries.bookId, episodes.bookId), eq(libraryEntries.profileId, profileId)),
+    )
+    .where(isNull(libraryEntries.finishedAt))
+    .orderBy(episodes.podcastId, desc(episodes.publishedAt))
+    .all();
+  for (const { podcastId, ...episode } of rows) {
+    if (!newest.has(podcastId)) newest.set(podcastId, episode);
+  }
+  return [...newest.values()];
+}
+
 export function getSubscription(db: Db, profileId: string, podcastId: string): Subscription | null {
-  return listSubscriptions(db, profileId).find((s) => s.podcastId === podcastId) ?? null;
+  return listSubscriptions(db, profileId, podcastId)[0] ?? null;
 }
 
 export function findPodcast(db: Db, by: { feedUrl?: string; guid?: string }) {

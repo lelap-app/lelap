@@ -1,6 +1,6 @@
 import type { Db } from './db';
 import { continueListening, type LibraryBook, listBooks } from './library/queries';
-import { listEpisodes, listSubscriptions } from './podcasts/repository';
+import { newestUnfinishedEpisodes } from './podcasts/repository';
 import { listUpNext } from './upNext';
 
 /** An episode to offer in the car: its book exists once it was played or downloaded. */
@@ -28,10 +28,9 @@ export function carShelves(db: Db, profileId: string, limit = 20): CarShelves {
   const started = recent.filter((b) => playable(b) && b.lastPlayedAt !== null);
   // Episodes are left out of listBooks; the latest one played may still be one.
   if (latest && !started.some((b) => b.id === latest.id)) started.unshift(latest);
-  const episodes = listSubscriptions(db, profileId)
-    .map((s) => listEpisodes(db, profileId, s.podcastId).find((e) => !e.finished))
-    .filter((e) => e !== undefined)
-    .sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0));
+  const episodes = newestUnfinishedEpisodes(db, profileId).sort(
+    (a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0),
+  );
   return {
     continueListening: started.slice(0, limit).map((b) => b.id),
     onPhone: recent

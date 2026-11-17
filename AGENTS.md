@@ -59,17 +59,18 @@ docs/milestones/ one file per milestone: status, resources, done when
 
 Node 24 (`.nvmrc`) and pnpm via Corepack (`corepack enable`). Run from the root:
 
-| Task                  | Command         |
-| --------------------- | --------------- |
-| Install               | `pnpm install`  |
-| Landing page dev      | `pnpm dev:site` |
-| App on a phone        | `pnpm android`  |
-| App dev server        | `pnpm dev:app`  |
-| Build everything      | `pnpm build`    |
-| Type-check everything | `pnpm check`    |
-| Test                  | `pnpm test`     |
-| Lint                  | `pnpm lint`     |
-| Format                | `pnpm format`   |
+| Task                  | Command                           |
+| --------------------- | --------------------------------- |
+| Install               | `pnpm install`                    |
+| Landing page dev      | `pnpm dev:site`                   |
+| App on a phone        | `pnpm android`                    |
+| App dev server        | `pnpm dev:app`                    |
+| Build everything      | `pnpm build`                      |
+| Type-check everything | `pnpm check`                      |
+| Test                  | `pnpm test`                       |
+| Library timings (M43) | `pnpm --filter @lelap/core bench` |
+| Lint                  | `pnpm lint`                       |
+| Format                | `pnpm format`                     |
 
 Before opening a pull request run `pnpm format:check`, `pnpm lint`, `pnpm check`, `pnpm test` and
 `pnpm build`;

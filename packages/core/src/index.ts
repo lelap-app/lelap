@@ -31,3 +31,4 @@ export * from './car';
 export * from './sleep';
 export * from './importers';
 export * from './scrobble';
+export * from './bigLibrary';

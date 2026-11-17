@@ -149,6 +149,9 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M42] Largest font size (`adb shell settings put system font_scale 2.0`, then `wm density` up): Home, Library, Player, Settings and the item page show no clipped text; tab labels are whole; the Player scrolls and fine scrubbing still works. ([m42](m42-follow-ups.md#m42-follow-ups))
 - [ ] [M42] With animations off, sheets, dialogs, the Player and car mode open without sliding or fading; the transcript jumps to the current line. ([m42](m42-follow-ups.md#m42-follow-ups))
 - [ ] [M42] `uiautomator dump` on Home, Library, Player, Settings: every clickable node has a `content-desc` or text, and bounds of at least 48 dp; the widget's root and buttons have descriptions. ([m42](m42-follow-ups.md#m42-follow-ups))
+- [ ] [M43] Cold start with the 10,000-book test library on a release build: Library rows on screen within 2 s on a mid-range phone, median of five screen recordings. ([m43](m43-follow-ups.md#cold-start))
+- [ ] [M43] Fast scroll through 10,000 books: no blank gaps that stay, no stutter over a second, under 300 MB in `dumpsys meminfo`. ([m43](m43-follow-ups.md#m43-follow-ups))
+- [ ] [M43] With 500 test podcasts the Podcasts tab opens at once and the app's start is not slowed by the feed refresh. ([m43](m43-follow-ups.md#m43-follow-ups))
 - [x] [M12] Player buttons carry names for TalkBack (Back 30 seconds, Play, Next chapter, …) in `uiautomator dump`. ([m12](m12-follow-ups.md)) **Passed 2026-11-17**: speed button now says Speed, 1× (#66).
 - [ ] [M9] Install the web app from Chrome on the phone: `listen.lelap.app` → Add to home screen. ([README](../apps/app/README.md#checks-after-m9-2026-11-16))
 - [ ] [M29] Expired link, playback and download: an add-on on the laptop (`adb reverse`) whose `/resolve/…` link answers 403 after a minute; playback continues, the download resumes, a link that keeps failing errors after one retry. ([m29](m29-follow-ups.md#phone-checks))
@@ -194,6 +197,8 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M42] TalkBack walk-through on every screen, as listed per screen; the scrubber moves by swiping up and down; bookmarks have a Delete action. ([m42](m42-follow-ups.md#talkback-walk-through-per-screen))
 - [ ] [M42] Accessibility Scanner on Home, Library, Player and Settings: no target under 48 dp, no missing labels. ([m42](m42-follow-ups.md#m42-follow-ups))
 - [ ] [M42] TalkBack on the widget, the Quick Settings tile and the notification: each control is read with its name. ([m42](m42-follow-ups.md#m42-follow-ups))
+- [ ] [M43] A real folder of a few hundred books: a second scan is quicker than before M43, and no book loses its place, bookmarks or chapters. ([m43](m43-follow-ups.md#m43-follow-ups))
+- [ ] [M43] Android Auto (Desktop Head Unit) with the test library: the browse tree opens without delay. ([m43](m43-follow-ups.md#m43-follow-ups))
 - [ ] [M2] Revoke Lelap's folder access in Android settings, reopen: a banner asks for the folder; no book is dimmed. ([README](../apps/app/README.md#m2-device-checklist))
 
 ### Accounts and servers

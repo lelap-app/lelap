@@ -106,30 +106,35 @@ export type AddonItemRef = {
   downloadable?: boolean;
 };
 
-export const books = sqliteTable('books', {
-  id: text('id').primaryKey(),
-  /** Null for books streamed from an add-on. */
-  rootId: text('root_id').references(() => libraryRoots.id),
-  /**
-   * Volume path of the book's folder, or of its file for single-file books; `addon:<type>:<id>`
-   * for streamed books.
-   */
-  location: text('location').notNull().unique(),
-  kind: text('kind', { enum: ['folder', 'file'] }).notNull(),
-  /** `feed`: a podcast episode from an RSS subscription. */
-  source: text('source', { enum: ['local', 'addon', 'feed'] })
-    .notNull()
-    .default('local'),
-  title: text('title').notNull(),
-  author: text('author'),
-  coverPath: text('cover_path'),
-  coverUrl: text('cover_url'),
-  addonItem: text('addon_item', { mode: 'json' }).$type<AddonItemRef>(),
-  durationMs: integer('duration_ms').notNull(),
-  missingSince: integer('missing_since'),
-  addedAt: integer('added_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-});
+export const books = sqliteTable(
+  'books',
+  {
+    id: text('id').primaryKey(),
+    /** Null for books streamed from an add-on. */
+    rootId: text('root_id').references(() => libraryRoots.id),
+    /**
+     * Volume path of the book's folder, or of its file for single-file books; `addon:<type>:<id>`
+     * for streamed books.
+     */
+    location: text('location').notNull().unique(),
+    kind: text('kind', { enum: ['folder', 'file'] }).notNull(),
+    /** `feed`: a podcast episode from an RSS subscription. */
+    source: text('source', { enum: ['local', 'addon', 'feed'] })
+      .notNull()
+      .default('local'),
+    title: text('title').notNull(),
+    author: text('author'),
+    coverPath: text('cover_path'),
+    coverUrl: text('cover_url'),
+    addonItem: text('addon_item', { mode: 'json' }).$type<AddonItemRef>(),
+    durationMs: integer('duration_ms').notNull(),
+    missingSince: integer('missing_since'),
+    addedAt: integer('added_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  // The books of one library folder or server, for its scan.
+  (t) => [index('books_root_idx').on(t.rootId)],
+);
 
 export const bookFiles = sqliteTable(
   'book_files',
@@ -194,7 +199,11 @@ export const libraryEntries = sqliteTable(
     finishedAt: integer('finished_at'),
     updatedAt: integer('updated_at').notNull(),
   },
-  (t) => [primaryKey({ columns: [t.profileId, t.bookId] })],
+  (t) => [
+    primaryKey({ columns: [t.profileId, t.bookId] }),
+    // Continue listening on Home and in the Library, without reading every book.
+    index('library_entries_played_idx').on(t.profileId, t.lastPlayedAt),
+  ],
 );
 
 export const progress = sqliteTable(
@@ -349,6 +358,8 @@ export const episodes = sqliteTable(
   (t) => [
     uniqueIndex('episodes_podcast_guid').on(t.podcastId, t.guid),
     index('episodes_podcast_published').on(t.podcastId, t.publishedAt),
+    // The episode of a book, which sync and the player look up often.
+    index('episodes_book_idx').on(t.bookId),
   ],
 );
 

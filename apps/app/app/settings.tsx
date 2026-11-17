@@ -1,8 +1,11 @@
 import {
   getSettings,
+  hasBigLibrary,
   listRoots,
   localRoot,
+  removeBigLibrary,
   removeRemoteRoot,
+  seedBigLibrary,
   type Settings,
   setSetting,
 } from '@lelap/core';
@@ -198,6 +201,12 @@ export default function SettingsScreen() {
   // `version` is the signal to re-read the database.
   const root = useMemo(() => localRoot(db), [version]);
   const servers = useMemo(() => listRoots(db).filter((r) => r.remote !== null), [version]);
+  const testLibrary = useMemo(() => __DEV__ && hasBigLibrary(db), [version]);
+  const toggleTestLibrary = () => {
+    if (testLibrary) removeBigLibrary(db);
+    else seedBigLibrary(db, profileId, { now: Date.now() });
+    refresh();
+  };
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSetting(db, profileId, key, value, Date.now());
@@ -647,7 +656,7 @@ export default function SettingsScreen() {
           />
         )}
 
-        {__DEV__ && LOCAL_FOLDERS && (
+        {__DEV__ && (
           <>
             <Text
               accessibilityRole="header"
@@ -655,11 +664,21 @@ export default function SettingsScreen() {
             >
               {t('Developer')}
             </Text>
+            {LOCAL_FOLDERS && (
+              <Row
+                label={t('Audio spike')}
+                detail={t('The M1 test screen, until its call checks pass.')}
+              >
+                <TextButton text={t('Open')} onPress={() => router.push('/dev/spike')} />
+              </Row>
+            )}
             <Row
-              label={t('Audio spike')}
-              detail={t('The M1 test screen, until its call checks pass.')}
+              label={t('Test library')}
+              detail={t(
+                '10,000 made-up books and 500 podcasts, for timing a big library. They don’t play.',
+              )}
             >
-              <TextButton text={t('Open')} onPress={() => router.push('/dev/spike')} />
+              <TextButton text={testLibrary ? t('Remove') : t('Add')} onPress={toggleTestLibrary} />
             </Row>
           </>
         )}

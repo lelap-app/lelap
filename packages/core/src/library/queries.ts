@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, type SQL } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import {
@@ -34,10 +34,19 @@ export type LibraryBook = {
 
 export type LibrarySort = 'recent' | 'title' | 'author';
 
-function selectBooks(db: Db, profileId: string, bookId?: string): LibraryBook[] {
+// Only the columns a list shows: whole rows would parse every book's add-on JSON as well.
+function selectBooks(db: Db, profileId: string, where?: SQL): LibraryBook[] {
   const rows = db
     .select({
-      book: books,
+      id: books.id,
+      title: books.title,
+      author: books.author,
+      coverPath: books.coverPath,
+      coverUrl: books.coverUrl,
+      source: books.source,
+      durationMs: books.durationMs,
+      addedAt: books.addedAt,
+      missingSince: books.missingSince,
       bookPositionMs: progress.bookPositionMs,
       finishedAt: libraryEntries.finishedAt,
       lastPlayedAt: libraryEntries.lastPlayedAt,
@@ -50,22 +59,13 @@ function selectBooks(db: Db, profileId: string, bookId?: string): LibraryBook[] 
       and(eq(libraryEntries.bookId, books.id), eq(libraryEntries.profileId, profileId)),
     )
     .leftJoin(downloads, eq(downloads.bookId, books.id))
-    .where(bookId === undefined ? undefined : eq(books.id, bookId))
+    .where(where)
     .all();
-  return rows.map(({ book, bookPositionMs, finishedAt, lastPlayedAt, downloadState }) => ({
-    id: book.id,
-    title: book.title,
-    author: book.author,
-    coverPath: book.coverPath,
-    coverUrl: book.coverUrl,
-    source: book.source,
+  return rows.map(({ missingSince, downloadState, bookPositionMs, ...book }) => ({
+    ...book,
     downloaded: downloadState === 'done',
-    durationMs: book.durationMs,
     bookPositionMs: bookPositionMs ?? 0,
-    addedAt: book.addedAt,
-    finishedAt,
-    lastPlayedAt,
-    missing: book.missingSince !== null,
+    missing: missingSince !== null,
   }));
 }
 
@@ -89,25 +89,36 @@ export function listAllBooks(db: Db, profileId: string): LibraryBook[] {
 /** Books in the Library; podcast episodes are listed under their podcast instead. */
 export function listBooks(db: Db, profileId: string, sort: LibrarySort): LibraryBook[] {
   const kid = kidFilter<LibraryBook>(db, profileId);
-  return selectBooks(db, profileId)
-    .filter((b) => b.source !== 'feed' && (kid === null || kid(b)))
-    .sort(SORTS[sort]);
+  const shown = selectBooks(db, profileId, ne(books.source, 'feed'));
+  return (kid === null ? shown : shown.filter(kid)).sort(SORTS[sort]);
 }
 
 /** The latest played book that is neither finished nor missing. */
 export function continueListening(db: Db, profileId: string): LibraryBook | null {
   const kid = kidFilter<LibraryBook>(db, profileId);
-  return (
-    selectBooks(db, profileId)
-      .filter(
-        (b) =>
-          b.lastPlayedAt !== null &&
-          b.finishedAt === null &&
-          !b.missing &&
-          (kid === null || kid(b)),
-      )
-      .sort(byRecent)[0] ?? null
-  );
+  // Started books only, through the index on when they were last played, instead of every book.
+  const started = db
+    .select({ bookId: libraryEntries.bookId })
+    .from(libraryEntries)
+    .innerJoin(books, eq(books.id, libraryEntries.bookId))
+    .where(
+      and(
+        eq(libraryEntries.profileId, profileId),
+        isNotNull(libraryEntries.lastPlayedAt),
+        isNull(libraryEntries.finishedAt),
+        isNull(books.missingSince),
+      ),
+    )
+    .orderBy(desc(libraryEntries.lastPlayedAt), desc(books.addedAt))
+    .all()
+    .map((r) => r.bookId);
+  // A kids profile may not see the first ones, so look further in small steps.
+  for (let i = 0; i < started.length; i += 50) {
+    const chunk = selectBooks(db, profileId, inArray(books.id, started.slice(i, i + 50)));
+    const [first] = (kid === null ? chunk : chunk.filter(kid)).sort(byRecent);
+    if (first) return first;
+  }
+  return null;
 }
 
 export type BookDetail = {
@@ -118,7 +129,7 @@ export type BookDetail = {
 };
 
 export function getBook(db: Db, profileId: string, bookId: string): BookDetail | null {
-  const [book] = selectBooks(db, profileId, bookId);
+  const [book] = selectBooks(db, profileId, eq(books.id, bookId));
   if (!book) return null;
   const entry = db
     .select({ speed: libraryEntries.speed })

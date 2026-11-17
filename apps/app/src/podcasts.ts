@@ -26,6 +26,7 @@ import { profileId } from './profile';
 const FETCH_TIMEOUT_MS = 20_000;
 // Feeds are read from the phone, so refreshing often costs the listener's data, not ours.
 const REFRESH_EVERY_MS = 30 * 60_000;
+const FEEDS_AT_ONCE = 6;
 
 // The proxy is rate limited per address; the web app spaces its feed requests out.
 const PROXY_SPACING_MS = 150;
@@ -103,8 +104,14 @@ let lastRefresh = 0;
 export async function refreshPodcasts(force = false): Promise<void> {
   if (!force && Date.now() - lastRefresh < REFRESH_EVERY_MS) return;
   lastRefresh = Date.now();
-  const subs = listSubscriptions(db, profileId);
-  await Promise.all(subs.map((s) => fetchFeed(s.feedUrl).catch(() => null)));
+  const feeds = listSubscriptions(db, profileId).map((s) => s.feedUrl);
+  // A few at a time: 500 feeds at once would crowd out the app's own start and the network.
+  const worker = async () => {
+    for (let feed = feeds.shift(); feed !== undefined; feed = feeds.shift()) {
+      await fetchFeed(feed).catch(() => null);
+    }
+  };
+  await Promise.all(Array.from({ length: FEEDS_AT_ONCE }, worker));
   await runAutoDownload();
 }
 

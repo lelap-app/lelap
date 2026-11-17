@@ -4,10 +4,9 @@ import {
   type LibraryBook,
   type LibrarySort,
   listBooks,
-  listPlaylists,
+  listPlaylistsWithCounts,
   listTags,
   localRoot,
-  playlistBooks,
   SMART_PRESETS,
   type SmartRule,
 } from '@lelap/core';
@@ -41,6 +40,8 @@ import { LOCAL_FOLDERS } from '../../src/platform/library';
 import { chooseFolder, scanLibrary } from '../../src/scan';
 import { Pill } from '../../src/components/Pill';
 
+const bookKeyOf = (book: LibraryBook) => book.id;
+
 const sorts = (): { key: LibrarySort; label: string }[] => [
   { key: 'recent', label: t('Recent') },
   { key: 'title', label: t('Title') },
@@ -60,14 +61,7 @@ export default function LibraryScreen() {
   const root = useMemo(() => localRoot(db), [version]);
   const books = useMemo(() => listBooks(db, profileId, sort), [sort, version]);
   const next = useMemo(() => continueListening(db, profileId), [version]);
-  const lists = useMemo(
-    () =>
-      listPlaylists(db, profileId).map((list) => ({
-        list,
-        count: playlistBooks(db, profileId, list).length,
-      })),
-    [version],
-  );
+  const lists = useMemo(() => listPlaylistsWithCounts(db, profileId), [version]);
   const tags = useMemo(() => listTags(db, profileId), [version]);
 
   const [choosingList, setChoosingList] = useState(false);
@@ -101,24 +95,42 @@ export default function LibraryScreen() {
     if (await chooseFolder()) await rescan();
   };
 
-  const open = async (book: LibraryBook) => {
-    if (book.missing) {
-      showAlert(
-        t('Files not found'),
-        t('Lelap keeps your place until the files are back in the folder.'),
-      );
-      return;
-    }
-    try {
-      await playBook(book.id);
-      router.push('/player');
-    } catch (error) {
-      showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error));
-    }
-  };
+  const open = useCallback(
+    async (book: LibraryBook) => {
+      if (book.missing) {
+        showAlert(
+          t('Files not found'),
+          t('Lelap keeps your place until the files are back in the folder.'),
+        );
+        return;
+      }
+      try {
+        await playBook(book.id);
+        router.push('/player');
+      } catch (error) {
+        showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error));
+      }
+    },
+    [router],
+  );
+  const openRow = useCallback((book: LibraryBook) => void open(book), [open]);
 
   const [actionBook, setActionBook] = useState<LibraryBook | null>(null);
   const showActions = useCallback((book: LibraryBook) => setActionBook(book), []);
+
+  // Stable, so a refresh redraws only the rows whose book changed (BookRow is memoised).
+  const offline = network.isConnected === false;
+  const renderBook = useCallback(
+    ({ item }: { item: LibraryBook }) => (
+      <BookRow
+        book={item}
+        onOpen={openRow}
+        onLongPress={showActions}
+        unavailable={offline && item.source !== 'local' && !item.downloaded}
+      />
+    ),
+    [openRow, showActions, offline],
+  );
 
   if (!root && books.length === 0) {
     return (
@@ -181,9 +193,15 @@ export default function LibraryScreen() {
         </View>
       )}
       <HeadphoneBanner className="mx-4" />
+      {/* Rows grow with the system text size, so there is no fixed height to give getItemLayout.
+          A smaller window than the default 21 screens keeps 10,000 books light to scroll. */}
       <FlatList
         data={books}
-        keyExtractor={(b) => b.id}
+        keyExtractor={bookKeyOf}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={9}
+        removeClippedSubviews={Platform.OS === 'android'}
         refreshControl={
           <RefreshControl
             refreshing={scanning !== null}
@@ -316,16 +334,7 @@ export default function LibraryScreen() {
             />
           ) : undefined
         }
-        renderItem={({ item }) => (
-          <BookRow
-            book={item}
-            onOpen={(b) => void open(b)}
-            onLongPress={showActions}
-            unavailable={
-              network.isConnected === false && item.source !== 'local' && !item.downloaded
-            }
-          />
-        )}
+        renderItem={renderBook}
       />
       <Sheet visible={choosingList} title={t('New list')} onClose={() => setChoosingList(false)}>
         <ScrollView>

@@ -103,7 +103,9 @@ function open(): Promise<void> {
     await migrateSafely(database, () =>
       migrate(database as unknown as ExpoSQLiteDatabase<typeof schema>, migrations),
     );
-    savedChanges = -1;
+    // Written only when the migrations changed something (on a new device they always do): a big
+    // library is tens of megabytes, too much to export and write again on every start.
+    savedChanges = 0;
     await save();
     setInterval(() => void save(), SAVE_EVERY_MS);
     document.addEventListener('visibilitychange', () => {

@@ -3,6 +3,8 @@
 export const ms: Record<string, string> = {
   ' Charge it soon.': ' Cas segera.',
   ' · hold a book for more': ' · tekan lama buku untuk lagi',
+  '10,000 made-up books and 500 podcasts, for timing a big library. They don’t play.':
+    '10,000 buku rekaan dan 500 podcast, untuk mengukur masa pustaka besar. Ia tidak dimainkan.',
   '1 add-on': '1 alat tambah',
   '1 book': '1 buku',
   '1 bookmark': '1 penanda',
@@ -356,6 +358,7 @@ export const ms: Record<string, string> = {
   Tags: 'Tag',
   'Tags…': 'Tag…',
   'Test connection': 'Uji sambungan',
+  'Test library': 'Pustaka ujian',
   'That PIN is not right.': 'PIN itu tidak betul.',
   'The add-on': 'Alat tambah',
   'The add-on did not answer. Try again later.': 'Alat tambah tidak menjawab. Cuba lagi nanti.',

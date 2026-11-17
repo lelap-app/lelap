@@ -41,27 +41,36 @@ export function groupIntoBooks(
   for (const file of files) {
     if (!isAudioFile(file.name)) continue;
     const folder = parentOf(file.relPath);
-    byFolder.set(folder, [...(byFolder.get(folder) ?? []), file]);
+    const list = byFolder.get(folder);
+    if (list) list.push(file);
+    else byFolder.set(folder, [file]);
   }
 
   // Disc folders (`Book/CD 1`, `Book/CD 2`) fold into their parent when it has no audio of its
   // own and every audio subfolder is a disc.
-  const bookFolderOf = new Map<string, string>();
+  const onlyDiscsUnder = new Map<string, boolean>();
   for (const folder of byFolder.keys()) {
+    if (folder === '') continue;
     const parent = parentOf(folder);
-    const siblings = [...byFolder.keys()].filter((f) => f !== '' && parentOf(f) === parent);
+    const disc = DISC_FOLDER.test(baseName(folder));
+    onlyDiscsUnder.set(parent, (onlyDiscsUnder.get(parent) ?? true) && disc);
+  }
+  const bookFolderOf = (folder: string) => {
+    const parent = parentOf(folder);
     const isDiscSet =
       folder !== '' &&
       parent !== '' &&
       !byFolder.has(parent) &&
-      siblings.every((f) => DISC_FOLDER.test(baseName(f)));
-    bookFolderOf.set(folder, isDiscSet ? parent : folder);
-  }
+      onlyDiscsUnder.get(parent) === true;
+    return isDiscSet ? parent : folder;
+  };
 
   const folders = new Map<string, ScannedFile[]>();
   for (const [folder, folderFiles] of byFolder) {
-    const target = bookFolderOf.get(folder) ?? folder;
-    folders.set(target, [...(folders.get(target) ?? []), ...folderFiles]);
+    const target = bookFolderOf(folder);
+    const list = folders.get(target);
+    if (list) list.push(...folderFiles);
+    else folders.set(target, [...folderFiles]);
   }
 
   const authorFromFolders = (folder: string): string | null => {

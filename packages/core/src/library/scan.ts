@@ -11,6 +11,7 @@ import {
   libraryEntries,
   libraryRoots,
   progress,
+  type StoredChapter,
 } from '../schema';
 import { audiobookshelfRootLocation } from '../remote/audiobookshelf';
 import { jellyfinRootLocation } from '../remote/jellyfin';
@@ -147,6 +148,18 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
         .map((f) => [f.location, f]),
     );
 
+    // A rescan of a big library changes almost nothing, so rows are only written when they
+    // differ: 10,000 books are 30,000 file rows and as many chapters.
+    const filesOfBook = new Map<string, StoredFile[]>();
+    for (const f of storedFiles.values()) {
+      if (f.bookId === null) continue;
+      const list = filesOfBook.get(f.bookId);
+      if (list) list.push(f);
+      else filesOfBook.set(f.bookId, [f]);
+    }
+    for (const list of filesOfBook.values()) list.sort((a, b) => a.idx - b.idx);
+    const changedFiles = new Set<string>();
+
     // 1. Files: upsert what is listed, mark the rest of this root missing.
     const scanned: ScannedFile[] = [];
     const listedLocations = new Set<string>();
@@ -185,6 +198,8 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
         missingSince: null,
         updatedAt: now,
       };
+      if (stored && sameFile(stored, row)) continue;
+      changedFiles.add(file.location);
       if (stored) {
         tx.update(bookFiles).set(row).where(eq(bookFiles.id, stored.id)).run();
       } else {
@@ -210,6 +225,8 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
     const storedBooks = tx.select().from(books).where(eq(books.rootId, rootId)).all();
     const bookByLocation = new Map(storedBooks.map((b) => [b.location, b]));
     const keptBookIds = new Set<string>();
+    // Books whose files, their order or their tags changed: their chapters and places are redone.
+    const changedBooks = new Set<string>();
     let added = 0;
     for (const draft of groupIntoBooks(rootLocation, scanned, folderCovers)) {
       const values = {
@@ -222,9 +239,12 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
         missingSince: null,
         updatedAt: now,
       };
-      let bookId = bookByLocation.get(draft.location)?.id;
-      if (bookId) {
-        tx.update(books).set(values).where(eq(books.id, bookId)).run();
+      const stored = bookByLocation.get(draft.location);
+      let bookId = stored?.id;
+      if (stored && bookId) {
+        if (!sameBook(stored, values)) {
+          tx.update(books).set(values).where(eq(books.id, bookId)).run();
+        }
       } else {
         bookId = newId();
         tx.insert(books)
@@ -233,6 +253,16 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
         added++;
       }
       keptBookIds.add(bookId);
+      const before = filesOfBook.get(bookId) ?? [];
+      const unchanged =
+        before.length === draft.files.length &&
+        draft.files.every(
+          (f, idx) => before[idx]?.location === f.location && !changedFiles.has(f.location),
+        );
+      // A change to buildChapters therefore reaches existing books only with a migration that
+      // clears their chapters, or when their files change.
+      if (unchanged) continue;
+      changedBooks.add(bookId);
       for (const [idx, file] of draft.files.entries()) {
         tx.update(bookFiles)
           .set({ bookId, idx })
@@ -271,7 +301,12 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
       return files;
     };
 
+    // A place in a book this scan kept as it was stays as it is.
+    const settled = (bookId: string, target: string) =>
+      target === bookId && keptBookIds.has(bookId) && !changedBooks.has(bookId);
+
     for (const snapshot of tx.select().from(progress).all()) {
+      if (settled(snapshot.bookId, fileBook.get(snapshot.fileLocation) ?? '')) continue;
       // Re-read: an earlier move in this loop may have replaced the row.
       const row = tx
         .select()
@@ -301,7 +336,7 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
 
     for (const row of tx.select().from(bookmarks).all()) {
       const target = fileBook.get(row.fileLocation);
-      if (!target) continue;
+      if (!target || settled(row.bookId, target)) continue;
       const bookPositionMs = toBookPosition(timeline(target), row.fileLocation, row.filePositionMs);
       tx.update(bookmarks)
         .set({ bookId: target, bookPositionMs })
@@ -317,12 +352,7 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
     for (const book of storedBooks) {
       if (keptBookIds.has(book.id)) continue;
       const targets = [
-        ...new Set(
-          [...storedFiles.values()]
-            .filter((f) => f.bookId === book.id)
-            .sort((a, b) => a.idx - b.idx)
-            .flatMap((f) => fileBook.get(f.location) ?? []),
-        ),
+        ...new Set((filesOfBook.get(book.id) ?? []).flatMap((f) => fileBook.get(f.location) ?? [])),
       ];
       const [first] = targets;
       if (first === undefined) {
@@ -345,6 +375,53 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
       .run();
     return { added, missing };
   });
+}
+
+type StoredFile = typeof bookFiles.$inferSelect;
+type StoredBook = typeof books.$inferSelect;
+
+const sameChapters = (a: StoredChapter[], b: StoredChapter[]) =>
+  a.length === b.length &&
+  a.every((c, i) => c.title === b[i]?.title && c.startMs === b[i]?.startMs);
+
+function sameFile(
+  stored: StoredFile,
+  row: Omit<StoredFile, 'id' | 'location' | 'bookId' | 'idx' | 'downloadPath'>,
+): boolean {
+  return (
+    stored.missingSince === null &&
+    stored.rootId === row.rootId &&
+    stored.uri === row.uri &&
+    stored.relPath === row.relPath &&
+    stored.name === row.name &&
+    stored.size === row.size &&
+    stored.modifiedAt === row.modifiedAt &&
+    stored.durationMs === row.durationMs &&
+    stored.title === row.title &&
+    stored.album === row.album &&
+    stored.artist === row.artist &&
+    stored.albumArtist === row.albumArtist &&
+    stored.coverPath === row.coverPath &&
+    sameChapters(stored.chaptersJson, row.chaptersJson)
+  );
+}
+
+function sameBook(
+  stored: StoredBook,
+  values: Pick<
+    StoredBook,
+    'rootId' | 'kind' | 'title' | 'author' | 'coverPath' | 'durationMs' | 'missingSince'
+  >,
+): boolean {
+  return (
+    stored.missingSince === null &&
+    stored.rootId === values.rootId &&
+    stored.kind === values.kind &&
+    stored.title === values.title &&
+    stored.author === values.author &&
+    stored.coverPath === values.coverPath &&
+    stored.durationMs === values.durationMs
+  );
 }
 
 const eqProgress = (profileId: string, bookId: string) =>
