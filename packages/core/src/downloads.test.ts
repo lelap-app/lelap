@@ -85,8 +85,13 @@ describe('downloads', () => {
       bookId,
       title: 'The Secret Garden',
       files: [
-        { url: 'https://audio.example/garden_01.mp3', name: '001.mp3', size: 1000 },
-        { url: 'https://audio.example/garden_02.mp3?x=1', name: '002.mp3', size: 2000 },
+        { url: 'https://audio.example/garden_01.mp3', name: '001.mp3', size: 1000, rootId: null },
+        {
+          url: 'https://audio.example/garden_02.mp3?x=1',
+          name: '002.mp3',
+          size: 2000,
+          rootId: null,
+        },
       ],
       cover: { url: 'https://img.example/garden.jpg', name: 'cover.jpg' },
       bytesTotal: 3000,

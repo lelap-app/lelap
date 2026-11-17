@@ -18,6 +18,12 @@ type LelapLibraryModule = {
   listTree(uri: string): Promise<ListedFile[]>;
   readTags(uri: string, name: string, coverDir: string): Promise<FileTags>;
   readImage(uri: string, coverDir: string): Promise<string | null>;
+  readRemoteTags(
+    url: string,
+    headers: Record<string, string>,
+    name: string,
+    coverDir: string,
+  ): Promise<FileTags>;
 };
 
 const native = requireNativeModule<LelapLibraryModule>('LelapLibrary');
@@ -47,4 +53,14 @@ export function readTags(uri: string, name: string, coverDir: string): Promise<F
 /** Saves an image file such as `cover.jpg` as a small cover in `coverDir`; returns its path. */
 export function readImage(uri: string, coverDir: string): Promise<string | null> {
   return native.readImage(uri, coverDir);
+}
+
+/** Tags, duration, cover and chapters of a file on a server, read with [headers] (its login). */
+export function readRemoteTags(
+  url: string,
+  headers: Record<string, string>,
+  name: string,
+  coverDir: string,
+): Promise<FileTags> {
+  return native.readRemoteTags(url, headers, name, coverDir);
 }

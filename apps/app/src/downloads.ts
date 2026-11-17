@@ -20,6 +20,7 @@ import { formatBytes } from './format';
 import * as native from './platform/downloads';
 import { reloadBook, useLibrary } from './player';
 import { profileId } from './profile';
+import { fileAccess } from './remote';
 
 export type { DownloadStatus } from './platform/downloads';
 
@@ -55,7 +56,20 @@ export async function startDownload(bookId: string, meta: Meta | null): Promise<
   const first = listDownloads(db).length === 0;
   const plan = planDownload(db, bookId);
   requestDownload(db, plan, meta, Date.now());
-  await native.enqueue(plan, currentRules());
+  // Files on a server: S3 links signed now, WebDAV with its login (sent to that host only).
+  const access = plan.files.map((f) => fileAccess({ uri: f.url, rootId: f.rootId }));
+  await native.enqueue(
+    {
+      ...plan,
+      files: plan.files.map((f, i) => ({
+        url: access[i]?.uri ?? f.url,
+        name: f.name,
+        size: f.size,
+      })),
+      headers: access[0]?.headers ?? {},
+    },
+    currentRules(),
+  );
   void queryClient.invalidateQueries({ queryKey: DOWNLOADS_KEY });
   if (first) await askForBackgroundWork();
 }

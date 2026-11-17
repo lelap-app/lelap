@@ -53,7 +53,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
             finished += target.length()
             continue
           }
-          Http.fetch(file.url, target, file.size) { bytes ->
+          Http.fetch(file.url, target, file.size, job.headers) { bytes ->
             val now = SystemClock.elapsedRealtime()
             if (now - lastReport >= PROGRESS_INTERVAL_MS) {
               lastReport = now
@@ -65,7 +65,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         job.cover?.let { cover ->
           val target = File(dir, cover.name)
           // The cover is a nicety; the book plays without it.
-          if (!target.isFile) runCatching { Http.fetch(cover.url, target, cover.size) {} }
+          if (!target.isFile) runCatching { Http.fetch(cover.url, target, cover.size, job.headers) {} }
         }
         Downloads.clearError(dir)
         Result.success()

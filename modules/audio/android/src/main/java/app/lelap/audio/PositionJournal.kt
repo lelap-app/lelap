@@ -17,6 +17,8 @@ data class BookPlaylist(
   val files: List<BookFile>,
   val chapters: List<ChapterMark>,
   val speed: Float,
+  /** Sent with every request for this book's files: the login of a WebDAV server. */
+  val headers: Map<String, String> = emptyMap(),
 )
 
 /** The last known place. Mirrors `JournalEntry` in `@lelap/core`. */
@@ -117,6 +119,7 @@ object PositionJournal {
       ),
     )
     .put("chapters", JSONArray(p.chapters.map { JSONObject().put("title", it.title).put("startMs", it.startMs) }))
+    .put("headers", JSONObject(p.headers))
 
   private fun decodePlaylist(o: JSONObject): BookPlaylist {
     val files = o.getJSONArray("files")
@@ -135,6 +138,8 @@ object PositionJournal {
         ChapterMark(c.getString("title"), c.getLong("startMs"))
       },
       speed = o.getDouble("speed").toFloat(),
+      headers = o.optJSONObject("headers")?.let { h -> h.keys().asSequence().associateWith { h.getString(it) } }
+        ?: emptyMap(),
     )
   }
 

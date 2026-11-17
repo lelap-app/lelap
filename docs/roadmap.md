@@ -15,6 +15,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M7 Sync                    | In progress |
 | M8 Release pipeline        | In progress |
 | M9 Profiles (v1.1)         | In progress |
+| M10 Your own storage       | In progress |
 | M11 Background engine      | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
@@ -168,6 +169,14 @@ Netflix-style profiles inside one household, with no accounts.
 each with their own progress, without signing in anywhere.
 
 **Needs:** M2's `profile_id` columns and M7's household sync groups.
+
+## M10 Your own storage
+
+**Status:** in progress (from [`next.md`](next.md#m10-your-own-storage)). WebDAV servers and
+S3-compatible buckets are library roots next to the phone's folder, built into the app; open
+checks and what is left: [`m10-follow-ups.md`](m10-follow-ups.md).
+
+**Done when** a Nextcloud folder of audiobooks plays on the phone, downloads, and keeps its place.
 
 ## M11 Background engine
 

@@ -2,13 +2,14 @@ import type { Meta } from '@lelap/sdk';
 import { and, asc, eq, inArray, ne } from 'drizzle-orm';
 
 import type { Db } from './db';
-import { bookFiles, books, downloads } from './schema';
+import { bookFiles, books, downloads, libraryRoots } from './schema';
 
 /** What the native worker downloads for one book. Files land in `<directory>/<bookId>/`. */
 export type DownloadPlan = {
   bookId: string;
   title: string;
-  files: { url: string; name: string; size: number }[];
+  /** `rootId` is set for files on a server, so the app can sign them or add the login. */
+  files: { url: string; name: string; size: number; rootId: string | null }[];
   cover: { url: string; name: string } | null;
   /** 0 when the add-on gave no sizes. */
   bytesTotal: number;
@@ -51,17 +52,37 @@ export const coverFileName = (url: string) => `cover${extensionOf(url, '.jpg')}`
 export function planDownload(db: Db, bookId: string): DownloadPlan {
   const book = db.select().from(books).where(eq(books.id, bookId)).get();
   if (!book) throw new DownloadError('This book is not in the library.');
-  if (book.source === 'local') throw new DownloadError('This book is already on the phone.');
+  const onServer =
+    book.rootId !== null &&
+    db
+      .select({ remote: libraryRoots.remote })
+      .from(libraryRoots)
+      .where(eq(libraryRoots.id, book.rootId))
+      .get()?.remote != null;
+  if (book.source === 'local' && !onServer) {
+    throw new DownloadError('This book is already on the phone.');
+  }
   if (book.addonItem?.downloadable === false)
     throw new DownloadError('This source does not allow downloads.');
   const parts = db
-    .select({ idx: bookFiles.idx, uri: bookFiles.uri, size: bookFiles.size })
+    .select({
+      idx: bookFiles.idx,
+      uri: bookFiles.uri,
+      size: bookFiles.size,
+      rootId: bookFiles.rootId,
+    })
     .from(bookFiles)
     .where(eq(bookFiles.bookId, bookId))
     .orderBy(asc(bookFiles.idx))
     .all();
   if (parts.length === 0) throw new DownloadError('This book has no files to download.');
-  const files = parts.map((p) => ({ url: p.uri, name: partFileName(p.idx, p.uri), size: p.size }));
+  const files = parts.map((p) => ({
+    url: p.uri,
+    // A server file's name comes from its path, not from a signed link.
+    name: partFileName(p.idx, p.uri.split('?')[0] ?? p.uri),
+    size: p.size,
+    rootId: p.rootId,
+  }));
   return {
     bookId,
     title: book.title,

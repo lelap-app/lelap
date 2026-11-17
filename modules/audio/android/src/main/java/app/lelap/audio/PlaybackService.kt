@@ -18,8 +18,10 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.LibraryResult
@@ -51,6 +53,20 @@ class PlaybackService : MediaLibraryService() {
 
   /** The loaded book, kept for the journal and playback resumption. */
   private var current: BookPlaylist? = null
+    set(value) {
+      field = value
+      // Only this book's own files get its server's login, never another host.
+      headersByUri = value?.takeIf { it.headers.isNotEmpty() }
+        ?.let { book -> book.files.associate { file -> file.uri to book.headers } }
+        .orEmpty()
+    }
+
+  @Volatile private var headersByUri: Map<String, Map<String, String>> = emptyMap()
+
+  private fun withBookHeaders(upstream: DataSource.Factory): DataSource.Factory =
+    ResolvingDataSource.Factory(upstream) { spec ->
+      headersByUri[spec.uri.toString()]?.let(spec::withAdditionalHeaders) ?: spec
+    }
   private var currentHandsOver = false
   private var queue: List<BookLoad> = emptyList()
 
@@ -99,7 +115,7 @@ class PlaybackService : MediaLibraryService() {
       // archive.org redirects downloads to mirror hosts, sometimes across protocols.
       .setAllowCrossProtocolRedirects(true)
     player = ExoPlayer.Builder(this)
-      .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(this, http)))
+      .setMediaSourceFactory(DefaultMediaSourceFactory(withBookHeaders(DefaultDataSource.Factory(this, http))))
       .setAudioAttributes(
         AudioAttributes.Builder()
           .setUsage(C.USAGE_MEDIA)

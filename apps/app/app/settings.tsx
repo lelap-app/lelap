@@ -1,4 +1,11 @@
-import { getSettings, schema, type Settings, setSetting } from '@lelap/core';
+import {
+  getSettings,
+  listRoots,
+  localRoot,
+  removeRemoteRoot,
+  type Settings,
+  setSetting,
+} from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
@@ -87,7 +94,8 @@ export default function SettingsScreen() {
   const me = activeProfile();
   const [scanning, setScanning] = useState(false);
   // `version` is the signal to re-read the database.
-  const root = useMemo(() => db.select().from(schema.libraryRoots).get(), [version]);
+  const root = useMemo(() => localRoot(db), [version]);
+  const servers = useMemo(() => listRoots(db).filter((r) => r.remote !== null), [version]);
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSetting(db, profileId, key, value, Date.now());
@@ -145,6 +153,41 @@ export default function SettingsScreen() {
             </Row>
           </>
         )}
+
+        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Servers</Text>
+        {servers.map((s) => (
+          <Row key={s.id} label={s.name} detail={s.remote?.type === 's3' ? 'S3 bucket' : 'WebDAV'}>
+            <Pressable
+              onPress={() =>
+                Alert.alert(
+                  `Remove ${s.name}?`,
+                  'Its books and your places in them are removed from Lelap. Nothing on the server changes.',
+                  [
+                    { text: 'Keep', style: 'cancel' },
+                    {
+                      text: 'Remove',
+                      style: 'destructive',
+                      onPress: () => {
+                        removeRemoteRoot(db, s.id);
+                        refresh();
+                      },
+                    },
+                  ],
+                )
+              }
+            >
+              <Text className="text-danger">Remove</Text>
+            </Pressable>
+          </Row>
+        ))}
+        <Row
+          label="Add a server"
+          detail="WebDAV (Nextcloud, ownCloud, a NAS) or an S3-compatible bucket."
+        >
+          <Pressable onPress={() => router.push('/server')}>
+            <Text className="text-amber">Add</Text>
+          </Pressable>
+        </Row>
 
         <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Downloads</Text>
         {LOCAL_FOLDERS && (

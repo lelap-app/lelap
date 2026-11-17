@@ -15,6 +15,8 @@ data class DownloadJob(
   val files: List<JobFile>,
   val cover: JobFile?,
   val rules: Rules,
+  /** Sent with requests to the files' own host: the login of a WebDAV server. */
+  val headers: Map<String, String> = emptyMap(),
 ) {
   fun encode(): String = JSONObject()
     .put("bookId", bookId)
@@ -22,6 +24,7 @@ data class DownloadJob(
     .put("files", JSONArray().apply { files.forEach { put(encodeFile(it)) } })
     .put("cover", cover?.let(::encodeFile) ?: JSONObject.NULL)
     .put("rules", JSONObject().put("wifiOnly", rules.wifiOnly).put("chargingOnly", rules.chargingOnly))
+    .put("headers", JSONObject(headers))
     .toString()
 
   companion object {
@@ -43,6 +46,8 @@ data class DownloadJob(
         files = files,
         cover = cover,
         rules = Rules(rules.getBoolean("wifiOnly"), rules.getBoolean("chargingOnly")),
+        headers = o.optJSONObject("headers")?.let { h -> h.keys().asSequence().associateWith { h.getString(it) } }
+          ?: emptyMap(),
       )
       val names = files.map { it.name } + listOfNotNull(cover?.name, job.bookId)
       job.takeIf { files.isNotEmpty() && names.all(::isSafeName) && names.toSet().size == names.size }

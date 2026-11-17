@@ -19,12 +19,18 @@ private const val BUFFER_BYTES = 64 * 1024
 /** Downloads one file over HTTP, continuing a `.part` file left by an earlier run. */
 object Http {
   /** [onBytes] gets the length of the part file so far. */
-  suspend fun fetch(url: String, target: File, expectedSize: Long, onBytes: suspend (Long) -> Unit) {
+  suspend fun fetch(
+    url: String,
+    target: File,
+    expectedSize: Long,
+    headers: Map<String, String> = emptyMap(),
+    onBytes: suspend (Long) -> Unit,
+  ) {
     val part = File(target.parentFile, target.name + PART_SUFFIX)
     var discarded = false
     while (true) {
       val existing = if (part.isFile) part.length() else 0L
-      val connection = open(url, existing)
+      val connection = open(url, existing, headers)
       try {
         val code = connection.responseCode
         when (DownloadRules.decide(code, existing, connection.getHeaderField("Content-Range"), expectedSize)) {
@@ -49,8 +55,9 @@ object Http {
   }
 
   // Redirects by hand: HttpURLConnection does not follow them from http to https or back.
-  private fun open(url: String, existing: Long): HttpURLConnection {
-    var current = URL(url)
+  private fun open(url: String, existing: Long, headers: Map<String, String>): HttpURLConnection {
+    val origin = URL(url)
+    var current = origin
     repeat(MAX_REDIRECTS) {
       if (current.protocol != "https" && current.protocol != "http") {
         throw PermanentFailure("Only web addresses can be downloaded.")
@@ -62,6 +69,10 @@ object Http {
       c.setRequestProperty("User-Agent", "Lelap")
       c.setRequestProperty("Accept-Encoding", "identity")
       if (existing > 0) c.setRequestProperty("Range", "bytes=$existing-")
+      // A login goes to the server it belongs to, never to a host a redirect points at.
+      if (current.host == origin.host && current.protocol == origin.protocol) {
+        headers.forEach { (name, value) -> c.setRequestProperty(name, value) }
+      }
       val code = c.responseCode
       if (code in 300..399 && code != 304) {
         val location = c.getHeaderField("Location")

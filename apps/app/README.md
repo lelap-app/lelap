@@ -153,3 +153,7 @@ proxy and an episode plays.
 | 2   | **Finished log:** reopen the app. The first episode is marked played and has left Up Next.                                  |        |
 | 3   | **A book stops:** queue an episode after a book; at the book's end nothing else starts.                                     |        |
 | 4   | **Background refresh:** turn on auto-download for a podcast, leave the app closed overnight. New episodes are on the phone. |        |
+
+## M10 checks
+
+See [`docs/m10-follow-ups.md`](../../docs/m10-follow-ups.md#2-checks).

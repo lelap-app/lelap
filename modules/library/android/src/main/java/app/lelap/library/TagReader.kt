@@ -24,6 +24,31 @@ data class Tags(
 
 /** Text tags, duration and embedded cover from Android, chapters from our own parsers. */
 class TagReader(private val context: Context) {
+  /** A file on a WebDAV server or behind a pre-signed S3 link; chapters through Range requests. */
+  fun readRemote(url: String, headers: Map<String, String>, name: String, coverDir: File): Tags {
+    val retriever = MediaMetadataRetriever()
+    try {
+      retriever.setDataSource(url, headers)
+      fun tag(key: Int) = retriever.extractMetadata(key)?.trim()?.takeIf { it.isNotEmpty() }
+      // Pre-signed links change on every scan; the cover is named after the path without them.
+      val coverKey = Uri.parse(url.substringBefore('?'))
+      val cover = retriever.embeddedPicture?.let { saveCover(it, coverKey, coverDir) }
+      val bytes = RemoteBytes(url, headers)
+      val chapters = runCatching { parseChapters(name, bytes::read, bytes.size) }.getOrDefault(emptyList())
+      return Tags(
+        durationMs = tag(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L,
+        title = tag(MediaMetadataRetriever.METADATA_KEY_TITLE),
+        album = tag(MediaMetadataRetriever.METADATA_KEY_ALBUM),
+        artist = tag(MediaMetadataRetriever.METADATA_KEY_ARTIST),
+        albumArtist = tag(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST),
+        coverPath = cover,
+        chapters = chapters,
+      )
+    } finally {
+      retriever.release()
+    }
+  }
+
   fun read(uri: Uri, name: String, coverDir: File): Tags {
     val retriever = MediaMetadataRetriever()
     try {
@@ -51,7 +76,6 @@ class TagReader(private val context: Context) {
   }
 
   private fun chapters(uri: Uri, name: String): List<Chapter> {
-    val extension = name.substringAfterLast('.', "").lowercase()
     val descriptor = context.contentResolver.openFileDescriptor(uri, "r") ?: return emptyList()
     descriptor.use { pfd ->
       FileInputStream(pfd.fileDescriptor).channel.use { channel ->
@@ -63,14 +87,17 @@ class TagReader(private val context: Context) {
           while (buffer.hasRemaining() && channel.read(buffer, offset + buffer.position()) > 0) Unit
           buffer.array().copyOf(buffer.position())
         }
-        return when (extension) {
-          "mp3" -> Id3Chapters.parse(read, size)
-          "m4a", "m4b", "mp4", "aac" -> Mp4Chapters.parse(read, size)
-          else -> emptyList()
-        }
+        return parseChapters(name, read, size)
       }
     }
   }
+
+  private fun parseChapters(name: String, read: (Long, Int) -> ByteArray, size: Long): List<Chapter> =
+    when (name.substringAfterLast('.', "").lowercase()) {
+      "mp3" -> Id3Chapters.parse(read, size)
+      "m4a", "m4b", "mp4", "aac" -> Mp4Chapters.parse(read, size)
+      else -> emptyList()
+    }
 
   private fun saveCover(bytes: ByteArray, uri: Uri, coverDir: File): String? {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
