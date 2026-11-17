@@ -2,16 +2,38 @@
 // from the same Gradle setup:
 // - no dependency metadata block: it is encrypted with a Google key, which F-Droid's scanner
 //   rejects and nobody else can read;
-// - native code built for the app (React Native's codegen and app modules) records source paths
-//   relative to the repository and Gradle's cache, not this machine's folders, so a build in
-//   another folder gives the same bytes;
+// - native code built for the app (React Native's codegen and app modules) and by every library
+//   module with C++ (Reanimated, Screens, Expo modules) records source paths relative to the
+//   repository and Gradle's cache, not this machine's folders, so a build in another folder gives
+//   the same bytes. Without it the libraries' build IDs differ between folders (M54);
 // - with EXPO_PUBLIC_LELAP_DISTRIBUTION=fdroid, no REQUEST_INSTALL_PACKAGES: that build never
 //   installs updates itself (see src/config.ts). Its embedded update manifest, which expo-updates
 //   stamps with a random ID and the build time, gets an ID from its contents and the time of the
 //   release commit (or SOURCE_DATE_EPOCH), so two builds of one commit are the same bytes.
-const { withAndroidManifest, withAppBuildGradle } = require('expo/config-plugins');
+const {
+  withAndroidManifest,
+  withAppBuildGradle,
+  withProjectBuildGradle,
+} = require('expo/config-plugins');
 
 const MARKER = '// lelap: reproducible build';
+
+// After each library module's own build.gradle, before Android's plugin reads it.
+const LIBRARY_PATHS = `
+// lelap: reproducible native libraries (plugins/withReproducibleBuild.js)
+subprojects { sub ->
+    sub.afterEvaluate {
+        def android = sub.extensions.findByName('android')
+        if (sub.plugins.hasPlugin('com.android.library') && android != null) {
+            def repo = rootProject.projectDir.parentFile.parentFile.parentFile.canonicalPath
+            def gradleHome = gradle.gradleUserHomeDir.canonicalPath
+            def maps = ["-ffile-prefix-map=\${repo}=/lelap", "-ffile-prefix-map=\${gradleHome}=/gradle"]
+            android.defaultConfig.externalNativeBuild.cmake.cFlags(*maps)
+            android.defaultConfig.externalNativeBuild.cmake.cppFlags(*maps)
+        }
+    }
+}
+`;
 
 const FIXED_MANIFEST = `
 // lelap: fixed embedded update manifest for the F-Droid build (plugins/withReproducibleBuild.js)
@@ -59,6 +81,12 @@ module.exports = function withReproducibleBuild(config) {
         includeInBundle = false
     }`,
       );
+    }
+    return mod;
+  });
+  config = withProjectBuildGradle(config, (mod) => {
+    if (!mod.modResults.contents.includes('reproducible native libraries')) {
+      mod.modResults.contents += LIBRARY_PATHS;
     }
     return mod;
   });
