@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { showAlert } from '../src/dialog';
 import { COLORS, Icon, IconButton } from '../src/components/Icon';
-import { addItem, playItem, queries, useAddons } from '../src/addons';
+import { addItem, playItem, queries, useAddons, useArtwork } from '../src/addons';
 import { sourceCache } from '../src/availability';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { DownloadButton } from '../src/components/DownloadButton';
@@ -122,6 +122,11 @@ export default function ItemScreen() {
   // Offline, a downloaded book shows the metadata saved with its download.
   const snapshot = useMemo(() => (saved ? downloadSnapshot(db, saved.book.id) : null), [saved]);
   const item = meta.data?.meta ?? snapshot ?? undefined;
+  const artwork = useArtwork({
+    id,
+    type,
+    cover: item?.cover ?? saved?.book.coverUrl ?? undefined,
+  });
   const parts = stream && hasParts(stream.stream) ? stream.stream.parts : [];
   const sizeBytes = stream
     ? hasParts(stream.stream)
@@ -186,9 +191,7 @@ export default function ItemScreen() {
         <View className="gap-5 px-4">
           <View className="items-center gap-3">
             <BookCover
-              uri={
-                saved?.book.coverPath ? coverUri(saved.book) : (item?.cover ?? saved?.book.coverUrl)
-              }
+              uri={saved?.book.coverPath ? coverUri(saved.book) : artwork}
               title={title}
               size={220}
             />

@@ -4,6 +4,7 @@ import {
   checkHealth,
   type AddonHealth,
   type Fetcher,
+  fetchArtwork,
   fetchManifest,
   fetchMeta,
   fetchStreams,
@@ -16,8 +17,8 @@ import {
   syncAddons,
   trackedFetcher,
 } from '@lelap/core';
-import { type ContentType, type Meta, offersHealth } from '@lelap/sdk';
-import { QueryClient } from '@tanstack/react-query';
+import { type ContentType, type Meta, offersHealth, supports } from '@lelap/sdk';
+import { QueryClient, useQuery } from '@tanstack/react-query';
 import { useMemo, useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 
@@ -133,3 +134,29 @@ export const queries = {
     queryFn: () => findSources(fetcher, addons, type, id, externalIds),
   }),
 };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The item's own cover, else one from an add-on with an `artwork` resource for it (cached a day).
+ * Null while asking or when no add-on has one; the cover then shows the title's letter.
+ */
+export function useArtwork(item: {
+  id: string;
+  type: ContentType;
+  cover?: string | undefined;
+}): string | null {
+  const addons = useAddons();
+  const offered = useMemo(
+    () => addons.some((a) => supports(a.manifest, 'artwork', item.type, item.id)),
+    [addons, item.type, item.id],
+  );
+  const found = useQuery({
+    queryKey: ['artwork', item.type, item.id],
+    enabled: !item.cover && offered,
+    staleTime: DAY_MS,
+    gcTime: DAY_MS,
+    queryFn: () => fetchArtwork(fetcher, addons, item.type, item.id),
+  });
+  return item.cover ?? found.data ?? null;
+}

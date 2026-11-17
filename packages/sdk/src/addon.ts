@@ -29,6 +29,8 @@ import {
   ScrobbleRequest,
   type StreamResponse,
   StreamResponse as StreamResponseSchema,
+  type ArtworkResponse,
+  ArtworkResponse as ArtworkResponseSchema,
 } from './protocol';
 
 type Awaitable<T> = T | Promise<T>;
@@ -71,6 +73,8 @@ export type AddonHandlers = {
   /** Return `null` when the ID is unknown; the response is then a 404. */
   meta?: (args: ItemArgs) => Awaitable<MetaResponse | null>;
   stream?: (args: ItemArgs) => Awaitable<StreamResponse>;
+  /** Since revision 3: pictures for an item, such as a square cover. */
+  artwork?: (args: ItemArgs) => Awaitable<ArtworkResponse>;
   /**
    * Events the app reports, oldest first. Resolve when they are handled (or deliberately
    * ignored); throw an `AddonError` with a 4xx status for events that should not be sent again.
@@ -253,6 +257,15 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
         const result = await handlers.meta({ ...route, config, request });
         if (!result) return json({ error: 'Not found' }, 404);
         const body = checked(MetaResponseSchema, result, validate);
+        return json(body, 200, body.cacheMaxAge);
+      }
+      case 'artwork': {
+        if (!handlers.artwork) break;
+        const body = checked(
+          ArtworkResponseSchema,
+          await handlers.artwork({ ...route, config, request }),
+          validate,
+        );
         return json(body, 200, body.cacheMaxAge);
       }
       case 'stream': {

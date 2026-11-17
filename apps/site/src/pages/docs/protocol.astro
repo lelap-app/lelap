@@ -175,6 +175,7 @@ GET /meta/{type}/{id}.json                  → { "meta": Meta }
 GET /stream/{type}/{id}.json                → { "streams": Stream[] }
 POST /scrobble                              ← { "events": ScrobbleEvent[] }
 GET /health                                 → HealthResponse      (revision 2)
+GET /artwork/{type}/{id}.json               → { "artwork": ArtworkImage[] }  (revision 3)
 GET /configure                              → your settings page  (HTML)
 `;
 
@@ -1096,6 +1097,28 @@ const toc: [string, string][] = [
   </p>
   <FieldTable fields={healthFields} />
   <CodeBlock code={healthExample} label="GET /health" />
+
+  <h2 id="artwork">Artwork</h2>
+  <p>
+    Since revision 3, an add-on with the <code>artwork</code> resource answers{' '}
+    <code>
+      GET /artwork/{'{type}'}/{'{id}'}.json
+    </code>{' '}
+    with pictures for an item it knows, as{' '}
+    <code>{'{ "artwork": [{ "url", "kind", "width", "height" }] }'}</code>. The app asks it only for
+    items that come without a cover, picks the best square cover (at least 300 px when one is), and
+    draws any badges itself: send plain pictures, not covers with text baked in. <code>kind</code>{' '}
+    is <code>cover</code> today; other kinds are kept and ignored.
+  </p>
+
+  <h2 id="permissions">What the listener sees before installing</h2>
+  <p>
+    Before an add-on is installed, the app lists what its manifest says it does, in plain words:
+    which catalogs it shows, that it looks up details, finds audio, supplies covers, or receives
+    what the listener plays (<code>scrobble</code>, shown in amber). It also flags an address that
+    is not encrypted, or that holds settings, and names the host the app talks to. Declare only the
+    resources you serve.
+  </p>
 
   <h2 id="schema">JSON Schema</h2>
   <p>

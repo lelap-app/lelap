@@ -4,6 +4,7 @@ import { Linking } from 'react-native';
 
 import { configurePageUrl, fetcher } from './addons';
 import { db, newId } from './db';
+import { reviewAddon } from './addonReview';
 import { showAlert } from './dialog';
 
 const TRUST = 'Add-ons are run by their authors, not by Lelap. Only add ones you trust.';
@@ -72,20 +73,13 @@ export async function confirmAddon(manifestUrl: string): Promise<'added' | 'canc
       );
       return;
     }
-    showAlert(
-      `Add ${manifest.name}?`,
-      `${manifest.description}\n\n${TRUST}`,
-      [
-        cancel,
-        {
-          text: existing ? 'Refresh' : 'Add',
-          onPress: () => {
-            installAddon(db, { url: manifestUrl, manifest, now: Date.now(), newId });
-            resolve('added');
-          },
-        },
-      ],
-      options,
-    );
+    void reviewAddon(manifest, manifestUrl, existing ? 'Refresh' : 'Add').then((accepted) => {
+      if (!accepted) {
+        resolve('cancelled');
+        return;
+      }
+      installAddon(db, { url: manifestUrl, manifest, now: Date.now(), newId });
+      resolve('added');
+    });
   });
 }

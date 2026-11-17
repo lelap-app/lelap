@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { reviewAddon } from '../src/addonReview';
 import { ActionSheet, type Action } from '../src/components/ActionSheet';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { showAlert } from '../src/dialog';
@@ -193,6 +194,11 @@ function AddonsManager() {
     );
 
   const actions = (addon: InstalledAddon): Action[] => [
+    {
+      icon: 'discover',
+      label: 'What it can do',
+      onPress: () => void reviewAddon(addon.manifest, addon.url, null),
+    },
     ...(isConfigurable(addon.manifest)
       ? [{ icon: 'settings' as const, label: 'Configure', onPress: () => openConfigure(addon.url) }]
       : []),

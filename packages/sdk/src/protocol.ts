@@ -9,15 +9,15 @@ export const PROTOCOL_VERSION = 1;
 /**
  * The newest revision of protocol 1 this SDK knows; manifests declare it as `protocolVersion`.
  * Revisions only add things, so an older app ignores what it does not know. Absent means 1.
- * 2 adds `behaviorHints` (a `/configure` page, sign-in) and `GET /health`.
+ * 2 adds `behaviorHints` (a `/configure` page, sign-in) and `GET /health`; 3 adds `artwork`.
  */
-export const LATEST_PROTOCOL_VERSION = 2;
+export const LATEST_PROTOCOL_VERSION = 3;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
 export type ContentType = z.infer<typeof ContentType>;
 
-export const RESOURCES = ['catalog', 'meta', 'stream', 'scrobble'] as const;
+export const RESOURCES = ['catalog', 'meta', 'stream', 'scrobble', 'artwork'] as const;
 export const ResourceName = z.enum(RESOURCES);
 export type ResourceName = z.infer<typeof ResourceName>;
 
@@ -201,6 +201,23 @@ export const StreamResponse = z.object({
   cacheMaxAge: CacheMaxAge,
 });
 export type StreamResponse = z.infer<typeof StreamResponse>;
+
+/** One picture of an item. The app picks the best square cover itself and draws any badges. */
+export const ArtworkImage = z.object({
+  url: Url,
+  /** `cover` is the item's cover; others, such as `banner`, are kept for later and ignored. */
+  kind: z.string().min(1).default('cover'),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+});
+export type ArtworkImage = z.infer<typeof ArtworkImage>;
+
+/** Since revision 3: `GET /artwork/{type}/{id}.json`, pictures for an item the add-on knows. */
+export const ArtworkResponse = z.object({
+  artwork: z.array(ArtworkImage),
+  cacheMaxAge: CacheMaxAge,
+});
+export type ArtworkResponse = z.infer<typeof ArtworkResponse>;
 
 export const SCROBBLE_EVENTS = ['start', 'progress', 'pause', 'finish', 'abandon', 'rate'] as const;
 export const ScrobbleEventName = z.enum(SCROBBLE_EVENTS);

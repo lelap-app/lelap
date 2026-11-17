@@ -48,10 +48,14 @@ export function streamPath(type: ContentType, id: string): string {
   return `stream/${type}/${enc(id)}.json`;
 }
 
+export function artworkPath(type: ContentType, id: string): string {
+  return `artwork/${type}/${enc(id)}.json`;
+}
+
 export type Route =
   | { resource: 'manifest' }
   | { resource: 'catalog'; type: ContentType; id: string; extra: Extra }
-  | { resource: 'meta' | 'stream'; type: ContentType; id: string };
+  | { resource: 'meta' | 'stream' | 'artwork'; type: ContentType; id: string };
 
 const isType = (value: string): value is ContentType =>
   (CONTENT_TYPES as readonly string[]).includes(value);
@@ -68,7 +72,10 @@ export function parseRoute(path: string): Route | null {
   const id = decode(rawId);
   if (!isType(type)) return null;
   if (resource === 'catalog') return { resource, type, id, extra: parseExtra(extra ?? '') };
-  if ((resource === 'meta' || resource === 'stream') && extra === undefined)
+  if (
+    (resource === 'meta' || resource === 'stream' || resource === 'artwork') &&
+    extra === undefined
+  )
     return { resource, type, id };
   return null;
 }
