@@ -155,12 +155,14 @@ export function setSpeed(
   upsertEntry(db, profileId, bookId, { speed }, now);
 }
 
+/** Marks a book finished (at `at`, for imports of older marks) or not finished. */
 export function setFinished(
   db: Db,
   profileId: string,
   bookId: string,
   finished: boolean,
   now: number,
+  at = now,
 ): void {
-  upsertEntry(db, profileId, bookId, { finishedAt: finished ? now : null }, now);
+  upsertEntry(db, profileId, bookId, { finishedAt: finished ? at : null }, now);
 }

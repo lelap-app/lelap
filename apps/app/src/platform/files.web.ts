@@ -13,3 +13,11 @@ export async function shareText(name: string, text: string): Promise<void> {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
+
+/** The bytes of a file the document picker returned, for binary files such as databases. */
+export async function readPickedBytes(asset: { uri: string; file?: File }): Promise<Uint8Array> {
+  const buffer = asset.file
+    ? await asset.file.arrayBuffer()
+    : await (await fetch(asset.uri)).arrayBuffer();
+  return new Uint8Array(buffer);
+}

@@ -26,4 +26,5 @@ export * from './secrets';
 export * from './storedSecrets';
 export * from './car';
 export * from './sleep';
+export * from './importers';
 export * from './scrobble';

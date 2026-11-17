@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { exportBackup, importBackup } from '../src/backup';
 import { showAlert } from '../src/dialog';
+import { ImportSheet } from '../src/components/ImportSheet';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { db } from '../src/db';
@@ -117,6 +118,7 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState(() => getSettings(db, profileId));
   const me = activeProfile();
   const [scanning, setScanning] = useState(false);
+  const [importing, setImporting] = useState(false);
   // `version` is the signal to re-read the database.
   const root = useMemo(() => localRoot(db), [version]);
   const servers = useMemo(() => listRoots(db).filter((r) => r.remote !== null), [version]);
@@ -304,6 +306,15 @@ export default function SettingsScreen() {
             <Text className="text-amber">Import</Text>
           </Pressable>
         </Row>
+        <Row
+          label="Import from another app"
+          detail="Goodreads shelves and finished books, AntennaPod subscriptions and places."
+        >
+          <Pressable onPress={() => setImporting(true)}>
+            <Text className="text-amber">Choose</Text>
+          </Pressable>
+        </Row>
+        <ImportSheet visible={importing} onClose={() => setImporting(false)} onImported={refresh} />
 
         <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Catalogs</Text>
         <Row label="Add-ons" detail="Where Home, Discover and Search look for books.">
