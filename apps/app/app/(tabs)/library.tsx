@@ -290,8 +290,8 @@ export default function LibraryScreen() {
               title={root ? `No audio files in ${root.name}.` : 'Nothing here yet.'}
               hint={
                 root
-                  ? 'Lori is saving her energy. Add audiobooks to the folder, then pull down.'
-                  : 'Lori is saving her energy. Books you play from Home, Discover and Search land here.'
+                  ? 'Lori is saving his energy. Add audiobooks to the folder, then pull down.'
+                  : 'Lori is saving his energy. Books you play from Home, Discover and Search land here.'
               }
             />
           ) : undefined

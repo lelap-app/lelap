@@ -258,8 +258,17 @@ const compose = `services:
         <h2 class="h2">Built for long listens.</h2>
       </div>
       <figure class="lori">
-        <Lori size={128} />
-        <figcaption>Lori, asleep before the chapter ends.</figcaption>
+        {/* A details toggle, so Lori says hello without any script, and works from a keyboard. */}
+        <details class="lori-hello">
+          <summary aria-label="Say hello to Lori">
+            <Lori size={128} class="lori-art" />
+          </summary>
+          <p class="lori-bubble">
+            Hi, I’m Lori, a slow loris. <em>Lelap</em> is Indonesian for deep, peaceful sleep, which
+            I’m very good at. I’m from Indonesia too, and I keep your place while you drift off.
+          </p>
+        </details>
+        <figcaption>Lori, asleep before the chapter ends. Tap him.</figcaption>
       </figure>
     </div>
     <div class="grid">
@@ -1032,5 +1041,117 @@ const compose = `services:
   .lori figcaption {
     font-size: 13px;
     color: var(--muted);
+  }
+  .lori-hello {
+    position: relative;
+  }
+  .lori-hello summary {
+    list-style: none;
+    cursor: pointer;
+    border-radius: 24px;
+  }
+  .lori-hello summary::-webkit-details-marker {
+    display: none;
+  }
+  .lori-hello summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+  .lori-bubble {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 14px);
+    z-index: 2;
+    width: min(300px, 80vw);
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--line-strong);
+    color: var(--fg);
+    font-size: 14px;
+    line-height: 1.5;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  }
+  .lori-bubble::after {
+    content: '';
+    position: absolute;
+    right: 52px;
+    bottom: -8px;
+    width: 14px;
+    height: 14px;
+    background: inherit;
+    border-right: 1px solid var(--line-strong);
+    border-bottom: 1px solid var(--line-strong);
+    transform: rotate(45deg);
+  }
+  .lori-bubble em {
+    color: var(--accent);
+    font-style: normal;
+    font-weight: 600;
+  }
+  /* On a phone the bubble opens below Lori, in the page's flow, with its tail pointing up. */
+  @media (max-width: 720px) {
+    .lori-hello {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .lori-bubble {
+      position: relative;
+      right: auto;
+      bottom: auto;
+      width: auto;
+      max-width: 320px;
+      margin-top: 14px;
+    }
+    .lori-bubble::after {
+      right: auto;
+      left: calc(50% - 7px);
+      top: -8px;
+      bottom: auto;
+      transform: rotate(225deg);
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .lori-hello summary:hover .lori-art {
+      transform: rotate(-3deg);
+    }
+    .lori-art {
+      transition: transform 0.2s ease;
+    }
+    .lori-hello[open] .lori-art {
+      animation: lori-hop 0.7s ease-out;
+    }
+    .lori-hello[open] .lori-bubble {
+      animation: lori-say 0.35s ease-out 0.25s both;
+    }
+  }
+  @keyframes lori-hop {
+    0% {
+      transform: translateY(0) rotate(0);
+    }
+    30% {
+      transform: translateY(-14px) rotate(-6deg);
+    }
+    55% {
+      transform: translateY(0) rotate(4deg);
+    }
+    75% {
+      transform: translateY(-5px) rotate(-2deg);
+    }
+    100% {
+      transform: translateY(0) rotate(0);
+    }
+  }
+  @keyframes lori-say {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
 </style>
