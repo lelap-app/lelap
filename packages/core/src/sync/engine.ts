@@ -20,6 +20,13 @@ import {
   toHex,
 } from './crypto';
 import { applyOps, collectOps, type Handoff, type Op } from './ops';
+import {
+  applySnapshot,
+  openSnapshot,
+  sealSnapshot,
+  type SnapshotEntry,
+  snapshotReducer,
+} from './snapshot';
 
 /** This device's membership: kept in `sync_state`, never synced. */
 export type SyncMembership = {
@@ -33,6 +40,8 @@ export type SyncMembership = {
   /** Changes after this time have not been pushed yet. */
   pushedAt: number;
   lastSyncAt: number | null;
+  /** When this device last asked whether the group needs a snapshot. */
+  compactCheckedAt?: number;
 };
 
 type Envelope = { v: 1; device: string; name: string; ops: Op[] };
@@ -42,6 +51,19 @@ const STATE_KEY = 'membership';
 const REMOVED_KEY = 'removed';
 const OPS_PER_MESSAGE = 200;
 const PULL_LIMIT = 200;
+const SNAPSHOT_PAGE = 20;
+const SNAPSHOT_UPLOAD = 50;
+const DAY_MS = 24 * 60 * 60_000;
+/** A device asks at most once a day whether the group needs a snapshot. */
+const COMPACT_CHECK_MS = DAY_MS;
+/**
+ * Messages younger than this stay in the log. Versions of the app from before snapshots can't
+ * start from one (the server stops them instead, see services/sync), so a device on an old
+ * version that syncs at least monthly never needs to.
+ */
+export const COMPACT_KEEP_MS = 30 * DAY_MS;
+/** A snapshot is written once the messages older than COMPACT_KEEP_MS reach this size. */
+export const COMPACT_MIN_BYTES = 1024 * 1024;
 
 function readMembership(db: Db): SyncMembership | null {
   const row = db.select().from(syncState).where(eq(syncState.key, STATE_KEY)).get();
@@ -258,6 +280,16 @@ export async function syncNow(
         markRemoved(db, 'reset', now);
         return { pulled: 0, pushed: 0, handoffs: [] };
       }
+      // The messages after the cursor were merged into a snapshot: start from that.
+      if (error instanceof SyncError && error.status === 410) {
+        const snapshot = await readSnapshot(client, membership.groupId, token, enc);
+        if (snapshot.covers <= cursor) throw error;
+        const applied = applySnapshot(db, snapshot.entries, membership.deviceId, now, newId);
+        result.pulled += applied.pulled;
+        result.handoffs.push(...applied.handoffs);
+        cursor = snapshot.covers;
+        continue;
+      }
       throw error;
     }
     for (const message of page.messages) {
@@ -290,6 +322,89 @@ export async function syncNow(
   await client.push(membership.groupId, token, membership.deviceId, messages);
   result.pushed = ops.length;
 
-  saveMembership(db, { ...membership, cursor, pushedAt: now, lastSyncAt: now }, now);
+  const synced: SyncMembership = { ...membership, cursor, pushedAt: now, lastSyncAt: now };
+  const compactDue = now - (membership.compactCheckedAt ?? 0) >= COMPACT_CHECK_MS;
+  if (compactDue) synced.compactCheckedAt = now;
+  saveMembership(db, synced, now);
+  // Upkeep only: a failure here is tried again tomorrow, and never fails the sync.
+  if (compactDue) {
+    await compact(client, membership.groupId, token, enc, random, now).catch(() => false);
+  }
   return result;
+}
+
+/** The group's snapshot, read and opened; throws when there is none or it does not open. */
+async function readSnapshot(
+  client: SyncClient,
+  groupId: string,
+  token: string,
+  enc: Uint8Array,
+): Promise<{ covers: number; entries: SnapshotEntry[] }> {
+  const sealed: string[] = [];
+  let covers = 0;
+  let parts = 1;
+  while (sealed.length < parts) {
+    const page = await client.snapshot(groupId, token, sealed.length, SNAPSHOT_PAGE);
+    if (!page) throw new Error('The sync group has no snapshot.');
+    // Replaced by a newer one while reading: the caller tries again on the next sync.
+    if (sealed.length > 0 && page.covers !== covers) {
+      throw new Error('The sync snapshot changed while it was read.');
+    }
+    if (page.data.length === 0) throw new Error('The sync snapshot is incomplete.');
+    covers = page.covers;
+    parts = page.parts;
+    sealed.push(...page.data);
+  }
+  return { covers, entries: openSnapshot(enc, groupId, covers, sealed) };
+}
+
+/**
+ * Writes a new snapshot when the group's older messages have grown: the old snapshot plus the
+ * messages older than COMPACT_KEEP_MS, folded to the newest change per row. The server then drops
+ * those messages. Anything this version can't read stops it, so nothing is dropped unread.
+ */
+export async function compact(
+  client: SyncClient,
+  groupId: string,
+  token: string,
+  enc: Uint8Array,
+  random: Random,
+  now: number,
+  minBytes = COMPACT_MIN_BYTES,
+): Promise<boolean> {
+  const cutoff = now - COMPACT_KEEP_MS;
+  const info = await client.info(groupId, token, cutoff);
+  if (info.older.messages === 0 || info.older.bytes < minBytes) return false;
+
+  const reducer = snapshotReducer();
+  let covers = 0;
+  if (info.snapshot) {
+    const base = await readSnapshot(client, groupId, token, enc);
+    for (const entry of base.entries) reducer.add(entry.device, entry.name, entry.ops);
+    covers = base.covers;
+  }
+  const from = covers;
+  let after = covers;
+  read: for (;;) {
+    const page = await client.pull(groupId, token, after, PULL_LIMIT);
+    for (const message of page.messages) {
+      // Servers before M52 don't date messages; those never get here (no info above).
+      if (message.at === undefined || message.at >= cutoff) break read;
+      const text = open(enc, groupId, message.data);
+      if (!text) return false;
+      const envelope = JSON.parse(text) as Envelope;
+      if (envelope.v !== 1) return false;
+      reducer.add(message.device, envelope.name, envelope.ops);
+      covers = message.seq;
+    }
+    after = page.last;
+    if (page.messages.length < PULL_LIMIT) break;
+  }
+  if (covers === from) return false;
+
+  const sealed = sealSnapshot(enc, groupId, covers, reducer.entries(), random);
+  for (let i = 0; i < sealed.length; i += SNAPSHOT_UPLOAD) {
+    await client.putSnapshotParts(groupId, token, covers, i, sealed.slice(i, i + SNAPSHOT_UPLOAD));
+  }
+  return client.commitSnapshot(groupId, token, covers, sealed.length);
 }

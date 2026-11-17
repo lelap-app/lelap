@@ -1,59 +1,100 @@
-import type { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
 
+import { EXPIRE_BATCH, type GroupRow, SQL, toGroup } from '../../../services/sync/src/sql';
 import type { Message, SyncStore } from '../../../services/sync/src/store';
 
 /** The sync store on Node's built-in SQLite, for self-hosting without D1. */
 export function sqliteStore(db: DatabaseSync): SyncStore {
+  const run = (sql: string, ...values: SQLInputValue[]) => db.prepare(sql).run(...values);
+  /** Like a D1 batch: all or nothing. */
+  const transaction = <T>(work: () => T): T => {
+    db.exec('BEGIN');
+    try {
+      const result = work();
+      db.exec('COMMIT');
+      return result;
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+  };
+  const dropGroup = (id: string) => {
+    run(SQL.deleteMessages, id);
+    run(SQL.deleteParts, id);
+    run(SQL.deleteGroup, id);
+  };
   return {
     async createGroup(id, authHash, now) {
-      const result = db
-        .prepare('INSERT OR IGNORE INTO groups (id, auth_hash, created_at) VALUES (?, ?, ?)')
-        .run(id, authHash, now);
-      return Number(result.changes) > 0;
+      return Number(run(SQL.createGroup, id, authHash, now).changes) > 0;
     },
     async group(id) {
-      const row = db.prepare('SELECT auth_hash, bytes FROM groups WHERE id = ?').get(id) as
-        { auth_hash: string; bytes: number } | undefined;
-      return row ? { authHash: row.auth_hash, bytes: row.bytes } : null;
+      const row = db.prepare(SQL.group).get(id) as GroupRow | undefined;
+      return row ? toGroup(row) : null;
     },
     async deleteGroup(id) {
-      db.prepare('DELETE FROM messages WHERE group_id = ?').run(id);
-      db.prepare('DELETE FROM groups WHERE id = ?').run(id);
+      transaction(() => dropGroup(id));
     },
     async append(id, device, messages, now) {
-      const insert = db.prepare(
-        'INSERT INTO messages (group_id, device, data, created_at) VALUES (?, ?, ?, ?)',
-      );
-      db.exec('BEGIN');
-      try {
-        for (const data of messages) insert.run(id, device, data, now);
+      transaction(() => {
+        for (const data of messages) run(SQL.insertMessage, id, device, data, now);
         const bytes = messages.reduce((sum, m) => sum + m.length, 0);
-        db.prepare('UPDATE groups SET bytes = bytes + ? WHERE id = ?').run(bytes, id);
-        db.exec('COMMIT');
-      } catch (error) {
-        db.exec('ROLLBACK');
-        throw error;
-      }
+        run(SQL.pushed, id, bytes, now);
+      });
     },
     async read(id, after, limit) {
-      return db
-        .prepare(
-          'SELECT seq, device, data FROM messages WHERE group_id = ? AND seq > ? ORDER BY seq LIMIT ?',
-        )
-        .all(id, after, limit) as Message[];
+      return db.prepare(SQL.read).all(id, after, limit) as Message[];
+    },
+    async older(id, before) {
+      return db.prepare(SQL.older).get(id, before) as { messages: number; bytes: number };
+    },
+    async readParts(id, covers, from, to) {
+      const rows = db.prepare(SQL.readParts).all(id, covers, from, to) as { data: string }[];
+      return rows.map((r) => r.data);
+    },
+    async stageParts(id, covers, from, parts, maxBytes) {
+      return transaction(() => {
+        const staged = db.prepare(SQL.stagedBytes).get(id, covers, from, from + parts.length) as {
+          bytes: number;
+        };
+        const size = parts.reduce((sum, p) => sum + p.length, 0);
+        if (staged.bytes + size > maxBytes) return false;
+        run(SQL.dropOlderUploads, id, covers);
+        parts.forEach((data, i) => run(SQL.putPart, id, covers, from + i, data));
+        run(SQL.recount, id);
+        return true;
+      });
+    },
+    async commitSnapshot(id, covers, parts, now) {
+      return transaction(() => {
+        const committed = Number(run(SQL.commit, id, covers, parts, now).changes) > 0;
+        run(SQL.dropReplacedParts, id);
+        run(SQL.dropCovered, id);
+        run(SQL.recount, id);
+        return committed;
+      });
+    },
+    async expireIdle(before) {
+      let removed = 0;
+      for (;;) {
+        const ids = db.prepare(SQL.idle).all(before, EXPIRE_BATCH) as { id: string }[];
+        transaction(() => {
+          for (const { id } of ids) dropGroup(id);
+        });
+        removed += ids.length;
+        if (ids.length < EXPIRE_BATCH) return removed;
+      }
     },
     async putPairing(lookup, blob, expiresAt, now) {
-      db.prepare('DELETE FROM pairings WHERE expires_at < ?').run(now);
-      const result = db
-        .prepare('INSERT OR IGNORE INTO pairings (lookup, blob, expires_at) VALUES (?, ?, ?)')
-        .run(lookup, blob, expiresAt);
-      return Number(result.changes) > 0;
+      run(SQL.dropExpiredPairings, now);
+      return Number(run(SQL.putPairing, lookup, blob, expiresAt).changes) > 0;
     },
     async takePairing(lookup, now) {
-      const row = db
-        .prepare('DELETE FROM pairings WHERE lookup = ? RETURNING blob, expires_at')
-        .get(lookup) as { blob: string; expires_at: number } | undefined;
+      const row = db.prepare(SQL.takePairing).get(lookup) as
+        { blob: string; expires_at: number } | undefined;
       return row && row.expires_at >= now ? row.blob : null;
+    },
+    async dropExpiredPairings(now) {
+      run(SQL.dropExpiredPairings, now);
     },
   };
 }
@@ -66,7 +107,15 @@ export function migrate(db: DatabaseSync, migrations: Record<string, string>): v
   );
   for (const [name, sql] of Object.entries(migrations).sort(([a], [b]) => a.localeCompare(b))) {
     if (applied.has(name)) continue;
-    db.exec(sql);
-    db.prepare('INSERT INTO _migrations VALUES (?, ?)').run(name, Date.now());
+    // In one transaction, so a migration that fails halfway runs again whole on the next start.
+    db.exec('BEGIN');
+    try {
+      db.exec(sql);
+      db.prepare('INSERT INTO _migrations VALUES (?, ?)').run(name, Date.now());
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
   }
 }

@@ -40,7 +40,8 @@ against `wrangler dev` with local D1:
 - Sync runs while the app is open (on start, every minute, on return, after a pause). A phone that
   is only played from the lock screen syncs when the app next opens.
 - The group key is stored in the app's SQLite without the Android Keystore.
-- The log is never compacted; a group grows until its 50 MB limit. Compaction (a sealed snapshot
-  that replaces older messages) is a follow-up.
-- Leaving a group forgets it on this device only; the group and its messages stay on the server.
+- Since [M52](milestones/m52.md), devices replace messages older than 30 days with a sealed
+  snapshot, so a group no longer grows until its 50 MB limit.
+- Leaving a group forgets it on this device only; the group and its messages stay on the server
+  until it expires, if the server sets an expiry (2 years on lelap.app, M52).
 - Last writer wins by each device's clock; a phone with a wrong clock can win or lose wrongly.

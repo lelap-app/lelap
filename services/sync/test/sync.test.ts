@@ -8,11 +8,19 @@ import {
   startSync,
   syncNow,
 } from '@lelap/core';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createApp, LIMITS } from '../src/app';
-import { memoryStore } from '../src/store';
+import { d1Store } from '../src/d1';
+import { localD1 } from './d1';
 import { appDb } from './db';
+
+let d1: Awaited<ReturnType<typeof localD1>>;
+beforeAll(async () => {
+  d1 = await localD1();
+});
+afterAll(() => d1.dispose());
+beforeEach(() => d1.clear());
 
 const GROUP = 'a'.repeat(32);
 const DEVICE = 'b'.repeat(32);
@@ -23,7 +31,7 @@ async function hash(token: string): Promise<string> {
 }
 
 function setup(clock = { now: 1_000 }) {
-  const app = createApp(memoryStore(), () => clock.now);
+  const app = createApp(d1Store(d1.db), () => clock.now);
   const call = (path: string, init: RequestInit = {}) =>
     app.request(`https://sync.example${path}`, init);
   const json = (method: string, body: unknown, token?: string): RequestInit => ({
@@ -55,13 +63,15 @@ describe('groups and messages', () => {
       headers: { Authorization: 'Bearer nope' },
     });
     expect(wrong.status).toBe(403);
-    const page = await call(`/v1/groups/${GROUP}/messages?after=1&limit=10`, {
+    const all = await call(`/v1/groups/${GROUP}/messages?after=0&limit=10`, {
       headers: { Authorization: 'Bearer secret' },
     });
-    expect(await page.json()).toEqual({
-      messages: [{ seq: 2, device: DEVICE, data: 'bbb' }],
-      last: 2,
+    const first = (await all.json<{ messages: { seq: number }[] }>()).messages[0]?.seq ?? 0;
+    const page = await call(`/v1/groups/${GROUP}/messages?after=${first}&limit=10`, {
+      headers: { Authorization: 'Bearer secret' },
     });
+    const { messages, last } = await page.json<{ messages: { seq: number }[]; last: number }>();
+    expect(messages).toEqual([{ seq: last, device: DEVICE, data: 'bbb', at: 1_000 }]);
     expect(page.headers.get('access-control-allow-origin')).toBe('*');
   });
 

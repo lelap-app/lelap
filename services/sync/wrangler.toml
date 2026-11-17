@@ -8,6 +8,12 @@ compatibility_date = "2026-11-01"
 workers_dev = true
 send_metrics = false
 
+# Daily upkeep (src/index.ts): drops old pairings, and groups idle for SYNC_IDLE_EXPIRY_DAYS.
+# That setting is not here: deploys pass it with --var from the GitHub environment, so it is
+# unset (never expire) unless a host sets it. lelap.app sets 730.
+[triggers]
+crons = ["17 3 * * *"]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "lelap-sync"

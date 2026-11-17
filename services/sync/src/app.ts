@@ -12,9 +12,16 @@ export const LIMITS = {
   pairingMs: 10 * 60_000,
   /** A full push as JSON, with room for the device ID and punctuation. */
   pushBodyBytes: 50 * 256 * 1024 + 64 * 1024,
-  /** Group creation and pairings. */
+  /** Group creation, pairings and snapshot commits. */
   smallBodyBytes: 8 * 1024,
+  /** Snapshot parts are sealed like messages, and uploaded up to 50 at a time. */
+  partsPerUpload: 50,
+  /** Parts per page when a device reads a snapshot. */
+  partsPerPage: 20,
 } as const;
+
+/** A snapshot never has more parts than the group cap holds. */
+const MAX_PARTS = Math.ceil(LIMITS.groupBytes / LIMITS.messageBytes);
 
 const HEX32 = /^[0-9a-f]{32}$/;
 const HEX64 = /^[0-9a-f]{64}$/;
@@ -24,6 +31,12 @@ async function sha256Hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+const whole = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+
+const sealedText = (m: unknown): m is string =>
+  typeof m === 'string' && m.length > 0 && m.length <= LIMITS.messageBytes && BASE64URL.test(m);
 
 function sameText(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -48,6 +61,11 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
   // Bodies are refused while they arrive, before JSON parsing holds them in memory (Node build).
   const tooLarge = { onError: (c: Context) => c.json({ error: 'Too large.' }, 413) };
   app.post('/v1/groups/:id/messages', bodyLimit({ maxSize: LIMITS.pushBodyBytes, ...tooLarge }));
+  app.post(
+    '/v1/groups/:id/snapshot/parts',
+    bodyLimit({ maxSize: LIMITS.pushBodyBytes, ...tooLarge }),
+  );
+  app.post('/v1/groups/:id/snapshot', bodyLimit({ maxSize: LIMITS.smallBodyBytes, ...tooLarge }));
   app.put('*', bodyLimit({ maxSize: LIMITS.smallBodyBytes, ...tooLarge }));
   app.options('*', (c) =>
     c.body(null, 204, {
@@ -97,10 +115,7 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
       !HEX32.test(device) ||
       !Array.isArray(messages) ||
       messages.length > LIMITS.messagesPerPush ||
-      !messages.every(
-        (m): m is string =>
-          typeof m === 'string' && m.length <= LIMITS.messageBytes && BASE64URL.test(m),
-      )
+      !messages.every(sealedText)
     ) {
       return c.json({ error: 'Send a device ID and up to 50 sealed messages.' }, 400);
     }
@@ -113,15 +128,106 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
 
   app.get('/v1/groups/:id/messages', async (c) => {
     const id = c.req.param('id');
-    if (!(await authorized(id, c.req.header('authorization'))))
-      return c.json({ error: 'Not allowed.' }, 403);
+    const group = await authorized(id, c.req.header('authorization'));
+    if (!group) return c.json({ error: 'Not allowed.' }, 403);
     const after = Number(c.req.query('after') ?? 0);
     const limit = Number(c.req.query('limit') ?? 100);
     if (!Number.isSafeInteger(after) || after < 0 || !Number.isSafeInteger(limit) || limit < 1) {
       return c.json({ error: 'after and limit are whole numbers.' }, 400);
     }
+    // The messages up to the snapshot are gone. A device that has not read them all must start
+    // from the snapshot; older versions of the app can't, and stop here rather than miss them.
+    if (after < group.snapshotSeq) {
+      return c.json(
+        {
+          error: 'Older changes were merged into a snapshot. Update Lelap to keep syncing.',
+          snapshot: group.snapshotSeq,
+        },
+        410,
+      );
+    }
     const messages = await store.read(id, after, Math.min(LIMITS.pullMax, limit));
     return c.json({ messages, last: messages.at(-1)?.seq ?? after });
+  });
+
+  // What a device needs to decide whether to write a snapshot: sizes, never contents.
+  app.get('/v1/groups/:id', async (c) => {
+    const id = c.req.param('id');
+    const group = await authorized(id, c.req.header('authorization'));
+    if (!group) return c.json({ error: 'Not allowed.' }, 403);
+    const before = Number(c.req.query('before') ?? 0);
+    if (!whole(before)) return c.json({ error: 'before is a time in milliseconds.' }, 400);
+    return c.json({
+      bytes: group.bytes,
+      snapshot: group.snapshotSeq
+        ? { covers: group.snapshotSeq, parts: group.snapshotParts }
+        : null,
+      older: await store.older(id, before),
+    });
+  });
+
+  app.get('/v1/groups/:id/snapshot', async (c) => {
+    const id = c.req.param('id');
+    const group = await authorized(id, c.req.header('authorization'));
+    if (!group) return c.json({ error: 'Not allowed.' }, 403);
+    if (!group.snapshotSeq) return c.json({ error: 'This group has no snapshot.' }, 404);
+    const from = Number(c.req.query('from') ?? 0);
+    const limit = Number(c.req.query('limit') ?? LIMITS.partsPerPage);
+    if (!whole(from) || !whole(limit) || limit < 1) {
+      return c.json({ error: 'from and limit are whole numbers.' }, 400);
+    }
+    const to = Math.min(group.snapshotParts, from + Math.min(limit, LIMITS.partsPerPage));
+    const data = from < to ? await store.readParts(id, group.snapshotSeq, from, to) : [];
+    // A newer snapshot replaced this one while it was read.
+    if (data.length !== Math.max(0, to - from)) {
+      return c.json({ error: 'The snapshot changed. Try again.' }, 409);
+    }
+    return c.json({ covers: group.snapshotSeq, parts: group.snapshotParts, data });
+  });
+
+  app.post('/v1/groups/:id/snapshot/parts', async (c) => {
+    const id = c.req.param('id');
+    const group = await authorized(id, c.req.header('authorization'));
+    if (!group) return c.json({ error: 'Not allowed.' }, 403);
+    const body = await c.req
+      .json<{ covers?: unknown; from?: unknown; parts?: unknown }>()
+      .catch(() => ({ covers: undefined, from: undefined, parts: undefined }));
+    const { covers, from, parts } = body;
+    if (
+      !whole(covers) ||
+      !whole(from) ||
+      !Array.isArray(parts) ||
+      parts.length === 0 ||
+      parts.length > LIMITS.partsPerUpload ||
+      from + parts.length > MAX_PARTS ||
+      !parts.every(sealedText)
+    ) {
+      return c.json({ error: 'Send covers, from and up to 50 sealed parts.' }, 400);
+    }
+    if (covers <= group.snapshotSeq) {
+      return c.json({ error: 'A newer snapshot is already here.' }, 409);
+    }
+    // The upload counts towards the group's bytes; on its own it may be as large as the cap, so
+    // a full group can still be compacted.
+    const stored = await store.stageParts(id, covers, from, parts, LIMITS.groupBytes);
+    return stored ? c.body(null, 204) : c.json({ error: 'This snapshot is too large.' }, 413);
+  });
+
+  app.post('/v1/groups/:id/snapshot', async (c) => {
+    const id = c.req.param('id');
+    if (!(await authorized(id, c.req.header('authorization'))))
+      return c.json({ error: 'Not allowed.' }, 403);
+    const body = await c.req
+      .json<{ covers?: unknown; parts?: unknown }>()
+      .catch(() => ({ covers: undefined, parts: undefined }));
+    const { covers, parts } = body;
+    if (!whole(covers) || covers < 1 || !whole(parts) || parts < 1 || parts > MAX_PARTS) {
+      return c.json({ error: 'Send covers and the number of parts.' }, 400);
+    }
+    const committed = await store.commitSnapshot(id, covers, parts, now());
+    return committed
+      ? c.body(null, 204)
+      : c.json({ error: 'That snapshot is incomplete, or a newer one is already here.' }, 409);
   });
 
   app.put('/v1/pairings/:lookup', async (c) => {

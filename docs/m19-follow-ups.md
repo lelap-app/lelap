@@ -31,5 +31,6 @@ and the reasoning are in [`security-audit.md`](security-audit.md).
 - **`WEB_ORIGIN`** (4): set it in the `web` environment (rate limits are already on Cloudflare).
 - **Separate Cloudflare tokens** (11) for the `web` and `release` environments.
 - **Plain http on Android** (17): keep it off and explain, or allow it.
-- **Idle groups** (18): expire sync groups with no push for a year, with the log compaction.
+- **Idle groups** (18): decided and built in [M52](milestones/m52.md): no push for 2 years on
+  lelap.app, a setting (`SYNC_IDLE_EXPIRY_DAYS`) that is off by default when self-hosted.
 - **HSTS** for the zone in the Cloudflare dashboard.

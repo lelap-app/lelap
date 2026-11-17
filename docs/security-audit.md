@@ -102,9 +102,9 @@ their own headers.
 **Where:** `services/sync/src/app.ts`, `d1.ts`, `sqliteStore.ts`.
 **What:** The 50 MB check reads `bytes` before appending, so two parallel pushes can pass it
 together and overshoot by one push (12.8 MB at most). Groups no device uses stay forever.
-**Decision:** Accept the overshoot. Expire groups with no push for, say, a year, as a scheduled
-Worker; that needs a `last_push_at` column and a migration, and goes with the log compaction in
-[M52 Sync upkeep](milestones/m52.md).
+**Decision:** Accept the overshoot. Expire groups with no push for a set time, as a scheduled
+job: built in [M52 Sync upkeep](milestones/m52.md) with a `last_push_at` column and the
+`SYNC_IDLE_EXPIRY_DAYS` setting, 2 years on lelap.app and never by default when self-hosted.
 
 ### Checked and fine
 
