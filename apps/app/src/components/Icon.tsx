@@ -147,6 +147,27 @@ const ICONS = {
     </>
   ),
   queue: (c) => <Path d="M4 6h16M4 12h10M4 18h10M18 14v6M15 17h6" {...stroke(c)} />,
+  transcript: (c) => (
+    <>
+      <Path
+        d="M5 4h14a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"
+        {...stroke(c)}
+      />
+      <Path d="M8 9h8M8 12.5h5" {...stroke(c)} />
+    </>
+  ),
+  heart: (c) => (
+    <Path
+      d="M12 20s-7.5-4.6-7.5-10A4.5 4.5 0 0 1 12 7.4 4.5 4.5 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"
+      {...stroke(c)}
+    />
+  ),
+  person: (c) => (
+    <>
+      <Circle cx={12} cy={8} r={4} {...stroke(c)} />
+      <Path d="M4.5 20a7.5 7.5 0 0 1 15 0" {...stroke(c)} />
+    </>
+  ),
 } satisfies Record<string, Draw>;
 
 export type IconName = keyof typeof ICONS;

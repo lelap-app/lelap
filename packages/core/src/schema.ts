@@ -1,4 +1,6 @@
 import type { Meta } from '@lelap/sdk';
+
+import type { EpisodeExtras, PodcastExtras } from './podcasts/podcasting';
 import {
   index,
   integer,
@@ -271,6 +273,8 @@ export const podcasts = sqliteTable('podcasts', {
   description: text('description'),
   coverUrl: text('cover_url'),
   link: text('link'),
+  /** Podcasting 2.0 people and funding links; null until the feed is read again. */
+  extras: text('extras', { mode: 'json' }).$type<PodcastExtras>(),
   /** For conditional requests, so an unchanged feed costs one small response. */
   etag: text('etag'),
   lastModified: text('last_modified'),
@@ -297,6 +301,8 @@ export const episodes = sqliteTable(
     url: text('url').notNull(),
     mime: text('mime'),
     size: integer('size').notNull(),
+    /** Podcasting 2.0 chapters file, transcripts, people and season name. */
+    extras: text('extras', { mode: 'json' }).$type<EpisodeExtras>(),
     /** The library book that plays it, made the first time it is played or downloaded. */
     bookId: text('book_id').references(() => books.id, { onDelete: 'set null' }),
     updatedAt: integer('updated_at').notNull(),

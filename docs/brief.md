@@ -49,7 +49,7 @@ modules/audio     Kotlin: Media3 service, focus, fade
 modules/download  Kotlin: background downloads
 modules/cast      Kotlin: Cast SDK, UPnP
 services/catalog  catalog add-on (Hono)
-services/proxy    RSS and cover proxy for the web (Hono)
+services/proxy    RSS, cover and transcript proxy for the web (Hono)
 services/sync     encrypted sync (Hono)
 services/updates  expo-updates server and latest.json (Hono)
 docker/           compose file and images for self-hosting
@@ -102,15 +102,15 @@ Audiobookshelf. RSS and local files are built into the app.
 
 ## Infrastructure
 
-| Host                | What                                    | Runs on                       |
-| ------------------- | --------------------------------------- | ----------------------------- |
-| `lelap.app`         | Landing page, `/docs`, terms, privacy   | Pages                         |
-| `listen.lelap.app`  | The PWA                                 | Pages                         |
-| `dl.lelap.app`      | APKs, `latest.json`, OTA bundles        | R2                            |
-| `updates.lelap.app` | expo-updates manifests                  | Worker + R2                   |
-| `catalog.lelap.app` | Catalog add-on                          | Worker + Cache API            |
-| `proxy.lelap.app`   | RSS and covers for the web; never audio | Worker + Cache API            |
-| `sync.lelap.app`    | Encrypted blobs and oplogs              | Worker + D1 or Durable Object |
+| Host                | What                                  | Runs on                       |
+| ------------------- | ------------------------------------- | ----------------------------- |
+| `lelap.app`         | Landing page, `/docs`, terms, privacy | Pages                         |
+| `listen.lelap.app`  | The PWA                               | Pages                         |
+| `dl.lelap.app`      | APKs, `latest.json`, OTA bundles      | R2                            |
+| `updates.lelap.app` | expo-updates manifests                | Worker + R2                   |
+| `catalog.lelap.app` | Catalog add-on                        | Worker + Cache API            |
+| `proxy.lelap.app`   | RSS, covers, transcripts; never audio | Worker + Cache API            |
+| `sync.lelap.app`    | Encrypted blobs and oplogs            | Worker + D1 or Durable Object |
 
 Self-hosting: images `web`, `catalog`, `proxy`, `sync` on `ghcr.io`; storage adapters swap D1 for
 SQLite and R2 for disk or MinIO.
@@ -180,7 +180,8 @@ the Player.
   a Web Audio gain node would need CORS on every audio host.
 - **Downloads:** fetch into OPFS while the tab is open, when the audio host allows CORS. No Wi-Fi
   or charging rules. Local library folders are Android only.
-- **Feeds** go through `proxy.lelap.app` (XML only, 10 MB, never audio); plain-http covers too.
+- **Feeds** go through `proxy.lelap.app` (XML only, 10 MB, never audio); plain-http covers too, and
+  Podcasting 2.0 chapters files and transcripts (UTF-8 text only, 5 MB).
 
 ## Sync (M7)
 

@@ -26,6 +26,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M18 Updates over the air   | In progress |
 | M19 Security and hardening | In progress |
 | M20 SDK on npm             | Done        |
+| M23 Podcasting 2.0         | In progress |
 | M29 Sleep and links        | In progress |
 | M32 Audnexus               | In progress |
 
@@ -283,6 +284,17 @@ environment, through npm trusted publishing. 0.2.0 was the first release. How to
 **Done when** `npm install @lelap/sdk` gets a published version with a provenance statement, and a
 copy of `services/template` outside the repository builds against it. Both checked on 2026-11-17:
 the attestation verifies, and a copy installs 0.2.0, type-checks, passes its tests and bundles.
+
+## M23 Podcasting 2.0
+
+**Status:** in progress (from [`next.md`](next.md#proposed-milestones)). Feeds' `podcast:`
+namespace (chapters files, transcripts, people, seasons, funding, `podcast:guid`) is read and kept
+as JSON on podcasts and episodes. An episode without embedded chapters gets its chapters file; the
+player opens a transcript that follows the position; the podcast page shows people, seasons and a
+"Support this show" link. The web app reads chapters files and transcripts through the proxy's
+text-only `/text` route. Phone checks in [`m23-follow-ups.md`](m23-follow-ups.md).
+
+**Done when** the phone checks pass.
 
 ## M29 Sleep and links
 

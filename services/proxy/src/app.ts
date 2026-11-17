@@ -19,7 +19,9 @@ export type Platform = {
 export const LIMITS = {
   feedBytes: 10 * 1024 * 1024,
   coverBytes: 5 * 1024 * 1024,
+  textBytes: 5 * 1024 * 1024,
   feedTtl: 15 * 60,
+  textTtl: 24 * 60 * 60,
   coverTtl: 24 * 60 * 60,
 } as const;
 
@@ -93,6 +95,17 @@ export function looksLikeXml(body: Uint8Array): boolean {
 }
 
 const isMedia = (type: string) => /^(audio|video)\//i.test(type);
+
+/** UTF-8 without NUL bytes: text, never a media file, whatever its Content-Type says. */
+export function looksLikeText(body: Uint8Array): boolean {
+  if (body.includes(0)) return false;
+  try {
+    new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(body);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function createApp(platform: Platform, env: Env): Hono {
   const app = new Hono();
@@ -194,7 +207,31 @@ export function createApp(platform: Platform, env: Env): Hono {
     return result;
   });
 
-  app.get('/', (c) => c.text('Lelap feed and cover proxy. Never audio.'));
+  // Podcasting 2.0 chapters files and transcripts (JSON, SRT, WebVTT, HTML): served as plain
+  // text, so the app parses them and the browser never renders them.
+  app.get('/text', async (c) => {
+    const url = targetOf(c.req.query('url'));
+    const key = `https://proxy.cache/text?url=${encodeURIComponent(url.toString())}`;
+    const cached = await platform.cache?.match(key).catch(() => undefined);
+    if (cached) return new Response(cached.body, cached);
+
+    const response = await upstream(url, { Accept: 'application/json, text/*;q=0.9, */*;q=0.5' });
+    if (!response.ok) throw new Refused(502, `The file answered HTTP ${response.status}.`);
+    if (isMedia(response.headers.get('content-type') ?? '')) throw new Refused(415, 'Not text.');
+    const body = await readLimited(response, LIMITS.textBytes);
+    if (!looksLikeText(body)) throw new Refused(415, 'Not text.');
+    const result = new Response(body, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': `public, max-age=${LIMITS.textTtl}`,
+      },
+    });
+    await platform.cache?.put(key, result.clone()).catch(() => undefined);
+    return result;
+  });
+
+  app.get('/', (c) => c.text('Lelap feed, cover and transcript proxy. Never audio.'));
   app.notFound((c) => c.json({ error: 'Not found.' }, 404));
   return app;
 }

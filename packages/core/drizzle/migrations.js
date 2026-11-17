@@ -10,6 +10,7 @@ import m0005 from './0005_sync.sql';
 import m0006 from './0006_profiles.sql';
 import m0007 from './0007_remote_roots.sql';
 import m0008 from './0008_organise.sql';
+import m0009 from './0009_podcasting.sql';
 
 export default {
   journal,
@@ -23,5 +24,6 @@ export default {
     m0006,
     m0007,
     m0008,
+    m0009,
   },
 };
