@@ -15,6 +15,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetcher, SHOWN_TYPES, useAddons } from '../../src/addons';
+import { useAskWhenVisible, useAvailability } from '../../src/availability';
+import { COLORS, Icon } from '../../src/components/Icon';
 import { MetaTile } from '../../src/components/MetaCard';
 import { openItem } from '../../src/navigation';
 
@@ -43,6 +45,9 @@ export default function DiscoverScreen() {
   const catalogs = useMemo(() => browseCatalogs(addons, SHOWN_TYPES), [addons]);
   const [selected, setSelected] = useState<string | null>(null);
   const [genre, setGenre] = useState<string | null>(null);
+  const [playableOnly, setPlayableOnly] = useState(false);
+  const availability = useAvailability();
+  const visible = useAskWhenVisible();
 
   // "More" on a Home row opens Discover on that catalog.
   useEffect(() => {
@@ -79,6 +84,12 @@ export default function DiscoverScreen() {
     const seen = new Set<string>();
     return (query.data?.pages.flat() ?? []).filter((m) => !seen.has(m.id) && seen.add(m.id));
   }, [query.data]);
+  // Items still being asked about stay; only a known "Metadata only" is hidden.
+  const shown = useMemo(
+    () => (playableOnly ? items.filter((m) => availability(m)?.kind !== 'none') : items),
+    [items, playableOnly, availability],
+  );
+  const hiddenCount = items.length - shown.length;
 
   return (
     <View className="flex-1 bg-night" style={{ paddingTop: insets.top + 12 }}>
@@ -90,7 +101,9 @@ export default function DiscoverScreen() {
       ) : (
         <FlatList
           key={COLUMNS}
-          data={items}
+          data={shown}
+          extraData={availability}
+          {...visible}
           numColumns={COLUMNS}
           keyExtractor={(m) => m.id}
           columnWrapperStyle={{ gap: GAP, paddingHorizontal: 16 }}
@@ -122,6 +135,28 @@ export default function DiscoverScreen() {
                   />
                 ))}
               </ScrollView>
+              <View className="flex-row items-center gap-2 px-4">
+                <Pressable
+                  onPress={() => setPlayableOnly((on) => !on)}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: playableOnly }}
+                  className={`flex-row items-center gap-1.5 rounded-full border px-3 py-1 ${playableOnly ? 'border-amber' : 'border-line'}`}
+                >
+                  <Icon
+                    name={playableOnly ? 'check' : 'play'}
+                    size={14}
+                    color={playableOnly ? COLORS.amber : COLORS.muted}
+                  />
+                  <Text className={playableOnly ? 'text-amber' : 'text-soft'}>Playable only</Text>
+                </Pressable>
+                {playableOnly && hiddenCount > 0 && (
+                  <Text className="text-xs text-muted">
+                    {hiddenCount === 1
+                      ? '1 without audio hidden'
+                      : `${hiddenCount} without audio hidden`}
+                  </Text>
+                )}
+              </View>
               {genres.length > 0 && (
                 <ScrollView
                   horizontal
@@ -156,7 +191,12 @@ export default function DiscoverScreen() {
             query.isFetchingNextPage ? <ActivityIndicator color="#f5b041" /> : undefined
           }
           renderItem={({ item }) => (
-            <MetaTile meta={item} width={tile} onPress={(meta) => openItem(router, meta)} />
+            <MetaTile
+              meta={item}
+              width={tile}
+              availability={availability(item)}
+              onPress={(meta) => openItem(router, meta)}
+            />
           )}
         />
       )}

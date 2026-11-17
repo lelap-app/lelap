@@ -170,3 +170,12 @@ export async function storage(): Promise<StorageInfo> {
 export const isIgnoringBatteryOptimizations = () => true;
 
 export async function requestBatteryExemption(): Promise<void> {}
+
+// A closed tab gets no background time, so the web app posts no notifications.
+export function canNotify(): boolean {
+  return false;
+}
+
+export function notify(): boolean {
+  return false;
+}

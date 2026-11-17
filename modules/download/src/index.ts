@@ -34,6 +34,8 @@ declare class LelapDownloadModule extends NativeModule {
   setRules(wifiOnly: boolean, chargingOnly: boolean): Promise<void>;
   storage(): Promise<StorageInfo>;
   isIgnoringBatteryOptimizations(): boolean;
+  canNotify(): boolean;
+  notify(tag: string, title: string, text: string, link: string | null): boolean;
   requestBatteryExemption(): Promise<void>;
 }
 
@@ -74,4 +76,17 @@ export function isIgnoringBatteryOptimizations(): boolean {
 /** Opens Android's dialog that lets Lelap run downloads while the phone sleeps. */
 export function requestBatteryExemption(): Promise<void> {
   return native.requestBatteryExemption();
+}
+
+/** Whether Lelap may post notifications (always true before Android 13). */
+export function canNotify(): boolean {
+  return native.canNotify();
+}
+
+/**
+ * Posts a one-off notification, replacing an earlier one with the same tag. A tap opens `link`
+ * (a deep link into the app) or the app. False when notifications are not allowed.
+ */
+export function notify(tag: string, title: string, text: string, link?: string): boolean {
+  return native.notify(tag, title, text, link ?? null);
 }

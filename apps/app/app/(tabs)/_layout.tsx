@@ -1,6 +1,8 @@
 import { BottomTabBar, Tabs } from 'expo-router/js-tabs';
 import { View } from 'react-native';
 
+import { useAddons } from '../../src/addons';
+import { useSourceCacheAddons } from '../../src/availability';
 import { Icon, type IconName } from '../../src/components/Icon';
 import { MiniPlayer } from '../../src/components/MiniPlayer';
 
@@ -13,6 +15,7 @@ const ICONS: Record<string, IconName> = {
 };
 
 export default function TabsLayout() {
+  useSourceCacheAddons(useAddons());
   return (
     <Tabs
       tabBar={(props) => (
