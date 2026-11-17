@@ -1,0 +1,98 @@
+name: SDK
+
+# Publishes @lelap/sdk to npm when a merge to main carries a version that npm doesn't have yet
+# (after `pnpm changeset version`, see packages/sdk/README.md). Publishing runs in the `npm`
+# environment, limited to main and gated by a reviewer, so pull requests never reach it.
+on:
+  push:
+    branches: [main]
+    paths:
+      - packages/sdk/package.json
+      - .github/workflows/sdk.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-publish
+  cancel-in-progress: false
+
+env:
+  SKIP_INSTALL_SIMPLE_GIT_HOOKS: '1'
+
+jobs:
+  check:
+    name: Build, test, pack
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @lelap/sdk check
+      - run: pnpm --filter @lelap/sdk test
+      - run: pnpm --filter @lelap/sdk build
+      - name: Built package loads in Node
+        run: node -e "import('./packages/sdk/dist/index.js').then((m) => { if (typeof m.createAddon !== 'function') process.exit(1); })"
+      - name: Is this version on npm yet?
+        id: version
+        working-directory: packages/sdk
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if npm view "@lelap/sdk@$version" version >/dev/null 2>&1; then
+            echo "@lelap/sdk@$version is already on npm; nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    name: Publish to npm
+    needs: check
+    if: needs.check.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/@lelap/sdk/v/${{ needs.check.outputs.version }}
+    permissions:
+      contents: read
+      # OIDC for npm trusted publishing and the provenance statement.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+          # No shared caches in jobs that publish.
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile --filter @lelap/sdk
+      - run: pnpm --filter @lelap/sdk build
+      # pnpm pack applies publishConfig (exports and types pointing at dist); npm publishes the
+      # tarball with a provenance statement.
+      - name: Pack
+        working-directory: packages/sdk
+        run: pnpm pack --pack-destination "$RUNNER_TEMP"
+      - name: Publish
+        env:
+          # Empty once trusted publishing is set up; npm then authenticates through OIDC.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          # Prereleases (0.3.0-beta.1) go to the `next` tag so `npm install` keeps the stable one.
+          tag=latest
+          case "$VERSION" in *-*) tag=next ;; esac
+          npm publish "$RUNNER_TEMP/lelap-sdk-$VERSION.tgz" --provenance --access public --tag "$tag"

@@ -20,6 +20,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M13 Landing page 2         | In progress |
 | M14 Developer platform     | In progress |
 | M19 Security and hardening | In progress |
+| M20 SDK on npm             | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
 v1.1. What comes next (v1.0 gaps, proposed M10–M19, smaller tasks): [`next.md`](next.md).
@@ -221,6 +222,17 @@ the decisions left for the maintainer are in [`security-audit.md`](security-audi
 dashboard checks in [`m19-follow-ups.md`](m19-follow-ups.md).
 
 **Done when** the audit's decisions are made and its follow-up checks pass.
+
+## M20 SDK on npm
+
+**Status:** in progress (from [`next.md`](next.md#m20-sdk-on-npm)). `@lelap/sdk` builds to ESM and
+type declarations with `tsc`, Changesets versions it, and the `SDK` workflow publishes it with
+provenance from the `npm` environment. How to release: [`packages/sdk`](../packages/sdk/README.md#releasing).
+The samples' docs install it from npm. What the maintainer sets up on npm and GitHub:
+[`m20-follow-ups.md`](m20-follow-ups.md).
+
+**Done when** `npm install @lelap/sdk` gets a published version with a provenance statement, and a
+copy of `services/template` outside the repository builds against it.
 
 ## Environments
 

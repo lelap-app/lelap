@@ -7,8 +7,16 @@ against the protocol.
 
 ## Make it yours
 
-1. Copy this folder out of the monorepo. Replace `"@lelap/sdk": "workspace:*"` in `package.json`
-   with the version published on npm, then run `npm install` (or pnpm, or yarn).
+1. Copy this folder out of the monorepo and install the SDK from npm in place of the workspace
+   link:
+
+   ```sh
+   npm pkg delete dependencies.@lelap/sdk
+   npm install @lelap/sdk
+   ```
+
+   pnpm and yarn work too (`pnpm add @lelap/sdk`, `yarn add @lelap/sdk`).
+
 2. In `src/addon.ts`, give the manifest your own `id` (reverse DNS of a domain you control), `name`
    and `idPrefixes`.
 3. Replace `src/books.ts` with calls to your source. Only serve audio you are allowed to share.

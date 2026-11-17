@@ -31,8 +31,14 @@ npx wrangler deploy
 npm test
 ```
 
-Outside this repository, replace `"@lelap/sdk": "workspace:*"` in `package.json` with the version
-published on npm. `src/index.ts` is a Cloudflare Worker; `addon.fetch` also runs on Deno
+Outside this repository, install the SDK from npm in place of the workspace link:
+
+```sh
+npm pkg delete dependencies.@lelap/sdk
+npm install @lelap/sdk
+```
+
+`src/index.ts` is a Cloudflare Worker; `addon.fetch` also runs on Deno
 (`Deno.serve(addon.fetch)`), Bun, or Node through an adapter.
 
 MIT licensed, like the SDK.
