@@ -64,6 +64,12 @@ in [`brief.md`](brief.md).
 | [M54 Faster builds, smaller APKs](milestones/m54.md) | Build unsigned with caches and sign separately; one APK per CPU type                                    |
 | [M55 Light landing page](milestones/m55.md)          | The site and docs in a light theme too, following the system, with a switch                             |
 | [M56 Your copy, linked](milestones/m56.md)           | Books found in Discover linked to your own copy on a folder, WebDAV, S3 or a media server               |
+| [M57 Add-ons as library sources](milestones/m57.md)  | In-app add-ons with sealed logins, stream headers and library scans; bundled ones in “Add a server”     |
+| [M58 Navidrome and Subsonic](milestones/m58.md)      | A bundled add-on for Subsonic-API servers: library, streams, bookmarks                                  |
+| [M59 Plex and Emby](milestones/m59.md)               | Bundled add-ons for two more media servers, places both ways                                            |
+| [M60 Internet Archive](milestones/m60.md)            | A hosted add-on for public-domain audio on archive.org beyond LibriVox                                  |
+| [M61 Open Library reading log](milestones/m61.md)    | A scrobble add-on marking books read or reading on Open Library                                         |
+| [M62 SMB and SFTP](milestones/m62.md)                | Built-in sources for NAS shares and plain servers, on Android                                           |
 
 The first stable release is `v0.1.0`, shipped by [M40](milestones/m40.md) with everything built so
 far.
