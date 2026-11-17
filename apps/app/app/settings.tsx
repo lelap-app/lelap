@@ -181,56 +181,59 @@ export default function SettingsScreen() {
           </>
         )}
 
-        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Servers</Text>
-        {servers.map((s) => (
-          <Row
-            key={s.id}
-            label={s.name}
-            detail={
-              s.needsLogin
-                ? 'Password needed: it is not in backups.'
-                : s.remote?.type === 's3'
-                  ? 'S3 bucket'
-                  : 'WebDAV'
-            }
-          >
-            {s.needsLogin && (
-              <Pressable onPress={() => router.push(`/server?root=${s.id}`)}>
-                <Text className="text-amber">Log in</Text>
-              </Pressable>
-            )}
-            <Pressable
-              onPress={() =>
-                showAlert(
-                  `Remove ${s.name}?`,
-                  'Its books and your places in them are removed from Lelap. Nothing on the server changes.',
-                  [
-                    { text: 'Keep', style: 'cancel' },
-                    {
-                      text: 'Remove',
-                      style: 'destructive',
-                      onPress: () => {
-                        removeRemoteRoot(db, s.id);
-                        refresh();
-                      },
-                    },
-                  ],
-                )
-              }
+        {!me?.kids && (
+          <>
+            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Servers</Text>
+            {servers.map((s) => (
+              <Row
+                key={s.id}
+                label={s.name}
+                detail={
+                  s.needsLogin
+                    ? 'Password needed: it is not in backups.'
+                    : s.remote?.type === 's3'
+                      ? 'S3 bucket'
+                      : 'WebDAV'
+                }
+              >
+                {s.needsLogin && (
+                  <Pressable onPress={() => router.push(`/server?root=${s.id}`)}>
+                    <Text className="text-amber">Log in</Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  onPress={() =>
+                    showAlert(
+                      `Remove ${s.name}?`,
+                      'Its books and your places in them are removed from Lelap. Nothing on the server changes.',
+                      [
+                        { text: 'Keep', style: 'cancel' },
+                        {
+                          text: 'Remove',
+                          style: 'destructive',
+                          onPress: () => {
+                            removeRemoteRoot(db, s.id);
+                            refresh();
+                          },
+                        },
+                      ],
+                    )
+                  }
+                >
+                  <Text className="text-danger">Remove</Text>
+                </Pressable>
+              </Row>
+            ))}
+            <Row
+              label="Add a server"
+              detail="WebDAV (Nextcloud, ownCloud, a NAS) or an S3-compatible bucket."
             >
-              <Text className="text-danger">Remove</Text>
-            </Pressable>
-          </Row>
-        ))}
-        <Row
-          label="Add a server"
-          detail="WebDAV (Nextcloud, ownCloud, a NAS) or an S3-compatible bucket."
-        >
-          <Pressable onPress={() => router.push('/server')}>
-            <Text className="text-amber">Add</Text>
-          </Pressable>
-        </Row>
-
+              <Pressable onPress={() => router.push('/server')}>
+                <Text className="text-amber">Add</Text>
+              </Pressable>
+            </Row>
+          </>
+        )}
         <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Downloads</Text>
         {LOCAL_FOLDERS && (
           <>
@@ -271,52 +274,60 @@ export default function SettingsScreen() {
           </>
         )}
 
-        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Devices</Text>
-        <Row label="Sync" detail="Keep your places and podcasts in step on your other devices.">
-          <Pressable onPress={() => router.push('/sync')}>
-            <Text className="text-amber">Open</Text>
-          </Pressable>
-        </Row>
+        {!me?.kids && (
+          <>
+            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Devices</Text>
+            <Row label="Sync" detail="Keep your places and podcasts in step on your other devices.">
+              <Pressable onPress={() => router.push('/sync')}>
+                <Text className="text-amber">Open</Text>
+              </Pressable>
+            </Row>
 
-        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Backup</Text>
-        <Row
-          label="Export library"
-          detail="Places, bookmarks, lists, tags, podcasts and add-on addresses in one file. Add-on addresses can hold your keys for them; keep the file private."
-        >
-          <Pressable
-            onPress={() =>
-              void exportBackup().catch((error: unknown) =>
-                showAlert('Export', error instanceof Error ? error.message : String(error)),
-              )
-            }
-          >
-            <Text className="text-amber">Export</Text>
-          </Pressable>
-        </Row>
-        <Row
-          label="Import library"
-          detail="Merges an export into this device. Where both have a change, the newer one stays. Local books need their folder chosen first."
-        >
-          <Pressable
-            onPress={() =>
-              void importBackup(!me?.kids, refresh).catch((error: unknown) =>
-                showAlert('Import', error instanceof Error ? error.message : String(error)),
-              )
-            }
-          >
-            <Text className="text-amber">Import</Text>
-          </Pressable>
-        </Row>
-        <Row
-          label="Import from another app"
-          detail="Goodreads shelves, AntennaPod subscriptions and Smart AudioBook Player places."
-        >
-          <Pressable onPress={() => setImporting(true)}>
-            <Text className="text-amber">Choose</Text>
-          </Pressable>
-        </Row>
-        <ImportSheet visible={importing} onClose={() => setImporting(false)} onImported={refresh} />
-
+            {!me?.kids && <></>}
+            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Backup</Text>
+            <Row
+              label="Export library"
+              detail="Places, bookmarks, lists, tags, podcasts and add-on addresses in one file. Add-on addresses can hold your keys for them; keep the file private."
+            >
+              <Pressable
+                onPress={() =>
+                  void exportBackup().catch((error: unknown) =>
+                    showAlert('Export', error instanceof Error ? error.message : String(error)),
+                  )
+                }
+              >
+                <Text className="text-amber">Export</Text>
+              </Pressable>
+            </Row>
+            <Row
+              label="Import library"
+              detail="Merges an export into this device. Where both have a change, the newer one stays. Local books need their folder chosen first."
+            >
+              <Pressable
+                onPress={() =>
+                  void importBackup(true, refresh).catch((error: unknown) =>
+                    showAlert('Import', error instanceof Error ? error.message : String(error)),
+                  )
+                }
+              >
+                <Text className="text-amber">Import</Text>
+              </Pressable>
+            </Row>
+            <Row
+              label="Import from another app"
+              detail="Goodreads shelves, AntennaPod subscriptions and Smart AudioBook Player places."
+            >
+              <Pressable onPress={() => setImporting(true)}>
+                <Text className="text-amber">Choose</Text>
+              </Pressable>
+            </Row>
+            <ImportSheet
+              visible={importing}
+              onClose={() => setImporting(false)}
+              onImported={refresh}
+            />
+          </>
+        )}
         <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Catalogs</Text>
         <Row label="Add-ons" detail="Where Home, Discover and Search look for books.">
           <Pressable onPress={() => router.push('/addons')}>

@@ -1,4 +1,14 @@
-import { deleteProfile, getProfile, isPin, listProfiles, setPin, updateProfile } from '@lelap/core';
+import {
+  deleteProfile,
+  getProfile,
+  isPin,
+  listAllBooks,
+  listProfiles,
+  removeFromShelf,
+  setPin,
+  shelfBookIds,
+  updateProfile,
+} from '@lelap/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
@@ -21,6 +31,11 @@ export default function ProfileScreen() {
   const addons = useAllAddons();
   // `version` is the signal to re-read the database.
   const profile = useMemo(() => getProfile(db, id), [id, version]);
+  const shelf = useMemo(() => {
+    if (!profile?.kids) return [];
+    const ids = shelfBookIds(db, profile.id);
+    return listAllBooks(db, profile.id).filter((b) => ids.has(b.id));
+  }, [profile, version]);
   const [name, setName] = useState(profile?.name ?? '');
   const [pin, setPinText] = useState('');
 
@@ -145,10 +160,41 @@ export default function ProfileScreen() {
       <View className="flex-row items-center gap-3 pt-2">
         <View className="flex-1">
           <Text className="text-paper">Kids profile</Text>
-          <Text className="text-sm text-muted">Can’t add or remove add-ons.</Text>
+          <Text className="text-sm text-muted">
+            Can’t change add-ons, servers or backups. Sees only the books on its shelf, and streamed
+            books it starts itself.
+          </Text>
         </View>
         <Switch value={profile.kids} onValueChange={(kids) => save({ kids })} />
       </View>
+
+      {profile.kids && (
+        <>
+          <Text className="pt-2 text-xs uppercase tracking-wider text-muted">Shelf</Text>
+          {shelf.length === 0 ? (
+            <Text className="text-sm text-muted">
+              Nothing yet. In your own Library, hold a book and choose “Put on a kid’s shelf…”.
+            </Text>
+          ) : (
+            shelf.map((b) => (
+              <View key={b.id} className="flex-row items-center gap-3 border-b border-line py-2">
+                <Text numberOfLines={1} className="flex-1 text-paper">
+                  {b.title}
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    removeFromShelf(db, profile.id, b.id, Date.now());
+                    refresh();
+                  }}
+                  hitSlop={8}
+                >
+                  <Text className="text-danger">Remove</Text>
+                </Pressable>
+              </View>
+            ))
+          )}
+        </>
+      )}
 
       <Text className="pt-2 text-xs uppercase tracking-wider text-muted">
         Catalogs this profile sees

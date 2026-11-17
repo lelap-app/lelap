@@ -19,11 +19,12 @@ import { db } from '../../src/db';
 import { useLibrary } from '../../src/player';
 import { exportOpml, importOpml, refreshPodcasts, subscribeToFeed } from '../../src/podcasts';
 import { readPickedText, shareText } from '../../src/platform/files';
-import { profileId } from '../../src/profile';
+import { activeProfile, profileId } from '../../src/profile';
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export default function PodcastsScreen() {
+  const kids = activeProfile()?.kids ?? false;
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { version, refresh } = useLibrary();
@@ -92,42 +93,50 @@ export default function PodcastsScreen() {
               <Text className="text-amber">Up Next</Text>
             </Pressable>
           </View>
-          <View className="flex-row items-center gap-2">
-            <TextInput
-              value={feedUrl}
-              onChangeText={setFeedUrl}
-              placeholder="Feed address (RSS)"
-              placeholderTextColor="#8d8a83"
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              onSubmitEditing={() => void add()}
-              className="flex-1 rounded-lg border border-line px-3 py-2 text-paper"
-            />
-            <Pressable disabled={busy || feedUrl.trim() === ''} onPress={() => void add()}>
-              {busy ? (
-                <ActivityIndicator color="#f5b041" />
-              ) : (
-                <Text className={feedUrl.trim() === '' ? 'text-muted' : 'text-amber'}>Add</Text>
-              )}
-            </Pressable>
-          </View>
-          <View className="flex-row gap-4">
-            <Pressable disabled={busy} onPress={() => void importFile()}>
-              <Text className="text-amber">Import OPML</Text>
-            </Pressable>
-            {subs.length > 0 && (
-              <Pressable onPress={() => void shareText('lelap-subscriptions.opml', exportOpml())}>
-                <Text className="text-amber">Export OPML</Text>
-              </Pressable>
-            )}
-          </View>
+          {/* Kids subscribe from the catalogs they are allowed; feed addresses and OPML stay with grown-ups. */}
+          {!kids && (
+            <>
+              <View className="flex-row items-center gap-2">
+                <TextInput
+                  value={feedUrl}
+                  onChangeText={setFeedUrl}
+                  placeholder="Feed address (RSS)"
+                  placeholderTextColor="#8d8a83"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                  onSubmitEditing={() => void add()}
+                  className="flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+                />
+                <Pressable disabled={busy || feedUrl.trim() === ''} onPress={() => void add()}>
+                  {busy ? (
+                    <ActivityIndicator color="#f5b041" />
+                  ) : (
+                    <Text className={feedUrl.trim() === '' ? 'text-muted' : 'text-amber'}>Add</Text>
+                  )}
+                </Pressable>
+              </View>
+              <View className="flex-row gap-4">
+                <Pressable disabled={busy} onPress={() => void importFile()}>
+                  <Text className="text-amber">Import OPML</Text>
+                </Pressable>
+                {subs.length > 0 && (
+                  <Pressable
+                    onPress={() => void shareText('lelap-subscriptions.opml', exportOpml())}
+                  >
+                    <Text className="text-amber">Export OPML</Text>
+                  </Pressable>
+                )}
+              </View>
+            </>
+          )}
         </View>
       }
       ListEmptyComponent={
         <Text className="px-4 pt-8 text-center text-muted">
-          Find podcasts in Search, paste a feed address, or import an OPML file from another app. A
-          podcast folder in your Library can become a subscription too: long-press it there.
+          {kids
+            ? 'Find podcasts in Search and subscribe there.'
+            : `Find podcasts in Search, paste a feed address, or import an OPML file from another app. A podcast folder in your Library can become a subscription too: long-press it there.`}
         </Text>
       }
       renderItem={({ item: sub }) => (
