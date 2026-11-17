@@ -64,8 +64,8 @@ export const ms: Record<string, string> = {
   Downloaded: 'Dimuat turun',
   'Early Mornings at the Laksa Café': 'Pagi-pagi di Kafe Laksa',
   'Encrypted sync': 'Segerak bersulit',
-  'Every version with its release notes, the same APK and a build attestation.':
-    'Setiap versi dengan nota keluarannya, APK yang sama dan pengesahan binaan.',
+  'Every version with its release notes, the same APKs and build attestations.':
+    'Setiap versi dengan nota keluarannya, APK yang sama dan pengesahan binaannya.',
   'Everything behind {host} is in the repository. Four small containers; sync keeps one SQLite file, so there is no database server to run.':
     'Semua yang menjalankan {host} ada dalam repositori. Empat bekas kecil; segerak menyimpan satu fail SQLite, jadi tiada pelayan pangkalan data untuk dijalankan.',
   FAQ: 'Soalan lazim',
