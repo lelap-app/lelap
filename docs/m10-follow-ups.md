@@ -35,6 +35,7 @@ example).
   the web app (here and since M3) never show. Replace with an in-app dialog (M12).
 - WebDAV playback in the browser is not possible (`<audio>` can't send the login); S3 works.
 - Credentials sit in the app's SQLite; the Android Keystore is M19.
-- `cover.jpg` files on servers are not read (embedded covers are).
+- Fixed in M53: `cover.jpg` and `folder.jpg` in WebDAV and S3 folders are read for books without
+  an embedded cover.
 - Audiobookshelf (an add-on with its own API and tokens) is still to do.
-- Download location (a folder of the user's choice) is still to do.
+- Fixed in M53: downloads can go to a folder of the user's choice, such as one on the SD card.

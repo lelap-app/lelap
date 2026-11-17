@@ -91,6 +91,12 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M15] Offline, a downloaded book's item page still plays and shows its saved metadata. ([m15](m15-follow-ups.md#1-device-checks))
 - [ ] [M32] A downloaded book with Audnexus chapters keeps them offline. ([m32](m32-follow-ups.md#1-device-checks))
 - [ ] [M23] A downloaded episode with embedded chapters keeps them; the chapters file is not used. ([m23](m23-follow-ups.md#1-device-checks))
+- [ ] [M53] Settings → Download folder → Choose, pick a folder on the SD card: downloaded books move there (notification “Moving downloads”), `adb shell ls /storage/<card>/<folder>/Lelap/` lists them, and they play in airplane mode. ([m53](m53-follow-ups.md#on-a-phone))
+- [ ] [M53] Start a download, then choose a new folder while it runs: it finishes, then moves; nothing is downloaded twice. ([m53](m53-follow-ups.md#on-a-phone))
+- [ ] [M53] `adb shell am kill app.lelap` during a move of a large book, open the app: the move carries on, and every book plays from one of the two folders. ([m53](m53-follow-ups.md#on-a-phone))
+- [ ] [M53] Move back: the books return inside Lelap and the `Lelap` folder on the card is empty. ([m53](m53-follow-ups.md#on-a-phone))
+- [ ] [M53] Remove a download that lives in the chosen folder: its folder in `Lelap/` goes too. ([m53](m53-follow-ups.md#on-a-phone))
+- [ ] [M53] Download folder inside the library folder: a rescan adds no second copy of the downloaded books. ([m53](m53-follow-ups.md#on-a-phone))
 
 ### A4. Background engine and podcasts
 
@@ -102,6 +108,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M5] A podcast from Search opens with episodes from its feed; Subscribe adds it to Podcasts (needs the Podcast Index keys on the catalog Worker). ([README](../apps/app/README.md#m5-device-checklist))
 - [x] [M5] Paste an RSS address in the Podcasts tab; it subscribes. ([README](../apps/app/README.md#m5-device-checklist)) **Passed 2026-11-17**: NPR Up First.
 - [ ] [M5] OPML: export, push the file back, import it; nothing is duplicated. ([README](../apps/app/README.md#m5-device-checklist))
+- [ ] [M53] Paste an Atom podcast feed in the Podcasts tab: it subscribes, lists its episodes and plays one. ([m53](m53-follow-ups.md#on-a-phone))
 - [ ] [M5] Auto-download with 3 newest: three download; marking one played removes it and fetches the next. ([README](../apps/app/README.md#m5-device-checklist))
 - [ ] [M5] Pull to refresh fetches new episodes; an unchanged feed answers 304 (check in logcat or the proxy). ([README](../apps/app/README.md#m5-device-checklist))
 - [ ] [M23] A feed subscribed on an older build gets people and funding after the next refresh on the new one. ([m23](m23-follow-ups.md#1-device-checks))
@@ -117,6 +124,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M19] On a phone that syncs and has a server, `adb shell run-as app.lelap sqlite3` shows `sec1:` values; sync and playback keep working. ([m19](m19-follow-ups.md#1-checks-on-a-phone))
 - [ ] [M19] `adb shell bmgr backupnow app.lelap`, reinstall, restore: library and places return, Sync asks to pair again, the server shows “Log in”. ([m19](m19-follow-ups.md#1-checks-on-a-phone))
 - [ ] [M16] Settings → Backup → Export opens the share sheet; importing the pushed file after a reinstall brings back places, lists and tags. ([m16](m16-follow-ups.md))
+- [ ] [M53] Export library, diagnostics and OPML each open the share sheet with a file (`lelap-library-….json`, `.txt`, `.opml`); Files saves it under that name. ([m53](m53-follow-ups.md#on-a-phone))
 - [ ] [M16] Import offers the file's add-ons and adds them only after “Add them”; a kids profile never sees the question. ([m16](m16-follow-ups.md))
 - [ ] [M16] A library of a few hundred books exports and imports without freezing the UI. ([m16](m16-follow-ups.md))
 
@@ -244,6 +252,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M10] Nextcloud: add the audiobooks folder with an app password; books appear. ([m10](m10-follow-ups.md#2-checks))
 - [ ] [M10] A WebDAV book plays, seeks, keeps its place, shows cover and chapters. ([m10](m10-follow-ups.md#2-checks))
 - [ ] [M10] A WebDAV book downloads and plays in airplane mode. ([m10](m10-follow-ups.md#2-checks))
+- [ ] [M53] A WebDAV book without an embedded cover and with `Cover.JPG` in its folder shows that cover after a scan, offline too; an S3 book with `folder.jpg` the same. ([m53](m53-follow-ups.md#on-a-phone))
 - [ ] [M10] Cloudflare R2 or MinIO: add a bucket; a book plays and downloads. ([m10](m10-follow-ups.md#2-checks))
 - [ ] [M10] A wrong password says so; a server that is down keeps its books. ([m10](m10-follow-ups.md#2-checks))
 - [ ] [M25] Covers from an Audiobookshelf server that needs a login on the widget (expected: placeholder). ([m25](m25-follow-ups.md#1-device-checks))
@@ -273,6 +282,11 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M45] A show's Skip intro and Skip outro reach the other device with the next sync. ([m45](m45-follow-ups.md#intro-outro))
 - [ ] [M52] With over 1 MB of sync messages older than 30 days, the next sync writes a snapshot; a newly paired device gets the whole library. ([m52](m52-follow-ups.md#2-checks))
 - [ ] [M52] An app from before M52 that missed a snapshot shows HTTP 410 in Diagnostics, keeps its library, and syncs again after updating. ([m52](m52-follow-ups.md#2-checks))
+
+### SD card
+
+- [ ] [M53] With books on the SD card, take the card out: they stream where they can, Settings says the folder can't be reached, and nothing is deleted; put it back: they play from the card again. ([m53](m53-follow-ups.md#on-a-phone))
+- [ ] [M53] A book that plays while it moves keeps playing, or plays on after pressing Play. ([m53](m53-follow-ups.md#on-a-phone))
 
 ### Over days and nights
 

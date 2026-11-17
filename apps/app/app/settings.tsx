@@ -152,10 +152,7 @@ function DownloadFolderRow() {
   }
   return (
     <>
-      <Row
-        label={t('Download folder')}
-        detail={location ? describeLocation(location) : ''}
-      >
+      <Row label={t('Download folder')} detail={location ? describeLocation(location) : ''}>
         <TextButton text={t('Choose')} onPress={() => act(chooseDownloadFolder)} />
       </Row>
       {location?.uri != null && (
