@@ -10,3 +10,8 @@ export function readPickedText(asset: { uri: string }): Promise<string> {
 export async function shareText(name: string, text: string): Promise<void> {
   await Share.share({ title: name, message: text });
 }
+
+/** The bytes of a file the document picker returned, for binary files such as databases. */
+export async function readPickedBytes(asset: { uri: string }): Promise<Uint8Array> {
+  return new Uint8Array(await new File(asset.uri).arrayBuffer());
+}
