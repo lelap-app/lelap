@@ -20,8 +20,8 @@ status there when you start or finish one.
   Never add code, docs, examples, tests or issue templates that target torrent indexes or services
   that resolve torrents or file-hoster links, and never name such services anywhere in the repo.
 - **No add-on directory.** Don't add lists, links or recommendations for third-party add-ons.
-- **Audio never touches our servers.** Services may proxy RSS feeds and cover images for the web
-  app; they never proxy, cache or transcode audio.
+- **Audio never touches our servers.** Services may proxy RSS feeds, cover images, chapters files
+  and transcripts for the web app; they never proxy, cache or transcode audio.
 - **Secrets stay out of the repo.** Keystores, API tokens and `.dev.vars` are ignored for a
   reason. Runtime secrets go to `wrangler secret put`; CI secrets go to GitHub environments.
 - **English everywhere:** UI copy, docs, commits and pull requests.

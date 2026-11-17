@@ -253,3 +253,23 @@ describe('seasons and people on the podcast page', () => {
     ).toEqual(['Ada', 'Grace', 'Sam']);
   });
 });
+
+describe('caption files', () => {
+  it('joins lines cut mid-sentence', () => {
+    const srt = `1
+00:00:01,000 --> 00:00:02,000
+We are going to talk
+
+2
+00:00:02,000 --> 00:00:03,000
+about podcasting.
+
+3
+00:00:03,000 --> 00:00:04,000
+Next sentence.`;
+    expect(parseTranscript(srt, 'application/srt')).toEqual([
+      { startMs: 1000, endMs: 3000, speaker: null, text: 'We are going to talk about podcasting.' },
+      { startMs: 3000, endMs: 4000, speaker: null, text: 'Next sentence.' },
+    ]);
+  });
+});

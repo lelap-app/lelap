@@ -191,6 +191,30 @@ function parseTimedText(text: string): TranscriptCue[] {
 // Word-level JSON transcripts are joined into sentences, so each line is worth tapping.
 const MAX_CUE_CHARS = 200;
 
+/**
+ * Joins short timed lines (caption files, word-level JSON) into sentences of one speaker, so each
+ * line is worth reading and tapping.
+ */
+function joinCues(raw: TranscriptCue[]): TranscriptCue[] {
+  const cues: TranscriptCue[] = [];
+  let open: TranscriptCue | null = null;
+  for (const cue of raw) {
+    const joins =
+      open !== null &&
+      (cue.speaker === null || cue.speaker === open.speaker) &&
+      !/[.?!…]["”’)]?$/.test(open.text) &&
+      open.text.length + cue.text.length < MAX_CUE_CHARS;
+    if (open && joins) {
+      open.text = /^[,.;:!?)]/.test(cue.text) ? open.text + cue.text : `${open.text} ${cue.text}`;
+      open.endMs = cue.endMs ?? open.endMs;
+    } else {
+      open = { ...cue };
+      cues.push(open);
+    }
+  }
+  return cues;
+}
+
 function parseJsonTranscript(text: string): TranscriptCue[] {
   let data: unknown;
   try {
@@ -199,37 +223,25 @@ function parseJsonTranscript(text: string): TranscriptCue[] {
     return [];
   }
   const segments = isNode(data) && Array.isArray(data.segments) ? data.segments : [];
-  const cues: TranscriptCue[] = [];
-  let open: TranscriptCue | null = null;
-  let lastSpeaker: string | null = null;
+  const raw: TranscriptCue[] = [];
+  // A segment without a speaker carries on with the last one named.
+  let speaker: string | null = null;
   for (const segment of segments) {
     if (!isNode(segment) || typeof segment.body !== 'string') continue;
     const start = seconds(segment.startTime);
-    if (start === null) continue;
-    const end = seconds(segment.endTime);
     const body = segment.body.trim();
-    if (body === '') continue;
-    const speaker = typeof segment.speaker === 'string' ? segment.speaker.trim() || null : null;
-    const joins =
-      open !== null &&
-      (speaker === null || speaker === open.speaker) &&
-      !/[.?!]["”’)]?$/.test(open.text) &&
-      open.text.length + body.length < MAX_CUE_CHARS;
-    if (open && joins) {
-      open.text = /^[,.;:!?)]/.test(body) ? open.text + body : `${open.text} ${body}`;
-      open.endMs = end === null ? open.endMs : Math.round(end * 1000);
-    } else {
-      open = {
-        startMs: Math.round(start * 1000),
-        endMs: end === null ? null : Math.round(end * 1000),
-        speaker: speaker ?? lastSpeaker,
-        text: body,
-      };
-      cues.push(open);
-    }
-    lastSpeaker = open.speaker;
+    if (start === null || body === '') continue;
+    const end = seconds(segment.endTime);
+    if (typeof segment.speaker === 'string' && segment.speaker.trim() !== '')
+      speaker = segment.speaker.trim();
+    raw.push({
+      startMs: Math.round(start * 1000),
+      endMs: end === null ? null : Math.round(end * 1000),
+      speaker,
+      text: body,
+    });
   }
-  return cues;
+  return joinCues(raw);
 }
 
 function parseUntimed(text: string, html: boolean): TranscriptCue[] {
@@ -245,7 +257,7 @@ function parseUntimed(text: string, html: boolean): TranscriptCue[] {
 export function parseTranscript(text: string, type: string): TranscriptCue[] {
   const kind = type.toLowerCase();
   if (kind.includes('json')) return parseJsonTranscript(text);
-  if (/vtt|srt|subrip/.test(kind)) return parseTimedText(text);
+  if (/vtt|srt|subrip/.test(kind)) return joinCues(parseTimedText(text));
   if (kind.includes('html')) return parseUntimed(text, true);
   if (kind.startsWith('text/')) return parseUntimed(text, false);
   return [];
