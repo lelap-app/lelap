@@ -1,5 +1,5 @@
-import { searchAll, searchCatalogs } from '@lelap/core';
-import { useQuery } from '@tanstack/react-query';
+import { addonLabels, fetchCatalog, searchCatalogs } from '@lelap/core';
+import { useQueries } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, SectionList, Text, TextInput, View } from 'react-native';
@@ -17,38 +17,57 @@ export default function SearchScreen() {
   const addons = useAddons();
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
-  const hasCatalogs = useMemo(() => searchCatalogs(addons, SHOWN_TYPES).length > 0, [addons]);
 
   useEffect(() => {
     const timer = setTimeout(() => setQuery(text.trim()), DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [text]);
 
-  const results = useQuery({
-    queryKey: ['search', query, addons.map((a) => a.url)],
-    enabled: query.length >= 2,
-    queryFn: () => searchAll(fetcher, addons, query, SHOWN_TYPES),
+  // One query per search catalog, so answers show as they come and a slow or dead add-on
+  // never holds the others back.
+  const refs = useMemo(() => searchCatalogs(addons, SHOWN_TYPES), [addons]);
+  const labels = useMemo(() => {
+    const names = addonLabels(addons);
+    return new Map(addons.map((a, i) => [a.url, names[i] ?? a.manifest.name]));
+  }, [addons]);
+  const results = useQueries({
+    queries: refs.map((ref) => ({
+      queryKey: ['search', query, ref.addon.url, ref.catalog.type, ref.catalog.id],
+      enabled: query.length >= 2,
+      queryFn: () =>
+        fetchCatalog(fetcher, ref, { search: query }).then(
+          (metas) => ({ metas, error: null as string | null }),
+          (error: unknown) => ({
+            metas: [],
+            error: error instanceof Error ? error.message : 'Search failed',
+          }),
+        ),
+    })),
   });
 
-  const sections = (results.data ?? [])
-    .filter((r) => r.metas.length > 0 || r.error !== null)
-    .map((r) => ({
-      key: `${r.ref.addon.url} ${r.ref.catalog.id}`,
-      title: r.ref.addon.manifest.name,
-      error: r.error,
-      data: r.metas,
-    }));
-  const asked = new Set((results.data ?? []).map((r) => r.ref.addon.url));
-  const failed = new Set(
-    (results.data ?? []).filter((r) => r.error !== null).map((r) => r.ref.addon.url),
-  );
+  const done = results.flatMap((r, i) => (r.data && refs[i] ? [{ ref: refs[i], ...r.data }] : []));
+  const pending = query.length >= 2 && results.some((r) => r.isFetching);
+  // Answers first, then the add-ons that failed.
+  const sections = [
+    ...done.filter((r) => r.metas.length > 0),
+    ...done.filter((r) => r.error !== null),
+  ].map((r) => ({
+    key: `${r.ref.addon.url} ${r.ref.catalog.type} ${r.ref.catalog.id}`,
+    title: labels.get(r.ref.addon.url) ?? r.ref.addon.manifest.name,
+    error: r.error,
+    data: r.metas,
+  }));
+  const asked = new Set(refs.map((r) => r.addon.url));
+  const failed = new Set(done.filter((r) => r.error !== null).map((r) => r.ref.addon.url));
   const status =
-    asked.size === 0
+    query.length < 2 || asked.size === 0
       ? null
-      : `Searched ${asked.size === 1 ? '1 add-on' : `${asked.size} add-ons`}` +
-        (failed.size > 0 ? ` · ${asked.size - failed.size} answered` : '');
+      : pending
+        ? `Searching ${asked.size === 1 ? '1 add-on' : `${asked.size} add-ons`}…`
+        : `Searched ${asked.size === 1 ? '1 add-on' : `${asked.size} add-ons`}` +
+          (failed.size > 0 ? ` · ${asked.size - failed.size} answered` : '');
   const nothing =
-    results.isSuccess && (results.data ?? []).every((r) => r.metas.length === 0 && !r.error);
+    !pending && done.length > 0 && done.every((r) => r.metas.length === 0 && !r.error);
 
   return (
     <View className="flex-1 bg-night" style={{ paddingTop: insets.top + 12 }}>
@@ -63,7 +82,7 @@ export default function SearchScreen() {
         onSubmitEditing={() => setQuery(text.trim())}
         className="mx-4 mb-3 rounded-lg bg-raised px-4 py-3 text-base text-paper"
       />
-      {!hasCatalogs ? (
+      {refs.length === 0 ? (
         <Text className="px-4 text-muted">
           No add-on can search. Add one in Settings → Add-ons.
         </Text>
@@ -74,8 +93,11 @@ export default function SearchScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 24 }}
           ListHeaderComponent={
-            status !== null && !results.isFetching ? (
-              <Text className="px-4 text-xs text-muted">{status}</Text>
+            status !== null ? (
+              <View className="flex-row items-center gap-2 px-4">
+                {pending && <ActivityIndicator size="small" color="#f5b041" />}
+                <Text className="text-xs text-muted">{status}</Text>
+              </View>
             ) : undefined
           }
           renderSectionHeader={({ section }) => (
@@ -90,9 +112,7 @@ export default function SearchScreen() {
             <MetaListRow meta={item} onPress={(meta) => openItem(router, meta)} />
           )}
           ListEmptyComponent={
-            results.isFetching ? (
-              <ActivityIndicator color="#f5b041" className="pt-12" />
-            ) : nothing ? (
+            nothing ? (
               <Text className="px-4 pt-12 text-center text-muted">
                 Nothing found for “{query}”.
               </Text>

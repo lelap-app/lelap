@@ -29,6 +29,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { showAlert } from '../src/dialog';
+import { type Action, ActionSheet } from '../src/components/ActionSheet';
 import { COLORS, Icon, IconButton } from '../src/components/Icon';
 import { queries, useAddons } from '../src/addons';
 import { BookCover } from '../src/components/BookCover';
@@ -176,199 +177,206 @@ export default function PodcastScreen() {
     void run(runAutoDownload);
   };
 
-  const showActions = (e: EpisodeItem) => {
+  const [actionEpisode, setActionEpisode] = useState<EpisodeItem | null>(null);
+  const showActions = (e: EpisodeItem) => setActionEpisode(e);
+  const episodeActions = (e: EpisodeItem): Action[] => {
     const bookId = () => episodeBook(db, e.id, Date.now(), newId);
-    showAlert(
-      e.title,
-      undefined,
-      [
-        {
-          text: 'Play next',
-          onPress: () => addToUpNext(db, profileId, bookId(), 'next', Date.now()),
+    return [
+      {
+        icon: 'queue',
+        label: 'Play next',
+        onPress: () => addToUpNext(db, profileId, bookId(), 'next', Date.now()),
+      },
+      {
+        icon: 'chapters',
+        label: 'Add to Up Next',
+        onPress: () => addToUpNext(db, profileId, bookId(), 'last', Date.now()),
+      },
+      {
+        icon: 'check',
+        label: e.finished ? 'Mark as unplayed' : 'Mark as played',
+        onPress: () => {
+          setFinished(db, profileId, bookId(), !e.finished, Date.now());
+          refresh();
         },
-        {
-          text: 'Add to Up Next',
-          onPress: () => addToUpNext(db, profileId, bookId(), 'last', Date.now()),
-        },
-        {
-          text: e.finished ? 'Mark as unplayed' : 'Mark as played',
-          onPress: () => {
-            setFinished(db, profileId, bookId(), !e.finished, Date.now());
-            refresh();
-          },
-        },
-      ],
-      { cancelable: true },
-    );
+      },
+    ];
   };
 
   const loading = !podcast && (meta.isPending || fetched.isPending) && !meta.isError;
   const failed = !podcast && !loading;
 
   return (
-    <FlatList
-      className="flex-1 bg-night"
-      data={podcast ? rows : []}
-      keyExtractor={(row) => row.key}
-      contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
-      ListHeaderComponent={
-        <View className="gap-4 px-4 pb-2">
-          <View className="-ml-2 self-start">
-            <IconButton
-              name="back"
-              label="Back"
-              color={COLORS.soft}
-              onPress={() => router.back()}
-            />
-          </View>
-          {loading && <ActivityIndicator color="#f5b041" className="pt-24" />}
-          {failed && (
-            <Text className="pt-24 text-center text-muted">
-              {fetched.isError
-                ? `The feed could not be read: ${message(fetched.error)}`
-                : meta.data && !feedUrl
-                  ? 'This podcast has no feed address.'
-                  : 'This podcast was not found.'}
-            </Text>
-          )}
-          {podcast && (
-            <>
-              <View className="flex-row gap-4">
-                <BookCover uri={podcast.coverUrl} title={podcast.title} size={112} />
-                <View className="flex-1 justify-center gap-1">
-                  <Text className="text-xl font-semibold text-paper">{podcast.title}</Text>
-                  {podcast.author && <Text className="text-soft">{podcast.author}</Text>}
-                </View>
-              </View>
-              {podcast.description && (
-                <Text numberOfLines={4} className="text-sm leading-5 text-soft">
-                  {podcast.description}
-                </Text>
-              )}
-              {people.length > 0 && <People persons={people} />}
-              {funding.map((f) => (
-                <Pressable
-                  key={f.url}
-                  accessibilityRole="link"
-                  onPress={() => openLink(f.url)}
-                  className="flex-row items-center gap-3 rounded-xl border border-line px-3 py-2 active:bg-raised"
-                >
-                  <Icon name="heart" size={20} color={COLORS.amber} />
-                  <View className="flex-1">
-                    <Text className="text-paper">Support this show</Text>
-                    {f.label && (
-                      <Text numberOfLines={1} className="text-sm text-muted">
-                        {f.label}
-                      </Text>
-                    )}
-                  </View>
-                </Pressable>
-              ))}
-              {sub ? (
-                <View className="gap-3 rounded-xl border border-line p-3">
-                  <View className="flex-row items-center gap-3">
-                    <View className="flex-1">
-                      <Text className="text-paper">Auto-download</Text>
-                      <Text className="text-sm text-muted">
-                        Keep the newest unplayed episodes on the phone; played ones are removed.
-                      </Text>
-                    </View>
-                    <Switch
-                      value={sub.autoDownload}
-                      onValueChange={(v) => setRule(v, sub.keepLatest)}
-                    />
-                  </View>
-                  {sub.autoDownload && (
-                    <View className="flex-row flex-wrap gap-2">
-                      {KEEP.map((k) => (
-                        <Pressable
-                          key={k}
-                          onPress={() => setRule(true, k)}
-                          className={`rounded-full border px-3 py-1 ${sub.keepLatest === k ? 'border-amber bg-amber' : 'border-line'}`}
-                        >
-                          <Text className={sub.keepLatest === k ? 'text-ink' : 'text-soft'}>
-                            {k} newest
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  )}
-                  <Pressable
-                    onPress={() => {
-                      unsubscribe(db, profileId, podcast.id);
-                      refresh();
-                    }}
-                  >
-                    <Text className="text-danger">Unsubscribe</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <Pressable
-                  disabled={busy}
-                  onPress={() =>
-                    void run(async () => void (await subscribeToFeed(podcast.feedUrl)))
-                  }
-                  className="items-center rounded-full bg-amber py-3 active:opacity-80"
-                >
-                  {busy ? (
-                    <ActivityIndicator color="#1a1305" />
-                  ) : (
-                    <Text className="text-base font-semibold text-ink">Subscribe</Text>
-                  )}
-                </Pressable>
-              )}
-              <Text className="pt-2 text-xs uppercase tracking-wider text-muted">
-                {list.length} episodes
-              </Text>
-            </>
-          )}
-        </View>
-      }
-      renderItem={({ item: row }) => {
-        if (row.kind === 'season')
-          return (
-            <View className="flex-row items-baseline gap-2 border-b border-line px-4 pb-2 pt-5">
-              <Text numberOfLines={1} className="flex-1 text-base font-semibold text-paper">
-                {row.title}
-              </Text>
-              <Text className="text-sm text-muted">{row.count}</Text>
+    <>
+      <FlatList
+        className="flex-1 bg-night"
+        data={podcast ? rows : []}
+        keyExtractor={(row) => row.key}
+        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
+        ListHeaderComponent={
+          <View className="gap-4 px-4 pb-2">
+            <View className="-ml-2 self-start">
+              <IconButton
+                name="back"
+                label="Back"
+                color={COLORS.soft}
+                onPress={() => router.back()}
+              />
             </View>
-          );
-        const e = row.episode;
-        return (
-          <Pressable
-            onPress={() =>
-              void run(async () => {
-                await playEpisode(e.id);
-                router.push('/player');
-              })
-            }
-            onLongPress={() => showActions(e)}
-            className={`flex-row items-center gap-3 border-b border-line px-4 py-3 active:bg-raised ${e.finished ? 'opacity-50' : ''}`}
-          >
-            <View className="flex-1 gap-1">
-              <Text numberOfLines={2} className="text-base text-paper">
-                {e.title}
+            {loading && <ActivityIndicator color="#f5b041" className="pt-24" />}
+            {failed && (
+              <Text className="pt-24 text-center text-muted">
+                {fetched.isError
+                  ? `The feed could not be read: ${message(fetched.error)}`
+                  : meta.data && !feedUrl
+                    ? 'This podcast has no feed address.'
+                    : 'This podcast was not found.'}
               </Text>
-              <Text numberOfLines={1} className="text-sm text-muted">
-                {episodeStatus(e)}
-              </Text>
-            </View>
-            {e.downloadState === null && (
-              <Pressable
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel="Download episode"
-                onPress={() =>
-                  void run(() => startDownload(episodeBook(db, e.id, Date.now(), newId), null))
-                }
-              >
-                <Icon name="download" color={COLORS.amber} />
-              </Pressable>
             )}
-          </Pressable>
-        );
-      }}
-    />
+            {podcast && (
+              <>
+                <View className="flex-row gap-4">
+                  <BookCover uri={podcast.coverUrl} title={podcast.title} size={112} />
+                  <View className="flex-1 justify-center gap-1">
+                    <Text className="text-xl font-semibold text-paper">{podcast.title}</Text>
+                    {podcast.author && <Text className="text-soft">{podcast.author}</Text>}
+                  </View>
+                </View>
+                {podcast.description && (
+                  <Text numberOfLines={4} className="text-sm leading-5 text-soft">
+                    {podcast.description}
+                  </Text>
+                )}
+                {people.length > 0 && <People persons={people} />}
+                {funding.map((f) => (
+                  <Pressable
+                    key={f.url}
+                    accessibilityRole="link"
+                    onPress={() => openLink(f.url)}
+                    className="flex-row items-center gap-3 rounded-xl border border-line px-3 py-2 active:bg-raised"
+                  >
+                    <Icon name="heart" size={20} color={COLORS.amber} />
+                    <View className="flex-1">
+                      <Text className="text-paper">Support this show</Text>
+                      {f.label && (
+                        <Text numberOfLines={1} className="text-sm text-muted">
+                          {f.label}
+                        </Text>
+                      )}
+                    </View>
+                  </Pressable>
+                ))}
+                {sub ? (
+                  <View className="gap-3 rounded-xl border border-line p-3">
+                    <View className="flex-row items-center gap-3">
+                      <View className="flex-1">
+                        <Text className="text-paper">Auto-download</Text>
+                        <Text className="text-sm text-muted">
+                          Keep the newest unplayed episodes on the phone; played ones are removed.
+                        </Text>
+                      </View>
+                      <Switch
+                        value={sub.autoDownload}
+                        onValueChange={(v) => setRule(v, sub.keepLatest)}
+                      />
+                    </View>
+                    {sub.autoDownload && (
+                      <View className="flex-row flex-wrap gap-2">
+                        {KEEP.map((k) => (
+                          <Pressable
+                            key={k}
+                            onPress={() => setRule(true, k)}
+                            className={`rounded-full border px-3 py-1 ${sub.keepLatest === k ? 'border-amber bg-amber' : 'border-line'}`}
+                          >
+                            <Text className={sub.keepLatest === k ? 'text-ink' : 'text-soft'}>
+                              {k} newest
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                    <Pressable
+                      onPress={() => {
+                        unsubscribe(db, profileId, podcast.id);
+                        refresh();
+                      }}
+                    >
+                      <Text className="text-danger">Unsubscribe</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    disabled={busy}
+                    onPress={() =>
+                      void run(async () => void (await subscribeToFeed(podcast.feedUrl)))
+                    }
+                    className="items-center rounded-full bg-amber py-3 active:opacity-80"
+                  >
+                    {busy ? (
+                      <ActivityIndicator color="#1a1305" />
+                    ) : (
+                      <Text className="text-base font-semibold text-ink">Subscribe</Text>
+                    )}
+                  </Pressable>
+                )}
+                <Text className="pt-2 text-xs uppercase tracking-wider text-muted">
+                  {list.length} episodes
+                </Text>
+              </>
+            )}
+          </View>
+        }
+        renderItem={({ item: row }) => {
+          if (row.kind === 'season')
+            return (
+              <View className="flex-row items-baseline gap-2 border-b border-line px-4 pb-2 pt-5">
+                <Text numberOfLines={1} className="flex-1 text-base font-semibold text-paper">
+                  {row.title}
+                </Text>
+                <Text className="text-sm text-muted">{row.count}</Text>
+              </View>
+            );
+          const e = row.episode;
+          return (
+            <Pressable
+              onPress={() =>
+                void run(async () => {
+                  await playEpisode(e.id);
+                  router.push('/player');
+                })
+              }
+              onLongPress={() => showActions(e)}
+              className={`flex-row items-center gap-3 border-b border-line px-4 py-3 active:bg-raised ${e.finished ? 'opacity-50' : ''}`}
+            >
+              <View className="flex-1 gap-1">
+                <Text numberOfLines={2} className="text-base text-paper">
+                  {e.title}
+                </Text>
+                <Text numberOfLines={1} className="text-sm text-muted">
+                  {episodeStatus(e)}
+                </Text>
+              </View>
+              {e.downloadState === null && (
+                <Pressable
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Download episode"
+                  onPress={() =>
+                    void run(() => startDownload(episodeBook(db, e.id, Date.now(), newId), null))
+                  }
+                >
+                  <Icon name="download" color={COLORS.amber} />
+                </Pressable>
+              )}
+            </Pressable>
+          );
+        }}
+      />
+      <ActionSheet
+        title={actionEpisode?.title ?? null}
+        actions={actionEpisode ? episodeActions(actionEpisode) : []}
+        onClose={() => setActionEpisode(null)}
+      />
+    </>
   );
 }

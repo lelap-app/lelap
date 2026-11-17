@@ -17,8 +17,11 @@ export const BookRow = memo(function BookRow({
   book,
   onOpen,
   onLongPress,
+  unavailable = false,
 }: {
   book: LibraryBook;
+  /** Offline and not on this phone: shown dimmed. */
+  unavailable?: boolean;
   onOpen: (book: LibraryBook) => void;
   onLongPress: (book: LibraryBook) => void;
 }) {
@@ -27,7 +30,7 @@ export const BookRow = memo(function BookRow({
     <Pressable
       onPress={() => onOpen(book)}
       onLongPress={() => onLongPress(book)}
-      className={`flex-row items-center gap-3 px-4 py-2 active:bg-raised ${book.missing ? 'opacity-40' : ''}`}
+      className={`flex-row items-center gap-3 px-4 py-2 active:bg-raised ${book.missing || unavailable ? 'opacity-40' : ''}`}
     >
       <BookCover uri={coverUri(book)} title={book.title} size={56} />
       <View className="flex-1 gap-1">
@@ -51,7 +54,7 @@ export const BookRow = memo(function BookRow({
         )}
       </View>
       <Text className={`text-sm ${book.finishedAt !== null ? 'text-amber' : 'text-muted'}`}>
-        {status(book)}
+        {unavailable ? 'Not on this phone' : status(book)}
       </Text>
       {/* A mouse can't long-press comfortably, so the web shows the menu as a button. */}
       {Platform.OS === 'web' && (

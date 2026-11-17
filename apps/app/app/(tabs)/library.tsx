@@ -146,8 +146,28 @@ export default function LibraryScreen() {
     );
   }
 
+  // The title and the offline banner stay put above the list, so neither can slide under the
+  // status bar when the banner comes and goes.
   return (
-    <View className="flex-1 bg-night">
+    <View style={{ paddingTop: insets.top + 12 }} className="flex-1 gap-3 bg-night">
+      <View className="flex-row items-center justify-between px-4">
+        <Text className="text-3xl font-semibold text-paper">Library</Text>
+        <IconButton
+          name="settings"
+          label="Settings"
+          color={COLORS.soft}
+          onPress={() => router.push('/settings')}
+        />
+      </View>
+      {network.isConnected === false && (
+        <View className="mx-4 flex-row items-center gap-3 rounded-xl bg-[#2b2414] px-4 py-3">
+          <Icon name="plane" size={20} color="#f7d9a0" />
+          <Text className="flex-1 text-sm text-[#f7d9a0]">
+            Offline. Everything on this {Platform.OS === 'web' ? 'device' : 'phone'} works; progress
+            syncs when you’re back online.
+          </Text>
+        </View>
+      )}
       <FlatList
         data={books}
         keyExtractor={(b) => b.id}
@@ -158,27 +178,9 @@ export default function LibraryScreen() {
             tintColor="#f5b041"
           />
         }
-        contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: 24 }}
+        contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}
         ListHeaderComponent={
           <View className="gap-4 pb-2">
-            <View className="flex-row items-center justify-between px-4">
-              <Text className="text-3xl font-semibold text-paper">Library</Text>
-              <IconButton
-                name="settings"
-                label="Settings"
-                color={COLORS.soft}
-                onPress={() => router.push('/settings')}
-              />
-            </View>
-            {network.isConnected === false && (
-              <View className="mx-4 flex-row items-center gap-3 rounded-xl bg-[#2b2414] px-4 py-3">
-                <Icon name="plane" size={20} color="#f7d9a0" />
-                <Text className="flex-1 text-sm text-[#f7d9a0]">
-                  Offline. Everything on this {Platform.OS === 'web' ? 'device' : 'phone'} works;
-                  progress syncs when you’re back online.
-                </Text>
-              </View>
-            )}
             {!root && LOCAL_FOLDERS && (
               <Pressable
                 onPress={() => void pick()}
@@ -286,7 +288,14 @@ export default function LibraryScreen() {
           ) : undefined
         }
         renderItem={({ item }) => (
-          <BookRow book={item} onOpen={(b) => void open(b)} onLongPress={showActions} />
+          <BookRow
+            book={item}
+            onOpen={(b) => void open(b)}
+            onLongPress={showActions}
+            unavailable={
+              network.isConnected === false && item.source !== 'local' && !item.downloaded
+            }
+          />
         )}
       />
       <Sheet visible={choosingList} title="New list" onClose={() => setChoosingList(false)}>
