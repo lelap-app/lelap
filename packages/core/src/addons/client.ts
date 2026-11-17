@@ -202,6 +202,20 @@ export async function fetchMeta(
 
 export type FoundStream = { addon: InstalledAddon; stream: Stream };
 
+/** The valid streams one add-on returns for this ID. */
+export async function fetchAddonStreams(
+  fetcher: Fetcher,
+  addon: InstalledAddon,
+  type: ContentType,
+  id: string,
+): Promise<FoundStream[]> {
+  return validEntries(
+    await getJson(fetcher, addonBase(addon.url) + streamPath(type, id)),
+    'streams',
+    parseWith(Stream),
+  ).map((stream) => ({ addon, stream }));
+}
+
 /** Streams from every add-on that answers for this ID, in add-on order. */
 export async function fetchStreams(
   fetcher: Fetcher,
@@ -211,13 +225,7 @@ export async function fetchStreams(
 ): Promise<FoundStream[]> {
   const sources = addons.filter((a) => supports(a.manifest, 'stream', type, id));
   const settled = await Promise.allSettled(
-    sources.map(async (addon) =>
-      validEntries(
-        await getJson(fetcher, addonBase(addon.url) + streamPath(type, id)),
-        'streams',
-        parseWith(Stream),
-      ).map((stream) => ({ addon, stream })),
-    ),
+    sources.map((addon) => fetchAddonStreams(fetcher, addon, type, id)),
   );
   const found = settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
   if (found.length === 0) {
