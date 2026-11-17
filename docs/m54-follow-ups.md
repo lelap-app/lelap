@@ -3,14 +3,21 @@
 What is left of [M54 Faster builds, smaller APKs](milestones/m54.md).
 
 Checked on a Mac (JDK 25 from Android Studio, warm Gradle cache), end to end with a throwaway
-keystore made for the run: `scripts/unsigned-apk.sh` built the four unsigned APKs in a fresh
-clone (direct and F-Droid, arm64 and 32-bit; 2.5 to 3 minutes each), `scripts/sign-apks.sh` checked
-their SHA-256s and alignment and signed them, an APK changed after the build was refused, and
-`scripts/release.mts info` wrote a release file listing both. Then
-`scripts/verify-fdroid-apk.sh` rebuilt each F-Droid APK in its own fresh clone with the recipe's
-commands, and `apksigcopier compare` matched both signed APKs: signing after the build gives the
-bytes F-Droid's server checks. `aapt2` shows each APK with one CPU type and its own versionCode
-(100052 for arm64, 100051 for 32-bit at 0.1.0-beta.5). Sizes: 37.5 MB for arm64 and 29.5 MB for 32-bit (0.1.0-beta.3, with four CPU types, was 109 MB).
+keystore made for the run:
+
+- `scripts/unsigned-apk.sh` built the four unsigned APKs in a fresh clone (direct and F-Droid,
+  arm64 and 32-bit; 2.5 to 3 minutes each). `aapt2` shows each with one CPU type and its own
+  versionCode (100052 for arm64, 100051 for 32-bit at 0.1.0-beta.5). Sizes: 37.5 MB for arm64
+  and 29.5 MB for 32-bit (0.1.0-beta.3, with four CPU types, was 109 MB).
+- `scripts/sign-apks.sh` checked their SHA-256s and alignment and signed them; an APK changed
+  after the build was refused. `scripts/release.mts info` wrote a release file listing both.
+- **Sign after build:** for all four, `apksigcopier compare` copied the signature from the signed
+  APK onto the unsigned one it came from and it verified: signing adds nothing but the signature
+  block, which is what F-Droid's server checks.
+- **Rebuild in the same folder:** byte-identical (F-Droid arm64, same SHA-256 twice).
+- **Rebuild in another folder** (what `scripts/verify-fdroid-apk.sh` does, and what F-Droid's
+  server does): does not match yet. See “Reproducible in another folder” below; with the fixes in
+  this pull request, one library is left: Reanimated's.
 
 `actionlint` passes on both workflows; every new action is pinned to a full SHA. Covered by tests:
 per-CPU versionCodes above every earlier release, file names, old release files still read, the
@@ -37,12 +44,14 @@ the same version twice, nothing for a CPU the release lacks (core, Vitest); the 
   `app.json`'s code and the CPU type (`plugins/withArchitectures.js`) and checked against
   `release.mts apk` in the build. 64-bit is higher, so a phone that runs both prefers it.
 - **Release file:** `apks` lists both; the top-level fields are the arm64 APK's.
-- **Reproducible in another folder:** the first rebuild in a different folder did not match. Only
-  the build IDs of the C++ libraries that library modules compile (Reanimated, Screens, Expo
-  modules) differed: their debug info held this machine's paths, and the path mapping applied
-  only to the app's own native code. `plugins/withReproducibleBuild.js` now maps the paths in
-  every library module too. CI builds in `/home/runner/work/…` and F-Droid in its own folder, so
-  this mattered before M54 as well.
+- **Reproducible in another folder:** a rebuild in another folder gave other build IDs to the C++
+  libraries, which also happens between CI (`/home/runner/work/…`) and F-Droid's server, so it
+  mattered before M54 too. `plugins/withReproducibleBuild.js` now, for the app and every library
+  module: maps the repository, Gradle's cache and the NDK to fixed prefixes (both spellings of
+  macOS paths under `/private`), and names the compile folder `.` (CMake's is
+  `.cxx/RelWithDebInfo/<hash of absolute paths>`). After that only `libreanimated.so` differs:
+  Reanimated compiles with ThinLTO (`-flto=thin`, its own CMakeLists), which names promoted
+  symbols after a hash of each module, and that hash still depends on the folder.
 - **F-Droid:** two `Builds` entries per version, each with its versionCode, `-PreactNativeArchitectures`
   and `binary:` URL; `VercodeOperation` makes both from the base code.
 
@@ -70,6 +79,12 @@ the same version twice, nothing for a CPU the release lacks (core, Vitest); the 
 - The direct APK and the F-Droid APK of the same CPU type install over each other.
 
 ## Known limits
+
+- **F-Droid can't reproduce `libreanimated.so` from another folder** (see above), so F-Droid's
+  rebuild would not match our APK yet. Ways out, for the maintainer: build Reanimated without
+  ThinLTO in release builds (a patch or a CMake argument; small speed cost in animations, if
+  any), or build in CI at the folder F-Droid uses. Check with
+  `scripts/verify-fdroid-apk.sh` on Linux after a tag either way.
 
 - **Apps from before M54 on 32-bit-only phones** read only the top-level fields, so they download
   the arm64 APK, which Android refuses to install (`INSTALL_FAILED_NO_MATCHING_ABIS`), and are

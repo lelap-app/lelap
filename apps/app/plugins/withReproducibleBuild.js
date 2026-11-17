@@ -18,14 +18,20 @@ const {
 
 const MARKER = '// lelap: reproducible build';
 
-// Compiler flags that turn the repository and Gradle's cache into fixed prefixes. On macOS /tmp
-// and /var are links into /private, and compilers see either spelling, so both are mapped.
-const maps = (indent) => `def maps = [
+// Compiler flags that turn the repository, Gradle's cache and the NDK into fixed prefixes. On
+// macOS /tmp and /var are links into /private, and compilers see either spelling, so both are
+// mapped. The build folder CMake compiles in is named after a hash of absolute paths
+// (.cxx/RelWithDebInfo/<hash>), so the debug info names "." as that folder instead.
+const maps = (
+  indent,
+) => `def ndk = { try { android.ndkDirectory.canonicalPath } catch (ignored) { null } }()
+${indent}def maps = [
 ${indent}    (rootProject.projectDir.parentFile.parentFile.parentFile.canonicalPath): '/lelap',
 ${indent}    (gradle.gradleUserHomeDir.canonicalPath): '/gradle',
-${indent}].collectMany { path, to ->
+${indent}    (ndk): '/ndk',
+${indent}].findAll { path, to -> path }.collectMany { path, to ->
 ${indent}    (path.startsWith('/private/') ? [path, path.substring(8)] : [path]).collect { "-ffile-prefix-map=\${it}=\${to}" }
-${indent}}`;
+${indent}} + ['-ffile-compilation-dir=.']`;
 
 // After each library module's own build.gradle, before Android's plugin reads it.
 const LIBRARY_PATHS = `
