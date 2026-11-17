@@ -124,6 +124,9 @@ export function browseCatalogs(addons: InstalledAddon[], types: ContentType[]): 
   );
 }
 
+/** The `shelf` of a catalog listing the books someone wants to read. */
+export const WANT_TO_READ = 'want-to-read';
+
 /** Catalogs that take a `search` extra and need nothing else. */
 export function searchCatalogs(addons: InstalledAddon[], types: ContentType[]): CatalogRef[] {
   return addons.flatMap((addon) =>

@@ -4,6 +4,7 @@ import {
   Manifest,
   MetaResponse,
   PROTOCOL_VERSION,
+  ScrobbleRequest,
   StreamResponse,
   catalogPath,
   metaPath,
@@ -170,7 +171,41 @@ GET /catalog/{type}/{id}.json               → { "metas": MetaPreview[] }
 GET /catalog/{type}/{id}/{extra}.json       → { "metas": MetaPreview[] }
 GET /meta/{type}/{id}.json                  → { "meta": Meta }
 GET /stream/{type}/{id}.json                → { "streams": Stream[] }
+POST /scrobble                              ← { "events": ScrobbleEvent[] }
 `;
+
+const scrobbleExample = example(ScrobbleRequest, {
+  events: [
+    {
+      eventId: '0196f2a4-5c1e-7a3b-9d4e-2f6a8b1c3d5e',
+      event: 'pause',
+      at: 1763370000000,
+      item: {
+        type: 'audiobook',
+        id: 'ol:OL69612W',
+        externalIds: { isbn: '9780141036144' },
+        name: 'Walden',
+        author: 'Henry David Thoreau',
+        durationMs: 41520000,
+      },
+      positionMs: 3725000,
+      sessionStartMs: 2100000,
+    },
+    {
+      eventId: '0196f2a4-61aa-7c40-8e11-4b7d9e0f1a2c',
+      event: 'finish',
+      at: 1763380000000,
+      item: {
+        type: 'episode',
+        name: 'Episode 12',
+        durationMs: 1800000,
+        podcast: { feed: 'https://feeds.example.org/show.xml', title: 'Example Show' },
+        episodeGuid: 'ep-12',
+      },
+      positionMs: 1800000,
+    },
+  ],
+});
 
 const errorExample = `
 HTTP/1.1 404 Not Found
@@ -183,7 +218,7 @@ Access-Control-Allow-Origin: *
 const headers = `
 Content-Type: application/json; charset=utf-8
 Access-Control-Allow-Origin: *
-Access-Control-Allow-Methods: GET, OPTIONS
+Access-Control-Allow-Methods: GET, POST, OPTIONS
 Access-Control-Allow-Headers: *
 Cache-Control: public, max-age=21600
 `;
@@ -228,7 +263,7 @@ const manifestFields: Field[] = [
     type: '(ResourceName | Resource)[]',
     required: true,
     meaning:
-      'What you answer: `catalog`, `meta`, `stream`, each as a name or as a Resource object. At least one.',
+      'What you answer: `catalog`, `meta`, `stream`, `scrobble`, each as a name or as a Resource object. At least one.',
   },
   {
     name: 'idPrefixes',
@@ -254,7 +289,7 @@ const manifestFields: Field[] = [
 const resourceFields: Field[] = [
   {
     name: 'name',
-    type: '"catalog" | "meta" | "stream"',
+    type: '"catalog" | "meta" | "stream" | "scrobble"',
     required: true,
     meaning: 'The resource.',
   },
@@ -291,6 +326,92 @@ const catalogFields: Field[] = [
     type: 'CatalogExtra[]',
     required: false,
     meaning: 'The extras this catalog accepts.',
+  },
+  {
+    name: 'shelf',
+    type: 'string',
+    required: false,
+    meaning:
+      'What the list is to the listener. `want-to-read` puts it on Home as **Want to read**, first after Continue listening. Other values are ignored.',
+  },
+];
+
+const scrobbleFields: Field[] = [
+  {
+    name: 'eventId',
+    type: 'string',
+    required: true,
+    meaning:
+      '8 to 128 characters, unique per event. The app sends an event again when it did not get an answer, so ignore an ID you have handled.',
+  },
+  {
+    name: 'event',
+    type: 'string',
+    required: true,
+    meaning: '`start`, `progress`, `pause`, `finish`, `abandon` or `rate`.',
+  },
+  {
+    name: 'at',
+    type: 'integer ≥ 0',
+    required: true,
+    meaning:
+      'When it happened, as Unix time in milliseconds. Listening offline arrives later with its own times.',
+  },
+  { name: 'item', type: 'ScrobbleItem', required: true, meaning: 'What was played.' },
+  {
+    name: 'positionMs',
+    type: 'integer ≥ 0',
+    required: false,
+    meaning: 'Where the listener was on the whole item’s timeline.',
+  },
+  {
+    name: 'sessionStartMs',
+    type: 'integer ≥ 0',
+    required: false,
+    meaning: 'For `progress`, `pause` and `finish`: where this listening session started.',
+  },
+  {
+    name: 'rating',
+    type: 'number',
+    required: false,
+    meaning: 'For `rate`: 0.5 to 5 stars, in steps of 0.5.',
+  },
+];
+
+const scrobbleItemFields: Field[] = [
+  { name: 'type', type: 'ContentType', required: true, meaning: 'The item’s type.' },
+  {
+    name: 'id',
+    type: 'string',
+    required: false,
+    meaning: 'The item’s ID. Missing for the listener’s own files.',
+  },
+  {
+    name: 'externalIds',
+    type: 'object',
+    required: false,
+    meaning: 'The same work under other prefixes, such as `{ "isbn": "9780141036144" }`.',
+  },
+  { name: 'name', type: 'string', required: true, meaning: 'The title. Not empty.' },
+  { name: 'author', type: 'string', required: false, meaning: 'The author.' },
+  {
+    name: 'durationMs',
+    type: 'integer ≥ 0',
+    required: false,
+    meaning: 'The whole item’s length.',
+  },
+  {
+    name: 'podcast',
+    type: 'object',
+    required: false,
+    meaning: 'For episodes: `feed` (the RSS feed URL), `guid` and `title` of the podcast.',
+  },
+  {
+    name: 'episodeGuid',
+    type: 'string',
+    required: false,
+    meaning:
+      'For episodes: the item’s `guid` in the feed, or its enclosure URL when the feed gives none.',
   },
 ];
 
@@ -500,8 +621,8 @@ const toc: [string, string][] = [
   ['meta', 'Meta'],
   ['streams', 'Streams'],
   ['errors', 'Errors'],
+  ['scrobble', 'Scrobble'],
   ['configure', 'Configuration page'],
-  ['planned', 'Planned'],
   ['schema', 'JSON Schema'],
 ];
 ---
@@ -679,7 +800,7 @@ const toc: [string, string][] = [
   <h3 id="resource">Resource</h3>
   <p>
     A <code>resources</code> entry is a name (<code>"catalog"</code>, <code>"meta"</code>,{' '}
-    <code>"stream"</code>) or an object:
+    <code>"stream"</code>, <code>"scrobble"</code>) or an object:
   </p>
   <FieldTable fields={resourceFields} />
   <CodeBlock code={manifest} label="GET /manifest.json" />
@@ -777,6 +898,46 @@ const toc: [string, string][] = [
   </p>
   <CodeBlock code={errorExample} />
 
+  <h2 id="scrobble">Scrobble</h2>
+  <p>
+    An add-on with <code>scrobble</code> in <code>resources</code> hears what the listener plays,
+    for example to keep a reading tracker or another podcast app up to date. The app sends{' '}
+    <code>POST /scrobble</code> with a JSON body of up to 100 events, oldest first, to every
+    installed add-on that declares it for the item’s type. A Resource object’s{' '}
+    <code>idPrefixes</code> narrow it to those IDs; the manifest’s own prefixes don’t apply here.
+  </p>
+  <ul>
+    <li>
+      <code>start</code> when playing starts, <code>progress</code> about every five minutes while
+      it plays, <code>pause</code> when it stops or another item takes over, and <code>finish</code>{' '}
+      at the end. <code>abandon</code> (the listener gave up) and <code>rate</code> are part of the
+      protocol; the app doesn’t send them yet.
+    </li>
+    <li>
+      Events wait on the device and go out when the add-on can be reached, so a train ride offline
+      is reported afterwards, with each event’s own <code>at</code>.
+    </li>
+    <li>
+      Events never carry a source, stream or file URL. Episodes carry their feed and{' '}
+      <code>guid</code>; read the public feed if you need more.
+    </li>
+    <li>
+      Answer <code>2xx</code> when the events are handled or deliberately ignored. A{' '}
+      <code>4xx</code> (other than <code>408</code> and <code>429</code>) drops them; anything else,
+      or no answer, makes the app try again later, waiting longer each time, for up to 30 days. Keep
+      handling idempotent: set states rather than adding to them.
+    </li>
+  </ul>
+  <h3 id="scrobble-event">ScrobbleEvent</h3>
+  <FieldTable fields={scrobbleFields} />
+  <h3 id="scrobble-item">ScrobbleItem</h3>
+  <FieldTable fields={scrobbleItemFields} />
+  <CodeBlock code={scrobbleExample} label="POST /scrobble" />
+  <p>
+    The SDK validates the body and calls your <code>scrobble</code> handler with the events. See{' '}
+    <a href="/docs/scrobbling/">Scrobbling</a> for the first-party Hardcover and gPodder add-ons.
+  </p>
+
   <h2 id="configure">Configuration page</h2>
   <p>
     With <code>"configurable": true</code>, the app links to <code>/configure</code> under the
@@ -788,19 +949,10 @@ const toc: [string, string][] = [
     URL. For example, a page that picks a language can hand out{' '}
     <code>https://addon.example.com/lang=de/manifest.json</code> for the listener to add in place of
     the plain one, and serve every route under <code>/lang=de/</code>. Never put passwords or tokens
-    in those URLs.
+    in those URLs in plain text: seal them with a key only your add-on has (for example AES-GCM),
+    and don’t store or log them. The first-party scrobble add-ons do this. The app keeps manifest
+    URLs on the device and syncs them end-to-end encrypted.
   </p>
-
-  <h2 id="planned">Planned</h2>
-  <p>Not in v1 clients yet; the details may change.</p>
-  <ul>
-    <li>
-      <strong>
-        <code>POST /scrobble</code>
-      </strong>
-      , for add-ons that want to hear what was played. Its body isn’t specified yet.
-    </li>
-  </ul>
 
   <h2 id="schema">JSON Schema</h2>
   <p>
@@ -808,8 +960,9 @@ const toc: [string, string][] = [
       <code>/docs/protocol.schema.json</code>
     </a>{' '}
     is a JSON Schema (draft 2020-12) generated from the SDK’s schemas, with <code>Manifest</code>,{' '}
-    <code>CatalogResponse</code>, <code>MetaResponse</code> and <code>StreamResponse</code> under{' '}
-    <code>$defs</code>. Point a validator or your editor at one of them:
+    <code>CatalogResponse</code>, <code>MetaResponse</code>, <code>StreamResponse</code> and{' '}
+    <code>ScrobbleRequest</code> under <code>$defs</code>. Point a validator or your editor at one
+    of them:
   </p>
   <CodeBlock code={schemaRef} />
 </Docs>

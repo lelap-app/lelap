@@ -32,6 +32,7 @@ import { db, newId } from './db';
 import * as audio from './platform/audio';
 import { profileId, setProfileId } from './profile';
 import { fileAccess } from './remote';
+import { flushScrobbles, trackFinished, trackPlayerState } from './scrobble';
 
 export const IDLE: audio.PlayerState = {
   connected: false,
@@ -237,7 +238,10 @@ async function syncCar(): Promise<void> {
 /** Marks what the service played to its end as finished, in the profile it played for. */
 async function foldFinished(): Promise<boolean> {
   const done = await audio.takeFinished().catch(() => []);
-  for (const item of done) finishFromPlayer(db, playerProfile(), item.bookId, item.at);
+  for (const item of done) {
+    finishFromPlayer(db, playerProfile(), item.bookId, item.at);
+    trackFinished(item.bookId, item.at, playerProfile());
+  }
   return done.length > 0;
 }
 
@@ -291,8 +295,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     };
     void start().finally(refresh);
+    void flushScrobbles();
     const appState = AppState.addEventListener('change', (status) => {
-      if (status === 'active') void foldJournal().then(foldFinished).finally(refresh);
+      if (status !== 'active') return;
+      void foldJournal().then(foldFinished).finally(refresh);
+      void flushScrobbles();
     });
     return () => {
       subscription.remove();
@@ -320,6 +327,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
     listened.current = 0;
   }, []);
+  useEffect(() => {
+    trackPlayerState(state, playerProfile());
+  }, [state]);
+
   useEffect(() => {
     const now = Date.now();
     const before = lastTick.current;

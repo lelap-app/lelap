@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { AddonError, createAddon } from './addon';
+import { AddonError, CORS_HEADERS, createAddon } from './addon';
 import { catalogPath, metaPath, streamPath } from './paths';
 import type { Manifest } from './protocol';
 
@@ -128,5 +128,62 @@ describe('resource types', () => {
     });
     expect((await get(a, streamPath('podcast', 'test:1'))).status).toBe(404);
     expect((await get(a, streamPath('audiobook', 'test:1'))).status).toBe(200);
+  });
+});
+
+describe('scrobble', () => {
+  const event = {
+    eventId: 'evt-00000001',
+    event: 'start' as const,
+    at: 1_700_000_000_000,
+    item: { type: 'audiobook' as const, id: 'test:1', name: 'One' },
+    positionMs: 0,
+  };
+  const scrobbler = (scrobble = vi.fn()) =>
+    createAddon({
+      manifest: { ...manifest, resources: ['scrobble'], catalogs: [] },
+      scrobble,
+    });
+  const post = (a: ReturnType<typeof scrobbler>, body: string) =>
+    a.fetch(
+      new Request('https://addon.example/scrobble', {
+        method: 'POST',
+        body,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+  it('hands valid events to the handler', async () => {
+    const handler = vi.fn();
+    const response = await post(scrobbler(handler), JSON.stringify({ events: [event] }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ received: 1 });
+    expect(handler.mock.calls[0]?.[0].events).toEqual([event]);
+  });
+
+  it('answers 400 for bodies that are not events', async () => {
+    const handler = vi.fn();
+    expect((await post(scrobbler(handler), 'nope')).status).toBe(400);
+    expect((await post(scrobbler(handler), JSON.stringify({ events: [{}] }))).status).toBe(400);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('allows POST in CORS and only POST on the route', async () => {
+    const a = scrobbler();
+    expect(CORS_HEADERS['Access-Control-Allow-Methods']).toContain('POST');
+    expect((await a.fetch(new Request('https://addon.example/scrobble'))).status).toBe(405);
+  });
+
+  it('404s when the add-on does not declare it', async () => {
+    expect((await post(addon(), JSON.stringify({ events: [event] }))).status).toBe(404);
+  });
+
+  it('passes on an AddonError status', async () => {
+    const a = scrobbler(
+      vi.fn(() => {
+        throw new AddonError(401, 'Configure the add-on again');
+      }),
+    );
+    expect((await post(a, JSON.stringify({ events: [event] }))).status).toBe(401);
   });
 });

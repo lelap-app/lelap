@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type Manifest, Meta, Stream, supports } from './protocol';
+import { Manifest, Meta, ScrobbleEvent, Stream, supports, wantsScrobble } from './protocol';
 
 const base: Manifest = {
   id: 'org.example.test',
@@ -75,5 +75,46 @@ describe('Meta series', () => {
       Meta.parse({ ...base, series: [{ name: 'Kingkiller Chronicle', position: '1' }] }).series,
     ).toEqual([{ name: 'Kingkiller Chronicle', position: '1' }]);
     expect(Meta.safeParse({ ...base, series: [{ name: '' }] }).success).toBe(false);
+  });
+});
+
+describe('wantsScrobble', () => {
+  it('follows the scrobble entry types and its own prefixes only', () => {
+    const plain = { ...base, resources: ['scrobble' as const] };
+    expect(wantsScrobble(plain, 'podcast')).toBe(true);
+    expect(wantsScrobble(plain, 'episode')).toBe(false);
+    expect(wantsScrobble(base, 'audiobook')).toBe(false);
+    const narrow = {
+      ...base,
+      resources: [
+        { name: 'scrobble' as const, types: ['audiobook' as const], idPrefixes: ['ol:'] },
+      ],
+    };
+    expect(wantsScrobble(narrow, 'audiobook', 'ol:1')).toBe(true);
+    expect(wantsScrobble(narrow, 'audiobook', 'lv:1')).toBe(false);
+    expect(wantsScrobble(narrow, 'audiobook')).toBe(false);
+  });
+});
+
+describe('ScrobbleEvent', () => {
+  const event = {
+    eventId: 'evt-00000001',
+    event: 'rate',
+    at: 1,
+    item: { type: 'audiobook', name: 'One' },
+    rating: 4.5,
+  };
+  it('takes half stars and rejects other ratings', () => {
+    expect(ScrobbleEvent.safeParse(event).success).toBe(true);
+    expect(ScrobbleEvent.safeParse({ ...event, rating: 4.2 }).success).toBe(false);
+    expect(ScrobbleEvent.safeParse({ ...event, rating: 6 }).success).toBe(false);
+  });
+  it('keeps catalog shelves as free text', () => {
+    expect(
+      Manifest.safeParse({
+        ...base,
+        catalogs: [{ type: 'audiobook', id: 'w', name: 'W', shelf: 'something-new' }],
+      }).success,
+    ).toBe(true);
   });
 });

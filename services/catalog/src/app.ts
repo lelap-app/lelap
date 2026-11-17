@@ -4,6 +4,10 @@ import { Hono } from 'hono';
 import { createCatalogAddon } from './catalog/addon';
 import { BASE_PATH, createLibrivoxAddon } from './librivox/addon';
 import type { PodcastIndexCredentials } from './podcastindex';
+import { BASE_PATH as GPODDER, gpodderAddon } from './scrobble/gpodder';
+import { BASE_PATH as HARDCOVER, hardcoverAddon } from './scrobble/hardcover';
+import { mountConfigurable } from './scrobble/mount';
+import { createSealer } from './scrobble/sealed';
 import { createUpstream, type Platform } from './upstream';
 
 /** Settings read from the environment (Wrangler vars and secrets, or process.env). */
@@ -12,6 +16,12 @@ export type Env = {
   PODCASTINDEX_SECRET?: string;
   /** Where the source lives; it goes into the User-Agent sent upstream. */
   SOURCE_URL?: string;
+  /**
+   * At least 32 random characters. Seals listeners' tokens into the Hardcover and gPodder add-on
+   * URLs; without it those add-ons can't be configured. Changing it means everyone configures
+   * them again.
+   */
+  CONFIG_SECRET?: string;
 };
 
 export function userAgent(env: Env): string {
@@ -32,13 +42,27 @@ export function createApp(platform: Platform, env: Env): Hono {
   const upstream = createUpstream(platform, userAgent(env));
   const librivox = createLibrivoxAddon(upstream);
   const catalog = createCatalogAddon(upstream, podcastIndexCredentials(env));
+  const agent = userAgent(env);
+  // Never log a request or its body here: it may carry a listener's settings.
+  const onError = (error: unknown) =>
+    console.error(error instanceof Error ? error.message : 'Scrobble add-on failed');
+  const hardcover = mountConfigurable(
+    { ...hardcoverAddon(platform.fetch, agent), onError },
+    createSealer(env.CONFIG_SECRET, 'hardcover'),
+  );
+  const gpodder = mountConfigurable(
+    { ...gpodderAddon(platform.userFetch ?? platform.fetch, agent), onError },
+    createSealer(env.CONFIG_SECRET, 'gpodder'),
+  );
 
   const app = new Hono();
   // JSON only: never let a browser treat an answer as a page on this origin.
   app.use('*', async (c, next) => {
     await next();
     c.res.headers.set('X-Content-Type-Options', 'nosniff');
-    c.res.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+    // The configure pages set their own, which also allows their form and styles.
+    if (!c.res.headers.has('Content-Security-Policy'))
+      c.res.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
     c.res.headers.set('Referrer-Policy', 'no-referrer');
   });
   app.get('/', (c) => {
@@ -47,11 +71,19 @@ export function createApp(platform: Platform, env: Env): Hono {
       {
         name: 'Lelap add-ons',
         addons: [manifest('/manifest.json'), manifest(`${BASE_PATH}/manifest.json`)],
+        configure: [manifest(`${HARDCOVER}/configure`), manifest(`${GPODDER}/configure`)],
       },
       200,
       CORS_HEADERS,
     );
   });
+  for (const [path, serve] of [
+    [HARDCOVER, hardcover],
+    [GPODDER, gpodder],
+  ] as const) {
+    app.all(path, (c) => serve(c.req.raw));
+    app.all(`${path}/*`, (c) => serve(c.req.raw));
+  }
   app.all(BASE_PATH, (c) => librivox.fetch(c.req.raw));
   app.all(`${BASE_PATH}/*`, (c) => librivox.fetch(c.req.raw));
   app.all('*', (c) => catalog.fetch(c.req.raw));

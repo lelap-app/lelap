@@ -107,7 +107,7 @@ export function guardedFetch({ allowPrivate = false, resolve }: GuardOptions = {
       const request = (target.protocol === 'https:' ? httpsRequest : httpRequest)(
         target,
         {
-          method: 'GET',
+          method: init.method ?? 'GET',
           headers: { ...(init.headers as Record<string, string>), 'Accept-Encoding': 'gzip, br' },
           signal: init.signal ?? undefined,
           ...(lookup ? { lookup } : {}),
@@ -128,6 +128,6 @@ export function guardedFetch({ allowPrivate = false, resolve }: GuardOptions = {
         },
       );
       request.on('error', fail);
-      request.end();
+      request.end(typeof init.body === 'string' ? init.body : undefined);
     });
 }

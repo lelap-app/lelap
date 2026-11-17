@@ -17,10 +17,13 @@ export const catalogQuery = (ref: CatalogRef, extra: Record<string, string> = {}
 /** One Home row: a catalog's first page as a horizontal list of covers. */
 export function CatalogRow({
   catalogRef,
+  title,
   onOpen,
   onMore,
 }: {
   catalogRef: CatalogRef;
+  /** In place of the catalog's own name. */
+  title?: string;
   onOpen: (meta: MetaPreview) => void;
   onMore: () => void;
 }) {
@@ -30,7 +33,7 @@ export function CatalogRow({
   return (
     <View className="gap-2">
       <Pressable onPress={onMore} className="flex-row items-center justify-between px-4">
-        <Text className="text-lg font-semibold text-paper">{catalogRef.catalog.name}</Text>
+        <Text className="text-lg font-semibold text-paper">{title ?? catalogRef.catalog.name}</Text>
         <View className="flex-row items-center">
           <Text className="text-sm text-amber">More</Text>
           <Icon name="forward" size={16} color={COLORS.amber} />
