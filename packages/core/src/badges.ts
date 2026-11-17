@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 
 import { type WorkRef, workKey } from './addons/availability';
 import type { Db } from './db';
-import { bookIndex, findBook } from './importers/match';
+import { findBook, titleKey } from './importers/match';
 import { type LibraryBook, listAllBooks } from './library/queries';
 import { books } from './schema';
 
@@ -67,7 +67,15 @@ export function listeningLookup(
   let loaded: { byItem: Map<string, LibraryBook>; index: Map<string, LibraryBook[]> } | null = null;
   const load = () => {
     if (loaded) return loaded;
-    const byId = new Map(listAllBooks(db, profileId).map((b) => [b.id, b]));
+    const all = listAllBooks(db, profileId);
+    const byId = new Map(all.map((b) => [b.id, b]));
+    // The same index `bookIndex` builds, from the one read.
+    const index = new Map<string, LibraryBook[]>();
+    for (const book of all) {
+      if (book.source === 'feed' || book.missing) continue;
+      const key = titleKey(book.title);
+      index.set(key, [...(index.get(key) ?? []), book]);
+    }
     const byItem = new Map<string, LibraryBook>();
     const streamed = db
       .select({ id: books.id, location: books.location, addonItem: books.addonItem })
@@ -85,7 +93,7 @@ export function listeningLookup(
       if (book && match?.[1] && match[2])
         byItem.set(workKey({ type: match[1], id: match[2] }), book);
     }
-    return (loaded = { byItem, index: bookIndex(db, profileId) });
+    return (loaded = { byItem, index });
   };
   const answers = new Map<string, ListeningState | null>();
   return (work) => {

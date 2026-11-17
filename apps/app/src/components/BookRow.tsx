@@ -29,8 +29,8 @@ export const BookRow = memo(function BookRow({
   onLongPress: (book: LibraryBook) => void;
 }) {
   const progress = book.durationMs > 0 ? Math.min(1, book.bookPositionMs / book.durationMs) : 0;
-  // The row already says the same in words at its end, which screen readers read.
-  const badges = useBookBadges(book, 56);
+  // The row shows progress as a bar and a percent already; screen readers read its words.
+  const badges = useBookBadges(book, 56).filter((b) => b.kind !== 'progress');
   return (
     <Pressable
       onPress={() => onOpen(book)}

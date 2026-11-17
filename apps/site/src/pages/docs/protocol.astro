@@ -555,7 +555,7 @@ const badgeFields: Field[] = [
     type: 'integer ≥ 0',
     required: false,
     meaning:
-      'For a podcast: episodes your add-on counts as new, for this listener or since a recent date. `0` draws nothing.',
+      'For a podcast: episodes your add-on counts as new, such as those from the last week. `0` draws nothing.',
   },
 ];
 
@@ -1148,7 +1148,8 @@ const toc: [string, string][] = [
   </p>
   <p>
     An app from before revision 4 ignores <code>badges</code>, and an add-on without them works as
-    before. Fields the app does not know are ignored, so later revisions can add more.
+    before. Fields the app does not know are ignored, so later revisions can add more. Badges that
+    do not fit, such as a rating of 7, are dropped and the item still shows.
   </p>
   <FieldTable fields={badgeFields} />
 

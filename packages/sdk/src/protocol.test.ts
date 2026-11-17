@@ -63,10 +63,12 @@ describe('MetaPreview badges', () => {
     expect(parsed.badges).toEqual({ rating: 3 });
   });
 
-  it('rejects a rating outside 0 to 5 and a negative count', () => {
-    expect(MetaPreview.safeParse({ ...item, badges: { rating: 7 } }).success).toBe(false);
-    expect(MetaPreview.safeParse({ ...item, badges: { newEpisodes: -1 } }).success).toBe(false);
-    expect(MetaPreview.safeParse({ ...item, badges: { newEpisodes: 1.5 } }).success).toBe(false);
+  it('keeps the item but drops badges that do not fit', () => {
+    for (const badges of [{ rating: 7 }, { rating: '4.5' }, { newEpisodes: -1 }, null]) {
+      const parsed = MetaPreview.safeParse({ ...item, badges });
+      expect(parsed.success).toBe(true);
+      expect(parsed.data?.badges).toBeUndefined();
+    }
   });
 
   it('carries over to Meta', () => {

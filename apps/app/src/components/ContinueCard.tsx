@@ -5,11 +5,8 @@ import { t } from '../i18n';
 import { COLORS, Icon } from './Icon';
 import { formatLeft } from '../format';
 import { BookCover, coverUri } from './BookCover';
-import { useBookBadges } from './CoverBadges';
 
 export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: () => void }) {
-  // Screen readers hear the time left instead.
-  const badges = useBookBadges(book, 72);
   return (
     <Pressable
       onPress={onPress}
@@ -17,7 +14,7 @@ export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: ()
       accessibilityHint={t('Plays from where you stopped')}
       className="mx-4 flex-row items-center gap-4 rounded-xl bg-raised p-3 active:opacity-80"
     >
-      <BookCover uri={coverUri(book)} title={book.title} size={72} badges={badges} />
+      <BookCover uri={coverUri(book)} title={book.title} size={72} />
       <View className="flex-1 gap-1">
         <Text className="text-xs uppercase tracking-wider text-muted">
           {t('Continue listening')}

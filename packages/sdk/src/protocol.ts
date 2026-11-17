@@ -113,7 +113,7 @@ export type Manifest = z.infer<typeof Manifest>;
 export const Badges = z.object({
   /** The average rating from 0 to 5 stars, such as `4.5`; leave it out when few have rated. */
   rating: z.number().min(0).max(5).optional(),
-  /** For a podcast: episodes the add-on counts as new for this listener or since a recent date. */
+  /** For a podcast: episodes the add-on counts as new, such as those from the last week. */
   newEpisodes: z.number().int().nonnegative().optional(),
 });
 export type Badges = z.infer<typeof Badges>;
@@ -127,8 +127,8 @@ export const MetaPreview = z.object({
   description: z.string().optional(),
   year: z.number().int().optional(),
   durationMs: Duration.optional(),
-  /** Since revision 4. */
-  badges: Badges.optional(),
+  /** Since revision 4. A malformed one is dropped, not the item: badges are only decoration. */
+  badges: Badges.optional().catch(undefined),
 });
 export type MetaPreview = z.infer<typeof MetaPreview>;
 
