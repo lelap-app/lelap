@@ -1,10 +1,10 @@
 import {
   addRemoteRoot,
+  checkWebdav,
   type JellyfinLibrary,
   listJellyfinLibraries,
   listRoots,
   listS3,
-  listWebdav,
   RemoteError,
   type RemoteSource,
   signInJellyfin,
@@ -177,14 +177,11 @@ export default function ServerScreen() {
     setBusy(true);
     try {
       const remote = source();
-      // Reading the listing once checks the address and the login before anything is saved.
-      // Jellyfin was checked by "Test connection".
+      // One request checks the address and the login before anything is saved: the WebDAV
+      // folder entered, or the bucket's listing. Jellyfin was checked by "Test connection".
+      if (remote.type === 'webdav') await checkWebdav((u, i) => fetch(u, i), remote);
       const files =
-        remote.type === 'webdav'
-          ? await listWebdav((u, i) => fetch(u, i), remote)
-          : remote.type === 's3'
-            ? await listS3((u, i) => fetch(u, i), remote, Date.now())
-            : null;
+        remote.type === 's3' ? await listS3((u, i) => fetch(u, i), remote, Date.now()) : null;
       if (existing && rootId) updateRemoteRoot(db, rootId, remote, Date.now());
       else addRemoteRoot(db, remote, Date.now(), newId);
       void scanLibrary().finally(refresh);
@@ -193,7 +190,9 @@ export default function ServerScreen() {
         t('Connected'),
         files
           ? t('{n} files found. Books appear as the scan reads them.', { n: files.length })
-          : t('Books appear as the scan reads the libraries.'),
+          : remote.type === 'webdav'
+            ? t('Books appear as the scan reads the folders.')
+            : t('Books appear as the scan reads the libraries.'),
       );
       router.back();
     } catch (error) {

@@ -36,3 +36,37 @@ export function failure(status: number, what: string): RemoteError {
   }
   return new RemoteError(status, `The ${what} answered HTTP ${status}.`);
 }
+
+/**
+ * One request and its body within `timeoutMs`. A server that never answers would otherwise keep
+ * a screen spinning until the platform gives up, and a network failure becomes a RemoteError
+ * with status 0 (also what a browser reports for a CORS refusal); a timeout gets 408.
+ */
+export async function fetchText(
+  fetcher: Fetch,
+  url: string,
+  init: RequestInit,
+  what: string,
+  timeoutMs: number,
+): Promise<{ response: Response; text: string }> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  try {
+    const response = await fetcher(url, { ...init, signal: controller.signal });
+    return { response, text: await response.text() };
+  } catch (error) {
+    if (timedOut) {
+      throw new RemoteError(
+        408,
+        `The ${what} did not answer within ${Math.round(timeoutMs / 1000)} s.`,
+      );
+    }
+    throw new RemoteError(0, `No answer from the ${what} (${String(error)}).`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
