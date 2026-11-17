@@ -159,6 +159,28 @@ class AudioModule : Module() {
       }
     }.runOnQueue(Queues.MAIN)
 
+    // Same process: the places of books the service replaced by itself, oldest first.
+    AsyncFunction("takeEarlierPlaces") {
+      val prefs = context.getSharedPreferences(Commands.JOURNAL_PREFS, Context.MODE_PRIVATE)
+      val list = PositionJournal.decodeEntries(prefs.getString(Commands.EARLIER_KEY, null))
+      prefs.edit().remove(Commands.EARLIER_KEY).apply()
+      list.map {
+        mapOf(
+          "bookId" to it.bookId,
+          "fileLocation" to it.fileLocation,
+          "filePositionMs" to it.filePositionMs.toDouble(),
+          "savedAt" to it.savedAt.toDouble(),
+        )
+      }
+    }
+
+    // Same process: the service reads the snapshot when Android Auto browses, app open or not.
+    AsyncFunction("setCarLibrary") { json: String ->
+      val snapshot = CarLibrary.encode(CarLibrary.decode(json))
+      context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE)
+        .edit().putString(Commands.PREF_CAR_LIBRARY, snapshot).apply()
+    }
+
     // Same process as the service: the log is read and cleared straight from its preferences.
     AsyncFunction("takeFinished") {
       val prefs = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE)

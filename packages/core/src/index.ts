@@ -21,3 +21,4 @@ export * from './release';
 export * from './remote';
 export * from './secrets';
 export * from './storedSecrets';
+export * from './car';

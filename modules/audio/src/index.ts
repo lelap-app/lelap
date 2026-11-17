@@ -84,6 +84,8 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   unload(): Promise<void>;
   setQueue(queueJson: string): Promise<void>;
   takeFinished(): Promise<FinishedItem[]>;
+  takeEarlierPlaces(): Promise<JournalEntry[]>;
+  setCarLibrary(json: string): Promise<void>;
   getState(): Promise<PlayerState>;
 }
 
@@ -151,6 +153,24 @@ export function setQueue(queue: BookLoad[]): Promise<void> {
 /** Books that ended since the last call, for the app to mark finished. */
 export function takeFinished(): Promise<FinishedItem[]> {
   return native.takeFinished();
+}
+
+/** Places of books the service replaced by itself (Up Next, Android Auto), oldest first. */
+export function takeEarlierPlaces(): Promise<JournalEntry[]> {
+  return native.takeEarlierPlaces();
+}
+
+/** The books Android Auto can browse, as the app last saw them. */
+export type CarLibrary = {
+  continueListening: BookLoad[];
+  onPhone: BookLoad[];
+  podcasts: BookLoad[];
+  upNext: BookLoad[];
+};
+
+/** Hands the service what Android Auto lists, so it can answer with the app closed. */
+export function setCarLibrary(library: CarLibrary): Promise<void> {
+  return native.setCarLibrary(JSON.stringify(library));
 }
 
 /** Empties the player: no book on the lock screen or in the notification. */
