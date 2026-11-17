@@ -35,3 +35,4 @@ export * from './scrobble';
 export * from './bigLibrary';
 export * from './screen';
 export * from './recommend';
+export * from './diagnostics';

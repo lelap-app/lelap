@@ -15,6 +15,7 @@ import { queryClient, syncAddonsNow } from '../src/addons';
 import { listProfiles } from '@lelap/core';
 
 import { db, useDbReady } from '../src/db';
+import { startDiagnostics } from '../src/diagnostics';
 import { ProfilePicker } from '../src/components/ProfilePicker';
 import { loadActiveProfile } from '../src/profile';
 import { DeviceRunner } from '../src/devices';
@@ -61,6 +62,9 @@ export default function RootLayout() {
   const profileLoaded = useMemo(() => {
     if (ready) loadActiveProfile();
     return ready;
+  }, [ready]);
+  useEffect(() => {
+    if (ready) startDiagnostics();
   }, [ready]);
 
   if (error) {

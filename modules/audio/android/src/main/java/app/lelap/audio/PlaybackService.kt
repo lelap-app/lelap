@@ -21,6 +21,7 @@ import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
@@ -170,7 +171,9 @@ class PlaybackService : MediaLibraryService() {
     player = ExoPlayer.Builder(this, SoundRenderersFactory(this, SoundProcessor(sound)))
       .setMediaSourceFactory(
         DefaultMediaSourceFactory(withBookHeaders(DefaultDataSource.Factory(this, http)))
-          .setLoadErrorHandlingPolicy(ExpiringLinkPolicy()),
+          .setLoadErrorHandlingPolicy(
+            ExpiringLinkPolicy { status -> handler.post { note(Diagnostics.LINK_REFRESHED, status = status) } },
+          ),
       )
       .setAudioAttributes(
         AudioAttributes.Builder()
@@ -194,6 +197,7 @@ class PlaybackService : MediaLibraryService() {
       },
     )
     focus = AudioFocus(this) {
+      Diagnostics.focusEvent(it)?.let { what -> note(what) }
       rules.onFocus(it)
       publishExtras()
     }
@@ -209,6 +213,7 @@ class PlaybackService : MediaLibraryService() {
     queue = UpNext.decodeQueue(prefs.getString(Commands.PREF_QUEUE, null))
     player.addListener(object : Player.Listener {
       override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        Diagnostics.pauseEvent(playWhenReady, reason)?.let { note(it, code = reason) }
         if (playWhenReady) rewindAfterPause() else pausedAt = System.currentTimeMillis()
         rules.onPlayWhenReadyChanged(playWhenReady)
         if (playWhenReady) startBedtimeTimer()
@@ -231,6 +236,13 @@ class PlaybackService : MediaLibraryService() {
 
       override fun onPlaybackStateChanged(playbackState: Int) {
         if (playbackState == Player.STATE_ENDED) onBookEnded()
+      }
+
+      override fun onPlayerError(error: PlaybackException) {
+        val status = generateSequence<Throwable>(error) { it.cause }
+          .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
+          .firstOrNull()?.responseCode
+        note(Diagnostics.ERROR, code = error.errorCode, status = status)
       }
 
       // New items, or their real durations once known: the outro is found from the last one.
@@ -325,6 +337,23 @@ class PlaybackService : MediaLibraryService() {
     queue = rest
     prefs.edit().putString(Commands.PREF_QUEUE, encodeQueue(rest)).apply()
     loadBook(next, autoplay = true)
+  }
+
+  /** Adds an event to the diagnostics log, only while the app has the log on. */
+  private fun note(what: String, code: Int? = null, status: Int? = null) {
+    if (!prefs.getBoolean(Commands.PREF_DIAGNOSTICS, false)) return
+    val entry = DiagnosticEntry(
+      at = System.currentTimeMillis(),
+      what = what,
+      code = code,
+      status = status,
+      bookId = current?.bookId,
+      part = if (player.mediaItemCount > 0) player.currentMediaItemIndex else null,
+    )
+    prefs.edit().putString(
+      Commands.PREF_DIAGNOSTIC_LOG,
+      Diagnostics.append(prefs.getString(Commands.PREF_DIAGNOSTIC_LOG, null), entry),
+    ).apply()
   }
 
   private fun encodeQueue(list: List<BookLoad>): String =
@@ -990,14 +1019,17 @@ class PlaybackService : MediaLibraryService() {
 
 /** Opens a link again, once, when its host says it expired; see [ExpiringLinks]. */
 @OptIn(UnstableApi::class)
-private class ExpiringLinkPolicy : DefaultLoadErrorHandlingPolicy() {
+private class ExpiringLinkPolicy(
+  /** Called on the loading thread with the status that made it open the link again. */
+  private val onRefresh: (Int) -> Unit,
+) : DefaultLoadErrorHandlingPolicy() {
   override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
     val code = generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }
       .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
       .firstOrNull()?.responseCode
     return when (code?.let { ExpiringLinks.decide(it, loadErrorInfo.errorCount) }) {
       // The retry opens the item's own URL from the byte it reached, so the place is kept.
-      LinkRetry.REFRESH -> 0L
+      LinkRetry.REFRESH -> 0L.also { code?.let(onRefresh) }
       LinkRetry.GIVE_UP -> C.TIME_UNSET
       else -> super.getRetryDelayMsFor(loadErrorInfo)
     }

@@ -759,4 +759,21 @@ export const ms: Record<string, string> = {
     'Baris “Kerana anda telah menghabiskan …”, dikira dalam peranti ini daripada buku yang anda habiskan.',
   '“Because you finished …” rows, worked out on this phone from what you finish.':
     'Baris “Kerana anda telah menghabiskan …”, dikira dalam telefon ini daripada buku yang anda habiskan.',
+  Help: 'Bantuan',
+  Diagnostics: 'Diagnostik',
+  'A log of what went wrong, kept on this device, for a bug report. Off until you turn it on.':
+    'Log tentang apa yang tidak kena, disimpan dalam peranti ini, untuk laporan pepijat. Tutup sehingga anda menghidupkannya.',
+  'Keep a diagnostics log': 'Simpan log diagnostik',
+  'A log of what went wrong, for a bug report. It stays on this device: Lelap never sends it anywhere. It only leaves when you share the file yourself.':
+    'Log tentang apa yang tidak kena, untuk laporan pepijat. Ia kekal dalam peranti ini: Lelap tidak pernah menghantarnya ke mana-mana. Ia hanya keluar apabila anda sendiri berkongsi fail itu.',
+  'Errors, player events, failed downloads and scans, and add-on and sync trouble. The newest {n} events; turning it off deletes them.':
+    'Ralat, peristiwa pemain, muat turun dan imbasan yang gagal, serta masalah alat tambah dan penyegerakan. {n} peristiwa terbaharu; mematikannya akan memadamkannya.',
+  'File for a bug report': 'Fail untuk laporan pepijat',
+  'No titles, file names, addresses, user names, keys or codes. Books, servers and add-ons are numbered instead, such as book#1. You see the whole file before you share it.':
+    'Tiada tajuk, nama fail, alamat, nama pengguna, kunci atau kod. Buku, pelayan dan alat tambah diberi nombor sebaliknya, seperti book#1. Anda melihat seluruh fail sebelum berkongsinya.',
+  'Preparing…': 'Menyediakan…',
+  'Prepare again': 'Sediakan semula',
+  'Prepare the file': 'Sediakan fail',
+  'What the file contains': 'Kandungan fail',
+  Share: 'Kongsi',
 };

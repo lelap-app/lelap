@@ -109,6 +109,8 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   takeEarlierPlaces(): Promise<JournalEntry[]>;
   setCarLibrary(json: string): Promise<void>;
   setBedtime(json: string | null): Promise<void>;
+  setDiagnostics(on: boolean): Promise<void>;
+  takeDiagnostics(): Promise<PlayerDiagnostic[]>;
   getState(): Promise<PlayerState>;
 }
 
@@ -222,6 +224,29 @@ export type Bedtime = {
 /** Hands the service the bedtime window; null turns it off. Works with the app closed. */
 export function setBedtime(bedtime: Bedtime | null): Promise<void> {
   return native.setBedtime(bedtime ? JSON.stringify(bedtime) : null);
+}
+
+/**
+ * A player event for the diagnostics log (M47): a word, numbers and the book's ID, never a
+ * title, file or address. `code` is Media3's error code or play-when-ready reason.
+ */
+export type PlayerDiagnostic = {
+  at: number;
+  what: string;
+  code: number | null;
+  status: number | null;
+  bookId: string | null;
+  part: number | null;
+};
+
+/** Lets the service log player events, also with the app closed. Off drops what it kept. */
+export function setDiagnostics(on: boolean): Promise<void> {
+  return native.setDiagnostics(on);
+}
+
+/** The service's player events since the last call, oldest first. */
+export function takeDiagnostics(): Promise<PlayerDiagnostic[]> {
+  return native.takeDiagnostics();
 }
 
 /** Empties the player: no book on the lock screen or in the notification. */

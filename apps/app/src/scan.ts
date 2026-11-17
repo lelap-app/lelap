@@ -16,12 +16,14 @@ import {
   listRoots,
   listS3,
   listWebdav,
+  scanFailureEvent,
   upsertRoot,
 } from '@lelap/core';
 import { Directory, Paths } from 'expo-file-system';
 
 import { forgetAudiobookshelfParts, withKey } from './audiobookshelf';
 import { db, newId } from './db';
+import { logDiagnostic } from './diagnostics';
 import {
   FOLDER_UNAVAILABLE,
   listTree,
@@ -85,15 +87,20 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
   let missing = 0;
   let lostLocal = false;
 
+  const failed = (root: Root) => (error: unknown) => {
+    logDiagnostic(scanFailureEvent(root.id, root.remote, error));
+    return null;
+  };
+
   for (const root of roots) {
     if (root.remote?.type === 'jellyfin') {
-      const result = await scanJellyfin(root, root.remote).catch(() => null);
+      const result = await scanJellyfin(root, root.remote).catch(failed(root));
       added += result?.added ?? 0;
       missing += result?.missing ?? 0;
       continue;
     }
     if (root.remote?.type === 'audiobookshelf') {
-      const result = await scanAudiobookshelf(root, root.remote).catch(() => null);
+      const result = await scanAudiobookshelf(root, root.remote).catch(failed(root));
       added += result?.added ?? 0;
       missing += result?.missing ?? 0;
       continue;
@@ -102,7 +109,9 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
     try {
       listed = await listRoot(root);
     } catch (error) {
-      if (!root.remote && isCode(error, FOLDER_UNAVAILABLE)) lostLocal = true;
+      const lost = !root.remote && isCode(error, FOLDER_UNAVAILABLE);
+      if (lost) lostLocal = true;
+      logDiagnostic(scanFailureEvent(root.id, root.remote, error, lost ? 'permission' : undefined));
       // A server that is down or refuses keeps its books as they are until the next scan.
       continue;
     }

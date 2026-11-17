@@ -36,6 +36,15 @@ export class HealthTracker {
   private readonly listeners = new Set<() => void>();
   private version = 0;
 
+  /** `onFailure` hears each failed request, for the diagnostics log. */
+  constructor(
+    private readonly onFailure?: (
+      base: string,
+      url: string,
+      failure: { message: string; status: number | null },
+    ) => void,
+  ) {}
+
   private update(base: string, change: (h: AddonHealth) => AddonHealth): void {
     this.entries.set(base, change(this.entries.get(base) ?? EMPTY));
     // A long session asks many add-ons; old ones can go.
@@ -61,6 +70,7 @@ export class HealthTracker {
         ? { ...h, lastOkAt: at, lastLatencyMs: outcome.latencyMs }
         : { ...h, lastError: { message: outcome.message, status: outcome.status, at } },
     );
+    if (!outcome.ok) this.onFailure?.(base, url, outcome);
   }
 
   report(addonUrl: string, response: HealthResponse, at: number): void {

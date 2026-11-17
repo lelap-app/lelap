@@ -160,6 +160,8 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M45] A show with Skip intro and Skip outro at 30 s: a new episode starts at 0:30, ends 30 s early as played, and Up Next goes on, also with the app closed. ([m45](m45-follow-ups.md#intro-outro))
 - [ ] [M46] Mark a streamed LibriVox book finished: Home shows “Because you finished …” with books by the same author, none from the Library; a second finished book's row comes first. ([m46](m46-follow-ups.md#row))
 - [ ] [M46] Hide on the row removes it and the other profile keeps its rows; Settings → Catalogs → Suggestions on Home brings it back. `uiautomator dump`: Hide has the name “Hide suggestions” and 48 dp. ([m46](m46-follow-ups.md#row))
+- [ ] [M47] Settings → Help → Diagnostics, log on, play a stream, `adb shell svc wifi disable` until it fails: the prepared file lists `player error` with a Media3 code and `book#1`, and no title or address; Share opens the share sheet. `uiautomator dump`: the switch is named “Keep a diagnostics log”, buttons 48 dp. ([m47](m47-follow-ups.md#log))
+- [ ] [M47] Log off and on again, prepare the file: the log is empty, the service's earlier events too. A failed WebDAV download and rescan show as `download failed` and `scan failed webdav server#1`. ([m47](m47-follow-ups.md#log))
 - [x] [M12] Player buttons carry names for TalkBack (Back 30 seconds, Play, Next chapter, …) in `uiautomator dump`. ([m12](m12-follow-ups.md)) **Passed 2026-11-17**: speed button now says Speed, 1× (#66).
 - [ ] [M9] Install the web app from Chrome on the phone: `listen.lelap.app` → Add to home screen. ([README](../apps/app/README.md#checks-after-m9-2026-11-16))
 - [ ] [M29] Expired link, playback and download: an add-on on the laptop (`adb reverse`) whose `/resolve/…` link answers 403 after a minute; playback continues, the download resumes, a link that keeps failing errors after one retry. ([m29](m29-follow-ups.md#phone-checks))
@@ -193,6 +195,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M26] Screen off for 30 minutes while casting a multi-part book: parts still advance. ([m26](m26-follow-ups.md#1-checks-on-a-phone))
 - [ ] [M26] On a guest network with client isolation: no receivers, no crash. ([m26](m26-follow-ups.md#1-checks-on-a-phone))
 - [ ] [M22] Casting is not disturbed by the audio switches; local playback picks them up again afterwards. ([m22](m22-follow-ups.md))
+- [ ] [M47] With the diagnostics log on, a phone call during a book and unplugging wired headphones show in the file as a focus event and `paused-by-system AUDIO_BECOMING_NOISY (3)`, also with the app swiped away first. ([m47](m47-follow-ups.md#log))
 
 ### By ear or by hand
 

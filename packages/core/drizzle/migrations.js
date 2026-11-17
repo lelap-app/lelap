@@ -16,6 +16,7 @@ import m0011 from './0011_scrobble_outbox.sql';
 import m0012 from './0012_local_addons.sql';
 import m0013 from './0013_big_libraries.sql';
 import m0014 from './0014_trim_silence.sql';
+import m0015 from './0015_diagnostics.sql';
 
 export default {
   journal,
@@ -35,5 +36,6 @@ export default {
     m0012,
     m0013,
     m0014,
+    m0015,
   },
 };

@@ -25,6 +25,7 @@ import { Platform } from 'react-native';
 
 import { defaultAddons } from './config';
 import { db, newId } from './db';
+import { logAddonFailure } from './diagnostics';
 import { profileId } from './profile';
 import { playBook, useLibrary } from './player';
 import { callLocalAddon } from './sandbox';
@@ -36,7 +37,7 @@ export const queryClient = new QueryClient({
 });
 
 /** What each add-on's requests did during this run, for Settings → Add-ons. Kept in memory only. */
-export const addonHealth = new HealthTracker();
+export const addonHealth = new HealthTracker(logAddonFailure);
 
 // Add-ons that run inside the app answer through their sandbox; all others over the network.
 const route: Fetcher = async (url, init) => {

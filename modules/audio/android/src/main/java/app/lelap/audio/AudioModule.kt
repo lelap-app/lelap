@@ -211,6 +211,33 @@ class AudioModule : Module() {
       list.map { mapOf("bookId" to it.bookId, "at" to it.at.toDouble()) }
     }
 
+    // Same process: the service logs only while this is on. Off drops what it kept. On the main
+    // thread, where the service appends, so an append can't bring a dropped log back.
+    AsyncFunction("setDiagnostics") { on: Boolean ->
+      val edit = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE).edit()
+        .putBoolean(Commands.PREF_DIAGNOSTICS, on)
+      if (!on) edit.remove(Commands.PREF_DIAGNOSTIC_LOG)
+      edit.apply()
+    }.runOnQueue(Queues.MAIN)
+
+    // Same process: the service's diagnostics events since the last call, oldest first. On the
+    // main thread, where the service appends, so no event is lost between the read and the clear.
+    AsyncFunction("takeDiagnostics") {
+      val prefs = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE)
+      val list = Diagnostics.decode(prefs.getString(Commands.PREF_DIAGNOSTIC_LOG, null))
+      prefs.edit().remove(Commands.PREF_DIAGNOSTIC_LOG).apply()
+      list.map {
+        mapOf(
+          "at" to it.at.toDouble(),
+          "what" to it.what,
+          "code" to it.code,
+          "status" to it.status,
+          "bookId" to it.bookId,
+          "part" to it.part,
+        )
+      }
+    }.runOnQueue(Queues.MAIN)
+
     AsyncFunction("unload") { promise: Promise ->
       withController(promise) { c ->
         c.sendCustomCommand(SessionCommand(Commands.UNLOAD, Bundle.EMPTY), Bundle.EMPTY)

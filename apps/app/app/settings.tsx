@@ -676,6 +676,25 @@ export default function SettingsScreen() {
           </>
         )}
 
+        {!me?.kids && (
+          <>
+            <Text
+              accessibilityRole="header"
+              className="pt-6 text-xs uppercase tracking-wider text-muted"
+            >
+              {t('Help')}
+            </Text>
+            <Row
+              label={t('Diagnostics')}
+              detail={t(
+                'A log of what went wrong, kept on this device, for a bug report. Off until you turn it on.',
+              )}
+            >
+              <TextButton text={t('Open')} onPress={() => router.push('/diagnostics')} />
+            </Row>
+          </>
+        )}
+
         {SELF_UPDATES && (
           <UpdateRows
             betaUpdates={settings.betaUpdates}

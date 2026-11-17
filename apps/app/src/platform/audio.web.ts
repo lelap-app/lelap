@@ -4,6 +4,7 @@ import type {
   CarLibrary,
   FinishedItem,
   JournalEntry,
+  PlayerDiagnostic,
   PlayerSettings,
   PlayerState,
   SleepTimerMode,
@@ -11,6 +12,7 @@ import type {
 import {
   fadeVolume,
   outroStartMs,
+  PLAY_REFUSED,
   shouldRefreshLink,
   sleepBoundaryMs,
   sleepFileTarget,
@@ -27,6 +29,7 @@ export type {
   CarLibrary,
   FinishedItem,
   JournalEntry,
+  PlayerDiagnostic,
   PlayerSettings,
   PlayerState,
   SleepTimerMode,
@@ -76,6 +79,10 @@ let placeChangedAt = 0;
 let seekingForLoad = false;
 let objectUrl: string | null = null;
 const listeners = new Set<(state: PlayerState) => void>();
+// The diagnostics log's player events (M47), kept like the Android service keeps its own.
+const DIAGNOSTICS_LIMIT = 200;
+let diagnosticsOn = false;
+let diagnostics: PlayerDiagnostic[] = [];
 let ticker: ReturnType<typeof setInterval> | null = null;
 
 /** How far to rewind on Play after a pause; the same rule as the Android service. */
@@ -112,6 +119,19 @@ function placeBoundary(): void {
     book.chapters.map((c) => c.startMs),
     durations(),
   );
+}
+
+function note(what: string, code: number | null = null): void {
+  if (!diagnosticsOn) return;
+  diagnostics.push({
+    at: Date.now(),
+    what,
+    code,
+    status: null,
+    bookId: book?.bookId ?? null,
+    part: index >= 0 ? index : null,
+  });
+  if (diagnostics.length > DIAGNOSTICS_LIMIT) diagnostics = diagnostics.slice(-DIAGNOSTICS_LIMIT);
 }
 
 function clearBoundaryStop(): void {
@@ -293,10 +313,12 @@ function player(): HTMLAudioElement {
     // An expired link: ask the stream (its `/resolve/…` URL) again, once, at the same place.
     if (file && audio.error && shouldRefreshLink(audio.error.code, file.uri, linkRefreshed)) {
       linkRefreshed = true;
+      note('link-refreshed');
       void setPart(index, lastPositionMs, lastPlaying);
       return;
     }
     error = audio.error ? `Media error ${audio.error.code}: ${audio.error.message}` : 'Cannot play';
+    note('error', audio.error?.code ?? null);
     emit();
   });
   on('ended', () => {
@@ -315,7 +337,9 @@ function player(): HTMLAudioElement {
       if (book) finished.push({ bookId: book.bookId, at: Date.now() });
       // A timer for the end of the episode stops here, before Up Next.
       const next = book?.handsOver && !sleepsHere ? queue.shift() : undefined;
-      if (sleepsHere) clearSleepTimer();
+      if (sleepsHere) {
+        clearSleepTimer();
+      }
       if (next) {
         void load(next, true);
         return;
@@ -463,6 +487,7 @@ export async function play(): Promise<void> {
   await sound.resume(element);
   await element.play().catch((e: unknown) => {
     error = e instanceof Error ? e.message : String(e);
+    note('play-refused', e instanceof Error ? (PLAY_REFUSED[e.name] ?? 0) : 0);
     emit();
   });
 }
@@ -547,6 +572,17 @@ export async function setBedtime(bedtime: Bedtime | null): Promise<void> {
 export async function takeFinished(): Promise<FinishedItem[]> {
   const list = finished;
   finished = [];
+  return list;
+}
+
+export async function setDiagnostics(on: boolean): Promise<void> {
+  diagnosticsOn = on;
+  if (!on) diagnostics = [];
+}
+
+export async function takeDiagnostics(): Promise<PlayerDiagnostic[]> {
+  const list = diagnostics;
+  diagnostics = [];
   return list;
 }
 

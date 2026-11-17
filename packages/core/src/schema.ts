@@ -27,6 +27,7 @@ export const SHARED_TABLES = [
   'episodes',
   'sync_state',
   'tombstones',
+  'diagnostics',
 ] as const;
 
 export type StoredChapter = { title: string; startMs: number };
@@ -522,3 +523,14 @@ export const tombstones = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.kind, t.key, t.profileId] })],
 );
+
+/**
+ * The diagnostics log (M47): this device's recent errors and player events, kept only while it
+ * is on in Settings. Never synced or backed up; emptied when it is turned off.
+ */
+export const diagnostics = sqliteTable('diagnostics', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  at: integer('at').notNull(),
+  /** A `DiagnosticEvent` as JSON: words from Lelap's code, numbers and row IDs; no free text. */
+  event: text('event').notNull(),
+});
