@@ -86,7 +86,7 @@ const channels: {
   {
     icon: 'grid',
     title: 'F-Droid',
-    text: 'We plan to submit the app to F-Droid after version 1.0.',
+    text: 'Coming after version 1.0. F-Droid builds Lelap from source and, when the result matches ours, ships the same signed APK, so you can switch between F-Droid and the direct download without reinstalling.',
     later: true,
   },
 ];
@@ -332,8 +332,9 @@ const compose = `services:
               <p>
                 <b>Checking the file?</b> <a href={site.releaseInfoUrl}>latest.json</a> lists the
                 version, size and SHA-256 of the current APK, and each GitHub release carries the
-                same file with a build attestation. Compare with <code>sha256sum</code>, or run{' '}
-                <code>gh attestation verify</code> against the repository.
+                same file with a build attestation and a <code>SHA256SUMS</code> list. Compare with{' '}
+                <code>sha256sum</code>, or run <code>gh attestation verify</code> against the
+                repository.
               </p>
             ) : (
               <p>

@@ -1,0 +1,23 @@
+Lelap is an open-source player for audiobooks and podcasts. It plays, downloads, remembers your place and, if you want, syncs it between your devices with end-to-end encryption. No account, no ads, no tracking.
+
+<b>Built for long listens</b>
+<ul>
+<li>Plays with the screen off and the app closed, with lock screen, headphone and Bluetooth controls.</li>
+<li>Keeps going through calls by lowering the volume, if you choose.</li>
+<li>Sleep timer that fades out, by minutes or at the end of a chapter or episode; shake for ten more minutes.</li>
+<li>Speed per book, smart rewind after a pause, chapters, bookmarks with notes.</li>
+</ul>
+
+<b>Your library</b>
+<ul>
+<li>Your own files and folders: m4b, mp3, opus, flac, with chapters from the tags.</li>
+<li>Your own servers: WebDAV (Nextcloud, ownCloud) and S3-compatible storage.</li>
+<li>Public-domain audiobooks from LibriVox, and podcasts by RSS with OPML import and export.</li>
+<li>Tags, hand-made lists and smart lists; Up Next for books and episodes.</li>
+<li>Downloads over Wi-Fi with the screen off; airplane mode is a normal day.</li>
+</ul>
+
+<b>Open by design</b>
+Catalogs, metadata and audio sources come from add-ons: small web services anyone can run. Lelap ships with add-ons for open sources only. Audio always goes straight from its source to your phone, never through our servers.
+
+The same app runs in the browser, and the backend can be self-hosted with Docker.

@@ -1,5 +1,7 @@
 // Signs release builds with the keystore the release workflow decodes from a secret. Without the
-// environment variables (local builds, forks) release builds keep Expo's debug signing.
+// environment variables (local builds, forks) release builds keep Expo's debug signing, and with
+// LELAP_UNSIGNED=1 they stay unsigned: F-Droid's build server compares an unsigned build with our
+// signed APK.
 const { withAppBuildGradle } = require('expo/config-plugins');
 
 const SIGNING = `
@@ -22,7 +24,7 @@ module.exports = function withReleaseSigning(config) {
       gradle = gradle.replace(/android\s*\{/, (open) => `${open}${SIGNING}`);
       gradle = gradle.replace(
         /(release\s*\{[^}]*?)signingConfig\s+signingConfigs\.debug/,
-        "$1signingConfig System.getenv('LELAP_KEYSTORE_PATH') ? signingConfigs.lelapRelease : signingConfigs.debug",
+        "$1signingConfig System.getenv('LELAP_KEYSTORE_PATH') ? signingConfigs.lelapRelease : (System.getenv('LELAP_UNSIGNED') ? null : signingConfigs.debug)",
       );
     }
     mod.modResults.contents = gradle;
