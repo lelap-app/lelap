@@ -104,7 +104,7 @@ their own headers.
 together and overshoot by one push (12.8 MB at most). Groups no device uses stay forever.
 **Decision:** Accept the overshoot. Expire groups with no push for, say, a year, as a scheduled
 Worker; that needs a `last_push_at` column and a migration, and goes with the log compaction in
-[`next.md`](next.md).
+[M52 Sync upkeep](milestones/m52.md).
 
 ### Checked and fine
 

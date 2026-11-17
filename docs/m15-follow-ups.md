@@ -1,6 +1,6 @@
 # M15 follow-ups
 
-What is left of M15 Find any book ([`next.md`](next.md#m15-find-any-book)) after its first pull
+What is left of M15 Find any book ([M15](milestones/m15.md)) after its first pull
 request. M15 stays “In progress” until the device checks pass.
 
 ## What landed
