@@ -1,4 +1,5 @@
 ---
+import Lori from '../components/Lori.astro';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/space-grotesk';
 import '@fontsource-variable/jetbrains-mono';
@@ -109,7 +110,10 @@ const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
     <footer class="site-footer">
       <div class="container footer-inner">
         <div class="footer-brand">
-          <span class="footer-name">{site.name}</span>
+          <span class="footer-name">
+            <Lori size={40} class="footer-lori" />
+            {site.name}
+          </span>
           <p class="muted">
             {site.tagline} {site.name} does not host, index or link to any content. Add-ons are made
             and run by third parties.
@@ -205,6 +209,9 @@ const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
   }
 
   .footer-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     font-family: var(--font-display);
     font-size: 20px;
     font-weight: 700;

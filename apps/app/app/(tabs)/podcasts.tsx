@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EmptyState } from '../../src/components/Lori';
 import { showAlert } from '../../src/dialog';
 import { BookCover } from '../../src/components/BookCover';
 import { db } from '../../src/db';
@@ -133,11 +134,14 @@ export default function PodcastsScreen() {
         </View>
       }
       ListEmptyComponent={
-        <Text className="px-4 pt-8 text-center text-muted">
-          {kids
-            ? 'Find podcasts in Search and subscribe there.'
-            : `Find podcasts in Search, paste a feed address, or import an OPML file from another app. A podcast folder in your Library can become a subscription too: long-press it there.`}
-        </Text>
+        <EmptyState
+          title="No podcasts yet."
+          hint={
+            kids
+              ? 'Find podcasts in Search and subscribe there.'
+              : 'Find podcasts in Search, paste a feed address, or import an OPML file from another app. A podcast folder in your Library can become a subscription too: long-press it there.'
+          }
+        />
       }
       renderItem={({ item: sub }) => (
         <Pressable

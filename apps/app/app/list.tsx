@@ -16,6 +16,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EmptyState } from '../src/components/Lori';
 import { BookActions } from '../src/components/BookActions';
 import { BookRow } from '../src/components/BookRow';
 import { COLORS, Icon, IconButton } from '../src/components/Icon';
@@ -282,11 +283,14 @@ export default function ListScreen() {
           </View>
         }
         ListEmptyComponent={
-          <Text className="px-4 pt-8 text-center text-muted">
-            {manual
-              ? 'Nothing here yet. In the Library, hold a book and choose “Add to a list…”.'
-              : 'No books match yet.'}
-          </Text>
+          <EmptyState
+            title={manual ? 'Nothing on this list yet.' : 'No books match yet.'}
+            hint={
+              manual
+                ? 'In the Library, hold a book and choose “Add to a list…”.'
+                : 'Lori will wait here until one does.'
+            }
+          />
         }
         renderItem={({ item, index }) => (
           <View className="flex-row items-center">

@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import Icon, { type IconName } from '../components/Icon.astro';
+import Lori from '../components/Lori.astro';
 import CatalogMockup from '../components/CatalogMockup.astro';
 import PhoneMockup from '../components/PhoneMockup.astro';
 import { site } from '../site';
@@ -34,7 +35,7 @@ const features: { icon: IconName; title: string; text: string }[] = [
   {
     icon: 'gauge',
     title: 'Smart rewind, speed, chapters',
-    text: 'Rewinds further the longer you paused. Speed per book with pitch correction, silence skipping and chapter-aware scrubbing.',
+    text: 'Rewinds further the longer you paused. Speed per book with pitch correction and chapter-aware scrubbing.',
   },
   {
     icon: 'list',
@@ -251,9 +252,15 @@ const compose = `services:
   </div>
 
   <section class="container section" id="features">
-    <div class="section-head" data-reveal>
-      <span class="eyebrow">Features</span>
-      <h2 class="h2">Built for long listens.</h2>
+    <div class="features-head" data-reveal>
+      <div class="section-head">
+        <span class="eyebrow">Features</span>
+        <h2 class="h2">Built for long listens.</h2>
+      </div>
+      <figure class="lori">
+        <Lori size={128} />
+        <figcaption>Lori, asleep before the chapter ends.</figcaption>
+      </figure>
     </div>
     <div class="grid">
       {features.map((f, i) => (
@@ -392,8 +399,8 @@ const compose = `services:
       <span class="eyebrow">Self-host</span>
       <h2 class="h2">Run the whole thing yourself.</h2>
       <p class="lead">
-        Everything behind {site.appHost} is in the repository. Four small containers, no database
-        server to babysit.
+        Everything behind {site.appHost} is in the repository. Four small containers; sync keeps one
+        SQLite file, so there is no database server to run.
       </p>
       <ul class="services">
         {services.map(([name, text]) => (
@@ -1006,5 +1013,24 @@ const compose = `services:
     gap: 6px;
     font-size: 15px;
     color: var(--fg-soft);
+  }
+
+  .features-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .lori {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .lori figcaption {
+    font-size: 13px;
+    color: var(--muted);
   }
 </style>

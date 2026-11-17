@@ -11,6 +11,16 @@ const ROSE = '#e07a8f';
 const NAVY = '#24365c';
 const CREAM = '#f4f1ea';
 const INK = '#0d0e11';
+// Lori the loris (the mascot), Fen and Ollie keep the colours they have in the mascot sketches.
+const LORIS = '#c9ae8c';
+const LORIS_DARK = '#8e7357';
+const EARTH = '#3a2a20';
+const SAND = '#e8cfa6';
+const SAND_LIGHT = '#f4dfc4';
+const OTTER = '#8a6a50';
+const OTTER_DARK = '#6b4e39';
+const OTTER_FACE = '#e3d2bc';
+const STONE = '#8c93a0';
 
 type Drawing = { bg: string; art: ReactNode };
 
@@ -270,6 +280,155 @@ export const AVATARS: Record<string, Drawing> = {
           transform="rotate(-18 50 52)"
         />
         <Path d="M30 44 Q50 36 70 44" stroke={INK} strokeWidth={2} fill="none" opacity={0.3} />
+      </>
+    ),
+  },
+  loris: {
+    bg: NAVY,
+    art: (
+      <>
+        <Circle cx={26} cy={30} r={9} fill={LORIS_DARK} />
+        <Circle cx={74} cy={30} r={9} fill={LORIS_DARK} />
+        <Circle cx={50} cy={56} r={34} fill={LORIS} />
+        <Ellipse cx={36} cy={54} rx={13} ry={15} fill={EARTH} />
+        <Ellipse cx={64} cy={54} rx={13} ry={15} fill={EARTH} />
+        <Path d="M47 22h6l-1 46h-4z" fill={CREAM} />
+        <Circle cx={36} cy={55} r={6.5} fill={AMBER} />
+        <Circle cx={64} cy={55} r={6.5} fill={AMBER} />
+        <Circle cx={37.5} cy={53} r={2.2} fill={EARTH} />
+        <Circle cx={65.5} cy={53} r={2.2} fill={EARTH} />
+        <Ellipse cx={50} cy={75} rx={5} ry={3.5} fill={EARTH} />
+      </>
+    ),
+  },
+  fennec: {
+    bg: TEAL,
+    art: (
+      <>
+        <Polygon points="30,54 16,10 48,42" fill={SAND} />
+        <Polygon points="32,48 22,20 42,40" fill={SAND_LIGHT} />
+        <Polygon points="70,54 84,10 52,42" fill={SAND} />
+        <Polygon points="68,48 78,20 58,40" fill={SAND_LIGHT} />
+        <Ellipse cx={50} cy={62} rx={28} ry={24} fill={SAND} />
+        <Polygon points="40,68 60,68 50,82" fill={CREAM} />
+        <Circle cx={50} cy={81} r={4} fill={EARTH} />
+        <Path
+          d="M34 60q6 4 12 0M54 60q6 4 12 0"
+          stroke={EARTH}
+          strokeWidth={3}
+          strokeLinecap="round"
+          fill="none"
+        />
+      </>
+    ),
+  },
+  otter: {
+    bg: NAVY,
+    art: (
+      <>
+        <Circle cx={25} cy={32} r={8} fill={OTTER_DARK} />
+        <Circle cx={75} cy={32} r={8} fill={OTTER_DARK} />
+        <Circle cx={50} cy={52} r={32} fill={OTTER} />
+        <Ellipse cx={50} cy={62} rx={24} ry={20} fill={OTTER_FACE} />
+        <Path
+          d="M32 48q5 4 10 0M58 48q5 4 10 0"
+          stroke={EARTH}
+          strokeWidth={3}
+          strokeLinecap="round"
+          fill="none"
+        />
+        <Ellipse cx={50} cy={60} rx={7} ry={5} fill={EARTH} />
+        <Path
+          d="M36 64l-14 -2M36 68l-14 2M64 64l14 -2M64 68l14 2"
+          stroke={OTTER_DARK}
+          strokeWidth={1.5}
+          strokeLinecap="round"
+        />
+        <Ellipse cx={50} cy={89} rx={13} ry={8} fill={STONE} />
+        <Path
+          d="M43 86q4 -3 9 -2"
+          stroke={AMBER}
+          strokeWidth={2}
+          strokeLinecap="round"
+          fill="none"
+        />
+      </>
+    ),
+  },
+  penguin: {
+    bg: TEAL,
+    art: (
+      <>
+        <Ellipse cx={50} cy={58} rx={28} ry={32} fill={INK} />
+        <Ellipse cx={50} cy={64} rx={18} ry={24} fill={CREAM} />
+        <Circle cx={42} cy={44} r={3} fill={INK} />
+        <Circle cx={58} cy={44} r={3} fill={INK} />
+        <Polygon points="44,52 56,52 50,60" fill={AMBER} />
+        <Ellipse cx={40} cy={90} rx={7} ry={3} fill={AMBER} />
+        <Ellipse cx={60} cy={90} rx={7} ry={3} fill={AMBER} />
+      </>
+    ),
+  },
+  turtle: {
+    bg: AMBER,
+    art: (
+      <>
+        <Circle cx={80} cy={58} r={9} fill={TEAL} />
+        <Circle cx={83} cy={56} r={1.8} fill={INK} />
+        <Ellipse cx={30} cy={72} rx={7} ry={5} fill={TEAL} />
+        <Ellipse cx={66} cy={74} rx={7} ry={5} fill={TEAL} />
+        <Path d="M16 66 Q20 30 48 30 Q76 30 78 66 Z" fill={NAVY} />
+        <Path
+          d="M36 40l12 8l12 -8M48 48v18M30 56h36"
+          stroke={TEAL}
+          strokeWidth={3}
+          strokeLinecap="round"
+          fill="none"
+        />
+      </>
+    ),
+  },
+  frog: {
+    bg: ROSE,
+    art: (
+      <>
+        <Circle cx={32} cy={34} r={12} fill={TEAL} />
+        <Circle cx={68} cy={34} r={12} fill={TEAL} />
+        <Ellipse cx={50} cy={60} rx={34} ry={26} fill={TEAL} />
+        <Circle cx={32} cy={33} r={6} fill={CREAM} />
+        <Circle cx={68} cy={33} r={6} fill={CREAM} />
+        <Circle cx={32} cy={34} r={3} fill={INK} />
+        <Circle cx={68} cy={34} r={3} fill={INK} />
+        <Path
+          d="M32 66 Q50 78 68 66"
+          stroke={INK}
+          strokeWidth={3}
+          strokeLinecap="round"
+          fill="none"
+        />
+      </>
+    ),
+  },
+  snail: {
+    bg: NAVY,
+    art: (
+      <>
+        <Path d="M14 80 Q20 66 40 66 L82 66 Q88 66 88 74 L88 80 Z" fill={CREAM} />
+        <Path
+          d="M78 66 l4 -20 M84 66 l6 -18"
+          stroke={CREAM}
+          strokeWidth={3}
+          strokeLinecap="round"
+        />
+        <Circle cx={82} cy={45} r={3} fill={AMBER} />
+        <Circle cx={90} cy={47} r={3} fill={AMBER} />
+        <Circle cx={46} cy={50} r={24} fill={ROSE} />
+        <Path
+          d="M46 50 m-14 0 a14 14 0 1 1 14 14 a8 8 0 1 1 -8 -8"
+          stroke={CREAM}
+          strokeWidth={3}
+          fill="none"
+        />
       </>
     ),
   },
