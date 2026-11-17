@@ -7,7 +7,7 @@ storage the user controls only, no add-on directory, audio never through our ser
 
 ## v1.0 gaps
 
-In [the brief's v1.0 scope](brief.md#v10-scope) but not built by M1–M9:
+In the v1.0 scope the brief listed at the time, but not built by M1–M9:
 
 - **WebDAV add-on** (also the most asked-for source; see M10).
 - **Tags, playlists, smart lists** and **full export** of the library.
@@ -51,7 +51,7 @@ In [the brief's v1.0 scope](brief.md#v10-scope) but not built by M1–M9:
 | M38 | Add-ons in the app     | Sandboxed JavaScript add-ons (QuickJS) with network only to declared hosts, for LAN sources             |
 | M39 | Precise seeking        | Bookmarks on the progress bar with snapping, fine scrubbing and jump-to-time for long books             |
 
-M29 and M32 close gaps in the brief's v1.0 scope; they can run before the others.
+M29 and M32 close v1.0 gaps; they can run before the others.
 
 Much later (around M40): themes, community skins and community players (the M9 avatars and the
 night theme are the start). Not planned: an iOS app, which would need an App Store account.

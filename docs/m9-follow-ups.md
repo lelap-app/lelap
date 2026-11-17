@@ -38,5 +38,5 @@ book.
 - Fixed after M9: switching to a profile with nothing to play now empties the player (`unload`),
   so the lock screen and notification no longer show the other profile's book. Still to confirm
   on the phone. Playback resumption from headphones can still pick up that book's journal.
-- Per-profile scrobble add-ons wait for scrobbling itself (Later in the brief).
+- Per-profile scrobble add-ons wait for scrobbling itself ([M30](milestones/m30.md)).
 - Settings are per profile, including download rules, which arguably belong to the device.

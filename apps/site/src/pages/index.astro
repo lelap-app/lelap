@@ -318,7 +318,7 @@ const compose = `services:
               <h3 class="get-title">Android</h3>
               <span class="mono-accent">.apk · Android 8.0 or newer</span>
             </div>
-            {!site.released && <span class="badge">{site.beta ? 'Beta' : 'Coming with v1.0'}</span>}
+            {!site.released && <span class="badge">{site.beta ? 'Beta' : 'Coming soon'}</span>}
           </div>
           <p>
             The full experience: background playback, downloads with the screen off, casting and
@@ -396,7 +396,7 @@ const compose = `services:
                 Start listening
               </a>
             ) : (
-              <span class="badge get-cta">Coming with v1.0</span>
+              <span class="badge get-cta">Coming soon</span>
             )}
           </div>
           <div class="card get" data-reveal style="--i: 2">
@@ -488,7 +488,7 @@ const compose = `services:
           <summary>When can I use it?</summary>
           <p>
             {site.name} is in early development. Follow the repository on GitHub to see progress;
-            the plan and the v1.0 scope are in the open.
+            the plan and the roadmap are in the open.
           </p>
         </details>
       )}
