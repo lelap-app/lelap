@@ -51,6 +51,9 @@ jobs:
               - 'modules/**'
               - 'apps/app/package.json'
               - 'apps/app/app.json'
+              - 'apps/app/app.config.js'
+              - 'apps/app/plugins/**'
+              - 'apps/app/certs/**'
               - 'pnpm-lock.yaml'
               - '.github/workflows/ci.yml'
 

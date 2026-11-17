@@ -19,6 +19,7 @@ import { useLibrary } from '../src/player';
 import { activeProfile, profileId } from '../src/profile';
 import { LOCAL_FOLDERS } from '../src/platform/library';
 import { SELF_UPDATES } from '../src/platform/updater';
+import { fetchOtaUpdate, OTA_UPDATES, otaDescription } from '../src/ota';
 import { checkForUpdate, installUpdate } from '../src/updates';
 import { chooseFolder, scanLibrary } from '../src/scan';
 
@@ -44,13 +45,17 @@ function Row({
   );
 }
 
-/** Android: the installed version, the beta channel and a manual check. */
+/** Android: the beta channel, automatic bundle updates and a manual check. */
 function UpdateRows({
   betaUpdates,
   onBeta,
+  otaUpdates,
+  onOta,
 }: {
   betaUpdates: boolean;
   onBeta: (v: boolean) => void;
+  otaUpdates: boolean;
+  onOta: (v: boolean) => void;
 }) {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -60,7 +65,15 @@ function UpdateRows({
     try {
       const release = await checkForUpdate();
       if (!release) {
-        setStatus('Lelap is up to date.');
+        // No new APK: a smaller update may still wait for this build.
+        const ota = await fetchOtaUpdate();
+        setStatus(
+          ota === 'downloaded'
+            ? 'An update is ready. It starts the next time you open Lelap.'
+            : ota === 'error'
+              ? 'The update server could not be reached.'
+              : 'Lelap is up to date.',
+        );
         return;
       }
       setStatus(`Installing ${release.version}…`);
@@ -77,6 +90,14 @@ function UpdateRows({
       <Row label="Beta versions" detail="Try new versions before everyone else.">
         <Switch value={betaUpdates} onValueChange={onBeta} />
       </Row>
+      {OTA_UPDATES && (
+        <Row
+          label="Download updates automatically"
+          detail={`Small updates load in the background and start the next time you open Lelap. ${otaDescription() ?? ''}`.trim()}
+        >
+          <Switch value={otaUpdates} onValueChange={onOta} />
+        </Row>
+      )}
       <Row label="Check for updates" {...(status ? { detail: status } : {})}>
         <Pressable disabled={busy} onPress={() => void check()}>
           <Text className={busy ? 'text-muted' : 'text-amber'}>{busy ? 'Checking…' : 'Check'}</Text>
@@ -290,7 +311,12 @@ export default function SettingsScreen() {
         </View>
 
         {SELF_UPDATES && (
-          <UpdateRows betaUpdates={settings.betaUpdates} onBeta={(v) => update('betaUpdates', v)} />
+          <UpdateRows
+            betaUpdates={settings.betaUpdates}
+            onBeta={(v) => update('betaUpdates', v)}
+            otaUpdates={settings.otaUpdates}
+            onOta={(v) => update('otaUpdates', v)}
+          />
         )}
 
         {__DEV__ && LOCAL_FOLDERS && (

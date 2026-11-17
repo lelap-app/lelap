@@ -20,6 +20,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M13 Landing page 2         | In progress |
 | M14 Developer platform     | In progress |
 | M17 Car and offline web    | In progress |
+| M18 Updates over the air   | In progress |
 | M19 Security and hardening | In progress |
 | M20 SDK on npm             | In progress |
 
@@ -224,6 +225,16 @@ service, so the car works with the app closed. A service worker keeps the web ap
 `listen.` starts offline. Car and phone checks in [`m17-follow-ups.md`](m17-follow-ups.md).
 
 **Done when** the car checks pass on a head unit or the Desktop Head Unit.
+
+## M18 Updates over the air
+
+**Status:** in progress (from [`next.md`](next.md#proposed-milestones)). `expo-updates` with code
+signing and a fingerprint runtime version, the `lelap-updates` Worker (and a Docker image) serving
+the Expo Updates protocol from R2, and a release job that signs and uploads each tag's bundle to
+the `production` or `beta` channel. Setup and phone checks: [`m18-follow-ups.md`](m18-follow-ups.md).
+
+**Done when** a JavaScript-only release reaches a phone over the air on both channels and a badly
+signed manifest is refused. Not yet checked: none of it has run on a phone.
 
 ## M19 Security and hardening
 

@@ -98,6 +98,24 @@ pnpm exec wrangler secret put PODCASTINDEX_SECRET
 hand: `pnpm --filter @lelap/catalog run deploy -- --domain catalog.<domain>` (`run` matters:
 `pnpm deploy` is a pnpm command).
 
+## `updates`
+
+Over-the-air JavaScript updates for the Android app (Worker `lelap-updates`, M18). It answers the
+[Expo Updates protocol](https://docs.expo.dev/technical-specs/expo-updates-1/) version 1 from the
+downloads bucket: `GET /manifest` with the `expo-runtime-version` and `expo-channel-name`
+(`production` or `beta`) headers returns the signed manifest the release workflow uploaded, or
+`204` when there is nothing newer. Signing happens in CI, so the Worker holds no secret. Bundles are
+served from the downloads host; `GET /ota/…` serves them too, for self-hosting without a bucket.
+Never audio.
+
+```sh
+pnpm --filter @lelap/updates dev    # wrangler dev, with a local R2 bucket
+pnpm --filter @lelap/updates test
+```
+
+Deploys from `services.yml` (job `deploy-updates`); set `UPDATES_DOMAIN` (`updates.lelap.app`) in
+the `web` environment. Setup: [`docs/m18-follow-ups.md`](../docs/m18-follow-ups.md).
+
 ## `template`
 
 The smallest third-party add-on: one catalog, meta and streams for two LibriVox recordings, with a
@@ -108,4 +126,3 @@ tests and bundles it.
 
 - `proxy`: RSS feeds and cover images for the web app. Never audio.
 - `sync`: encrypted sync blobs and oplogs.
-- `updates`: expo-updates manifests and `latest.json` for the APK updater.

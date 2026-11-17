@@ -14,6 +14,7 @@ describe('settings', () => {
       downloadOnWifiOnly: true,
       downloadWhileChargingOnly: false,
       betaUpdates: false,
+      otaUpdates: true,
     });
   });
 

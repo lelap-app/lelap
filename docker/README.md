@@ -10,6 +10,7 @@ instead of D1).
 | `ghcr.io/lelap-app/catalog` | 8787 | Catalog and LibriVox add-ons                |
 | `ghcr.io/lelap-app/proxy`   | 8788 | RSS and covers for the web app; never audio |
 | `ghcr.io/lelap-app/sync`    | 8789 | Encrypted sync; data in the `/data` volume  |
+| `ghcr.io/lelap-app/updates` | 8790 | Signed app bundles (over the air); `/data`  |
 
 Images are multi-arch (amd64, arm64) and published with build provenance on every release tag:
 `latest` and `1.2` for stable releases, `beta` for betas.
@@ -32,6 +33,12 @@ on), also after DNS and redirects, so strangers can't use it to reach the servic
 your own feeds are on your network, set `PROXY_ALLOW_PRIVATE=true` and keep the proxy off the
 internet. The `web` image sends a Content-Security-Policy built for `LELAP_DOMAIN`; the services
 send no-sniff and sandbox headers. Rate limits belong in your reverse proxy.
+
+`updates` is only for Android builds of your own: it serves the signed bundles that
+`scripts/ota.mts` writes into its `/data` volume (`ota/channels/…` and `ota/<runtime>/…`), at
+`updates.<LELAP_DOMAIN>`. Pass `https://updates.<LELAP_DOMAIN>` as the script's base URL so the
+bundles come from the same place. Builds need your own code-signing certificate; see
+[`docs/m18-follow-ups.md`](../docs/m18-follow-ups.md).
 
 Back up the `sync-data` volume: it holds encrypted messages only, but losing it means devices
 pair again.
