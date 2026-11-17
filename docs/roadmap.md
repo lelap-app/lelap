@@ -67,6 +67,14 @@ in [`brief.md`](brief.md).
 The first stable release is `v0.1.0`, shipped by [M40](milestones/m40.md) with everything built so
 far.
 
+## Future goals
+
+Ideas without a number or a place in the order yet. One becomes a milestone, with its own file,
+when it is planned.
+
+- **Themes and community looks:** themes for the app beyond the night theme, community skins and
+  community players. The M9 avatars and the night theme are the start.
+
 ## Environments
 
 | Environment | When     | What                                                                                                                                                    |
