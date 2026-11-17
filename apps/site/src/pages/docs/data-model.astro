@@ -260,8 +260,10 @@ const toc: [string, string][] = [
   <h2 id="meta">Meta</h2>
   <p>
     Everything in the preview, plus the details shown on the book’s page. <code>chapters</code> here
-    apply to any single-file stream that brings none of its own. <code>externalIds</code> tie the
-    item to the same work under another prefix.
+    apply to a stream that brings none of its own when the stream is as long as the meta’s
+    <code>durationMs</code>, or to any single-file stream when the meta gives no length.
+    <code>series</code> names the series and the work’s place in it. <code>externalIds</code> tie
+    the item to the same work under another prefix.
   </p>
   <CodeBlock code={meta} label={`GET ${metaUrl}`} />
 

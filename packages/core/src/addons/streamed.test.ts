@@ -91,6 +91,61 @@ describe('addStreamedBook', () => {
     expect(detail?.chapters.map((c) => c.title)).toEqual(['Opening', 'Middle']);
   });
 
+  describe('chapters from the meta', () => {
+    const chapters = [
+      { title: 'Opening Credits', startMs: 0 },
+      { title: 'Chapter 1', startMs: 40_000 },
+      { title: 'Chapter 2', startMs: 100_000 },
+    ];
+    const withChapters: Meta = { ...meta, durationMs: 180_000, chapters };
+    const file = (durationMs?: number): Stream => ({
+      sourceKey: 'file',
+      name: 'Source',
+      url: 'https://audio.example/garden.m4b',
+      ...(durationMs === undefined ? {} : { durationMs }),
+    });
+    const titles = (bookId: string) => getBook(db, ME, bookId)?.chapters.map((c) => c.title);
+
+    it('apply to a single file of the same length', () => {
+      expect(titles(add(db, file(185_000), withChapters))).toEqual([
+        'Opening Credits',
+        'Chapter 1',
+        'Chapter 2',
+      ]);
+    });
+
+    it('apply to parts of the same length, over the part titles', () => {
+      expect(titles(add(db, parts(3), withChapters))).toEqual([
+        'Opening Credits',
+        'Chapter 1',
+        'Chapter 2',
+      ]);
+    });
+
+    it('are left out for another recording', () => {
+      expect(titles(add(db, file(240_000), withChapters))).toEqual([]);
+      expect(titles(add(db, parts(4, 'other'), withChapters))).toEqual([
+        'Chapter 1',
+        'Chapter 2',
+        'Chapter 3',
+        'Chapter 4',
+      ]);
+    });
+
+    it('are left out when the file has no known length', () => {
+      expect(titles(add(db, file(), withChapters))).toEqual([]);
+    });
+
+    it('apply to any single file when the meta has no length', () => {
+      expect(titles(add(db, file(), { ...meta, chapters }))).toHaveLength(3);
+    });
+
+    it("never replace the stream's own", () => {
+      const own = { ...file(180_000), chapters: [{ title: 'Own', startMs: 0 }] };
+      expect(titles(add(db, own, withChapters))).toEqual(['Own']);
+    });
+  });
+
   it('refreshes the same book and keeps the place in its part', () => {
     const bookId = add(db, parts(3));
     const location = getBook(db, ME, bookId)?.files[1]?.location ?? '';

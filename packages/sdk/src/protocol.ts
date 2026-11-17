@@ -91,13 +91,23 @@ export const Episode = z.object({
 });
 export type Episode = z.infer<typeof Episode>;
 
+/** A series the work belongs to; `position` is a label such as `1` or `2.5`. */
+export const Series = z.object({ name: z.string().min(1), position: z.string().optional() });
+export type Series = z.infer<typeof Series>;
+
 export const Meta = MetaPreview.extend({
   narrators: z.array(z.string()).optional(),
+  /** Main series first. */
+  series: z.array(Series).optional(),
   /** BCP 47 or ISO 639 code. */
   language: z.string().optional(),
   genres: z.array(z.string()).optional(),
+  /**
+   * On the whole-book timeline. The app uses them for a stream without its own chapters when the
+   * stream's length matches `durationMs`.
+   */
   chapters: z.array(Chapter).optional(),
-  /** The same work under other prefixes, such as `{ ol: 'OL69612W' }`. */
+  /** The same work under other prefixes, such as `{ ol: 'OL69612W', asin: 'B002UZMLXM' }`. */
   externalIds: z.record(z.string(), z.string()).optional(),
   episodes: z.array(Episode).optional(),
   /** A page about the item on the source's own site. */

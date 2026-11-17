@@ -5,7 +5,7 @@ import {
   type FoundStream,
   getBook,
 } from '@lelap/core';
-import { CONTENT_TYPES, type ContentType, hasParts } from '@lelap/sdk';
+import { CONTENT_TYPES, type ContentType, hasParts, type Meta } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -25,6 +25,11 @@ const PARTS_SHOWN = 8;
 
 const isType = (value: string | undefined): value is ContentType =>
   (CONTENT_TYPES as readonly (string | undefined)[]).includes(value);
+
+const seriesLabel = (series: Meta['series']) => {
+  const main = series?.[0];
+  return main ? (main.position ? `${main.name}, book ${main.position}` : main.name) : null;
+};
 
 const streamLabel = (found: FoundStream) =>
   [found.stream.name, found.stream.title].filter(Boolean).join(' · ');
@@ -133,6 +138,7 @@ export default function ItemScreen() {
             )}
             <Text className="text-center text-sm text-muted">
               {[
+                seriesLabel(item?.series),
                 item?.narrators?.length ? `Read by ${item.narrators.join(', ')}` : null,
                 item?.durationMs ? formatDuration(item.durationMs) : null,
                 item?.year ? String(item.year) : null,

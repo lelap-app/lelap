@@ -87,6 +87,7 @@ const meta = example(MetaResponse, {
     year: 1911,
     durationMs: 27812000,
     narrators: ['Ana Reader'],
+    series: [{ name: 'Garden Stories', position: '1' }],
     language: 'en',
     genres: ['children', 'fiction'],
     chapters: [
@@ -333,6 +334,12 @@ const previewFields: Field[] = [
 const metaFields: Field[] = [
   { name: 'narrators', type: 'string[]', required: false, meaning: 'Who reads it.' },
   {
+    name: 'series',
+    type: 'Series[]',
+    required: false,
+    meaning: 'Series the work belongs to, main series first.',
+  },
+  {
     name: 'language',
     type: 'string',
     required: false,
@@ -343,7 +350,8 @@ const metaFields: Field[] = [
     name: 'chapters',
     type: 'Chapter[]',
     required: false,
-    meaning: 'Chapters across the whole item.',
+    meaning:
+      'Chapters across the whole item. The app uses them for a stream without chapters of its own when the stream is as long as `durationMs` (within 15 seconds); without a `durationMs` they apply to any single-file stream.',
   },
   {
     name: 'externalIds',
@@ -379,6 +387,16 @@ const chapterFields: Field[] = [
     type: 'integer ≥ 0',
     required: true,
     meaning: 'Where it starts, in milliseconds from the beginning of the audio.',
+  },
+];
+
+const seriesFields: Field[] = [
+  { name: 'name', type: 'string', required: true, meaning: 'The series name.' },
+  {
+    name: 'position',
+    type: 'string',
+    required: false,
+    meaning: 'Where the work sits in it, as a label such as `1` or `2.5`.',
   },
 ];
 
@@ -602,6 +620,15 @@ const toc: [string, string][] = [
         </tr>
         <tr>
           <td>
+            <code>asin:</code>
+          </td>
+          <td>An Audible ASIN. The Catalog add-on answers its meta from Audnexus.</td>
+          <td>
+            <code>asin:B002UZMLXM</code>
+          </td>
+        </tr>
+        <tr>
+          <td>
             <code>podcast:</code>
           </td>
           <td>A podcast’s GUID.</td>
@@ -614,7 +641,9 @@ const toc: [string, string][] = [
   </div>
   <p>
     Use an <code>ol:</code> ID for a book when you know it, or name it in <code>externalIds</code>.
-    For your own items, pick a prefix of your own.
+    An <code>asin</code> in <code>externalIds</code> ties a book to its Audible recording, whose
+    narrators, series and chapters the Catalog add-on reads from Audnexus. For your own items, pick
+    a prefix of your own.
   </p>
   <p>
     The app decides whom to ask for an item’s <code>meta</code> and <code>stream</code>:
@@ -696,6 +725,8 @@ const toc: [string, string][] = [
   <FieldTable fields={metaFields} />
   <h3 id="chapter">Chapter</h3>
   <FieldTable fields={chapterFields} />
+  <h3 id="series">Series</h3>
+  <FieldTable fields={seriesFields} />
   <h3 id="episode">Episode</h3>
   <FieldTable fields={episodeFields} />
   <CodeBlock code={meta} label={`GET ${metaUrl}`} />
