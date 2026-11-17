@@ -52,10 +52,12 @@ export type RecommendInput = {
 
 // The few seeds that count: the books finished last.
 const SEEDS = 5;
-// A suggestion needs more than a shared add-on or a single word in common.
-const MIN_SCORE = 3;
+// What ties a suggestion to the finished book: the same author (6), two distinctive title words
+// (2 each) or a genre and a title word (2 each). One shared word is not enough.
+const MIN_LINK = 3;
 const HOUR = 3_600_000;
 
+// Words that say nothing about which book it is.
 const STOP = new Set([
   'the',
   'and',
@@ -73,7 +75,6 @@ const STOP = new Set([
   'dramatic',
   'reading',
   'version',
-  // Too broad to tell books apart.
   'adventures',
   'adventure',
   'story',
@@ -83,15 +84,14 @@ const STOP = new Set([
   'poems',
   'selected',
   'short',
-  'fiction',
-  'nonfiction',
-  'literature',
 ]);
+// Genres so broad that nearly every book has them.
+const BROAD_GENRES = new Set(['fiction', 'nonfiction', 'literature', 'general', 'classics']);
 
 const fold = (text: string) =>
   text
     .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim();
@@ -104,13 +104,35 @@ const words = (text: string) =>
       .filter((w) => w.length >= 4 && !STOP.has(w)),
   );
 
+/** The words of a name without initials or titles: “Sir Arthur Conan Doyle”, “H. G. Wells”. */
+const nameWords = (author: string) =>
+  new Set(
+    fold(author)
+      .split(' ')
+      .filter((w) => w.length >= 2 && !['sir', 'dr', 'mr', 'mrs', 'jr'].includes(w)),
+  );
+
 /** An author's name folded so “Doyle, Arthur Conan” and “Arthur Conan Doyle” agree. */
-export const authorKey = (author: string) => [...words(author)].sort().join(' ');
+export const authorKey = (author: string) => [...nameWords(author)].sort().join(' ');
 
 const known = (author: string | null | undefined): author is string =>
-  !!author && words(author).size > 0;
+  !!author && nameWords(author).size > 0;
+
+/**
+ * The same person: one name's words are all in the other's, so “Arthur Conan Doyle” and “Sir
+ * Arthur Conan Doyle” agree, while “Charles Dickens” and “Charles Darwin” don't.
+ */
+function samePerson(a: string, b: string): boolean {
+  const left = nameWords(a);
+  const right = nameWords(b);
+  const [small, large] = left.size <= right.size ? [left, right] : [right, left];
+  return small.size > 0 && [...small].every((w) => large.has(w));
+}
 
 const keyOf = (meta: { type: string; id: string }) => `${meta.type}\n${meta.id}`;
+// The same work under another add-on's ID.
+const workOf = (meta: MetaPreview) =>
+  `${titleKey(meta.name)}\n${meta.author ? authorKey(meta.author) : ''}`;
 
 function isOwned(meta: MetaPreview, owned: Owned): boolean {
   if (owned.keys.has(keyOf(meta))) return true;
@@ -122,30 +144,42 @@ function isOwned(meta: MetaPreview, owned: Owned): boolean {
   );
 }
 
-function score(seed: Seed, candidate: Candidate, authorListening: Map<string, number>): number {
+function genreHits(genres: string[], text: Set<string>): number {
+  return genres.filter((g) => {
+    const genre = [...words(g)];
+    // Every word must appear: “science fiction”, not any book that says “science”.
+    return (
+      genre.length > 0 &&
+      !genre.every((w) => BROAD_GENRES.has(w)) &&
+      genre.every((w) => text.has(w))
+    );
+  }).length;
+}
+
+/** How closely a candidate is tied to the seed, and how much to prefer it among those that are. */
+function score(
+  seed: Seed,
+  candidate: Candidate,
+  authorListening: Map<string, number>,
+): { link: number; total: number } {
   const { meta } = candidate;
-  let total = 0;
-  if (known(seed.author) && known(meta.author) && sameAuthor(seed.author, meta.author)) total += 6;
+  let link = 0;
+  if (known(seed.author) && known(meta.author) && samePerson(seed.author, meta.author)) link += 6;
+  const title = words(meta.name);
+  link += Math.min(4, 2 * [...words(seed.title)].filter((w) => title.has(w)).length);
+  if (seed.genres.length > 0) {
+    link += Math.min(
+      4,
+      2 * genreHits(seed.genres, words(`${meta.name} ${meta.description ?? ''}`)),
+    );
+  }
+  let total = link;
   // Authors the profile spends hours with weigh more, up to 2 points at 10 hours.
   if (known(meta.author)) {
-    const ms = authorListening.get(authorKey(meta.author)) ?? 0;
-    total += Math.min(2, ms / (5 * HOUR));
-  }
-  const seedTitle = words(seed.title);
-  const title = words(meta.name);
-  const sharedTitle = [...seedTitle].filter((w) => title.has(w)).length;
-  total += Math.min(4, 2 * sharedTitle);
-  if (seed.genres.length > 0) {
-    const text = words(`${meta.name} ${meta.description ?? ''}`);
-    // Every word of a genre must appear: “science fiction”, not any book saying “science”.
-    const genreHits = seed.genres.filter((g) => {
-      const genre = words(g);
-      return genre.size > 0 && [...genre].every((w) => text.has(w));
-    }).length;
-    total += Math.min(4, 2 * genreHits);
+    total += Math.min(2, (authorListening.get(authorKey(meta.author)) ?? 0) / (5 * HOUR));
   }
   if (seed.addonUrl !== null && seed.addonUrl === candidate.addonUrl) total += 1;
-  return total;
+  return { link, total };
 }
 
 /**
@@ -157,9 +191,11 @@ export function recommend(input: RecommendInput): SuggestionRow[] {
   // The first copy of an item wins; catalogs often share books.
   const seen = new Set<string>();
   const candidates = input.candidates.filter((c) => {
-    const key = keyOf(c.meta);
-    if (c.meta.type !== 'audiobook' || seen.has(key) || isOwned(c.meta, owned)) return false;
-    seen.add(key);
+    const keys = [keyOf(c.meta), workOf(c.meta)];
+    if (c.meta.type !== 'audiobook' || keys.some((k) => seen.has(k)) || isOwned(c.meta, owned)) {
+      return false;
+    }
+    for (const k of keys) seen.add(k);
     return true;
   });
 
@@ -168,9 +204,9 @@ export function recommend(input: RecommendInput): SuggestionRow[] {
   for (const seed of seeds.slice(0, SEEDS)) {
     if (rows.length >= maxRows) break;
     const items = candidates
-      .map((c, order) => ({ c, order, score: score(seed, c, authorListening) }))
-      .filter((s) => s.score >= MIN_SCORE && !shown.has(keyOf(s.c.meta)))
-      .sort((a, b) => b.score - a.score || a.order - b.order)
+      .map((c, order) => ({ c, order, ...score(seed, c, authorListening) }))
+      .filter((s) => s.link >= MIN_LINK && !shown.has(keyOf(s.c.meta)))
+      .sort((a, b) => b.total - a.total || a.order - b.order)
       .slice(0, perRow)
       .map((s) => s.c.meta);
     if (items.length === 0) continue;

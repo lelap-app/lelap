@@ -26,8 +26,13 @@ setting's default.
 - TalkBack reads the row's title as a heading and Hide as “Hide suggestions”; Hide is at least
   48 dp.
 
-## Review findings left for later
+## Review findings
 
-- Covers of suggested items load from the URL in the add-on's catalog page. That host sees the
-  same request when the listener scrolls Home's row to the item, but a suggestion may show it
-  earlier. Covers on the web go through the proxy only for plain http.
+Fixed after review: same-author matching was too loose (a shared first name counted), one shared
+title word plus the same add-on was enough, hours with an author could tie an unrelated book to a
+seed, a broad genre word matched any description, the same work from two add-ons showed twice,
+and covers of suggestions deep in a catalog page could load only because of what was finished
+(now only the first ten of a page, which Home draws anyway, show a cover).
+
+Left for later: suggestions deeper than the first ten of a page show the title's letter, not a
+cover. Covers could come back once Home has loaded them; React Native gives no cheap way to know.

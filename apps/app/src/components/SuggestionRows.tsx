@@ -10,7 +10,7 @@ import { useAvailability } from '../availability';
 import { db } from '../db';
 import { useLibrary } from '../player';
 import { profileId } from '../profile';
-import { catalogQuery } from './CatalogRow';
+import { catalogQuery, HOME_FIRST_DRAWN } from './CatalogRow';
 import { MetaTile } from './MetaCard';
 import { TextButton } from './TextButton';
 
@@ -19,10 +19,21 @@ const TILE = 120;
 // Kept outside the component so the combined list stays the same object until a page changes.
 const dataOf = (results: { data?: MetaPreview[] | undefined }[]) => results.map((r) => r.data);
 
+const itemKey = (m: MetaPreview) => `${m.type} ${m.id}`;
+
+/** Without its cover, so the tile shows the title's letter instead of loading a picture. */
+function withoutCover(meta: MetaPreview): MetaPreview {
+  const rest = { ...meta };
+  delete rest.cover;
+  return rest;
+}
+
 /**
  * “Because you finished …” rows. They are worked out on the device from the catalog pages Home
  * loads anyway (the same queries, so the same requests), and their tiles ask nothing new: no
- * artwork and no source lookups that Home's own rows would not make.
+ * artwork and no source lookups that Home's own rows would not make. A cover shows only for items
+ * Home's rows draw from the start; deeper in a page, which covers load would follow what the
+ * profile finished.
  */
 export function SuggestionRows({
   onOpen,
@@ -44,6 +55,10 @@ export function SuggestionRows({
     () => suggestionRows(db, profileId, candidatesFrom(refs, pages)),
     [refs, pages, version],
   );
+  const drawn = useMemo(
+    () => new Set(pages.flatMap((page) => (page ?? []).slice(0, HOME_FIRST_DRAWN).map(itemKey))),
+    [pages],
+  );
 
   return rows.map((row) => (
     <View key={row.because.bookId} className="gap-2">
@@ -61,13 +76,13 @@ export function SuggestionRows({
       <FlatList
         horizontal
         data={row.items}
-        keyExtractor={(m) => `${m.type} ${m.id}`}
+        keyExtractor={itemKey}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
         extraData={availability}
         renderItem={({ item }) => (
           <MetaTile
-            meta={item}
+            meta={drawn.has(itemKey(item)) ? item : withoutCover(item)}
             width={TILE}
             availability={availability(item)}
             onPress={onOpen}

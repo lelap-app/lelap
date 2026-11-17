@@ -115,19 +115,50 @@ describe('recommend', () => {
   it('weighs authors the profile listens to for hours, and genres from a download', () => {
     const rows = recommend({
       seeds: [
-        seed('The Time Machine', 'H. G. Wells', {
-          genres: ['Science fiction'],
+        seed('The Invisible Man', 'H. G. Wells', {
+          genres: ['Science fiction', 'Fiction'],
           addonUrl: LIBRIVOX,
         }),
       ],
       candidates: candidates([
-        meta('ol:20', 'Twenty Thousand Leagues', 'Jules Verne', 'A science fiction voyage.'),
-        meta('ol:21', 'Frankenstein', 'Mary Shelley', 'Gothic science fiction.'),
+        meta('ol:20', 'The Invisible Planet', 'Jules Verne', 'A science fiction voyage.'),
+        meta('ol:21', 'The Invisible Woman', 'Mary Shelley', 'Science fiction.'),
+        // A genre word alone, or the broad “Fiction”, is not enough.
+        meta('ol:22', 'Origin of Species', 'Charles Darwin', 'Natural science.'),
+        meta('ol:23', 'Middlemarch', 'George Eliot', 'Fiction.'),
       ]),
       owned: none,
       authorListening: new Map([[authorKey('Mary Shelley'), 10 * 3_600_000]]),
     });
     expect(rows[0]?.items.map((m) => m.id)).toEqual(['ol:21', 'ol:20']);
+  });
+
+  it('needs more than a shared first name, one title word or hours with an author', () => {
+    const rows = recommend({
+      seeds: [seed('Great Expectations', 'Charles Dickens', { addonUrl: LIBRIVOX })],
+      candidates: candidates([
+        meta('ol:30', 'The Descent of Man', 'Charles Darwin'),
+        meta('ol:31', 'The Great Gatsby', 'F. Scott Fitzgerald'),
+        meta('ol:32', 'Frankenstein', 'Mary Shelley'),
+        meta('ol:33', 'Bleak House', 'Dickens, Charles'),
+      ]),
+      owned: none,
+      authorListening: new Map([[authorKey('Mary Shelley'), 50 * 3_600_000]]),
+    });
+    expect(rows[0]?.items.map((m) => m.id)).toEqual(['ol:33']);
+  });
+
+  it('shows the same work from two add-ons once', () => {
+    const rows = recommend({
+      seeds: [seed('Persuasion', 'Jane Austen')],
+      candidates: [
+        ...candidates([meta('ol:40', 'Emma', 'Jane Austen')]),
+        ...candidates([meta('other:40', 'Emma', 'Austen, Jane')], OTHER),
+      ],
+      owned: none,
+      authorListening: new Map(),
+    });
+    expect(rows[0]?.items.map((m) => m.id)).toEqual(['ol:40']);
   });
 
   it('keeps to the row and item limits', () => {

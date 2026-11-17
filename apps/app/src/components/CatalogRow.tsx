@@ -11,6 +11,9 @@ import { MetaTile } from './MetaCard';
 
 const TILE = 120;
 
+/** How many tiles a row draws from the start, scrolled or not; suggestions rely on it. */
+export const HOME_FIRST_DRAWN = 10;
+
 export const catalogQuery = (ref: CatalogRef, extra: Record<string, string> = {}) => ({
   queryKey: ['catalog', ref.addon.url, ref.catalog.type, ref.catalog.id, extra],
   queryFn: () => fetchCatalog(fetcher, ref, extra),
@@ -56,6 +59,7 @@ export function CatalogRow({
           horizontal
           data={data}
           keyExtractor={(m) => m.id}
+          initialNumToRender={HOME_FIRST_DRAWN}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
           {...visible}
