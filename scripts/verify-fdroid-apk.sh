@@ -3,7 +3,7 @@
 # way F-Droid's build server does: a fresh checkout per CPU type, the recipe's commands
 # (docs/fdroid/app.lelap.yml), then apksigcopier copies our signature onto the unsigned build and
 # the result must verify. Needs Node 24, pnpm, JDK 21, the Android SDK and apksigcopier
-# (`pip install apksigcopier`).
+# (`pip install apksigcopier`), which calls `apksigner` from the SDK's build-tools on PATH.
 #   scripts/verify-fdroid-apk.sh v1.2.3 [SIGNED_APK ...]
 # Without APKs it downloads both F-Droid APKs of the tag from GitHub Releases. An APK whose name
 # ends in -armv7.apk is rebuilt for armeabi-v7a, any other for arm64-v8a. SOURCE (a git URL or
