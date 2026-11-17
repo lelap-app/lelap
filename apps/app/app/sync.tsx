@@ -18,6 +18,7 @@ import {
   stopSyncing,
   syncOnce,
 } from '../src/sync';
+import { TextButton } from '../src/components/TextButton';
 
 const CODE_MINUTES = 10;
 
@@ -70,7 +71,7 @@ export default function SyncScreen() {
         gap: 16,
       }}
     >
-      <View className="-ml-2 self-start">
+      <View className="-ms-2 self-start">
         <IconButton
           name="back"
           label={t('Back')}
@@ -78,7 +79,9 @@ export default function SyncScreen() {
           onPress={() => router.back()}
         />
       </View>
-      <Text className="text-3xl font-semibold text-paper">{t('Sync')}</Text>
+      <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
+        {t('Sync')}
+      </Text>
       <Text className="text-soft">
         {t(
           'Your places, bookmarks, streamed books, podcasts and Up Next follow you between your devices. Everything is encrypted on this device with a key only your devices have; the server stores what it cannot read. No account.',
@@ -101,11 +104,17 @@ export default function SyncScreen() {
             </Text>
           )}
           <View className="gap-2">
-            <Text className="text-xs uppercase tracking-wider text-muted">{t('This device')}</Text>
+            <Text
+              accessibilityRole="header"
+              className="text-xs uppercase tracking-wider text-muted"
+            >
+              {t('This device')}
+            </Text>
             <TextInput
               value={name}
               onChangeText={setName}
               placeholder={t('Name, such as Kitchen tablet')}
+              accessibilityLabel={t('Name of this device')}
               placeholderTextColor="#8d8a83"
               className="rounded-lg border border-line px-3 py-2 text-paper"
             />
@@ -115,12 +124,16 @@ export default function SyncScreen() {
             onPress={() =>
               void run(async () => void (await startSyncing(name.trim() || defaultDeviceName())))
             }
-            className="items-center rounded-full bg-amber py-3 active:opacity-80"
+            accessibilityRole="button"
+            className="min-h-12 items-center justify-center rounded-full bg-amber py-3 active:opacity-80"
           >
             <Text className="font-semibold text-ink">{t('Start syncing from this device')}</Text>
           </Pressable>
           <View className="gap-2">
-            <Text className="text-xs uppercase tracking-wider text-muted">
+            <Text
+              accessibilityRole="header"
+              className="text-xs uppercase tracking-wider text-muted"
+            >
               {t('Or join with a code from another device')}
             </Text>
             <View className="flex-row items-center gap-2">
@@ -128,12 +141,14 @@ export default function SyncScreen() {
                 value={code}
                 onChangeText={setCode}
                 placeholder={'7KQM-2XPA-9HRT'}
+                accessibilityLabel={t('Code from another device')}
                 placeholderTextColor="#8d8a83"
                 autoCapitalize="characters"
                 autoCorrect={false}
-                className="flex-1 rounded-lg border border-line px-3 py-2 font-mono text-paper"
+                className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 font-mono text-paper"
               />
-              <Pressable
+              <TextButton
+                text={t('Join')}
                 disabled={busy || code.trim() === ''}
                 onPress={() =>
                   void run(async () => {
@@ -142,23 +157,23 @@ export default function SyncScreen() {
                     await syncOnce();
                   })
                 }
-              >
-                <Text className={code.trim() === '' ? 'text-muted' : 'text-amber'}>
-                  {t('Join')}
-                </Text>
-              </Pressable>
+              />
             </View>
           </View>
         </View>
       ) : (
         <View className="gap-4">
           <Text className="text-paper">
-            Syncing as {member.deviceName}
-            {member.lastSyncAt ? ` · last ${new Date(member.lastSyncAt).toLocaleTimeString()}` : ''}
+            {t('Syncing as {name}', { name: member.deviceName })}
+            {member.lastSyncAt
+              ? ` · ${t('last {time}', { time: new Date(member.lastSyncAt).toLocaleTimeString() })}`
+              : ''}
           </Text>
-          <Pressable disabled={busy} onPress={() => void run(async () => void (await syncOnce()))}>
-            <Text className="text-amber">{t('Sync now')}</Text>
-          </Pressable>
+          <TextButton
+            text={t('Sync now')}
+            disabled={busy}
+            onPress={() => void run(async () => void (await syncOnce()))}
+          />
 
           <View className="gap-2 rounded-xl border border-line p-3">
             <Text className="text-paper">{t('Add a device')}</Text>
@@ -168,12 +183,15 @@ export default function SyncScreen() {
                   {offered.code}
                 </Text>
                 <Text className="text-sm text-muted">
-                  Type this on the other device under Settings → Sync → Join. Works once, for{' '}
-                  {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')} more.
+                  {t(
+                    'Type this on the other device under Settings → Sync → Join. Works once, for {time} more.',
+                    { time: `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` },
+                  )}
                 </Text>
               </>
             ) : (
-              <Pressable
+              <TextButton
+                text={t('Show a pairing code')}
                 disabled={busy}
                 onPress={() =>
                   void run(async () =>
@@ -183,9 +201,7 @@ export default function SyncScreen() {
                     }),
                   )
                 }
-              >
-                <Text className="text-amber">{t('Show a pairing code')}</Text>
-              </Pressable>
+              />
             )}
           </View>
 
@@ -198,7 +214,8 @@ export default function SyncScreen() {
             </Text>
             {confirmReset ? (
               <View className="flex-row gap-6">
-                <Pressable
+                <TextButton
+                  text={t('Reset sync')}
                   disabled={busy}
                   onPress={() =>
                     void run(async () => {
@@ -208,21 +225,25 @@ export default function SyncScreen() {
                       await syncOnce();
                     })
                   }
-                >
-                  <Text className="text-danger">{t('Reset sync')}</Text>
-                </Pressable>
-                <Pressable onPress={() => setConfirmReset(false)}>
-                  <Text className="text-muted">{t('Cancel')}</Text>
-                </Pressable>
+                  tone="danger"
+                />
+                <TextButton
+                  text={t('Cancel')}
+                  onPress={() => setConfirmReset(false)}
+                  tone="muted"
+                />
               </View>
             ) : (
-              <Pressable disabled={busy} onPress={() => setConfirmReset(true)}>
-                <Text className="text-amber">{t('Remove a lost device…')}</Text>
-              </Pressable>
+              <TextButton
+                text={t('Remove a lost device…')}
+                disabled={busy}
+                onPress={() => setConfirmReset(true)}
+              />
             )}
           </View>
 
-          <Pressable
+          <TextButton
+            text={t('Stop syncing on this device')}
             onPress={() =>
               showAlert(
                 t('Stop syncing on this device?'),
@@ -240,9 +261,8 @@ export default function SyncScreen() {
                 ],
               )
             }
-          >
-            <Text className="text-danger">{t('Stop syncing on this device')}</Text>
-          </Pressable>
+            tone="danger"
+          />
         </View>
       )}
     </ScrollView>

@@ -4,3 +4,6 @@ export * from './repository';
 export * from './rss';
 export { FeedError, htmlToText } from './xml';
 export * from './podcasting';
+export * from './refresh';
+export * from './placeholder';
+export * from './trim';

@@ -146,6 +146,28 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M12] The Player fits a small screen (`adb shell wm size 1080x1920` and `wm density`) without the tool row touching the gesture bar. ([m12](m12-follow-ups.md))
 - [ ] [M12] Android keeps its system dialogs for remove add-on, delete bookmark and download actions. ([m12](m12-follow-ups.md))
 - [ ] [M12] With animations off (`settings put global animator_duration_scale 0`, also transition and window), nothing fades or scales. ([m12](m12-follow-ups.md))
+- [ ] [M42] Largest font size (`adb shell settings put system font_scale 2.0`, then `wm density` up): Home, Library, Player, Settings and the item page show no clipped text; tab labels are whole; the Player scrolls and fine scrubbing still works. ([m42](m42-follow-ups.md#m42-follow-ups))
+- [ ] [M42] With animations off, sheets, dialogs, the Player and car mode open without sliding or fading; the transcript jumps to the current line. ([m42](m42-follow-ups.md#m42-follow-ups))
+- [ ] [M42] `uiautomator dump` on Home, Library, Player, Settings: every clickable node has a `content-desc` or text, and bounds of at least 48 dp; the widget's root and buttons have descriptions. ([m42](m42-follow-ups.md#m42-follow-ups))
+- [ ] [M43] Cold start with the 10,000-book test library on a release build: Library rows on screen within 2 s on a mid-range phone, median of five screen recordings. ([m43](m43-follow-ups.md#cold-start))
+- [ ] [M43] Fast scroll through 10,000 books: no blank gaps that stay, no stutter over a second, under 300 MB in `dumpsys meminfo`. ([m43](m43-follow-ups.md#m43-follow-ups))
+- [ ] [M43] With 500 test podcasts the Podcasts tab opens at once, and no request goes out for a test feed. ([m43](m43-follow-ups.md#m43-follow-ups))
+- [ ] [M44] A 10-inch tablet (or a tablet emulator), upright and sideways: the tabs are a rail, the player stands beside the list once a book plays, and a book tapped in the Library plays there without the full-screen player. ([m44](m44-follow-ups.md#tablet))
+- [ ] [M44] On the tablet, car mode and the full-screen player hide the pane; Back returns to the two panes. ([m44](m44-follow-ups.md#tablet))
+- [ ] [M44] A phone turned sideways (`adb shell settings put system user_rotation 1` with auto-rotate off): the Player shows the cover beside the controls, nothing under the camera cut-out; upright again gives the usual Player. ([m44](m44-follow-ups.md#tablet))
+- [ ] [M45] A library book without chapter tags: Chapters → Find chapters; after the scan the sheet lists Part 1, Part 2, … with “Found from long silences on this phone”; Remove takes them away. ([m45](m45-follow-ups.md#silences))
+- [ ] [M45] Battery at 10 % (`adb shell dumpsys battery set level 10`): a scan waits, and one running stops; back at 50 % it goes on from its checkpoint. ([m45](m45-follow-ups.md#silences))
+- [ ] [M45] A show with Skip intro and Skip outro at 30 s: a new episode starts at 0:30, ends 30 s early as played, and Up Next goes on, also with the app closed. ([m45](m45-follow-ups.md#intro-outro))
+- [ ] [M46] Mark a streamed LibriVox book finished: Home shows “Because you finished …” with books by the same author, none from the Library; a second finished book's row comes first. ([m46](m46-follow-ups.md#row))
+- [ ] [M46] Hide on the row removes it and the other profile keeps its rows; Settings → Catalogs → Suggestions on Home brings it back. `uiautomator dump`: Hide has the name “Hide suggestions” and 48 dp. ([m46](m46-follow-ups.md#row))
+- [ ] [M47] Settings → Help → Diagnostics, log on, play a stream, `adb shell svc wifi disable` until it fails: the prepared file lists `player error` with a Media3 code and `book#1`, and no title or address; Share opens the share sheet. `uiautomator dump`: the switch is named “Keep a diagnostics log”, buttons 48 dp. ([m47](m47-follow-ups.md#log))
+- [ ] [M47] Log off and on again, prepare the file: the log is empty, the service's earlier events too. A failed WebDAV download and rescan show as `download failed` and `scan failed webdav server#1`. ([m47](m47-follow-ups.md#log))
+- [ ] [M48] Profile in Bahasa Melayu, play a book: `uiautomator dump` of the notification shows “Undur 30 saat”, “Maju 30 saat”, “Pemasa tidur dimatikan”; `adb shell cmd notification list_channels app.lelap` (or the settings screen) names the player's channel “Kini dimainkan”. Back to English: the names follow without a restart. ([m48](m48-follow-ups.md#native))
+- [ ] [M48] Malay chosen, app swiped away: the widget reads “Tiada yang dimainkan” or the book with “Jeda”/“Main”, the tile “Sedang dimainkan” or “Dijeda”; switch to English in the app and both redraw. A Malay and an English profile switch them along. ([m48](m48-follow-ups.md#widget))
+- [ ] [M48] A download in Malay shows “Memuat turun” with “Batal”; finding chapters shows “Mencari bab” with “Henti”. ([m48](m48-follow-ups.md#downloads))
+- [ ] [M49] Play a LibriVox book from Discover for a minute, go back: its tile shows the percent; Mark as finished in the Library: the tile and its Home row show ✓ next to the ★ rating. ([m49](m49-follow-ups.md#state))
+- [ ] [M49] Settings → Catalogs → Badges on covers off: no badges on Home, Discover, Search, the Library or the item page; on again brings them back; a second profile keeps its own choice. ([m49](m49-follow-ups.md#setting))
+- [ ] [M49] `uiautomator dump` on Discover: each tile is one node named with its badges (“…, Rated 4.6 of 5”), no separate badge node; the item page cover is one node “Cover: Rated 4.6 of 5”. A Malay profile reads “Penarafan 4.6 daripada 5”. ([m49](m49-follow-ups.md#talkback))
 - [x] [M12] Player buttons carry names for TalkBack (Back 30 seconds, Play, Next chapter, …) in `uiautomator dump`. ([m12](m12-follow-ups.md)) **Passed 2026-11-17**: speed button now says Speed, 1× (#66).
 - [ ] [M9] Install the web app from Chrome on the phone: `listen.lelap.app` → Add to home screen. ([README](../apps/app/README.md#checks-after-m9-2026-11-16))
 - [ ] [M29] Expired link, playback and download: an add-on on the laptop (`adb reverse`) whose `/resolve/…` link answers 403 after a minute; playback continues, the download resumes, a link that keeps failing errors after one retry. ([m29](m29-follow-ups.md#phone-checks))
@@ -179,6 +201,18 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M26] Screen off for 30 minutes while casting a multi-part book: parts still advance. ([m26](m26-follow-ups.md#1-checks-on-a-phone))
 - [ ] [M26] On a guest network with client isolation: no receivers, no crash. ([m26](m26-follow-ups.md#1-checks-on-a-phone))
 - [ ] [M22] Casting is not disturbed by the audio switches; local playback picks them up again afterwards. ([m22](m22-follow-ups.md))
+- [ ] [M50] Cast a multi-part book to a Sonos and lock the phone for an hour: parts advance, the notification shows the chapter and controls the speaker. ([m50](m50-follow-ups.md#1-checks-on-a-phone))
+- [ ] [M50] While casting, lock screen, notification, headset button, volume keys and Android Auto control the receiver; the phone stays silent. ([m50](m50-follow-ups.md#1-checks-on-a-phone))
+- [ ] [M50] A 5-minute sleep timer while casting fades the speaker (Sonos, Nest Mini), pauses it and puts its volume back; an end-of-chapter timer pauses it within about two seconds of the chapter's end. ([m50](m50-follow-ups.md#1-checks-on-a-phone))
+- [ ] [M50] A book that ends on a speaker shows as finished; a podcast episode with Up Next starts the next episode on the same speaker. ([m50](m50-follow-ups.md#1-checks-on-a-phone))
+- [ ] [M50] A UPnP renderer that lists 3/2 plays at 1.5×; Sonos plays at 1× and the player shows 1×. ([m50](m50-follow-ups.md#1-checks-on-a-phone))
+- [ ] [M50] Hand back while playing continues on the phone without a rewind; swipe the app away while casting and the notification still controls the receiver. ([m50](m50-follow-ups.md#1-checks-on-a-phone))
+- [ ] [M50] A test build with `targetSdkVersion` 37 on Android 17: the Cast sheet explains, then asks for “nearby devices”; receivers appear after Allow; refused for good it offers “Open settings”. ([m50](m50-follow-ups.md#1-checks-on-a-phone))
+- [ ] [M50] The FCast desktop receiver plays, pauses, seeks and fades on the sleep timer. ([m50](m50-follow-ups.md#1-checks-on-a-phone))
+- [ ] [M47] With the diagnostics log on, a phone call during a book and unplugging wired headphones show in the file as a focus event and `paused-by-system AUDIO_BECOMING_NOISY (3)`, also with the app swiped away first. ([m47](m47-follow-ups.md#log))
+- [ ] [M48] Android Auto (or the Desktop Head Unit) with a Malay profile: the shelves read “Teruskan mendengar”, “Dalam telefon ini”, “Podcast”, “Seterusnya”. ([m48](m48-follow-ups.md#auto))
+- [ ] [M49] TalkBack on Discover, the item page and the Library: badges are read with the tile or cover, never as their own stop; at the largest font size they stay inside their cover. ([m49](m49-follow-ups.md#large-text))
+- [ ] [M48] From a GitHub account without write access: edit `catalogs/ms.json` in the browser and propose it, then add a language from `template.json`; the check points at problem lines, and the translation issue form files. ([m48](m48-follow-ups.md#flow))
 
 ### By ear or by hand
 
@@ -188,6 +222,14 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M22] Effects hold at 0.8× and 3× and after a part changes on its own. ([m22](m22-follow-ups.md))
 - [ ] [M22] An hour with all three effects on costs no noticeable extra battery. ([m22](m22-follow-ups.md))
 - [ ] [M29] Shake the phone (screen off, on a bed) with 5 minutes left: ten minutes added, volume back; turning over doesn't trigger it; a shake with 20 minutes left does nothing. ([m29](m29-follow-ups.md#phone-checks))
+- [ ] [M42] TalkBack walk-through on every screen, as listed per screen; the scrubber moves by swiping up and down; bookmarks have a Delete action. ([m42](m42-follow-ups.md#talkback-walk-through-per-screen))
+- [ ] [M42] Accessibility Scanner on Home, Library, Player and Settings: no target under 48 dp, no missing labels. ([m42](m42-follow-ups.md#m42-follow-ups))
+- [ ] [M42] TalkBack on the widget, the Quick Settings tile and the notification: each control is read with its name. ([m42](m42-follow-ups.md#m42-follow-ups))
+- [ ] [M43] A real folder of a few hundred books: a second scan is quicker than before M43, and no book loses its place, bookmarks or chapters. ([m43](m43-follow-ups.md#m43-follow-ups))
+- [ ] [M43] Android Auto (Desktop Head Unit) with the test library: the browse tree opens without delay. ([m43](m43-follow-ups.md#m43-follow-ups))
+- [ ] [M44] TalkBack on a tablet reads the rail's tabs, then the list, then the player pane. ([m44](m44-follow-ups.md#tablet))
+- [ ] [M45] Found chapters fall at the real chapter breaks of a few books (MP3 and M4B); a ten-hour book's scan finishes. ([m45](m45-follow-ups.md#silences))
+- [ ] [M46] A kids profile with a shelf: a finished shelf book gives a row; a grown-up's finished books never shape the kid's rows. ([m46](m46-follow-ups.md#row))
 - [ ] [M2] Revoke Lelap's folder access in Android settings, reopen: a banner asks for the folder; no book is dimmed. ([README](../apps/app/README.md#m2-device-checklist))
 
 ### Accounts and servers
@@ -200,6 +242,12 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M10] Cloudflare R2 or MinIO: add a bucket; a book plays and downloads. ([m10](m10-follow-ups.md#2-checks))
 - [ ] [M10] A wrong password says so; a server that is down keeps its books. ([m10](m10-follow-ups.md#2-checks))
 - [ ] [M25] Covers from an Audiobookshelf server that needs a login on the widget (expected: placeholder). ([m25](m25-follow-ups.md#1-device-checks))
+- [ ] [M41] Audiobookshelf 2.26 or later: add with an API key; book libraries picked, podcast libraries not listed. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M41] Turn the Audiobookshelf key off, play a book: Settings shows the refused key with “Change key”; a new key keeps books and places and clears it. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M41] Audiobookshelf books: single `.m4b` with chapters, several `.mp3` files as one book with a chapter per file; titles, authors, covers. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M41] An Audiobookshelf book plays, seeks and downloads, also a download that waits for Wi-Fi. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M41] Audiobookshelf places both ways: pause in Lelap, the web player resumes there; play on in the web player, then play in Lelap, it starts there; finished books both ways. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M41] Cast an Audiobookshelf book to Chromecast and a UPnP renderer. ([m41](m41-follow-ups.md#m41-follow-ups))
 - [ ] [M30] Hardcover with a real token: Currently reading with progress after a few minutes, Read with today's date after finishing, the Want to read row. ([m30](m30-follow-ups.md))
 - [ ] [M30] Hardcover events from an offline session arrive with their own times once back online. ([m30](m30-follow-ups.md))
 - [ ] [M30] gPodder (gpodder.net and Nextcloud gPodder Sync): play and pause an episode; AntennaPod on the same server continues there. ([m30](m30-follow-ups.md))
@@ -216,6 +264,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M16] A hand-made list keeps its order after a sync to a second device. ([m16](m16-follow-ups.md))
 - [ ] [M22] Mono and voice clarity changed on another device reach the player at the next start; boost does not. ([m22](m22-follow-ups.md))
 - [ ] [M34] After an import, sync sends tags, marks, places and subscriptions to a second device. ([m34](m34-follow-ups.md))
+- [ ] [M45] A show's Skip intro and Skip outro reach the other device with the next sync. ([m45](m45-follow-ups.md#intro-outro))
 
 ### Over days and nights
 
@@ -254,6 +303,9 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M22] Web: effects on a download and a LibriVox stream; a host without CORS plays without them, never silent; a switch reloads once at the same place; Safari and Firefox levels match Chrome. ([m22](m22-follow-ups.md))
 - [ ] [M29] Web: timer checks 1, 3, 6 and the expired link in Chrome and Firefox. ([m29](m29-follow-ups.md#phone-checks))
 - [ ] [M34] The AntennaPod file and its OPML export import in the web app. ([m34](m34-follow-ups.md))
+- [ ] [M41] Web: an Audiobookshelf server that allows the site lists, plays with `?token=` and reports places; one that does not shows the CORS hint. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M44] Web: media keys in Chrome, Firefox and Safari play, pause and skip 30 s with the tab in the background; the browser's media overlay shows the progress in the current file and can drag within it. ([m44](m44-follow-ups.md#media-keys))
+- [ ] [M44] Web, keyboard only: Tab moves through the rail, the list and the player; Space on a focused button presses it once without also playing or pausing. ([m44](m44-follow-ups.md#media-keys))
 
 ## C. Already covered elsewhere or obsolete
 

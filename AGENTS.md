@@ -41,12 +41,14 @@ services/       Hono services on Cloudflare Workers: catalog (Catalog + LibriVox
                 and covers for the web app), sync (encrypted oplog, D1), updates (signed
                 over-the-air bundles from R2), template
 modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer
-modules/library Kotlin Expo module: folder access, tags and chapters for the local library
+modules/library Kotlin Expo module: folder access, tags and chapters for the local library; chapters
+                from silences
 modules/download Kotlin Expo module: WorkManager downloads with Wi-Fi and charging rules
 modules/cast    Kotlin Expo module: casting over UPnP, an own Cast v2 client and FCast; LAN file server
 modules/updater Kotlin Expo module: in-app APK updates through PackageInstaller
 modules/widget  Kotlin module: home screen widget and Quick Settings tile, no JavaScript API
 modules/bluetooth Kotlin Expo module: connected Bluetooth audio devices, battery, car detection
+modules/text    Kotlin Expo module: translated lines for notifications, widget and tile, kept for when closed
 examples/       add-on samples: plain Node, Python (stdlib), seasonal catalogs; tested in CI
 docker/         Node entries, Dockerfiles and compose for self-hosting      → docker/README.md
 scripts/        release helpers for the tag workflow (Node, type stripping)
@@ -59,17 +61,18 @@ docs/milestones/ one file per milestone: status, resources, done when
 
 Node 24 (`.nvmrc`) and pnpm via Corepack (`corepack enable`). Run from the root:
 
-| Task                  | Command         |
-| --------------------- | --------------- |
-| Install               | `pnpm install`  |
-| Landing page dev      | `pnpm dev:site` |
-| App on a phone        | `pnpm android`  |
-| App dev server        | `pnpm dev:app`  |
-| Build everything      | `pnpm build`    |
-| Type-check everything | `pnpm check`    |
-| Test                  | `pnpm test`     |
-| Lint                  | `pnpm lint`     |
-| Format                | `pnpm format`   |
+| Task                  | Command                           |
+| --------------------- | --------------------------------- |
+| Install               | `pnpm install`                    |
+| Landing page dev      | `pnpm dev:site`                   |
+| App on a phone        | `pnpm android`                    |
+| App dev server        | `pnpm dev:app`                    |
+| Build everything      | `pnpm build`                      |
+| Type-check everything | `pnpm check`                      |
+| Test                  | `pnpm test`                       |
+| Library timings (M43) | `pnpm --filter @lelap/core bench` |
+| Lint                  | `pnpm lint`                       |
+| Format                | `pnpm format`                     |
 
 Before opening a pull request run `pnpm format:check`, `pnpm lint`, `pnpm check`, `pnpm test` and
 `pnpm build`;

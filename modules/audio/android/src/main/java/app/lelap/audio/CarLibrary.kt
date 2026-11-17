@@ -1,5 +1,6 @@
 package app.lelap.audio
 
+import app.lelap.text.NativeCatalog
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -33,27 +34,40 @@ object CarLibrary {
   const val PODCASTS = "podcasts"
   const val UP_NEXT = "upnext"
 
-  private val SHELVES = listOf(
-    CONTINUE to "Continue listening",
-    ON_PHONE to "On this phone",
-    PODCASTS to "Podcasts",
-    UP_NEXT to "Up Next",
-  )
+  private val SHELVES = listOf(CONTINUE, ON_PHONE, PODCASTS, UP_NEXT)
+
+  private fun shelfTitle(id: String, text: NativeCatalog): String = when (id) {
+    CONTINUE -> text.t("Continue listening")
+    ON_PHONE -> text.t("On this phone")
+    PODCASTS -> text.t("Podcasts")
+    else -> text.t("Up Next")
+  }
+
+  private fun shelfNode(id: String, text: NativeCatalog) =
+    CarNode(id, shelfTitle(id, text), browsable = true, playable = false)
 
   fun root(): CarNode = CarNode(ROOT, "Lelap", browsable = true, playable = false)
 
-  /** The children of [parentId], or null when there is no such node. */
-  fun children(parentId: String, snapshot: CarSnapshot, journal: BookLoad?): List<CarNode>? = when (parentId) {
-    ROOT -> SHELVES.map { (id, title) -> CarNode(id, title, browsable = true, playable = false) }
+  /** The children of [parentId], or null when there is no such node. Shelf names are in [text]'s language. */
+  fun children(
+    parentId: String,
+    snapshot: CarSnapshot,
+    journal: BookLoad?,
+    text: NativeCatalog = NativeCatalog.ENGLISH,
+  ): List<CarNode>? = when (parentId) {
+    ROOT -> SHELVES.map { shelfNode(it, text) }
     else -> shelf(parentId, snapshot, journal)?.map { bookNode(parentId, it.playlist) }
   }
 
   /** The node for [mediaId], for controllers that ask for one item. */
-  fun item(mediaId: String, snapshot: CarSnapshot, journal: BookLoad?): CarNode? {
+  fun item(
+    mediaId: String,
+    snapshot: CarSnapshot,
+    journal: BookLoad?,
+    text: NativeCatalog = NativeCatalog.ENGLISH,
+  ): CarNode? {
     if (mediaId == ROOT) return root()
-    SHELVES.firstOrNull { it.first == mediaId }?.let { (id, title) ->
-      return CarNode(id, title, browsable = true, playable = false)
-    }
+    if (mediaId in SHELVES) return shelfNode(mediaId, text)
     val (shelfId, bookId) = split(mediaId) ?: return null
     return shelf(shelfId, snapshot, journal)?.firstOrNull { it.playlist.bookId == bookId }
       ?.let { bookNode(shelfId, it.playlist) }
@@ -66,7 +80,7 @@ object CarLibrary {
   fun resolve(mediaId: String, snapshot: CarSnapshot, journal: BookLoad?): BookLoad? {
     val (shelfId, bookId) = split(mediaId) ?: return null
     // Other controllers send file locations, which may contain slashes too.
-    if (SHELVES.none { it.first == shelfId }) return null
+    if (shelfId !in SHELVES) return null
     val listed = sequenceOf(snapshot.continueListening, snapshot.onPhone, snapshot.podcasts, snapshot.upNext)
       .flatten()
       .firstOrNull { it.playlist.bookId == bookId }

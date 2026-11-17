@@ -232,6 +232,9 @@ importers:
       '@lelap/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
+      '@lelap/text':
+        specifier: workspace:*
+        version: link:../../modules/text
       '@lelap/updater':
         specifier: workspace:*
         version: link:../../modules/updater
@@ -443,6 +446,13 @@ importers:
         version: 4.158.0(@cloudflare/workers-types@5.20261109.1)(@types/node@26.6.6)
 
   modules/audio:
+    dependencies:
+      '@lelap/cast':
+        specifier: workspace:*
+        version: link:../cast
+      '@lelap/text':
+        specifier: workspace:*
+        version: link:../text
     devDependencies:
       expo:
         specifier: ~58.0.25
@@ -470,6 +480,10 @@ importers:
         version: 6.0.3
 
   modules/download:
+    dependencies:
+      '@lelap/text':
+        specifier: workspace:*
+        version: link:../text
     devDependencies:
       expo:
         specifier: ~58.0.25
@@ -479,6 +493,10 @@ importers:
         version: 6.0.3
 
   modules/library:
+    dependencies:
+      '@lelap/text':
+        specifier: workspace:*
+        version: link:../text
     devDependencies:
       '@lelap/core':
         specifier: workspace:*
@@ -486,6 +504,15 @@ importers:
       expo:
         specifier: ~58.0.25
         version: 58.0.25(9c3e799cd1ff1c859c09715cc0cffb27)
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  modules/text:
+    devDependencies:
+      expo:
+        specifier: ~58.0.25
+        version: 58.0.25(@babel/core@7.29.13(supports-color@10.2.2))(@expo/dom-webview@58.0.2)(@expo/log-box@58.0.15)(@expo/metro-runtime@58.0.17)(react-dom@19.3.0(react@19.3.0))(react-native-web@0.21.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-native-webview@14.0.1(react-native@0.88.1(@babel/core@7.29.13(supports-color@10.2.2))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.13(supports-color@10.2.2))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)(supports-color@10.2.2)(typescript@6.0.3)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -500,6 +527,10 @@ importers:
         version: 6.0.3
 
   modules/widget:
+    dependencies:
+      '@lelap/text':
+        specifier: workspace:*
+        version: link:../text
     devDependencies:
       expo:
         specifier: ~58.0.25

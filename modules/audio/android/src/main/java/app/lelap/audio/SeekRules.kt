@@ -16,6 +16,34 @@ object SeekRules {
   }
 
   /**
+   * Where a podcast episode starts (M45): past the intro while the place is still inside it,
+   * else the place less [rewindMs], never back into the intro. Mirrors `trimmedStart` in
+   * `@lelap/core`. Only the first file has an intro.
+   */
+  fun trimmedStart(index: Int, positionMs: Long, rewindMs: Long, introMs: Long): Long {
+    val intro = if (index == 0) introMs.coerceAtLeast(0L) else 0L
+    if (positionMs < intro) return intro
+    return (positionMs - rewindMs.coerceAtLeast(0L)).coerceAtLeast(intro)
+  }
+
+  /** [resumePosition], then past a podcast's intro. */
+  fun startPosition(index: Int, positionMs: Long, pausedAt: Long?, now: Long, smartRewind: Boolean, introMs: Long): Long {
+    val rewind = if (!smartRewind || pausedAt == null) 0L else rewindOnResume(now - pausedAt)
+    return trimmedStart(index, positionMs, rewind, introMs)
+  }
+
+  /**
+   * Where in the last file an episode counts as played to its end, or null to play it all.
+   * Mirrors `outroStartMs` in `@lelap/core`: at least a minute after the intro must be left.
+   */
+  fun outroStart(durationMs: Long, outroMs: Long, introMs: Long, singleFile: Boolean): Long? {
+    if (outroMs <= 0 || durationMs <= 0) return null
+    val at = durationMs - outroMs
+    val floor = (if (singleFile) introMs.coerceAtLeast(0L) else 0L) + 60_000L
+    return if (at >= floor) at else null
+  }
+
+  /**
    * Where a skip of [deltaMs] from ([index], [positionMs]) lands across the book's files. Stops at
    * the book's start and end, and stays in the file when a neighbour's duration is unknown (≤ 0).
    */

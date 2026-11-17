@@ -27,6 +27,7 @@ export const SHARED_TABLES = [
   'episodes',
   'sync_state',
   'tombstones',
+  'diagnostics',
 ] as const;
 
 export type StoredChapter = { title: string; startMs: number };
@@ -47,8 +48,8 @@ export const profiles = sqliteTable('profiles', {
 });
 
 /**
- * A WebDAV server, an S3 bucket or a Jellyfin server used as a library folder. Kept on this
- * device, never synced. Jellyfin keeps an access token, not the password.
+ * A WebDAV server, an S3 bucket, or a Jellyfin or Audiobookshelf server used as a library folder.
+ * Kept on this device, never synced. Jellyfin keeps a token, not the password; Audiobookshelf an API key.
  */
 export type RemoteSource =
   | { type: 'webdav'; url: string; username: string; password: string }
@@ -59,6 +60,18 @@ export type RemoteSource =
       userId: string;
       deviceId: string;
       token: string;
+      libraryIds: string[];
+      profileId: string;
+    }
+  | {
+      type: 'audiobookshelf';
+      url: string;
+      username: string;
+      userId: string;
+      /** An API key, made in Audiobookshelf's settings. */
+      token: string;
+      /** The server refused the key (expired or turned off); Settings asks for a new one. */
+      keyRefused?: boolean;
       libraryIds: string[];
       profileId: string;
     }
@@ -95,30 +108,35 @@ export type AddonItemRef = {
   downloadable?: boolean;
 };
 
-export const books = sqliteTable('books', {
-  id: text('id').primaryKey(),
-  /** Null for books streamed from an add-on. */
-  rootId: text('root_id').references(() => libraryRoots.id),
-  /**
-   * Volume path of the book's folder, or of its file for single-file books; `addon:<type>:<id>`
-   * for streamed books.
-   */
-  location: text('location').notNull().unique(),
-  kind: text('kind', { enum: ['folder', 'file'] }).notNull(),
-  /** `feed`: a podcast episode from an RSS subscription. */
-  source: text('source', { enum: ['local', 'addon', 'feed'] })
-    .notNull()
-    .default('local'),
-  title: text('title').notNull(),
-  author: text('author'),
-  coverPath: text('cover_path'),
-  coverUrl: text('cover_url'),
-  addonItem: text('addon_item', { mode: 'json' }).$type<AddonItemRef>(),
-  durationMs: integer('duration_ms').notNull(),
-  missingSince: integer('missing_since'),
-  addedAt: integer('added_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-});
+export const books = sqliteTable(
+  'books',
+  {
+    id: text('id').primaryKey(),
+    /** Null for books streamed from an add-on. */
+    rootId: text('root_id').references(() => libraryRoots.id),
+    /**
+     * Volume path of the book's folder, or of its file for single-file books; `addon:<type>:<id>`
+     * for streamed books.
+     */
+    location: text('location').notNull().unique(),
+    kind: text('kind', { enum: ['folder', 'file'] }).notNull(),
+    /** `feed`: a podcast episode from an RSS subscription. */
+    source: text('source', { enum: ['local', 'addon', 'feed'] })
+      .notNull()
+      .default('local'),
+    title: text('title').notNull(),
+    author: text('author'),
+    coverPath: text('cover_path'),
+    coverUrl: text('cover_url'),
+    addonItem: text('addon_item', { mode: 'json' }).$type<AddonItemRef>(),
+    durationMs: integer('duration_ms').notNull(),
+    missingSince: integer('missing_since'),
+    addedAt: integer('added_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  // The books of one library folder or server, for its scan.
+  (t) => [index('books_root_idx').on(t.rootId)],
+);
 
 export const bookFiles = sqliteTable(
   'book_files',
@@ -164,6 +182,11 @@ export const chapters = sqliteTable(
     title: text('title').notNull(),
     /** On the whole-book timeline. */
     startMs: integer('start_ms').notNull(),
+    /**
+     * Found on this device from long silences (M45), for a book that had no chapters. Never
+     * synced: tags, a feed or an add-on replace them whenever they bring chapters of their own.
+     */
+    found: integer('found', { mode: 'boolean' }).notNull().default(false),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [index('chapters_book_idx').on(t.bookId, t.idx)],
@@ -183,7 +206,11 @@ export const libraryEntries = sqliteTable(
     finishedAt: integer('finished_at'),
     updatedAt: integer('updated_at').notNull(),
   },
-  (t) => [primaryKey({ columns: [t.profileId, t.bookId] })],
+  (t) => [
+    primaryKey({ columns: [t.profileId, t.bookId] }),
+    // Continue listening on Home and in the Library, without reading every book.
+    index('library_entries_played_idx').on(t.profileId, t.lastPlayedAt),
+  ],
 );
 
 export const progress = sqliteTable(
@@ -338,6 +365,8 @@ export const episodes = sqliteTable(
   (t) => [
     uniqueIndex('episodes_podcast_guid').on(t.podcastId, t.guid),
     index('episodes_podcast_published').on(t.podcastId, t.publishedAt),
+    // The episode of a book, which sync and the player look up often.
+    index('episodes_book_idx').on(t.bookId),
   ],
 );
 
@@ -355,6 +384,9 @@ export const subscriptions = sqliteTable(
     autoDownload: integer('auto_download', { mode: 'boolean' }).notNull().default(false),
     /** How many of the newest unplayed episodes auto-download keeps on the phone. */
     keepLatest: integer('keep_latest').notNull().default(3),
+    /** Skipped at the start and the end of every episode of this show (M45); 0 plays it all. */
+    skipIntroMs: integer('skip_intro_ms').notNull().default(0),
+    skipOutroMs: integer('skip_outro_ms').notNull().default(0),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [primaryKey({ columns: [t.profileId, t.podcastId] })],
@@ -491,3 +523,14 @@ export const tombstones = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.kind, t.key, t.profileId] })],
 );
+
+/**
+ * The diagnostics log (M47): this device's recent errors and player events, kept only while it
+ * is on in Settings. Never synced or backed up; emptied when it is turned off.
+ */
+export const diagnostics = sqliteTable('diagnostics', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  at: integer('at').notNull(),
+  /** A `DiagnosticEvent` as JSON: words from Lelap's code, numbers and row IDs; no free text. */
+  event: text('event').notNull(),
+});

@@ -1,3 +1,4 @@
+import type { MetaPreview } from '@lelap/sdk';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,6 +6,7 @@ import {
   type Item,
   parseItem,
   parseSearch,
+  ratingOf,
   readerOf,
   toPreview,
 } from '../src/librivox/archive';
@@ -64,11 +66,31 @@ describe('LibriVox catalogs', () => {
       cover: 'https://archive.org/services/img/secret_garden_librivox',
       year: 2006,
       durationMs: 32_905_000,
+      badges: { rating: 4.7 },
     });
     const q = fetch.calls[0]?.url.searchParams.get('q');
     expect(q).toBe(
       'collection:librivoxaudio AND mediatype:audio AND ((title:secret OR creator:secret) AND (title:garden OR creator:garden))',
     );
+  });
+
+  it('rates a cover only from enough reviews', async () => {
+    const { get, fetch } = setup();
+    const { body } = await get('catalog/audiobook/search/search=secret%20garden.json');
+    const badges = Object.fromEntries(
+      (body.metas as MetaPreview[]).map((m) => [m.id, m.badges ?? null]),
+    );
+    // One five-star review, and none at all.
+    expect(badges['librivox:secretgarden_1212_librivox']).toBeNull();
+    expect(badges['librivox:secret_garden_version2_librivox']).toBeNull();
+    expect(fetch.calls[0]?.url.searchParams.getAll('fl[]')).toContain('avg_rating');
+  });
+
+  it('reads ratings that archive.org sends as text', () => {
+    expect(ratingOf({ avg_rating: '3.25', num_reviews: '4' })).toBe(3.3);
+    expect(ratingOf({ avg_rating: '', num_reviews: 9 })).toBeUndefined();
+    expect(ratingOf({ avg_rating: 9, num_reviews: 9 })).toBeUndefined();
+    expect(ratingOf({ avg_rating: undefined, num_reviews: undefined })).toBeUndefined();
   });
 
   it('escapes search input', async () => {
@@ -126,6 +148,8 @@ describe('LibriVox meta', () => {
       genres: ['children'],
       link: 'https://archive.org/details/secret_garden_librivox',
       externalIds: { archive: 'secret_garden_librivox', librivox: '56' },
+      // Three reviews with stars: 5, 4 and 4.
+      badges: { rating: 4.3 },
     });
     const description = meta.description as string;
     expect(description).toMatch(/^Librivox recording of The Secret Garden/);
@@ -142,6 +166,12 @@ describe('LibriVox meta', () => {
     const { get } = setup();
     const { body } = await get('meta/audiobook/librivox%3Asecret_garden_1105_librivox.json');
     expect((body.meta as { genres: string[] }).genres).toEqual(['children']);
+  });
+
+  it('rates nothing without enough reviews', async () => {
+    const { get } = setup();
+    const { body } = await get('meta/audiobook/librivox%3Asecret_garden_1105_librivox.json');
+    expect((body.meta as MetaPreview).badges).toBeUndefined();
   });
 
   it('is a 404 for unknown identifiers and items outside LibriVox', async () => {

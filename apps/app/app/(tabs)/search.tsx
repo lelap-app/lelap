@@ -1,7 +1,7 @@
 import { addonLabels, fetchCatalog, searchCatalogs } from '@lelap/core';
 import { useQueries } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { type ComponentRef, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, SectionList, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,6 +11,7 @@ import { fetcher, SHOWN_TYPES, useAddons } from '../../src/addons';
 import { useAskWhenVisible, useAvailability } from '../../src/availability';
 import { MetaListRow } from '../../src/components/MetaCard';
 import { openItem } from '../../src/navigation';
+import { useSearchFocus } from '../../src/shortcuts';
 
 const DEBOUNCE_MS = 400;
 
@@ -22,6 +23,8 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const availability = useAvailability();
   const visible = useAskWhenVisible();
+  const input = useRef<ComponentRef<typeof TextInput>>(null);
+  useSearchFocus(input);
 
   useEffect(() => {
     const timer = setTimeout(() => setQuery(text.trim()), DEBOUNCE_MS);
@@ -79,11 +82,15 @@ export default function SearchScreen() {
 
   return (
     <View className="flex-1 bg-night" style={{ paddingTop: insets.top + 12 }}>
-      <Text className="px-4 pb-3 text-3xl font-semibold text-paper">{t('Search')}</Text>
+      <Text accessibilityRole="header" className="px-4 pb-3 text-3xl font-semibold text-paper">
+        {t('Search')}
+      </Text>
       <TextInput
+        ref={input}
         value={text}
         onChangeText={setText}
         placeholder={t('Title, author or podcast')}
+        accessibilityLabel={t('Search')}
         placeholderTextColor="#8d8a83"
         autoCorrect={false}
         returnKeyType="search"
@@ -106,13 +113,20 @@ export default function SearchScreen() {
             status !== null ? (
               <View className="flex-row items-center gap-2 px-4">
                 {pending && <ActivityIndicator size="small" color="#f5b041" />}
-                <Text className="text-xs text-muted">{status}</Text>
+                <Text accessibilityLiveRegion="polite" className="text-xs text-muted">
+                  {status}
+                </Text>
               </View>
             ) : undefined
           }
           renderSectionHeader={({ section }) => (
             <View className="bg-night px-4 pb-1 pt-4">
-              <Text className="text-xs uppercase tracking-wider text-muted">{section.title}</Text>
+              <Text
+                accessibilityRole="header"
+                className="text-xs uppercase tracking-wider text-muted"
+              >
+                {section.title}
+              </Text>
               {section.error !== null && (
                 <Text className="pt-1 text-sm text-danger">{section.error}</Text>
               )}

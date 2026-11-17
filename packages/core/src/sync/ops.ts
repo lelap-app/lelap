@@ -2,6 +2,8 @@ import { and, asc, eq, gt, inArray } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
+import { BIG_LIBRARY_PREFIX } from '../bigLibrary';
+import { isPlaceholderFeed } from '../podcasts/placeholder';
 import { episodeBook } from '../podcasts/repository';
 import {
   type AddonItemRef,
@@ -102,6 +104,9 @@ export type Op =
         coverUrl: string | null;
         autoDownload: boolean;
         keepLatest: number;
+        /** Since M45; absent from older devices, which then keep what this device has. */
+        skipIntroMs?: number;
+        skipOutroMs?: number;
         subscribedAt: number;
       };
     }
@@ -183,10 +188,11 @@ function bookSnapshot(db: Db, bookId: string): BookSnapshot | null {
       .where(eq(bookFiles.bookId, bookId))
       .orderBy(asc(bookFiles.idx))
       .all(),
+    // Chapters found from silences stay on the device that found them.
     chapters: db
       .select({ title: chapters.title, startMs: chapters.startMs })
       .from(chapters)
-      .where(eq(chapters.bookId, bookId))
+      .where(and(eq(chapters.bookId, bookId), eq(chapters.found, false)))
       .orderBy(asc(chapters.idx))
       .all(),
   };
@@ -329,6 +335,8 @@ export function collectOps(db: Db, since: number): Op[] {
         coverUrl: podcast.coverUrl,
         autoDownload: sub.autoDownload,
         keepLatest: sub.keepLatest,
+        skipIntroMs: sub.skipIntroMs,
+        skipOutroMs: sub.skipOutroMs,
         subscribedAt: sub.subscribedAt,
       },
     });
@@ -386,11 +394,31 @@ export function collectOps(db: Db, since: number): Op[] {
   for (const t of db.select().from(tombstones).where(gt(tombstones.updatedAt, since)).all()) {
     ops.push({ type: 'delete', kind: t.kind, profile: t.profileId, key: t.key, at: t.deletedAt });
   }
-  return ops;
+  return ops.filter((op) => !isTestLibraryKey(op.key));
+}
+
+/**
+ * The test library (Settings → Developer) stays on the device that made it: its books, lists
+ * and bookmarks have `bench` keys, its podcasts `.invalid` feeds.
+ */
+function isTestLibraryKey(key: string): boolean {
+  if (key.startsWith(BIG_LIBRARY_PREFIX) || key.startsWith('bench-')) return true;
+  return isPlaceholderFeed(parseEpisodeKey(key)?.feedUrl ?? key);
 }
 
 /** A place another device saved, for the “continue from there?” prompt. */
 export type Handoff = { bookId: string; profileId: string; bookPositionMs: number; at: number };
+
+const MAX_TRIM_MS = 10 * 60_000;
+
+/** A show's intro and outro from another device, when it sent them (M45), kept to a sane range. */
+function trimOf(data: { skipIntroMs?: number; skipOutroMs?: number }) {
+  const clamp = (ms: number) => Math.min(MAX_TRIM_MS, Math.max(0, Math.round(ms)));
+  return {
+    ...(typeof data.skipIntroMs === 'number' ? { skipIntroMs: clamp(data.skipIntroMs) } : {}),
+    ...(typeof data.skipOutroMs === 'number' ? { skipOutroMs: clamp(data.skipOutroMs) } : {}),
+  };
+}
 
 // Books and episodes first, so later operations in the same batch can find them.
 const ORDER: Record<Op['type'], number> = {
@@ -658,6 +686,7 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
           const row = {
             autoDownload: op.data.autoDownload,
             keepLatest: op.data.keepLatest,
+            ...trimOf(op.data),
             updatedAt: op.at,
           };
           tx.insert(subscriptions)

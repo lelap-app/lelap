@@ -10,6 +10,11 @@ object Commands {
   const val SET_QUEUE = "app.lelap.audio.SET_QUEUE"
   /** The sleep timer button on the notification and lock screen; see [SleepCycle]. */
   const val CYCLE_SLEEP_TIMER = "app.lelap.audio.CYCLE_SLEEP_TIMER"
+  /** Casting (M50): play the loaded book on the receiver the cast module connected, or hand back. */
+  const val START_CAST = "app.lelap.audio.START_CAST"
+  const val STOP_CAST = "app.lelap.audio.STOP_CAST"
+  /** With [STOP_CAST]: play on here after the hand-back; missing means as the receiver was. */
+  const val KEY_RESUME = "resume"
   const val KEY_QUEUE_JSON = "queue"
   /** In [AUDIO_PREFS]: the queue, and the books that ended while the app may have been closed. */
   const val PREF_QUEUE = "upNextQueue"
@@ -19,6 +24,9 @@ object Commands {
   /** In [AUDIO_PREFS]: the [Bedtime] window the app set (absent when off), and the last night it started a timer. */
   const val PREF_BEDTIME = "bedtime"
   const val PREF_BEDTIME_NIGHT = "bedtimeNight"
+  /** In [AUDIO_PREFS]: whether the app's diagnostics log is on, and the service's [Diagnostics] events. */
+  const val PREF_DIAGNOSTICS = "diagnostics"
+  const val PREF_DIAGNOSTIC_LOG = "diagnosticLog"
 
   const val KEY_SKIP_INTERVAL_MS = "skipIntervalMs"
   const val KEY_SMART_REWIND = "smartRewind"

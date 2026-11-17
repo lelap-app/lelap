@@ -13,6 +13,10 @@ const SETTLE_MS = 800;
 const SNAP_POINTS = 10;
 
 const clamp = (n: number) => Math.min(1, Math.max(0, n));
+// Swiping up or down with TalkBack moves a twentieth of the range, as Android's own seek bars do.
+const STEP = 0.05;
+// A time line runs left to right in every language, so the bar and its times are not mirrored.
+const LTR = { direction: 'ltr' } as const;
 
 export type ScrubMark = {
   /** Offset into the range, in ms. */
@@ -34,6 +38,7 @@ export function Scrubber({
   onSeek,
   onPressElapsed,
   onPressMiddle,
+  onDragChange,
 }: {
   elapsedMs: number;
   lengthMs: number;
@@ -46,6 +51,8 @@ export function Scrubber({
   onPressElapsed?: (() => void) | undefined;
   /** Tapping the note in the middle, such as to switch between chapter and book. */
   onPressMiddle?: (() => void) | undefined;
+  /** A drag starts or ends, so a scrolling parent can hold still meanwhile. */
+  onDragChange?: ((dragging: boolean) => void) | undefined;
 }) {
   const [width, setWidth] = useState(1);
   const [held, setHeld] = useState<{
@@ -57,8 +64,8 @@ export function Scrubber({
   const widthRef = useRef(1);
   const drag = useRef({ ratio: 0, lastDx: 0, snapped: false });
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latest = useRef({ lengthMs, onSeek, marks });
-  latest.current = { lengthMs, onSeek, marks };
+  const latest = useRef({ lengthMs, onSeek, marks, onDragChange });
+  latest.current = { lengthMs, onSeek, marks, onDragChange };
 
   const responder = useMemo(() => {
     // Where the finger points, slowed down by its distance from the bar, then pulled to a mark.
@@ -84,6 +91,7 @@ export function Scrubber({
       onMoveShouldSetPanResponder: () => true,
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: (e) => {
+        latest.current.onDragChange?.(true);
         if (settle.current) clearTimeout(settle.current);
         drag.current = {
           ratio: clamp(e.nativeEvent.locationX / widthRef.current),
@@ -94,12 +102,16 @@ export function Scrubber({
       },
       onPanResponderMove: (_, g) => setHeld({ ...follow(g.dx, g.dy), dragging: true }),
       onPanResponderRelease: (_, g) => {
+        latest.current.onDragChange?.(false);
         const { ratio } = follow(g.dx, g.dy);
         latest.current.onSeek(ratio * latest.current.lengthMs);
         setHeld({ ratio, dragging: false, rate: 1, snapped: false });
         settle.current = setTimeout(() => setHeld(null), SETTLE_MS);
       },
-      onPanResponderTerminate: () => setHeld(null),
+      onPanResponderTerminate: () => {
+        latest.current.onDragChange?.(false);
+        setHeld(null);
+      },
     });
   }, []);
 
@@ -120,7 +132,24 @@ export function Scrubber({
           widthRef.current = Math.max(1, e.nativeEvent.layout.width);
           setWidth(widthRef.current);
         }}
-        className="h-10 justify-center"
+        accessible
+        accessibilityRole="adjustable"
+        accessibilityLabel={t('Position')}
+        // The aria- form, as react-native-web ignores accessibilityValue.
+        aria-valuemin={0}
+        aria-valuemax={Math.round(length / 1000)}
+        aria-valuenow={Math.round((ratio * length) / 1000)}
+        aria-valuetext={t('{time} of {total}', {
+          time: formatClock(ratio * lengthMs),
+          total: formatClock(lengthMs),
+        })}
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        onAccessibilityAction={(e) => {
+          const by = e.nativeEvent.actionName === 'increment' ? STEP : -STEP;
+          onSeek(clamp(ratio + by) * lengthMs);
+        }}
+        style={LTR}
+        className="h-12 justify-center"
       >
         <View pointerEvents="none" className="h-1.5 overflow-hidden rounded-full bg-line">
           <View style={{ width: `${ratio * 100}%` }} className="h-1.5 bg-amber" />
@@ -130,14 +159,24 @@ export function Scrubber({
             <View
               key={`c${m.atMs}`}
               pointerEvents="none"
-              style={{ position: 'absolute', left: (m.atMs / length) * width - 1, top: 14 }}
+              style={{
+                position: 'absolute',
+                // layout: ltr
+                left: (m.atMs / length) * width - 1,
+                top: 18,
+              }}
               className="h-3 w-0.5 rounded-full bg-muted"
             />
           ) : (
             <View
               key={`b${m.atMs}`}
               pointerEvents="none"
-              style={{ position: 'absolute', left: (m.atMs / length) * width - 4, top: 4 }}
+              style={{
+                position: 'absolute',
+                // layout: ltr
+                left: (m.atMs / length) * width - 4,
+                top: 8,
+              }}
               className="h-2 w-2 rounded-full bg-amber"
             />
           ),
@@ -146,6 +185,7 @@ export function Scrubber({
           pointerEvents="none"
           style={{
             position: 'absolute',
+            // layout: ltr
             left: ratio * width - thumb / 2,
             width: thumb,
             height: thumb,
@@ -154,12 +194,12 @@ export function Scrubber({
           className={held?.snapped ? 'bg-amber' : 'bg-paper'}
         />
       </View>
-      <View className="flex-row items-center justify-between">
+      <View style={LTR} className="flex-row items-center justify-between gap-2">
         <Pressable
           onPress={onPressElapsed}
           disabled={!onPressElapsed}
-          hitSlop={8}
           accessibilityRole={onPressElapsed ? 'button' : 'text'}
+          className="min-h-12 justify-center"
           accessibilityHint={onPressElapsed ? t('Jump to a time') : undefined}
         >
           <Text
@@ -172,10 +212,11 @@ export function Scrubber({
           <Pressable
             onPress={onPressMiddle}
             disabled={!onPressMiddle}
-            hitSlop={8}
             accessibilityRole={onPressMiddle ? 'button' : 'text'}
+            className="min-h-12 min-w-0 shrink items-center justify-center"
           >
-            <Text className="text-xs text-muted">{middle}</Text>
+            {/* Wraps between the two times when the text is large. */}
+            <Text className="text-center text-xs text-muted">{middle}</Text>
           </Pressable>
         )}
         <Text className="text-sm text-muted">-{formatClock((1 - ratio) * lengthMs)}</Text>

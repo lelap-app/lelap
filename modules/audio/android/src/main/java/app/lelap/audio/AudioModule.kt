@@ -12,6 +12,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import expo.modules.kotlin.Promise
@@ -210,6 +211,67 @@ class AudioModule : Module() {
       prefs.edit().remove(Commands.PREF_FINISHED).apply()
       list.map { mapOf("bookId" to it.bookId, "at" to it.at.toDouble()) }
     }
+
+    // Same process: the service logs only while this is on. Off drops what it kept. On the main
+    // thread, where the service appends, so an append can't bring a dropped log back.
+    AsyncFunction("setDiagnostics") { on: Boolean ->
+      val edit = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE).edit()
+        .putBoolean(Commands.PREF_DIAGNOSTICS, on)
+      if (!on) edit.remove(Commands.PREF_DIAGNOSTIC_LOG)
+      edit.apply()
+    }.runOnQueue(Queues.MAIN)
+
+    // Same process: the service's diagnostics events since the last call, oldest first. On the
+    // main thread, where the service appends, so no event is lost between the read and the clear.
+    AsyncFunction("takeDiagnostics") {
+      val prefs = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE)
+      val list = Diagnostics.decode(prefs.getString(Commands.PREF_DIAGNOSTIC_LOG, null))
+      prefs.edit().remove(Commands.PREF_DIAGNOSTIC_LOG).apply()
+      list.map {
+        mapOf(
+          "at" to it.at.toDouble(),
+          "what" to it.what,
+          "code" to it.code,
+          "status" to it.status,
+          "bookId" to it.bookId,
+          "part" to it.part,
+        )
+      }
+    }.runOnQueue(Queues.MAIN)
+
+    // Resolves once the receiver loaded the first file; rejects with the receiver's reason.
+    AsyncFunction("castTo") { promise: Promise ->
+      val future = connect()
+      future.addListener(
+        {
+          try {
+            val result = future.get().sendCustomCommand(SessionCommand(Commands.START_CAST, Bundle.EMPTY), Bundle.EMPTY)
+            result.addListener(
+              {
+                val r = runCatching { result.get() }.getOrNull()
+                if (r?.resultCode == SessionResult.RESULT_SUCCESS) {
+                  promise.resolve(null)
+                } else {
+                  promise.reject("ERR_LELAP_CAST", r?.sessionError?.message ?: "Casting failed", null)
+                }
+              },
+              ContextCompat.getMainExecutor(context),
+            )
+          } catch (e: Exception) {
+            promise.reject("ERR_LELAP_AUDIO", e.cause?.message ?: e.message ?: "Player unavailable", e)
+          }
+        },
+        ContextCompat.getMainExecutor(context),
+      )
+    }.runOnQueue(Queues.MAIN)
+
+    // Hands back to the phone; null plays on here if the receiver was playing.
+    AsyncFunction("stopCasting") { resume: Boolean?, promise: Promise ->
+      withController(promise) { c ->
+        val args = Bundle().apply { resume?.let { putBoolean(Commands.KEY_RESUME, it) } }
+        c.sendCustomCommand(SessionCommand(Commands.STOP_CAST, Bundle.EMPTY), args)
+      }
+    }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("unload") { promise: Promise ->
       withController(promise) { c ->

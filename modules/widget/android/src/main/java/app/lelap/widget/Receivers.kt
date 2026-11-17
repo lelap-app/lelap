@@ -22,7 +22,7 @@ class PlayerWidgetProvider : AppWidgetProvider() {
   }
 }
 
-/** PlaybackService saved a new [NowPlayingSnapshot]: redraw the widgets and the tile. */
+/** PlaybackService saved a new [NowPlayingSnapshot], or the language changed: redraw the widgets and the tile. */
 class NowPlayingReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     TileService.requestListeningState(context, ComponentName(context, PlayTileService::class.java))

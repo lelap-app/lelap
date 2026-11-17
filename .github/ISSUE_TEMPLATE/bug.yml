@@ -34,6 +34,15 @@ body:
     attributes:
       label: Version and device
       placeholder: Lelap 1.0.0, Pixel 8, Android 16
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics file
+      description: >-
+        Optional. In Settings → Help → Diagnostics, turn the log on, make the problem happen again,
+        then prepare the file and paste it here. It holds no titles, file names, addresses or
+        logins; read it before you paste it.
+      render: text
   - type: markdown
     attributes:
       value: Please don't name or link to add-ons for pirated content. Such issues are closed.

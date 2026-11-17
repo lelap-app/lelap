@@ -92,6 +92,27 @@
       "when": 1794918772500,
       "tag": "0012_local_addons",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1794936347696,
+      "tag": "0013_big_libraries",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1794939794096,
+      "tag": "0014_trim_silence",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1794942260866,
+      "tag": "0015_diagnostics",
+      "breakpoints": true
     }
   ]
 }

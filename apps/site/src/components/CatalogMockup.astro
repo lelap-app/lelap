@@ -1,5 +1,12 @@
 ---
 import Icon from './Icon.astro';
+import { t, type Lang } from '../i18n';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
 
 interface Book {
   title: string;
@@ -120,7 +127,7 @@ const art = {
 // under the user's own Audiobookshelf so the mockup doesn't suggest Lelap supplies them.
 const rows: { name: string; source: string; books: Book[] }[] = [
   {
-    name: 'Classics',
+    name: t(lang, 'Classics'),
     source: 'LibriVox',
     books: [
       { title: 'Pride and Prejudice', art: art.pride },
@@ -130,7 +137,7 @@ const rows: { name: string; source: string; books: Book[] }[] = [
     ],
   },
   {
-    name: 'Self-improvement',
+    name: t(lang, 'Self-improvement'),
     source: 'Audiobookshelf',
     books: [
       { title: 'Atomic Habits', art: art.atomic },
@@ -140,7 +147,7 @@ const rows: { name: string; source: string; books: Book[] }[] = [
     ],
   },
   {
-    name: 'Cozy and uncanny',
+    name: t(lang, 'Cozy and uncanny'),
     source: 'Audiobookshelf',
     books: [
       { title: 'Strange Houses', art: art.strange },
@@ -155,13 +162,13 @@ const rows: { name: string; source: string; books: Book[] }[] = [
 <div class="stage" aria-hidden="true">
   <div class="phone phone-frame">
     <div class="head">
-      <span class="heading">Catalogs</span>
+      <span class="heading">{t(lang, 'Catalogs')}</span>
       <Icon name="search" size={20} />
     </div>
     <div class="filters">
-      <span class="filter active">Audiobooks</span>
-      <span class="filter">Podcasts</span>
-      <span class="filter">Downloaded</span>
+      <span class="filter active">{t(lang, 'Audiobooks')}</span>
+      <span class="filter">{t(lang, 'Podcasts')}</span>
+      <span class="filter">{t(lang, 'Downloaded')}</span>
     </div>
     {rows.map((row) => (
       <section class="row">
@@ -189,21 +196,21 @@ const rows: { name: string; source: string; books: Book[] }[] = [
     <nav class="tabs">
       <span class="tab">
         <Icon name="home" size={20} />
-        Home
+        {t(lang, 'Home')}
       </span>
       <span class="tab active">
         <Icon name="grid" size={20} />
-        Catalogs
+        {t(lang, 'Catalogs')}
       </span>
       <span class="tab">
         <Icon name="books" size={20} />
-        Library
+        {t(lang, 'Library')}
       </span>
     </nav>
   </div>
   <div class="float">
     <Icon name="box" size={18} />
-    Rows come from your add-ons
+    {t(lang, 'Rows come from your add-ons')}
   </div>
 </div>
 

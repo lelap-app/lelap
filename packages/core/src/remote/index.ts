@@ -21,4 +21,23 @@ export {
   reportJellyfinProgress,
   signInJellyfin,
 } from './jellyfin';
+export {
+  type AudiobookshelfItem,
+  type AudiobookshelfLibrary,
+  type AudiobookshelfMe,
+  type AudiobookshelfProgress,
+  type AudiobookshelfScan,
+  type AudiobookshelfSource,
+  audiobookshelfItemId,
+  audiobookshelfItemProgress,
+  audiobookshelfMe,
+  audiobookshelfPlaces,
+  audiobookshelfRootLocation,
+  audiobookshelfScan,
+  audiobookshelfStream,
+  isKeyRefused,
+  listAudiobookshelfItems,
+  listAudiobookshelfLibraries,
+  reportAudiobookshelfProgress,
+} from './audiobookshelf';
 export { applyRemotePlaces, setRemoteCovers } from './places';

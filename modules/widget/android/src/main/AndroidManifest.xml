@@ -14,10 +14,12 @@
         android:name="android.appwidget.provider"
         android:resource="@xml/lelap_widget_info" />
     </receiver>
-    <!-- PlaybackService sends this to its own package when what plays changes. -->
+    <!-- PlaybackService sends this to its own package when what plays changes; modules/text
+         when the profile's language changes. -->
     <receiver android:name="app.lelap.widget.NowPlayingReceiver" android:exported="false">
       <intent-filter>
         <action android:name="app.lelap.audio.NOW_PLAYING_CHANGED" />
+        <action android:name="app.lelap.text.CHANGED" />
       </intent-filter>
     </receiver>
     <receiver android:name="app.lelap.widget.WidgetActionReceiver" android:exported="false" />

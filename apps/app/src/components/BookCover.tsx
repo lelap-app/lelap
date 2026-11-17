@@ -1,6 +1,8 @@
+import type { CoverBadge } from '@lelap/core';
 import { useState } from 'react';
 import { Image, Platform, Text, View } from 'react-native';
 
+import { CoverBadgeRow } from './CoverBadges';
 import { FadeIn } from './Motion';
 import { proxyBase } from '../config';
 
@@ -23,8 +25,33 @@ export function coverUri(book: {
   return webSafe(book.coverUrl);
 }
 
-/** The cover, or a tile with the title's first letter when there is none. */
+/**
+ * The cover, or a tile with the title's first letter when there is none, with any badges drawn
+ * on top. Hidden from screen readers: the title always stands next to it, and whoever draws the
+ * cover puts the badges into the row's name (`withBadges`).
+ */
 export function BookCover({
+  uri,
+  title,
+  size,
+  badges = [],
+}: {
+  uri: string | null | undefined;
+  title: string;
+  size: number;
+  badges?: CoverBadge[];
+}) {
+  const cover = <PlainCover uri={uri} title={title} size={size} />;
+  if (badges.length === 0) return cover;
+  return (
+    <View aria-hidden style={{ width: size, height: size }}>
+      {cover}
+      <CoverBadgeRow badges={badges} size={size} />
+    </View>
+  );
+}
+
+function PlainCover({
   uri,
   title,
   size,
@@ -36,6 +63,7 @@ export function BookCover({
   if (uri) return <CoverImage uri={webSafe(uri) ?? uri} size={size} />;
   return (
     <View
+      aria-hidden
       style={{ width: size, height: size }}
       className="items-center justify-center rounded-md bg-raised"
     >
@@ -50,7 +78,11 @@ export function BookCover({
 function CoverImage({ uri, size }: { uri: string; size: number }) {
   const [loaded, setLoaded] = useState(false);
   return (
-    <View style={{ width: size, height: size }} className="overflow-hidden rounded-md bg-raised">
+    <View
+      aria-hidden
+      style={{ width: size, height: size }}
+      className="overflow-hidden rounded-md bg-raised"
+    >
       <FadeIn show={loaded} lift={0} duration={180}>
         <Image
           source={{ uri }}

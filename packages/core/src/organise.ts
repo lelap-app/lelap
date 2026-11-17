@@ -96,16 +96,23 @@ export function matchesRule(book: LibraryBook, tags: string[], rule: SmartRule):
 
 /** Library books with a tag, newest played first. */
 export function booksWithTag(db: Db, profileId: string, tag: string): LibraryBook[] {
-  return smartBooks(db, profileId, { tags: [tag] });
+  return smartBooks(readLibrary(db, profileId), { tags: [tag] });
 }
 
 const byRecent = (a: LibraryBook, b: LibraryBook) =>
   (b.lastPlayedAt ?? -1) - (a.lastPlayedAt ?? -1) || b.addedAt - a.addedAt;
 
-function smartBooks(db: Db, profileId: string, rule: SmartRule): LibraryBook[] {
-  const tags = tagsByBook(db, profileId);
-  return listAllBooks(db, profileId)
-    .filter((b) => matchesRule(b, tags.get(b.id) ?? [], rule))
+/** Every book with its tags, read once for several lists. */
+type Library = { books: LibraryBook[]; tags: Map<string, string[]> };
+
+const readLibrary = (db: Db, profileId: string): Library => ({
+  books: listAllBooks(db, profileId),
+  tags: tagsByBook(db, profileId),
+});
+
+function smartBooks(library: Library, rule: SmartRule): LibraryBook[] {
+  return library.books
+    .filter((b) => matchesRule(b, library.tags.get(b.id) ?? [], rule))
     .sort(byRecent);
 }
 
@@ -241,13 +248,32 @@ export function movePlaylistItem(
 }
 
 /** The books in a list that are on this device: in order for hand-made lists. */
-export function playlistBooks(db: Db, profileId: string, list: Playlist): LibraryBook[] {
-  if (list.rule) return smartBooks(db, profileId, list.rule);
-  const all = new Map(listAllBooks(db, profileId).map((b) => [b.id, b]));
+export function playlistBooks(
+  db: Db,
+  profileId: string,
+  list: Playlist,
+  library: Library = readLibrary(db, profileId),
+): LibraryBook[] {
+  if (list.rule) return smartBooks(library, list.rule);
+  const all = new Map(library.books.map((b) => [b.id, b]));
   return list.items
     .map((key) => bookIdForKey(db, key))
     .map((bookId) => (bookId ? all.get(bookId) : undefined))
     .filter((b): b is LibraryBook => b !== undefined && !b.missing);
+}
+
+/** The profile's lists with how many books each shows; the library is read once for all. */
+export function listPlaylistsWithCounts(
+  db: Db,
+  profileId: string,
+): { list: Playlist; count: number }[] {
+  const lists = listPlaylists(db, profileId);
+  if (lists.length === 0) return [];
+  const library = readLibrary(db, profileId);
+  return lists.map((list) => ({
+    list,
+    count: playlistBooks(db, profileId, list, library).length,
+  }));
 }
 
 /** Smart lists offered when making a new one. */

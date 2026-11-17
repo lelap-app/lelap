@@ -13,6 +13,7 @@ import {
   listEpisodes,
   listSubscriptions,
   saveFeed,
+  setTrim,
   subscribe,
   episodeBook,
 } from '../podcasts/repository';
@@ -392,6 +393,7 @@ describe('sync between two devices', () => {
       newId,
     );
     subscribe(phone, ME, podcastId, 11);
+    setTrim(phone, ME, podcastId, { skipIntroMs: 30_000, skipOutroMs: 15_000 }, 11);
     const episode = listEpisodes(phone, ME, podcastId)[0];
     const bookId = episodeBook(phone, episode?.id ?? '', 12, newId);
     const fileLocation = getBook(phone, ME, bookId)?.files[0]?.location ?? '';
@@ -401,7 +403,12 @@ describe('sync between two devices', () => {
     await syncNow(laptop, server, random, 110, newId);
 
     const [sub] = listSubscriptions(laptop, ME);
-    expect(sub).toMatchObject({ feedUrl, title: 'Garden Hour' });
+    expect(sub).toMatchObject({
+      feedUrl,
+      title: 'Garden Hour',
+      skipIntroMs: 30_000,
+      skipOutroMs: 15_000,
+    });
     expect(listEpisodes(laptop, ME, sub?.podcastId ?? '')[0]).toMatchObject({
       title: 'Roses',
       positionMs: 4_000,

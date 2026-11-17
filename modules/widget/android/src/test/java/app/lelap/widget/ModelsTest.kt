@@ -1,5 +1,6 @@
 package app.lelap.widget
 
+import app.lelap.text.NativeCatalog
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -47,6 +48,7 @@ class ModelsTest {
     assertEquals(15L, model.skipSeconds)
     assertEquals("Back 15 seconds", model.backLabel)
     assertEquals("Forward 15 seconds", model.forwardLabel)
+    assertEquals("Moby Dick, Chapter 1. Opens the player.", model.openLabel)
   }
 
   @Test fun widgetWithoutChapterShowsTheAuthorOnce() {
@@ -62,6 +64,7 @@ class ModelsTest {
     assertEquals("Nothing playing", model.title)
     assertFalse(model.playing)
     assertEquals(30L, model.skipSeconds)
+    assertEquals("Nothing playing, Open Lelap to pick a book. Opens the player.", model.openLabel)
   }
 
   @Test fun tallFromTwoRows() {
@@ -75,6 +78,31 @@ class ModelsTest {
     assertEquals(TileModel(TileState.ACTIVE, "Moby Dick", "Playing"), Models.tile(playing))
     assertEquals(TileModel(TileState.INACTIVE, "Moby Dick", "Paused"), Models.tile(playing!!.copy(playing = false)))
     assertEquals(TileModel(TileState.INACTIVE, "Lelap", "Not playing"), Models.tile(null))
+  }
+
+  @Test fun followsTheProfilesLanguage() {
+    val ms = NativeCatalog(
+      "ms",
+      mapOf(
+        "Nothing playing" to "Tiada yang dimainkan",
+        "Open Lelap to pick a book" to "Buka Lelap untuk memilih buku",
+        "Pause" to "Jeda",
+        "Back {n} seconds" to "Undur {n} saat",
+        "{what}. Opens the player." to "{what}. Membuka pemain.",
+        "Playing" to "Sedang dimainkan",
+      ),
+    )
+    val empty = Models.widget(null, ms)
+    assertEquals("Tiada yang dimainkan", empty.title)
+    assertEquals("Tiada yang dimainkan, Buka Lelap untuk memilih buku. Membuka pemain.", empty.openLabel)
+    val playing = Models.widget(NowPlayingSnapshot.decode(saved), ms)
+    // The book's own title and chapter are not translated; a missing line stays English.
+    assertEquals("Moby Dick", playing.title)
+    assertEquals("Chapter 1", playing.subtitle)
+    assertEquals("Jeda", playing.playLabel)
+    assertEquals("Undur 15 saat", playing.backLabel)
+    assertEquals("Forward 15 seconds", playing.forwardLabel)
+    assertEquals(TileModel(TileState.ACTIVE, "Moby Dick", "Sedang dimainkan"), Models.tile(NowPlayingSnapshot.decode(saved), ms))
   }
 
   @Test fun coverSampling() {

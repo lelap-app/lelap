@@ -86,6 +86,7 @@ describe('library queries', () => {
         }),
       ],
       chapters: [],
+      foundChapters: false,
       speed: 1.25,
     });
     expect(getBook(db, OTHER, alpha)?.speed).toBe(1);

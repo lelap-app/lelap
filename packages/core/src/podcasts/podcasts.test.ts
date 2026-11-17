@@ -17,7 +17,9 @@ import {
   listSubscriptions,
   saveFeed,
   setAutoDownload,
+  setTrim,
   subscribe,
+  trimOfBook,
   unsubscribe,
 } from './repository';
 import { parseDuration, parseFeed } from './rss';
@@ -147,6 +149,16 @@ describe('subscriptions', () => {
     expect(listBooks(db, ME, 'recent')).toEqual([]);
     // Episodes download like streamed books.
     expect(planDownload(db, bookId).files[0]?.name).toBe('001.mp3');
+  });
+
+  it('skips the intro and outro set for the show, per profile', () => {
+    const { podcastId } = save(db, 1);
+    const bookId = episodeBook(db, must(listEpisodes(db, ME, podcastId)[0]).id, 1, newId);
+    expect(trimOfBook(db, ME, bookId)).toEqual({ skipIntroMs: 0, skipOutroMs: 0 });
+    subscribe(db, ME, podcastId, 1);
+    setTrim(db, ME, podcastId, { skipIntroMs: 30_000, skipOutroMs: 45_000 }, 2);
+    expect(trimOfBook(db, ME, bookId)).toEqual({ skipIntroMs: 30_000, skipOutroMs: 45_000 });
+    expect(trimOfBook(db, 'someone-else', bookId)).toEqual({ skipIntroMs: 0, skipOutroMs: 0 });
   });
 
   it('auto-downloads the newest unplayed episodes and removes played ones', () => {

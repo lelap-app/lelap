@@ -9,6 +9,23 @@ folder access in [`@lelap/library`](../../modules/library). See
 
 The M1 audio spike screen is still reachable from Settings → Developer until its call checks pass.
 
+## Accessibility
+
+Every control has a role and a name, is at least 48 points tall, and layouts use start and end
+(`ms-`, `pe-`) instead of left and right. `pnpm --filter @lelap/app test` runs
+`scripts/check-accessibility.mjs`, which fails when one of those is missing and checks the
+theme's contrast. Text-only buttons use `TextButton`, small chips `Pill`, and settings rows
+`RowLabel`, so a switch or a short “Open” is named by its row. Motion goes through
+`useReducedMotion`. TalkBack checks per screen: [`docs/m42-follow-ups.md`](../../docs/m42-follow-ups.md).
+
+## Wide screens
+
+A window at least 720 points wide and 480 tall (a tablet, a laptop browser) gets the tabs as a
+rail on the start edge and the player beside the open screen instead of the mini player; phones
+stay as they are, also sideways, where the Player puts the cover beside the controls. The rule
+and the keyboard shortcuts live in `packages/core/src/screen.ts`; `useWide()` in
+`src/layout.ts` reads it. Checks: [`docs/m44-follow-ups.md`](../../docs/m44-follow-ups.md).
+
 ## Run it on a phone
 
 You need Node 24, Android Studio (for the SDK and its bundled JDK) and a phone with USB debugging

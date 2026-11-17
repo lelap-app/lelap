@@ -11,6 +11,7 @@ data class CastDevice(
   /** UPnP only: SOAP control URLs. */
   val avTransportUrl: String? = null,
   val renderingControlUrl: String? = null,
+  val avTransportScpdUrl: String? = null,
 ) {
   fun toMap(): Map<String, Any?> = mapOf("id" to id, "name" to name, "kind" to kind, "model" to model)
 }
@@ -44,6 +45,8 @@ interface Renderer {
   fun pause()
   fun seek(positionMs: Long)
   fun setSpeed(speed: Float)
+  /** Whether [setSpeed] and [load] can play at [speed]; otherwise the receiver plays at 1×. */
+  fun canPlayAt(speed: Float): Boolean = true
   fun setVolume(level: Float)
   fun status(): RendererStatus
   /** Stops playback on the receiver and lets it go. */
@@ -55,6 +58,10 @@ class CastException(message: String) : Exception(message)
 /** Turns "played and then stopped" into [PlayState.ENDED], which some protocols do not report. */
 class EndWatch {
   private var playing = false
+
+  /** Whether the last state seen was playing. */
+  val isPlaying: Boolean
+    get() = playing
 
   /** Call on load, pause and stop: a stop after those is not the end of the file. */
   fun reset() {

@@ -16,11 +16,18 @@ pnpm dev:site
 | `pnpm --filter @lelap/site build`   | Static build into `dist/`     |
 | `pnpm --filter @lelap/site preview` | Serve the build locally       |
 | `pnpm --filter @lelap/site check`   | Type-check `.astro` and `.ts` |
+| `pnpm --filter @lelap/site test`    | Unit tests, Malay catalog     |
 | `pnpm --filter @lelap/site icons`   | Regenerate icons and splashes |
 
 `icons` renders `public/apple-touch-icon.png`, `public/icons/*` and the iOS splash screens in
 `public/splash/` with sharp. The device sizes live in `src/splash-screens.ts`, which also drives the
 `apple-touch-startup-image` tags, so add a new iPhone or iPad there and rerun the command.
+
+## Languages
+
+The home page is in English at `/` and in Bahasa Melayu at `/ms/`, both from
+`src/components/Home.astro`. Malay text lives in `src/i18n/ms.ts`, keyed by the English;
+`pnpm --filter @lelap/site test` checks it. The docs and legal pages are English only.
 
 ## Configuration
 

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
 import { COLORS, IconButton } from '../src/components/Icon';
+import { useReducedMotion } from '../src/components/Motion';
 import { db } from '../src/db';
 import { formatClock } from '../src/format';
 import { seekToBookPosition, usePlayerState } from '../src/player';
@@ -26,6 +27,7 @@ export default function TranscriptScreen() {
   const bookId = state.bookId;
   const list = useRef<FlatList<TranscriptCue>>(null);
   const [heldUntil, setHeldUntil] = useState(0);
+  const reduced = useReducedMotion();
 
   const detail = useMemo(() => (bookId ? getBook(db, profileId, bookId) : null), [bookId]);
   const episode = useMemo(() => (bookId ? episodeDetail(db, bookId) : null), [bookId]);
@@ -48,8 +50,8 @@ export default function TranscriptScreen() {
 
   useEffect(() => {
     if (current < 0 || Date.now() < heldUntil) return;
-    list.current?.scrollToIndex({ index: current, viewPosition: 0.3, animated: true });
-  }, [current, heldUntil]);
+    list.current?.scrollToIndex({ index: current, viewPosition: 0.3, animated: !reduced });
+  }, [current, heldUntil, reduced]);
 
   const title = episode?.title ?? detail?.book.title ?? t('Transcript');
 
@@ -104,7 +106,10 @@ export default function TranscriptScreen() {
             const line = (
               <View className="gap-1 py-2">
                 {speakerChanged && (
-                  <Text className="pt-2 text-xs font-semibold uppercase tracking-wider text-muted">
+                  <Text
+                    accessibilityRole="header"
+                    className="pt-2 text-xs font-semibold uppercase tracking-wider text-muted"
+                  >
                     {item.speaker}
                   </Text>
                 )}
@@ -120,7 +125,10 @@ export default function TranscriptScreen() {
             return (
               <Pressable
                 accessibilityRole="button"
-                accessibilityHint={`Plays from ${formatClock(start)}`}
+                accessibilityLabel={
+                  speakerChanged ? `${item.speaker ?? ''}: ${item.text}` : item.text
+                }
+                accessibilityHint={t('Plays from {time}', { time: formatClock(start) })}
                 onPress={() => {
                   setHeldUntil(0);
                   void seekToBookPosition(bookId, start);

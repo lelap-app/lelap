@@ -50,6 +50,11 @@ what this round left out.
 
 ## 2. Not in this round
 
+M50 closes the foreground service, lock screen and notification controls, the sleep timer, the
+book's end with Up Next, UPnP speed and the Android 17 permission; how it works now is in
+[`m50-follow-ups.md`](m50-follow-ups.md). The “App” paragraph above describes M26's JavaScript
+routing, which M50 replaced.
+
 - **A foreground service for cast sessions.** Parts advance from JavaScript; with the screen off
   for long, Android may stop the app between parts. A service holding the session (and a media
   notification that controls the receiver) is the fix.

@@ -19,8 +19,9 @@ const sources = () =>
     {
       key: 'antennapod',
       label: 'AntennaPod',
-      detail:
+      detail: t(
         'The database export (or OPML) from Settings → Import/Export. Subscriptions, played episodes and places.',
+      ),
     },
     {
       key: 'sabp',
@@ -70,7 +71,9 @@ export function ImportSheet({
       onClose={busy ? () => {} : onClose}
     >
       {busy ? (
-        <Text className="pb-6 text-muted">{busy}</Text>
+        <Text accessibilityLiveRegion="polite" className="pb-6 text-muted">
+          {busy}
+        </Text>
       ) : (
         <View className="pb-2">
           {sources()
@@ -79,6 +82,7 @@ export function ImportSheet({
               <Pressable
                 key={source.key}
                 onPress={() => run(source.key)}
+                accessibilityRole="button"
                 className="gap-1 border-b border-line py-3 active:opacity-60"
               >
                 <Text className="text-base text-paper">{source.label}</Text>

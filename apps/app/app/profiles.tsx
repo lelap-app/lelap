@@ -11,6 +11,7 @@ import { Avatar, pickAvatar } from '../src/components/Avatar';
 import { db, newId } from '../src/db';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
+import { TextButton } from '../src/components/TextButton';
 
 /** Everyone who listens on this device (and, with sync, the household). */
 export default function ProfilesScreen() {
@@ -56,7 +57,7 @@ export default function ProfilesScreen() {
         gap: 16,
       }}
     >
-      <View className="-ml-2 self-start">
+      <View className="-ms-2 self-start">
         <IconButton
           name="back"
           label={t('Back')}
@@ -64,7 +65,9 @@ export default function ProfilesScreen() {
           onPress={() => router.back()}
         />
       </View>
-      <Text className="text-3xl font-semibold text-paper">{t('Profiles')}</Text>
+      <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
+        {t('Profiles')}
+      </Text>
       <Text className="text-soft">
         {t(
           'Each profile has its own places, library, Up Next, podcasts and settings. Downloads are shared. With more than one, Lelap asks who’s listening when it opens.',
@@ -75,6 +78,7 @@ export default function ProfilesScreen() {
         <Pressable
           key={p.id}
           onPress={() => router.push({ pathname: '/profile', params: { id: p.id } })}
+          accessibilityRole="button"
           className="flex-row items-center gap-3 rounded-xl border border-line p-3 active:bg-raised"
         >
           <Avatar avatar={p.avatar} name={p.name} size={48} />
@@ -100,6 +104,7 @@ export default function ProfilesScreen() {
           value={name}
           onChangeText={setName}
           placeholder={t('Name')}
+          accessibilityLabel={t('Name')}
           placeholderTextColor="#8d8a83"
           onSubmitEditing={add}
           className="rounded-lg border border-line px-3 py-2 text-paper"
@@ -111,11 +116,14 @@ export default function ProfilesScreen() {
               {t('Can’t change add-ons; sees the catalogs you allow.')}
             </Text>
           </View>
-          <Switch value={kids} onValueChange={setKids} />
+          <Switch accessibilityLabel={t('Kids profile')} value={kids} onValueChange={setKids} />
         </View>
-        <Pressable disabled={name.trim() === ''} onPress={add}>
-          <Text className={name.trim() === '' ? 'text-muted' : 'text-amber'}>{t('Add')}</Text>
-        </Pressable>
+        <TextButton
+          text={t('Add')}
+          accessibilityLabel={t('Add a profile')}
+          disabled={name.trim() === ''}
+          onPress={add}
+        />
       </View>
     </ScrollView>
   );

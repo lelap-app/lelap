@@ -47,7 +47,9 @@ export function DownloadButton({
       <Pressable
         disabled={busy}
         onPress={() => void run(start)}
-        className="items-center rounded-full border border-line py-3 active:bg-raised"
+        accessibilityRole="button"
+        {...(busy ? { accessibilityLabel: t('Download') } : {})}
+        className="min-h-12 items-center justify-center rounded-full border border-line py-3 active:bg-raised"
       >
         {busy ? (
           <ActivityIndicator color="#f5b041" />
@@ -91,6 +93,7 @@ export function DownloadButton({
     <Pressable
       disabled={busy}
       onPress={onPress}
+      accessibilityRole="button"
       className="gap-2 rounded-xl border border-line px-4 py-3 active:bg-raised"
     >
       <View className="flex-row items-center justify-between gap-3">

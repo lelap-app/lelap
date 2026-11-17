@@ -1,16 +1,24 @@
 ---
 import Icon from './Icon.astro';
+import { t, type Lang } from '../i18n';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const book = t(lang, 'Early Mornings at the Laksa Café');
 ---
 
 <div class="stage" aria-hidden="true">
   <div class="phone phone-frame">
     <div class="from">
-      <span class="label">Playing from</span>
-      <span class="value">On this phone</span>
+      <span class="label">{t(lang, 'Playing from')}</span>
+      <span class="value">{t(lang, 'On this phone')}</span>
     </div>
     <div class="cover">
       <span class="cover-author">Janet Tay</span>
-      <span class="cover-title">Early Mornings at the Laksa Café</span>
+      <span class="cover-title">{book}</span>
       <svg class="cover-art" viewBox="0 0 120 96" fill="none" stroke-linecap="round">
         <circle cx="94" cy="20" r="11" fill="var(--cover-sand)" opacity="0.35"></circle>
         <path
@@ -26,8 +34,8 @@ import Icon from './Icon.astro';
       </svg>
     </div>
     <div class="title">
-      <span class="book">Early Mornings at the Laksa Café</span>
-      <span class="chapter">Janet Tay · Chapter 3</span>
+      <span class="book">{book}</span>
+      <span class="chapter">Janet Tay · {t(lang, 'Chapter {n}', { n: 3 })}</span>
     </div>
     <div class="scrub">
       <div class="track">
@@ -53,8 +61,8 @@ import Icon from './Icon.astro';
       </span>
     </div>
     <div class="sleep-timer">
-      <b>Sleep timer</b>
-      <span>29:12 · fades out</span>
+      <b>{t(lang, 'Sleep timer')}</b>
+      <span>29:12 · {t(lang, 'fades out')}</span>
     </div>
   </div>
   <div class="float float-bottom">
@@ -62,8 +70,8 @@ import Icon from './Icon.astro';
       <Icon name="circleCheck" size={20} />
     </span>
     <span class="float-text">
-      <b>Downloaded · 482 MB</b>
-      <span>Ready for airplane mode</span>
+      <b>{t(lang, 'Downloaded')} · 482 MB</b>
+      <span>{t(lang, 'Ready for airplane mode')}</span>
     </span>
   </div>
 </div>

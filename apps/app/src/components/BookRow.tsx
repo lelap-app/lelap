@@ -4,7 +4,9 @@ import { Platform, Pressable, Text, View } from 'react-native';
 
 import { t } from '../i18n';
 import { BookCover, coverUri } from './BookCover';
+import { useBookBadges } from './CoverBadges';
 import { COLORS, IconButton } from './Icon';
+import { ROW_BUTTON } from './TextButton';
 
 function status(book: LibraryBook): string {
   if (book.missing) return t('Files not found');
@@ -27,13 +29,16 @@ export const BookRow = memo(function BookRow({
   onLongPress: (book: LibraryBook) => void;
 }) {
   const progress = book.durationMs > 0 ? Math.min(1, book.bookPositionMs / book.durationMs) : 0;
+  // The row shows progress as a bar and a percent already; screen readers read its words.
+  const badges = useBookBadges(book, 56).filter((b) => b.kind !== 'progress');
   return (
     <Pressable
       onPress={() => onOpen(book)}
       onLongPress={() => onLongPress(book)}
+      {...ROW_BUTTON}
       className={`flex-row items-center gap-3 px-4 py-2 active:bg-raised ${book.missing || unavailable ? 'opacity-40' : ''}`}
     >
-      <BookCover uri={coverUri(book)} title={book.title} size={56} />
+      <BookCover uri={coverUri(book)} title={book.title} size={56} badges={badges} />
       <View className="flex-1 gap-1">
         <Text numberOfLines={2} className="text-base text-paper">
           {book.title}

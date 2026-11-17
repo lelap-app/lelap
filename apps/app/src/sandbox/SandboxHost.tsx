@@ -43,7 +43,15 @@ export function SandboxHost() {
   return (
     <View
       pointerEvents="none"
-      style={{ position: 'absolute', width: 1, height: 1, opacity: 0, left: -10, top: -10 }}
+      style={{
+        position: 'absolute',
+        width: 1,
+        height: 1,
+        opacity: 0,
+        // layout: ltr; off screen and never seen, in either direction.
+        left: -10,
+        top: -10,
+      }}
     >
       {boxes.map((box) => (
         <Sandbox key={box.key} box={box} />

@@ -9,6 +9,7 @@ import {
   removedFromSync,
   resetSync,
   startSync,
+  syncFailureEvent,
   syncNow,
   type SyncResult,
 } from '@lelap/core';
@@ -18,6 +19,7 @@ import { AppState, Platform } from 'react-native';
 
 import { syncBase } from './config';
 import { db, newId } from './db';
+import { logDiagnostic } from './diagnostics';
 import { getState as playerState } from './platform/audio';
 import { useLibrary, usePlayerState } from './player';
 import { refreshPodcasts } from './podcasts';
@@ -102,7 +104,10 @@ export function syncOnce(): Promise<SyncResult | null> {
       if (result.pulled > 0) await refreshPodcasts(true).catch(() => {});
       return result;
     })
-    .catch(() => null)
+    .catch((error: unknown) => {
+      logDiagnostic(syncFailureEvent(error));
+      return null;
+    })
     .finally(() => {
       running = null;
     });

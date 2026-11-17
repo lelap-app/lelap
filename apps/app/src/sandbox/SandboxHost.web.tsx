@@ -31,6 +31,7 @@ function Sandbox({ box }: { box: Box }) {
       height: 1,
       border: 0,
       opacity: 0,
+      // layout: ltr; off screen and never seen, in either direction.
       left: -10,
       top: -10,
     },

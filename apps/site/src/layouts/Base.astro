@@ -8,23 +8,31 @@ import Logo from '../components/Logo.astro';
 import Icon from '../components/Icon.astro';
 import { site } from '../site';
 import { splashImages } from '../splash-screens';
+import { languages, t, type Lang } from '../i18n';
 
 interface Props {
   title?: string;
   description?: string;
+  lang?: Lang;
+  /** The home page, which exists in every language: in-page anchors, hreflang links and the switch. */
+  home?: boolean;
 }
 
+const { lang = 'en', home = false } = Astro.props;
 const {
-  title = `${site.name}: ${site.descriptor}`,
-  description = `${site.descriptor} ${site.tagline} Open source, works offline, no account.`,
+  title = `${site.name}: ${t(lang, site.descriptor)}`,
+  description = `${t(lang, site.descriptor)} ${t(lang, site.tagline)} ${t(lang, 'Open source, works offline, no account.')}`,
 } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
-const isHome = Astro.url.pathname === '/';
-const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
+const homePath = home ? languages[lang].home : '/';
+const anchor = (id: string) => (home ? `#${id}` : `/#${id}`);
+const other: Lang = lang === 'en' ? 'ms' : 'en';
+// Docs, terms and privacy are English only; on a page in another language their links say so.
+const english = lang === 'en' ? undefined : 'en';
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -47,6 +55,20 @@ const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={languages[lang].locale} />
+    {home && (
+      <>
+        <meta property="og:locale:alternate" content={languages[other].locale} />
+        {(Object.keys(languages) as Lang[]).map((code) => (
+          <link
+            rel="alternate"
+            hreflang={code}
+            href={new URL(languages[code].home, Astro.site).href}
+          />
+        ))}
+        <link rel="alternate" hreflang="x-default" href={new URL('/', Astro.site).href} />
+      </>
+    )}
     <script is:inline>
       // Scroll reveals, progressive: without this script nothing is hidden.
       (() => {
@@ -78,26 +100,41 @@ const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
   </head>
   <body>
     <header class="container site-header">
-      <a class="brand" href="/">
+      <a class="brand" href={homePath}>
         <Logo />
         {site.name}
       </a>
-      <nav class="primary" aria-label="Primary">
-        <a href={anchor('how')}>How it works</a>
-        <a href={anchor('features')}>Features</a>
-        <a href={anchor('get')}>Get it</a>
-        <a href={anchor('selfhost')}>Self-host</a>
-        <a href={anchor('faq')}>FAQ</a>
-        <a href="/docs/">Docs</a>
+      <nav class="primary" aria-label={t(lang, 'Primary')}>
+        <a href={anchor('how')}>{t(lang, 'How it works')}</a>
+        <a href={anchor('features')}>{t(lang, 'Features')}</a>
+        <a href={anchor('get')}>{t(lang, 'Get it')}</a>
+        <a href={anchor('selfhost')}>{t(lang, 'Self-host')}</a>
+        <a href={anchor('faq')}>{t(lang, 'FAQ')}</a>
+        <a href="/docs/" hreflang={english}>
+          {t(lang, 'Docs')}
+        </a>
       </nav>
       <div class="header-actions">
+        {home && (
+          <a
+            class="btn btn-sm lang-switch"
+            href={languages[other].home}
+            hreflang={other}
+            lang={other}
+            aria-label={`${languages[other].name} (${languages[other].short})`}
+          >
+            <Icon name="globe" size={18} />
+            <span class="lang-name">{languages[other].name}</span>
+            <span class="lang-short">{languages[other].short}</span>
+          </a>
+        )}
         <a class="btn btn-sm btn-outline" href={site.repoUrl}>
           <Icon name="code" size={18} />
           GitHub
         </a>
         {site.released && (
           <a class="btn btn-sm btn-primary" href={site.appUrl}>
-            Start listening
+            {t(lang, 'Start listening')}
           </a>
         )}
       </div>
@@ -115,19 +152,34 @@ const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
             {site.name}
           </span>
           <p class="muted">
-            {site.tagline} {site.name} does not host, index or link to any content. Add-ons are made
-            and run by third parties.
+            {t(lang, site.tagline)}{' '}
+            {t(
+              lang,
+              '{name} does not host, index or link to any content. Add-ons are made and run by third parties.',
+              { name: site.name },
+            )}
           </p>
+          {english && (
+            <p class="muted">{t(lang, 'The docs, terms and privacy policy are in English.')}</p>
+          )}
         </div>
-        <nav aria-label="Footer" class="footer-nav">
+        <nav aria-label={t(lang, 'Footer')} class="footer-nav">
           <a href={site.repoUrl}>GitHub</a>
-          <a href={site.contributingUrl}>Contribute</a>
-          <a href={anchor('selfhost')}>Self-hosting</a>
-          <a href="/docs/">Add-on docs</a>
-          <a href="/terms">Terms</a>
-          <a href="/privacy">Privacy</a>
-          <a href={anchor('rights')}>Copyright</a>
-          {site.released && <a href={site.appUrl}>Web app</a>}
+          <a href={site.contributingUrl} hreflang={english}>
+            {t(lang, 'Contribute')}
+          </a>
+          <a href={anchor('selfhost')}>{t(lang, 'Self-hosting')}</a>
+          <a href="/docs/" hreflang={english}>
+            {t(lang, 'Add-on docs')}
+          </a>
+          <a href="/terms" hreflang={english}>
+            {t(lang, 'Terms')}
+          </a>
+          <a href="/privacy" hreflang={english}>
+            {t(lang, 'Privacy')}
+          </a>
+          <a href={anchor('rights')}>{t(lang, 'Copyright')}</a>
+          {site.released && <a href={site.appUrl}>{t(lang, 'Web app')}</a>}
         </nav>
       </div>
     </footer>
@@ -187,6 +239,42 @@ const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+  }
+
+  /* Plain text beside the GitHub button; a full-height target so it is easy to hit on a phone. */
+  .lang-switch {
+    position: relative;
+    padding-inline: 12px;
+    color: var(--fg-soft);
+    font-weight: 500;
+  }
+
+  .lang-switch:hover {
+    color: var(--fg);
+  }
+
+  .lang-switch :global(svg) {
+    color: var(--accent);
+  }
+
+  .lang-short {
+    display: none;
+  }
+
+  /* Phones: “BM” or “EN” keeps the header on one row; the name says both, for voice control. */
+  @media (max-width: 420px) {
+    .lang-short {
+      display: inline;
+    }
+
+    .lang-name {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
   }
 
   .site-footer {

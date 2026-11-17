@@ -2,6 +2,7 @@ import { t } from './i18n';
 import {
   applyDownloadStatuses,
   type DownloadEntry,
+  downloadFailureEvent,
   getDownload,
   getSettings,
   listDownloads,
@@ -18,6 +19,7 @@ import { AppState, PermissionsAndroid, Platform } from 'react-native';
 import { showAlert } from './dialog';
 import { queryClient } from './addons';
 import { db } from './db';
+import { logDiagnostic } from './diagnostics';
 import { formatBytes } from './format';
 import * as native from './platform/downloads';
 import { reloadBook, useLibrary } from './player';
@@ -98,8 +100,10 @@ async function syncDownloads(onChange: () => void): Promise<Map<string, native.D
   const fold = applyDownloadStatuses(db, native.directory(), statuses, Date.now());
   for (const orphan of fold.orphans) await native.remove(orphan);
   for (const bookId of fold.changed) {
+    const row = getDownload(db, bookId);
+    if (row?.state === 'failed') logDiagnostic(downloadFailureEvent(bookId, row.error));
     // A paused book picks up its new files now; a playing one at its next load.
-    if (getDownload(db, bookId)?.state === 'done') await reloadBook(bookId, false).catch(() => {});
+    if (row?.state === 'done') await reloadBook(bookId, false).catch(() => {});
   }
   if (fold.changed.length > 0) onChange();
   return new Map(

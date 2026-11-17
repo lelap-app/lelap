@@ -92,6 +92,20 @@ class LibraryModule : Module() {
     AsyncFunction("readImage") Coroutine { uri: String, coverDir: String ->
       withContext(Dispatchers.IO) { TagReader(context).readImage(Uri.parse(uri), File(coverDir)) }
     }
+
+    // Chapters from silences (M45): decoded in a background worker, never on this thread.
+    AsyncFunction("findSilences") { jobJson: String ->
+      val job = SilenceJob.decode(jobJson) ?: throw CodedException("The chapter scan is not valid.")
+      Silences.enqueue(context, job)
+    }
+
+    AsyncFunction("silenceStatuses") Coroutine { ->
+      withContext(Dispatchers.IO) { Silences.statuses(context) }
+    }
+
+    AsyncFunction("removeSilences") Coroutine { bookId: String ->
+      withContext(Dispatchers.IO) { Silences.remove(context, bookId) }
+    }
   }
 
   private fun hasPermission(tree: Uri): Boolean =

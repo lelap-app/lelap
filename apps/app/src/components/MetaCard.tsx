@@ -7,6 +7,7 @@ import { t } from '../i18n';
 import { useArtwork } from '../addons';
 import { formatDuration } from '../format';
 import { BookCover } from './BookCover';
+import { useMetaBadges, withBadges } from './CoverBadges';
 
 const onDevice = () => (Platform.OS === 'web' ? t('On this device') : t('On this phone'));
 
@@ -50,18 +51,31 @@ export const MetaTile = memo(function MetaTile({
   width,
   availability,
   onPress,
+  askArtwork = true,
 }: {
   meta: MetaPreview;
   width: number;
   availability?: Availability | undefined;
   onPress: (meta: MetaPreview) => void;
+  /** False: show only a cover the item has or an earlier request found. */
+  askArtwork?: boolean;
 }) {
-  const cover = useArtwork(meta);
+  const cover = useArtwork(meta, { ask: askArtwork });
+  const badges = useMetaBadges(meta, width);
   return (
-    <Pressable onPress={() => onPress(meta)} style={{ width }} className="gap-1 active:opacity-70">
+    <Pressable
+      onPress={() => onPress(meta)}
+      accessibilityRole="button"
+      accessibilityLabel={withBadges(
+        [meta.name, meta.author, availability && badgeLabel(availability)],
+        badges,
+      )}
+      style={{ width }}
+      className="gap-1 active:opacity-70"
+    >
       <View>
-        <BookCover uri={cover} title={meta.name} size={width} />
-        <View className="absolute bottom-1.5 left-1.5 right-1.5">
+        <BookCover uri={cover} title={meta.name} size={width} badges={badges} />
+        <View className="absolute bottom-1.5 inset-x-1.5">
           <SourceBadge availability={availability} />
         </View>
       </View>
@@ -88,12 +102,23 @@ export const MetaListRow = memo(function MetaListRow({
   onPress: (meta: MetaPreview) => void;
 }) {
   const cover = useArtwork(meta);
+  const badges = useMetaBadges(meta, 56);
   return (
     <Pressable
       onPress={() => onPress(meta)}
+      accessibilityRole="button"
+      accessibilityLabel={withBadges(
+        [
+          meta.name,
+          meta.author,
+          meta.durationMs ? formatDuration(meta.durationMs) : null,
+          availability && badgeLabel(availability),
+        ],
+        badges,
+      )}
       className="flex-row items-center gap-3 px-4 py-2 active:bg-raised"
     >
-      <BookCover uri={cover} title={meta.name} size={56} />
+      <BookCover uri={cover} title={meta.name} size={56} badges={badges} />
       <View className="flex-1 gap-1">
         <Text numberOfLines={2} className="text-base text-paper">
           {meta.name}

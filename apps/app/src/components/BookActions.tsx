@@ -27,6 +27,7 @@ import { deleteDownload, startDownload } from '../downloads';
 import { profileId } from '../profile';
 import { COLORS, Icon, type IconName } from './Icon';
 import { Sheet } from './Sheet';
+import { TextButton } from './TextButton';
 
 type Mode = 'menu' | 'tags' | 'lists' | 'shelf';
 
@@ -241,7 +242,8 @@ export function BookActions({
                   onPress={() => saveTags(on ? tags.filter((t) => t !== tag) : [...tags, tag])}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: on }}
-                  className={`rounded-full border px-3 py-1.5 ${on ? 'border-amber bg-amber' : 'border-line'}`}
+                  aria-checked={on}
+                  className={`min-h-12 justify-center rounded-full border px-3 ${on ? 'border-amber bg-amber' : 'border-line'}`}
                 >
                   <Text className={on ? 'text-ink' : 'text-soft'}># {tag}</Text>
                 </Pressable>
@@ -254,10 +256,11 @@ export function BookActions({
               onChangeText={setDraft}
               onSubmitEditing={addDraft}
               placeholder={t('New tag')}
+              accessibilityLabel={t('New tag')}
               placeholderTextColor={COLORS.muted}
               autoCapitalize="none"
               returnKeyType="done"
-              className="flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+              className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
             />
             <Pressable
               onPress={addDraft}
@@ -267,9 +270,7 @@ export function BookActions({
               <Text className="font-semibold text-ink">{t('Add')}</Text>
             </Pressable>
           </View>
-          <Pressable onPress={onClose} className="self-end py-2">
-            <Text className="text-amber">{t('Done')}</Text>
-          </Pressable>
+          <TextButton text={t('Done')} onPress={onClose} className="self-end" />
         </View>
       )}
 

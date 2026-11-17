@@ -77,7 +77,7 @@ export default function ConvertScreen() {
       contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
       ListHeaderComponent={
         <View className="gap-3 px-4 pb-3">
-          <View className="-ml-2 self-start">
+          <View className="-ms-2 self-start">
             <IconButton
               name="back"
               label={t('Back')}
@@ -85,28 +85,32 @@ export default function ConvertScreen() {
               onPress={() => router.back()}
             />
           </View>
-          <Text className="text-2xl font-semibold text-paper">
+          <Text accessibilityRole="header" className="text-2xl font-semibold text-paper">
             {t('Subscribe to this podcast')}
           </Text>
           <Text className="text-sm text-muted">
-            Find “{book?.title ?? t('this folder')}” as a podcast. Episodes before the file you are
-            on are marked as played, and that episode keeps your place. The folder stays in the
-            Library.
+            {t(
+              'Find “{title}” as a podcast. Episodes before the file you are on are marked as played, and that episode keeps your place. The folder stays in the Library.',
+              { title: book?.title ?? t('this folder') },
+            )}
           </Text>
           <View className="flex-row items-center gap-2">
             <TextInput
               value={feedUrl}
               onChangeText={setFeedUrl}
               placeholder={t('Or paste its feed address')}
+              accessibilityLabel={t('Feed address (RSS)')}
               placeholderTextColor="#8d8a83"
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
-              className="flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+              className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
             />
             <Pressable
               disabled={busy || feedUrl.trim() === ''}
               onPress={() => void convert(feedUrl.trim())}
+              accessibilityRole="button"
+              className="min-h-12 justify-center px-1"
             >
               <Text className={feedUrl.trim() === '' ? 'text-muted' : 'text-amber'}>
                 {t('Use')}
@@ -117,6 +121,7 @@ export default function ConvertScreen() {
             value={query}
             onChangeText={setQuery}
             placeholder={t('Search podcasts')}
+            accessibilityLabel={t('Search podcasts')}
             placeholderTextColor="#8d8a83"
             autoCorrect={false}
             className="rounded-lg bg-raised px-4 py-3 text-base text-paper"

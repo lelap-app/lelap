@@ -22,6 +22,7 @@ import { useLibrary } from '../../src/player';
 import { exportOpml, importOpml, refreshPodcasts, subscribeToFeed } from '../../src/podcasts';
 import { readPickedText, shareText } from '../../src/platform/files';
 import { activeProfile, profileId } from '../../src/profile';
+import { TextButton } from '../../src/components/TextButton';
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -92,10 +93,10 @@ export default function PodcastsScreen() {
       ListHeaderComponent={
         <View className="gap-4 px-4 pb-4">
           <View className="flex-row items-center justify-between">
-            <Text className="text-3xl font-semibold text-paper">{t('Podcasts')}</Text>
-            <Pressable onPress={() => router.push('/up-next')} hitSlop={8}>
-              <Text className="text-amber">{t('Up Next')}</Text>
-            </Pressable>
+            <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
+              {t('Podcasts')}
+            </Text>
+            <TextButton text={t('Up Next')} onPress={() => router.push('/up-next')} />
           </View>
           {/* Kids subscribe from the catalogs they are allowed; feed addresses and OPML stay with grown-ups. */}
           {!kids && (
@@ -105,14 +106,21 @@ export default function PodcastsScreen() {
                   value={feedUrl}
                   onChangeText={setFeedUrl}
                   placeholder={t('Feed address (RSS)')}
+                  accessibilityLabel={t('Feed address (RSS)')}
                   placeholderTextColor="#8d8a83"
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="url"
                   onSubmitEditing={() => void add()}
-                  className="flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+                  className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
                 />
-                <Pressable disabled={busy || feedUrl.trim() === ''} onPress={() => void add()}>
+                <Pressable
+                  disabled={busy || feedUrl.trim() === ''}
+                  onPress={() => void add()}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('Add')}
+                  className="min-h-12 justify-center px-1"
+                >
                   {busy ? (
                     <ActivityIndicator color="#f5b041" />
                   ) : (
@@ -123,15 +131,16 @@ export default function PodcastsScreen() {
                 </Pressable>
               </View>
               <View className="flex-row gap-4">
-                <Pressable disabled={busy} onPress={() => void importFile()}>
-                  <Text className="text-amber">{t('Import OPML')}</Text>
-                </Pressable>
+                <TextButton
+                  text={t('Import OPML')}
+                  disabled={busy}
+                  onPress={() => void importFile()}
+                />
                 {subs.length > 0 && (
-                  <Pressable
+                  <TextButton
+                    text={t('Export OPML')}
                     onPress={() => void shareText('lelap-subscriptions.opml', exportOpml())}
-                  >
-                    <Text className="text-amber">{t('Export OPML')}</Text>
-                  </Pressable>
+                  />
                 )}
               </View>
             </>
@@ -153,6 +162,7 @@ export default function PodcastsScreen() {
       renderItem={({ item: sub }) => (
         <Pressable
           onPress={() => router.push({ pathname: '/podcast', params: { id: sub.podcastId } })}
+          accessibilityRole="button"
           className="flex-row items-center gap-3 px-4 py-2 active:bg-raised"
         >
           <BookCover uri={sub.coverUrl} title={sub.title} size={56} />

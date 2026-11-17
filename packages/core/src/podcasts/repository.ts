@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { StoredChapter } from '../schema';
@@ -15,6 +15,7 @@ import {
   subscriptions,
 } from '../schema';
 import { recordDeletion } from '../sync/keys';
+import { isPlaceholderFeed } from './placeholder';
 import type { EpisodeExtras, PodcastExtras } from './podcasting';
 import type { ParsedFeed } from './rss';
 
@@ -155,6 +156,45 @@ export function setAutoDownload(
     .run();
 }
 
+/**
+ * Seconds to skip at the start and the end of every episode of a show (M45), per profile. Like
+ * auto-download, it syncs with the subscription.
+ */
+export function setTrim(
+  db: Db,
+  profileId: string,
+  podcastId: string,
+  trim: { skipIntroMs: number; skipOutroMs: number },
+  now: number,
+): void {
+  db.update(subscriptions)
+    .set({
+      skipIntroMs: Math.max(0, Math.round(trim.skipIntroMs)),
+      skipOutroMs: Math.max(0, Math.round(trim.skipOutroMs)),
+      updatedAt: now,
+    })
+    .where(and(eq(subscriptions.profileId, profileId), eq(subscriptions.podcastId, podcastId)))
+    .run();
+}
+
+/** The intro and outro to skip for an episode's book, from its show's subscription. */
+export function trimOfBook(
+  db: Db,
+  profileId: string,
+  bookId: string,
+): { skipIntroMs: number; skipOutroMs: number } {
+  const row = db
+    .select({ skipIntroMs: subscriptions.skipIntroMs, skipOutroMs: subscriptions.skipOutroMs })
+    .from(episodes)
+    .innerJoin(
+      subscriptions,
+      and(eq(subscriptions.podcastId, episodes.podcastId), eq(subscriptions.profileId, profileId)),
+    )
+    .where(eq(episodes.bookId, bookId))
+    .get();
+  return row ?? { skipIntroMs: 0, skipOutroMs: 0 };
+}
+
 export type Subscription = {
   podcastId: string;
   feedUrl: string;
@@ -166,42 +206,90 @@ export type Subscription = {
   guid: string | null;
   autoDownload: boolean;
   keepLatest: number;
+  skipIntroMs: number;
+  skipOutroMs: number;
   subscribedAt: number;
   latestAt: number | null;
   unplayed: number;
 };
 
-export function listSubscriptions(db: Db, profileId: string): Subscription[] {
-  const rows = db
-    .select({ podcast: podcasts, sub: subscriptions })
+/** Newest episode first. Counted in one query: 500 podcasts are 20,000 episodes or more. */
+export function listSubscriptions(db: Db, profileId: string, podcastId?: string): Subscription[] {
+  return db
+    .select({
+      podcastId: podcasts.id,
+      feedUrl: podcasts.feedUrl,
+      title: podcasts.title,
+      author: podcasts.author,
+      description: podcasts.description,
+      coverUrl: podcasts.coverUrl,
+      link: podcasts.link,
+      guid: podcasts.guid,
+      autoDownload: subscriptions.autoDownload,
+      keepLatest: subscriptions.keepLatest,
+      skipIntroMs: subscriptions.skipIntroMs,
+      skipOutroMs: subscriptions.skipOutroMs,
+      subscribedAt: subscriptions.subscribedAt,
+      latestAt: sql<number | null>`max(${episodes.publishedAt})`,
+      // count() of a column skips nulls: every episode, less those this profile finished.
+      unplayed: sql<number>`count(${episodes.id}) - count(${libraryEntries.finishedAt})`.mapWith(
+        Number,
+      ),
+    })
     .from(subscriptions)
     .innerJoin(podcasts, eq(podcasts.id, subscriptions.podcastId))
-    .where(eq(subscriptions.profileId, profileId))
-    .all();
-  return rows
-    .map(({ podcast, sub }) => {
-      const list = listEpisodes(db, profileId, podcast.id);
-      return {
-        podcastId: podcast.id,
-        feedUrl: podcast.feedUrl,
-        title: podcast.title,
-        author: podcast.author,
-        description: podcast.description,
-        coverUrl: podcast.coverUrl,
-        link: podcast.link,
-        guid: podcast.guid,
-        autoDownload: sub.autoDownload,
-        keepLatest: sub.keepLatest,
-        subscribedAt: sub.subscribedAt,
-        latestAt: list[0]?.publishedAt ?? null,
-        unplayed: list.filter((e) => !e.finished).length,
-      };
-    })
+    .leftJoin(episodes, eq(episodes.podcastId, podcasts.id))
+    .leftJoin(
+      libraryEntries,
+      and(eq(libraryEntries.bookId, episodes.bookId), eq(libraryEntries.profileId, profileId)),
+    )
+    .where(
+      and(
+        eq(subscriptions.profileId, profileId),
+        podcastId === undefined ? undefined : eq(subscriptions.podcastId, podcastId),
+      ),
+    )
+    .groupBy(subscriptions.podcastId)
+    .all()
     .sort((a, b) => (b.latestAt ?? 0) - (a.latestAt ?? 0));
 }
 
+/** The newest episode of each subscription that this profile has not finished. */
+export function newestUnfinishedEpisodes(
+  db: Db,
+  profileId: string,
+): { id: string; bookId: string | null; publishedAt: number | null }[] {
+  const newest = new Map<
+    string,
+    { id: string; bookId: string | null; publishedAt: number | null }
+  >();
+  const rows = db
+    .select({
+      id: episodes.id,
+      podcastId: episodes.podcastId,
+      bookId: episodes.bookId,
+      publishedAt: episodes.publishedAt,
+    })
+    .from(episodes)
+    .innerJoin(
+      subscriptions,
+      and(eq(subscriptions.podcastId, episodes.podcastId), eq(subscriptions.profileId, profileId)),
+    )
+    .leftJoin(
+      libraryEntries,
+      and(eq(libraryEntries.bookId, episodes.bookId), eq(libraryEntries.profileId, profileId)),
+    )
+    .where(isNull(libraryEntries.finishedAt))
+    .orderBy(episodes.podcastId, desc(episodes.publishedAt))
+    .all();
+  for (const { podcastId, ...episode } of rows) {
+    if (!newest.has(podcastId)) newest.set(podcastId, episode);
+  }
+  return [...newest.values()];
+}
+
 export function getSubscription(db: Db, profileId: string, podcastId: string): Subscription | null {
-  return listSubscriptions(db, profileId).find((s) => s.podcastId === podcastId) ?? null;
+  return listSubscriptions(db, profileId, podcastId)[0] ?? null;
 }
 
 export function findPodcast(db: Db, by: { feedUrl?: string; guid?: string }) {
@@ -342,11 +430,17 @@ export function autoDownloadWork(
   const download: string[] = [];
   const remove: string[] = [];
   const auto = db
-    .select({ podcastId: subscriptions.podcastId, keepLatest: subscriptions.keepLatest })
+    .select({
+      podcastId: subscriptions.podcastId,
+      keepLatest: subscriptions.keepLatest,
+      feedUrl: podcasts.feedUrl,
+    })
     .from(subscriptions)
+    .innerJoin(podcasts, eq(podcasts.id, subscriptions.podcastId))
     .where(and(eq(subscriptions.profileId, profileId), eq(subscriptions.autoDownload, true)))
     .all();
-  for (const { podcastId, keepLatest } of auto) {
+  for (const { podcastId, keepLatest, feedUrl } of auto) {
+    if (isPlaceholderFeed(feedUrl)) continue;
     const list = listEpisodes(db, profileId, podcastId);
     const wanted = list.filter((e) => !e.finished).slice(0, keepLatest);
     for (const e of wanted) if (e.downloadState === null) download.push(e.id);
@@ -409,12 +503,14 @@ export function saveEpisodeChapters(
       .get();
     const file = files[0];
     if (!episode || !file || files.length !== 1 || file.chaptersJson.length > 0) return false;
+    // Chapters found from silences give way to the feed's.
     const existing = tx
       .select({ id: chapters.id })
       .from(chapters)
-      .where(eq(chapters.bookId, bookId))
+      .where(and(eq(chapters.bookId, bookId), eq(chapters.found, false)))
       .get();
     if (existing) return false;
+    tx.delete(chapters).where(eq(chapters.bookId, bookId)).run();
     tx.update(bookFiles)
       .set({ chaptersJson: list, updatedAt: now })
       .where(eq(bookFiles.id, file.id))

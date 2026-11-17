@@ -37,6 +37,20 @@ class PositionJournalTest {
     assertEquals("b", load?.playlist?.bookId)
     assertEquals(42L, load?.startPositionMs)
     assertEquals(null, load?.playlist?.author)
+    assertEquals(0L, load?.playlist?.introMs)
+  }
+
+  @Test
+  fun keepsAPodcastsIntroAndOutroThroughTheJournal() {
+    val json = """
+      {"bookId":"b","title":"T","author":null,"coverUri":null,"speed":1,
+       "files":[{"uri":"content://x","location":"loc","title":"x","durationMs":5}],
+       "chapters":[],"startIndex":0,"startPositionMs":0,"skipIntroMs":30000,"skipOutroMs":15000}
+    """.trimIndent()
+    val load = PositionJournal.decodeLoad(json)!!
+    assertEquals(30_000L, load.playlist.introMs)
+    assertEquals(15_000L, load.playlist.outroMs)
+    assertEquals(load, PositionJournal.decodeLoad(PositionJournal.encodeLoad(load)))
   }
 
   @Test

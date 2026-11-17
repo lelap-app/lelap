@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { t } from './i18n';
+import { useReducedMotion } from './components/Motion';
 
 // React Native's Alert does nothing on the web, so the web gets the same dialog drawn by the app.
 // Android keeps the system dialog.
@@ -52,6 +53,7 @@ export function DialogHost() {
     () => current,
     () => null,
   );
+  const reduced = useReducedMotion();
   if (!dialog) return null;
   const cancel = dialog.buttons.find((b) => b.style === 'cancel');
   const close = (button?: AlertButton) => {
@@ -60,17 +62,24 @@ export function DialogHost() {
   };
 
   return (
-    <Modal transparent animationType="fade" visible onRequestClose={() => close(cancel)}>
-      <Pressable
-        onPress={() => close(cancel)}
-        accessibilityLabel={t('Close')}
-        className="flex-1 items-center justify-center bg-black/60 px-6"
-      >
+    <Modal
+      transparent
+      animationType={reduced ? 'none' : 'fade'}
+      visible
+      onRequestClose={() => close(cancel)}
+    >
+      <View className="flex-1 items-center justify-center bg-black/60 px-6">
+        {/* A sibling behind the dialog, not its parent: a button can't hold the dialog's buttons. */}
         <Pressable
-          accessibilityRole="alert"
-          className="w-full max-w-sm gap-3 rounded-2xl bg-raised p-5"
-        >
-          <Text className="text-lg font-semibold text-paper">{dialog.title}</Text>
+          onPress={() => close(cancel)}
+          accessibilityRole="button"
+          accessibilityLabel={t('Close')}
+          className="absolute inset-0"
+        />
+        <View accessibilityRole="alert" className="w-full max-w-sm gap-3 rounded-2xl bg-raised p-5">
+          <Text accessibilityRole="header" className="text-lg font-semibold text-paper">
+            {dialog.title}
+          </Text>
           {dialog.message !== undefined && dialog.message !== '' && (
             <Text className="text-soft">{dialog.message}</Text>
           )}
@@ -80,7 +89,7 @@ export function DialogHost() {
                 key={`${button.text ?? ''} ${index}`}
                 onPress={() => close(button)}
                 accessibilityRole="button"
-                className="rounded-full px-4 py-2 active:bg-line"
+                className="min-h-12 justify-center rounded-full px-4 active:bg-line"
               >
                 <Text
                   className={`font-semibold ${
@@ -96,8 +105,8 @@ export function DialogHost() {
               </Pressable>
             ))}
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }

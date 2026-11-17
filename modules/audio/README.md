@@ -22,8 +22,15 @@ Kotlin Expo module for Android playback.
 - `Bedtime`: “start a sleep timer at bedtime”. The app writes the window to the service's
   preferences; when Play falls inside it (the window may cross midnight), the service starts a
   timer for minutes or to the end of the chapter, once per night.
+- Intro and outro (M45): a podcast's `BookLoad` carries the seconds to skip. `SeekRules` starts
+  an episode past its intro and keeps smart rewind out of it; a player message at the outro's
+  start seeks to the end, so the episode is logged as played and Up Next goes on.
 - Media button preferences: back and forward by the skip interval (`SkipIcons` picks Media3's
   icon with the seconds) and the sleep timer button. Phones, watches and cars all read them.
+- Casting (M50): `RemotePlayer` becomes the session's player while a receiver plays, through the
+  cast module's `CastLink`; `RemoteSession` there decides parts, the book's end and speed. The
+  sleep timer fades the receiver's volume and pauses it; the book's end is logged and Up Next goes
+  on there. ExoPlayer keeps the book, paused, for the hand-back.
 - `AudioModule`: the JavaScript bridge (`src/index.ts`), a `MediaController` on the main thread.
 
 Unit tests for the pure parts run on the JVM:

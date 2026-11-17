@@ -48,7 +48,11 @@ function Button({
   active?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.button, active && styles.buttonActive]}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={[styles.button, active && styles.buttonActive]}
+    >
       <Text style={[styles.buttonText, active && styles.buttonTextActive]}>{label}</Text>
     </Pressable>
   );
@@ -116,6 +120,7 @@ export function SpikeScreen() {
           onChangeText={setBookId}
           keyboardType="number-pad"
           placeholder="LibriVox book ID"
+          accessibilityLabel="LibriVox book ID"
           placeholderTextColor="#777"
           style={styles.input}
         />
@@ -161,6 +166,7 @@ export function SpikeScreen() {
       <View style={[styles.row, styles.between]}>
         <Text style={styles.text}>Duck on interruption (calls)</Text>
         <Switch
+          accessibilityLabel="Duck on interruption (calls)"
           value={state.duckOnInterruption}
           onValueChange={(enabled) =>
             run(

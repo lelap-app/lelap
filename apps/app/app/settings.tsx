@@ -1,18 +1,22 @@
 import {
   getSettings,
+  hasBigLibrary,
   listRoots,
   localRoot,
+  removeBigLibrary,
   removeRemoteRoot,
+  seedBigLibrary,
   type Settings,
   setSetting,
 } from '@lelap/core';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LANGUAGES, setLanguage, t } from '../src/i18n';
+import { READABLE, useWide } from '../src/layout';
 import { exportBackup, importBackup } from '../src/backup';
 import { applyBedtime } from '../src/bedtime';
 import { allowDevices, followDevices } from '../src/devices';
@@ -22,6 +26,7 @@ import { showAlert } from '../src/dialog';
 import { ImportSheet } from '../src/components/ImportSheet';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
+import { SHORTCUTS_SUPPORTED, showShortcuts } from '../src/shortcuts';
 import { soundOptions, SoundRow } from '../src/components/SoundSheet';
 import { db } from '../src/db';
 import { applyRules } from '../src/downloads';
@@ -33,6 +38,8 @@ import { SELF_UPDATES } from '../src/platform/updater';
 import { fetchOtaUpdate, OTA_UPDATES, otaDescription } from '../src/ota';
 import { checkForUpdate, installUpdate } from '../src/updates';
 import { chooseFolder, scanLibrary } from '../src/scan';
+import { Pill } from '../src/components/Pill';
+import { RowLabel, TextButton, Toggle } from '../src/components/TextButton';
 
 const SKIP_SECONDS = [10, 15, 30, 45, 60];
 const BEDTIME_MINUTES = [15, 30, 45, 60];
@@ -50,14 +57,15 @@ function Choice({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <Pill
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
+      aria-selected={active}
       className={`rounded-full border px-4 py-2 ${active ? 'border-amber bg-amber' : 'border-line'}`}
     >
       <Text className={active ? 'text-ink' : 'text-soft'}>{label}</Text>
-    </Pressable>
+    </Pill>
   );
 }
 
@@ -74,21 +82,23 @@ function TimeStepper({
   const step = (by: number) => onChange((minutes + by + DAY_MINUTES) % DAY_MINUTES);
   return (
     <View className="flex-row items-center gap-3">
-      <Text className="w-12 text-soft">{label}</Text>
+      <Text className="min-w-12 text-soft">{label}</Text>
       <Pressable
         onPress={() => step(-BEDTIME_STEP)}
         accessibilityRole="button"
-        accessibilityLabel={`${label} 30 minutes earlier`}
-        className="h-11 w-11 items-center justify-center rounded-full border border-line active:bg-raised"
+        accessibilityLabel={t('{time}, 30 minutes earlier', { time: label })}
+        className="h-12 w-12 items-center justify-center rounded-full border border-line active:bg-raised"
       >
         <Text className="text-lg text-paper">−</Text>
       </Pressable>
-      <Text className="w-16 text-center text-lg text-paper">{formatTimeOfDay(minutes)}</Text>
+      <Text accessibilityLiveRegion="polite" className="min-w-16 text-center text-lg text-paper">
+        {formatTimeOfDay(minutes)}
+      </Text>
       <Pressable
         onPress={() => step(BEDTIME_STEP)}
         accessibilityRole="button"
-        accessibilityLabel={`${label} 30 minutes later`}
-        className="h-11 w-11 items-center justify-center rounded-full border border-line active:bg-raised"
+        accessibilityLabel={t('{time}, 30 minutes later', { time: label })}
+        className="h-12 w-12 items-center justify-center rounded-full border border-line active:bg-raised"
       >
         <Text className="text-lg text-paper">+</Text>
       </Pressable>
@@ -111,7 +121,7 @@ function Row({
         <Text className="text-base text-paper">{label}</Text>
         {detail !== undefined && <Text className="text-sm text-muted">{detail}</Text>}
       </View>
-      {children}
+      <RowLabel.Provider value={label}>{children}</RowLabel.Provider>
     </View>
   );
 }
@@ -157,24 +167,26 @@ function UpdateRows({
   };
   return (
     <>
-      <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Updates')}</Text>
+      <Text accessibilityRole="header" className="pt-6 text-xs uppercase tracking-wider text-muted">
+        {t('Updates')}
+      </Text>
       <Row label={t('Beta versions')} detail={t('Try new versions before everyone else.')}>
-        <Switch value={betaUpdates} onValueChange={onBeta} />
+        <Toggle value={betaUpdates} onValueChange={onBeta} />
       </Row>
       {OTA_UPDATES && (
         <Row
           label={t('Download updates automatically')}
-          detail={`Small updates load in the background and start the next time you open Lelap. ${otaDescription() ?? ''}`.trim()}
+          detail={`${t('Small updates load in the background and start the next time you open Lelap.')} ${otaDescription() ?? ''}`.trim()}
         >
-          <Switch value={otaUpdates} onValueChange={onOta} />
+          <Toggle value={otaUpdates} onValueChange={onOta} />
         </Row>
       )}
       <Row label={t('Check for updates')} {...(status ? { detail: status } : {})}>
-        <Pressable disabled={busy} onPress={() => void check()}>
-          <Text className={busy ? 'text-muted' : 'text-amber'}>
-            {busy ? t('Checking…') : t('Check')}
-          </Text>
-        </Pressable>
+        <TextButton
+          text={busy ? t('Checking…') : t('Check')}
+          disabled={busy}
+          onPress={() => void check()}
+        />
       </Row>
     </>
   );
@@ -184,6 +196,7 @@ export default function SettingsScreen() {
   const { version, refresh } = useLibrary();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const wide = useWide();
   const [settings, setSettings] = useState(() => getSettings(db, profileId));
   const me = activeProfile();
   const [scanning, setScanning] = useState(false);
@@ -191,6 +204,12 @@ export default function SettingsScreen() {
   // `version` is the signal to re-read the database.
   const root = useMemo(() => localRoot(db), [version]);
   const servers = useMemo(() => listRoots(db).filter((r) => r.remote !== null), [version]);
+  const testLibrary = useMemo(() => __DEV__ && hasBigLibrary(db), [version]);
+  const toggleTestLibrary = () => {
+    if (testLibrary) removeBigLibrary(db);
+    else seedBigLibrary(db, profileId, { now: Date.now() });
+    refresh();
+  };
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSetting(db, profileId, key, value, Date.now());
@@ -201,6 +220,8 @@ export default function SettingsScreen() {
     if (key.startsWith('bedtime')) void applyBedtime(next);
     if (key === 'headphoneBattery' || key === 'carModeOffer') void followDevices(next);
     if (key === 'language') setLanguage(next.language);
+    // Home reads it again on the library's signal.
+    if (key === 'homeSuggestions' || key === 'badgesOnCovers') refresh();
   };
 
   // Both need “nearby devices”, asked for only when one is turned on.
@@ -227,9 +248,10 @@ export default function SettingsScreen() {
           paddingTop: insets.top + 8,
           paddingHorizontal: 16,
           paddingBottom: 24,
+          ...(wide ? READABLE : {}),
         }}
       >
-        <View className="-ml-2 self-start">
+        <View className="-ms-2 self-start">
           <IconButton
             name="back"
             label={t('Back')}
@@ -237,7 +259,9 @@ export default function SettingsScreen() {
             onPress={() => router.back()}
           />
         </View>
-        <Text className="pb-4 text-3xl font-semibold text-paper">{t('Settings')}</Text>
+        <Text accessibilityRole="header" className="pb-4 text-3xl font-semibold text-paper">
+          {t('Settings')}
+        </Text>
 
         <View className="gap-3 border-b border-line py-4">
           <View className="-my-3 flex-row items-center">
@@ -272,51 +296,68 @@ export default function SettingsScreen() {
 
         {LOCAL_FOLDERS && (
           <>
-            <Text className="pt-2 text-xs uppercase tracking-wider text-muted">{t('Library')}</Text>
+            <Text
+              accessibilityRole="header"
+              className="pt-2 text-xs uppercase tracking-wider text-muted"
+            >
+              {t('Library')}
+            </Text>
             <Row label={t('Audiobooks folder')} detail={root?.name ?? t('Not chosen')}>
-              <Pressable
+              <TextButton
+                text={t('Change')}
                 onPress={() =>
                   void chooseFolder().then(async (ok) => {
                     if (ok) await rescan();
                   })
                 }
-              >
-                <Text className="text-amber">{t('Change')}</Text>
-              </Pressable>
+              />
             </Row>
             <Row label={t('Look for new and changed files')}>
-              <Pressable disabled={scanning || !root} onPress={() => void rescan()}>
-                <Text className={scanning ? 'text-muted' : 'text-amber'}>
-                  {scanning ? t('Scanning…') : t('Rescan')}
-                </Text>
-              </Pressable>
+              <TextButton
+                text={scanning ? t('Scanning…') : t('Rescan')}
+                disabled={scanning || !root}
+                onPress={() => void rescan()}
+              />
             </Row>
           </>
         )}
 
         {!me?.kids && (
           <>
-            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Servers')}</Text>
+            <Text
+              accessibilityRole="header"
+              className="pt-6 text-xs uppercase tracking-wider text-muted"
+            >
+              {t('Servers')}
+            </Text>
             {servers.map((s) => (
               <Row
                 key={s.id}
                 label={s.name}
                 detail={
                   s.needsLogin
-                    ? t('Password needed: it is not in backups.')
-                    : s.remote?.type === 's3'
-                      ? t('S3 bucket')
-                      : s.remote?.type === 'jellyfin'
-                        ? 'Jellyfin'
-                        : 'WebDAV'
+                    ? s.remote?.type === 'audiobookshelf'
+                      ? t('API key needed: it is not in backups.')
+                      : t('Password needed: it is not in backups.')
+                    : s.remote?.type === 'audiobookshelf' && s.remote.keyRefused
+                      ? t('Audiobookshelf refused the API key. Change it to keep syncing.')
+                      : s.remote?.type === 's3'
+                        ? t('S3 bucket')
+                        : s.remote?.type === 'jellyfin'
+                          ? 'Jellyfin'
+                          : s.remote?.type === 'audiobookshelf'
+                            ? 'Audiobookshelf'
+                            : 'WebDAV'
                 }
               >
-                {s.needsLogin && (
-                  <Pressable onPress={() => router.push(`/server?root=${s.id}`)}>
-                    <Text className="text-amber">{t('Log in')}</Text>
-                  </Pressable>
+                {(s.needsLogin || (s.remote?.type === 'audiobookshelf' && s.remote.keyRefused)) && (
+                  <TextButton
+                    text={s.remote?.type === 'audiobookshelf' ? t('Change key') : t('Log in')}
+                    onPress={() => router.push(`/server?root=${s.id}`)}
+                  />
                 )}
-                <Pressable
+                <TextButton
+                  text={t('Remove')}
                   onPress={() =>
                     showAlert(
                       t('Remove {name}?', { name: s.name }),
@@ -336,29 +377,31 @@ export default function SettingsScreen() {
                       ],
                     )
                   }
-                >
-                  <Text className="text-danger">{t('Remove')}</Text>
-                </Pressable>
+                  tone="danger"
+                />
               </Row>
             ))}
             <Row
               label={t('Add a server')}
-              detail={t('WebDAV (Nextcloud, ownCloud, a NAS) or an S3-compatible bucket.')}
+              detail={t('WebDAV, an S3-compatible bucket, Jellyfin or Audiobookshelf.')}
             >
-              <Pressable onPress={() => router.push('/server')}>
-                <Text className="text-amber">{t('Add')}</Text>
-              </Pressable>
+              <TextButton text={t('Add')} onPress={() => router.push('/server')} />
             </Row>
           </>
         )}
-        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Downloads')}</Text>
+        <Text
+          accessibilityRole="header"
+          className="pt-6 text-xs uppercase tracking-wider text-muted"
+        >
+          {t('Downloads')}
+        </Text>
         {LOCAL_FOLDERS && (
           <>
             <Row
               label={t('Download only on Wi-Fi')}
               detail={t('Downloads wait for Wi-Fi instead of using mobile data.')}
             >
-              <Switch
+              <Toggle
                 value={settings.downloadOnWifiOnly}
                 onValueChange={(v) => update('downloadOnWifiOnly', v)}
               />
@@ -367,7 +410,7 @@ export default function SettingsScreen() {
               label={t('Download only while charging')}
               detail={t('Good for downloading overnight.')}
             >
-              <Switch
+              <Toggle
                 value={settings.downloadWhileChargingOnly}
                 onValueChange={(v) => update('downloadWhileChargingOnly', v)}
               />
@@ -378,54 +421,62 @@ export default function SettingsScreen() {
           label={t('Downloads and storage')}
           detail={t('What is on the phone and how much space it takes.')}
         >
-          <Pressable onPress={() => router.push('/downloads')}>
-            <Text className="text-amber">{t('Open')}</Text>
-          </Pressable>
+          <TextButton text={t('Open')} onPress={() => router.push('/downloads')} />
         </Row>
 
         {!me?.kids && (
           <>
-            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('People')}</Text>
+            <Text
+              accessibilityRole="header"
+              className="pt-6 text-xs uppercase tracking-wider text-muted"
+            >
+              {t('People')}
+            </Text>
             <Row
               label={t('Profiles')}
               detail={t('Everyone who listens here, each with their own places.')}
             >
-              <Pressable onPress={() => router.push('/profiles')}>
-                <Text className="text-amber">{t('Manage')}</Text>
-              </Pressable>
+              <TextButton text={t('Manage')} onPress={() => router.push('/profiles')} />
             </Row>
           </>
         )}
 
         {!me?.kids && (
           <>
-            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Devices')}</Text>
+            <Text
+              accessibilityRole="header"
+              className="pt-6 text-xs uppercase tracking-wider text-muted"
+            >
+              {t('Devices')}
+            </Text>
             <Row
               label={t('Sync')}
               detail={t('Keep your places and podcasts in step on your other devices.')}
             >
-              <Pressable onPress={() => router.push('/sync')}>
-                <Text className="text-amber">{t('Open')}</Text>
-              </Pressable>
+              <TextButton text={t('Open')} onPress={() => router.push('/sync')} />
             </Row>
 
             {!me?.kids && <></>}
-            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Backup')}</Text>
+            <Text
+              accessibilityRole="header"
+              className="pt-6 text-xs uppercase tracking-wider text-muted"
+            >
+              {t('Backup')}
+            </Text>
             <Row
               label={t('Export library')}
               detail={t(
                 'Places, bookmarks, lists, tags, podcasts and add-on addresses in one file. Add-on addresses can hold your keys for them; keep the file private.',
               )}
             >
-              <Pressable
+              <TextButton
+                text={t('Export')}
                 onPress={() =>
                   void exportBackup().catch((error: unknown) =>
                     showAlert(t('Export'), error instanceof Error ? error.message : String(error)),
                   )
                 }
-              >
-                <Text className="text-amber">{t('Export')}</Text>
-              </Pressable>
+              />
             </Row>
             <Row
               label={t('Import library')}
@@ -433,15 +484,14 @@ export default function SettingsScreen() {
                 'Merges an export into this device. Where both have a change, the newer one stays. Local books need their folder chosen first.',
               )}
             >
-              <Pressable
+              <TextButton
+                text={t('Import')}
                 onPress={() =>
                   void importBackup(true, refresh).catch((error: unknown) =>
                     showAlert(t('Import'), error instanceof Error ? error.message : String(error)),
                   )
                 }
-              >
-                <Text className="text-amber">{t('Import')}</Text>
-              </Pressable>
+              />
             </Row>
             <Row
               label={t('Import from another app')}
@@ -449,9 +499,7 @@ export default function SettingsScreen() {
                 'Goodreads shelves, AntennaPod subscriptions and Smart AudioBook Player places.',
               )}
             >
-              <Pressable onPress={() => setImporting(true)}>
-                <Text className="text-amber">{t('Choose')}</Text>
-              </Pressable>
+              <TextButton text={t('Choose')} onPress={() => setImporting(true)} />
             </Row>
             <ImportSheet
               visible={importing}
@@ -460,19 +508,59 @@ export default function SettingsScreen() {
             />
           </>
         )}
-        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Catalogs')}</Text>
+        <Text
+          accessibilityRole="header"
+          className="pt-6 text-xs uppercase tracking-wider text-muted"
+        >
+          {t('Catalogs')}
+        </Text>
         <Row label={t('Add-ons')} detail={t('Where Home, Discover and Search look for books.')}>
-          <Pressable onPress={() => router.push('/addons')}>
-            <Text className="text-amber">{t('Manage')}</Text>
-          </Pressable>
+          <TextButton text={t('Manage')} onPress={() => router.push('/addons')} />
+        </Row>
+        <Row
+          label={t('Suggestions on Home')}
+          detail={
+            Platform.OS === 'web'
+              ? t('“Because you finished …” rows, worked out on this device from what you finish.')
+              : t('“Because you finished …” rows, worked out on this phone from what you finish.')
+          }
+        >
+          <Toggle
+            value={settings.homeSuggestions}
+            onValueChange={(v) => update('homeSuggestions', v)}
+          />
+        </Row>
+        <Row
+          label={t('Badges on covers')}
+          detail={t(
+            'A rating and new episodes from add-ons, and what you finished or started, drawn on covers.',
+          )}
+        >
+          <Toggle
+            value={settings.badgesOnCovers}
+            onValueChange={(v) => update('badgesOnCovers', v)}
+          />
         </Row>
 
-        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Playback')}</Text>
+        <Text
+          accessibilityRole="header"
+          className="pt-6 text-xs uppercase tracking-wider text-muted"
+        >
+          {t('Playback')}
+        </Text>
+        {SHORTCUTS_SUPPORTED && (
+          <Row
+            label={t('Keyboard shortcuts')}
+            detail={t('Play, pause, skip and change speed from the keyboard. Press ? anywhere.')}
+          >
+            <TextButton text={t('Show')} onPress={showShortcuts} />
+          </Row>
+        )}
         <Row
           label={t('Duck on calls')}
           detail={t('Lower the volume during calls instead of pausing.')}
         >
-          <Switch
+          <Toggle
             value={settings.duckOnInterruption}
             onValueChange={(v) => update('duckOnInterruption', v)}
           />
@@ -481,7 +569,7 @@ export default function SettingsScreen() {
           label={t('Smart rewind')}
           detail={t('Go back a few seconds when you resume after a pause.')}
         >
-          <Switch value={settings.smartRewind} onValueChange={(v) => update('smartRewind', v)} />
+          <Toggle value={settings.smartRewind} onValueChange={(v) => update('smartRewind', v)} />
         </Row>
         {soundOptions().map((o) => (
           <SoundRow
@@ -501,13 +589,16 @@ export default function SettingsScreen() {
             {SKIP_SECONDS.map((s) => {
               const active = settings.skipIntervalMs === s * 1000;
               return (
-                <Pressable
+                <Pill
                   key={s}
                   onPress={() => update('skipIntervalMs', s * 1000)}
+                  accessibilityLabel={t('{n} seconds', { n: s })}
+                  accessibilityState={{ selected: active }}
+                  aria-selected={active}
                   className={`rounded-full border px-4 py-2 ${active ? 'border-amber bg-amber' : 'border-line'}`}
                 >
                   <Text className={active ? 'text-ink' : 'text-soft'}>{s} s</Text>
-                </Pressable>
+                </Pill>
               );
             })}
           </View>
@@ -522,7 +613,8 @@ export default function SettingsScreen() {
                   {t('When you press Play in this window, once a night.')}
                 </Text>
               </View>
-              <Switch
+              <Toggle
+                accessibilityLabel={t('Start a sleep timer at bedtime')}
                 value={settings.bedtimeTimer}
                 onValueChange={(v) => update('bedtimeTimer', v)}
               />
@@ -564,7 +656,10 @@ export default function SettingsScreen() {
 
         {BLUETOOTH && (
           <>
-            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">
+            <Text
+              accessibilityRole="header"
+              className="pt-6 text-xs uppercase tracking-wider text-muted"
+            >
               {t('Headphones and car')}
             </Text>
             <Row
@@ -573,7 +668,7 @@ export default function SettingsScreen() {
                 'When your Bluetooth headphones or speaker likely won’t last the sleep timer or the chapter. Needs “nearby devices”; devices that don’t report a level show nothing.',
               )}
             >
-              <Switch
+              <Toggle
                 value={settings.headphoneBattery}
                 onValueChange={(v) => void updateDevices('headphoneBattery', v)}
               />
@@ -584,10 +679,29 @@ export default function SettingsScreen() {
                 'Big buttons when the phone connects to a car’s Bluetooth. Needs “nearby devices”. Car mode is always in the player.',
               )}
             >
-              <Switch
+              <Toggle
                 value={settings.carModeOffer}
                 onValueChange={(v) => void updateDevices('carModeOffer', v)}
               />
+            </Row>
+          </>
+        )}
+
+        {!me?.kids && (
+          <>
+            <Text
+              accessibilityRole="header"
+              className="pt-6 text-xs uppercase tracking-wider text-muted"
+            >
+              {t('Help')}
+            </Text>
+            <Row
+              label={t('Diagnostics')}
+              detail={t(
+                'A log of what went wrong, kept on this device, for a bug report. Off until you turn it on.',
+              )}
+            >
+              <TextButton text={t('Open')} onPress={() => router.push('/diagnostics')} />
             </Row>
           </>
         )}
@@ -601,18 +715,29 @@ export default function SettingsScreen() {
           />
         )}
 
-        {__DEV__ && LOCAL_FOLDERS && (
+        {__DEV__ && (
           <>
-            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">
+            <Text
+              accessibilityRole="header"
+              className="pt-6 text-xs uppercase tracking-wider text-muted"
+            >
               {t('Developer')}
             </Text>
+            {LOCAL_FOLDERS && (
+              <Row
+                label={t('Audio spike')}
+                detail={t('The M1 test screen, until its call checks pass.')}
+              >
+                <TextButton text={t('Open')} onPress={() => router.push('/dev/spike')} />
+              </Row>
+            )}
             <Row
-              label={t('Audio spike')}
-              detail={t('The M1 test screen, until its call checks pass.')}
+              label={t('Test library')}
+              detail={t(
+                '10,000 made-up books and 500 podcasts, for timing a big library. They don’t play.',
+              )}
             >
-              <Pressable onPress={() => router.push('/dev/spike')}>
-                <Text className="text-amber">{t('Open')}</Text>
-              </Pressable>
+              <TextButton text={testLibrary ? t('Remove') : t('Add')} onPress={toggleTestLibrary} />
             </Row>
           </>
         )}

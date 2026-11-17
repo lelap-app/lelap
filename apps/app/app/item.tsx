@@ -19,17 +19,21 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'r
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
+import { READABLE, useWide } from '../src/layout';
+import { openPlayer } from '../src/navigation';
 import { showAlert } from '../src/dialog';
 import { COLORS, Icon, IconButton } from '../src/components/Icon';
 import { addItem, playItem, queries, useAddons, useArtwork } from '../src/addons';
 import { sourceCache } from '../src/availability';
 import { BookCover, coverUri } from '../src/components/BookCover';
+import { badgeWords, useBookBadges } from '../src/components/CoverBadges';
 import { DownloadButton } from '../src/components/DownloadButton';
 import { db } from '../src/db';
 import { startDownload } from '../src/downloads';
 import { formatClock, formatDuration } from '../src/format';
 import { playBook, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
+import { TextButton } from '../src/components/TextButton';
 
 const PARTS_SHOWN = 8;
 
@@ -77,6 +81,7 @@ function languageName(code: string): string {
 export default function ItemScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const wide = useWide();
   const { version, refresh } = useLibrary();
   const params = useLocalSearchParams<{ type?: string; id?: string }>();
   const type: ContentType = isType(params.type) ? params.type : 'audiobook';
@@ -157,7 +162,7 @@ export default function ItemScreen() {
       else if (saved) await playBook(saved.book.id);
       else return;
       refresh();
-      router.push('/player');
+      openPlayer(router);
     } catch (error) {
       showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error));
     } finally {
@@ -166,6 +171,7 @@ export default function ItemScreen() {
   };
 
   const title = item?.name ?? saved?.book.title ?? '';
+  const badges = useBookBadges(saved?.book, 220, item?.badges);
   const canPlay = (item !== undefined && stream !== undefined) || saved !== null;
   const looking = (meta.isPending || sources.isPending) && !saved;
   const noAudio = !saved && sources.isSuccess && found.length === 0;
@@ -178,9 +184,13 @@ export default function ItemScreen() {
   return (
     <ScrollView
       className="flex-1 bg-night"
-      contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
+      contentContainerStyle={{
+        paddingTop: insets.top + 8,
+        paddingBottom: insets.bottom + 24,
+        ...(wide ? READABLE : {}),
+      }}
     >
-      <View className="-ml-2 self-start px-2">
+      <View className="-ms-2 self-start px-2">
         <IconButton
           name="back"
           label={t('Back')}
@@ -200,12 +210,27 @@ export default function ItemScreen() {
       ) : (
         <View className="gap-5 px-4">
           <View className="items-center gap-3">
-            <BookCover
-              uri={saved?.book.coverPath ? coverUri(saved.book) : artwork}
-              title={title}
-              size={220}
-            />
-            <Text className="text-center text-2xl font-semibold text-paper">{title}</Text>
+            {/* The cover is read only when it has badges, as one picture with them in its name. */}
+            <View
+              {...(badges.length > 0 && {
+                accessible: true,
+                accessibilityRole: 'image' as const,
+                accessibilityLabel: t('Cover: {badges}', { badges: badgeWords(badges) }),
+              })}
+            >
+              <BookCover
+                uri={saved?.book.coverPath ? coverUri(saved.book) : artwork}
+                title={title}
+                size={220}
+                badges={badges}
+              />
+            </View>
+            <Text
+              accessibilityRole="header"
+              className="text-center text-2xl font-semibold text-paper"
+            >
+              {title}
+            </Text>
             {(item?.author ?? saved?.book.author) && (
               <Text className="text-center text-base text-soft">
                 {item?.author ?? saved?.book.author}
@@ -236,15 +261,14 @@ export default function ItemScreen() {
               <Text className="text-center text-soft">
                 {t('Your add-ons did not answer. Check the connection and try again.')}
               </Text>
-              <Pressable onPress={() => void sources.refetch()} className="py-1">
-                <Text className="font-semibold text-amber">{t('Try again')}</Text>
-              </Pressable>
+              <TextButton text={t('Try again')} onPress={() => void sources.refetch()} />
             </View>
           ) : (
             <Pressable
               disabled={!canPlay || starting}
               onPress={() => void play()}
-              className={`items-center rounded-full py-3 ${canPlay ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
+              accessibilityRole="button"
+              className={`min-h-12 items-center justify-center rounded-full py-3 ${canPlay ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
             >
               {starting ? (
                 <ActivityIndicator color="#1a1305" />
@@ -273,7 +297,10 @@ export default function ItemScreen() {
 
           {found.length > 0 && (
             <View className="gap-2">
-              <Text className="text-xs uppercase tracking-wider text-muted">
+              <Text
+                accessibilityRole="header"
+                className="text-xs uppercase tracking-wider text-muted"
+              >
                 {found.length === 1 ? t('Source') : t('{n} sources', { n: found.length })}
               </Text>
               {found.map((f, index) => {
@@ -284,6 +311,7 @@ export default function ItemScreen() {
                     onPress={() => choose(f)}
                     accessibilityRole="radio"
                     accessibilityState={{ checked: selected }}
+                    aria-checked={selected}
                     className={`flex-row items-center gap-3 rounded-xl border px-3 py-3 ${selected ? 'border-amber bg-raised' : 'border-line'}`}
                   >
                     {selected ? (
@@ -316,8 +344,11 @@ export default function ItemScreen() {
 
           {parts.length > 1 && (
             <View className="gap-1">
-              <Text className="pb-1 text-xs uppercase tracking-wider text-muted">
-                {parts.length} parts
+              <Text
+                accessibilityRole="header"
+                className="pb-1 text-xs uppercase tracking-wider text-muted"
+              >
+                {t('{n} parts', { n: parts.length })}
               </Text>
               {(allParts ? parts : parts.slice(0, PARTS_SHOWN)).map((part, index) => (
                 <View key={part.url} className="flex-row gap-3 border-b border-line py-2">
@@ -329,9 +360,10 @@ export default function ItemScreen() {
                 </View>
               ))}
               {!allParts && parts.length > PARTS_SHOWN && (
-                <Pressable onPress={() => setAllParts(true)} className="py-2">
-                  <Text className="text-amber">Show all {parts.length}</Text>
-                </Pressable>
+                <TextButton
+                  text={t('Show all {n}', { n: parts.length })}
+                  onPress={() => setAllParts(true)}
+                />
               )}
             </View>
           )}
@@ -353,14 +385,14 @@ export default function ItemScreen() {
             <View className="flex-row items-center justify-between gap-3">
               {meta.data?.addon && (
                 <Text className="flex-1 text-xs text-muted">
-                  From {meta.data.addon.manifest.name}
+                  {t('From {name}', { name: meta.data.addon.manifest.name })}
                 </Text>
               )}
               {item?.link && (
                 <Pressable
                   onPress={() => void Linking.openURL(item.link ?? '')}
                   accessibilityRole="link"
-                  className="flex-row items-center gap-1 py-1"
+                  className="min-h-12 flex-row items-center gap-1"
                 >
                   <Text className="text-sm text-amber">{t('More about this book')}</Text>
                   <Icon name="forward" size={16} color={COLORS.amber} />
@@ -397,7 +429,11 @@ function NoAudio({
           : `Asked ${addonCount(asked)}${failed.length > 0 ? `, ${answered} answered` : ''}; none has a recording.`}{' '}
         An add-on that knows this work, such as one for your own server, can add it.
       </Text>
-      <Pressable onPress={onAddons} className="flex-row items-center gap-1 pt-1">
+      <Pressable
+        onPress={onAddons}
+        accessibilityRole="button"
+        className="min-h-12 flex-row items-center gap-1"
+      >
         <Text className="font-semibold text-amber">{t('Manage add-ons')}</Text>
         <Icon name="forward" size={16} color={COLORS.amber} />
       </Pressable>

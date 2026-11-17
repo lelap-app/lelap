@@ -17,6 +17,10 @@ android {
 }
 
 dependencies {
+  // The profile's language for notifications (modules/text).
+  implementation project(':lelap-text')
+  // Casting (M50): the session plays through the cast module's link while a receiver plays.
+  implementation project(':lelap-cast')
   implementation "androidx.media3:media3-exoplayer:$media3Version"
   implementation "androidx.media3:media3-session:$media3Version"
   implementation "androidx.media3:media3-datasource:$media3Version"

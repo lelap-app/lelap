@@ -28,7 +28,7 @@ function authorWords(author: string): Set<string> {
   );
 }
 
-function sameAuthor(a: string, b: string): boolean {
+export function sameAuthor(a: string, b: string): boolean {
   const left = authorWords(a);
   const right = authorWords(b);
   if (left.size === 0 || right.size === 0) return true;

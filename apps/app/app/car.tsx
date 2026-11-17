@@ -1,4 +1,4 @@
-import { chapterAt, getBook, toBookPosition } from '@lelap/core';
+import { chapterAt, getBook, getSettings, toBookPosition } from '@lelap/core';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -75,6 +75,8 @@ export default function CarMode() {
   const next = chapters[current + 1];
   const endMode = detail?.book.source === 'feed' ? 'episode' : 'chapter';
 
+  // `version` is the signal to re-read the setting.
+  const skipSeconds = useMemo(() => getSettings(db, profileId).skipIntervalMs / 1000, [version]);
   const timer = state.sleepTimerRemainingMs;
   // A timer set elsewhere counts as the last step: the next press turns it off.
   const step: SleepStep = timer === null ? 'off' : pressed === 'off' ? 'end' : pressed;
@@ -106,7 +108,7 @@ export default function CarMode() {
           onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel={t('Leave car mode')}
-          className="h-16 min-w-24 items-center justify-center rounded-2xl border-2 border-[#5a5d66] px-4 active:bg-[#22252b]"
+          className="min-h-16 min-w-24 items-center justify-center rounded-2xl border-2 border-[#5a5d66] px-4 active:bg-[#22252b]"
         >
           <Text className="text-lg font-bold text-white">{t('Exit')}</Text>
         </Pressable>
@@ -118,7 +120,7 @@ export default function CarMode() {
         <View className="flex-[2] flex-row gap-4">
           <BigButton
             icon="back30"
-            label={t('Back 30 seconds')}
+            label={t('Back {n} seconds', { n: skipSeconds })}
             caption={t('Back')}
             disabled={!bookId}
             onPress={() => void audio.skip(false)}
@@ -133,7 +135,7 @@ export default function CarMode() {
           />
           <BigButton
             icon="forward30"
-            label={t('Forward 30 seconds')}
+            label={t('Forward {n} seconds', { n: skipSeconds })}
             caption={t('Forward')}
             disabled={!bookId}
             onPress={() => void audio.skip(true)}

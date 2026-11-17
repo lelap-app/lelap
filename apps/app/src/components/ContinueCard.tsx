@@ -10,6 +10,8 @@ export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: ()
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityHint={t('Plays from where you stopped')}
       className="mx-4 flex-row items-center gap-4 rounded-xl bg-raised p-3 active:opacity-80"
     >
       <BookCover uri={coverUri(book)} title={book.title} size={72} />

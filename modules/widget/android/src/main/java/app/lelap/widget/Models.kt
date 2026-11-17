@@ -1,5 +1,7 @@
 package app.lelap.widget
 
+import app.lelap.text.NativeCatalog
+
 /** What the widget shows, decided without Android so it can be tested on the JVM. */
 data class WidgetModel(
   val hasBook: Boolean,
@@ -14,6 +16,8 @@ data class WidgetModel(
   val playLabel: String,
   val backLabel: String,
   val forwardLabel: String,
+  /** What TalkBack says for the widget itself, which opens the player when tapped. */
+  val openLabel: String,
 )
 
 enum class TileState { ACTIVE, INACTIVE }
@@ -26,28 +30,32 @@ object Models {
 
   fun isTall(minHeightDp: Int): Boolean = minHeightDp >= TALL_MIN_HEIGHT_DP
 
-  fun widget(now: NowPlayingSnapshot?): WidgetModel {
+  /** In [text]'s language; the book's own title, chapter and author stay as they are. */
+  fun widget(now: NowPlayingSnapshot?, text: NativeCatalog = NativeCatalog.ENGLISH): WidgetModel {
     val seconds = (now?.skipMs ?: NowPlayingSnapshot.DEFAULT_SKIP_MS) / 1000
     val playing = now?.playing == true
+    val title = now?.title?.takeIf { it.isNotBlank() } ?: text.t("Nothing playing")
+    val subtitle = if (now == null) text.t("Open Lelap to pick a book") else now.chapter ?: now.author
     return WidgetModel(
       hasBook = now != null,
-      title = now?.title?.takeIf { it.isNotBlank() } ?: "Nothing playing",
-      subtitle = if (now == null) "Open Lelap to pick a book" else now.chapter ?: now.author,
+      title = title,
+      subtitle = subtitle,
       detail = now?.author?.takeIf { now.chapter != null },
       playing = playing,
       coverUri = now?.coverUri,
       skipSeconds = seconds,
-      playLabel = if (playing) "Pause" else "Play",
-      backLabel = "Back $seconds seconds",
-      forwardLabel = "Forward $seconds seconds",
+      playLabel = if (playing) text.t("Pause") else text.t("Play"),
+      backLabel = text.t("Back {n} seconds", "n" to seconds),
+      forwardLabel = text.t("Forward {n} seconds", "n" to seconds),
+      openLabel = text.t("{what}. Opens the player.", "what" to listOfNotNull(title, subtitle).joinToString(", ")),
     )
   }
 
-  fun tile(now: NowPlayingSnapshot?): TileModel = when {
+  fun tile(now: NowPlayingSnapshot?, text: NativeCatalog = NativeCatalog.ENGLISH): TileModel = when {
     // Still clickable: Play resumes the last book from the position journal if there is one.
-    now == null -> TileModel(TileState.INACTIVE, "Lelap", "Not playing")
-    now.playing -> TileModel(TileState.ACTIVE, now.title.ifBlank { "Lelap" }, "Playing")
-    else -> TileModel(TileState.INACTIVE, now.title.ifBlank { "Lelap" }, "Paused")
+    now == null -> TileModel(TileState.INACTIVE, "Lelap", text.t("Not playing"))
+    now.playing -> TileModel(TileState.ACTIVE, now.title.ifBlank { "Lelap" }, text.t("Playing"))
+    else -> TileModel(TileState.INACTIVE, now.title.ifBlank { "Lelap" }, text.t("Paused"))
   }
 
   /** Power-of-two downsampling so the cover's longer side is at most [maxPx]. */

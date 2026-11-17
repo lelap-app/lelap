@@ -6,12 +6,12 @@ export type CastKind = 'upnp' | 'cast' | 'fcast';
 export type CastDevice = { id: string; name: string; kind: CastKind; model: string | null };
 
 /**
- * What the receiver reports, about once a second. `lost` means the connection dropped; the
- * session is over and the phone takes playback back.
+ * What the receiver reports, about once a second. `closed` means the session ended (handed back
+ * to the phone); `lost` means it ended because the receiver went away or could not play.
  */
 export type CastStatus = {
   deviceId: string | null;
-  state: 'idle' | 'buffering' | 'playing' | 'paused' | 'ended' | 'lost';
+  state: 'idle' | 'buffering' | 'playing' | 'paused' | 'ended' | 'closed' | 'lost';
   positionMs: number;
   durationMs: number;
   /** 0..1, null when the receiver does not say. */
@@ -20,18 +20,10 @@ export type CastStatus = {
 };
 
 /**
- * One file for the receiver. Files on the phone (`file://`, `content://`) and streams that need
- * a login are served to the receiver from the phone; other URLs are fetched by the receiver.
+ * Android 17's local network permission, needed once the app targets API 37: `granted`, `ask`
+ * (explain, then ask) or `blocked` (only Android's settings can turn it on).
  */
-export type CastMedia = {
-  uri: string;
-  title: string;
-  artist: string | null;
-  album: string | null;
-  coverUri: string | null;
-  durationMs: number;
-  headers?: Record<string, string>;
-};
+export type LocalNetworkAccess = 'granted' | 'ask' | 'blocked';
 
 type LelapCastEvents = {
   onDevices: (event: { devices: CastDevice[] }) => void;
@@ -42,15 +34,12 @@ declare class LelapCastModule extends NativeModule<LelapCastEvents> {
   startDiscovery(): Promise<void>;
   stopDiscovery(): Promise<void>;
   devices(): Promise<CastDevice[]>;
+  localNetworkAccess(): Promise<LocalNetworkAccess>;
+  requestLocalNetworkAccess(): Promise<LocalNetworkAccess>;
   connect(deviceId: string): Promise<void>;
-  load(mediaJson: string, startMs: number, autoplay: boolean, speed: number): Promise<void>;
-  play(): Promise<void>;
-  pause(): Promise<void>;
-  seek(positionMs: number): Promise<void>;
-  setSpeed(speed: number): Promise<void>;
+  session(): Promise<CastDevice | null>;
   setVolume(level: number): Promise<void>;
-  status(): Promise<CastStatus | null>;
-  disconnect(): Promise<number | null>;
+  disconnect(): Promise<void>;
 }
 
 const native = requireNativeModule<LelapCastModule>('LelapCast');
@@ -71,46 +60,34 @@ export function devices(): Promise<CastDevice[]> {
   return native.devices();
 }
 
+export function localNetworkAccess(): Promise<LocalNetworkAccess> {
+  return native.localNetworkAccess();
+}
+
+/** Shows Android's prompt; explain why first. */
+export function requestLocalNetworkAccess(): Promise<LocalNetworkAccess> {
+  return native.requestLocalNetworkAccess();
+}
+
+/**
+ * Opens a session with the receiver. Playback then moves there with `castTo()` from
+ * `@lelap/audio`, whose media session plays through it.
+ */
 export function connect(deviceId: string): Promise<void> {
   return native.connect(deviceId);
 }
 
-export function load(
-  media: CastMedia,
-  startMs: number,
-  autoplay: boolean,
-  speed: number,
-): Promise<void> {
-  return native.load(JSON.stringify(media), startMs, autoplay, speed);
-}
-
-export function play(): Promise<void> {
-  return native.play();
-}
-
-export function pause(): Promise<void> {
-  return native.pause();
-}
-
-export function seek(positionMs: number): Promise<void> {
-  return native.seek(positionMs);
-}
-
-/** Google Cast and FCast only; UPnP renderers play at 1×. */
-export function setSpeed(speed: number): Promise<void> {
-  return native.setSpeed(speed);
+/** The receiver of the running session, also after the app was closed and opened again. */
+export function session(): Promise<CastDevice | null> {
+  return native.session();
 }
 
 export function setVolume(level: number): Promise<void> {
   return native.setVolume(level);
 }
 
-export function status(): Promise<CastStatus | null> {
-  return native.status();
-}
-
-/** Stops the receiver and ends the session; resolves to the last place in the file. */
-export function disconnect(): Promise<number | null> {
+/** Ends a session that playback never moved to (it failed before). */
+export function disconnect(): Promise<void> {
   return native.disconnect();
 }
 

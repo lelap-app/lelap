@@ -9,17 +9,22 @@ import { Text, View } from 'react-native';
 import { AddonReviewHost } from '../src/addonReview';
 import { currentLanguage, subscribeLanguage } from '../src/i18n';
 import { DialogHost } from '../src/dialog';
+import { useReducedMotion } from '../src/components/Motion';
 import { SandboxHost } from '../src/sandbox/SandboxHost';
 import { queryClient, syncAddonsNow } from '../src/addons';
 import { listProfiles } from '@lelap/core';
 
 import { db, useDbReady } from '../src/db';
+import { startDiagnostics } from '../src/diagnostics';
 import { ProfilePicker } from '../src/components/ProfilePicker';
 import { loadActiveProfile } from '../src/profile';
 import { DeviceRunner } from '../src/devices';
 import { DownloadSync } from '../src/downloads';
+import { SilenceSync } from '../src/silences';
 import { PlayerProvider, useLibrary } from '../src/player';
 import { HandoffBanner } from '../src/components/HandoffBanner';
+import { PlayerPane } from '../src/components/PlayerPane';
+import { ShortcutsHost } from '../src/shortcuts';
 import { PodcastSync } from '../src/podcasts';
 import { SyncRunner } from '../src/sync';
 import { offerUpdateOnStart } from '../src/updates';
@@ -52,10 +57,14 @@ export default function RootLayout() {
   const { ready, error } = useDbReady();
   // Text is read at render time, so a new language (a switch, or another profile) redraws it all.
   const language = useSyncExternalStore(subscribeLanguage, currentLanguage, currentLanguage);
+  const reduced = useReducedMotion();
   // Before anything reads or saves: the profile this device used last.
   const profileLoaded = useMemo(() => {
     if (ready) loadActiveProfile();
     return ready;
+  }, [ready]);
+  useEffect(() => {
+    if (ready) startDiagnostics();
   }, [ready]);
 
   if (error) {
@@ -72,22 +81,37 @@ export default function RootLayout() {
       <PlayerProvider>
         <AddonSync />
         <DownloadSync />
+        <SilenceSync />
         <PodcastSync />
         <SyncRunner />
         <OtaRunner />
         <DeviceRunner />
-        <Stack
-          key={language}
-          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0d0e11' } }}
-        >
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="player"
-            options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-          />
-          <Stack.Screen name="who" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="car" options={{ animation: 'fade' }} />
-        </Stack>
+        {/* On a wide screen the player stands at the end, beside whichever screen is open. */}
+        <View className="flex-1 flex-row bg-night">
+          <View className="flex-1">
+            <Stack
+              key={language}
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: '#0d0e11' },
+                ...(reduced ? { animation: 'none' } : {}),
+              }}
+            >
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen
+                name="player"
+                options={{
+                  presentation: 'modal',
+                  animation: reduced ? 'none' : 'slide_from_bottom',
+                }}
+              />
+              <Stack.Screen name="who" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="car" options={{ animation: reduced ? 'none' : 'fade' }} />
+            </Stack>
+          </View>
+          <PlayerPane key={language} />
+        </View>
+        <ShortcutsHost key={language} />
         <HandoffBanner />
         <DialogHost />
         <AddonReviewHost />

@@ -1,6 +1,5 @@
 package app.lelap.download
 
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -13,6 +12,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import app.lelap.text.NativeText
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
@@ -92,12 +92,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
   private fun foregroundInfo(job: DownloadJob, done: Long, total: Long): ForegroundInfo {
     val context = applicationContext
-    val manager = context.getSystemService(NotificationManager::class.java)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && manager.getNotificationChannel(CHANNEL_ID) == null) {
-      manager.createNotificationChannel(
-        NotificationChannel(CHANNEL_ID, "Downloads", NotificationManager.IMPORTANCE_LOW),
-      )
-    }
+    NativeText.channel(context, CHANNEL_ID, "Downloads", NotificationManager.IMPORTANCE_LOW)
     val open = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
       PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE)
     }
@@ -105,13 +100,13 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     val notification = NotificationCompat.Builder(context, CHANNEL_ID)
       .setSmallIcon(android.R.drawable.stat_sys_download)
       .setContentTitle(job.title)
-      .setContentText("Downloading")
+      .setContentText(NativeText.t(context, "Downloading"))
       .setProgress(100, percent, total <= 0)
       .setOngoing(true)
       .setOnlyAlertOnce(true)
       .setSilent(true)
       .setContentIntent(open)
-      .addAction(0, "Cancel", WorkManager.getInstance(context).createCancelPendingIntent(id))
+      .addAction(0, NativeText.t(context, "Cancel"), WorkManager.getInstance(context).createCancelPendingIntent(id))
       .build()
     val notificationId = job.bookId.hashCode()
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

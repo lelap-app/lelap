@@ -5,5 +5,5 @@
     "lib": ["ES2023"],
     "types": []
   },
-  "include": ["src", "test", "*.ts"]
+  "include": ["src", "test", "bench", "*.ts"]
 }

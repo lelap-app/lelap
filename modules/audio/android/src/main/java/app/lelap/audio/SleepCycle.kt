@@ -1,5 +1,7 @@
 package app.lelap.audio
 
+import app.lelap.text.NativeCatalog
+
 /**
  * The sleep timer button on the notification and lock screen steps through these. [OTHER] is a
  * timer set in the app (any length, or end of episode); the next press turns it off.
@@ -25,12 +27,12 @@ object SleepCycle {
     SleepStep.CHAPTER, SleepStep.OTHER -> SleepStep.OFF
   }
 
-  /** The button's accessible name, which says what is set now. */
-  fun label(step: SleepStep): String = when (step) {
-    SleepStep.OFF -> "Sleep timer off"
-    SleepStep.MIN_15 -> "Sleep timer 15 minutes"
-    SleepStep.MIN_30 -> "Sleep timer 30 minutes"
-    SleepStep.CHAPTER -> "Sleep timer end of chapter"
-    SleepStep.OTHER -> "Sleep timer on"
+  /** The button's accessible name, which says what is set now, in [text]'s language. */
+  fun label(step: SleepStep, text: NativeCatalog = NativeCatalog.ENGLISH): String = when (step) {
+    SleepStep.OFF -> text.t("Sleep timer off")
+    SleepStep.MIN_15 -> text.t("Sleep timer 15 minutes")
+    SleepStep.MIN_30 -> text.t("Sleep timer 30 minutes")
+    SleepStep.CHAPTER -> text.t("Sleep timer end of chapter")
+    SleepStep.OTHER -> text.t("Sleep timer on")
   }
 }

@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { Text, View } from 'react-native';
 import Svg, { Circle, Ellipse, Path, Polygon, Rect } from 'react-native-svg';
 
+import { t } from '../i18n';
+
 // Lelap's own avatars, drawn for the app from simple shapes so their licence is the app's: a
 // night theme on amber, teal, rose and navy tiles.
 
@@ -436,6 +438,40 @@ export const AVATARS: Record<string, Drawing> = {
 
 export const AVATAR_IDS = Object.keys(AVATARS);
 
+/** What a screen reader calls each avatar in the picker. */
+export function avatarName(id: string): string {
+  const names: Record<string, string> = {
+    owl: t('Owl'),
+    fox: t('Fox'),
+    moon: t('Moon'),
+    lantern: t('Lantern'),
+    whale: t('Whale'),
+    cat: t('Cat'),
+    star: t('Star'),
+    cloud: t('Cloud'),
+    mountain: t('Mountain'),
+    pine: t('Pine tree'),
+    bird: t('Bird'),
+    fish: t('Fish'),
+    bear: t('Bear'),
+    rabbit: t('Rabbit'),
+    hedgehog: t('Hedgehog'),
+    house: t('House'),
+    boat: t('Boat'),
+    rocket: t('Rocket'),
+    mushroom: t('Mushroom'),
+    planet: t('Planet'),
+    loris: t('Slow loris'),
+    fennec: t('Fennec fox'),
+    otter: t('Otter'),
+    penguin: t('Penguin'),
+    turtle: t('Turtle'),
+    frog: t('Frog'),
+    snail: t('Snail'),
+  };
+  return names[id] ?? id;
+}
+
 const TILES = [AMBER, TEAL, ROSE, NAVY];
 
 /** A new profile's avatar: one nobody uses yet, else any. */
@@ -445,7 +481,7 @@ export function pickAvatar(used: (string | null)[], random = Math.random): strin
   return pool[Math.floor(random() * pool.length)] ?? 'owl';
 }
 
-/** The avatar, or the name's initial on a colour from the name. */
+/** The avatar, or the name's initial on a colour from the name. Screen readers skip it. */
 export function Avatar({
   avatar,
   name,
@@ -460,6 +496,7 @@ export function Avatar({
     const hash = [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
     return (
       <View
+        aria-hidden
         style={{ width: size, height: size, backgroundColor: TILES[hash % TILES.length] }}
         className="items-center justify-center rounded-2xl"
       >
@@ -470,7 +507,7 @@ export function Avatar({
     );
   }
   return (
-    <View style={{ width: size, height: size }} className="overflow-hidden rounded-2xl">
+    <View aria-hidden style={{ width: size, height: size }} className="overflow-hidden rounded-2xl">
       <Svg width={size} height={size} viewBox="0 0 100 100">
         <Rect width={100} height={100} fill={drawing.bg} />
         {drawing.art}

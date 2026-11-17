@@ -121,6 +121,65 @@ class UpnpTest {
     assertEquals(PlayState.IDLE, Upnp.playState(null))
   }
 
+  // AVTransport's service description, trimmed to the parts that matter, as renderers that offer
+  // more than 1x write it.
+  private val scpdWithSpeeds = """<?xml version="1.0"?>
+    <scpd xmlns="urn:schemas-upnp-org:service-1-0">
+      <specVersion><major>1</major><minor>0</minor></specVersion>
+      <serviceStateTable>
+        <stateVariable sendEvents="no">
+          <name>TransportState</name><dataType>string</dataType>
+          <allowedValueList><allowedValue>STOPPED</allowedValue><allowedValue>PLAYING</allowedValue></allowedValueList>
+        </stateVariable>
+        <stateVariable sendEvents="no">
+          <name>TransportPlaySpeed</name><dataType>string</dataType>
+          <allowedValueList>
+            <allowedValue>1</allowedValue>
+            <allowedValue>1/2</allowedValue>
+            <allowedValue>3/2</allowedValue>
+            <allowedValue>2</allowedValue>
+          </allowedValueList>
+        </stateVariable>
+      </serviceStateTable>
+    </scpd>"""
+
+  private val scpdOnlyOne = """<?xml version="1.0"?>
+    <scpd xmlns="urn:schemas-upnp-org:service-1-0"><serviceStateTable>
+      <stateVariable sendEvents="no"><name>TransportPlaySpeed</name><dataType>string</dataType>
+        <allowedValueList><allowedValue>1</allowedValue></allowedValueList></stateVariable>
+    </serviceStateTable></scpd>"""
+
+  @Test
+  fun readsTheAvTransportServiceDescriptionUrl() {
+    val tv = """<root><device><friendlyName>Den</friendlyName><serviceList><service>
+      <serviceType>urn:schemas-upnp-org:service:AVTransport:1</serviceType>
+      <SCPDURL>/xml/AVTransport1.xml</SCPDURL>
+      <controlURL>/AVTransport/ctrl</controlURL></service></serviceList></device></root>"""
+    val d = Upnp.parseDescription(tv, "http://10.0.0.5:8080/desc.xml")!!
+    assertEquals("http://10.0.0.5:8080/xml/AVTransport1.xml", d.avTransportScpdUrl)
+  }
+
+  @Test
+  fun readsThePlaySpeedsARendererOffers() {
+    assertEquals(listOf("1", "1/2", "3/2", "2"), Upnp.parseSpeeds(scpdWithSpeeds))
+    assertEquals(listOf("1"), Upnp.parseSpeeds(scpdOnlyOne))
+    assertEquals(listOf("1"), Upnp.parseSpeeds("<scpd/>"))
+    assertEquals(listOf("1"), Upnp.parseSpeeds("not xml"))
+  }
+
+  @Test
+  fun matchesTheBooksSpeedToTheRenderersSpelling() {
+    val speeds = Upnp.parseSpeeds(scpdWithSpeeds)
+    assertEquals("3/2", Upnp.speedArg(1.5f, speeds))
+    assertEquals("2", Upnp.speedArg(2f, speeds))
+    assertEquals("1", Upnp.speedArg(1f, speeds))
+    assertNull(Upnp.speedArg(1.25f, speeds))
+    assertNull(Upnp.speedArg(1.5f, Upnp.parseSpeeds(scpdOnlyOne)))
+    assertEquals("1.5", Upnp.speedArg(1.5f, listOf("1", "1.5")))
+    assertNull(Upnp.speedValue("1/0"))
+    assertNull(Upnp.speedValue("fast"))
+  }
+
   @Test
   fun aStopAfterPlayingIsTheEndButNotAfterAPause() {
     val ends = EndWatch()

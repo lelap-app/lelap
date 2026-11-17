@@ -4,6 +4,8 @@ import {
   carryFolderPlace,
   episodeBook,
   FeedError,
+  isPlaceholderFeed,
+  refreshFeeds,
   feedCache,
   findPodcast,
   listSubscriptions,
@@ -58,6 +60,8 @@ function feedRequest(feedUrl: string, etag: string | null, lastModified: string 
 
 /** Fetches and stores a feed. An unchanged feed (304) keeps what is stored. */
 export async function fetchFeed(feedUrl: string): Promise<string> {
+  // The test library's feeds: no request, not even to the proxy.
+  if (isPlaceholderFeed(feedUrl)) throw new FeedError('This feed is made up for testing.');
   const cache = feedCache(db, feedUrl);
   const { url, headers } = feedRequest(feedUrl, cache?.etag ?? null, cache?.lastModified ?? null);
   if (Platform.OS === 'web') await proxySlot();
@@ -103,8 +107,7 @@ let lastRefresh = 0;
 export async function refreshPodcasts(force = false): Promise<void> {
   if (!force && Date.now() - lastRefresh < REFRESH_EVERY_MS) return;
   lastRefresh = Date.now();
-  const subs = listSubscriptions(db, profileId);
-  await Promise.all(subs.map((s) => fetchFeed(s.feedUrl).catch(() => null)));
+  await refreshFeeds(db, profileId, fetchFeed);
   await runAutoDownload();
 }
 

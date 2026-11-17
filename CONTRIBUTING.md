@@ -1,7 +1,8 @@
 # Contributing to Lelap
 
 Thanks for helping. Bug reports, ideas that fit [the plan](docs/brief.md) and small focused pull
-requests are all welcome. Start with [`docs/architecture.md`](docs/architecture.md) for how the
+requests are all welcome. Translations need no setup at all: see
+[the translation guide](apps/app/src/i18n/README.md). Start with [`docs/architecture.md`](docs/architecture.md) for how the
 pieces fit together; [`docs/roadmap.md`](docs/roadmap.md) lists what is planned.
 
 ## Setup

@@ -5,6 +5,7 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
+import { openPlayer } from '../src/navigation';
 import { showAlert } from '../src/dialog';
 import { COLORS, Icon, IconButton } from '../src/components/Icon';
 import { BookCover, coverUri } from '../src/components/BookCover';
@@ -13,6 +14,7 @@ import { db } from '../src/db';
 import { formatDuration } from '../src/format';
 import { playBook, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
+import { ROW_BUTTON } from '../src/components/TextButton';
 
 /** The queue: a podcast episode that ends plays the first item here; a book stops. */
 export default function UpNextScreen() {
@@ -35,7 +37,7 @@ export default function UpNextScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 24 }}
         ListHeaderComponent={
           <View className="gap-2 px-4 pb-4">
-            <View className="-ml-2 self-start">
+            <View className="-ms-2 self-start">
               <IconButton
                 name="back"
                 label={t('Back')}
@@ -43,7 +45,9 @@ export default function UpNextScreen() {
                 onPress={() => router.back()}
               />
             </View>
-            <Text className="text-3xl font-semibold text-paper">{t('Up Next')}</Text>
+            <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
+              {t('Up Next')}
+            </Text>
             <Text className="text-sm text-muted">
               {t(
                 'When a podcast episode ends, the first item here plays. Books stop at their end.',
@@ -60,7 +64,7 @@ export default function UpNextScreen() {
           <Pressable
             onPress={() =>
               void playBook(item.bookId)
-                .then(() => router.push('/player'))
+                .then(() => openPlayer(router))
                 .catch((error: unknown) =>
                   showAlert(
                     t('Cannot play'),
@@ -68,6 +72,7 @@ export default function UpNextScreen() {
                   ),
                 )
             }
+            {...ROW_BUTTON}
             className="flex-row items-center gap-3 px-4 py-2 active:bg-raised"
           >
             <BookCover uri={coverUri(item)} title={item.title} size={48} />
@@ -81,18 +86,20 @@ export default function UpNextScreen() {
                   .join(' · ')}
               </Text>
             </View>
-            <View className="flex-row gap-4">
+            <View className="flex-row">
               <Pressable
-                hitSlop={8}
+                accessibilityRole="button"
                 accessibilityLabel={t('Move up')}
+                className="h-12 w-12 items-center justify-center"
                 disabled={index === 0}
                 onPress={() => move(item.bookId, index - 1)}
               >
                 <Icon name="up" size={22} color={index === 0 ? COLORS.line : COLORS.soft} />
               </Pressable>
               <Pressable
-                hitSlop={8}
+                accessibilityRole="button"
                 accessibilityLabel={t('Move down')}
+                className="h-12 w-12 items-center justify-center"
                 disabled={index === items.length - 1}
                 onPress={() => move(item.bookId, index + 1)}
               >
@@ -103,8 +110,9 @@ export default function UpNextScreen() {
                 />
               </Pressable>
               <Pressable
-                hitSlop={8}
+                accessibilityRole="button"
                 accessibilityLabel={t('Remove from Up Next')}
+                className="h-12 w-12 items-center justify-center"
                 onPress={() => {
                   removeFromUpNext(db, profileId, item.bookId);
                   refresh();

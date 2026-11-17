@@ -26,6 +26,8 @@ describe('settings', () => {
       bedtimeMinutes: 30,
       headphoneBattery: false,
       carModeOffer: false,
+      homeSuggestions: true,
+      badgesOnCovers: true,
       language: 'en',
     });
   });
@@ -35,6 +37,18 @@ describe('settings', () => {
     setSetting(db, ME, 'skipIntervalMs', 15_000, 1);
     setSetting(db, ME, 'skipIntervalMs', 45_000, 2);
     expect(getSettings(db, ME).skipIntervalMs).toBe(45_000);
+  });
+
+  it('takes any language code, so a new catalog needs no change here', () => {
+    const db = createTestDb();
+    setSetting(db, ME, 'language', 'pt-BR', 1);
+    expect(getSettings(db, ME).language).toBe('pt-BR');
+    const corrupt = createTestDb();
+    corrupt
+      .insert(settings)
+      .values({ profileId: ME, key: 'language', value: '"Bahasa Melayu"', updatedAt: 1 })
+      .run();
+    expect(getSettings(corrupt, ME).language).toBe('en');
   });
 
   it('falls back to the default for a corrupt value', () => {

@@ -1,26 +1,29 @@
 package app.lelap.audio
 
+import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import org.json.JSONArray
-import org.json.JSONObject
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import java.util.TimeZone
 import androidx.annotation.OptIn
+import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
@@ -36,15 +39,24 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.session.CommandButton
+import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
+import app.lelap.text.NativeText
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.SettableFuture
+import app.lelap.cast.CastLink
+import app.lelap.cast.CastRequest
+import app.lelap.cast.RendererStatus
+import java.util.TimeZone
+import org.json.JSONArray
+import org.json.JSONObject
 
 private const val TIMER_TICK_MS = 250L
 private const val CHAPTER_TICK_MS = 1_000L
@@ -61,11 +73,24 @@ class PlaybackService : MediaLibraryService() {
   private lateinit var mixer: VolumeMixer
   private lateinit var sleepTimer: SleepTimer
   private lateinit var rules: PlaybackRules
+  private lateinit var port: Port
+
+  // While casting (M50): the session's player, the link it plays through, and the app's wait for
+  // the first file to load. ExoPlayer keeps the book, paused, for the hand-back.
+  private var remote: RemotePlayer? = null
+  private var remoteLink: CastLink? = null
+  private var castStart: SettableFuture<SessionResult>? = null
+
+  /** The player the listener hears: the receiver while casting, else ExoPlayer. */
+  private val active: Player
+    get() = remote ?: player
 
   // A chapter or episode timer: where on the book timeline it stops, and the message that stops
   // playback there exactly.
   private var sleepBoundaryMs: Long? = null
   private var boundaryMessage: PlayerMessage? = null
+  // A podcast's outro (M45): the message that ends the episode where its outro starts.
+  private var outroMessage: PlayerMessage? = null
   private var ticksSincePublish = 0
 
   // The step the notification's sleep timer button last started, and the button's last state.
@@ -117,6 +142,15 @@ class PlaybackService : MediaLibraryService() {
       }
     }
   }
+  // The profile's language changed (modules/text): rename the buttons and the car's shelves.
+  private val languageReceiver = object : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+      if (!::session.isInitialized) return
+      sleepButtonStep = null
+      updateSleepButton()
+      session.notifyChildrenChanged(CarLibrary.ROOT, Int.MAX_VALUE, null)
+    }
+  }
   private var queue: List<BookLoad> = emptyList()
 
   private var skipIntervalMs = 30_000L
@@ -133,14 +167,14 @@ class PlaybackService : MediaLibraryService() {
   private val chapterTicker = object : Runnable {
     override fun run() {
       updateChapterTitle()
-      if (player.isPlaying) handler.postDelayed(this, CHAPTER_TICK_MS)
+      if (active.isPlaying) handler.postDelayed(this, CHAPTER_TICK_MS)
     }
   }
 
   // ExoPlayer reports the pause before its position settles (about 1.7 s early on the test phone),
   // so the journal is written once more shortly after.
   private val pauseSettled = Runnable {
-    if (!player.isPlaying) writeJournal(PositionJournal.Event.PAUSE)
+    if (!active.isPlaying) writeJournal(PositionJournal.Event.PAUSE)
   }
 
   private val journalTicker = object : Runnable {
@@ -168,7 +202,9 @@ class PlaybackService : MediaLibraryService() {
     player = ExoPlayer.Builder(this, SoundRenderersFactory(this, SoundProcessor(sound)))
       .setMediaSourceFactory(
         DefaultMediaSourceFactory(withBookHeaders(DefaultDataSource.Factory(this, http)))
-          .setLoadErrorHandlingPolicy(ExpiringLinkPolicy()),
+          .setLoadErrorHandlingPolicy(
+            ExpiringLinkPolicy { status -> handler.post { note(Diagnostics.LINK_REFRESHED, status = status) } },
+          ),
       )
       .setAudioAttributes(
         AudioAttributes.Builder()
@@ -184,18 +220,25 @@ class PlaybackService : MediaLibraryService() {
     mixer = VolumeMixer { player.volume = it }
     sleepTimer = SleepTimer(
       clock = SystemClock::elapsedRealtime,
-      onVolume = { mixer.fade = it },
+      onVolume = {
+        mixer.fade = it
+        remote?.setFade(it)
+      },
       onFinished = {
         clearBoundary()
-        rules.onSleepTimerFinished()
+        // A receiver is paused straight away; it holds no audio focus to give up.
+        val r = remote
+        if (r != null) r.pause() else rules.onSleepTimerFinished()
         publishExtras()
       },
     )
     focus = AudioFocus(this) {
+      Diagnostics.focusEvent(it)?.let { what -> note(what) }
       rules.onFocus(it)
       publishExtras()
     }
-    rules = PlaybackRules(Port()).apply {
+    port = Port()
+    rules = PlaybackRules(port).apply {
       duckOnInterruption = prefs.getBoolean(Commands.EXTRA_DUCK, true)
     }
     skipIntervalMs = prefs.getLong(Commands.KEY_SKIP_INTERVAL_MS, 30_000L)
@@ -207,6 +250,7 @@ class PlaybackService : MediaLibraryService() {
     queue = UpNext.decodeQueue(prefs.getString(Commands.PREF_QUEUE, null))
     player.addListener(object : Player.Listener {
       override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        Diagnostics.pauseEvent(playWhenReady, reason)?.let { note(it, code = reason) }
         if (playWhenReady) rewindAfterPause() else pausedAt = System.currentTimeMillis()
         rules.onPlayWhenReadyChanged(playWhenReady)
         if (playWhenReady) startBedtimeTimer()
@@ -214,29 +258,26 @@ class PlaybackService : MediaLibraryService() {
       }
 
       override fun onIsPlayingChanged(isPlaying: Boolean) {
-        handler.removeCallbacks(journalTicker)
-        handler.removeCallbacks(chapterTicker)
-        handler.removeCallbacks(pauseSettled)
-        if (isPlaying) {
-          handler.postDelayed(journalTicker, PositionJournal.TICK_INTERVAL_MS)
-          handler.post(chapterTicker)
-        } else {
-          placeChangedAt = System.currentTimeMillis()
-          writeJournal(PositionJournal.Event.PAUSE)
-          handler.postDelayed(pauseSettled, PAUSE_SETTLE_MS)
-        }
+        // While casting the receiver's place is the one kept.
+        if (remote == null) onPlayingChanged(isPlaying)
       }
 
       override fun onPlaybackStateChanged(playbackState: Int) {
         if (playbackState == Player.STATE_ENDED) onBookEnded()
       }
 
+      override fun onPlayerError(error: PlaybackException) {
+        val status = generateSequence<Throwable>(error) { it.cause }
+          .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
+          .firstOrNull()?.responseCode
+        note(Diagnostics.ERROR, code = error.errorCode, status = status)
+      }
+
+      // New items, or their real durations once known: the outro is found from the last one.
+      override fun onTimelineChanged(timeline: Timeline, reason: Int) = placeOutro()
+
       override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-        // Replacing an item's metadata reports a transition too; only real ones are journaled.
-        if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
-          placeChangedAt = System.currentTimeMillis()
-          writeJournal(PositionJournal.Event.ITEM_CHANGE)
-        }
+        if (remote == null) onItemTransition(reason)
       }
 
       override fun onPositionDiscontinuity(
@@ -244,16 +285,7 @@ class PlaybackService : MediaLibraryService() {
         newPosition: Player.PositionInfo,
         reason: Int,
       ) {
-        if (reason == Player.DISCONTINUITY_REASON_SEEK) {
-          placeChangedAt = System.currentTimeMillis()
-          writeJournal(PositionJournal.Event.SEEK)
-          updateChapterTitle()
-          // A seek into another chapter moves a chapter timer to that chapter's end.
-          if (sleepBoundaryMs != null) {
-            placeBoundary()
-            publishExtras()
-          }
-        }
+        if (remote == null) onDiscontinuity(reason)
       }
 
       override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
@@ -274,8 +306,21 @@ class PlaybackService : MediaLibraryService() {
         ),
       )
     }
+    // Media3 creates its notification channel only when there is none, so this one keeps our name.
+    NativeText.channel(
+      this,
+      DefaultMediaNotificationProvider.DEFAULT_CHANNEL_ID,
+      "Now playing",
+      NotificationManager.IMPORTANCE_LOW,
+    )
     session = builder.build()
     prefs.registerOnSharedPreferenceChangeListener(carListener)
+    ContextCompat.registerReceiver(
+      this,
+      languageReceiver,
+      IntentFilter(NativeText.CHANGED),
+      ContextCompat.RECEIVER_NOT_EXPORTED,
+    )
     publishExtras()
   }
 
@@ -283,12 +328,13 @@ class PlaybackService : MediaLibraryService() {
 
   override fun onTaskRemoved(rootIntent: Intent?) {
     writeJournal(PositionJournal.Event.TASK_REMOVED)
-    // Keep playing when the app is swiped away; nothing to keep alive when paused.
-    if (!player.playWhenReady || player.mediaItemCount == 0) stopSelf()
+    // Keep playing (here or on a receiver) when the app is swiped away; nothing to keep alive when paused.
+    if (!active.playWhenReady || player.mediaItemCount == 0) stopSelf()
   }
 
   override fun onDestroy() {
     writeJournal(PositionJournal.Event.DESTROY)
+    endRemote(resume = false)
     publishNowPlaying(stopping = true)
     handler.removeCallbacks(journalTicker)
     handler.removeCallbacks(chapterTicker)
@@ -298,6 +344,7 @@ class PlaybackService : MediaLibraryService() {
     clearBoundary()
     stopShakeListening()
     prefs.unregisterOnSharedPreferenceChangeListener(carListener)
+    unregisterReceiver(languageReceiver)
     focus.abandon()
     session.release()
     player.release()
@@ -322,6 +369,23 @@ class PlaybackService : MediaLibraryService() {
     loadBook(next, autoplay = true)
   }
 
+  /** Adds an event to the diagnostics log, only while the app has the log on. */
+  private fun note(what: String, code: Int? = null, status: Int? = null) {
+    if (!prefs.getBoolean(Commands.PREF_DIAGNOSTICS, false)) return
+    val entry = DiagnosticEntry(
+      at = System.currentTimeMillis(),
+      what = what,
+      code = code,
+      status = status,
+      bookId = current?.bookId,
+      part = if (player.mediaItemCount > 0) player.currentMediaItemIndex else null,
+    )
+    prefs.edit().putString(
+      Commands.PREF_DIAGNOSTIC_LOG,
+      Diagnostics.append(prefs.getString(Commands.PREF_DIAGNOSTIC_LOG, null), entry),
+    ).apply()
+  }
+
   private fun encodeQueue(list: List<BookLoad>): String =
     JSONArray(list.map { JSONObject(PositionJournal.encodeLoad(it)) }).toString()
 
@@ -330,26 +394,41 @@ class PlaybackService : MediaLibraryService() {
     currentHandsOver = load.handsOver
     // The book that is already loaded keeps its live place, which is newer than any saved one.
     if (PositionJournal.isSameBook(current, player.mediaItemCount, load)) {
-      if (autoplay) player.play()
+      // A changed intro or outro for the show applies to the episode that is loaded.
+      val loaded = current
+      if (loaded != null && (loaded.introMs != playlist.introMs || loaded.outroMs != playlist.outroMs)) {
+        current = loaded.copy(introMs = playlist.introMs, outroMs = playlist.outroMs)
+        placeOutro()
+      }
+      if (autoplay) active.play()
       return
     }
     if (!autoplay) player.pause()
     keepEarlierPlace(playlist.bookId)
     current = playlist
     val start = load.startPositionMs.coerceAtLeast(0L)
-    val position = if (autoplay) SeekRules.resumePosition(start, load.pausedAt, System.currentTimeMillis(), smartRewind) else start
+    val index = load.startIndex.coerceIn(0, playlist.files.lastIndex)
+    val position = SeekRules.startPosition(
+      index,
+      start,
+      if (autoplay) load.pausedAt else null,
+      System.currentTimeMillis(),
+      smartRewind,
+      playlist.introMs,
+    )
     pausedAt = if (autoplay) null else load.pausedAt
     placeChangedAt = load.pausedAt ?: 0L
-    player.setMediaItems(
-      mediaItems(playlist),
-      load.startIndex.coerceIn(0, playlist.files.lastIndex),
-      position,
-    )
+    val items = mediaItems(playlist)
+    player.setMediaItems(items, index, position)
     player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
-    player.prepare()
+    // While casting the book (or the next in Up Next) goes to the same receiver; ExoPlayer only
+    // keeps it for the hand-back, so it fetches nothing meanwhile.
+    val r = remote
+    if (r == null) player.prepare()
+    r?.setBook(items, timelineDurations(), index, position, playlist.speed.coerceIn(0.5f, 3f), autoplay)
     // A chapter timer carries over to the new book's chapter.
     placeBoundary()
-    if (autoplay) player.play()
+    if (autoplay && r == null) player.play()
     writeJournal(PositionJournal.Event.ITEM_CHANGE)
   }
 
@@ -395,8 +474,8 @@ class PlaybackService : MediaLibraryService() {
       currentHandsOver = load.handsOver
       return MediaSession.MediaItemsWithStartPosition(
         mediaItems(playlist),
-        player.currentMediaItemIndex,
-        player.currentPosition,
+        active.currentMediaItemIndex,
+        active.currentPosition,
       )
     }
     keepEarlierPlace(playlist.bookId)
@@ -405,14 +484,18 @@ class PlaybackService : MediaLibraryService() {
     pausedAt = null
     placeChangedAt = load.pausedAt ?: 0L
     player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
-    val start = SeekRules.resumePosition(load.startPositionMs.coerceAtLeast(0L), load.pausedAt, System.currentTimeMillis(), smartRewind)
+    val index = load.startIndex.coerceIn(0, playlist.files.lastIndex)
+    val start = SeekRules.startPosition(
+      index,
+      load.startPositionMs.coerceAtLeast(0L),
+      load.pausedAt,
+      System.currentTimeMillis(),
+      smartRewind,
+      playlist.introMs,
+    )
     // The session sets the items after this returns; a chapter timer then finds the new chapter.
     handler.post { placeBoundary() }
-    return MediaSession.MediaItemsWithStartPosition(
-      mediaItems(playlist),
-      load.startIndex.coerceIn(0, playlist.files.lastIndex),
-      start,
-    )
+    return MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, start)
   }
 
   private fun mediaItems(playlist: BookPlaylist): List<MediaItem> = playlist.files.mapIndexed { index, file ->
@@ -440,8 +523,39 @@ class PlaybackService : MediaLibraryService() {
     pausedAt = null
     if (!smartRewind || player.mediaItemCount == 0) return
     val rewind = SeekRules.rewindOnResume(System.currentTimeMillis() - since)
-    // Never across a file start: the rewind stays inside the file that is playing.
-    if (rewind > 0) player.seekTo(player.currentMediaItemIndex, (player.currentPosition - rewind).coerceAtLeast(0L))
+    if (rewind <= 0) return
+    val p = active
+    val index = p.currentMediaItemIndex
+    val position = p.currentPosition
+    // Never across a file start, and not back into a skipped intro once past it; a listener who
+    // went back into the intro on purpose stays there.
+    val intro = current?.introMs?.takeIf { position >= it } ?: 0L
+    p.seekTo(index, SeekRules.trimmedStart(index, position, rewind, intro))
+  }
+
+  /** Ends the episode where its outro starts, by a message at that place in the last file. */
+  private fun placeOutro() {
+    outroMessage?.cancel()
+    outroMessage = null
+    val playlist = current ?: return
+    val last = player.mediaItemCount - 1
+    if (last < 0 || playlist.outroMs <= 0) return
+    val at = SeekRules.outroStart(durations().getOrElse(last) { 0L }, playlist.outroMs, playlist.introMs, last == 0)
+      ?: return
+    // Kept after delivery: a listener who goes back before the outro has it skipped again. One
+    // who seeks past the place hears the outro, since playback never crosses it.
+    outroMessage = player.createMessage { _, _ -> skipOutro(last) }
+      .setLooper(Looper.getMainLooper())
+      .setPosition(last, at)
+      .setDeleteAfterDelivery(false)
+      .send()
+  }
+
+  /** At the end of the last file the player ends the book: logged as played, then Up Next. */
+  private fun skipOutro(last: Int) {
+    if (player.mediaItemCount - 1 != last || player.currentMediaItemIndex != last) return
+    val end = durations().getOrElse(last) { 0L }
+    if (end > 0) player.seekTo(last, end)
   }
 
   /** Durations the player knows, else those from the tags. */
@@ -452,8 +566,8 @@ class PlaybackService : MediaLibraryService() {
 
   private fun skipBy(deltaMs: Long) {
     if (player.mediaItemCount == 0) return
-    val (index, position) = SeekRules.skip(player.currentMediaItemIndex, player.currentPosition, deltaMs, durations())
-    player.seekTo(index, position)
+    val (index, position) = SeekRules.skip(active.currentMediaItemIndex, active.currentPosition, deltaMs, durations())
+    active.seekTo(index, position)
   }
 
   private fun chapterTitleAt(playlist: BookPlaylist, index: Int, positionMs: Long): String? {
@@ -465,16 +579,20 @@ class PlaybackService : MediaLibraryService() {
   /** Shows the current chapter as the title on the notification and lock screen. */
   private fun updateChapterTitle() {
     val playlist = current ?: return
-    val index = player.currentMediaItemIndex
-    val item = player.currentMediaItem ?: return
-    val title = chapterTitleAt(playlist, index, player.currentPosition) ?: return
+    val p = active
+    val index = p.currentMediaItemIndex
+    val item = p.currentMediaItem ?: return
+    val title = chapterTitleAt(playlist, index, p.currentPosition) ?: return
     if (item.mediaMetadata.title?.toString() == title) return
     // Same URI, so ExoPlayer swaps the metadata without interrupting playback.
-    player.replaceMediaItem(index, item.buildUpon().setMediaMetadata(item.mediaMetadata.buildUpon().setTitle(title).build()).build())
+    p.replaceMediaItem(index, item.buildUpon().setMediaMetadata(item.mediaMetadata.buildUpon().setTitle(title).build()).build())
   }
 
-  /** The session's player: previous and next skip by the skip interval, across files. */
-  private inner class SkippingPlayer : ForwardingPlayer(player) {
+  /**
+   * The session's player, ExoPlayer or the receiver: previous and next skip by the skip interval,
+   * across files.
+   */
+  private inner class SkippingPlayer(private val base: Player = player) : ForwardingPlayer(base) {
     private val skipCommands = intArrayOf(
       Player.COMMAND_SEEK_TO_PREVIOUS, Player.COMMAND_SEEK_TO_NEXT,
       Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM, Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
@@ -483,7 +601,7 @@ class PlaybackService : MediaLibraryService() {
 
     override fun getAvailableCommands(): Player.Commands {
       val commands = super.getAvailableCommands()
-      if (player.mediaItemCount == 0) return commands
+      if (base.mediaItemCount == 0) return commands
       return commands.buildUpon().addAll(*skipCommands).build()
     }
 
@@ -501,16 +619,17 @@ class PlaybackService : MediaLibraryService() {
   /** Records the place; must never throw, since it runs from lifecycle callbacks. */
   private fun writeJournal(event: PositionJournal.Event) {
     val playlist = current ?: return
+    val p = active
     val entry = PositionJournal.entryFor(
       playlist,
-      player.currentMediaItemIndex,
-      player.currentMediaItem?.mediaId,
-      player.currentPosition,
+      p.currentMediaItemIndex,
+      p.currentMediaItem?.mediaId,
+      p.currentPosition,
       placeChangedAt,
     ) ?: return
     // Every write restarts the 10 s tick, so writes are never more than 10 s apart while playing.
     handler.removeCallbacks(journalTicker)
-    if (player.isPlaying) handler.postDelayed(journalTicker, PositionJournal.TICK_INTERVAL_MS)
+    if (p.isPlaying) handler.postDelayed(journalTicker, PositionJournal.TICK_INTERVAL_MS)
     val editor = journalPrefs.edit().putString(Commands.JOURNAL_KEY, PositionJournal.encode(entry, playlist))
     // The process may die right after these two; write them synchronously.
     if (event == PositionJournal.Event.TASK_REMOVED || event == PositionJournal.Event.DESTROY) editor.commit() else editor.apply()
@@ -551,17 +670,17 @@ class PlaybackService : MediaLibraryService() {
     val seconds = skipIntervalMs / 1_000L
     val back = CommandButton.Builder(SkipIcons.back(skipIntervalMs))
       .setPlayerCommand(Player.COMMAND_SEEK_BACK)
-      .setDisplayName("Back $seconds seconds")
+      .setDisplayName(NativeText.t(this, "Back {n} seconds", "n" to seconds))
       .setSlots(CommandButton.SLOT_BACK)
       .build()
     val forward = CommandButton.Builder(SkipIcons.forward(skipIntervalMs))
       .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
-      .setDisplayName("Forward $seconds seconds")
+      .setDisplayName(NativeText.t(this, "Forward {n} seconds", "n" to seconds))
       .setSlots(CommandButton.SLOT_FORWARD)
       .build()
     val sleep = CommandButton.Builder(CommandButton.ICON_UNDEFINED)
       .setCustomIconResId(if (step == SleepStep.OFF) R.drawable.lelap_sleep_timer_off else R.drawable.lelap_sleep_timer_on)
-      .setDisplayName(SleepCycle.label(step))
+      .setDisplayName(SleepCycle.label(step, NativeText.get(this)))
       .setSessionCommand(SessionCommand(Commands.CYCLE_SLEEP_TIMER, Bundle.EMPTY))
       .setSlots(CommandButton.SLOT_OVERFLOW)
       .build()
@@ -587,7 +706,8 @@ class PlaybackService : MediaLibraryService() {
     val playlist = current
     // A service the widget woke that never loaded a book leaves the last one on the widget.
     if (playlist == null && lastNowPlaying == null) return
-    val metadata = player.mediaMetadata
+    val p = active
+    val metadata = p.mediaMetadata
     val encoded = if (playlist == null || player.mediaItemCount == 0) {
       NowPlaying.NOTHING
     } else {
@@ -597,7 +717,7 @@ class PlaybackService : MediaLibraryService() {
         chapter = metadata.title?.toString()?.takeIf { it != playlist.title },
         author = playlist.author,
         coverUri = playlist.coverUri,
-        playing = !stopping && player.playWhenReady && player.playbackState != Player.STATE_ENDED,
+        playing = !stopping && p.playWhenReady && p.playbackState != Player.STATE_ENDED,
         skipMs = skipIntervalMs,
       ).encode()
     }
@@ -619,7 +739,7 @@ class PlaybackService : MediaLibraryService() {
       sleepTimer.startAtBoundary(mode, ::untilBoundary)
     }
     // Set while paused, the timer waits for Play like one the user paused.
-    if (!player.playWhenReady) sleepTimer.freeze() else startTicker()
+    if (!active.playWhenReady) sleepTimer.freeze() else startTicker()
   }
 
   /**
@@ -632,11 +752,13 @@ class PlaybackService : MediaLibraryService() {
   }
 
   private fun bookPositionNow(durations: List<Long>): Long =
-    SleepBoundary.bookPosition(player.currentMediaItemIndex, player.currentPosition, durations)
+    SleepBoundary.bookPosition(active.currentMediaItemIndex, active.currentPosition, durations)
 
+  // While casting no ExoPlayer message stops at the boundary; the timer's own tick does, a
+  // moment after it.
   private fun untilBoundary(): Long {
     val boundary = sleepBoundaryMs ?: return 0L
-    return SleepBoundary.remainingMs(boundary, bookPositionNow(timelineDurations()), player.playbackParameters.speed)
+    return SleepBoundary.remainingMs(boundary, bookPositionNow(timelineDurations()), active.playbackParameters.speed)
   }
 
   /** Finds the end of the chapter (or episode) playing now and arranges to stop there. */
@@ -706,13 +828,201 @@ class PlaybackService : MediaLibraryService() {
     handler.postDelayed(timerTicker, TIMER_TICK_MS)
   }
 
+  private fun onPlayingChanged(isPlaying: Boolean) {
+    handler.removeCallbacks(journalTicker)
+    handler.removeCallbacks(chapterTicker)
+    handler.removeCallbacks(pauseSettled)
+    if (isPlaying) {
+      handler.postDelayed(journalTicker, PositionJournal.TICK_INTERVAL_MS)
+      handler.post(chapterTicker)
+    } else {
+      placeChangedAt = System.currentTimeMillis()
+      writeJournal(PositionJournal.Event.PAUSE)
+      handler.postDelayed(pauseSettled, PAUSE_SETTLE_MS)
+    }
+  }
+
+  private fun onItemTransition(reason: Int) {
+    // Replacing an item's metadata reports a transition too; only real ones are journaled.
+    if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
+      placeChangedAt = System.currentTimeMillis()
+      writeJournal(PositionJournal.Event.ITEM_CHANGE)
+    }
+  }
+
+  private fun onDiscontinuity(reason: Int) {
+    if (reason != Player.DISCONTINUITY_REASON_SEEK) return
+    placeChangedAt = System.currentTimeMillis()
+    writeJournal(PositionJournal.Event.SEEK)
+    updateChapterTitle()
+    // A seek into another chapter moves a chapter timer to that chapter's end.
+    if (sleepBoundaryMs != null) {
+      placeBoundary()
+      publishExtras()
+    }
+  }
+
+  /** The receiver's player, heard like ExoPlayer but without audio focus: the phone plays nothing. */
+  private val remoteListener = object : Player.Listener {
+    override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+      remoteLink?.keepAwake(playWhenReady)
+      if (playWhenReady) {
+        rewindAfterPause()
+        port.resumeSleepTimer()
+        startBedtimeTimer()
+      } else {
+        pausedAt = System.currentTimeMillis()
+        port.freezeSleepTimer()
+      }
+      publishExtras()
+    }
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) = onPlayingChanged(isPlaying)
+
+    // The last part ended on the receiver: logged as finished, then Up Next on the same receiver.
+    override fun onPlaybackStateChanged(playbackState: Int) {
+      if (playbackState == Player.STATE_ENDED) onBookEnded()
+    }
+
+    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) = onItemTransition(reason)
+
+    override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) =
+      onDiscontinuity(reason)
+
+    override fun onEvents(player: Player, events: Player.Events) = publishNowPlaying()
+  }
+
+  /** The session ended on the receiver's side (lost, or another phone took it): hand back, paused. */
+  private val linkWatcher = object : CastLink.Listener {
+    override fun onStatus(status: RendererStatus) = Unit
+
+    override fun onClosed(error: String?) {
+      handler.post { if (remote != null) endRemote(resume = false, error = error) }
+    }
+  }
+
+  /**
+   * Moves the loaded book to the receiver the app connected ([CastLink.current]), from the place
+   * here, and makes it the session's player. Completes once the first file loaded there.
+   */
+  private fun startRemote(): ListenableFuture<SessionResult> {
+    val link = CastLink.current?.takeIf { !it.closed }
+    if (link == null || current == null || player.mediaItemCount == 0) {
+      return Futures.immediateFuture(SessionResult(SessionError(SessionError.ERROR_BAD_VALUE, "Nothing to cast")))
+    }
+    if (remoteLink === link) return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+    endRemote(resume = false)
+    val index = player.currentMediaItemIndex
+    val speed = player.playbackParameters.speed
+    // Smart rewind goes into the start place, so the receiver loads once.
+    val since = pausedAt
+    pausedAt = null
+    val rewind = if (smartRewind && since != null) SeekRules.rewindOnResume(System.currentTimeMillis() - since) else 0L
+    val intro = current?.introMs?.takeIf { player.currentPosition >= it } ?: 0L
+    val position = if (rewind > 0) SeekRules.trimmedStart(index, player.currentPosition, rewind, intro) else player.currentPosition
+    player.pause()
+    // Stopped, not only paused: ExoPlayer keeps the book and place but fetches nothing meanwhile.
+    player.stop()
+    val items = List(player.mediaItemCount) { player.getMediaItemAt(it) }
+    val r = RemotePlayer(Looper.getMainLooper(), link, ::castRequest, ::onRemoteItemsPicked, ::onRemoteLoaded)
+    remote = r
+    remoteLink = link
+    link.addListener(linkWatcher)
+    r.addListener(remoteListener)
+    val started = SettableFuture.create<SessionResult>()
+    castStart = started
+    // Loaded before the swap, so the session never shows an empty player in between.
+    r.setBook(items, timelineDurations(), index, position, speed, play = true)
+    session.player = SkippingPlayer(r)
+    publishExtras()
+    return started
+  }
+
+  /**
+   * Back to the phone: ExoPlayer takes the session again at the receiver's place, and plays on if
+   * the receiver was playing ([resume] null) or as asked; the receiver stops.
+   */
+  private fun endRemote(resume: Boolean?, error: String? = null) {
+    val r = remote ?: return
+    val link = remoteLink
+    val index = r.currentMediaItemIndex
+    val position = r.currentPosition
+    val playing = r.playWhenReady
+    val speed = r.requestedSpeed
+    // A fade under way gives the receiver its volume back before it stops.
+    r.setFade(1f)
+    remote = null
+    remoteLink = null
+    link?.removeListener(linkWatcher)
+    r.removeListener(remoteListener)
+    session.player = SkippingPlayer(player)
+    r.release()
+    link?.closeInBackground(error)
+    castStart?.set(SessionResult(SessionError(SessionError.ERROR_UNKNOWN, error ?: "Casting stopped")))
+    castStart = null
+    if (player.mediaItemCount > 0) {
+      player.setPlaybackSpeed(speed)
+      player.seekTo(index.coerceIn(0, player.mediaItemCount - 1), position)
+      player.prepare()
+    }
+    if (resume ?: playing) {
+      // Handed over while playing: no smart rewind, the listener heard every second.
+      if (playing) pausedAt = null
+      player.play()
+    } else {
+      // Lost or handed back paused: the timer waits for Play, and so does smart rewind.
+      if (playing) pausedAt = System.currentTimeMillis()
+      port.freezeSleepTimer()
+    }
+    publishExtras()
+    publishNowPlaying()
+  }
+
+  private fun onRemoteLoaded(failure: String?) {
+    castStart?.set(
+      if (failure == null) {
+        SessionResult(SessionResult.RESULT_SUCCESS)
+      } else {
+        SessionResult(SessionError(SessionError.ERROR_UNKNOWN, failure))
+      },
+    )
+    castStart = null
+    if (failure != null) endRemote(resume = false, error = failure)
+  }
+
+  /** Android Auto picked a book while casting: it plays on the receiver too. */
+  private fun onRemoteItemsPicked(items: List<MediaItem>, index: Int, positionMs: Long) {
+    val r = remote ?: return
+    player.setMediaItems(items, index, positionMs)
+    r.setBook(items, timelineDurations(), index, positionMs, current?.speed?.coerceIn(0.5f, 3f) ?: 1f, r.playWhenReady)
+    writeJournal(PositionJournal.Event.ITEM_CHANGE)
+  }
+
+  /** A part of the loaded book as the receiver gets it. */
+  private fun castRequest(index: Int): CastRequest? {
+    val book = current ?: return null
+    val file = book.files.getOrNull(index) ?: return null
+    return CastRequest(
+      uri = file.uri,
+      title = if (book.files.size > 1) file.title else book.title,
+      artist = book.author,
+      album = book.title,
+      coverUri = book.coverUri,
+      durationMs = file.durationMs,
+      headers = book.headers,
+    )
+  }
+
   private inner class Port : PlaybackRules.Port {
     override val playWhenReady: Boolean
       get() = player.playWhenReady
 
     override fun pause() = player.pause()
 
-    override fun play() = player.play()
+    // A call that ends while casting must not start the phone alongside the receiver.
+    override fun play() {
+      if (remote == null) player.play()
+    }
 
     override fun requestFocus() = focus.request()
 
@@ -785,6 +1095,8 @@ class PlaybackService : MediaLibraryService() {
         .add(SessionCommand(Commands.LOAD_BOOK, Bundle.EMPTY))
         .add(SessionCommand(Commands.UNLOAD, Bundle.EMPTY))
         .add(SessionCommand(Commands.SET_QUEUE, Bundle.EMPTY))
+        .add(SessionCommand(Commands.START_CAST, Bundle.EMPTY))
+        .add(SessionCommand(Commands.STOP_CAST, Bundle.EMPTY))
         .build()
       return MediaSession.ConnectionResult.accept(
         commands,
@@ -827,6 +1139,7 @@ class PlaybackService : MediaLibraryService() {
         // Another profile is listening now and has nothing to play: clear the lock screen and
         // notification. The place was journaled at the pause before this.
         Commands.UNLOAD -> {
+          endRemote(resume = false)
           writeJournal(PositionJournal.Event.PAUSE)
           handler.removeCallbacks(pauseSettled)
           player.pause()
@@ -839,6 +1152,9 @@ class PlaybackService : MediaLibraryService() {
           queue = UpNext.decodeQueue(json)
           prefs.edit().putString(Commands.PREF_QUEUE, encodeQueue(queue)).apply()
         }
+        Commands.START_CAST -> return startRemote()
+        Commands.STOP_CAST ->
+          endRemote(resume = if (args.containsKey(Commands.KEY_RESUME)) args.getBoolean(Commands.KEY_RESUME) else null)
         Commands.LOAD_BOOK -> {
           val load = PositionJournal.decodeLoad(args.getString(Commands.KEY_BOOK_JSON).orEmpty())
             ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
@@ -885,7 +1201,7 @@ class PlaybackService : MediaLibraryService() {
       current = playlist
       player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
       pausedAt = null
-      val start = SeekRules.resumePosition(entry.filePositionMs, entry.savedAt, System.currentTimeMillis(), smartRewind)
+      val start = SeekRules.startPosition(index, entry.filePositionMs, entry.savedAt, System.currentTimeMillis(), smartRewind, playlist.introMs)
       return Futures.immediateFuture(MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, start))
     }
 
@@ -904,7 +1220,7 @@ class PlaybackService : MediaLibraryService() {
       pageSize: Int,
       params: LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-      val nodes = CarLibrary.children(parentId, carSnapshot(), journalLoad())
+      val nodes = CarLibrary.children(parentId, carSnapshot(), journalLoad(), NativeText.get(this@PlaybackService))
         ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
       val from = (page.toLong() * pageSize).coerceAtMost(nodes.size.toLong()).toInt()
       val to = (from.toLong() + pageSize).coerceAtMost(nodes.size.toLong()).toInt()
@@ -918,7 +1234,7 @@ class PlaybackService : MediaLibraryService() {
       browser: MediaSession.ControllerInfo,
       mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> {
-      val node = CarLibrary.item(mediaId, carSnapshot(), journalLoad())
+      val node = CarLibrary.item(mediaId, carSnapshot(), journalLoad(), NativeText.get(this@PlaybackService))
         ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
       return Futures.immediateFuture(LibraryResult.ofItem(carItem(node), null))
     }
@@ -941,14 +1257,17 @@ class PlaybackService : MediaLibraryService() {
 
 /** Opens a link again, once, when its host says it expired; see [ExpiringLinks]. */
 @OptIn(UnstableApi::class)
-private class ExpiringLinkPolicy : DefaultLoadErrorHandlingPolicy() {
+private class ExpiringLinkPolicy(
+  /** Called on the loading thread with the status that made it open the link again. */
+  private val onRefresh: (Int) -> Unit,
+) : DefaultLoadErrorHandlingPolicy() {
   override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
     val code = generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }
       .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
       .firstOrNull()?.responseCode
     return when (code?.let { ExpiringLinks.decide(it, loadErrorInfo.errorCount) }) {
       // The retry opens the item's own URL from the byte it reached, so the place is kept.
-      LinkRetry.REFRESH -> 0L
+      LinkRetry.REFRESH -> 0L.also { code?.let(onRefresh) }
       LinkRetry.GIVE_UP -> C.TIME_UNSET
       else -> super.getRetryDelayMsFor(loadErrorInfo)
     }

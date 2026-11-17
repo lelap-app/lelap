@@ -5,9 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../i18n';
 import { FadeIn } from './Motion';
 import { COLORS, Icon } from './Icon';
+import { useWide } from '../layout';
 import * as audio from '../platform/audio';
 import { playerProfile, usePlayerState } from '../player';
 import { profileId } from '../profile';
+import { ROW_BUTTON } from './TextButton';
 
 /**
  * The book that is loaded, with Play/Pause; opens the Player. Hidden when nothing is loaded.
@@ -17,7 +19,9 @@ export function MiniPlayer({ inset = true }: { inset?: boolean }) {
   const state = usePlayerState();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  if (!state.bookId || state.partIndex < 0) return null;
+  // On a wide screen the whole player is beside the list instead.
+  const wide = useWide();
+  if (wide || !state.bookId || state.partIndex < 0) return null;
   // Another profile's book stays loaded until this profile plays something; don't show it.
   if (playerProfile() !== profileId) return null;
   const progress = state.durationMs > 0 ? state.positionMs / state.durationMs : 0;
@@ -26,6 +30,8 @@ export function MiniPlayer({ inset = true }: { inset?: boolean }) {
     <FadeIn lift={16}>
       <Pressable
         onPress={() => router.push('/player')}
+        {...ROW_BUTTON}
+        accessibilityHint={t('Opens the player')}
         style={{ paddingBottom: (inset ? insets.bottom : 0) + 8 }}
         className="border-t border-line bg-raised"
       >
@@ -46,7 +52,7 @@ export function MiniPlayer({ inset = true }: { inset?: boolean }) {
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel={state.playing ? t('Pause') : t('Play')}
-            className="h-11 w-11 items-center justify-center rounded-full bg-amber"
+            className="h-12 w-12 items-center justify-center rounded-full bg-amber"
           >
             <Icon name={state.playing ? 'pause' : 'play'} size={20} color={COLORS.ink} />
           </Pressable>

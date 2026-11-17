@@ -1,4 +1,5 @@
 ---
+import { LATEST_PROTOCOL_VERSION } from '@lelap/sdk';
 import CodeBlock from '../../components/CodeBlock.astro';
 import Docs from '../../layouts/Docs.astro';
 import { site } from '../../site';
@@ -194,6 +195,19 @@ health: async () => {
 },
 `;
 
+const badges = `
+catalog: async () => ({
+  metas: books.map((book) => ({
+    id: \`example:\${book.slug}\`,
+    type: 'audiobook',
+    name: book.title,
+    cover: book.coverUrl,
+    // Only with enough ratings to mean something.
+    ...(book.ratings >= 3 ? { badges: { rating: book.averageRating } } : {}),
+  })),
+}),
+`;
+
 const toc: [string, string][] = [
   ['install', 'Install'],
   ['example', 'A complete add-on'],
@@ -201,6 +215,7 @@ const toc: [string, string][] = [
   ['options', 'Options'],
   ['configure', 'Settings and sign-in'],
   ['health', 'Health'],
+  ['badges', 'Badges on covers'],
   ['errors', 'Errors'],
   ['validation', 'Validation'],
   ['testing', 'Testing'],
@@ -347,11 +362,21 @@ const toc: [string, string][] = [
   <h2 id="health">Health</h2>
   <p>
     Every SDK add-on answers <code>GET /health</code> with <code>{'{ "status": "ok" }'}</code> and
-    declares <code>behaviorHints.health</code>; the SDK also sets <code>protocolVersion</code> to{' '}
-    <code>2</code>. Pass a <code>health</code> handler to check what your add-on relies on. Keep it
-    quick: the app asks when Settings → Add-ons opens.
+    declares <code>behaviorHints.health</code>; the SDK also sets <code>protocolVersion</code> to
+    the newest revision it knows, <code>{LATEST_PROTOCOL_VERSION}</code>. Pass a <code>health</code>{' '}
+    handler to check what your add-on relies on. Keep it quick: the app asks when Settings → Add-ons
+    opens.
   </p>
   <CodeBlock code={health} />
+
+  <h2 id="badges">Badges on covers</h2>
+  <p>
+    To show a rating or a count of new episodes on a cover, send it as <code>badges</code> on the
+    item, never as text in the picture. The app draws badges in one style next to its own (finished,
+    how far in), reads them out with the title, and the listener can turn them off. Apps from before
+    revision 4 ignore them. See <a href="/docs/protocol/#badges">Badges</a> for the fields.
+  </p>
+  <CodeBlock code={badges} />
 
   <h2 id="errors">Errors</h2>
   <p>

@@ -11,5 +11,7 @@ Native Kotlin modules for the Expo app:
 
 - `cast`: casting with open protocols only: UPnP for Sonos and DLNA, our own Cast v2 client for
   Google Cast speakers, FCast; a small LAN server for files on the phone. No Google Cast SDK.
+  `audio`'s playback service plays through its `CastLink` while casting, so the media session
+  (notification, lock screen, car) controls the receiver.
 
 See [`docs/brief.md`](../docs/brief.md).

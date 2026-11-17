@@ -8,6 +8,23 @@ export type PickedFolder = { uri: string; name: string; location: string };
 export const FOLDER_UNAVAILABLE = 'ERR_LELAP_PERMISSION';
 export const LOCAL_FOLDERS = false;
 
+// Chapters from silences are Android only: a browser decodes a whole file into memory at once,
+// and a ten-hour book is gigabytes of samples (see docs/brief.md, “Chapters”).
+export const SILENCE_SCAN = false;
+
+export type SilenceStatus = {
+  bookId: string;
+  state: 'waiting' | 'running' | 'done' | 'failed';
+  filesDone: number;
+  filesTotal: number;
+  result: string | null;
+  error: string | null;
+};
+
+export const findSilences = (): Promise<void> => unsupported();
+export const silenceStatuses = (): Promise<SilenceStatus[]> => Promise.resolve([]);
+export const removeSilences = (): Promise<void> => Promise.resolve();
+
 const unsupported = () => Promise.reject(new Error('Local folders are only on Android.'));
 
 export const pickFolder = (): Promise<PickedFolder | null> => Promise.resolve(null);

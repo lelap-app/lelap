@@ -20,4 +20,7 @@ export const startCasting: (device: CastDevice, book: unknown) => Promise<void> 
   throw new Error(t('Casting needs the Android app.'));
 };
 export const stopCasting = async (): Promise<void> => {};
+export type LocalNetworkAccess = 'granted' | 'ask' | 'blocked';
+export const localNetworkAccess = async (): Promise<LocalNetworkAccess> => 'granted';
+export const requestLocalNetworkAccess = async (): Promise<LocalNetworkAccess> => 'granted';
 export const setCastVolume: (level: number) => Promise<void> = async () => {};

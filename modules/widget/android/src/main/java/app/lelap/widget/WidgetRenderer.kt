@@ -8,6 +8,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.view.View
 import android.widget.RemoteViews
+import app.lelap.text.NativeText
 import java.util.concurrent.Executors
 
 /** Draws every Lelap widget from the saved [NowPlayingSnapshot]; no JavaScript involved. */
@@ -31,7 +32,7 @@ object WidgetRenderer {
     val manager = AppWidgetManager.getInstance(context)
     val ids = only ?: manager.getAppWidgetIds(ComponentName(context, PlayerWidgetProvider::class.java))
     if (ids.isEmpty()) return
-    val model = Models.widget(NowPlayingSnapshot.read(context))
+    val model = Models.widget(NowPlayingSnapshot.read(context), NativeText.get(context))
     val cover = runCatching { CoverLoader.load(context, model.coverUri) }.getOrNull()
     for (id in ids) {
       val minHeight = manager.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
@@ -57,6 +58,7 @@ object WidgetRenderer {
     views.setContentDescription(R.id.lelap_widget_play, model.playLabel)
     views.setContentDescription(R.id.lelap_widget_back, model.backLabel)
     views.setContentDescription(R.id.lelap_widget_forward, model.forwardLabel)
+    views.setContentDescription(R.id.lelap_widget_root, model.openLabel)
     views.setTextViewText(R.id.lelap_widget_back_seconds, model.skipSeconds.toString())
     views.setTextViewText(R.id.lelap_widget_forward_seconds, model.skipSeconds.toString())
 

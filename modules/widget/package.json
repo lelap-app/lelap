@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "description": "Android home screen widget and Quick Settings tile for the player. No JavaScript API.",
+  "dependencies": {
+    "@lelap/text": "workspace:*"
+  },
   "peerDependencies": {
     "expo": "*"
   },
