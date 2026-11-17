@@ -31,6 +31,12 @@ Kotlin Expo module for Android playback.
   cast module's `CastLink`; `RemoteSession` there decides parts, the book's end and speed. The
   sleep timer fades the receiver's volume and pauses it; the book's end is logged and Up Next goes
   on there. ExoPlayer keeps the book, paused, for the hand-back.
+- Listening time and scrobble sessions (M51): `ListeningTally` counts what the session's player
+  plays (ExoPlayer or a receiver) on the elapsed-realtime clock, at most the position's advance,
+  and records start, progress and pause. `AccountingLog` keeps it in its own preferences file
+  until the app merges it (`takeAccounting`, then `ackAccounting`); records handed out never
+  change, so each is merged once. The app does not count on Android
+  ([m51 follow-ups](../../docs/m51-follow-ups.md#how-it-works)).
 - `AudioModule`: the JavaScript bridge (`src/index.ts`), a `MediaController` on the main thread.
 
 Unit tests for the pure parts run on the JVM:

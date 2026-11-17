@@ -4,6 +4,7 @@ import {
   getProfile,
   type InstalledAddon,
   listAddons,
+  mergeServiceAccounting,
   nextScrobbleDue,
   type Poster,
   ScrobbleTracker,
@@ -15,7 +16,7 @@ import {
 } from '@lelap/core';
 
 import { db, newId } from './db';
-import type { PlayerState } from './platform/audio';
+import * as audio from './platform/audio';
 
 // Reports listening to add-ons that declare `scrobble`. Events wait in the outbox in the
 // database, so what was played offline goes out later with its own timestamps.
@@ -53,8 +54,12 @@ function enqueue(events: TrackedEvent[], profile: string): void {
   void flushScrobbles();
 }
 
-/** Feeds a player state to the tracker; called on every state the player reports. */
-export function trackPlayerState(state: PlayerState, profile: string): void {
+/**
+ * Feeds a player state to the tracker; called on every state the player reports. Where the
+ * playback service keeps the sessions itself (Android), they come from `foldServiceAccounting`.
+ */
+export function trackPlayerState(state: audio.PlayerState, profile: string): void {
+  if (audio.countsInService) return;
   const bookId = state.connected ? state.bookId : null;
   const positionMs =
     bookId && state.fileLocation
@@ -70,6 +75,37 @@ export function trackPlayerState(state: PlayerState, profile: string): void {
 export function trackFinished(bookId: string, at: number, profile: string): void {
   const durationMs = getBook(db, profile, bookId)?.book.durationMs ?? 0;
   enqueue([tracker.finished(bookId, at, durationMs)], profile);
+}
+
+let folding: Promise<boolean> | null = null;
+
+/**
+ * Merges what the playback service heard (M51) into `profile`'s stats and the scrobble outbox,
+ * then lets the service drop it. Resolves to whether listening time was added. Never throws.
+ */
+export function foldServiceAccounting(profile: string): Promise<boolean> {
+  if (!audio.countsInService) return Promise.resolve(false);
+  // One at a time; a second merge of the same records would be skipped anyway.
+  folding ??= (async () => {
+    try {
+      const batch = await audio.takeAccounting();
+      const merged = mergeServiceAccounting(db, {
+        profileId: profile,
+        batch,
+        addons: addonsFor(profile),
+        now: Date.now(),
+      });
+      if (merged.through !== null) await audio.ackAccounting(batch.epoch, merged.through);
+      if (merged.scrobbles > 0) void flushScrobbles();
+      return merged.listenedMs > 0;
+    } catch {
+      // Unacknowledged records stay with the service for the next try.
+      return false;
+    } finally {
+      folding = null;
+    }
+  })();
+  return folding;
 }
 
 let sending: Promise<void> | null = null;

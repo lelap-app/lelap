@@ -189,6 +189,20 @@ class AudioModule : Module() {
       }
     }
 
+    // Same process: what the service heard (M51), for the app to merge, then acknowledge.
+    AsyncFunction("takeAccounting") {
+      Accounting.edit(context) { log ->
+        mapOf(
+          "epoch" to log.epoch,
+          "records" to log.take().map(::recordMap),
+        )
+      }
+    }
+
+    AsyncFunction("ackAccounting") { epoch: String, through: Double ->
+      Accounting.edit(context) { it.ack(epoch, through.toLong()) }
+    }
+
     // Same process: the service reads the snapshot when Android Auto browses, app open or not.
     AsyncFunction("setCarLibrary") { json: String ->
       val snapshot = CarLibrary.encode(CarLibrary.decode(json))
@@ -291,6 +305,28 @@ class AudioModule : Module() {
         controller = null
       }
     }
+  }
+
+  // Numbers as doubles, like the journal: JavaScript has no longs.
+  private fun recordMap(record: AccountingRecord): Map<String, Any?> = when (record) {
+    is Listened -> mapOf(
+      "seq" to record.seq.toDouble(),
+      "kind" to "listen",
+      "bookId" to record.bookId,
+      "title" to record.title,
+      "day" to record.day,
+      "ms" to record.ms.toDouble(),
+    )
+    is SessionEvent -> mapOf(
+      "seq" to record.seq.toDouble(),
+      "kind" to record.kind,
+      "bookId" to record.bookId,
+      "at" to record.at.toDouble(),
+      "fileLocation" to record.fileLocation,
+      "filePositionMs" to record.filePositionMs.toDouble(),
+      "startLocation" to record.startLocation,
+      "startPositionMs" to record.startPositionMs?.toDouble(),
+    )
   }
 
   private fun withController(promise: Promise, block: (MediaController) -> Unit) {

@@ -48,6 +48,28 @@ export type JournalEntry = {
   savedAt: number;
 };
 
+/**
+ * What the playback service heard (M51), also with the app closed: listening time per book and
+ * local day, and scrobble session events at a file place. `seq` grows by one per record within an
+ * `epoch`. Same shape as `ServiceAccounting` in `@lelap/core`.
+ */
+export type ServiceAccounting = {
+  epoch: string;
+  records: (
+    | { seq: number; kind: 'listen'; bookId: string; title: string; day: string; ms: number }
+    | {
+        seq: number;
+        kind: 'start' | 'progress' | 'pause';
+        bookId: string;
+        at: number;
+        fileLocation: string;
+        filePositionMs: number;
+        startLocation: string | null;
+        startPositionMs: number | null;
+      }
+  )[];
+};
+
 /** Minutes, or the end of the chapter playing, or of the episode (or book). */
 export type SleepTimerMode = 'minutes' | 'chapter' | 'episode';
 
@@ -109,6 +131,8 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   setQueue(queueJson: string): Promise<void>;
   takeFinished(): Promise<FinishedItem[]>;
   takeEarlierPlaces(): Promise<JournalEntry[]>;
+  takeAccounting(): Promise<ServiceAccounting>;
+  ackAccounting(epoch: string, through: number): Promise<void>;
   setCarLibrary(json: string): Promise<void>;
   setBedtime(json: string | null): Promise<void>;
   setDiagnostics(on: boolean): Promise<void>;
@@ -196,6 +220,25 @@ export function takeFinished(): Promise<FinishedItem[]> {
 /** Places of books the service replaced by itself (Up Next, Android Auto), oldest first. */
 export function takeEarlierPlaces(): Promise<JournalEntry[]> {
   return native.takeEarlierPlaces();
+}
+
+/**
+ * Listening time and scrobble sessions are counted in the playback service, not by the app, so
+ * time heard with the app open or closed is counted once.
+ */
+export const countsInService = true;
+
+/**
+ * What the service heard and the app has not acknowledged. Records it returns stay as they are,
+ * so merging them, remembering the highest `seq` and then calling `ackAccounting` merges each once.
+ */
+export function takeAccounting(): Promise<ServiceAccounting> {
+  return native.takeAccounting();
+}
+
+/** Drops the records up to `through`, once the app has merged them. */
+export function ackAccounting(epoch: string, through: number): Promise<void> {
+  return native.ackAccounting(epoch, through);
 }
 
 /** The books Android Auto can browse, as the app last saw them. */

@@ -105,6 +105,11 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M5] Auto-download with 3 newest: three download; marking one played removes it and fetches the next. ([README](../apps/app/README.md#m5-device-checklist))
 - [ ] [M5] Pull to refresh fetches new episodes; an unchanged feed answers 304 (check in logcat or the proxy). ([README](../apps/app/README.md#m5-device-checklist))
 - [ ] [M23] A feed subscribed on an older build gets people and funding after the next refresh on the new one. ([m23](m23-follow-ups.md#1-device-checks))
+- [ ] [M51] Play 20 minutes with the app swiped away, then open Stats: about 20 more minutes today. ([m51](m51-follow-ups.md#checks-on-a-phone))
+- [ ] [M51] 10 minutes with the app open, then 10 with it closed: Stats shows about 20, not 30. ([m51](m51-follow-ups.md#checks-on-a-phone))
+- [ ] [M51] Up Next hands over with the app closed: both episodes get their time in Stats. ([m51](m51-follow-ups.md#checks-on-a-phone))
+- [ ] [M51] `adb shell am kill app.lelap` while playing in the background, Play again: Stats loses at most a few seconds. ([m51](m51-follow-ups.md#checks-on-a-phone))
+- [ ] [M51] Change the phone's clock by an hour while playing: Stats does not jump. ([m51](m51-follow-ups.md#checks-on-a-phone))
 
 ### A5. Sync and data on one device
 
@@ -250,6 +255,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M41] Cast an Audiobookshelf book to Chromecast and a UPnP renderer. ([m41](m41-follow-ups.md#m41-follow-ups))
 - [ ] [M30] Hardcover with a real token: Currently reading with progress after a few minutes, Read with today's date after finishing, the Want to read row. ([m30](m30-follow-ups.md))
 - [ ] [M30] Hardcover events from an offline session arrive with their own times once back online. ([m30](m30-follow-ups.md))
+- [ ] [M51] Hardcover gets start, progress and pause for 15 minutes heard with the app closed, and nothing twice after opening and closing the app; casting time counts too. ([m51](m51-follow-ups.md#checks-on-a-phone))
 - [ ] [M30] gPodder (gpodder.net and Nextcloud gPodder Sync): play and pause an episode; AntennaPod on the same server continues there. ([m30](m30-follow-ups.md))
 - [ ] [M5] Podcast search needs `PODCASTINDEX_KEY` and `PODCASTINDEX_SECRET` on the catalog Worker; try trending and a search. ([m3](m3-follow-ups.md#3-not-verified))
 - [ ] [M30] Set `CONFIG_SECRET` on the catalog Worker; check the CORS preflight for `POST /scrobble` on the deployed catalog. ([m30](m30-follow-ups.md))
@@ -272,6 +278,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M4] A long book overnight on Wi-Fi and a charger, screen off: Downloaded in the morning; once with and once without the battery exemption. ([m4](m4-follow-ups.md#2-risks-to-watch-on-the-device))
 - [ ] [M11] Auto-download on for a podcast, app closed overnight: new episodes are on the phone. ([README](../apps/app/README.md#m11-checks))
 - [ ] [M24] Stats across local midnight and after changing time zone; the streak counts days right. ([m24](m24-follow-ups.md))
+- [ ] [M51] A night with a 30-minute sleep timer and the app closed shows in Stats under the day it was heard, and reaches Hardcover the next morning. ([m51](m51-follow-ups.md#checks-on-a-phone))
 
 ### Releases, updates and infrastructure
 

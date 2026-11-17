@@ -41,7 +41,7 @@ import {
   trackAudiobookshelf,
 } from './audiobookshelf';
 import { fileAccess } from './remote';
-import { flushScrobbles, trackFinished, trackPlayerState } from './scrobble';
+import { flushScrobbles, foldServiceAccounting, trackFinished, trackPlayerState } from './scrobble';
 
 export const IDLE: audio.PlayerState = {
   connected: false,
@@ -171,6 +171,8 @@ async function load(bookId: string, autoplay: boolean, force = false): Promise<v
   await prepareAudiobookshelfBook(bookId, profileId);
   const book = bookLoad(bookId);
   if (!book) throw new Error('The files of this book are not available.');
+  // What the service heard so far belongs to the profile it played for, which may change here.
+  await foldServiceAccounting(playerProfile());
   setDeviceValue(db, PLAYER_PROFILE, profileId, Date.now());
   await audio.load(book, autoplay);
 }
@@ -303,6 +305,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const subscription = audio.addStateListener(setState);
     const start = async () => {
       await foldJournal();
+      await foldServiceAccounting(playerProfile());
       await foldFinished();
       await audio.setSettings(getSettings(db, profileId));
       await applyBedtime(getSettings(db, profileId));
@@ -318,7 +321,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     void flushScrobbles();
     const appState = AppState.addEventListener('change', (status) => {
       if (status !== 'active') return;
-      void foldJournal().then(foldFinished).finally(refresh);
+      void foldJournal()
+        .then(() => foldServiceAccounting(playerProfile()))
+        .then(foldFinished)
+        .finally(refresh);
       void flushScrobbles();
     });
     return () => {
@@ -328,7 +334,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   // Listening time for the stats: what the position advanced since the last report, buffered and
-  // written with the saves below, or as soon as another book starts.
+  // written with the saves below, or as soon as another book starts. Only where the playback
+  // service doesn't count it itself (the web); on Android it comes from foldServiceAccounting.
   const lastTick = useRef<{
     bookId: string;
     title: string | null;
@@ -354,6 +361,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   useEffect(() => {
+    if (audio.countsInService) return;
     const now = Date.now();
     const before = lastTick.current;
     if (before && before.bookId !== state.bookId) flushListening(before.bookId, before.title);
@@ -380,7 +388,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const now = Date.now();
     if (!paused && !(state.playing && now - lastSave.current >= SAVE_INTERVAL_MS)) return;
     lastSave.current = now;
-    flushListening(state.bookId, state.bookTitle);
+    if (audio.countsInService) {
+      void foldServiceAccounting(playerProfile()).then((added) => {
+        if (added && paused) refresh();
+      });
+    } else {
+      flushListening(state.bookId, state.bookTitle);
+    }
     const saved = savePlace(state);
     // Lists show what plays first; refresh once when a book starts, then again on pause.
     const started = state.playing && state.bookId !== refreshedFor.current;
