@@ -20,12 +20,12 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M12 Look and feel          | In progress |
 | M13 Landing page 2         | In progress |
 | M14 Developer platform     | In progress |
+| M16 Organise               | In progress |
 | M17 Car and offline web    | In progress |
 | M18 Updates over the air   | In progress |
 | M19 Security and hardening | In progress |
 | M20 SDK on npm             | In progress |
 | M32 Audnexus               | In progress |
-| M16 Organise               | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
 v1.1. What comes next (v1.0 gaps, proposed M10–M19, smaller tasks): [`next.md`](next.md).
