@@ -27,6 +27,7 @@ describe('settings', () => {
       headphoneBattery: false,
       carModeOffer: false,
       homeSuggestions: true,
+      badgesOnCovers: true,
       language: 'en',
     });
   });

@@ -65,6 +65,7 @@ const catalog = example(CatalogResponse, {
       cover: 'https://media.example.com/secret-garden/cover.jpg',
       year: 1911,
       durationMs: 27812000,
+      badges: { rating: 4.5 },
     },
     {
       id: 'example:wind-in-the-willows',
@@ -533,6 +534,29 @@ const previewFields: Field[] = [
     required: false,
     meaning: 'Total length in milliseconds.',
   },
+  {
+    name: 'badges',
+    type: 'Badges',
+    required: false,
+    meaning: 'Revision 4. Data for the badges the app draws on the cover; see Badges below.',
+  },
+];
+
+const badgeFields: Field[] = [
+  {
+    name: 'rating',
+    type: 'number 0–5',
+    required: false,
+    meaning:
+      'The average rating in stars, such as `4.5`. The app shows one decimal. Leave it out when only a few people have rated.',
+  },
+  {
+    name: 'newEpisodes',
+    type: 'integer ≥ 0',
+    required: false,
+    meaning:
+      'For a podcast: episodes your add-on counts as new, for this listener or since a recent date. `0` draws nothing.',
+  },
 ];
 
 const metaFields: Field[] = [
@@ -708,6 +732,7 @@ const toc: [string, string][] = [
   ['versions', 'Versions'],
   ['configure', 'Configuration page'],
   ['health', 'Health'],
+  ['badges', 'Badges'],
   ['schema', 'JSON Schema'],
 ];
 ---
@@ -1034,8 +1059,9 @@ const toc: [string, string][] = [
   </p>
   <p>
     Revision 2 adds <code>behaviorHints</code>, a configure flow with sign-in, and{' '}
-    <code>/health</code>. When an add-on declares a newer revision than the app knows, Settings →
-    Add-ons says so.
+    <code>/health</code>. Revision 3 adds <a href="#artwork">artwork</a> and{' '}
+    <a href="#in-app">add-ons inside the app</a>; revision 4 adds <a href="#badges">badges</a>. When
+    an add-on declares a newer revision than the app knows, Settings → Add-ons says so.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />
@@ -1107,9 +1133,24 @@ const toc: [string, string][] = [
     with pictures for an item it knows, as{' '}
     <code>{'{ "artwork": [{ "url", "kind", "width", "height" }] }'}</code>. The app asks it only for
     items that come without a cover, picks the best square cover (at least 300 px when one is), and
-    draws any badges itself: send plain pictures, not covers with text baked in. <code>kind</code>{' '}
-    is <code>cover</code> today; other kinds are kept and ignored.
+    draws any <a href="#badges">badges</a> itself: send plain pictures, not covers with text baked
+    in. <code>kind</code> is <code>cover</code> today; other kinds are kept and ignored.
   </p>
+
+  <h2 id="badges">Badges</h2>
+  <p>
+    Since revision 4, a <code>MetaPreview</code> or <code>Meta</code> can carry <code>badges</code>:
+    a rating and a count of new episodes, as data. The app draws them on the cover in its own style,
+    next to its own badges for what the listener finished or how far in they are, and reads them out
+    as part of the item’s name. Listeners can turn badges off in Settings. Badges travel with
+    catalog items, so a row of covers needs no extra request; the artwork route stays for pictures
+    only.
+  </p>
+  <p>
+    An app from before revision 4 ignores <code>badges</code>, and an add-on without them works as
+    before. Fields the app does not know are ignored, so later revisions can add more.
+  </p>
+  <FieldTable fields={badgeFields} />
 
   <h2 id="permissions">What the listener sees before installing</h2>
   <p>

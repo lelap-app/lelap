@@ -19,6 +19,8 @@ const SearchDoc = z.object({
   creator: Text,
   runtime: Scalar,
   date: Scalar,
+  avg_rating: Scalar,
+  num_reviews: Scalar,
 });
 type SearchDoc = z.infer<typeof SearchDoc>;
 
@@ -52,10 +54,38 @@ const Item = z.object({
     collection: Text,
   }),
   files: z.array(z.unknown()).catch([]),
+  reviews: z.array(z.unknown()).catch([]),
 });
-export type Item = { metadata: z.infer<typeof Item>['metadata']; files: ArchiveFile[] };
+const Review = z.object({ stars: Scalar });
+export type Item = {
+  metadata: z.infer<typeof Item>['metadata'];
+  files: ArchiveFile[];
+  /** The stars of each review, 1 to 5. */
+  reviews?: number[];
+};
 
-export const SEARCH_FIELDS = ['identifier', 'title', 'creator', 'runtime', 'subject', 'date'];
+export const SEARCH_FIELDS = [
+  'identifier',
+  'title',
+  'creator',
+  'runtime',
+  'subject',
+  'date',
+  'avg_rating',
+  'num_reviews',
+];
+
+// One or two reviews say little about a recording; below this the cover gets no rating.
+export const MIN_REVIEWS = 3;
+
+/** archive.org's average review, 1 to 5 stars, rounded to a tenth; none from too few reviews. */
+export function ratingOf(doc: Pick<SearchDoc, 'avg_rating' | 'num_reviews'>): number | undefined {
+  const rating = Number.parseFloat(String(doc.avg_rating));
+  const reviews = Number.parseFloat(String(doc.num_reviews));
+  if (!Number.isFinite(rating) || !Number.isFinite(reviews) || reviews < MIN_REVIEWS) return;
+  if (rating < 0 || rating > 5) return;
+  return Math.round(rating * 10) / 10;
+}
 
 export type SearchQuery = {
   /** Lucene, built only from `wordsQuery`, `genreQuery` and `lookupQuery`; empty for all. */
@@ -120,7 +150,11 @@ export function parseItem(data: unknown): Item | null {
     const result = ArchiveFile.safeParse(file);
     return result.success ? [result.data] : [];
   });
-  return { metadata: parsed.data.metadata, files };
+  const reviews = parsed.data.reviews.flatMap((review) => {
+    const stars = Number.parseFloat(String(Review.safeParse(review).data?.stars));
+    return Number.isFinite(stars) ? [stars] : [];
+  });
+  return { metadata: parsed.data.metadata, files, reviews };
 }
 
 export const metadataUrl = (identifier: string) =>
@@ -147,6 +181,8 @@ export function toPreview(doc: SearchDoc): MetaPreview | null {
   if (year) preview.year = year;
   const durationMs = durationOf(doc.runtime);
   if (durationMs) preview.durationMs = durationMs;
+  const rating = ratingOf(doc);
+  if (rating !== undefined) preview.badges = { rating };
   return preview;
 }
 
@@ -308,5 +344,13 @@ export function toMeta(item: Item): Meta | null {
   }
   const durationMs = total ?? durationOf(metadata.runtime);
   if (durationMs) meta.durationMs = durationMs;
+
+  // The same rating the catalog shows, worked out from the reviews themselves.
+  const reviews = item.reviews ?? [];
+  const rating = ratingOf({
+    avg_rating: reviews.reduce((sum, stars) => sum + stars, 0) / reviews.length,
+    num_reviews: reviews.length,
+  });
+  if (rating !== undefined) meta.badges = { rating };
   return meta;
 }

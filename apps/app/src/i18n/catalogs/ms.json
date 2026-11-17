@@ -669,5 +669,13 @@
   "{what}. Opens the player.": "{what}. Membuka pemain.",
   "Not playing": "Tidak dimainkan",
   "Playing": "Sedang dimainkan",
-  "Paused": "Dijeda"
+  "Paused": "Dijeda",
+  "Badges on covers": "Lencana pada kulit buku",
+  "A rating and new episodes from add-ons, and what you finished or started, drawn on covers.": "Penarafan dan episod baharu daripada alat tambah, serta apa yang anda telah habiskan atau mulakan, dipaparkan pada kulit buku.",
+  "Cover: {badges}": "Kulit buku: {badges}",
+  "{n} % listened": "{n} % didengar",
+  "1 new episode": "1 episod baharu",
+  "{n} new episodes": "{n} episod baharu",
+  "{n} new": "{n} baharu",
+  "Rated {stars} of 5": "Penarafan {stars} daripada 5"
 }

@@ -26,6 +26,7 @@ import { COLORS, Icon, IconButton } from '../src/components/Icon';
 import { addItem, playItem, queries, useAddons, useArtwork } from '../src/addons';
 import { sourceCache } from '../src/availability';
 import { BookCover, coverUri } from '../src/components/BookCover';
+import { badgeWords, useBookBadges } from '../src/components/CoverBadges';
 import { DownloadButton } from '../src/components/DownloadButton';
 import { db } from '../src/db';
 import { startDownload } from '../src/downloads';
@@ -170,6 +171,7 @@ export default function ItemScreen() {
   };
 
   const title = item?.name ?? saved?.book.title ?? '';
+  const badges = useBookBadges(saved?.book, 220, item?.badges);
   const canPlay = (item !== undefined && stream !== undefined) || saved !== null;
   const looking = (meta.isPending || sources.isPending) && !saved;
   const noAudio = !saved && sources.isSuccess && found.length === 0;
@@ -208,11 +210,21 @@ export default function ItemScreen() {
       ) : (
         <View className="gap-5 px-4">
           <View className="items-center gap-3">
-            <BookCover
-              uri={saved?.book.coverPath ? coverUri(saved.book) : artwork}
-              title={title}
-              size={220}
-            />
+            {/* The cover is read only when it has badges, as one picture with them in its name. */}
+            <View
+              {...(badges.length > 0 && {
+                accessible: true,
+                accessibilityRole: 'image' as const,
+                accessibilityLabel: t('Cover: {badges}', { badges: badgeWords(badges) }),
+              })}
+            >
+              <BookCover
+                uri={saved?.book.coverPath ? coverUri(saved.book) : artwork}
+                title={title}
+                size={220}
+                badges={badges}
+              />
+            </View>
             <Text
               accessibilityRole="header"
               className="text-center text-2xl font-semibold text-paper"

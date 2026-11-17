@@ -165,6 +165,9 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M48] Profile in Bahasa Melayu, play a book: `uiautomator dump` of the notification shows “Undur 30 saat”, “Maju 30 saat”, “Pemasa tidur dimatikan”; `adb shell cmd notification list_channels app.lelap` (or the settings screen) names the player's channel “Kini dimainkan”. Back to English: the names follow without a restart. ([m48](m48-follow-ups.md#native))
 - [ ] [M48] Malay chosen, app swiped away: the widget reads “Tiada yang dimainkan” or the book with “Jeda”/“Main”, the tile “Sedang dimainkan” or “Dijeda”; switch to English in the app and both redraw. A Malay and an English profile switch them along. ([m48](m48-follow-ups.md#widget))
 - [ ] [M48] A download in Malay shows “Memuat turun” with “Batal”; finding chapters shows “Mencari bab” with “Henti”. ([m48](m48-follow-ups.md#downloads))
+- [ ] [M49] Play a LibriVox book from Discover for a minute, go back: its tile shows the percent; Mark as finished in the Library: the tile and its Home row show ✓ next to the ★ rating. ([m49](m49-follow-ups.md#state))
+- [ ] [M49] Settings → Catalogs → Badges on covers off: no badges on Home, Discover, Search, the Library, the Continue listening card or the item page; on again brings them back; a second profile keeps its own choice. ([m49](m49-follow-ups.md#setting))
+- [ ] [M49] `uiautomator dump` on Discover: each tile is one node named with its badges (“…, Rated 4.6 of 5”), no separate badge node; the item page cover is one node “Cover: Rated 4.6 of 5”. A Malay profile reads “Penarafan 4.6 daripada 5”. ([m49](m49-follow-ups.md#talkback))
 - [x] [M12] Player buttons carry names for TalkBack (Back 30 seconds, Play, Next chapter, …) in `uiautomator dump`. ([m12](m12-follow-ups.md)) **Passed 2026-11-17**: speed button now says Speed, 1× (#66).
 - [ ] [M9] Install the web app from Chrome on the phone: `listen.lelap.app` → Add to home screen. ([README](../apps/app/README.md#checks-after-m9-2026-11-16))
 - [ ] [M29] Expired link, playback and download: an add-on on the laptop (`adb reverse`) whose `/resolve/…` link answers 403 after a minute; playback continues, the download resumes, a link that keeps failing errors after one retry. ([m29](m29-follow-ups.md#phone-checks))
@@ -200,6 +203,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M22] Casting is not disturbed by the audio switches; local playback picks them up again afterwards. ([m22](m22-follow-ups.md))
 - [ ] [M47] With the diagnostics log on, a phone call during a book and unplugging wired headphones show in the file as a focus event and `paused-by-system AUDIO_BECOMING_NOISY (3)`, also with the app swiped away first. ([m47](m47-follow-ups.md#log))
 - [ ] [M48] Android Auto (or the Desktop Head Unit) with a Malay profile: the shelves read “Teruskan mendengar”, “Dalam telefon ini”, “Podcast”, “Seterusnya”. ([m48](m48-follow-ups.md#auto))
+- [ ] [M49] TalkBack on Discover, the item page and the Library: badges are read with the tile or cover, never as their own stop; at the largest font size they stay inside their cover. ([m49](m49-follow-ups.md#large-text))
 - [ ] [M48] From a GitHub account without write access: edit `catalogs/ms.json` in the browser and propose it, then add a language from `template.json`; the check points at problem lines, and the translation issue form files. ([m48](m48-follow-ups.md#flow))
 
 ### By ear or by hand

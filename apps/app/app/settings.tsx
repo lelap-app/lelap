@@ -221,7 +221,7 @@ export default function SettingsScreen() {
     if (key === 'headphoneBattery' || key === 'carModeOffer') void followDevices(next);
     if (key === 'language') setLanguage(next.language);
     // Home reads it again on the library's signal.
-    if (key === 'homeSuggestions') refresh();
+    if (key === 'homeSuggestions' || key === 'badgesOnCovers') refresh();
   };
 
   // Both need “nearby devices”, asked for only when one is turned on.
@@ -528,6 +528,17 @@ export default function SettingsScreen() {
           <Toggle
             value={settings.homeSuggestions}
             onValueChange={(v) => update('homeSuggestions', v)}
+          />
+        </Row>
+        <Row
+          label={t('Badges on covers')}
+          detail={t(
+            'A rating and new episodes from add-ons, and what you finished or started, drawn on covers.',
+          )}
+        >
+          <Toggle
+            value={settings.badgesOnCovers}
+            onValueChange={(v) => update('badgesOnCovers', v)}
           />
         </Row>
 

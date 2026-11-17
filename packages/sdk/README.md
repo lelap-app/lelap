@@ -2,7 +2,7 @@
 
 Types, zod schemas and a request handler for [Lelap](https://github.com/lelap-app/lelap) add-ons.
 An add-on is a stateless HTTP service that answers with JSON: catalogs, metadata and audio sources
-for the Lelap player. The SDK speaks protocol v1, revision 2, so your code is a manifest and a
+for the Lelap player. The SDK speaks protocol v1, revision 4, so your code is a manifest and a
 handler for each resource.
 
 ```sh
@@ -44,7 +44,8 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
 ## What's inside
 
 - **Schemas and types** for every protocol object: `Manifest`, `MetaPreview`, `Meta`, `Stream`,
-  `CatalogResponse`, `MetaResponse`, `StreamResponse` and their parts. Each is a zod schema and a
+  `CatalogResponse`, `MetaResponse`, `StreamResponse` and their parts, such as `Badges`: a rating
+  and new episodes that the app draws on an item's cover. Each is a zod schema and a
   TypeScript type of the same name.
 - **`createAddon(handlers, options)`** turns handlers into `fetch(request)`. `options.basePath`
   mounts several add-ons under one host.

@@ -5,6 +5,7 @@ import {
   isConfigurable,
   Manifest,
   Meta,
+  MetaPreview,
   needsConfiguration,
   offersHealth,
   protocolVersionOf,
@@ -42,6 +43,34 @@ describe('supports', () => {
     const open = { ...base, idPrefixes: undefined, resources: ['meta' as const] };
     expect(supports(open, 'meta', 'audiobook', 'anything:1')).toBe(true);
     expect(supports(open, 'stream', 'audiobook', 'anything:1')).toBe(false);
+  });
+});
+
+describe('MetaPreview badges', () => {
+  const item = { id: 'lv:1', type: 'audiobook', name: 'A' } as const;
+
+  it('keeps a rating and a count of new episodes', () => {
+    const parsed = MetaPreview.parse({ ...item, badges: { rating: 4.5, newEpisodes: 3 } });
+    expect(parsed.badges).toEqual({ rating: 4.5, newEpisodes: 3 });
+  });
+
+  it('accepts items without badges, as from older add-ons', () => {
+    expect(MetaPreview.parse(item).badges).toBeUndefined();
+  });
+
+  it('drops badge fields it does not know, so later revisions can add some', () => {
+    const parsed = MetaPreview.parse({ ...item, badges: { rating: 3, sparkles: true } });
+    expect(parsed.badges).toEqual({ rating: 3 });
+  });
+
+  it('rejects a rating outside 0 to 5 and a negative count', () => {
+    expect(MetaPreview.safeParse({ ...item, badges: { rating: 7 } }).success).toBe(false);
+    expect(MetaPreview.safeParse({ ...item, badges: { newEpisodes: -1 } }).success).toBe(false);
+    expect(MetaPreview.safeParse({ ...item, badges: { newEpisodes: 1.5 } }).success).toBe(false);
+  });
+
+  it('carries over to Meta', () => {
+    expect(Meta.parse({ ...item, badges: { rating: 2 } }).badges).toEqual({ rating: 2 });
   });
 });
 

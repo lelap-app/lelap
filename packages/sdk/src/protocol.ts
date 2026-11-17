@@ -9,9 +9,10 @@ export const PROTOCOL_VERSION = 1;
 /**
  * The newest revision of protocol 1 this SDK knows; manifests declare it as `protocolVersion`.
  * Revisions only add things, so an older app ignores what it does not know. Absent means 1.
- * 2 adds `behaviorHints` (a `/configure` page, sign-in) and `GET /health`; 3 adds `artwork`.
+ * 2 adds `behaviorHints` (a `/configure` page, sign-in) and `GET /health`; 3 adds `artwork`; 4
+ * adds `badges` on items.
  */
-export const LATEST_PROTOCOL_VERSION = 3;
+export const LATEST_PROTOCOL_VERSION = 4;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
@@ -104,6 +105,19 @@ export const Manifest = z.object({
 });
 export type Manifest = z.infer<typeof Manifest>;
 
+/**
+ * Since revision 4: what the app may draw on an item's cover, as data. The app draws every badge
+ * in one style, adds its own (finished, progress) and lets the listener turn them off, so send
+ * plain covers without text baked in. Unknown fields are ignored.
+ */
+export const Badges = z.object({
+  /** The average rating from 0 to 5 stars, such as `4.5`; leave it out when few have rated. */
+  rating: z.number().min(0).max(5).optional(),
+  /** For a podcast: episodes the add-on counts as new for this listener or since a recent date. */
+  newEpisodes: z.number().int().nonnegative().optional(),
+});
+export type Badges = z.infer<typeof Badges>;
+
 export const MetaPreview = z.object({
   id: ItemId,
   type: ContentType,
@@ -113,6 +127,8 @@ export const MetaPreview = z.object({
   description: z.string().optional(),
   year: z.number().int().optional(),
   durationMs: Duration.optional(),
+  /** Since revision 4. */
+  badges: Badges.optional(),
 });
 export type MetaPreview = z.infer<typeof MetaPreview>;
 
@@ -208,7 +224,10 @@ export const StreamResponse = z.object({
 });
 export type StreamResponse = z.infer<typeof StreamResponse>;
 
-/** One picture of an item. The app picks the best square cover itself and draws any badges. */
+/**
+ * One picture of an item. The app picks the best square cover itself and draws any badges from the
+ * item's `badges`.
+ */
 export const ArtworkImage = z.object({
   url: Url,
   /** `cover` is the item's cover; others, such as `banner`, are kept for later and ignored. */
