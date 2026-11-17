@@ -184,6 +184,19 @@ describe('downloads', () => {
     ]);
   });
 
+  it('shows why a download into a missing folder failed', () => {
+    const bookId = add(db);
+    requestDownload(db, planDownload(db, bookId), meta, 10);
+    const error = 'The download folder can’t be reached.';
+    applyDownloadStatuses(
+      db,
+      DIR,
+      [status(bookId, { state: 'failed', unavailable: true, error })],
+      20,
+    );
+    expect(getDownload(db, bookId)).toMatchObject({ state: 'failed', error });
+  });
+
   it('never deletes a download it cannot see', () => {
     const fold = applyDownloadStatuses(
       db,

@@ -75,13 +75,22 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         }
         Downloads.clearError(dir)
         // The listener chose another folder while this book was downloading: move it there now.
-        if (job.location != Downloads.location(applicationContext)) Mover.start(applicationContext)
+        if (job.location != Downloads.location(applicationContext)) Mover.start(applicationContext, delaySeconds = 5)
         Result.success()
       } catch (e: CancellationException) {
         throw e
       } catch (e: PermanentFailure) {
         Downloads.writeError(dir, e.message ?: "The download failed.")
         Result.failure()
+      } catch (e: RuntimeException) {
+        // The Storage Access Framework throws these when a card goes or a permission is withdrawn.
+        if (e is CancellationException) throw e
+        if (runAttemptCount + 1 >= MAX_ATTEMPTS) {
+          Downloads.writeError(dir, "The download kept failing: ${e.message ?: "storage error"}")
+          Result.failure()
+        } else {
+          Result.retry()
+        }
       } catch (e: IOException) {
         if (runAttemptCount + 1 >= MAX_ATTEMPTS) {
           Downloads.writeError(dir, "The download kept failing: ${e.message ?: "network error"}")

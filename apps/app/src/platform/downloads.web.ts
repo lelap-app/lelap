@@ -192,6 +192,7 @@ export function location(): Promise<DownloadLocation> {
 export const chooseLocation = (): Promise<boolean> => Promise.resolve(false);
 export async function resetLocation(): Promise<void> {}
 export async function resumeMove(): Promise<void> {}
+export async function releaseOld(): Promise<void> {}
 
 export const isIgnoringBatteryOptimizations = () => true;
 

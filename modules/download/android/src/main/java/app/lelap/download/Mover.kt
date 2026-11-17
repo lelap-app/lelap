@@ -34,10 +34,14 @@ private const val PROGRESS_INTERVAL_MS = 1_000L
 object Mover {
   private const val ERROR_FILE = "move-error.txt"
 
-  /** Starts a move, or queues one after a move already running, which may have passed a book. */
-  fun start(context: Context) {
+  /**
+   * Starts a move, or queues one after a move already running, which may have passed a book.
+   * [delaySeconds] lets a download that asks for the move finish first, so it is not skipped.
+   */
+  fun start(context: Context, delaySeconds: Long = 0) {
     val request = OneTimeWorkRequestBuilder<MoveWorker>()
       .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+      .setInitialDelay(delaySeconds, TimeUnit.SECONDS)
       .build()
     WorkManager.getInstance(context).enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
   }
@@ -94,59 +98,70 @@ class MoveWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         Result.success()
       } catch (e: CancellationException) {
         throw e
-      } catch (e: IOException) {
-        // The files that were not copied stay where they were; nothing is deleted before its copy is checked.
+      } catch (e: Exception) {
+        // IOException, and the runtime exceptions the Storage Access Framework throws when a card
+        // goes mid-call. Every book keeps its files where its job says; originals are only ever
+        // deleted after the job points at their copies.
         Mover.setError(context, NativeText.t(context, "Moving downloads stopped: {reason}", "reason" to (e.message ?: "")))
         Result.failure()
       }
     }
   }
 
-  private suspend fun moveBook(job: DownloadJob, from: Place, to: Place) {
+  private fun moveBook(job: DownloadJob, from: Place, to: Place) {
     val context = applicationContext
+    val dir = Downloads.bookDir(context, job.bookId)
+    val target = to.uri
+    synchronized(Downloads.lock) {
+      // Copies an earlier move left in the target are about to be reused, or replaced: they are
+      // no longer old, and must not be deleted under the copy.
+      Downloads.writeOld(dir, Downloads.readOld(dir).filter { it.location != target })
+    }
     val source = from.folder(job.bookId, create = false)
     val bytes = source?.list()?.values?.sum() ?: 0L
     val space = to.space()
     if (source != null && space != null && space.first < bytes) {
       throw IOException(NativeText.t(context, "There is not enough space in the new folder."))
     }
-    val target = to.uri
-    val commit = {
-      synchronized(Downloads.lock) {
-        val dir = Downloads.bookDir(context, job.bookId)
-        val current = Downloads.readJob(dir)
-        val work = Downloads.workState(context, job.bookId)
-        // Gone, or started again meanwhile: leave it where it was.
-        if (current == null || !LocationRules.shouldMove(current.location, target, work)) {
-          false
-        } else {
-          Downloads.writeJob(dir, current.copy(location = target))
-          true
-        }
-      }
-    }
-    if (source == null) {
-      // Nothing on disk yet: the book only needs to point at the new folder.
-      commit()
-      return
-    }
-    val folder = to.folder(job.bookId, create = true) ?: throw IOException("No folder for the book.")
+    val folder = if (source == null) null else to.folder(job.bookId, create = true) ?: throw IOException("No folder for the book.")
     var lastReport = 0L
     val worker = this
-    val done = BookMove.move(
-      from = source,
-      to = folder,
-      commit = commit,
-      checkStopped = { if (worker.isStopped) throw CancellationException("Stopped") },
-      onBytes = { copied ->
-        val now = SystemClock.elapsedRealtime()
-        if (now - lastReport >= PROGRESS_INTERVAL_MS) {
-          lastReport = now
-          runBlocking { setProgress(workDataOf("bookId" to job.bookId, "bytesDone" to copied, "bytesTotal" to bytes)) }
-        }
-      },
-    )
-    if (done) from.removeFolder(job.bookId) else to.removeFolder(job.bookId)
+    val names = if (source == null || folder == null) {
+      emptyList()
+    } else {
+      BookMove.copy(
+        from = source,
+        to = folder,
+        checkStopped = { if (worker.isStopped) throw CancellationException("Stopped") },
+        onBytes = { copied ->
+          val now = SystemClock.elapsedRealtime()
+          if (now - lastReport >= PROGRESS_INTERVAL_MS) {
+            lastReport = now
+            runBlocking { setProgress(workDataOf("bookId" to job.bookId, "bytesDone" to copied, "bytesTotal" to bytes)) }
+          }
+        },
+      )
+    }
+    synchronized(Downloads.lock) {
+      val current = Downloads.readJob(dir)
+      val unchanged = current != null &&
+        current.revision == job.revision &&
+        current.location == job.location &&
+        LocationRules.shouldMove(current.location, target, Downloads.workState(context, job.bookId))
+      if (unchanged && current != null) {
+        // The originals go on the list first, so a crash right after never loses track of them.
+        // They are deleted once the app has moved the player to the new files (releaseOld).
+        Downloads.writeOld(dir, Downloads.readOld(dir) + OldCopy(job.location, names))
+        Downloads.writeJob(dir, current.copy(location = target))
+        return
+      }
+      // Removed, started again or moved meanwhile. The copies go, unless the book lives in the
+      // target now, where they may be its files.
+      if (current?.location != target && folder != null) {
+        names.forEach(folder::delete)
+        if (target != null && folder.list().isEmpty()) to.removeFolder(job.bookId)
+      }
+    }
   }
 
   private fun foregroundInfo(done: Int, total: Int): ForegroundInfo {

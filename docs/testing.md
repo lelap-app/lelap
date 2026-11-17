@@ -286,7 +286,7 @@ offline, the background engine, sync on one device, and UI features.
 ### SD card
 
 - [ ] [M53] With books on the SD card, take the card out: they stream where they can, Settings says the folder can't be reached, and nothing is deleted; put it back: they play from the card again. ([m53](m53-follow-ups.md#on-a-phone))
-- [ ] [M53] A book that plays while it moves keeps playing, or plays on after pressing Play. ([m53](m53-follow-ups.md#on-a-phone))
+- [ ] [M53] A book that plays while it moves keeps playing from the old copy; after pausing, the old copy is gone. ([m53](m53-follow-ups.md#on-a-phone))
 
 ### Over days and nights
 

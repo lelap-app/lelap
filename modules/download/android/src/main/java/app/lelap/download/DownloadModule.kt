@@ -91,6 +91,10 @@ class DownloadModule : Module() {
       }
     }
 
+    AsyncFunction("releaseOld") Coroutine { bookId: String, location: String? ->
+      withContext(Dispatchers.IO) { Downloads.releaseOld(context, bookId, location) }
+    }
+
     AsyncFunction("resumeMove") Coroutine { ->
       withContext(Dispatchers.IO) { Mover.resume(context) }
     }

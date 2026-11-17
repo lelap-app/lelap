@@ -11,6 +11,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import java.io.File
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 /**
@@ -68,7 +69,7 @@ object Downloads {
     // A book keeps the place its files are in; a new one goes to the current folder.
     val existing = readJob(dir)
     val location = if (existing != null) existing.location else location(context)
-    writeJob(dir, job.copy(location = location))
+    writeJob(dir, job.copy(location = location, revision = UUID.randomUUID().toString()))
     clearError(dir)
 
     val constraints = Constraints.Builder()
@@ -93,12 +94,55 @@ object Downloads {
   fun remove(context: Context, bookId: String) {
     WorkManager.getInstance(context).cancelUniqueWork(workName(bookId)).result.get()
     if (!DownloadJob.isSafeName(bookId)) return
-    val dir = bookDir(context, bookId)
-    readJob(dir)?.location?.let { uri ->
-      // A missing SD card keeps its copy; the files are the listener's to delete from there.
-      runCatching { place(context, uri).takeIf { it.available() }?.removeFolder(bookId) }
+    synchronized(lock) {
+      val dir = bookDir(context, bookId)
+      // The book's folder, and any copies a move left in another one.
+      val locations = (listOfNotNull(readJob(dir)?.location) + readOld(dir).map { it.location }).filterNotNull().distinct()
+      for (uri in locations) {
+        // A missing SD card keeps its copy; the files are the listener's to delete from there.
+        runCatching { place(context, uri).takeIf { it.available() }?.removeFolder(bookId) }
+      }
+      dir.deleteRecursively()
     }
-    dir.deleteRecursively()
+  }
+
+  private const val OLD_FILE = "old.json"
+
+  fun readOld(dir: File): List<OldCopy> = OldCopies.decode(File(dir, OLD_FILE).takeIf { it.isFile }?.readText())
+
+  fun writeOld(dir: File, copies: List<OldCopy>) {
+    val file = File(dir, OLD_FILE)
+    if (copies.isEmpty()) {
+      file.delete()
+      return
+    }
+    val tmp = File(dir, "$OLD_FILE.tmp")
+    tmp.writeText(OldCopies.encode(copies))
+    if (!tmp.renameTo(file)) throw java.io.IOException("Could not save the list of old copies.")
+  }
+
+  /**
+   * Deletes the copies a move left behind, once the app has moved the player to the new files.
+   * A place that can't be reached keeps its copies on the list for later.
+   */
+  fun releaseOld(context: Context, bookId: String, seen: String?) = synchronized(lock) {
+    if (!DownloadJob.isSafeName(bookId)) return@synchronized
+    val dir = bookDir(context, bookId)
+    // Moved again since the app read the book's paths: those may still be the old ones.
+    val job = readJob(dir)?.takeIf { it.location == seen } ?: return@synchronized
+    val kept = mutableListOf<OldCopy>()
+    for (copy in OldCopies.deletable(readOld(dir), job.location)) {
+      val place = place(context, copy.location)
+      val done = runCatching {
+        if (!place.available()) return@runCatching false
+        val folder = place.folder(bookId, create = false) ?: return@runCatching true
+        copy.names.forEach(folder::delete)
+        if (copy.location != null && folder.list().isEmpty()) place.removeFolder(bookId)
+        true
+      }.getOrDefault(false)
+      if (!done) kept += copy
+    }
+    writeOld(dir, kept)
   }
 
   /** Re-enqueues every unfinished download with new rules. */
@@ -145,7 +189,7 @@ object Downloads {
       val done = job.files.filter { it.name in files }
       val partial = job.files.sumOf { files[it.name + PART_SUFFIX] ?: 0L }
       val cover = job.cover?.name?.takeIf { it in files }
-      val paths = folder?.let { f -> runCatching { f.paths(done.map { it.name } + listOfNotNull(cover)) }.getOrNull() }.orEmpty()
+      val paths = folder?.let { f -> runCatching { f.paths(done.map { it.name } + listOfNotNull(cover)) }.getOrNull() }
       val error = File(dir, ERROR_FILE).takeIf { it.isFile }?.readText()
       mapOf(
         "bookId" to job.bookId,
@@ -154,9 +198,11 @@ object Downloads {
         "bytesTotal" to job.files.sumOf { it.size }.toDouble(),
         "files" to done.map { it.name },
         "cover" to cover,
-        "paths" to paths,
+        "paths" to paths.orEmpty(),
         // The folder is there but can't be reached: an SD card taken out. Nothing is lost.
-        "unavailable" to (folders == null),
+        "unavailable" to (folders == null || (folder != null && paths == null)),
+        "oldCopies" to File(dir, OLD_FILE).isFile,
+        "location" to job.location,
         "error" to error,
       )
     }

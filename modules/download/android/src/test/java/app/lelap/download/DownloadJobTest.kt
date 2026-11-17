@@ -20,7 +20,7 @@ class DownloadJobTest {
     val withLogin = job.copy(headers = mapOf("Authorization" to "Basic bWU6cHc="))
     assertEquals(withLogin, DownloadJob.decode(withLogin.encode()))
     assertEquals(job.copy(cover = null), DownloadJob.decode(job.copy(cover = null).encode()))
-    val onCard = job.copy(location = "content://com.android.externalstorage.documents/tree/1A2B-3C4D%3A")
+    val onCard = job.copy(location = "content://com.android.externalstorage.documents/tree/1A2B-3C4D%3A", revision = "r1")
     assertEquals(onCard, DownloadJob.decode(onCard.encode()))
   }
 

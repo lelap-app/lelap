@@ -21,6 +21,7 @@ import { queryClient } from './addons';
 import { db } from './db';
 import { logDiagnostic } from './diagnostics';
 import { formatBytes } from './format';
+import * as audio from './platform/audio';
 import * as native from './platform/downloads';
 import { reloadBook, useLibrary } from './player';
 import { profileId } from './profile';
@@ -107,6 +108,16 @@ async function syncDownloads(onChange: () => void): Promise<Map<string, native.D
     if (row?.state === 'done') await reloadBook(bookId, false).catch(() => {});
   }
   if (fold.changed.length > 0) onChange();
+  // Books that moved to another folder: the old copies go once the player reads the new ones.
+  // A book that is playing keeps them until it pauses; a reload then switches it over.
+  for (const status of statuses.filter((s) => s.oldCopies && !fold.orphans.includes(s.bookId))) {
+    const playing = await audio.getState().catch(() => null);
+    if (playing?.bookId === status.bookId) {
+      if (playing.playing) continue;
+      await reloadBook(status.bookId, false).catch(() => {});
+    }
+    await native.releaseOld(status.bookId, status.location ?? null).catch(() => {});
+  }
   return new Map(
     statuses.filter((s) => !fold.orphans.includes(s.bookId)).map((s) => [s.bookId, s]),
   );

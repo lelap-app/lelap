@@ -28,6 +28,8 @@ export type NativeDownloadStatus = {
   paths?: Record<string, string>;
   /** The folder holding the book can't be reached, such as an SD card that was taken out. */
   unavailable?: boolean;
+  /** A move left copies in the old folder, deleted once the player no longer reads them. */
+  oldCopies?: boolean;
   error: string | null;
 };
 
@@ -143,9 +145,8 @@ export function applyDownloadStatuses(
         if (!status.unavailable) orphans.push(status.bookId);
         continue;
       }
-      if (status.unavailable) {
+      if (status.unavailable && row.state === 'done') {
         // Until the folder is back the book streams, where it can, and keeps its download.
-        if (row.state !== 'done') continue;
         const onDisk = and(eq(bookFiles.bookId, status.bookId), isNotNull(bookFiles.downloadPath));
         if (!tx.select({ id: bookFiles.id }).from(bookFiles).where(onDisk).get()) continue;
         tx.update(bookFiles).set({ downloadPath: null, updatedAt: now }).where(onDisk).run();

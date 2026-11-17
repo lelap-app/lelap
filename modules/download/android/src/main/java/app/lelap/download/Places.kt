@@ -35,7 +35,7 @@ interface Place {
 }
 
 /** Files Lelap keeps next to a privately stored book that are not the book itself. */
-val BOOKKEEPING = setOf("job.json", "job.json.tmp", "error.txt")
+val BOOKKEEPING = setOf("job.json", "job.json.tmp", "error.txt", "old.json", "old.json.tmp")
 
 /** The app's private storage: each book's files sit next to its `job.json`. */
 class PrivatePlace(private val root: File) : Place {
@@ -126,6 +126,13 @@ class TreePlace(private val context: Context, private val tree: Uri) : Place {
   }
 
   override fun folder(bookId: String, create: Boolean): BookFolder? {
+    // Downloads and the move run side by side; two of them creating `Lelap/` at once would get
+    // `Lelap (1)` from the provider, and books in it would never be found.
+    if (create) return synchronized(TreePlace::class.java) { folderOrNull(bookId, true) }
+    return folderOrNull(bookId, false)
+  }
+
+  private fun folderOrNull(bookId: String, create: Boolean): BookFolder? {
     val base = base(create) ?: return null
     return directory(base, bookId, create)?.let(::TreeFolder)
   }

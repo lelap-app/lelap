@@ -14,6 +14,8 @@ import org.junit.Test
 class BookMoveTest {
   private fun dir(): File = Files.createTempDirectory("move").toFile()
 
+  private val parts = mapOf("001.mp3" to 300_000L, "002.mp3" to 10L, "cover.jpg" to 5L)
+
   private fun book(): FileFolder {
     val folder = FileFolder(dir(), BOOKKEEPING)
     File(folder.dir, "job.json").writeText("{}")
@@ -23,19 +25,17 @@ class BookMoveTest {
     return folder
   }
 
-  @Test fun `moves every file, then deletes the originals but not the bookkeeping`() {
+  @Test fun `copies every file and keeps the originals and the bookkeeping`() {
     val from = book()
     val to = FileFolder(dir())
-    var committed = false
-    assertTrue(BookMove.move(from, to, commit = { committed = true; true }))
-    assertTrue(committed)
-    assertEquals(mapOf("001.mp3" to 300_000L, "002.mp3" to 10L, "cover.jpg" to 5L), to.list())
-    assertEquals(emptyMap<String, Long>(), from.list())
+    assertEquals(parts.keys, BookMove.copy(from, to).toSet())
+    assertEquals(parts, to.list())
+    assertEquals(parts, from.list())
     assertTrue(File(from.dir, "job.json").isFile)
     assertEquals(File(to.dir, "001.mp3").readBytes().toList(), ByteArray(300_000) { it.toByte() }.toList())
   }
 
-  @Test fun `a copy that breaks off keeps every original and the old place`() {
+  @Test fun `a copy that breaks off leaves no file under its own name`() {
     val from = book()
     // Fails after 100 kB: a full SD card or one pulled out mid-copy.
     val real = FileFolder(dir())
@@ -54,15 +54,13 @@ class BookMoveTest {
         }
       }
     }
-    var committed = false
     try {
-      BookMove.move(from, to, commit = { committed = true; true })
-      fail("the move should stop")
+      BookMove.copy(from, to)
+      fail("the copy should stop")
     } catch (e: IOException) {
       assertEquals("No space left", e.message)
     }
-    assertFalse(committed)
-    assertEquals(setOf("001.mp3", "002.mp3", "cover.jpg"), from.list().keys)
+    assertEquals(parts, from.list())
     assertNull(to.length("001.mp3"))
   }
 
@@ -71,8 +69,8 @@ class BookMoveTest {
     val to = FileFolder(dir())
     File(to.dir, "002.mp3").writeBytes(ByteArray(10) { 7 })
     File(to.dir, "001.mp3.move").writeBytes(ByteArray(42))
-    assertTrue(BookMove.move(from, to, commit = { true }))
-    assertEquals(mapOf("001.mp3" to 300_000L, "002.mp3" to 10L, "cover.jpg" to 5L), to.list())
+    BookMove.copy(from, to)
+    assertEquals(parts, to.list())
   }
 
   @Test fun `a copy that comes out short is never given the file's name`() {
@@ -82,21 +80,35 @@ class BookMoveTest {
       override fun list(): Map<String, Long> = emptyMap()
     }
     try {
-      BookMove.move(from, to, commit = { true })
-      fail("the move should stop")
+      BookMove.copy(from, to)
+      fail("the copy should stop")
     } catch (e: IOException) {
       assertTrue(e.message!!.contains("wrong size"))
     }
-    assertEquals(setOf("001.mp3", "002.mp3", "cover.jpg"), from.list().keys)
+    assertEquals(parts, from.list())
+  }
+}
+
+class OldCopiesTest {
+  private val card = "content://com.android.externalstorage.documents/tree/1A2B-3C4D%3A"
+
+  @Test fun `round-trips and drops unsafe names`() {
+    val copies = listOf(OldCopy(null, listOf("001.mp3", "cover.jpg")), OldCopy(card, listOf("002.mp3")))
+    assertEquals(copies, OldCopies.decode(OldCopies.encode(copies)))
+    assertEquals(
+      listOf(OldCopy(null, listOf("001.mp3"))),
+      OldCopies.decode("""[{"location":null,"names":["001.mp3","../job.json"]}]"""),
+    )
+    assertEquals(emptyList<OldCopy>(), OldCopies.decode("{"))
+    assertEquals(emptyList<OldCopy>(), OldCopies.decode(null))
   }
 
-  @Test fun `a book removed during the move keeps nothing in the new place`() {
-    val from = book()
-    val to = FileFolder(dir())
-    assertFalse(BookMove.move(from, to, commit = { false }))
-    assertEquals(emptyMap<String, Long>(), to.list())
-    // The originals are not the move's to delete; removing the book does that.
-    assertEquals(3, from.list().size)
+  @Test fun `never deletes copies in the place the book lives in`() {
+    val inPrivate = OldCopy(null, listOf("001.mp3"))
+    val onCard = OldCopy(card, listOf("001.mp3"))
+    assertEquals(listOf(inPrivate), OldCopies.deletable(listOf(inPrivate, onCard), card))
+    // Moved to the card and back: the private copy is the live one again.
+    assertEquals(listOf(onCard), OldCopies.deletable(listOf(inPrivate, onCard), null))
   }
 }
 

@@ -22,6 +22,8 @@ data class DownloadJob(
    * private storage. Set by the phone when the job is first written, never sent by JavaScript.
    */
   val location: String? = null,
+  /** New on every start, so a move can tell that the book was started again while it copied. */
+  val revision: String? = null,
 ) {
   fun encode(): String = JSONObject()
     .put("bookId", bookId)
@@ -31,6 +33,7 @@ data class DownloadJob(
     .put("rules", JSONObject().put("wifiOnly", rules.wifiOnly).put("chargingOnly", rules.chargingOnly))
     .put("headers", JSONObject(headers))
     .put("location", location ?: JSONObject.NULL)
+    .put("revision", revision ?: JSONObject.NULL)
     .toString()
 
   companion object {
@@ -55,6 +58,7 @@ data class DownloadJob(
         headers = o.optJSONObject("headers")?.let { h -> h.keys().asSequence().associateWith { h.getString(it) } }
           ?: emptyMap(),
         location = if (o.isNull("location")) null else o.optString("location").ifEmpty { null },
+        revision = if (o.isNull("revision")) null else o.optString("revision"),
       )
       val names = files.map { it.name } + listOfNotNull(cover?.name, job.bookId)
       job.takeIf { files.isNotEmpty() && names.all(::isSafeName) && names.toSet().size == names.size }

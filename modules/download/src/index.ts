@@ -25,6 +25,10 @@ export type DownloadStatus = {
   paths?: Record<string, string>;
   /** The book's folder can't be reached, such as an SD card that was taken out. */
   unavailable?: boolean;
+  /** A move left the old copies behind until the player lets go of them (`releaseOld`). */
+  oldCopies?: boolean;
+  /** The folder the paths are in (null: private storage), for `releaseOld`. */
+  location?: string | null;
   error: string | null;
 };
 
@@ -56,6 +60,7 @@ declare class LelapDownloadModule extends NativeModule {
   chooseLocation(): Promise<boolean>;
   resetLocation(): Promise<void>;
   resumeMove(): Promise<void>;
+  releaseOld(bookId: string, location: string | null): Promise<void>;
   isIgnoringBatteryOptimizations(): boolean;
   canNotify(): boolean;
   notify(tag: string, title: string, text: string, link: string | null): boolean;
@@ -110,6 +115,14 @@ export function chooseLocation(): Promise<boolean> {
 /** Back to the app's private storage, moving the downloads back too. */
 export function resetLocation(): Promise<void> {
   return native.resetLocation();
+}
+
+/**
+ * Deletes the copies a move left in the old folder. Call it once the player no longer reads the
+ * book from there.
+ */
+export function releaseOld(bookId: string, location: string | null): Promise<void> {
+  return native.releaseOld(bookId, location);
 }
 
 /** Continues a move that stopped or waited for an SD card. */

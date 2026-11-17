@@ -6,6 +6,8 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * One book's files in one place: the app's private storage or a folder the listener chose. Names
@@ -67,22 +69,20 @@ object BookMove {
 
   /**
    * Copies every file of [from] into [to], each under a temporary name first and checked by its
-   * length, then calls [commit] to point the book at [to]. Only once that succeeds are the
-   * originals deleted. Run again after a stop, it skips the copies that are already complete.
-   * Returns false, and removes the copies, when [commit] says the book is gone.
+   * length before it gets its own name. Never deletes an original: that waits until the book
+   * points at [to] and the player has let go of the old files (see [OldCopies]). Run again after a
+   * stop, it skips the copies that are already complete. Returns the names now in both places.
    */
-  fun move(
+  fun copy(
     from: BookFolder,
     to: BookFolder,
-    commit: () -> Boolean,
     checkStopped: () -> Unit = {},
     onBytes: (Long) -> Unit = {},
-  ): Boolean {
-    val files = from.list()
+  ): List<String> {
+    val files = from.list().filterKeys { !it.endsWith(COPY_SUFFIX) }
     val there = to.list()
     var copied = 0L
     for ((name, size) in files) {
-      if (name.endsWith(COPY_SUFFIX)) continue
       if (there[name] == size) {
         copied += size
         onBytes(copied)
@@ -108,11 +108,41 @@ object BookMove {
       }
       to.rename(temporary, name)
     }
-    if (!commit()) {
-      for (name in files.keys) to.delete(name)
-      return false
-    }
-    for (name in files.keys) from.delete(name)
-    return true
+    return files.keys.toList()
   }
+}
+
+/**
+ * Copies a move left behind, kept in the book's private `old.json` until the app has switched the
+ * player to the new files. Written before the book points at its new folder, so a crash in
+ * between never leaves copies nobody knows about.
+ */
+data class OldCopy(val location: String?, val names: List<String>)
+
+object OldCopies {
+  fun encode(copies: List<OldCopy>): String = JSONArray().apply {
+    copies.forEach { c ->
+      put(JSONObject().put("location", c.location ?: JSONObject.NULL).put("names", JSONArray(c.names)))
+    }
+  }.toString()
+
+  fun decode(json: String?): List<OldCopy> = try {
+    val array = JSONArray(json ?: "[]")
+    (0 until array.length()).map { i ->
+      val o = array.getJSONObject(i)
+      val names = o.getJSONArray("names")
+      OldCopy(
+        location = if (o.isNull("location")) null else o.getString("location"),
+        names = (0 until names.length()).map(names::getString).filter(DownloadJob::isSafeName),
+      )
+    }
+  } catch (e: org.json.JSONException) {
+    emptyList()
+  }
+
+  /**
+   * Which of [copies] may be deleted now that the book's files are in [current]. A copy in the
+   * place the book lives in again (moved there and back) is the live one and is only forgotten.
+   */
+  fun deletable(copies: List<OldCopy>, current: String?): List<OldCopy> = copies.filter { it.location != current }
 }
