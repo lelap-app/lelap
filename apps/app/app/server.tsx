@@ -1,7 +1,6 @@
 import {
   addRemoteRoot,
   type AudiobookshelfLibrary,
-  type AudiobookshelfLogin,
   audiobookshelfMe,
   type JellyfinLibrary,
   listAudiobookshelfLibraries,
@@ -11,7 +10,6 @@ import {
   listWebdav,
   RemoteError,
   type RemoteSource,
-  signInAudiobookshelf,
   signInJellyfin,
   updateRemoteRoot,
 } from '@lelap/core';
@@ -29,7 +27,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { rememberAccess } from '../src/audiobookshelf';
 import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
@@ -57,7 +54,11 @@ function reason(error: unknown, kind: Kind): string {
 }
 
 type SignedIn = { userId: string; token: string; libraries: JellyfinLibrary[] };
-type AbsSignedIn = AudiobookshelfLogin & { libraries: AudiobookshelfLibrary[] };
+type AbsSignedIn = {
+  userId: string;
+  username: string;
+  libraries: AudiobookshelfLibrary[];
+};
 
 /** A library to pick, with what it holds when that can differ. */
 function LibrarySwitch({
@@ -134,9 +135,7 @@ export default function ServerScreen() {
   const [kind, setKind] = useState<Kind>(existing?.type ?? 'webdav');
   const [busy, setBusy] = useState(false);
   const [url, setUrlValue] = useState(dav?.url ?? jf?.url ?? abs?.url ?? '');
-  const [username, setUsernameValue] = useState(
-    dav?.username ?? jf?.username ?? abs?.username ?? '',
-  );
+  const [username, setUsernameValue] = useState(dav?.username ?? jf?.username ?? '');
   const [password, setPasswordValue] = useState('');
   // Jellyfin: signed in after "Test connection", then the libraries to take books from.
   const [deviceId] = useState(() => jf?.deviceId ?? newId());
@@ -144,9 +143,8 @@ export default function ServerScreen() {
   const [picked, setPicked] = useState<Set<string>>(
     new Set(jf?.libraryIds ?? abs?.libraryIds ?? []),
   );
-  // Audiobookshelf: the same two steps, signed in with a password or an API key.
+  // Audiobookshelf: the same two steps, with an API key instead of a password.
   const [absSignedIn, setAbsSignedIn] = useState<AbsSignedIn | null>(null);
-  const [withKey, setWithKeyValue] = useState(false);
   const [apiKey, setApiKeyValue] = useState('');
   // A changed address or login needs a new test.
   const setUrl = (v: string) => {
@@ -157,19 +155,13 @@ export default function ServerScreen() {
   const setUsername = (v: string) => {
     setUsernameValue(v);
     setSignedIn(null);
-    setAbsSignedIn(null);
   };
   const setPassword = (v: string) => {
     setPasswordValue(v);
     setSignedIn(null);
-    setAbsSignedIn(null);
   };
   const setApiKey = (v: string) => {
     setApiKeyValue(v);
-    setAbsSignedIn(null);
-  };
-  const setWithKey = (v: boolean) => {
-    setWithKeyValue(v);
     setAbsSignedIn(null);
   };
   const [endpoint, setEndpoint] = useState(s3?.endpoint ?? '');
@@ -205,27 +197,11 @@ export default function ServerScreen() {
     try {
       const fetcher = (u: string, i?: RequestInit) => fetch(u, i);
       const address = url.trim();
-      let login: AudiobookshelfLogin;
-      if (withKey) {
-        // An API key is used as it is: it lasts until it expires or is turned off on the server.
-        const key = apiKey.trim();
-        const me = await audiobookshelfMe(fetcher, address, key);
-        login = {
-          userId: me.id,
-          username: me.username ?? '',
-          token: key,
-          refresh: false,
-          accessToken: key,
-        };
-      } else {
-        login = await signInAudiobookshelf(fetcher, {
-          url: address,
-          username: username.trim(),
-          password,
-        });
-      }
-      const libraries = await listAudiobookshelfLibraries(fetcher, address, login.accessToken);
-      setAbsSignedIn({ ...login, libraries });
+      // The key is sent as it is; the server refuses it once it expires or is turned off.
+      const key = apiKey.trim();
+      const me = await audiobookshelfMe(fetcher, address, key);
+      const libraries = await listAudiobookshelfLibraries(fetcher, address, key);
+      setAbsSignedIn({ userId: me.id, username: me.username ?? '', libraries });
       if (!abs) setPicked(new Set(libraries.map((l) => l.id)));
     } catch (error) {
       showAlert(t('Could not connect'), reason(error, 'audiobookshelf'));
@@ -254,8 +230,7 @@ export default function ServerScreen() {
               url: url.trim(),
               username: absSignedIn?.username ?? '',
               userId: absSignedIn?.userId ?? '',
-              token: absSignedIn?.token ?? '',
-              refresh: absSignedIn?.refresh ?? false,
+              token: apiKey.trim(),
               libraryIds: [...picked].filter((id) =>
                 absSignedIn?.libraries.some((l) => l.id === id),
               ),
@@ -283,11 +258,8 @@ export default function ServerScreen() {
           : remote.type === 's3'
             ? await listS3((u, i) => fetch(u, i), remote, Date.now())
             : null;
-      let id = rootId;
       if (existing && rootId) updateRemoteRoot(db, rootId, remote, Date.now());
-      else id = addRemoteRoot(db, remote, Date.now(), newId);
-      // The access token from signing in serves until it is due for renewal.
-      if (absSignedIn && id) rememberAccess(id, absSignedIn.accessToken);
+      else addRemoteRoot(db, remote, Date.now(), newId);
       void scanLibrary().finally(refresh);
       refresh();
       showAlert(
@@ -310,8 +282,7 @@ export default function ServerScreen() {
       : kind === 'jellyfin'
         ? /^https?:\/\//.test(url.trim()) && username.trim() !== ''
         : kind === 'audiobookshelf'
-          ? /^https?:\/\//.test(url.trim()) &&
-            (withKey ? apiKey.trim() !== '' : username.trim() !== '')
+          ? /^https?:\/\//.test(url.trim()) && apiKey.trim() !== ''
           : /^https?:\/\//.test(endpoint.trim()) &&
             bucket.trim() !== '' &&
             accessKeyId.trim() !== '';
@@ -436,34 +407,15 @@ export default function ServerScreen() {
             placeholder={'https://abs.example.org'}
             hint={t('The address you open Audiobookshelf at, with its path if it has one.')}
           />
-          <View className="flex-row items-center justify-between">
-            <Text className="flex-1 text-soft">{t('Sign in with an API key')}</Text>
-            <Switch value={withKey} onValueChange={setWithKey} />
-          </View>
-          {withKey ? (
-            <Field
-              label={t('API key')}
-              value={apiKey}
-              onChange={setApiKey}
-              secret
-              hint={t(
-                'Audiobookshelf → Settings → API Keys. A key without an end date never needs a new login, which suits downloads that wait for Wi-Fi.',
-              )}
-            />
-          ) : (
-            <>
-              <Field label={t('Username')} value={username} onChange={setUsername} />
-              <Field
-                label={t('Password')}
-                value={password}
-                onChange={setPassword}
-                secret
-                hint={t(
-                  'Used once to sign in. Lelap keeps the token the server gives, not the password.',
-                )}
-              />
-            </>
-          )}
+          <Field
+            label={t('API key')}
+            value={apiKey}
+            onChange={setApiKey}
+            secret
+            hint={t(
+              'Make one in Audiobookshelf under Settings → API Keys. Audiobookshelf 2.26 or later; older servers are not supported.',
+            )}
+          />
           {absSignedIn && (
             <View className="gap-2">
               <Text className="text-sm text-soft">{t('Libraries')}</Text>

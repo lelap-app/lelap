@@ -395,7 +395,7 @@ const withSecret = (remote: RemoteSource, secret: string): RemoteSource =>
 /**
  * Every library root: the phone's folder and each server, with its password or secret key opened.
  * `needsLogin` marks a server whose secret this device can't open (a backup restored on a new
- * phone), or an Audiobookshelf login that expired; its secret is empty until it is entered again.
+ * phone); its secret is empty until it is entered again.
  */
 export function listRoots(db: Db) {
   const box = secretBox();
@@ -409,7 +409,7 @@ export function listRoots(db: Db) {
       return {
         ...row,
         remote: withSecret(row.remote, secret ?? ''),
-        needsLogin: secret === null || (row.remote.type === 'audiobookshelf' && secret === ''),
+        needsLogin: secret === null,
       };
     });
 }
