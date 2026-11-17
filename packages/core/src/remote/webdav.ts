@@ -1,10 +1,14 @@
 import type { ListedFile } from '../library/scan';
 import { asArray, isNode, parseXml, textOf } from '../podcasts/xml';
-import { basicAuth, failure, type Fetch } from './http';
+import { basicAuth, failure, type Fetch, fetchText } from './http';
 
 export type WebdavSource = { url: string; username: string; password: string };
 
 const MAX_FOLDERS = 5_000;
+
+// Per folder: generous for a slow server, short enough that a dead one fails visibly.
+const FOLDER_TIMEOUT_MS = 30_000;
+const WHAT = 'WebDAV server';
 
 const PROPFIND_BODY = `<?xml version="1.0" encoding="utf-8"?>
 <d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/><d:getlastmodified/></d:prop></d:propfind>`;
@@ -68,13 +72,50 @@ export function parseMultistatus(xml: string, folder: URL): Entry[] {
   return entries;
 }
 
+type Options = { timeoutMs?: number };
+
+const listingHeaders = (source: WebdavSource) => ({
+  ...webdavHeaders(source),
+  Depth: '1',
+  'Content-Type': 'application/xml',
+});
+
+async function readFolder(fetcher: Fetch, source: WebdavSource, folder: URL, timeoutMs: number) {
+  const { response, text } = await fetchText(
+    fetcher,
+    folder.href,
+    { method: 'PROPFIND', headers: listingHeaders(source), body: PROPFIND_BODY },
+    WHAT,
+    timeoutMs,
+  );
+  if (response.status !== 207 && !response.ok) throw failure(response.status, WHAT);
+  return parseMultistatus(text, folder);
+}
+
+/**
+ * Checks the address and the login by reading only the folder entered, so a large server
+ * answers as fast as a small one. The full walk is the scan's job.
+ */
+export async function checkWebdav(
+  fetcher: Fetch,
+  source: WebdavSource,
+  { timeoutMs = FOLDER_TIMEOUT_MS }: Options = {},
+): Promise<{ folders: number; files: number }> {
+  const entries = await readFolder(fetcher, source, webdavRoot(source.url), timeoutMs);
+  const folders = entries.filter((e) => e.folder).length;
+  return { folders, files: entries.length - folders };
+}
+
 /**
  * Every file below the server folder, walked one level at a time (many servers refuse
  * `Depth: infinity`). The same shape as a folder on the phone, so the same rules make books.
  */
-export async function listWebdav(fetcher: Fetch, source: WebdavSource): Promise<ListedFile[]> {
+export async function listWebdav(
+  fetcher: Fetch,
+  source: WebdavSource,
+  { timeoutMs = FOLDER_TIMEOUT_MS }: Options = {},
+): Promise<ListedFile[]> {
   const root = webdavRoot(source.url);
-  const headers = { ...webdavHeaders(source), Depth: '1', 'Content-Type': 'application/xml' };
   const files: ListedFile[] = [];
   const queue: URL[] = [root];
   const seen = new Set<string>();
@@ -82,13 +123,7 @@ export async function listWebdav(fetcher: Fetch, source: WebdavSource): Promise<
     const folder = queue.shift() as URL;
     if (seen.has(folder.href) || seen.size >= MAX_FOLDERS) continue;
     seen.add(folder.href);
-    const response = await fetcher(folder.href, {
-      method: 'PROPFIND',
-      headers,
-      body: PROPFIND_BODY,
-    });
-    if (response.status !== 207 && !response.ok) throw failure(response.status, 'WebDAV server');
-    for (const entry of parseMultistatus(await response.text(), folder)) {
+    for (const entry of await readFolder(fetcher, source, folder, timeoutMs)) {
       if (entry.folder) {
         const url = entry.url;
         queue.push(url.pathname.endsWith('/') ? url : new URL(`${url.origin}${url.pathname}/`));
