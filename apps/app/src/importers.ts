@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import {
   antennaPodFromOpml,
   type AntennaPodData,
@@ -33,8 +34,8 @@ async function pick(type: string[]) {
 function report(title: string, done: string, summary: ImportSummary): void {
   const lines = summary.skipped.slice(0, SHOWN_SKIPS).map((s) => `• ${s.item}: ${s.reason}`);
   const more = summary.skipped.length - lines.length;
-  if (more > 0) lines.push(`…and ${more} more`);
-  showAlert(title, lines.length > 0 ? `${done}\n\nLeft out:\n${lines.join('\n')}` : done);
+  if (more > 0) lines.push(t('…and {n} more', { n: more }));
+  showAlert(title, lines.length > 0 ? `${done}\n\n${t('Left out:')}\n${lines.join('\n')}` : done);
 }
 
 /** Goodreads CSV: shelves become tags, the "read" shelf a finished mark. */
@@ -44,8 +45,11 @@ export async function importGoodreads(): Promise<boolean> {
   const items = parseGoodreads(await readPickedText(asset));
   const summary = applyGoodreads(db, profileId, items, Date.now());
   report(
-    'Goodreads imported',
-    `${summary.matched} of ${items.length} books matched your library. Their shelves are now tags. Goodreads has no audio, so books that are not here were not added.`,
+    t('{name} imported', { name: 'Goodreads' }),
+    t(
+      '{matched} of {total} books matched your library. Their shelves are now tags. Goodreads has no audio, so books that are not here were not added.',
+      { matched: summary.matched, total: items.length },
+    ),
     summary,
   );
   return true;
@@ -77,8 +81,12 @@ export async function importAntennaPod(onProgress: (text: string) => void): Prom
   }
   const summary = applyAntennaPod(db, profileId, data, Date.now(), newId);
   report(
-    'AntennaPod imported',
-    `Subscribed to ${data.feeds.length - summary.skipped.filter((s) => s.reason === 'The feed could not be loaded').length} podcasts; played marks and places came along.`,
+    t('{name} imported', { name: 'AntennaPod' }),
+    t('Subscribed to {n} podcasts; played marks and places came along.', {
+      n:
+        data.feeds.length -
+        summary.skipped.filter((s) => s.reason === 'The feed could not be loaded').length,
+    }),
     summary,
   );
   return true;
@@ -90,7 +98,7 @@ export async function importAntennaPod(onProgress: (text: string) => void): Prom
  */
 export async function importSmartAudiobook(onProgress: (text: string) => void): Promise<boolean> {
   const root = localRoot(db);
-  if (!root) throw new Error('Choose your audiobooks folder in Settings first.');
+  if (!root) throw new Error(t('Choose your audiobooks folder in Settings first.'));
   onProgress('Looking for Smart AudioBook Player files…');
   const files = (await listTree(root.uri)).filter((f) => f.name === SABP_POSITION_FILE);
   const found: SabpFound[] = [];
@@ -109,15 +117,21 @@ export async function importSmartAudiobook(onProgress: (text: string) => void): 
   if (files.length === 0) {
     showAlert(
       'Smart AudioBook Player',
-      `No ${SABP_POSITION_FILE} files in ${root.name}. Smart AudioBook Player writes one in each book folder it has played.`,
+      t(
+        'No {file} files in {folder}. Smart AudioBook Player writes one in each book folder it has played.',
+        { file: SABP_POSITION_FILE, folder: root.name },
+      ),
     );
     return false;
   }
   const summary = applySmartAudiobook(db, profileId, found, Date.now());
   summary.skipped.push(...unreadable);
   report(
-    'Smart AudioBook Player imported',
-    `${summary.matched} of ${files.length} books got their place or finished mark.`,
+    t('{name} imported', { name: 'Smart AudioBook Player' }),
+    t('{matched} of {total} books got their place or finished mark.', {
+      matched: summary.matched,
+      total: files.length,
+    }),
     summary,
   );
   return true;

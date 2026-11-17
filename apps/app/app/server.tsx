@@ -24,6 +24,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { db, newId } from '../src/db';
@@ -35,7 +36,7 @@ type Kind = 'webdav' | 's3' | 'jellyfin';
 
 const KIND_LABEL: Record<Kind, string> = {
   webdav: 'WebDAV',
-  s3: 'S3-compatible',
+  s3: t('S3-compatible'),
   jellyfin: 'Jellyfin',
 };
 
@@ -142,7 +143,7 @@ export default function ServerScreen() {
       // Book libraries are picked to begin with; music libraries only when the user says so.
       if (!jf) setPicked(new Set(libraries.filter((l) => l.kind === 'books').map((l) => l.id)));
     } catch (error) {
-      showAlert('Could not connect', reason(error, 'jellyfin'));
+      showAlert(t('Could not connect'), reason(error, 'jellyfin'));
     } finally {
       setBusy(false);
     }
@@ -189,14 +190,14 @@ export default function ServerScreen() {
       void scanLibrary().finally(refresh);
       refresh();
       showAlert(
-        'Connected',
+        t('Connected'),
         files
-          ? `${files.length} files found. Books appear as the scan reads them.`
-          : 'Books appear as the scan reads the libraries.',
+          ? t('{n} files found. Books appear as the scan reads them.', { n: files.length })
+          : t('Books appear as the scan reads the libraries.'),
       );
       router.back();
     } catch (error) {
-      showAlert('Could not connect', reason(error, kind));
+      showAlert(t('Could not connect'), reason(error, kind));
     } finally {
       setBusy(false);
     }
@@ -224,15 +225,24 @@ export default function ServerScreen() {
       }}
     >
       <View className="-ml-2 self-start">
-        <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+        <IconButton
+          name="back"
+          label={t('Back')}
+          color={COLORS.soft}
+          onPress={() => router.back()}
+        />
       </View>
       <Text className="text-3xl font-semibold text-paper">
-        {locked ? 'Log in again' : 'Add a server'}
+        {locked ? t('Log in again') : t('Add a server')}
       </Text>
       <Text className="text-soft">
         {locked
-          ? 'Passwords stay on the phone they were entered on and are not in backups. Enter it again; your books and places stay.'
-          : 'Books on your own storage, played straight from it. The address and login stay on this device and are never synced.'}
+          ? t(
+              'Passwords stay on the phone they were entered on and are not in backups. Enter it again; your books and places stay.',
+            )
+          : t(
+              'Books on your own storage, played straight from it. The address and login stay on this device and are never synced.',
+            )}
       </Text>
 
       <View className={`flex-row gap-2 ${locked ? 'hidden' : ''}`}>
@@ -250,27 +260,29 @@ export default function ServerScreen() {
       {kind === 'jellyfin' ? (
         <>
           <Field
-            label="Server address"
+            label={t('Server address')}
             locked={locked}
             value={url}
             onChange={setUrl}
-            placeholder="https://jellyfin.example.org"
-            hint="The address you open Jellyfin at, with its path if it has one."
+            placeholder={'https://jellyfin.example.org'}
+            hint={t('The address you open Jellyfin at, with its path if it has one.')}
           />
-          <Field label="Username" value={username} onChange={setUsername} />
+          <Field label={t('Username')} value={username} onChange={setUsername} />
           <Field
-            label="Password"
+            label={t('Password')}
             value={password}
             onChange={setPassword}
             secret
-            hint="Used once to sign in. Lelap keeps the server's token, not the password, and plays the original files."
+            hint={t(
+              "Used once to sign in. Lelap keeps the server's token, not the password, and plays the original files.",
+            )}
           />
           {signedIn && (
             <View className="gap-2">
-              <Text className="text-sm text-soft">Libraries</Text>
+              <Text className="text-sm text-soft">{t('Libraries')}</Text>
               {signedIn.libraries.length === 0 ? (
                 <Text className="text-muted">
-                  This account has no book or music libraries on the server.
+                  {t('This account has no book or music libraries on the server.')}
                 </Text>
               ) : (
                 signedIn.libraries.map((library) => (
@@ -278,7 +290,7 @@ export default function ServerScreen() {
                     <View className="flex-1">
                       <Text className="text-paper">{library.name}</Text>
                       <Text className="text-xs text-muted">
-                        {library.kind === 'books' ? 'Books' : 'Music'}
+                        {library.kind === 'books' ? t('Books') : t('Music')}
                       </Text>
                     </View>
                     <Switch
@@ -294,73 +306,83 @@ export default function ServerScreen() {
                 ))
               )}
               <Text className="text-xs text-muted">
-                Places sync both ways with this Jellyfin user, for the profile adding the server.
+                {t(
+                  'Places sync both ways with this Jellyfin user, for the profile adding the server.',
+                )}
               </Text>
             </View>
           )}
           {Platform.OS === 'web' && (
             <Text className="text-sm text-muted">
-              In the browser the Jellyfin server must allow this site (CORS headers).
+              {t('In the browser the Jellyfin server must allow this site (CORS headers).')}
             </Text>
           )}
         </>
       ) : kind === 'webdav' ? (
         <>
           <Field
-            label="Folder address"
+            label={t('Folder address')}
             locked={locked}
             value={url}
             onChange={setUrl}
-            placeholder="https://cloud.example.org/remote.php/dav/files/me/Audiobooks"
-            hint="Nextcloud and ownCloud: Files → Settings → WebDAV shows the address; add your audiobooks folder."
+            placeholder={'https://cloud.example.org/remote.php/dav/files/me/Audiobooks'}
+            hint={t(
+              'Nextcloud and ownCloud: Files → Settings → WebDAV shows the address; add your audiobooks folder.',
+            )}
           />
-          <Field label="Username" value={username} onChange={setUsername} />
+          <Field label={t('Username')} value={username} onChange={setUsername} />
           <Field
-            label="Password"
+            label={t('Password')}
             value={password}
             onChange={setPassword}
             secret
-            hint="An app password is best: it can be revoked without changing your own."
+            hint={t('An app password is best: it can be revoked without changing your own.')}
           />
           {Platform.OS === 'web' && (
             <Text className="text-sm text-muted">
-              In the browser the server must allow this site (CORS), and WebDAV books play in the
-              Android app only: a browser can't send the login with audio.
+              {t(
+                "In the browser the server must allow this site (CORS), and WebDAV books play in the Android app only: a browser can't send the login with audio.",
+              )}
             </Text>
           )}
         </>
       ) : (
         <>
           <Field
-            label="Endpoint"
+            label={t('Endpoint')}
             locked={locked}
             value={endpoint}
             onChange={setEndpoint}
-            placeholder="https://<account>.r2.cloudflarestorage.com"
-            hint="AWS, Cloudflare R2, Backblaze B2, Wasabi, MinIO, Garage, …"
+            placeholder={'https://<account>.r2.cloudflarestorage.com'}
+            hint={'AWS, Cloudflare R2, Backblaze B2, Wasabi, MinIO, Garage, …'}
           />
           <Field
-            label="Region"
+            label={t('Region')}
             locked={locked}
             value={region}
             onChange={setRegion}
-            hint="“auto” for R2; the bucket’s region elsewhere."
+            hint={t('“auto” for R2; the bucket’s region elsewhere.')}
           />
-          <Field label="Bucket" locked={locked} value={bucket} onChange={setBucket} />
+          <Field label={t('Bucket')} locked={locked} value={bucket} onChange={setBucket} />
           <Field
-            label="Folder in the bucket (optional)"
+            label={t('Folder in the bucket (optional)')}
             locked={locked}
             value={prefix}
             onChange={setPrefix}
-            placeholder="audiobooks/"
+            placeholder={'audiobooks/'}
           />
           <Field
-            label="Access key ID"
+            label={t('Access key ID')}
             value={accessKeyId}
             onChange={setAccessKeyId}
-            hint="A read-only key is enough."
+            hint={t('A read-only key is enough.')}
           />
-          <Field label="Secret access key" value={secretAccessKey} onChange={setSecret} secret />
+          <Field
+            label={t('Secret access key')}
+            value={secretAccessKey}
+            onChange={setSecret}
+            secret
+          />
         </>
       )}
 
@@ -375,7 +397,7 @@ export default function ServerScreen() {
           <Text
             className={`font-semibold ${(testing ? ready : canConnect) ? 'text-ink' : 'text-muted'}`}
           >
-            {testing ? 'Test connection' : 'Connect'}
+            {testing ? t('Test connection') : t('Connect')}
           </Text>
         )}
       </Pressable>

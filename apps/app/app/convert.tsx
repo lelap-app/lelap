@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { fetcher, useAddons } from '../src/addons';
@@ -43,12 +44,15 @@ export default function ConvertScreen() {
       const result = await convertFolder(bookId, url);
       refresh();
       showAlert(
-        'Subscribed',
-        `${result.matched} files matched an episode; ${result.played} marked as played.`,
+        t('Subscribed'),
+        t('{matched} files matched an episode; {played} marked as played.', {
+          matched: result.matched,
+          played: result.played,
+        }),
       );
       router.replace({ pathname: '/podcast', params: { id: result.podcastId } });
     } catch (error) {
-      showAlert('Podcast', error instanceof Error ? error.message : String(error));
+      showAlert(t('Podcast'), error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
     }
@@ -58,7 +62,7 @@ export default function ConvertScreen() {
     const found = await fetchMeta(fetcher, addons, 'podcast', meta.id).catch(() => null);
     const url = found?.meta.feed;
     if (!url) {
-      showAlert('No feed', 'This podcast has no feed address. Paste it below instead.');
+      showAlert(t('No feed'), t('This podcast has no feed address. Paste it below instead.'));
       return;
     }
     await convert(url);
@@ -76,22 +80,24 @@ export default function ConvertScreen() {
           <View className="-ml-2 self-start">
             <IconButton
               name="back"
-              label="Back"
+              label={t('Back')}
               color={COLORS.soft}
               onPress={() => router.back()}
             />
           </View>
-          <Text className="text-2xl font-semibold text-paper">Subscribe to this podcast</Text>
+          <Text className="text-2xl font-semibold text-paper">
+            {t('Subscribe to this podcast')}
+          </Text>
           <Text className="text-sm text-muted">
-            Find “{book?.title ?? 'this folder'}” as a podcast. Episodes before the file you are on
-            are marked as played, and that episode keeps your place. The folder stays in the
+            Find “{book?.title ?? t('this folder')}” as a podcast. Episodes before the file you are
+            on are marked as played, and that episode keeps your place. The folder stays in the
             Library.
           </Text>
           <View className="flex-row items-center gap-2">
             <TextInput
               value={feedUrl}
               onChangeText={setFeedUrl}
-              placeholder="Or paste its feed address"
+              placeholder={t('Or paste its feed address')}
               placeholderTextColor="#8d8a83"
               autoCapitalize="none"
               autoCorrect={false}
@@ -102,13 +108,15 @@ export default function ConvertScreen() {
               disabled={busy || feedUrl.trim() === ''}
               onPress={() => void convert(feedUrl.trim())}
             >
-              <Text className={feedUrl.trim() === '' ? 'text-muted' : 'text-amber'}>Use</Text>
+              <Text className={feedUrl.trim() === '' ? 'text-muted' : 'text-amber'}>
+                {t('Use')}
+              </Text>
             </Pressable>
           </View>
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search podcasts"
+            placeholder={t('Search podcasts')}
             placeholderTextColor="#8d8a83"
             autoCorrect={false}
             className="rounded-lg bg-raised px-4 py-3 text-base text-paper"
@@ -116,7 +124,7 @@ export default function ConvertScreen() {
           {(busy || results.isFetching) && <ActivityIndicator color="#f5b041" />}
           {results.isSuccess && results.data.length === 0 && (
             <Text className="text-muted">
-              No podcasts found. Podcast search needs the Catalog add-on with Podcast Index.
+              {t('No podcasts found. Podcast search needs the Catalog add-on with Podcast Index.')}
             </Text>
           )}
         </View>

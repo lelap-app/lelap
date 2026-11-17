@@ -3,6 +3,7 @@ import type { Manifest } from '@lelap/sdk';
 import { useSyncExternalStore } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { t } from './i18n';
 import { COLORS, Icon, type IconName } from './components/Icon';
 import { Sheet } from './components/Sheet';
 
@@ -71,14 +72,16 @@ export function AddonReviewHost() {
   return (
     <Sheet
       visible
-      title={action ? `${action} ${manifest.name}?` : manifest.name}
+      title={action ? t('{action} {name}?', { action, name: manifest.name }) : manifest.name}
       onClose={() => close(false)}
     >
       <ScrollView>
         {manifest.description !== '' && (
           <Text className="pb-3 text-soft">{manifest.description}</Text>
         )}
-        <Text className="pb-2 text-xs uppercase tracking-wider text-muted">What it can do</Text>
+        <Text className="pb-2 text-xs uppercase tracking-wider text-muted">
+          {t('What it can do')}
+        </Text>
         <View className="gap-3 pb-4">
           {addonPermissions(manifest, url).map((p) => (
             <View key={p.kind} className="flex-row gap-3">
@@ -91,7 +94,7 @@ export function AddonReviewHost() {
         </View>
         {note !== undefined && <Text className="pb-2 text-xs text-muted">{note}</Text>}
         <Text className="pb-4 text-xs text-muted">
-          Add-ons are made by their authors, not by Lelap. Only add ones you trust.
+          {t('Add-ons are made by their authors, not by Lelap. Only add ones you trust.')}
         </Text>
         <View className="flex-row justify-end gap-2 pb-2">
           <Pressable
@@ -99,7 +102,7 @@ export function AddonReviewHost() {
             accessibilityRole="button"
             className="rounded-full px-4 py-2 active:bg-line"
           >
-            <Text className="font-semibold text-muted">{action ? 'Cancel' : 'Close'}</Text>
+            <Text className="font-semibold text-muted">{action ? t('Cancel') : t('Close')}</Text>
           </Pressable>
           {action && (
             <Pressable

@@ -3,17 +3,18 @@ import type { MetaPreview } from '@lelap/sdk';
 import { memo } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 
+import { t } from '../i18n';
 import { useArtwork } from '../addons';
 import { formatDuration } from '../format';
 import { BookCover } from './BookCover';
 
-const ON_DEVICE = Platform.OS === 'web' ? 'On this device' : 'On this phone';
+const onDevice = () => (Platform.OS === 'web' ? t('On this device') : t('On this phone'));
 
 /** The words on a badge, also used as the cover's accessibility hint. */
 export function badgeLabel(availability: Availability): string {
-  if (availability.kind === 'local') return ON_DEVICE;
+  if (availability.kind === 'local') return onDevice();
   if (availability.kind === 'stream') return availability.addon;
-  return 'Metadata only';
+  return t('Metadata only');
 }
 
 /**

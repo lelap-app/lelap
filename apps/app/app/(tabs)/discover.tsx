@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../../src/i18n';
 import { fetcher, SHOWN_TYPES, useAddons } from '../../src/addons';
 import { useAskWhenVisible, useAvailability } from '../../src/availability';
 import { COLORS, Icon } from '../../src/components/Icon';
@@ -93,10 +94,10 @@ export default function DiscoverScreen() {
 
   return (
     <View className="flex-1 bg-night" style={{ paddingTop: insets.top + 12 }}>
-      <Text className="px-4 pb-3 text-3xl font-semibold text-paper">Discover</Text>
+      <Text className="px-4 pb-3 text-3xl font-semibold text-paper">{t('Discover')}</Text>
       {catalogs.length === 0 ? (
         <Text className="px-4 text-muted">
-          No catalogs to browse. Add-ons in Settings bring them.
+          {t('No catalogs to browse. Add-ons in Settings bring them.')}
         </Text>
       ) : (
         <FlatList
@@ -147,13 +148,15 @@ export default function DiscoverScreen() {
                     size={14}
                     color={playableOnly ? COLORS.amber : COLORS.muted}
                   />
-                  <Text className={playableOnly ? 'text-amber' : 'text-soft'}>Playable only</Text>
+                  <Text className={playableOnly ? 'text-amber' : 'text-soft'}>
+                    {t('Playable only')}
+                  </Text>
                 </Pressable>
                 {playableOnly && hiddenCount > 0 && (
                   <Text className="text-xs text-muted">
                     {hiddenCount === 1
-                      ? '1 without audio hidden'
-                      : `${hiddenCount} without audio hidden`}
+                      ? t('1 without audio hidden')
+                      : t('{n} without audio hidden', { n: hiddenCount })}
                   </Text>
                 )}
               </View>
@@ -163,7 +166,7 @@ export default function DiscoverScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}
                 >
-                  <Chip label="All" active={genre === null} onPress={() => setGenre(null)} />
+                  <Chip label={t('All')} active={genre === null} onPress={() => setGenre(null)} />
                   {genres.map((g) => (
                     <Chip
                       key={g}
@@ -182,8 +185,8 @@ export default function DiscoverScreen() {
             ) : (
               <Text className="px-4 pt-12 text-center text-muted">
                 {query.isError
-                  ? `${current?.addon.manifest.name ?? 'The add-on'} did not answer. Pull Home down to try again.`
-                  : 'Nothing here.'}
+                  ? `${current?.addon.manifest.name ?? t('The add-on')} did not answer. Pull Home down to try again.`
+                  : t('Nothing here.')}
               </Text>
             )
           }

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, SectionList, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../../src/i18n';
 import { EmptyState } from '../../src/components/Lori';
 import { fetcher, SHOWN_TYPES, useAddons } from '../../src/addons';
 import { useAskWhenVisible, useAvailability } from '../../src/availability';
@@ -43,7 +44,7 @@ export default function SearchScreen() {
           (metas) => ({ metas, error: null as string | null }),
           (error: unknown) => ({
             metas: [],
-            error: error instanceof Error ? error.message : 'Search failed',
+            error: error instanceof Error ? error.message : t('Search failed'),
           }),
         ),
     })),
@@ -67,19 +68,22 @@ export default function SearchScreen() {
     query.length < 2 || asked.size === 0
       ? null
       : pending
-        ? `Searching ${asked.size === 1 ? '1 add-on' : `${asked.size} add-ons`}…`
-        : `Searched ${asked.size === 1 ? '1 add-on' : `${asked.size} add-ons`}` +
-          (failed.size > 0 ? ` · ${asked.size - failed.size} answered` : '');
+        ? t('Searching {addons}…', {
+            addons: asked.size === 1 ? t('1 add-on') : t('{n} add-ons', { n: asked.size }),
+          })
+        : t('Searched {addons}', {
+            addons: asked.size === 1 ? t('1 add-on') : t('{n} add-ons', { n: asked.size }),
+          }) + (failed.size > 0 ? ` · ${t('{n} answered', { n: asked.size - failed.size })}` : '');
   const nothing =
     !pending && done.length > 0 && done.every((r) => r.metas.length === 0 && !r.error);
 
   return (
     <View className="flex-1 bg-night" style={{ paddingTop: insets.top + 12 }}>
-      <Text className="px-4 pb-3 text-3xl font-semibold text-paper">Search</Text>
+      <Text className="px-4 pb-3 text-3xl font-semibold text-paper">{t('Search')}</Text>
       <TextInput
         value={text}
         onChangeText={setText}
-        placeholder="Title, author or podcast"
+        placeholder={t('Title, author or podcast')}
         placeholderTextColor="#8d8a83"
         autoCorrect={false}
         returnKeyType="search"
@@ -88,7 +92,7 @@ export default function SearchScreen() {
       />
       {refs.length === 0 ? (
         <Text className="px-4 text-muted">
-          No add-on can search. Add one in Settings → Add-ons.
+          {t('No add-on can search. Add one in Settings → Add-ons.')}
         </Text>
       ) : (
         <SectionList
@@ -124,8 +128,8 @@ export default function SearchScreen() {
           ListEmptyComponent={
             nothing ? (
               <EmptyState
-                title={`Nothing found for “${query}”.`}
-                hint="Lori looked everywhere. Try fewer words, or another spelling."
+                title={t('Nothing found for “{query}”.', { query })}
+                hint={t('Lori looked everywhere. Try fewer words, or another spelling.')}
               />
             ) : undefined
           }

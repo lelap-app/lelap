@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { reviewAddon } from '../src/addonReview';
 import { installAddonFile, isAddonFile } from '../src/localAddons';
 import { ActionSheet, type Action } from '../src/components/ActionSheet';
@@ -38,20 +39,20 @@ const STATE_COLOR: Record<HealthState, string> = {
   failing: COLORS.danger,
 };
 
-const STATE_LABEL: Record<HealthState, string> = {
-  unknown: 'Not asked yet',
-  ok: 'Working',
-  slow: 'Slow',
-  degraded: 'Partly working',
-  failing: 'Not working',
-};
+const stateLabel = (): Record<HealthState, string> => ({
+  unknown: t('Not asked yet'),
+  ok: t('Working'),
+  slow: t('Slow'),
+  degraded: t('Partly working'),
+  failing: t('Not working'),
+});
 
 function ago(at: number, now: number): string {
   const minutes = Math.round((now - at) / 60_000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 1) return t('just now');
+  if (minutes < 60) return t('{n} min ago', { n: minutes });
   const hours = Math.round(minutes / 60);
-  return hours < 24 ? `${hours} h ago` : `${Math.round(hours / 24)} d ago`;
+  return hours < 24 ? t('{n} h ago', { n: hours }) : t('{n} d ago', { n: Math.round(hours / 24) });
 }
 
 /** One or two lines on how the add-on answered this session. */
@@ -59,7 +60,12 @@ function healthLines(health: AddonHealth, now: number): string[] {
   const lines: string[] = [];
   if (health.reported?.message) lines.push(health.reported.message);
   if (health.lastOkAt !== null && health.lastLatencyMs !== null)
-    lines.push(`Answered in ${health.lastLatencyMs} ms, ${ago(health.lastOkAt, now)}`);
+    lines.push(
+      t('Answered in {ms} ms, {when}', {
+        ms: health.lastLatencyMs,
+        when: ago(health.lastOkAt, now),
+      }),
+    );
   if (health.lastError && (health.lastOkAt === null || health.lastError.at > health.lastOkAt))
     lines.push(`${health.lastError.message}, ${ago(health.lastError.at, now)}`);
   return lines;
@@ -82,12 +88,12 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
             accessibilityRole="button"
             className="rounded-full border border-line px-3 py-1.5 active:bg-raised"
           >
-            <Text className="text-sm text-amber">Configure</Text>
+            <Text className="text-sm text-amber">{t('Configure')}</Text>
           </Pressable>
         )}
         <IconButton
           name="more"
-          label={`More for ${addon.manifest.name}`}
+          label={t('More for {name}', { name: addon.manifest.name })}
           color={COLORS.soft}
           onPress={onMore}
         />
@@ -97,7 +103,7 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
       )}
       <View className="flex-row items-center gap-2 pt-1">
         <View style={{ backgroundColor: STATE_COLOR[state] }} className="h-2 w-2 rounded-full" />
-        <Text className="text-xs text-soft">{STATE_LABEL[state]}</Text>
+        <Text className="text-xs text-soft">{stateLabel()[state]}</Text>
       </View>
       {healthLines(health, Date.now()).map((line) => (
         <Text key={line} className="text-xs text-muted">
@@ -105,11 +111,11 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
         </Text>
       ))}
       {needsConfiguration(addon.manifest) && (
-        <Text className="text-xs text-amber">Needs settings before it can be used.</Text>
+        <Text className="text-xs text-amber">{t('Needs settings before it can be used.')}</Text>
       )}
       {newer && (
         <Text className="text-xs text-muted">
-          Made for a newer Lelap; update the app to use all of it.
+          {t('Made for a newer Lelap; update the app to use all of it.')}
         </Text>
       )}
       <Text numberOfLines={1} className="text-xs text-muted">
@@ -125,9 +131,9 @@ export default function AddonsScreen() {
   if (activeProfile()?.kids) {
     return (
       <View className="flex-1 items-center justify-center gap-4 bg-night p-8">
-        <Text className="text-center text-paper">Ask a grown-up to change add-ons.</Text>
+        <Text className="text-center text-paper">{t('Ask a grown-up to change add-ons.')}</Text>
         <Pressable onPress={() => router.back()}>
-          <Text className="text-amber">Back</Text>
+          <Text className="text-amber">{t('Back')}</Text>
         </Pressable>
       </View>
     );
@@ -167,7 +173,7 @@ function AddonsManager() {
           changed();
         }
       } catch (error) {
-        showAlert('Cannot add', error instanceof Error ? error.message : String(error));
+        showAlert(t('Cannot add'), error instanceof Error ? error.message : String(error));
       } finally {
         setAdding(false);
       }
@@ -175,7 +181,7 @@ function AddonsManager() {
     }
     const manifestUrl = parseAddonLink(url) ?? normalizeManifestUrl(url);
     if (!manifestUrl) {
-      showAlert('Not a web address', 'Paste the add-on’s manifest URL.');
+      showAlert(t('Not a web address'), t('Paste the add-on’s manifest URL.'));
       return;
     }
     setAdding(true);
@@ -185,7 +191,7 @@ function AddonsManager() {
         changed();
       }
     } catch (error) {
-      showAlert('Cannot add', error instanceof Error ? error.message : String(error));
+      showAlert(t('Cannot add'), error instanceof Error ? error.message : String(error));
     } finally {
       setAdding(false);
     }
@@ -193,12 +199,12 @@ function AddonsManager() {
 
   const remove = (addon: InstalledAddon) =>
     showAlert(
-      `Remove ${addon.manifest.name}?`,
-      'Books you already play from it stay in your library.',
+      t('Remove {name}?', { name: addon.manifest.name }),
+      t('Books you already play from it stay in your library.'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('Cancel'), style: 'cancel' },
         {
-          text: 'Remove',
+          text: t('Remove'),
           style: 'destructive',
           onPress: () => {
             removeAddon(db, addon.url, Date.now());
@@ -211,18 +217,24 @@ function AddonsManager() {
   const actions = (addon: InstalledAddon): Action[] => [
     {
       icon: 'discover',
-      label: 'What it can do',
+      label: t('What it can do'),
       onPress: () => void reviewAddon(addon.manifest, addon.url, null),
     },
     ...(isConfigurable(addon.manifest)
-      ? [{ icon: 'settings' as const, label: 'Configure', onPress: () => openConfigure(addon.url) }]
+      ? [
+          {
+            icon: 'settings' as const,
+            label: t('Configure'),
+            onPress: () => openConfigure(addon.url),
+          },
+        ]
       : []),
     {
       icon: 'check',
-      label: 'Check now',
+      label: t('Check now'),
       onPress: () => void checkAddonHealth([addon]),
     },
-    { icon: 'close', label: 'Remove', danger: true, onPress: () => remove(addon) },
+    { icon: 'close', label: t('Remove'), danger: true, onPress: () => remove(addon) },
   ];
 
   return (
@@ -236,24 +248,31 @@ function AddonsManager() {
       }}
     >
       <View className="-ml-2 self-start">
-        <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+        <IconButton
+          name="back"
+          label={t('Back')}
+          color={COLORS.soft}
+          onPress={() => router.back()}
+        />
       </View>
-      <Text className="pb-2 text-3xl font-semibold text-paper">Add-ons</Text>
+      <Text className="pb-2 text-3xl font-semibold text-paper">{t('Add-ons')}</Text>
       <Text className="pb-4 text-sm text-muted">
-        Add-ons bring catalogs and audio. Audio always streams straight from the add-on’s source.
+        {t(
+          'Add-ons bring catalogs and audio. Audio always streams straight from the add-on’s source.',
+        )}
       </Text>
 
       {addons.map((addon) => (
         <AddonRow key={addon.url} addon={addon} onMore={() => setMenu(addon)} />
       ))}
-      {addons.length === 0 && <Text className="py-4 text-muted">No add-ons installed.</Text>}
+      {addons.length === 0 && <Text className="py-4 text-muted">{t('No add-ons installed.')}</Text>}
 
-      <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Add an add-on</Text>
+      <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Add an add-on')}</Text>
       <View className="flex-row items-center gap-3 pt-2">
         <TextInput
           value={url}
           onChangeText={setUrl}
-          placeholder="https://…/manifest.json"
+          placeholder={'https://…/manifest.json'}
           placeholderTextColor="#8d8a83"
           autoCapitalize="none"
           autoCorrect={false}
@@ -269,12 +288,12 @@ function AddonsManager() {
           {adding ? (
             <ActivityIndicator color="#1a1305" />
           ) : (
-            <Text className="font-semibold text-ink">Add</Text>
+            <Text className="font-semibold text-ink">{t('Add')}</Text>
           )}
         </Pressable>
       </View>
       <Text className="pt-3 text-xs text-muted">
-        Health shows how each add-on answered since Lelap started. It stays on this device.
+        {t('Health shows how each add-on answered since Lelap started. It stays on this device.')}
       </Text>
       <ActionSheet
         title={menu?.manifest.name ?? null}

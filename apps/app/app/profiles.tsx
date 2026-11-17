@@ -1,9 +1,10 @@
-import { createProfile, listProfiles } from '@lelap/core';
+import { createProfile, getSettings, listProfiles, setSetting } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { useAllAddons } from '../src/addons';
 import { Avatar, pickAvatar } from '../src/components/Avatar';
@@ -36,6 +37,8 @@ export default function ProfilesScreen() {
       Date.now(),
       newId,
     );
+    // Starts in the language of whoever made it; it can change its own later.
+    setSetting(db, id, 'language', getSettings(db, profileId).language, Date.now());
     setName('');
     setKids(false);
     refresh();
@@ -54,12 +57,18 @@ export default function ProfilesScreen() {
       }}
     >
       <View className="-ml-2 self-start">
-        <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+        <IconButton
+          name="back"
+          label={t('Back')}
+          color={COLORS.soft}
+          onPress={() => router.back()}
+        />
       </View>
-      <Text className="text-3xl font-semibold text-paper">Profiles</Text>
+      <Text className="text-3xl font-semibold text-paper">{t('Profiles')}</Text>
       <Text className="text-soft">
-        Each profile has its own places, library, Up Next, podcasts and settings. Downloads are
-        shared. With more than one, Lelap asks who’s listening when it opens.
+        {t(
+          'Each profile has its own places, library, Up Next, podcasts and settings. Downloads are shared. With more than one, Lelap asks who’s listening when it opens.',
+        )}
       </Text>
 
       {profiles.map((p) => (
@@ -73,39 +82,39 @@ export default function ProfilesScreen() {
             <Text className="text-base text-paper">{p.name}</Text>
             <Text className="text-sm text-muted">
               {[
-                p.id === profileId ? 'Listening now' : null,
-                p.kids ? 'Kids' : null,
+                p.id === profileId ? t('Listening now') : null,
+                p.kids ? t('Kids') : null,
                 p.pinHash ? 'PIN' : null,
               ]
                 .filter(Boolean)
                 .join(' · ')}
             </Text>
           </View>
-          <Text className="text-amber">Edit</Text>
+          <Text className="text-amber">{t('Edit')}</Text>
         </Pressable>
       ))}
 
       <View className="gap-3 rounded-xl border border-line p-3">
-        <Text className="text-paper">Add a profile</Text>
+        <Text className="text-paper">{t('Add a profile')}</Text>
         <TextInput
           value={name}
           onChangeText={setName}
-          placeholder="Name"
+          placeholder={t('Name')}
           placeholderTextColor="#8d8a83"
           onSubmitEditing={add}
           className="rounded-lg border border-line px-3 py-2 text-paper"
         />
         <View className="flex-row items-center gap-3">
           <View className="flex-1">
-            <Text className="text-paper">Kids profile</Text>
+            <Text className="text-paper">{t('Kids profile')}</Text>
             <Text className="text-sm text-muted">
-              Can’t change add-ons; sees the catalogs you allow.
+              {t('Can’t change add-ons; sees the catalogs you allow.')}
             </Text>
           </View>
           <Switch value={kids} onValueChange={setKids} />
         </View>
         <Pressable disabled={name.trim() === ''} onPress={add}>
-          <Text className={name.trim() === '' ? 'text-muted' : 'text-amber'}>Add</Text>
+          <Text className={name.trim() === '' ? 'text-muted' : 'text-amber'}>{t('Add')}</Text>
         </Pressable>
       </View>
     </ScrollView>

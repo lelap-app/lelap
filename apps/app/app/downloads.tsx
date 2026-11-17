@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { BookCover, coverUri } from '../src/components/BookCover';
@@ -38,13 +39,13 @@ export default function DownloadsScreen() {
   const act = (task: () => Promise<void>) =>
     void task()
       .catch((error: unknown) =>
-        showAlert('Download', error instanceof Error ? error.message : String(error)),
+        showAlert(t('Download'), error instanceof Error ? error.message : String(error)),
       )
       .finally(refresh);
 
   const showActions = (entry: DownloadEntry) => {
     const remove = {
-      text: entry.state === 'done' ? 'Remove download' : 'Cancel download',
+      text: entry.state === 'done' ? t('Remove download') : t('Cancel download'),
       style: 'destructive' as const,
       onPress: () => act(() => deleteDownload(entry.bookId)),
     };
@@ -52,11 +53,11 @@ export default function DownloadsScreen() {
       entry.state === 'failed'
         ? [
             remove,
-            { text: 'Try again', onPress: () => act(() => startDownload(entry.bookId, null)) },
+            { text: t('Try again'), onPress: () => act(() => startDownload(entry.bookId, null)) },
           ]
         : [remove];
     showAlert(entry.title, entry.error ?? undefined, [
-      { text: 'Close', style: 'cancel' },
+      { text: t('Close'), style: 'cancel' },
       ...buttons,
     ]);
   };
@@ -75,12 +76,12 @@ export default function DownloadsScreen() {
             <View className="-ml-2 self-start">
               <IconButton
                 name="back"
-                label="Back"
+                label={t('Back')}
                 color={COLORS.soft}
                 onPress={() => router.back()}
               />
             </View>
-            <Text className="text-3xl font-semibold text-paper">Downloads</Text>
+            <Text className="text-3xl font-semibold text-paper">{t('Downloads')}</Text>
             {storage.data && (
               <View className="gap-2">
                 <Text className="text-base text-soft">
@@ -99,8 +100,8 @@ export default function DownloadsScreen() {
             )}
             <Text className="text-sm text-muted">
               {[
-                settings.downloadOnWifiOnly ? 'Only on Wi-Fi' : 'On Wi-Fi and mobile data',
-                settings.downloadWhileChargingOnly ? 'only while charging' : null,
+                settings.downloadOnWifiOnly ? t('Only on Wi-Fi') : t('On Wi-Fi and mobile data'),
+                settings.downloadWhileChargingOnly ? t('only while charging') : null,
               ]
                 .filter(Boolean)
                 .join(', ')}
@@ -110,8 +111,9 @@ export default function DownloadsScreen() {
         }
         ListEmptyComponent={
           <Text className="px-4 pt-8 text-center text-muted">
-            Downloaded books play without a connection. Download one from its page or from the
-            Library.
+            {t(
+              'Downloaded books play without a connection. Download one from its page or from the Library.',
+            )}
           </Text>
         }
         renderItem={({ item: entry }) => {

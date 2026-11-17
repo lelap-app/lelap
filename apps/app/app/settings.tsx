@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LANGUAGES, setLanguage, t } from '../src/i18n';
 import { exportBackup, importBackup } from '../src/backup';
 import { applyBedtime } from '../src/bedtime';
 import { allowDevices, followDevices } from '../src/devices';
@@ -20,7 +21,7 @@ import { showAlert } from '../src/dialog';
 import { ImportSheet } from '../src/components/ImportSheet';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
-import { SOUND_OPTIONS, SoundRow } from '../src/components/SoundSheet';
+import { soundOptions, SoundRow } from '../src/components/SoundSheet';
 import { db } from '../src/db';
 import { applyRules } from '../src/downloads';
 import * as audio from '../src/platform/audio';
@@ -138,14 +139,14 @@ function UpdateRows({
         const ota = await fetchOtaUpdate();
         setStatus(
           ota === 'downloaded'
-            ? 'An update is ready. It starts the next time you open Lelap.'
+            ? t('An update is ready. It starts the next time you open Lelap.')
             : ota === 'error'
-              ? 'The update server could not be reached.'
-              : 'Lelap is up to date.',
+              ? t('The update server could not be reached.')
+              : t('Lelap is up to date.'),
         );
         return;
       }
-      setStatus(`Installing ${release.version}…`);
+      setStatus(t('Installing {version}…', { version: release.version }));
       await installUpdate(release);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
@@ -155,21 +156,23 @@ function UpdateRows({
   };
   return (
     <>
-      <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Updates</Text>
-      <Row label="Beta versions" detail="Try new versions before everyone else.">
+      <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Updates')}</Text>
+      <Row label={t('Beta versions')} detail={t('Try new versions before everyone else.')}>
         <Switch value={betaUpdates} onValueChange={onBeta} />
       </Row>
       {OTA_UPDATES && (
         <Row
-          label="Download updates automatically"
+          label={t('Download updates automatically')}
           detail={`Small updates load in the background and start the next time you open Lelap. ${otaDescription() ?? ''}`.trim()}
         >
           <Switch value={otaUpdates} onValueChange={onOta} />
         </Row>
       )}
-      <Row label="Check for updates" {...(status ? { detail: status } : {})}>
+      <Row label={t('Check for updates')} {...(status ? { detail: status } : {})}>
         <Pressable disabled={busy} onPress={() => void check()}>
-          <Text className={busy ? 'text-muted' : 'text-amber'}>{busy ? 'Checking…' : 'Check'}</Text>
+          <Text className={busy ? 'text-muted' : 'text-amber'}>
+            {busy ? t('Checking…') : t('Check')}
+          </Text>
         </Pressable>
       </Row>
     </>
@@ -196,6 +199,7 @@ export default function SettingsScreen() {
     if (key === 'downloadOnWifiOnly' || key === 'downloadWhileChargingOnly') void applyRules(next);
     if (key.startsWith('bedtime')) void applyBedtime(next);
     if (key === 'headphoneBattery' || key === 'carModeOffer') void followDevices(next);
+    if (key === 'language') setLanguage(next.language);
   };
 
   // Both need “nearby devices”, asked for only when one is turned on.
@@ -208,7 +212,7 @@ export default function SettingsScreen() {
     setScanning(true);
     try {
       const result = await scanLibrary();
-      if ('error' in result) showAlert('Cannot read the folder', 'Choose the folder again.');
+      if ('error' in result) showAlert(t('Cannot read the folder'), t('Choose the folder again.'));
     } finally {
       setScanning(false);
       refresh();
@@ -225,14 +229,34 @@ export default function SettingsScreen() {
         }}
       >
         <View className="-ml-2 self-start">
-          <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+          <IconButton
+            name="back"
+            label={t('Back')}
+            color={COLORS.soft}
+            onPress={() => router.back()}
+          />
         </View>
-        <Text className="pb-4 text-3xl font-semibold text-paper">Settings</Text>
+        <Text className="pb-4 text-3xl font-semibold text-paper">{t('Settings')}</Text>
+
+        <View className="gap-3 border-b border-line py-4">
+          <Text className="text-base text-paper">{t('Language')}</Text>
+          <Text className="text-sm text-muted">{t('For this profile only.')}</Text>
+          <View className="flex-row flex-wrap gap-2">
+            {LANGUAGES.map((l) => (
+              <Choice
+                key={l.code}
+                label={l.name}
+                active={settings.language === l.code}
+                onPress={() => update('language', l.code)}
+              />
+            ))}
+          </View>
+        </View>
 
         {LOCAL_FOLDERS && (
           <>
-            <Text className="pt-2 text-xs uppercase tracking-wider text-muted">Library</Text>
-            <Row label="Audiobooks folder" detail={root?.name ?? 'Not chosen'}>
+            <Text className="pt-2 text-xs uppercase tracking-wider text-muted">{t('Library')}</Text>
+            <Row label={t('Audiobooks folder')} detail={root?.name ?? t('Not chosen')}>
               <Pressable
                 onPress={() =>
                   void chooseFolder().then(async (ok) => {
@@ -240,13 +264,13 @@ export default function SettingsScreen() {
                   })
                 }
               >
-                <Text className="text-amber">Change</Text>
+                <Text className="text-amber">{t('Change')}</Text>
               </Pressable>
             </Row>
-            <Row label="Look for new and changed files">
+            <Row label={t('Look for new and changed files')}>
               <Pressable disabled={scanning || !root} onPress={() => void rescan()}>
                 <Text className={scanning ? 'text-muted' : 'text-amber'}>
-                  {scanning ? 'Scanning…' : 'Rescan'}
+                  {scanning ? t('Scanning…') : t('Rescan')}
                 </Text>
               </Pressable>
             </Row>
@@ -255,16 +279,16 @@ export default function SettingsScreen() {
 
         {!me?.kids && (
           <>
-            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Servers</Text>
+            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Servers')}</Text>
             {servers.map((s) => (
               <Row
                 key={s.id}
                 label={s.name}
                 detail={
                   s.needsLogin
-                    ? 'Password needed: it is not in backups.'
+                    ? t('Password needed: it is not in backups.')
                     : s.remote?.type === 's3'
-                      ? 'S3 bucket'
+                      ? t('S3 bucket')
                       : s.remote?.type === 'jellyfin'
                         ? 'Jellyfin'
                         : 'WebDAV'
@@ -272,18 +296,20 @@ export default function SettingsScreen() {
               >
                 {s.needsLogin && (
                   <Pressable onPress={() => router.push(`/server?root=${s.id}`)}>
-                    <Text className="text-amber">Log in</Text>
+                    <Text className="text-amber">{t('Log in')}</Text>
                   </Pressable>
                 )}
                 <Pressable
                   onPress={() =>
                     showAlert(
-                      `Remove ${s.name}?`,
-                      'Its books and your places in them are removed from Lelap. Nothing on the server changes.',
+                      t('Remove {name}?', { name: s.name }),
+                      t(
+                        'Its books and your places in them are removed from Lelap. Nothing on the server changes.',
+                      ),
                       [
-                        { text: 'Keep', style: 'cancel' },
+                        { text: t('Keep'), style: 'cancel' },
                         {
-                          text: 'Remove',
+                          text: t('Remove'),
                           style: 'destructive',
                           onPress: () => {
                             removeRemoteRoot(db, s.id);
@@ -294,33 +320,36 @@ export default function SettingsScreen() {
                     )
                   }
                 >
-                  <Text className="text-danger">Remove</Text>
+                  <Text className="text-danger">{t('Remove')}</Text>
                 </Pressable>
               </Row>
             ))}
             <Row
-              label="Add a server"
-              detail="WebDAV (Nextcloud, ownCloud, a NAS) or an S3-compatible bucket."
+              label={t('Add a server')}
+              detail={t('WebDAV (Nextcloud, ownCloud, a NAS) or an S3-compatible bucket.')}
             >
               <Pressable onPress={() => router.push('/server')}>
-                <Text className="text-amber">Add</Text>
+                <Text className="text-amber">{t('Add')}</Text>
               </Pressable>
             </Row>
           </>
         )}
-        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Downloads</Text>
+        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Downloads')}</Text>
         {LOCAL_FOLDERS && (
           <>
             <Row
-              label="Download only on Wi-Fi"
-              detail="Downloads wait for Wi-Fi instead of using mobile data."
+              label={t('Download only on Wi-Fi')}
+              detail={t('Downloads wait for Wi-Fi instead of using mobile data.')}
             >
               <Switch
                 value={settings.downloadOnWifiOnly}
                 onValueChange={(v) => update('downloadOnWifiOnly', v)}
               />
             </Row>
-            <Row label="Download only while charging" detail="Good for downloading overnight.">
+            <Row
+              label={t('Download only while charging')}
+              detail={t('Good for downloading overnight.')}
+            >
               <Switch
                 value={settings.downloadWhileChargingOnly}
                 onValueChange={(v) => update('downloadWhileChargingOnly', v)}
@@ -329,20 +358,23 @@ export default function SettingsScreen() {
           </>
         )}
         <Row
-          label="Downloads and storage"
-          detail="What is on the phone and how much space it takes."
+          label={t('Downloads and storage')}
+          detail={t('What is on the phone and how much space it takes.')}
         >
           <Pressable onPress={() => router.push('/downloads')}>
-            <Text className="text-amber">Open</Text>
+            <Text className="text-amber">{t('Open')}</Text>
           </Pressable>
         </Row>
 
         {!me?.kids && (
           <>
-            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">People</Text>
-            <Row label="Profiles" detail="Everyone who listens here, each with their own places.">
+            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('People')}</Text>
+            <Row
+              label={t('Profiles')}
+              detail={t('Everyone who listens here, each with their own places.')}
+            >
               <Pressable onPress={() => router.push('/profiles')}>
-                <Text className="text-amber">Manage</Text>
+                <Text className="text-amber">{t('Manage')}</Text>
               </Pressable>
             </Row>
           </>
@@ -350,49 +382,58 @@ export default function SettingsScreen() {
 
         {!me?.kids && (
           <>
-            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Devices</Text>
-            <Row label="Sync" detail="Keep your places and podcasts in step on your other devices.">
+            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Devices')}</Text>
+            <Row
+              label={t('Sync')}
+              detail={t('Keep your places and podcasts in step on your other devices.')}
+            >
               <Pressable onPress={() => router.push('/sync')}>
-                <Text className="text-amber">Open</Text>
+                <Text className="text-amber">{t('Open')}</Text>
               </Pressable>
             </Row>
 
             {!me?.kids && <></>}
-            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Backup</Text>
+            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Backup')}</Text>
             <Row
-              label="Export library"
-              detail="Places, bookmarks, lists, tags, podcasts and add-on addresses in one file. Add-on addresses can hold your keys for them; keep the file private."
+              label={t('Export library')}
+              detail={t(
+                'Places, bookmarks, lists, tags, podcasts and add-on addresses in one file. Add-on addresses can hold your keys for them; keep the file private.',
+              )}
             >
               <Pressable
                 onPress={() =>
                   void exportBackup().catch((error: unknown) =>
-                    showAlert('Export', error instanceof Error ? error.message : String(error)),
+                    showAlert(t('Export'), error instanceof Error ? error.message : String(error)),
                   )
                 }
               >
-                <Text className="text-amber">Export</Text>
+                <Text className="text-amber">{t('Export')}</Text>
               </Pressable>
             </Row>
             <Row
-              label="Import library"
-              detail="Merges an export into this device. Where both have a change, the newer one stays. Local books need their folder chosen first."
+              label={t('Import library')}
+              detail={t(
+                'Merges an export into this device. Where both have a change, the newer one stays. Local books need their folder chosen first.',
+              )}
             >
               <Pressable
                 onPress={() =>
                   void importBackup(true, refresh).catch((error: unknown) =>
-                    showAlert('Import', error instanceof Error ? error.message : String(error)),
+                    showAlert(t('Import'), error instanceof Error ? error.message : String(error)),
                   )
                 }
               >
-                <Text className="text-amber">Import</Text>
+                <Text className="text-amber">{t('Import')}</Text>
               </Pressable>
             </Row>
             <Row
-              label="Import from another app"
-              detail="Goodreads shelves, AntennaPod subscriptions and Smart AudioBook Player places."
+              label={t('Import from another app')}
+              detail={t(
+                'Goodreads shelves, AntennaPod subscriptions and Smart AudioBook Player places.',
+              )}
             >
               <Pressable onPress={() => setImporting(true)}>
-                <Text className="text-amber">Choose</Text>
+                <Text className="text-amber">{t('Choose')}</Text>
               </Pressable>
             </Row>
             <ImportSheet
@@ -402,24 +443,30 @@ export default function SettingsScreen() {
             />
           </>
         )}
-        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Catalogs</Text>
-        <Row label="Add-ons" detail="Where Home, Discover and Search look for books.">
+        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Catalogs')}</Text>
+        <Row label={t('Add-ons')} detail={t('Where Home, Discover and Search look for books.')}>
           <Pressable onPress={() => router.push('/addons')}>
-            <Text className="text-amber">Manage</Text>
+            <Text className="text-amber">{t('Manage')}</Text>
           </Pressable>
         </Row>
 
-        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Playback</Text>
-        <Row label="Duck on calls" detail="Lower the volume during calls instead of pausing.">
+        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Playback')}</Text>
+        <Row
+          label={t('Duck on calls')}
+          detail={t('Lower the volume during calls instead of pausing.')}
+        >
           <Switch
             value={settings.duckOnInterruption}
             onValueChange={(v) => update('duckOnInterruption', v)}
           />
         </Row>
-        <Row label="Smart rewind" detail="Go back a few seconds when you resume after a pause.">
+        <Row
+          label={t('Smart rewind')}
+          detail={t('Go back a few seconds when you resume after a pause.')}
+        >
           <Switch value={settings.smartRewind} onValueChange={(v) => update('smartRewind', v)} />
         </Row>
-        {SOUND_OPTIONS.map((o) => (
+        {soundOptions().map((o) => (
           <SoundRow
             key={o.key}
             label={o.label}
@@ -429,9 +476,9 @@ export default function SettingsScreen() {
           />
         ))}
         <View className="gap-3 border-b border-line py-4">
-          <Text className="text-base text-paper">Skip interval</Text>
+          <Text className="text-base text-paper">{t('Skip interval')}</Text>
           <Text className="text-sm text-muted">
-            For the skip buttons, the lock screen and headphones.
+            {t('For the skip buttons, the lock screen and headphones.')}
           </Text>
           <View className="flex-row flex-wrap gap-2">
             {SKIP_SECONDS.map((s) => {
@@ -453,9 +500,9 @@ export default function SettingsScreen() {
           <View className="gap-3 border-b border-line py-4">
             <View className="flex-row items-center gap-4">
               <View className="flex-1 gap-1">
-                <Text className="text-base text-paper">Start a sleep timer at bedtime</Text>
+                <Text className="text-base text-paper">{t('Start a sleep timer at bedtime')}</Text>
                 <Text className="text-sm text-muted">
-                  When you press Play in this window, once a night.
+                  {t('When you press Play in this window, once a night.')}
                 </Text>
               </View>
               <Switch
@@ -466,12 +513,12 @@ export default function SettingsScreen() {
             {settings.bedtimeTimer && (
               <>
                 <TimeStepper
-                  label="From"
+                  label={t('From')}
                   minutes={settings.bedtimeStart}
                   onChange={(m) => update('bedtimeStart', m)}
                 />
                 <TimeStepper
-                  label="To"
+                  label={t('To')}
                   minutes={settings.bedtimeEnd}
                   onChange={(m) => update('bedtimeEnd', m)}
                 />
@@ -479,7 +526,7 @@ export default function SettingsScreen() {
                   {BEDTIME_MINUTES.map((m) => (
                     <Choice
                       key={m}
-                      label={`${m} min`}
+                      label={t('{n} min', { n: m })}
                       active={!settings.bedtimeChapter && settings.bedtimeMinutes === m}
                       onPress={() => {
                         update('bedtimeChapter', false);
@@ -488,7 +535,7 @@ export default function SettingsScreen() {
                     />
                   ))}
                   <Choice
-                    label="End of chapter"
+                    label={t('End of chapter')}
                     active={settings.bedtimeChapter}
                     onPress={() => update('bedtimeChapter', true)}
                   />
@@ -501,11 +548,13 @@ export default function SettingsScreen() {
         {BLUETOOTH && (
           <>
             <Text className="pt-6 text-xs uppercase tracking-wider text-muted">
-              Headphones and car
+              {t('Headphones and car')}
             </Text>
             <Row
-              label="Warn about low headphone battery"
-              detail="When your Bluetooth headphones or speaker likely won’t last the sleep timer or the chapter. Needs “nearby devices”; devices that don’t report a level show nothing."
+              label={t('Warn about low headphone battery')}
+              detail={t(
+                'When your Bluetooth headphones or speaker likely won’t last the sleep timer or the chapter. Needs “nearby devices”; devices that don’t report a level show nothing.',
+              )}
             >
               <Switch
                 value={settings.headphoneBattery}
@@ -513,8 +562,10 @@ export default function SettingsScreen() {
               />
             </Row>
             <Row
-              label="Offer car mode in the car"
-              detail="Big buttons when the phone connects to a car’s Bluetooth. Needs “nearby devices”. Car mode is always in the player."
+              label={t('Offer car mode in the car')}
+              detail={t(
+                'Big buttons when the phone connects to a car’s Bluetooth. Needs “nearby devices”. Car mode is always in the player.',
+              )}
             >
               <Switch
                 value={settings.carModeOffer}
@@ -535,10 +586,15 @@ export default function SettingsScreen() {
 
         {__DEV__ && LOCAL_FOLDERS && (
           <>
-            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Developer</Text>
-            <Row label="Audio spike" detail="The M1 test screen, until its call checks pass.">
+            <Text className="pt-6 text-xs uppercase tracking-wider text-muted">
+              {t('Developer')}
+            </Text>
+            <Row
+              label={t('Audio spike')}
+              detail={t('The M1 test screen, until its call checks pass.')}
+            >
               <Pressable onPress={() => router.push('/dev/spike')}>
-                <Text className="text-amber">Open</Text>
+                <Text className="text-amber">{t('Open')}</Text>
               </Pressable>
             </Row>
           </>

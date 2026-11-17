@@ -2,6 +2,7 @@ import { getDownload, getSettings } from '@lelap/core';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
+import { t } from '../i18n';
 import { showAlert } from '../dialog';
 import { db } from '../db';
 import { deleteDownload, describeDownload, useDownloadStatuses } from '../downloads';
@@ -34,7 +35,7 @@ export function DownloadButton({
     try {
       await task();
     } catch (error) {
-      showAlert('Download', error instanceof Error ? error.message : String(error));
+      showAlert(t('Download'), error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
       refresh();
@@ -52,7 +53,7 @@ export function DownloadButton({
           <ActivityIndicator color="#f5b041" />
         ) : (
           <Text className="text-base text-paper">
-            {sizeBytes > 0 ? `Download · ${formatBytes(sizeBytes)}` : 'Download'}
+            {sizeBytes > 0 ? `${t('Download')} · ${formatBytes(sizeBytes)}` : t('Download')}
           </Text>
         )}
       </Pressable>
@@ -62,12 +63,12 @@ export function DownloadButton({
   const view = describeDownload(entry, status, getSettings(db, profileId));
   const remove = () =>
     showAlert(
-      entry.state === 'done' ? 'Remove download?' : 'Cancel download?',
-      'The book stays in your library and streams while online.',
+      entry.state === 'done' ? t('Remove download?') : t('Cancel download?'),
+      t('The book stays in your library and streams while online.'),
       [
-        { text: 'Keep', style: 'cancel' },
+        { text: t('Keep'), style: 'cancel' },
         {
-          text: entry.state === 'done' ? 'Remove' : 'Cancel download',
+          text: entry.state === 'done' ? t('Remove') : t('Cancel download'),
           style: 'destructive',
           onPress: () => void run(() => deleteDownload(entry.bookId)),
         },
@@ -75,14 +76,14 @@ export function DownloadButton({
     );
   const onPress = () => {
     if (!view.failed) return remove();
-    showAlert('Download failed', entry.error ?? undefined, [
-      { text: 'Close', style: 'cancel' },
+    showAlert(t('Download failed'), entry.error ?? undefined, [
+      { text: t('Close'), style: 'cancel' },
       {
-        text: 'Remove',
+        text: t('Remove'),
         style: 'destructive',
         onPress: () => void run(() => deleteDownload(entry.bookId)),
       },
-      { text: 'Try again', onPress: () => void run(start) },
+      { text: t('Try again'), onPress: () => void run(start) },
     ]);
   };
 
@@ -97,7 +98,7 @@ export function DownloadButton({
           {view.label}
         </Text>
         <Text className="text-amber">
-          {view.failed ? 'Retry' : entry.state === 'done' ? 'Remove' : 'Cancel'}
+          {view.failed ? t('Retry') : entry.state === 'done' ? t('Remove') : t('Cancel')}
         </Text>
       </View>
       {view.progress !== null && (

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { db } from '../src/db';
 import { formatClock } from '../src/format';
@@ -50,14 +51,14 @@ export default function TranscriptScreen() {
     list.current?.scrollToIndex({ index: current, viewPosition: 0.3, animated: true });
   }, [current, heldUntil]);
 
-  const title = episode?.title ?? detail?.book.title ?? 'Transcript';
+  const title = episode?.title ?? detail?.book.title ?? t('Transcript');
 
   return (
     <View style={{ paddingTop: insets.top + 4 }} className="flex-1 bg-night">
       <View className="flex-row items-center gap-2 px-2 pb-2">
         <IconButton
           name="down"
-          label="Close transcript"
+          label={t('Close transcript')}
           size={26}
           color={COLORS.soft}
           onPress={() => router.back()}
@@ -75,7 +76,9 @@ export default function TranscriptScreen() {
       </View>
 
       {!source ? (
-        <Text className="px-6 pt-24 text-center text-muted">This episode has no transcript.</Text>
+        <Text className="px-6 pt-24 text-center text-muted">
+          {t('This episode has no transcript.')}
+        </Text>
       ) : transcript.isPending ? (
         <ActivityIndicator color={COLORS.amber} className="pt-24" />
       ) : transcript.isError ? (
@@ -83,7 +86,7 @@ export default function TranscriptScreen() {
           The transcript could not be read: {message(transcript.error)}
         </Text>
       ) : cues.length === 0 ? (
-        <Text className="px-6 pt-24 text-center text-muted">The transcript is empty.</Text>
+        <Text className="px-6 pt-24 text-center text-muted">{t('The transcript is empty.')}</Text>
       ) : (
         <FlatList
           ref={list}

@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { installAddon, localAddonUrl, saveLocalAddonCode } from '@lelap/core';
 import { Manifest } from '@lelap/sdk';
 import * as Crypto from 'expo-crypto';
@@ -18,22 +19,23 @@ export const isAddonFile = (url: string) => /\.m?js(\?.*)?$/i.test(url.trim());
  */
 export async function installAddonFile(sourceUrl: string): Promise<boolean> {
   const response = await fetch(sourceUrl, { credentials: 'omit' });
-  if (!response.ok) throw new Error(`The file could not be loaded (${response.status}).`);
+  if (!response.ok)
+    throw new Error(t('The file could not be loaded ({status}).', { status: response.status }));
   const code = await response.text();
-  if (code.length > MAX_CODE_CHARS) throw new Error('The file is too large for an add-on.');
+  if (code.length > MAX_CODE_CHARS) throw new Error(t('The file is too large for an add-on.'));
   const parsed = Manifest.safeParse(await previewManifest(code));
-  if (!parsed.success) throw new Error('The file’s manifest is not valid.');
+  if (!parsed.success) throw new Error(t('The file’s manifest is not valid.'));
   const manifest = parsed.data;
   if (!manifest.sandbox) {
-    throw new Error('This file is not an in-app add-on: its manifest has no `sandbox` hosts.');
+    throw new Error(t('This file is not an in-app add-on: its manifest has no `sandbox` hosts.'));
   }
   const sha256 = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, code);
   const url = localAddonUrl(manifest.id);
   const accepted = await reviewAddon(
     manifest,
     url,
-    'Add',
-    `Code fingerprint ${sha256.slice(0, 16)}…`,
+    t('Add'),
+    t('Code fingerprint {hash}…', { hash: sha256.slice(0, 16) }),
   );
   if (!accepted) return false;
   saveLocalAddonCode(db, { url, sourceUrl, code, sha256, now: Date.now() });

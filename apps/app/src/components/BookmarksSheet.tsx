@@ -1,6 +1,7 @@
 import type { Bookmark } from '@lelap/core';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
+import { t } from '../i18n';
 import { showAlert } from '../dialog';
 import { formatClock } from '../format';
 import { Sheet } from './Sheet';
@@ -19,15 +20,17 @@ export function BookmarksSheet({
   onClose: () => void;
 }) {
   const confirmDelete = (bookmark: Bookmark) =>
-    showAlert('Delete bookmark?', bookmark.note ?? formatClock(bookmark.bookPositionMs), [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => onDelete(bookmark.id) },
+    showAlert(t('Delete bookmark?'), bookmark.note ?? formatClock(bookmark.bookPositionMs), [
+      { text: t('Cancel'), style: 'cancel' },
+      { text: t('Delete'), style: 'destructive', onPress: () => onDelete(bookmark.id) },
     ]);
 
   return (
-    <Sheet visible={visible} title="Bookmarks" onClose={onClose}>
+    <Sheet visible={visible} title={t('Bookmarks')} onClose={onClose}>
       {bookmarks.length === 0 ? (
-        <Text className="pb-4 text-muted">No bookmarks yet. Tap “+ Bookmark” while listening.</Text>
+        <Text className="pb-4 text-muted">
+          {t('No bookmarks yet. Tap “Add bookmark” while listening.')}
+        </Text>
       ) : (
         <FlatList
           data={bookmarks}
@@ -41,13 +44,15 @@ export function BookmarksSheet({
               <Text className="w-20 text-amber">{formatClock(item.bookPositionMs)}</Text>
               <View className="flex-1">
                 <Text numberOfLines={2} className={item.note ? 'text-paper' : 'text-muted'}>
-                  {item.note ?? 'No note'}
+                  {item.note ?? t('No note')}
                 </Text>
               </View>
             </Pressable>
           )}
           ListFooterComponent={
-            <Text className="py-2 text-xs text-muted">Long press a bookmark to delete it.</Text>
+            <Text className="py-2 text-xs text-muted">
+              {t('Long press a bookmark to delete it.')}
+            </Text>
           }
         />
       )}

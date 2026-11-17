@@ -2,6 +2,7 @@ import { SCRUB_RATE_LABELS, scrubRate, snapTo } from '@lelap/core';
 import { useMemo, useRef, useState } from 'react';
 import { PanResponder, Platform, Pressable, Text, Vibration, View } from 'react-native';
 
+import { t } from '../i18n';
 import { formatClock } from '../format';
 
 const THUMB = 16;
@@ -110,7 +111,7 @@ export function Scrubber({
     <View className="gap-1">
       {held?.dragging && held.rate < 1 && (
         <Text className="text-center text-xs font-semibold text-amber">
-          {SCRUB_RATE_LABELS[held.rate]} scrubbing
+          {t('{rate} scrubbing', { rate: SCRUB_RATE_LABELS[held.rate] ?? '' })}
         </Text>
       )}
       <View
@@ -159,7 +160,7 @@ export function Scrubber({
           disabled={!onPressElapsed}
           hitSlop={8}
           accessibilityRole={onPressElapsed ? 'button' : 'text'}
-          accessibilityHint={onPressElapsed ? 'Jump to a time' : undefined}
+          accessibilityHint={onPressElapsed ? t('Jump to a time') : undefined}
         >
           <Text
             className={`text-sm ${held?.dragging ? 'font-semibold text-amber' : 'text-muted'} ${onPressElapsed ? 'underline' : ''}`}

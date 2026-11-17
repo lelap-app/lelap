@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { getSettings, pickUpdate, ReleaseInfo } from '@lelap/core';
 
 import { showAlert } from './dialog';
@@ -32,11 +33,13 @@ export async function checkForUpdate(): Promise<ReleaseInfo | null> {
 export async function installUpdate(release: ReleaseInfo): Promise<void> {
   if (!updater.canInstall()) {
     showAlert(
-      'Allow updates',
-      'Android asks once before an app may install its own updates. Turn on “Allow from this source” for Lelap, then come back and install.',
+      t('Allow updates'),
+      t(
+        'Android asks once before an app may install its own updates. Turn on “Allow from this source” for Lelap, then come back and install.',
+      ),
       [
-        { text: 'Not now', style: 'cancel' },
-        { text: 'Open settings', onPress: () => void updater.openInstallSettings() },
+        { text: t('Not now'), style: 'cancel' },
+        { text: t('Open settings'), onPress: () => void updater.openInstallSettings() },
       ],
     );
     return;
@@ -52,8 +55,8 @@ export async function offerUpdateOnStart(): Promise<void> {
   offered = true;
   const release = await checkForUpdate();
   if (!release) return;
-  showAlert(`Lelap ${release.version} is available`, undefined, [
-    { text: 'Later', style: 'cancel' },
-    { text: 'Install', onPress: () => void installUpdate(release).catch(() => {}) },
+  showAlert(t('Lelap {version} is available', { version: release.version }), undefined, [
+    { text: t('Later'), style: 'cancel' },
+    { text: t('Install'), onPress: () => void installUpdate(release).catch(() => {}) },
   ]);
 }

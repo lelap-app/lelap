@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import {
   applyRemotePlaces,
   applyScan,
@@ -137,7 +138,7 @@ async function scanJellyfin(
   root: Root,
   remote: Extract<NonNullable<Root['remote']>, { type: 'jellyfin' }>,
 ): Promise<{ added: number; missing: number }> {
-  if (root.needsLogin) throw new Error('The Jellyfin login is needed again.');
+  if (root.needsLogin) throw new Error(t('The Jellyfin login is needed again.'));
   const items = await listJellyfinItems((u, i) => fetch(u, i), remote);
   const scan = jellyfinScan(remote, items);
   const now = Date.now();

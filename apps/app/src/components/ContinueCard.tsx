@@ -1,6 +1,7 @@
 import type { LibraryBook } from '@lelap/core';
 import { Pressable, Text, View } from 'react-native';
 
+import { t } from '../i18n';
 import { COLORS, Icon } from './Icon';
 import { formatLeft } from '../format';
 import { BookCover, coverUri } from './BookCover';
@@ -13,7 +14,9 @@ export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: ()
     >
       <BookCover uri={coverUri(book)} title={book.title} size={72} />
       <View className="flex-1 gap-1">
-        <Text className="text-xs uppercase tracking-wider text-muted">Continue listening</Text>
+        <Text className="text-xs uppercase tracking-wider text-muted">
+          {t('Continue listening')}
+        </Text>
         <Text numberOfLines={2} className="text-base font-semibold text-paper">
           {book.title}
         </Text>

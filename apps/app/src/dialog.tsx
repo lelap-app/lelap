@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native';
 
+import { t } from './i18n';
+
 // React Native's Alert does nothing on the web, so the web gets the same dialog drawn by the app.
 // Android keeps the system dialog.
 
@@ -30,7 +32,7 @@ export function showAlert(
   buttons?: AlertButton[],
   options?: AlertOptions,
 ): void {
-  const list = buttons && buttons.length > 0 ? buttons : [{ text: 'OK' }];
+  const list = buttons && buttons.length > 0 ? buttons : [{ text: t('OK') }];
   if (Platform.OS !== 'web') {
     Alert.alert(title, message, list, options);
     return;
@@ -61,7 +63,7 @@ export function DialogHost() {
     <Modal transparent animationType="fade" visible onRequestClose={() => close(cancel)}>
       <Pressable
         onPress={() => close(cancel)}
-        accessibilityLabel="Close"
+        accessibilityLabel={t('Close')}
         className="flex-1 items-center justify-center bg-black/60 px-6"
       >
         <Pressable

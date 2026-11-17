@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { getLocalAddonCode, hostAllowed, listAddons } from '@lelap/core';
 
 import { db } from '../db';
@@ -67,7 +68,7 @@ export function closeSandbox(id: string): void {
   if (!box) return;
   for (const call of box.calls.values()) {
     clearTimeout(call.timer);
-    call.reject(new Error('The add-on stopped.'));
+    call.reject(new Error(t('The add-on stopped.')));
   }
   boxes.delete(id);
   changed();
@@ -99,7 +100,7 @@ async function fetchFor(box: Box, id: string, url: string, init: RequestInit | u
       credentials: 'omit',
     });
     const text = await response.text();
-    if (text.length > MAX_RESPONSE_CHARS) throw new Error('The answer was too large.');
+    if (text.length > MAX_RESPONSE_CHARS) throw new Error(t('The answer was too large.'));
     const type = response.headers.get('content-type');
     reply({ status: response.status, text, headers: type ? { 'content-type': type } : {} });
   } catch (error) {
@@ -153,7 +154,7 @@ async function call(box: Box, path: string): Promise<{ status: number; body: unk
   if (!box.ready || !box.post) {
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(
-        () => reject(new Error('The add-on did not start.')),
+        () => reject(new Error(t('The add-on did not start.'))),
         CALL_TIMEOUT_MS,
       );
       box.waiting.push(() => {
@@ -166,7 +167,7 @@ async function call(box: Box, path: string): Promise<{ status: number; body: unk
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       box.calls.delete(id);
-      reject(new Error('The add-on did not answer in time.'));
+      reject(new Error(t('The add-on did not answer in time.')));
     }, CALL_TIMEOUT_MS);
     box.calls.set(id, { resolve, reject, timer });
     box.post?.(JSON.stringify({ t: 'call', id, path }));
@@ -179,7 +180,7 @@ export async function callLocalAddon(
   path: string,
 ): Promise<{ status: number; body: unknown }> {
   const box = boxFor(manifestUrl);
-  if (!box) throw new Error('This add-on is not on this device.');
+  if (!box) throw new Error(t('This add-on is not on this device.'));
   return call(box, path);
 }
 
@@ -189,7 +190,7 @@ export async function previewManifest(code: string): Promise<unknown> {
   const box = open(id, code, []);
   try {
     const result = await call(box, 'manifest.json');
-    if (result.status !== 200) throw new Error('The file has no manifest.');
+    if (result.status !== 200) throw new Error(t('The file has no manifest.'));
     return result.body;
   } finally {
     closeSandbox(id);

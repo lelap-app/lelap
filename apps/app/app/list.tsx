@@ -16,6 +16,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '../src/i18n';
 import { EmptyState } from '../src/components/Lori';
 import { BookActions } from '../src/components/BookActions';
 import { BookRow } from '../src/components/BookRow';
@@ -33,18 +34,20 @@ const HOUR = 3_600_000;
 function describeRule(rule: SmartRule): string {
   const parts = [
     rule.status === 'notStarted'
-      ? 'Not started'
+      ? t('Not started')
       : rule.status === 'inProgress'
-        ? 'In progress'
+        ? t('In progress')
         : rule.status === 'finished'
-          ? 'Finished'
+          ? t('Finished')
           : null,
-    rule.kind === 'book' ? 'Books' : rule.kind === 'episode' ? 'Episodes' : null,
-    rule.maxDurationMs !== undefined ? `Up to ${Math.round(rule.maxDurationMs / HOUR)} h` : null,
-    rule.offline ? 'Ready offline' : null,
+    rule.kind === 'book' ? t('Books') : rule.kind === 'episode' ? t('Episodes') : null,
+    rule.maxDurationMs !== undefined
+      ? t('Up to {h} h', { h: Math.round(rule.maxDurationMs / HOUR) })
+      : null,
+    rule.offline ? t('Ready offline') : null,
     ...(rule.tags ?? []).map((t) => `# ${t}`),
   ].filter((p): p is string => p !== null);
-  return parts.length > 0 ? parts.join(' · ') : 'Everything in your library';
+  return parts.length > 0 ? parts.join(' · ') : t('Everything in your library');
 }
 
 function Choice<T>({
@@ -92,43 +95,43 @@ function RuleSheet({
     onChange(Object.fromEntries(merged) as SmartRule);
   };
   return (
-    <Sheet visible title="What this list shows" onClose={onClose}>
+    <Sheet visible title={t('What this list shows')} onClose={onClose}>
       <View className="gap-4 pb-2">
         <Choice
           value={rule.status}
           onChange={(status) => set({ status })}
           options={[
-            { label: 'Any', value: undefined },
-            { label: 'Not started', value: 'notStarted' as const },
-            { label: 'In progress', value: 'inProgress' as const },
-            { label: 'Finished', value: 'finished' as const },
+            { label: t('Any'), value: undefined },
+            { label: t('Not started'), value: 'notStarted' as const },
+            { label: t('In progress'), value: 'inProgress' as const },
+            { label: t('Finished'), value: 'finished' as const },
           ]}
         />
         <Choice
           value={rule.kind}
           onChange={(kind) => set({ kind })}
           options={[
-            { label: 'Books and episodes', value: undefined },
-            { label: 'Books', value: 'book' as const },
-            { label: 'Episodes', value: 'episode' as const },
+            { label: t('Books and episodes'), value: undefined },
+            { label: t('Books'), value: 'book' as const },
+            { label: t('Episodes'), value: 'episode' as const },
           ]}
         />
         <Choice
           value={rule.maxDurationMs}
           onChange={(maxDurationMs) => set({ maxDurationMs })}
           options={[
-            { label: 'Any length', value: undefined },
-            { label: 'Up to 1 h', value: HOUR },
-            { label: 'Up to 3 h', value: 3 * HOUR },
-            { label: 'Up to 10 h', value: 10 * HOUR },
+            { label: t('Any length'), value: undefined },
+            { label: t('Up to 1 h'), value: HOUR },
+            { label: t('Up to 3 h'), value: 3 * HOUR },
+            { label: t('Up to 10 h'), value: 10 * HOUR },
           ]}
         />
         <Choice
           value={rule.offline === true}
           onChange={(offline) => set({ offline: offline || undefined })}
           options={[
-            { label: 'Streaming too', value: false },
-            { label: 'Ready offline only', value: true },
+            { label: t('Streaming too'), value: false },
+            { label: t('Ready offline only'), value: true },
           ]}
         />
         {tags.length > 0 && (
@@ -153,7 +156,7 @@ function RuleSheet({
           </View>
         )}
         <Pressable onPress={onClose} className="self-end py-2">
-          <Text className="text-amber">Done</Text>
+          <Text className="text-amber">{t('Done')}</Text>
         </Pressable>
       </View>
     </Sheet>
@@ -187,7 +190,7 @@ export default function ListScreen() {
         await playBook(book.id);
         router.push('/player');
       } catch (error) {
-        showAlert('Cannot play', error instanceof Error ? error.message : String(error));
+        showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error));
       }
     },
     [router],
@@ -201,10 +204,10 @@ export default function ListScreen() {
 
   const remove = () =>
     list &&
-    showAlert(`Delete “${list.name}”?`, 'The books stay in your library.', [
-      { text: 'Cancel', style: 'cancel' },
+    showAlert(t('Delete “{name}”?', { name: list.name }), t('The books stay in your library.'), [
+      { text: t('Cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('Delete'),
         style: 'destructive',
         onPress: () => {
           deletePlaylist(db, profileId, list.id, Date.now());
@@ -229,7 +232,7 @@ export default function ListScreen() {
               <View className="-ml-2">
                 <IconButton
                   name="back"
-                  label="Back"
+                  label={t('Back')}
                   color={COLORS.soft}
                   onPress={() => router.back()}
                 />
@@ -237,7 +240,7 @@ export default function ListScreen() {
               {list && (
                 <IconButton
                   name="close"
-                  label="Delete list"
+                  label={t('Delete list')}
                   color={COLORS.muted}
                   onPress={remove}
                 />
@@ -258,7 +261,7 @@ export default function ListScreen() {
               <Pressable
                 disabled={!list}
                 onPress={() => setName(list?.name ?? '')}
-                accessibilityHint={list ? 'Rename' : undefined}
+                accessibilityHint={list ? t('Rename') : undefined}
               >
                 <Text className="text-3xl font-semibold text-paper">
                   {list ? list.name : `# ${tag ?? ''}`}
@@ -276,19 +279,19 @@ export default function ListScreen() {
               </Pressable>
             ) : (
               <Text className="text-sm text-muted">
-                {books.length === 1 ? '1 book' : `${books.length} books`}
-                {manual ? ' · hold a book for more' : ''}
+                {books.length === 1 ? t('1 book') : t('{n} books', { n: books.length })}
+                {manual ? t(' · hold a book for more') : ''}
               </Text>
             )}
           </View>
         }
         ListEmptyComponent={
           <EmptyState
-            title={manual ? 'Nothing on this list yet.' : 'No books match yet.'}
+            title={manual ? t('Nothing on this list yet.') : t('No books match yet.')}
             hint={
               manual
-                ? 'In the Library, hold a book and choose “Add to a list…”.'
-                : 'Lori will wait here until one does.'
+                ? t('In the Library, hold a book and choose “Add to a list…”.')
+                : t('Lori will wait here until one does.')
             }
           />
         }
@@ -301,7 +304,7 @@ export default function ListScreen() {
               <View className="pr-2">
                 <IconButton
                   name="up"
-                  label="Move up"
+                  label={t('Move up')}
                   size={20}
                   color={index === 0 ? COLORS.line : COLORS.soft}
                   onPress={() => {

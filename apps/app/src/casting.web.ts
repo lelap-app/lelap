@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import type { CastDevice } from '@lelap/cast';
 
 // The web app does not cast (yet); the player shows no Cast tool there.
@@ -16,7 +17,7 @@ export const addDevicesListener: (listener: (devices: CastDevice[]) => void) => 
   remove: () => void;
 } = () => ({ remove: () => {} });
 export const startCasting: (device: CastDevice, book: unknown) => Promise<void> = async () => {
-  throw new Error('Casting needs the Android app.');
+  throw new Error(t('Casting needs the Android app.'));
 };
 export const stopCasting = async (): Promise<void> => {};
 export const setCastVolume: (level: number) => Promise<void> = async () => {};

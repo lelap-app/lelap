@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { DownloadJob, DownloadRules, DownloadStatus, StorageInfo } from '@lelap/download';
 
 import * as opfs from './opfs';
@@ -45,7 +46,7 @@ async function fetchTo(
 ) {
   const response = await fetch(url, { signal });
   if (!response.ok || !response.body)
-    throw new Error(`The server answered HTTP ${response.status}.`);
+    throw new Error(t('The server answered HTTP {status}.', { status: response.status }));
   const part = `${path}.part`;
   const writable = await (await opfs.fileHandle(part, true)).createWritable();
   const reader = response.body.getReader();
