@@ -1,6 +1,6 @@
 # M32 follow-ups
 
-What is left of M32 Audnexus ([`next.md`](next.md)) after its first pull request. M32 stays
+What is left of M32 Audnexus ([M32](milestones/m32.md)) after its first pull request. M32 stays
 “In progress” until the device checks pass.
 
 ## What landed

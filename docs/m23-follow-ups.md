@@ -1,6 +1,6 @@
 # M23 follow-ups
 
-What is left of M23 Podcasting 2.0 ([`next.md`](next.md)) after its first pull request. M23 stays
+What is left of M23 Podcasting 2.0 ([M23](milestones/m23.md)) after its first pull request. M23 stays
 “In progress” until the device checks pass.
 
 ## What landed

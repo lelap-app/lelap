@@ -3,7 +3,7 @@
 Milestones in the order we plan them. Each has its own file in [`milestones/`](milestones/) with
 its status, what it needs and when it is done. Change the status line there, never this table, so
 pull requests for different milestones never touch the same lines. Decisions and architecture live
-in [`brief.md`](brief.md); plans for milestones not started yet in [`next.md`](next.md).
+in [`brief.md`](brief.md).
 
 | Milestone                                            | In short                                                                                                |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |

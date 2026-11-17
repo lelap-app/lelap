@@ -31,9 +31,8 @@ causes, or in its own small pull request when nothing else changes.
 
 ## Example
 
-The user says: “No guessed chapters, ever.”
+A planning file said “No guessed chapters: never from silence detection”, while milestone M45
+planned chapters from silences. The user settled it: “We can plan chapters from silence.”
 
-- Brief row: `| Chapters | From tags, feeds and Audnexus only; never guessed from silence | A wrong chapter mark is worse than none. |`
-- Conflict found: `docs/milestones/m45.md` plans chapters from silences. Ask whether M45 keeps
-  only intro and outro skipping or goes away, then change the milestone file (never the roadmap
-  table's order or rows without asking).
+- Brief row: `| Chapters | From tags, feeds and Audnexus; for books with none, found on the device from long silences | Silence chapters are a fallback for books that have no marks at all (M45). |`
+- Conflict fixed: the old rule left the planning file, and M45 stays as planned.
