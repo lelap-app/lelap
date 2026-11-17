@@ -20,6 +20,15 @@
       "port": 4331
     },
     {
+      "name": "site-beta",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && PUBLIC_LELAP_BETA=true pnpm --filter @lelap/site dev --port 4341"
+      ],
+      "port": 4341
+    },
+    {
       "name": "metro",
       "runtimeExecutable": "bash",
       "runtimeArgs": [

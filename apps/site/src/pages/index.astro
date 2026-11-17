@@ -126,7 +126,9 @@ const compose = `services:
       <span class="pill">
         {site.released
           ? 'Open source · Android · Web · Self-hosted'
-          : 'In development · Open source · Android and web'}
+          : site.beta
+            ? 'Beta · Open source · Android and web'
+            : 'In development · Open source · Android and web'}
       </span>
       <h1>{site.tagline}</h1>
       <p class="hero-lead">
@@ -149,7 +151,16 @@ const compose = `services:
           </>
         ) : (
           <>
-            <a class="btn btn-lg btn-primary" href={site.repoUrl}>
+            {site.beta && (
+              <a class="btn btn-lg btn-primary" href={site.betaApkUrl}>
+                <Icon name="download" size={18} strokeWidth={2} />
+                Try the Android beta
+              </a>
+            )}
+            <a
+              class:list={['btn btn-lg', site.beta ? 'btn-outline' : 'btn-primary']}
+              href={site.repoUrl}
+            >
               <Icon name="code" size={18} strokeWidth={2} />
               Follow on GitHub
             </a>
@@ -292,7 +303,9 @@ const compose = `services:
         <p class="lead">
           {site.released
             ? 'No Play Store and no account. Every channel ships the same signed APK.'
-            : 'Nothing to download yet. These are the ways you’ll get version 1.0.'}
+            : site.beta
+              ? 'A beta for Android is out: a test version, with rough edges. It updates itself as new betas arrive.'
+              : 'Nothing to download yet. These are the ways you’ll get version 1.0.'}
         </p>
       </div>
       <div class="download">
@@ -305,7 +318,7 @@ const compose = `services:
               <h3 class="get-title">Android</h3>
               <span class="mono-accent">.apk · Android 8.0 or newer</span>
             </div>
-            {!site.released && <span class="badge">Coming with v1.0</span>}
+            {!site.released && <span class="badge">{site.beta ? 'Beta' : 'Coming with v1.0'}</span>}
           </div>
           <p>
             The full experience: background playback, downloads with the screen off, casting and
@@ -325,17 +338,17 @@ const compose = `services:
                 {c.later ? (
                   <span class="badge channel-end">Later</span>
                 ) : (
-                  site.released &&
+                  (site.released || (site.beta && c.link?.primary)) &&
                   c.link && (
                     <a
                       class:list={[
                         'btn btn-sm channel-end',
                         c.link.primary ? 'btn-primary' : 'btn-outline',
                       ]}
-                      href={c.link.href}
+                      href={site.beta && c.link.primary ? site.betaApkUrl : c.link.href}
                     >
                       {c.link.primary && <Icon name="download" size={18} strokeWidth={2} />}
-                      {c.link.label}
+                      {site.beta && c.link.primary ? 'Download beta .apk' : c.link.label}
                     </a>
                   )
                 )}
@@ -351,6 +364,12 @@ const compose = `services:
                 same file with a build attestation and a <code>SHA256SUMS</code> list. Compare with{' '}
                 <code>sha256sum</code>, or run <code>gh attestation verify</code> against the
                 repository.
+              </p>
+            ) : site.beta ? (
+              <p>
+                <b>Checking the file?</b> <a href={site.betaInfoUrl}>beta.json</a> lists the
+                version, size and SHA-256 of the current beta, and each GitHub pre-release carries
+                the same file with a build attestation.
               </p>
             ) : (
               <p>
