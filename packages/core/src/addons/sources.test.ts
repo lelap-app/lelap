@@ -7,6 +7,7 @@ import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { getSettings } from '../settings';
 import type { Fetcher, FoundStream, InstalledAddon } from './client';
 import {
+  addonLabels,
   bookSourceChoice,
   findSources,
   getSourceChoice,
@@ -59,6 +60,18 @@ function fake(route: (url: string) => unknown): Fetcher & { calls: string[] } {
   };
   return Object.assign(fetcher, { calls });
 }
+
+describe('addonLabels', () => {
+  it('adds the host only when two add-ons share a name', () => {
+    const local = { ...librivox, url: 'http://localhost:8787/librivox/manifest.json' };
+    const catalog = addon('Catalog', ['ol:']);
+    expect(addonLabels([librivox, local, catalog])).toEqual([
+      'LibriVox (librivox.example)',
+      'LibriVox (localhost:8787)',
+      'Catalog',
+    ]);
+  });
+});
 
 describe('workIds', () => {
   it('lists the own ID first, then valid external IDs once', () => {

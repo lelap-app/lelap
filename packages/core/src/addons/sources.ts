@@ -58,6 +58,7 @@ export async function findSources(
   externalIds?: Meta['externalIds'],
 ): Promise<Sources> {
   const requests = sourceRequests(addons, type, workIds(id, externalIds));
+  const label = addonLabels(requests.map((r) => r.addon));
   const settled = await Promise.allSettled(
     requests.map((r) => fetchAddonStreams(fetcher, r.addon, type, r.id)),
   );
@@ -68,7 +69,7 @@ export async function findSources(
     const request = requests[index];
     if (!request) continue;
     if (result.status === 'rejected') {
-      failed.push(request.addon.manifest.name);
+      failed.push(label[index] ?? request.addon.manifest.name);
       continue;
     }
     for (const stream of result.value) {
@@ -82,7 +83,24 @@ export async function findSources(
     const first = settled.find((r): r is PromiseRejectedResult => r.status === 'rejected');
     throw first?.reason;
   }
-  return { found, asked: requests.map((r) => r.addon.manifest.name), failed };
+  return { found, asked: requests.map((r, i) => label[i] ?? r.addon.manifest.name), failed };
+}
+
+/**
+ * Add-on names for messages. Two add-ons with one name (the same add-on from two hosts) get their
+ * host added, so “LibriVox did not answer” can't point at the one that did.
+ */
+export function addonLabels(addons: InstalledAddon[]): string[] {
+  const count = new Map<string, number>();
+  for (const a of addons) count.set(a.manifest.name, (count.get(a.manifest.name) ?? 0) + 1);
+  return addons.map((a) => {
+    if ((count.get(a.manifest.name) ?? 0) < 2) return a.manifest.name;
+    try {
+      return `${a.manifest.name} (${new URL(a.url).host})`;
+    } catch {
+      return a.manifest.name;
+    }
+  });
 }
 
 /** What sets a source apart from the others: the add-on and the stream's key. */

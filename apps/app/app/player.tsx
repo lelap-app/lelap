@@ -229,7 +229,11 @@ export default function Player() {
       <Scrubber
         elapsedMs={elapsed}
         lengthMs={length}
-        middle={total > 0 ? `Book ${percent}% · ${formatLeft(left)}` : undefined}
+        middle={
+          total > 0
+            ? `${detail.book.source === 'feed' ? 'Episode' : 'Book'} ${percent}% · ${formatLeft(left)}`
+            : undefined
+        }
         onSeek={(offset) => seek(rangeStart + offset)}
       />
 

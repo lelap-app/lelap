@@ -278,6 +278,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0);
   const refresh = useCallback(() => setVersion((v) => v + 1), []);
   const lastSave = useRef(0);
+  const refreshedFor = useRef<string | null>(null);
   const wasPlaying = useRef(false);
 
   useEffect(() => {
@@ -359,7 +360,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!paused && !(state.playing && now - lastSave.current >= SAVE_INTERVAL_MS)) return;
     lastSave.current = now;
     flushListening(state.bookId, state.bookTitle);
-    if (savePlace(state) && paused) refresh();
+    const saved = savePlace(state);
+    // Lists show what plays first; refresh once when a book starts, then again on pause.
+    const started = state.playing && state.bookId !== refreshedFor.current;
+    if (started) refreshedFor.current = state.bookId;
+    if (saved && (paused || started)) refresh();
   }, [state, refresh, flushListening]);
 
   // The service hands over to Up Next by itself, also with the app closed. Here the app folds in
