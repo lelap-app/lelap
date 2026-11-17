@@ -61,10 +61,16 @@ class PlaybackRules(private val port: Port) {
         port.setDuck(1f)
         port.resumeSleepTimer()
       }
-      FocusResult.DELAYED -> {
-        resumeOnGain = true
-        pauseInternally()
-      }
+      // A call holds focus, so Android grants ours when it ends. Duck until then, or wait.
+      FocusResult.DELAYED ->
+        if (duckOnInterruption) {
+          transientLoss = true
+          port.setDuck(DUCK_VOLUME)
+          port.resumeSleepTimer()
+        } else {
+          resumeOnGain = true
+          pauseInternally()
+        }
       FocusResult.FAILED -> pauseInternally()
     }
   }
