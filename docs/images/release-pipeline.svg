@@ -5,20 +5,20 @@
 <polygon points="360,201 374,192.6 374,248.6 360,257" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
 <rect x="210" y="201" width="150" height="56" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
 <text x="285.0" y="224.5" font-size="15" fill="#f3f1ec" font-weight="600" text-anchor="middle">Verify</text>
-<text x="285.0" y="244.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">version · every check</text>
+<text x="285.0" y="244.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">checks · unsigned builds</text>
 <rect x="400" y="193" width="120" height="72" rx="14" fill="#2b2414" stroke="#f5b041" stroke-width="1.6"/>
 <path d="M460,205 l16,6 v12 c0,10 -7,16 -16,20 c-9,-4 -16,-10 -16,-20 v-12 z" fill="#f5b041"/>
 <text x="460" y="257" font-size="12.5" fill="#f5b041" font-weight="600" text-anchor="middle">you approve</text>
 <polygon points="570,151 584,142.6 754,142.6 740,151" fill="#2d4268" stroke="#5b7fc0" stroke-opacity=".55" stroke-width="1"/>
 <polygon points="740,151 754,142.6 754,196.6 740,205" fill="#19253b" stroke="#5b7fc0" stroke-opacity=".55" stroke-width="1"/>
 <rect x="570" y="151" width="170" height="54" fill="#22324f" stroke="#5b7fc0" stroke-opacity=".8" stroke-width="1.2"/>
-<text x="655.0" y="173.5" font-size="15" fill="#f3f1ec" font-weight="600" text-anchor="middle">Direct APK</text>
-<text x="655.0" y="193.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">signed · attested</text>
+<text x="655.0" y="173.5" font-size="15" fill="#f3f1ec" font-weight="600" text-anchor="middle">Direct APKs</text>
+<text x="655.0" y="193.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">64-bit · 32-bit · signed</text>
 <polygon points="570,255 584,246.6 754,246.6 740,255" fill="#2a5d5b" stroke="#4fa39f" stroke-opacity=".55" stroke-width="1"/>
 <polygon points="740,255 754,246.6 754,300.6 740,309" fill="#173533" stroke="#4fa39f" stroke-opacity=".55" stroke-width="1"/>
 <rect x="570" y="255" width="170" height="54" fill="#1f4746" stroke="#4fa39f" stroke-opacity=".8" stroke-width="1.2"/>
-<text x="655.0" y="277.5" font-size="15" fill="#f3f1ec" font-weight="600" text-anchor="middle">F-Droid APK</text>
-<text x="655.0" y="297.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">reproducible</text>
+<text x="655.0" y="277.5" font-size="15" fill="#f3f1ec" font-weight="600" text-anchor="middle">F-Droid APKs</text>
+<text x="655.0" y="297.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">reproducible · signed</text>
 <rect x="608.58" y="214.5" width="92.84" height="23.5" rx="11.75" fill="#0d0e11" stroke="#2a2e37"/><text x="655.0" y="230" font-size="11.5" fill="#a3a8b2" font-weight="500" text-anchor="middle">in parallel</text>
 <polygon points="830,105 844,96.6 1094,96.6 1080,105" fill="#365741" stroke="#6fae7f" stroke-opacity=".55" stroke-width="1"/>
 <polygon points="1080,105 1094,96.6 1094,150.6 1080,159" fill="#1f3124" stroke="#6fae7f" stroke-opacity=".55" stroke-width="1"/>

@@ -36,6 +36,8 @@ if [ "$distribution" = direct ]; then
   echo "Runtime version: $runtime"
 fi
 
+# Unsigned whatever the environment holds: withReleaseSigning signs when it sees a keystore.
+unset LELAP_KEYSTORE_PATH
 (cd apps/app/android && LELAP_UNSIGNED=1 ./gradlew --no-daemon :app:assembleRelease \
   "-PreactNativeArchitectures=$abi")
 built="apps/app/android/app/build/outputs/apk/release/app-release-unsigned.apk"

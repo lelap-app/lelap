@@ -100,22 +100,33 @@ D1 and R2.
 
 A release tag (`v1.2.3`, or `v1.2.3-beta.4` for a beta):
 
-<img src="images/release-pipeline.svg" alt="A version tag runs the checks, waits for a maintainer to approve, builds the direct and F-Droid APKs in parallel, then publishes them, the over-the-air bundle and the Docker images." width="100%">
+<img src="images/release-pipeline.svg" alt="A version tag runs the checks and builds unsigned APKs, waits for a maintainer to approve, signs the direct and F-Droid APKs in parallel, then publishes them, the over-the-air bundle and the Docker images." width="100%">
 
 1. **Verify:** stamps the version into `app.json`, runs every check.
-2. **Approval:** jobs in the `release` environment wait for a maintainer; it holds the signing
+2. **Build:** four unsigned APKs in parallel, direct and F-Droid (no self-updates,
+   reproducible), each for `arm64-v8a` and `armeabi-v7a` with its own versionCode. No secrets,
+   so this job may read the pnpm and Gradle caches that runs on `main` saved
+   (`.github/actions/unsigned-apk`); pull requests and tags never write them.
+3. **Approval:** jobs in the `release` environment wait for a maintainer; it holds the signing
    keys and only tags can use it.
-3. **Build:** the direct APK and the F-Droid APK (no self-updates, reproducible) in parallel, each
-   signed and attested.
-4. **Publish:** APKs to R2 (`beta.apk`, and `latest.apk` for stable) and a GitHub release with
-   `SHA256SUMS`; `beta.json` or `latest.json` goes last, so it never points at a missing file.
-5. **Over the air:** the JavaScript bundle for this native build, signed, for the `beta` (and
+4. **Sign:** the direct and the F-Droid APKs in parallel. Each APK's SHA-256 must match what the
+   build job reported; `zipalign` checks the alignment, `apksigner` signs
+   (`scripts/sign-apks.sh`), and each APK is attested. Signing only adds the signature block, so
+   F-Droid's rebuild still matches.
+5. **Publish:** APKs to R2 (`beta.apk`, and `latest.apk` for stable, each with an `-armv7`
+   sibling) and a GitHub release with all four APKs and `SHA256SUMS`; `beta.json` or
+   `latest.json` goes last, so it never points at a missing file.
+6. **Over the air:** the JavaScript bundle for this native build, signed, for the `beta` (and
    `production`) channel.
-6. **Images:** five multi-arch images on `ghcr.io`.
-7. **Sync to production:** stable tags only.
+7. **Images:** five multi-arch images on `ghcr.io`.
+8. **Sync to production:** stable tags only.
 
-Jobs that hold secrets use no caches, so a poisoned cache can't reach a release;
-[M54](milestones/m54.md) plans a cached build with separate signing.
+Jobs that hold secrets use no caches and install no packages for the APKs; only the build job,
+which holds none, reads caches ([M54](milestones/m54.md)).
+
+`beta.json` and `latest.json` list one APK per CPU type under `apks`; the top-level `url`,
+`sha256`, `size` and `versionCode` are the arm64 APK's, which is all that apps from before M54
+read. The updater takes the first of `Build.SUPPORTED_ABIS` the release has an APK for.
 
 ## How a change reaches people
 

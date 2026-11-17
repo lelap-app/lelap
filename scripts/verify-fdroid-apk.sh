@@ -40,6 +40,7 @@ for apk in "${signed[@]}"; do
     corepack enable
     pnpm install --frozen-lockfile
     node scripts/release.mts stamp "$tag"
+    unset LELAP_KEYSTORE_PATH
     export EXPO_PUBLIC_LELAP_DISTRIBUTION=fdroid LELAP_UNSIGNED=1
     pnpm --filter @lelap/app exec expo prebuild --platform android --no-install
     cd apps/app/android
