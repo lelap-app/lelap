@@ -12,7 +12,8 @@ class RemoteSession(
   private val canPlayAt: (Float) -> Boolean,
 ) {
   sealed interface Command {
-    data class Load(val index: Int, val positionMs: Long, val autoplay: Boolean, val speed: Float) : Command
+    /** [seq] goes back with [onLoaded], so a load that a newer one replaced is ignored. */
+    data class Load(val index: Int, val positionMs: Long, val autoplay: Boolean, val speed: Float, val seq: Int) : Command
     data object Play : Command
     data object Pause : Command
     data class Seek(val positionMs: Long) : Command
@@ -55,6 +56,12 @@ class RemoteSession(
 
   // A Load is out: statuses until it is done still describe the file before.
   private var loading = false
+  private var loadSeq = 0
+
+  // Polls run on another thread and may predate the last command. For a moment after one, a
+  // status that contradicts it (and, after a seek or load, its place) is taken as stale.
+  private var stateHoldUntil = 0L
+  private var placeHoldUntil = 0L
 
   /** The speed the receiver plays at: the book's, or 1× where the receiver cannot. */
   val speed: Float
@@ -92,45 +99,47 @@ class RemoteSession(
     return load(startIndex.coerceIn(0, durations.lastIndex), startMs, play)
   }
 
-  /** The owner finished running a [Command.Load]; [failure] says why it did not work. */
-  fun onLoaded(failure: String?) {
+  /** The owner finished running the [Command.Load] numbered [seq]; [failure] says why it did not work. */
+  fun onLoaded(seq: Int, failure: String?): Boolean {
+    if (seq != loadSeq) return false
     loading = false
     if (failure != null) {
       error = failure
       phase = Phase.IDLE
       playWhenReady = false
+      return true
     }
+    // Receivers report a stop or an idle moment while they start the new file.
+    hold(state = LOAD_SETTLE_MS, place = LOAD_SETTLE_MS)
+    return true
   }
 
   fun onStatus(status: RendererStatus): List<Command> {
     if (status.volume != null) volume = status.volume
     if (loading) return emptyList()
+    val now = clock()
+    if (now < stateHoldUntil && contradicts(status.state)) return emptyList()
+    val place = if (now < placeHoldUntil) position() else status.positionMs
     error = status.error
     when (status.state) {
       PlayState.ENDED -> return onPartEnded()
       PlayState.PLAYING -> {
-        moveTo(status.positionMs, playing = true)
+        moveTo(place, playing = true)
         phase = Phase.READY
         playWhenReady = true
       }
       PlayState.BUFFERING -> {
-        moveTo(status.positionMs, playing = false)
+        moveTo(place, playing = false)
         if (phase != Phase.ENDED) phase = Phase.BUFFERING
       }
       // Paused here or on the speaker itself (its app, its buttons).
       PlayState.PAUSED -> {
-        moveTo(status.positionMs, playing = false)
+        moveTo(place, playing = false)
         phase = Phase.READY
         playWhenReady = false
       }
       // Stopped without reaching the end: the place stays, and Play loads the file again.
-      PlayState.IDLE -> if (phase != Phase.ENDED) {
-        positionMs = position()
-        positionAt = clock()
-        receiverPlaying = false
-        phase = Phase.IDLE
-        playWhenReady = false
-      }
+      PlayState.IDLE -> if (phase != Phase.ENDED) stop()
     }
     if (status.durationMs > 0) receiverDurationMs = status.durationMs
     return emptyList()
@@ -140,6 +149,7 @@ class RemoteSession(
     if (durations.isEmpty() || phase == Phase.ENDED) return emptyList()
     if (phase == Phase.IDLE && !loading) return load(index, position(), play = true)
     playWhenReady = true
+    hold(state = COMMAND_SETTLE_MS)
     return listOf(Command.Play)
   }
 
@@ -149,6 +159,7 @@ class RemoteSession(
     positionAt = clock()
     receiverPlaying = false
     playWhenReady = false
+    hold(state = COMMAND_SETTLE_MS, place = COMMAND_SETTLE_MS)
     return listOf(Command.Pause)
   }
 
@@ -159,6 +170,7 @@ class RemoteSession(
     if (target == index && !loading && (phase == Phase.READY || phase == Phase.BUFFERING)) {
       positionMs = place
       positionAt = clock()
+      hold(place = COMMAND_SETTLE_MS)
       return listOf(Command.Seek(place))
     }
     return load(target, place, playWhenReady)
@@ -172,17 +184,32 @@ class RemoteSession(
     return if (speed != before) listOf(Command.SetSpeed(speed)) else emptyList()
   }
 
+  // A stop counts as the end of the part only near its end: a stop pressed on the TV's remote
+  // mid-part must not skip ahead or mark the book finished.
   private fun onPartEnded(): List<Command> {
     if (phase == Phase.ENDED) return emptyList()
+    val length = durationOf(index)
+    if (length > 0 && position() < length - END_TOLERANCE_MS) {
+      stop()
+      return emptyList()
+    }
     val next = index + 1
     if (next < durations.size) return load(next, 0L, play = true)
     // The book's end: kept at the end of the last part, for the owner to log and hand on.
-    positionMs = durationOf(index)
+    positionMs = length
     positionAt = clock()
     receiverPlaying = false
     phase = Phase.ENDED
     playWhenReady = false
     return emptyList()
+  }
+
+  private fun stop() {
+    positionMs = position()
+    positionAt = clock()
+    receiverPlaying = false
+    phase = Phase.IDLE
+    playWhenReady = false
   }
 
   private fun load(target: Int, startMs: Long, play: Boolean): List<Command> {
@@ -194,12 +221,33 @@ class RemoteSession(
     phase = Phase.BUFFERING
     playWhenReady = play
     loading = true
-    return listOf(Command.Load(target, startMs, play, speed))
+    loadSeq += 1
+    return listOf(Command.Load(target, startMs, play, speed, loadSeq))
   }
 
   private fun moveTo(place: Long, playing: Boolean) {
     positionMs = place
     positionAt = clock()
     receiverPlaying = playing
+  }
+
+  private fun hold(state: Long = 0L, place: Long = 0L) {
+    val now = clock()
+    if (state > 0) stateHoldUntil = now + state
+    if (place > 0) placeHoldUntil = now + place
+  }
+
+  private fun contradicts(state: PlayState): Boolean = when (state) {
+    PlayState.PLAYING -> !playWhenReady
+    PlayState.PAUSED, PlayState.IDLE, PlayState.ENDED -> playWhenReady
+    PlayState.BUFFERING -> false
+  }
+
+  private companion object {
+    const val COMMAND_SETTLE_MS = 2_500L
+    const val LOAD_SETTLE_MS = 5_000L
+
+    /** How far before a part's end a stop still counts as its end: polls are a second apart. */
+    const val END_TOLERANCE_MS = 10_000L
   }
 }

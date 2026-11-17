@@ -80,5 +80,9 @@ permission is needed. Checked here: `pnpm check`, `pnpm test` (translations, acc
   receivers, which buffer a few seconds after a seek.
 - **The home screen widget and Quick Settings tile** follow the receiver's play state (they read
   what the service publishes) but were not checked.
+- **Timings to tune on real receivers:** `RemoteSession` takes a status that contradicts the last
+  command as stale for 2.5 s (5 s after loading a file), and a stop counts as a part's end only
+  within 10 s of it, so a stop on a TV's remote mid-part is not taken for the end. These came
+  out of the diff review; they are reasoned, not measured.
 - **Raising `targetSdkVersion` to 37** is a separate change; the permission is declared and
   asked only once it is.

@@ -34,8 +34,8 @@ class RemotePlayer(
   private val requestFor: (Int) -> CastRequest?,
   /** Android Auto picked a book: the service loads it like the app would, then calls [setBook]. */
   private val onItemsPicked: (List<MediaItem>, Int, Long) -> Unit,
-  /** A file could not be loaded on the receiver: the service hands back. */
-  private val onFailed: (String) -> Unit,
+  /** A file loaded on the receiver (null), or why it did not; the service hands back on a failure. */
+  private val onLoaded: (String?) -> Unit,
 ) : SimpleBasePlayer(looper) {
   private val handler = Handler(looper)
   private val session = RemoteSession(SystemClock::elapsedRealtime, link::canPlayAt)
@@ -81,45 +81,42 @@ class RemotePlayer(
         is RemoteSession.Command.Load -> {
           val request = requestFor(command.index)
           if (request == null) {
-            session.onLoaded(MISSING)
-            handler.post { if (!released) onFailed(MISSING) }
+            session.onLoaded(command.seq, MISSING)
+            handler.post { if (!released) onLoaded(MISSING) }
             continue
           }
           link.load(request, command.positionMs, command.autoplay, command.speed) { failure ->
             handler.post {
               if (released) return@post
-              session.onLoaded(failure)
+              // A load that a newer one replaced (quick skips) changes nothing.
+              if (!session.onLoaded(command.seq, failure)) return@post
               invalidateState()
-              if (failure != null) onFailed(failure)
+              onLoaded(failure)
             }
           }
         }
-        RemoteSession.Command.Play -> link.run(::failed) { it.play() }
-        RemoteSession.Command.Pause -> link.run(::failed) { it.pause() }
-        is RemoteSession.Command.Seek -> link.run(::failed) { it.seek(command.positionMs) }
-        is RemoteSession.Command.SetSpeed -> link.run(::failed) { it.setSpeed(command.speed) }
+        // A control the receiver refused is not shown as an error: the next poll brings its
+        // real state back, and playback goes on.
+        RemoteSession.Command.Play -> link.run { it.play() }
+        RemoteSession.Command.Pause -> link.run { it.pause() }
+        is RemoteSession.Command.Seek -> link.run { it.seek(command.positionMs) }
+        is RemoteSession.Command.SetSpeed -> link.run(::speedRefused) { it.setSpeed(command.speed) }
       }
     }
     invalidateState()
   }
 
-  // A control the receiver refused is shown as an error; the poll brings the real state back.
-  private fun failed(message: String) {
-    handler.post {
-      if (released) return@post
-      lastError = message
-      invalidateState()
-    }
+  // A speed the renderer listed but refused: it plays at 1x now, which canPlayAt says from here.
+  private fun speedRefused(@Suppress("UNUSED_PARAMETER") message: String) {
+    handler.post { if (!released) invalidateState() }
   }
-
-  private var lastError: String? = null
 
   override fun getState(): State {
     val builder = State.Builder()
       .setAvailableCommands(COMMANDS)
       .setPlayWhenReady(session.playWhenReady, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
       .setPlaybackParameters(PlaybackParameters(session.speed))
-    (session.error ?: lastError)?.let {
+    session.error?.let {
       builder.setPlayerError(PlaybackException(it, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
     }
     session.volume?.let { volume ->
@@ -154,7 +151,6 @@ class RemotePlayer(
   }
 
   override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
-    lastError = null
     run(if (playWhenReady) session.play() else session.pause())
     return Futures.immediateVoidFuture()
   }
@@ -194,7 +190,7 @@ class RemotePlayer(
   }
 
   override fun handleSetDeviceVolume(deviceVolume: Int, flags: Int): ListenableFuture<*> {
-    link.setVolume(deviceVolume / 100f)
+    sendVolume(deviceVolume / 100f)
     return Futures.immediateVoidFuture()
   }
 
@@ -202,10 +198,23 @@ class RemotePlayer(
 
   override fun handleDecreaseDeviceVolume(flags: Int): ListenableFuture<*> = stepVolume(-VOLUME_STEP)
 
+  // The receiver reports its volume once a second; presses in between step from the last one sent.
+  private var pendingVolume: Float? = null
+
   private fun stepVolume(delta: Float): ListenableFuture<*> {
-    session.volume?.let { link.setVolume((it + delta).coerceIn(0f, 1f)) }
+    (pendingVolume ?: session.volume)?.let { sendVolume(it + delta) }
     return Futures.immediateVoidFuture()
   }
+
+  private fun sendVolume(level: Float) {
+    val volume = level.coerceIn(0f, 1f)
+    pendingVolume = volume
+    link.setVolume(volume)
+    handler.removeCallbacks(forgetPendingVolume)
+    handler.postDelayed(forgetPendingVolume, 2_000L)
+  }
+
+  private val forgetPendingVolume = Runnable { pendingVolume = null }
 
   override fun handleRelease(): ListenableFuture<*> {
     released = true

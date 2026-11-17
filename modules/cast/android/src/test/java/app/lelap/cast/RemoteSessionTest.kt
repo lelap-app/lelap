@@ -16,16 +16,23 @@ class RemoteSessionTest {
   private fun status(state: PlayState, positionMs: Long = 0L, volume: Float? = null) =
     RendererStatus(state, positionMs, 60_000L, volume)
 
-  private fun started(index: Int = 0, positionMs: Long = 0L): List<Command> {
+  private fun seqOf(commands: List<Command>): Int = (commands.single() as Command.Load).seq
+
+  /** Loaded, and long enough ago that the receiver's statuses count again. */
+  private fun started(index: Int = 0, positionMs: Long = 0L) {
     val commands = session.start(parts, index, positionMs, play = true, speed = 1f)
-    session.onLoaded(null)
-    return commands
+    session.onLoaded(seqOf(commands), null)
+    settle()
+  }
+
+  private fun settle() {
+    now += 10_000L
   }
 
   @Test
   fun startLoadsThePartAtThePlaceAndPlays() {
     val commands = session.start(parts, 1, 12_000L, play = true, speed = 1.5f)
-    assertEquals(listOf(Command.Load(1, 12_000L, true, 1.5f)), commands)
+    assertEquals(listOf(Command.Load(1, 12_000L, true, 1.5f, 1)), commands)
     assertEquals(Phase.BUFFERING, session.phase)
     assertTrue(session.playWhenReady)
     assertEquals(12_000L, session.position())
@@ -40,13 +47,45 @@ class RemoteSessionTest {
   }
 
   @Test
+  fun aStopRightAfterALoadIsTheReceiverStartingNotAPause() {
+    val load = session.start(parts, 0, 0L, play = true, speed = 1f)
+    session.onLoaded(seqOf(load), null)
+    session.onStatus(status(PlayState.IDLE))
+    assertTrue(session.playWhenReady)
+    assertEquals(Phase.BUFFERING, session.phase)
+    session.onStatus(status(PlayState.PLAYING, 500L))
+    assertEquals(Phase.READY, session.phase)
+  }
+
+  @Test
+  fun aLoadThatANewerOneReplacedIsIgnored() {
+    val first = session.start(parts, 0, 0L, play = true, speed = 1f)
+    val second = session.seek(2, 0L)
+    assertFalse(session.onLoaded(seqOf(first), "Kitchen could not play this file"))
+    assertTrue(session.playWhenReady)
+    assertTrue(session.onLoaded(seqOf(second), null))
+  }
+
+  @Test
   fun aPartThatEndsLoadsTheNextOnce() {
     started()
     session.onStatus(status(PlayState.PLAYING, 59_000L))
-    assertEquals(listOf(Command.Load(1, 0L, true, 1f)), session.onStatus(status(PlayState.ENDED)))
+    val next = session.onStatus(status(PlayState.ENDED))
+    assertEquals(1, (next.single() as Command.Load).index)
     // Receivers may say "ended" again before the load is done.
     assertEquals(emptyList<Command>(), session.onStatus(status(PlayState.ENDED)))
     assertEquals(1, session.index)
+  }
+
+  @Test
+  fun aStopMidPartIsNotItsEnd() {
+    started()
+    session.onStatus(status(PlayState.PLAYING, 20_000L))
+    // A TV's stop button looks like the end of the file to the protocol.
+    assertEquals(emptyList<Command>(), session.onStatus(status(PlayState.ENDED)))
+    assertEquals(0, session.index)
+    assertEquals(Phase.IDLE, session.phase)
+    assertFalse(session.playWhenReady)
   }
 
   @Test
@@ -65,16 +104,18 @@ class RemoteSessionTest {
   @Test
   fun anotherBookAfterTheEndLoadsOnTheSameReceiver() {
     started(index = 2)
+    session.onStatus(status(PlayState.PLAYING, 59_500L))
     session.onStatus(status(PlayState.ENDED))
     val next = session.start(listOf(30_000L), 0, 5_000L, play = true, speed = 1f)
-    assertEquals(listOf(Command.Load(0, 5_000L, true, 1f)), next)
+    assertEquals(Command.Load(0, 5_000L, true, 1f, 2), next.single())
     assertEquals(Phase.BUFFERING, session.phase)
   }
 
   @Test
   fun thePlaceMovesOnAtTheSpeedWhilePlaying() {
-    session.start(parts, 0, 0L, play = true, speed = 1.5f)
-    session.onLoaded(null)
+    val load = session.start(parts, 0, 0L, play = true, speed = 1.5f)
+    session.onLoaded(seqOf(load), null)
+    settle()
     session.onStatus(status(PlayState.PLAYING, 10_000L))
     now += 2_000L
     assertEquals(13_000L, session.position())
@@ -94,6 +135,27 @@ class RemoteSessionTest {
   }
 
   @Test
+  fun aPollFromBeforeAPauseDoesNotUndoIt() {
+    started()
+    session.onStatus(status(PlayState.PLAYING, 1_000L))
+    session.pause()
+    session.onStatus(status(PlayState.PLAYING, 1_200L))
+    assertFalse(session.playWhenReady)
+    settle()
+    session.onStatus(status(PlayState.PAUSED, 1_100L))
+    assertFalse(session.playWhenReady)
+  }
+
+  @Test
+  fun aPollFromBeforeASeekDoesNotMoveThePlaceBack() {
+    started()
+    session.onStatus(status(PlayState.PLAYING, 1_000L))
+    session.seek(0, 40_000L)
+    session.onStatus(status(PlayState.PLAYING, 1_500L))
+    assertTrue(session.position() >= 40_000L)
+  }
+
+  @Test
   fun aPauseOnTheSpeakerItselfIsFollowed() {
     started()
     session.onStatus(status(PlayState.PLAYING, 1_000L))
@@ -108,7 +170,10 @@ class RemoteSessionTest {
     session.onStatus(status(PlayState.PLAYING, 20_000L))
     session.onStatus(status(PlayState.IDLE))
     assertEquals(Phase.IDLE, session.phase)
-    assertEquals(listOf(Command.Load(0, 20_000L, true, 1f)), session.play())
+    val again = session.play().single() as Command.Load
+    assertEquals(0, again.index)
+    assertEquals(20_000L, again.positionMs)
+    assertTrue(again.autoplay)
   }
 
   @Test
@@ -116,7 +181,9 @@ class RemoteSessionTest {
     started()
     session.onStatus(status(PlayState.PLAYING, 1_000L))
     assertEquals(listOf(Command.Seek(30_000L)), session.seek(0, 30_000L))
-    assertEquals(listOf(Command.Load(2, 4_000L, true, 1f)), session.seek(2, 4_000L))
+    val across = session.seek(2, 4_000L).single() as Command.Load
+    assertEquals(2, across.index)
+    assertEquals(4_000L, across.positionMs)
   }
 
   @Test
@@ -138,8 +205,8 @@ class RemoteSessionTest {
 
   @Test
   fun aFailedLoadStopsAndSaysWhy() {
-    session.start(parts, 0, 0L, play = true, speed = 1f)
-    session.onLoaded("Kitchen could not play this file")
+    val load = session.start(parts, 0, 0L, play = true, speed = 1f)
+    session.onLoaded(seqOf(load), "Kitchen could not play this file")
     assertEquals(Phase.IDLE, session.phase)
     assertFalse(session.playWhenReady)
     assertEquals("Kitchen could not play this file", session.error)

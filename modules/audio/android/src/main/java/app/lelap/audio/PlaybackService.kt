@@ -913,19 +913,27 @@ class PlaybackService : MediaLibraryService() {
     if (remoteLink === link) return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
     endRemote(resume = false)
     val index = player.currentMediaItemIndex
-    val position = player.currentPosition
     val speed = player.playbackParameters.speed
+    // Smart rewind goes into the start place, so the receiver loads once.
+    val since = pausedAt
+    pausedAt = null
+    val rewind = if (smartRewind && since != null) SeekRules.rewindOnResume(System.currentTimeMillis() - since) else 0L
+    val intro = current?.introMs?.takeIf { player.currentPosition >= it } ?: 0L
+    val position = if (rewind > 0) SeekRules.trimmedStart(index, player.currentPosition, rewind, intro) else player.currentPosition
     player.pause()
+    // Stopped, not only paused: ExoPlayer keeps the book and place but fetches nothing meanwhile.
+    player.stop()
     val items = List(player.mediaItemCount) { player.getMediaItemAt(it) }
     val r = RemotePlayer(Looper.getMainLooper(), link, ::castRequest, ::onRemoteItemsPicked, ::onRemoteLoaded)
     remote = r
     remoteLink = link
     link.addListener(linkWatcher)
     r.addListener(remoteListener)
-    session.player = SkippingPlayer(r)
     val started = SettableFuture.create<SessionResult>()
     castStart = started
+    // Loaded before the swap, so the session never shows an empty player in between.
     r.setBook(items, timelineDurations(), index, position, speed, play = true)
+    session.player = SkippingPlayer(r)
     publishExtras()
     return started
   }
@@ -957,9 +965,15 @@ class PlaybackService : MediaLibraryService() {
       player.seekTo(index.coerceIn(0, player.mediaItemCount - 1), position)
       player.prepare()
     }
-    // Handed over while playing: no smart rewind, the listener heard every second.
-    if (playing) pausedAt = null
-    if (resume ?: playing) player.play()
+    if (resume ?: playing) {
+      // Handed over while playing: no smart rewind, the listener heard every second.
+      if (playing) pausedAt = null
+      player.play()
+    } else {
+      // Lost or handed back paused: the timer waits for Play, and so does smart rewind.
+      if (playing) pausedAt = System.currentTimeMillis()
+      port.freezeSleepTimer()
+    }
     publishExtras()
     publishNowPlaying()
   }
@@ -1005,7 +1019,10 @@ class PlaybackService : MediaLibraryService() {
 
     override fun pause() = player.pause()
 
-    override fun play() = player.play()
+    // A call that ends while casting must not start the phone alongside the receiver.
+    override fun play() {
+      if (remote == null) player.play()
+    }
 
     override fun requestFocus() = focus.request()
 

@@ -233,7 +233,8 @@ class UpnpRenderer(private val device: CastDevice) : Renderer {
   private var media: CastMedia? = null
 
   // Most renderers list only 1; some take 1/2, 3/2 or 2 as Play's Speed.
-  private val speeds: List<String> = device.avTransportScpdUrl
+  @Volatile
+  private var speeds: List<String> = device.avTransportScpdUrl
     ?.let { url -> runCatching { Upnp.parseSpeeds(MiniHttp.request("GET", url).text()) }.getOrNull() }
     ?: listOf("1")
   private var speed = "1"
@@ -269,8 +270,9 @@ class UpnpRenderer(private val device: CastDevice) : Renderer {
     try {
       av("Play", "Speed" to speed)
     } catch (e: CastException) {
-      // A renderer that listed the speed but refuses it still plays at 1x.
+      // A renderer that listed the speed but refuses it still plays at 1x, and says so from now.
       if (speed == "1") throw e
+      speeds = speeds - speed
       speed = "1"
       av("Play", "Speed" to speed)
     }

@@ -7,8 +7,10 @@ import java.util.concurrent.Callable
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** A file for the receiver as the player knows it; [CastLink] turns it into a URL the receiver can fetch. */
 data class CastRequest(
@@ -42,7 +44,9 @@ class CastLink private constructor(
   private val app = context.applicationContext
   private val worker = Executors.newSingleThreadScheduledExecutor { Thread(it, "lelap-cast").apply { isDaemon = true } }
   private val listeners = CopyOnWriteArraySet<Listener>()
+  @Volatile
   private var renderer: Renderer? = null
+  private val closing = AtomicBoolean(false)
   private var server: MediaServer? = null
   private var poll: ScheduledFuture<*>? = null
   private var wifiLock: WifiManager.WifiLock? = null
@@ -69,10 +73,9 @@ class CastLink private constructor(
 
   /** Runs [block] on the cast thread; a failure goes to [onError] on that thread. */
   fun run(onError: (String) -> Unit = {}, block: (Renderer) -> Unit) {
-    if (closed) return
-    worker.execute {
-      val r = renderer ?: return@execute
-      if (closed) return@execute
+    later {
+      val r = renderer ?: return@later
+      if (closed) return@later
       try {
         block(r)
       } catch (e: Exception) {
@@ -83,10 +86,9 @@ class CastLink private constructor(
 
   /** Loads a file on the receiver; [done] gets null, or why it failed, on the cast thread. */
   fun load(request: CastRequest, startMs: Long, autoplay: Boolean, speed: Float, done: (String?) -> Unit) {
-    if (closed) return done("Not casting")
-    worker.execute {
+    val queued = later {
       val r = renderer
-      if (r == null || closed) return@execute done("Not casting")
+      if (r == null || closed) return@later done(NOT_CASTING)
       val failure = try {
         r.load(media(request), startMs, autoplay, speed)
         null
@@ -95,16 +97,28 @@ class CastLink private constructor(
       }
       done(failure)
     }
+    if (!queued) done(NOT_CASTING)
   }
 
   fun setVolume(level: Float) = run { it.setVolume(level.coerceIn(0f, 1f)) }
+
+  // Callers on the main thread may still reach a link that just closed; never throw at them.
+  private fun later(block: () -> Unit): Boolean {
+    if (closed) return false
+    return try {
+      worker.execute(block)
+      true
+    } catch (e: RejectedExecutionException) {
+      false
+    }
+  }
 
   /**
    * Keeps the CPU awake while the receiver plays, so the poll that moves to the next part goes
    * on with the screen off. Released on pause, so a speaker left paused costs nothing.
    */
   fun keepAwake(on: Boolean) {
-    worker.execute {
+    later {
       if (on && !closed) {
         val lock = wakeLock ?: app.getSystemService(PowerManager::class.java)
           .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "lelap:cast")
@@ -119,7 +133,9 @@ class CastLink private constructor(
 
   /** Stops the receiver and ends the session. Resolves to the last status, if there was one. */
   fun close(error: String? = null): RendererStatus? {
-    if (closed) return lastStatus
+    if (!closing.compareAndSet(false, true)) return lastStatus
+    // Closed for callers at once; the shutdown below still runs on the cast thread.
+    closed = true
     val last = try {
       worker.submit(Callable { shutDown() }).get(5, TimeUnit.SECONDS)
     } catch (e: Exception) {
@@ -139,9 +155,8 @@ class CastLink private constructor(
   }
 
   private fun shutDown(): RendererStatus? {
-    if (closed) return lastStatus
-    val last = runCatching { renderer?.status() }.getOrNull() ?: lastStatus
     closed = true
+    val last = runCatching { renderer?.status() }.getOrNull() ?: lastStatus
     poll?.cancel(false)
     poll = null
     runCatching { renderer?.close() }
@@ -173,7 +188,7 @@ class CastLink private constructor(
   }
 
   private fun pollStatus() {
-    val r = renderer ?: return
+    val r = renderer?.takeIf { !closed } ?: return
     val status = try {
       r.status()
     } catch (e: Exception) {
@@ -220,6 +235,8 @@ class CastLink private constructor(
   private fun server(): MediaServer = server ?: MediaServer(app).also { server = it }
 
   companion object {
+    private const val NOT_CASTING = "Not casting"
+
     /** The session running now, if any. */
     @Volatile
     var current: CastLink? = null

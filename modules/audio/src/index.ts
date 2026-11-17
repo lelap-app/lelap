@@ -251,7 +251,6 @@ export function takeDiagnostics(): Promise<PlayerDiagnostic[]> {
   return native.takeDiagnostics();
 }
 
-/** Empties the player: no book on the lock screen or in the notification. */
 /**
  * Plays the loaded book on the receiver `@lelap/cast` connected, from the place here. The
  * notification, lock screen and headphones then control the receiver. Resolves once the first
@@ -266,6 +265,7 @@ export function stopCasting(resume: boolean | null = null): Promise<void> {
   return native.stopCasting(resume);
 }
 
+/** Empties the player: no book on the lock screen or in the notification. */
 export function unload(): Promise<void> {
   return native.unload();
 }
