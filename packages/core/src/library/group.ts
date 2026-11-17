@@ -12,6 +12,9 @@ export type BookDraft = {
 
 const DISC_FOLDER = /^(cd|disc|disk|part|del)\s*\d+$/i;
 
+/** Marks the `Lelap` folder that downloads go to in a folder the listener chose. */
+export const DOWNLOADS_MARKER = '.lelap-downloads';
+
 function parentOf(relPath: string): string {
   const slash = relPath.lastIndexOf('/');
   return slash < 0 ? '' : relPath.slice(0, slash);
@@ -23,6 +26,18 @@ function baseName(relPath: string): string {
 
 function sortFiles(files: ScannedFile[]): ScannedFile[] {
   return [...files].sort((a, b) => compareNatural(a.relPath, b.relPath));
+}
+
+/**
+ * Leaves out Lelap's own downloads when the download folder sits inside the library folder: they
+ * are in the library already, as the books they were downloaded for.
+ */
+export function withoutDownloads<F extends { name: string; relPath: string }>(files: F[]): F[] {
+  const folders = files.filter((f) => f.name === DOWNLOADS_MARKER).map((f) => parentOf(f.relPath));
+  if (folders.length === 0) return files;
+  return files.filter(
+    (f) => !folders.some((folder) => folder === '' || f.relPath.startsWith(`${folder}/`)),
+  );
 }
 
 /**
@@ -38,7 +53,7 @@ export function groupIntoBooks(
     relPath === '' ? rootLocation : `${rootLocation}/${relPath}`;
 
   const byFolder = new Map<string, ScannedFile[]>();
-  for (const file of files) {
+  for (const file of withoutDownloads(files)) {
     if (!isAudioFile(file.name)) continue;
     const folder = parentOf(file.relPath);
     const list = byFolder.get(folder);

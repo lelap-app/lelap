@@ -15,6 +15,7 @@ import {
   dayKey,
   listenedBetween,
   recordListening,
+  localFileUri,
   trimOfBook,
   trimmedStart,
 } from '@lelap/core';
@@ -193,10 +194,10 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
     bookId,
     title: detail.book.title,
     author: detail.book.author,
-    coverUri: detail.book.coverPath ? `file://${detail.book.coverPath}` : detail.book.coverUrl,
+    coverUri: detail.book.coverPath ? localFileUri(detail.book.coverPath) : detail.book.coverUrl,
     files: detail.files.map((f, i) => ({
       // A downloaded part plays from the phone; the rest stream (signed, if on a server).
-      uri: f.downloadPath ? `file://${f.downloadPath}` : (access[i]?.uri ?? f.uri),
+      uri: f.downloadPath ? localFileUri(f.downloadPath) : (access[i]?.uri ?? f.uri),
       location: f.location,
       title: f.title ?? stripExtension(f.name),
       durationMs: f.durationMs,

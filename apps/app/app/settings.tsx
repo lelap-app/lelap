@@ -29,7 +29,14 @@ import { MiniPlayer } from '../src/components/MiniPlayer';
 import { SHORTCUTS_SUPPORTED, showShortcuts } from '../src/shortcuts';
 import { soundOptions, SoundRow } from '../src/components/SoundSheet';
 import { db } from '../src/db';
-import { applyRules } from '../src/downloads';
+import {
+  applyRules,
+  chooseDownloadFolder,
+  describeLocation,
+  resetDownloadFolder,
+  useDownloadLocation,
+} from '../src/downloads';
+import { CHOOSE_LOCATION } from '../src/platform/downloads';
 import * as audio from '../src/platform/audio';
 import { useLibrary } from '../src/player';
 import { activeProfile, profileId } from '../src/profile';
@@ -123,6 +130,43 @@ function Row({
       </View>
       <RowLabel.Provider value={label}>{children}</RowLabel.Provider>
     </View>
+  );
+}
+
+/** Where downloads go: inside Lelap, or a folder such as one on the SD card (Android only). */
+function DownloadFolderRow() {
+  const location = useDownloadLocation();
+  const act = (task: () => Promise<void>) =>
+    void task().catch((error: unknown) =>
+      showAlert(t('Download folder'), error instanceof Error ? error.message : String(error)),
+    );
+  if (!CHOOSE_LOCATION) {
+    return (
+      <Row
+        label={t('Download folder')}
+        detail={t(
+          'The browser keeps downloads in its own storage. Choosing a folder, such as one on an SD card, is in the Android app.',
+        )}
+      />
+    );
+  }
+  return (
+    <>
+      <Row
+        label={t('Download folder')}
+        detail={location ? describeLocation(location) : ''}
+      >
+        <TextButton text={t('Choose')} onPress={() => act(chooseDownloadFolder)} />
+      </Row>
+      {location?.uri != null && (
+        <Row
+          label={t('Back inside Lelap')}
+          detail={t('Downloads move back to the app’s own storage.')}
+        >
+          <TextButton text={t('Move back')} onPress={() => act(resetDownloadFolder)} />
+        </Row>
+      )}
+    </>
   );
 }
 
@@ -417,6 +461,7 @@ export default function SettingsScreen() {
             </Row>
           </>
         )}
+        <DownloadFolderRow />
         <Row
           label={t('Downloads and storage')}
           detail={t('What is on the phone and how much space it takes.')}

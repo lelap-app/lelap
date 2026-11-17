@@ -17,6 +17,11 @@ data class DownloadJob(
   val rules: Rules,
   /** Sent with requests to the files' own host: the login of a WebDAV server. */
   val headers: Map<String, String> = emptyMap(),
+  /**
+   * Where the files live: a folder the listener chose (a document tree URI), or null for the app's
+   * private storage. Set by the phone when the job is first written, never sent by JavaScript.
+   */
+  val location: String? = null,
 ) {
   fun encode(): String = JSONObject()
     .put("bookId", bookId)
@@ -25,6 +30,7 @@ data class DownloadJob(
     .put("cover", cover?.let(::encodeFile) ?: JSONObject.NULL)
     .put("rules", JSONObject().put("wifiOnly", rules.wifiOnly).put("chargingOnly", rules.chargingOnly))
     .put("headers", JSONObject(headers))
+    .put("location", location ?: JSONObject.NULL)
     .toString()
 
   companion object {
@@ -48,6 +54,7 @@ data class DownloadJob(
         rules = Rules(rules.getBoolean("wifiOnly"), rules.getBoolean("chargingOnly")),
         headers = o.optJSONObject("headers")?.let { h -> h.keys().asSequence().associateWith { h.getString(it) } }
           ?: emptyMap(),
+        location = if (o.isNull("location")) null else o.optString("location").ifEmpty { null },
       )
       val names = files.map { it.name } + listOfNotNull(cover?.name, job.bookId)
       job.takeIf { files.isNotEmpty() && names.all(::isSafeName) && names.toSet().size == names.size }

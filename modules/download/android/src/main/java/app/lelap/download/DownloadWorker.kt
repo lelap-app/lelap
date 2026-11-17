@@ -13,7 +13,6 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import app.lelap.text.NativeText
-import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +34,11 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     val dir = Downloads.bookDir(applicationContext, bookId)
     val job = Downloads.readJob(dir) ?: return Result.failure()
     val total = job.files.sumOf { it.size }
+    val place = Downloads.place(applicationContext, job.location)
+    if (!withContext(Dispatchers.IO) { place.available() }) {
+      Downloads.writeError(dir, NativeText.t(applicationContext, "The download folder can’t be reached. Put the SD card back, or choose another folder in Settings."))
+      return Result.failure()
+    }
 
     try {
       setForeground(foregroundInfo(job, 0L, total))
@@ -45,29 +49,33 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     return withContext(Dispatchers.IO) {
       try {
+        val folder = place.folder(job.bookId, create = true) ?: throw IOException("No folder for the book.")
         var finished = 0L
         var lastReport = 0L
         for (file in job.files) {
-          val target = File(dir, file.name)
-          if (target.isFile) {
-            finished += target.length()
+          val existing = folder.length(file.name)
+          if (existing != null) {
+            finished += existing
             continue
           }
-          Http.fetch(file.url, target, file.size, job.headers) { bytes ->
+          Http.fetch(file.url, folder, file.name, file.size, job.headers) { bytes ->
             val now = SystemClock.elapsedRealtime()
             if (now - lastReport >= PROGRESS_INTERVAL_MS) {
               lastReport = now
               report(job, finished + bytes, total)
             }
           }
-          finished += target.length()
+          finished += folder.length(file.name) ?: 0L
         }
         job.cover?.let { cover ->
-          val target = File(dir, cover.name)
           // The cover is a nicety; the book plays without it.
-          if (!target.isFile) runCatching { Http.fetch(cover.url, target, cover.size, job.headers) {} }
+          if (folder.length(cover.name) == null) {
+            runCatching { Http.fetch(cover.url, folder, cover.name, cover.size, job.headers) {} }
+          }
         }
         Downloads.clearError(dir)
+        // The listener chose another folder while this book was downloading: move it there now.
+        if (job.location != Downloads.location(applicationContext)) Mover.start(applicationContext)
         Result.success()
       } catch (e: CancellationException) {
         throw e

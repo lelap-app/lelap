@@ -1,4 +1,4 @@
-import type { CoverBadge } from '@lelap/core';
+import { type CoverBadge, localFileUri } from '@lelap/core';
 import { useState } from 'react';
 import { Image, Platform, Text, View } from 'react-native';
 
@@ -15,13 +15,13 @@ export function webSafe(url: string | null | undefined): string | null {
   return url;
 }
 
-/** A `file://` URI for a cover saved on the phone, else the add-on's cover URL. */
+/** A `file://` or `content://` URI for a cover saved on the phone, else the add-on's cover URL. */
 export function coverUri(book: {
   coverPath: string | null;
   coverUrl?: string | null;
 }): string | null {
   // Web downloads live in OPFS, which an <img> can't read; the cover URL works there.
-  if (book.coverPath && Platform.OS !== 'web') return `file://${book.coverPath}`;
+  if (book.coverPath && Platform.OS !== 'web') return localFileUri(book.coverPath);
   return webSafe(book.coverUrl);
 }
 

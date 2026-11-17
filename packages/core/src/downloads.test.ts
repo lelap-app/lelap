@@ -11,6 +11,7 @@ import {
   downloadSnapshot,
   getDownload,
   listDownloads,
+  localFileUri,
   type NativeDownloadStatus,
   partFileName,
   planDownload,
@@ -138,6 +139,66 @@ describe('downloads', () => {
     expect(applyDownloadStatuses(db, DIR, [status(bookId, { state: 'done' })], 40).changed).toEqual(
       [],
     );
+  });
+
+  it('follows files to a chosen folder, streams while it is gone and picks them up again', () => {
+    const bookId = add(db);
+    requestDownload(db, planDownload(db, bookId), meta, 10);
+    const done = { state: 'done' as const, files: ['001.mp3', '002.mp3'], cover: 'cover.jpg' };
+    applyDownloadStatuses(db, DIR, [status(bookId, done)], 20);
+
+    const card = 'content://com.android.externalstorage.documents/tree/1A2B-3C4D%3A/document';
+    const paths = {
+      '001.mp3': `${card}/1A2B-3C4D%3ALelap%2F${bookId}%2F001.mp3`,
+      '002.mp3': `${card}/1A2B-3C4D%3ALelap%2F${bookId}%2F002.mp3`,
+      'cover.jpg': `${card}/1A2B-3C4D%3ALelap%2F${bookId}%2Fcover.jpg`,
+    };
+    // Moved to the SD card.
+    expect(applyDownloadStatuses(db, DIR, [status(bookId, { ...done, paths })], 30)).toEqual({
+      changed: [bookId],
+      orphans: [],
+    });
+    let detail = getBook(db, ME, bookId);
+    expect(detail?.files.map((f) => f.downloadPath)).toEqual([paths['001.mp3'], paths['002.mp3']]);
+    expect(detail?.book.coverPath).toBe(paths['cover.jpg']);
+    expect(
+      applyDownloadStatuses(db, DIR, [status(bookId, { ...done, paths })], 35).changed,
+    ).toEqual([]);
+
+    // The card is taken out: the book streams, and stays downloaded.
+    const out = status(bookId, { state: 'stopped', unavailable: true });
+    expect(applyDownloadStatuses(db, DIR, [out], 40).changed).toEqual([bookId]);
+    detail = getBook(db, ME, bookId);
+    expect(detail?.files.map((f) => f.downloadPath)).toEqual([null, null]);
+    expect(detail?.book.coverPath).toBeNull();
+    expect(getDownload(db, bookId)?.state).toBe('done');
+    expect(applyDownloadStatuses(db, DIR, [out], 45).changed).toEqual([]);
+
+    // Back in: the files are found again.
+    expect(
+      applyDownloadStatuses(db, DIR, [status(bookId, { ...done, paths })], 50).changed,
+    ).toEqual([bookId]);
+    expect(getBook(db, ME, bookId)?.files.map((f) => f.downloadPath)).toEqual([
+      paths['001.mp3'],
+      paths['002.mp3'],
+    ]);
+  });
+
+  it('never deletes a download it cannot see', () => {
+    const fold = applyDownloadStatuses(
+      db,
+      DIR,
+      [status('gone', { unavailable: true }), status('stale', {})],
+      10,
+    );
+    expect(fold.orphans).toEqual(['stale']);
+  });
+
+  it('turns paths into URIs the player reads', () => {
+    expect(localFileUri('/data/no_backup/downloads/b/001.mp3')).toBe(
+      'file:///data/no_backup/downloads/b/001.mp3',
+    );
+    expect(localFileUri('content://tree/doc')).toBe('content://tree/doc');
   });
 
   it('records failures and clears them when the worker runs again', () => {

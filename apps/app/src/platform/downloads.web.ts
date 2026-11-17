@@ -1,9 +1,15 @@
 import { t } from '../i18n';
-import type { DownloadJob, DownloadRules, DownloadStatus, StorageInfo } from '@lelap/download';
+import type {
+  DownloadJob,
+  DownloadLocation,
+  DownloadRules,
+  DownloadStatus,
+  StorageInfo,
+} from '@lelap/download';
 
 import * as opfs from './opfs';
 
-export type { DownloadJob, DownloadRules, DownloadStatus, StorageInfo };
+export type { DownloadJob, DownloadLocation, DownloadRules, DownloadStatus, StorageInfo };
 
 // Web downloads run in the page with fetch and write to OPFS: they stop when the tab closes and
 // continue from the finished parts when it opens again. Wi-Fi and charging rules don't apply;
@@ -167,6 +173,25 @@ export async function storage(): Promise<StorageInfo> {
   const used = estimate.usage ?? 0;
   return { freeBytes: Math.max(0, quota - used), totalBytes: quota, usedBytes: used };
 }
+
+// A browser keeps downloads in its own storage; there is no folder to choose.
+export const CHOOSE_LOCATION = false;
+
+export function location(): Promise<DownloadLocation> {
+  return Promise.resolve({
+    uri: null,
+    volume: null,
+    path: null,
+    available: true,
+    moving: false,
+    waiting: 0,
+    error: null,
+  });
+}
+
+export const chooseLocation = (): Promise<boolean> => Promise.resolve(false);
+export async function resetLocation(): Promise<void> {}
+export async function resumeMove(): Promise<void> {}
 
 export const isIgnoringBatteryOptimizations = () => true;
 

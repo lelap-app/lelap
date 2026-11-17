@@ -26,9 +26,10 @@ import { reloadBook, useLibrary } from './player';
 import { profileId } from './profile';
 import { fileAccess } from './remote';
 
-export type { DownloadStatus } from './platform/downloads';
+export type { DownloadLocation, DownloadStatus } from './platform/downloads';
 
 const DOWNLOADS_KEY = ['downloads'];
+const LOCATION_KEY = ['download-location'];
 const POLL_RUNNING_MS = 1_500;
 const POLL_WAITING_MS = 10_000;
 
@@ -126,12 +127,76 @@ export function useDownloadStatuses(): Map<string, native.DownloadStatus> {
   return query.data ?? new Map();
 }
 
+/**
+ * Where downloads go. Polled while earlier downloads move there, and each poll folds the books
+ * that have landed, so the player reads them from their new place.
+ */
+export function useDownloadLocation(): native.DownloadLocation | undefined {
+  const query = useQuery({
+    queryKey: LOCATION_KEY,
+    queryFn: async () => {
+      const location = await native.location();
+      void queryClient.invalidateQueries({ queryKey: DOWNLOADS_KEY });
+      return location;
+    },
+    refetchInterval: (q) => (q.state.data?.moving ? POLL_RUNNING_MS : false),
+  });
+  return query.data;
+}
+
+/** Android's folder picker for downloads; the ones already made move there in the background. */
+export async function chooseDownloadFolder(): Promise<void> {
+  if (await native.chooseLocation()) {
+    await queryClient.invalidateQueries({ queryKey: LOCATION_KEY });
+  }
+}
+
+/** Downloads go back inside Lelap; the ones in the chosen folder move back too. */
+export async function resetDownloadFolder(): Promise<void> {
+  await native.resetLocation();
+  await queryClient.invalidateQueries({ queryKey: LOCATION_KEY });
+}
+
+/** How the download folder reads in Settings. */
+export function describeLocation(location: native.DownloadLocation): string {
+  const path = location.path ?? '';
+  const where =
+    location.uri === null
+      ? t('Inside Lelap on the phone. Removed with the app and not seen by file managers.')
+      : location.volume === 'removable'
+        ? path
+          ? t('{path} on the SD card.', { path })
+          : t('The top of the SD card.')
+        : path
+          ? t('{path} on the phone.', { path })
+          : t('The top of the phone’s storage.');
+  if (!location.available) {
+    return `${where} ${t('It can’t be reached. Put the SD card back, or choose another folder.')}`;
+  }
+  if (location.waiting === 0) return where;
+  if (location.moving) {
+    const left =
+      location.waiting === 1
+        ? t('Moving downloads: 1 left.')
+        : t('Moving downloads: {n} left.', { n: location.waiting });
+    return `${where} ${left}`;
+  }
+  return `${where} ${location.error ?? t('Some downloads are still in the old folder.')}`;
+}
+
 /** Keeps downloads folded in while the app runs and when it returns to the foreground. */
 export function DownloadSync() {
   useDownloadStatuses();
+  useDownloadLocation();
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (status) => {
-      if (status === 'active') void queryClient.invalidateQueries({ queryKey: DOWNLOADS_KEY });
+      if (status !== 'active') return;
+      // A move that stopped, or waited for an SD card, carries on.
+      void native
+        .resumeMove()
+        .catch(() => {})
+        .finally(() => void queryClient.invalidateQueries({ queryKey: LOCATION_KEY }));
+      void queryClient.invalidateQueries({ queryKey: DOWNLOADS_KEY });
     });
     return () => subscription.remove();
   }, []);

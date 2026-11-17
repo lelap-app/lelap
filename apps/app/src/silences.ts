@@ -1,6 +1,7 @@
 import {
   type BookDetail,
   getBook,
+  localFileUri,
   saveFoundChapters,
   type Silence,
   SILENCE_RULES,
@@ -29,7 +30,7 @@ export type SilenceScan = library.SilenceStatus;
 /** Where each file of the book plays from on this phone, or null if one is on a server. */
 function localFiles(detail: BookDetail): string[] | null {
   const uris = detail.files.map((f) =>
-    f.downloadPath ? `file://${f.downloadPath}` : f.uri.startsWith('content://') ? f.uri : null,
+    f.downloadPath ? localFileUri(f.downloadPath) : f.uri.startsWith('content://') ? f.uri : null,
   );
   return uris.every((u): u is string => u !== null) ? uris : null;
 }
