@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Back, play or pause, forward; the numbers are the skip interval in seconds. -->
+<!-- Back, play or pause, forward; the numbers are the skip interval in seconds. Each target is
+     48 dp, Android's minimum for a finger. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:layout_width="wrap_content"
   android:layout_height="wrap_content"
@@ -8,8 +9,8 @@
 
   <FrameLayout
     android:id="@+id/lelap_widget_back"
-    android:layout_width="44dp"
-    android:layout_height="44dp"
+    android:layout_width="48dp"
+    android:layout_height="48dp"
     android:contentDescription="Back 30 seconds">
 
     <ImageView
@@ -45,8 +46,8 @@
 
   <FrameLayout
     android:id="@+id/lelap_widget_forward"
-    android:layout_width="44dp"
-    android:layout_height="44dp"
+    android:layout_width="48dp"
+    android:layout_height="48dp"
     android:contentDescription="Forward 30 seconds">
 
     <ImageView

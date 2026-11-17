@@ -23,7 +23,10 @@ export function coverUri(book: {
   return webSafe(book.coverUrl);
 }
 
-/** The cover, or a tile with the title's first letter when there is none. */
+/**
+ * The cover, or a tile with the title's first letter when there is none. Hidden from screen
+ * readers: the title always stands next to it.
+ */
 export function BookCover({
   uri,
   title,
@@ -36,6 +39,7 @@ export function BookCover({
   if (uri) return <CoverImage uri={webSafe(uri) ?? uri} size={size} />;
   return (
     <View
+      aria-hidden
       style={{ width: size, height: size }}
       className="items-center justify-center rounded-md bg-raised"
     >
@@ -50,7 +54,11 @@ export function BookCover({
 function CoverImage({ uri, size }: { uri: string; size: number }) {
   const [loaded, setLoaded] = useState(false);
   return (
-    <View style={{ width: size, height: size }} className="overflow-hidden rounded-md bg-raised">
+    <View
+      aria-hidden
+      style={{ width: size, height: size }}
+      className="overflow-hidden rounded-md bg-raised"
+    >
       <FadeIn show={loaded} lift={0} duration={180}>
         <Image
           source={{ uri }}

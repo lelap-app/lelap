@@ -9,6 +9,7 @@ import { Text, View } from 'react-native';
 import { AddonReviewHost } from '../src/addonReview';
 import { currentLanguage, subscribeLanguage } from '../src/i18n';
 import { DialogHost } from '../src/dialog';
+import { useReducedMotion } from '../src/components/Motion';
 import { SandboxHost } from '../src/sandbox/SandboxHost';
 import { queryClient, syncAddonsNow } from '../src/addons';
 import { listProfiles } from '@lelap/core';
@@ -52,6 +53,7 @@ export default function RootLayout() {
   const { ready, error } = useDbReady();
   // Text is read at render time, so a new language (a switch, or another profile) redraws it all.
   const language = useSyncExternalStore(subscribeLanguage, currentLanguage, currentLanguage);
+  const reduced = useReducedMotion();
   // Before anything reads or saves: the profile this device used last.
   const profileLoaded = useMemo(() => {
     if (ready) loadActiveProfile();
@@ -78,15 +80,19 @@ export default function RootLayout() {
         <DeviceRunner />
         <Stack
           key={language}
-          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0d0e11' } }}
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: '#0d0e11' },
+            ...(reduced ? { animation: 'none' } : {}),
+          }}
         >
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
             name="player"
-            options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            options={{ presentation: 'modal', animation: reduced ? 'none' : 'slide_from_bottom' }}
           />
           <Stack.Screen name="who" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="car" options={{ animation: 'fade' }} />
+          <Stack.Screen name="car" options={{ animation: reduced ? 'none' : 'fade' }} />
         </Stack>
         <HandoffBanner />
         <DialogHost />

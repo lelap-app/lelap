@@ -8,6 +8,7 @@ import { COLORS, Icon } from './Icon';
 import * as audio from '../platform/audio';
 import { playerProfile, usePlayerState } from '../player';
 import { profileId } from '../profile';
+import { ROW_BUTTON } from './TextButton';
 
 /**
  * The book that is loaded, with Play/Pause; opens the Player. Hidden when nothing is loaded.
@@ -26,6 +27,8 @@ export function MiniPlayer({ inset = true }: { inset?: boolean }) {
     <FadeIn lift={16}>
       <Pressable
         onPress={() => router.push('/player')}
+        {...ROW_BUTTON}
+        accessibilityHint={t('Opens the player')}
         style={{ paddingBottom: (inset ? insets.bottom : 0) + 8 }}
         className="border-t border-line bg-raised"
       >
@@ -46,7 +49,7 @@ export function MiniPlayer({ inset = true }: { inset?: boolean }) {
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel={state.playing ? t('Pause') : t('Play')}
-            className="h-11 w-11 items-center justify-center rounded-full bg-amber"
+            className="h-12 w-12 items-center justify-center rounded-full bg-amber"
           >
             <Icon name={state.playing ? 'pause' : 'play'} size={20} color={COLORS.ink} />
           </Pressable>

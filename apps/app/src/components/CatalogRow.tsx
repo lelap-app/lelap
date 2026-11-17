@@ -36,7 +36,11 @@ export function CatalogRow({
 
   return (
     <View className="gap-2">
-      <Pressable onPress={onMore} className="flex-row items-center justify-between px-4">
+      <Pressable
+        onPress={onMore}
+        accessibilityRole="button"
+        className="min-h-12 flex-row items-center justify-between px-4"
+      >
         <Text className="text-lg font-semibold text-paper">{title ?? catalogRef.catalog.name}</Text>
         <View className="flex-row items-center">
           <Text className="text-sm text-amber">{t('More')}</Text>

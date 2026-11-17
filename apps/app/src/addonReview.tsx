@@ -79,7 +79,10 @@ export function AddonReviewHost() {
         {manifest.description !== '' && (
           <Text className="pb-3 text-soft">{manifest.description}</Text>
         )}
-        <Text className="pb-2 text-xs uppercase tracking-wider text-muted">
+        <Text
+          accessibilityRole="header"
+          className="pb-2 text-xs uppercase tracking-wider text-muted"
+        >
           {t('What it can do')}
         </Text>
         <View className="gap-3 pb-4">
@@ -100,7 +103,7 @@ export function AddonReviewHost() {
           <Pressable
             onPress={() => close(false)}
             accessibilityRole="button"
-            className="rounded-full px-4 py-2 active:bg-line"
+            className="min-h-12 justify-center rounded-full px-4 active:bg-line"
           >
             <Text className="font-semibold text-muted">{action ? t('Cancel') : t('Close')}</Text>
           </Pressable>
@@ -108,7 +111,7 @@ export function AddonReviewHost() {
             <Pressable
               onPress={() => close(true)}
               accessibilityRole="button"
-              className="rounded-full bg-amber px-5 py-2 active:opacity-80"
+              className="min-h-12 justify-center rounded-full bg-amber px-5 active:opacity-80"
             >
               <Text className="font-semibold text-ink">{action}</Text>
             </Pressable>

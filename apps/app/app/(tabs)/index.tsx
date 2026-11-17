@@ -35,6 +35,8 @@ import { openCatalog, openItem } from '../../src/navigation';
 import { canNotify } from '../../src/platform/downloads';
 import { playBook, useLibrary } from '../../src/player';
 import { profileId } from '../../src/profile';
+import { Pill } from '../../src/components/Pill';
+import { TextButton } from '../../src/components/TextButton';
 
 /**
  * Asks once, next to the want-to-read row, whether Lelap may say when a wanted book can be
@@ -54,12 +56,8 @@ function WantedAlertsHint({ onDone }: { onDone: () => void }) {
       <Text className="flex-1 text-sm text-soft">
         {t('Get a notification when a book you want to read can be played?')}
       </Text>
-      <Pressable onPress={() => void answer(false)} hitSlop={8} accessibilityRole="button">
-        <Text className="text-sm text-muted">{t('Not now')}</Text>
-      </Pressable>
-      <Pressable onPress={() => void answer(true)} hitSlop={8} accessibilityRole="button">
-        <Text className="text-sm font-semibold text-amber">{t('Allow')}</Text>
-      </Pressable>
+      <TextButton text={t('Not now')} tone="muted" onPress={() => void answer(false)} />
+      <TextButton text={t('Allow')} onPress={() => void answer(true)} />
     </View>
   );
 }
@@ -129,10 +127,12 @@ export default function HomeScreen() {
         />
       }
     >
-      <View className="flex-row items-center justify-between px-4">
-        <Text className="text-3xl font-semibold text-paper">{'Lelap'}</Text>
+      <View className="flex-row flex-wrap items-center justify-between gap-y-2 px-4">
+        <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
+          {'Lelap'}
+        </Text>
         <View className="flex-row items-center gap-2">
-          <Pressable
+          <Pill
             onPress={() => router.push('/addons')}
             accessibilityRole="button"
             className="flex-row items-center gap-1.5 rounded-full border border-line px-3 py-2 active:bg-raised"
@@ -143,12 +143,13 @@ export default function HomeScreen() {
             <Text className="text-xs text-soft">
               {addons.length === 1 ? t('1 add-on') : t('{n} add-ons', { n: addons.length })}
             </Text>
-          </Pressable>
+          </Pill>
           {profiles.length > 1 && (
             <Pressable
               onPress={() => router.push('/who')}
-              hitSlop={8}
+              accessibilityRole="button"
               accessibilityLabel={t('Switch profile')}
+              className="h-12 w-12 items-center justify-center"
             >
               <Avatar avatar={me?.avatar ?? null} name={me?.name ?? ''} size={30} />
             </Pressable>
@@ -179,7 +180,9 @@ export default function HomeScreen() {
             <Text className="font-semibold text-paper">{t('Ready for offline')}</Text>
             <Text className="text-xs text-muted">
               {offline.count === 1 ? t('1 download') : t('{n} downloads', { n: offline.count })} ·{' '}
-              {formatBytes(offline.bytes)} on this {Platform.OS === 'web' ? 'device' : 'phone'}
+              {Platform.OS === 'web'
+                ? t('{size} on this device', { size: formatBytes(offline.bytes) })
+                : t('{size} on this phone', { size: formatBytes(offline.bytes) })}
             </Text>
           </View>
           <Icon name="forward" size={20} color={COLORS.muted} />

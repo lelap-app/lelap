@@ -27,6 +27,9 @@ export function ChaptersSheet({
         renderItem={({ item, index }) => (
           <Pressable
             onPress={() => onPick(item.startMs)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: index === current }}
+            aria-selected={index === current}
             style={{ height: 48 }}
             className="flex-row items-center gap-3 active:opacity-60"
           >

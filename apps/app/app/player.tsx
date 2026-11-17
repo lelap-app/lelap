@@ -3,6 +3,7 @@ import {
   chapterAt,
   deleteBookmark,
   getBook,
+  getSettings,
   listBookmarks,
   setBookmarkNote,
   setSpeed,
@@ -11,7 +12,7 @@ import {
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
@@ -76,7 +77,14 @@ function Tool({
       className="flex-1 items-center gap-1 rounded-xl py-2 active:bg-raised"
     >
       <Icon name={icon} size={22} color={color} />
-      <Text numberOfLines={1} style={{ color }} className="text-xs font-semibold">
+      {/* Up to seven tools share the row: at large font sizes the label shrinks to fit whole. */}
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.5}
+        style={{ color }}
+        className="text-center text-xs font-semibold"
+      >
         {label}
       </Text>
     </Pressable>
@@ -100,6 +108,7 @@ function SleepOption({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
+      aria-selected={active}
       className={`flex-row items-center gap-3 rounded-xl px-3 py-3.5 active:bg-line ${active ? 'bg-line' : ''}`}
     >
       <Icon
@@ -121,7 +130,8 @@ function Chip({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
-      className="rounded-full border border-line px-4 py-2 active:bg-raised"
+      accessibilityRole="button"
+      className="min-h-12 justify-center rounded-full border border-line px-4 active:bg-raised"
     >
       <Text className="text-soft">{label}</Text>
     </Pressable>
@@ -143,6 +153,10 @@ export default function Player() {
   // The bar covers the chapter; a tap on the note under it switches to the whole book.
   const [wholeBook, setWholeBook] = useState(false);
   const [jumpText, setJumpText] = useState('');
+  // While the playhead is dragged the page holds still, so moving up for fine scrubbing works.
+  const [scrubbing, setScrubbing] = useState(false);
+  // `version` is the signal to re-read the setting.
+  const skipSeconds = useMemo(() => getSettings(db, profileId).skipIntervalMs / 1000, [version]);
 
   const bookId = state.bookId;
   // `version` is the signal to re-read the database.
@@ -249,15 +263,22 @@ export default function Player() {
   const percent = total > 0 ? Math.round((position / total) * 100) : 0;
 
   return (
-    <View
-      style={{ paddingTop: insets.top + 4, paddingBottom: insets.bottom + 12 }}
-      className="flex-1 bg-night px-6"
+    // Scrolls only when large text no longer fits on the screen.
+    <ScrollView
+      scrollEnabled={!scrubbing}
+      className="flex-1 bg-night"
+      contentContainerStyle={{
+        flexGrow: 1,
+        paddingTop: insets.top + 4,
+        paddingBottom: insets.bottom + 12,
+        paddingHorizontal: 24,
+      }}
     >
       <View className="flex-row items-center justify-between">
         <IconButton name="down" label={t('Close player')} size={26} onPress={() => router.back()} />
         {chapters.length > 1 && (
-          <Text className="text-xs uppercase tracking-widest text-muted">
-            Chapter {current + 1} of {chapters.length}
+          <Text className="flex-1 text-center text-xs uppercase tracking-widest text-muted">
+            {t('Chapter {n} of {total}', { n: current + 1, total: chapters.length })}
           </Text>
         )}
         {Platform.OS === 'android' ? (
@@ -268,12 +289,12 @@ export default function Player() {
             onPress={() => router.push('/car')}
           />
         ) : (
-          <View className="w-11" />
+          <View className="w-12" />
         )}
       </View>
       <HeadphoneBanner className="mt-2" />
 
-      <View className="flex-1 items-center justify-center">
+      <View className="min-h-48 flex-1 items-center justify-center py-4">
         <BookCover uri={coverUri(detail.book)} title={detail.book.title} size={280} />
       </View>
 
@@ -283,8 +304,13 @@ export default function Player() {
             {detail.book.title}
           </Text>
           {chapter ? (
-            <Pressable onPress={() => setSheet('chapters')}>
-              <Text numberOfLines={1} className="text-soft">
+            <Pressable
+              onPress={() => setSheet('chapters')}
+              accessibilityRole="button"
+              accessibilityHint={t('Opens the chapters')}
+              className="min-h-12 justify-center"
+            >
+              <Text numberOfLines={2} className="text-soft">
                 {chapter.title}
               </Text>
             </Pressable>
@@ -296,13 +322,14 @@ export default function Player() {
           onPress={bookmark}
           accessibilityRole="button"
           accessibilityLabel={t('Add bookmark')}
-          className="h-11 w-11 items-center justify-center rounded-full bg-raised active:opacity-70"
+          className="h-12 w-12 items-center justify-center rounded-full bg-raised active:opacity-70"
         >
           <Icon name="bookmarkAdd" size={22} />
         </Pressable>
       </View>
 
       <Scrubber
+        onDragChange={setScrubbing}
         elapsedMs={elapsed}
         lengthMs={length}
         middle={
@@ -321,7 +348,7 @@ export default function Player() {
       <View className="flex-row items-center justify-between py-4">
         <Control
           icon="back30"
-          label={t('Back 30 seconds')}
+          label={t('Back {n} seconds', { n: skipSeconds })}
           onPress={() => void audio.skip(false)}
         />
         {chapters.length > 0 ? (
@@ -351,7 +378,7 @@ export default function Player() {
         )}
         <Control
           icon="forward30"
-          label={t('Forward 30 seconds')}
+          label={t('Forward {n} seconds', { n: skipSeconds })}
           onPress={() => void audio.skip(true)}
         />
       </View>
@@ -502,9 +529,15 @@ export default function Player() {
             ))}
           </View>
           <Text className="text-sm text-muted">
-            Now at {formatClock(position)} in the{' '}
-            {detail.book.source === 'feed' ? 'episode' : 'book'}. Type a time to go there, such as
-            2:14:30, 14:30 or 90 (minutes).
+            {detail.book.source === 'feed'
+              ? t(
+                  'Now at {time} in the episode. Type a time to go there, such as 2:14:30, 14:30 or 90 (minutes).',
+                  { time: formatClock(position) },
+                )
+              : t(
+                  'Now at {time} in the book. Type a time to go there, such as 2:14:30, 14:30 or 90 (minutes).',
+                  { time: formatClock(position) },
+                )}
           </Text>
           <View className="flex-row gap-2">
             <TextInput
@@ -512,17 +545,18 @@ export default function Player() {
               onChangeText={setJumpText}
               onSubmitEditing={() => jumpTarget !== null && jump(jumpTarget)}
               placeholder="2:14:30"
+              accessibilityLabel={t('Time to jump to')}
               placeholderTextColor="#8d8a83"
               keyboardType="numbers-and-punctuation"
               returnKeyType="go"
               autoFocus
-              className="flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+              className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
             />
             <Pressable
               disabled={jumpTarget === null}
               onPress={() => jumpTarget !== null && jump(jumpTarget)}
               accessibilityRole="button"
-              className={`justify-center rounded-lg px-4 ${jumpTarget === null ? 'bg-line' : 'bg-amber'}`}
+              className={`min-h-12 justify-center rounded-lg px-4 ${jumpTarget === null ? 'bg-line' : 'bg-amber'}`}
             >
               <Text className={jumpTarget === null ? 'text-muted' : 'font-semibold text-ink'}>
                 {t('Go')}
@@ -542,6 +576,7 @@ export default function Player() {
           value={note}
           onChangeText={setNote}
           placeholder={t('Add a note (optional)')}
+          accessibilityLabel={t('Note')}
           placeholderTextColor="#8d8a83"
           autoFocus
           onSubmitEditing={saveNote}
@@ -551,6 +586,6 @@ export default function Player() {
           <Chip label={t('Done')} onPress={saveNote} />
         </View>
       </Sheet>
-    </View>
+    </ScrollView>
   );
 }

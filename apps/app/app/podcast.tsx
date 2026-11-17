@@ -40,6 +40,8 @@ import { formatDuration, formatLeft } from '../src/format';
 import { useLibrary } from '../src/player';
 import { fetchFeed, playEpisode, runAutoDownload, subscribeToFeed } from '../src/podcasts';
 import { profileId } from '../src/profile';
+import { Pill } from '../src/components/Pill';
+import { ROW_BUTTON, TextButton } from '../src/components/TextButton';
 
 const KEEP = [1, 3, 5, 10];
 
@@ -67,7 +69,7 @@ function People({ persons }: { persons: FeedPerson[] }) {
           disabled={!p.href}
           accessibilityRole={p.href ? 'link' : 'text'}
           onPress={() => p.href && openLink(p.href)}
-          className="flex-row items-center gap-2 rounded-full border border-line py-1 pl-1 pr-3 active:bg-raised"
+          className="min-h-12 flex-row items-center gap-2 rounded-full border border-line py-1 ps-1 pe-3 active:bg-raised"
         >
           <BookCover uri={p.img} title={p.name} size={28} />
           <View>
@@ -220,7 +222,7 @@ export default function PodcastScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
         ListHeaderComponent={
           <View className="gap-4 px-4 pb-2">
-            <View className="-ml-2 self-start">
+            <View className="-ms-2 self-start">
               <IconButton
                 name="back"
                 label={t('Back')}
@@ -258,7 +260,7 @@ export default function PodcastScreen() {
                     key={f.url}
                     accessibilityRole="link"
                     onPress={() => openLink(f.url)}
-                    className="flex-row items-center gap-3 rounded-xl border border-line px-3 py-2 active:bg-raised"
+                    className="min-h-12 flex-row items-center gap-3 rounded-xl border border-line px-3 py-2 active:bg-raised"
                   >
                     <Icon name="heart" size={20} color={COLORS.amber} />
                     <View className="flex-1">
@@ -283,6 +285,7 @@ export default function PodcastScreen() {
                         </Text>
                       </View>
                       <Switch
+                        accessibilityLabel={t('Auto-download')}
                         value={sub.autoDownload}
                         onValueChange={(v) => setRule(v, sub.keepLatest)}
                       />
@@ -290,26 +293,28 @@ export default function PodcastScreen() {
                     {sub.autoDownload && (
                       <View className="flex-row flex-wrap gap-2">
                         {KEEP.map((k) => (
-                          <Pressable
+                          <Pill
                             key={k}
                             onPress={() => setRule(true, k)}
+                            accessibilityState={{ selected: sub.keepLatest === k }}
+                            aria-selected={sub.keepLatest === k}
                             className={`rounded-full border px-3 py-1 ${sub.keepLatest === k ? 'border-amber bg-amber' : 'border-line'}`}
                           >
                             <Text className={sub.keepLatest === k ? 'text-ink' : 'text-soft'}>
-                              {k} newest
+                              {t('{n} newest', { n: k })}
                             </Text>
-                          </Pressable>
+                          </Pill>
                         ))}
                       </View>
                     )}
-                    <Pressable
+                    <TextButton
+                      text={t('Unsubscribe')}
                       onPress={() => {
                         unsubscribe(db, profileId, podcast.id);
                         refresh();
                       }}
-                    >
-                      <Text className="text-danger">{t('Unsubscribe')}</Text>
-                    </Pressable>
+                      tone="danger"
+                    />
                   </View>
                 ) : (
                   <Pressable
@@ -317,7 +322,8 @@ export default function PodcastScreen() {
                     onPress={() =>
                       void run(async () => void (await subscribeToFeed(podcast.feedUrl)))
                     }
-                    className="items-center rounded-full bg-amber py-3 active:opacity-80"
+                    accessibilityRole="button"
+                    className="min-h-12 items-center justify-center rounded-full bg-amber py-3 active:opacity-80"
                   >
                     {busy ? (
                       <ActivityIndicator color="#1a1305" />
@@ -326,8 +332,11 @@ export default function PodcastScreen() {
                     )}
                   </Pressable>
                 )}
-                <Text className="pt-2 text-xs uppercase tracking-wider text-muted">
-                  {list.length} episodes
+                <Text
+                  accessibilityRole="header"
+                  className="pt-2 text-xs uppercase tracking-wider text-muted"
+                >
+                  {list.length === 1 ? t('1 episode') : t('{n} episodes', { n: list.length })}
                 </Text>
               </>
             )}
@@ -353,6 +362,7 @@ export default function PodcastScreen() {
                 })
               }
               onLongPress={() => showActions(e)}
+              {...ROW_BUTTON}
               className={`flex-row items-center gap-3 border-b border-line px-4 py-3 active:bg-raised ${e.finished ? 'opacity-50' : ''}`}
             >
               <View className="flex-1 gap-1">
@@ -365,9 +375,9 @@ export default function PodcastScreen() {
               </View>
               {e.downloadState === null && (
                 <Pressable
-                  hitSlop={10}
                   accessibilityRole="button"
                   accessibilityLabel={t('Download episode')}
+                  className="h-12 w-12 items-center justify-center"
                   onPress={() =>
                     void run(() => startDownload(episodeBook(db, e.id, Date.now(), newId), null))
                   }

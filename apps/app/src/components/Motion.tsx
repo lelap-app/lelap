@@ -14,7 +14,8 @@ import {
 
 const DRIVER = Platform.OS !== 'web';
 
-function useReducedMotion(): boolean {
+/** True while the system asks for reduced motion (Android’s “Remove animations”, the browser’s setting). */
+export function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
     let alive = true;

@@ -23,12 +23,13 @@ const KIND: Record<CastDevice['kind'], string> = {
   fcast: 'FCast',
 };
 
-function Chip({ label, onPress }: { label: string; onPress: () => void }) {
+function Chip({ label, spoken, onPress }: { label: string; spoken?: string; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      className="rounded-full border border-line px-4 py-2 active:bg-night"
+      {...(spoken === undefined ? {} : { accessibilityLabel: spoken })}
+      className="min-h-12 justify-center rounded-full border border-line px-4 active:bg-night"
     >
       <Text className="text-soft">{label}</Text>
     </Pressable>
@@ -92,9 +93,17 @@ export function CastSheet({
           <View className="flex-row flex-wrap items-center gap-2">
             {volume !== null && (
               <>
-                <Chip label={t('Volume −')} onPress={() => changeVolume(-0.1)} />
+                <Chip
+                  label={t('Volume −')}
+                  spoken={t('Volume down')}
+                  onPress={() => changeVolume(-0.1)}
+                />
                 <Text className="w-12 text-center text-soft">{Math.round(volume * 100)}%</Text>
-                <Chip label={t('Volume +')} onPress={() => changeVolume(0.1)} />
+                <Chip
+                  label={t('Volume +')}
+                  spoken={t('Volume up')}
+                  onPress={() => changeVolume(0.1)}
+                />
               </>
             )}
             <Chip
@@ -117,7 +126,9 @@ export function CastSheet({
               onPress={() => void pick(device)}
               disabled={connecting !== null}
               accessibilityRole="button"
-              className="flex-row items-center gap-3 py-3 active:opacity-60"
+              accessibilityState={{ selected: current }}
+              aria-selected={current}
+              className="min-h-12 flex-row items-center gap-3 py-3 active:opacity-60"
             >
               <Icon name="cast" size={22} color={current ? COLORS.amber : COLORS.soft} />
               <View className="flex-1">

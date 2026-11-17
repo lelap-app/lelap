@@ -2,12 +2,13 @@ import { parseAddonLink } from '@lelap/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
 import { t } from '../src/i18n';
 import { confirmAddon } from '../src/addonInstall';
 import { useLibrary } from '../src/player';
 import { activeProfile } from '../src/profile';
+import { TextButton } from '../src/components/TextButton';
 
 /**
  * `lelap://addon?manifest=…` (and `/addon?manifest=…` on the web): where an add-on's configure page
@@ -56,9 +57,7 @@ export default function AddonLinkScreen() {
       ) : (
         <>
           <Text className="text-center text-paper">{message}</Text>
-          <Pressable onPress={() => router.replace('/addons')} accessibilityRole="button">
-            <Text className="text-amber">{t('Add-ons')}</Text>
-          </Pressable>
+          <TextButton text={t('Add-ons')} onPress={() => router.replace('/addons')} />
         </>
       )}
     </View>

@@ -37,6 +37,7 @@ import { db, newId } from '../src/db';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { scanLibrary } from '../src/scan';
+import { Pill } from '../src/components/Pill';
 
 type Kind = 'webdav' | 's3' | 'jellyfin' | 'audiobookshelf';
 
@@ -77,7 +78,7 @@ function LibrarySwitch({
         <Text className="text-paper">{name}</Text>
         {detail && <Text className="text-xs text-muted">{detail}</Text>}
       </View>
-      <Switch value={on} onValueChange={onChange} />
+      <Switch accessibilityLabel={name} value={on} onValueChange={onChange} />
     </View>
   );
 }
@@ -107,6 +108,8 @@ function Field({
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
+        accessibilityLabel={label}
+        {...(hint === undefined ? {} : { accessibilityHint: hint })}
         placeholderTextColor="#8d8a83"
         autoCapitalize="none"
         autoCorrect={false}
@@ -342,7 +345,7 @@ export default function ServerScreen() {
         gap: 16,
       }}
     >
-      <View className="-ml-2 self-start">
+      <View className="-ms-2 self-start">
         <IconButton
           name="back"
           label={t('Back')}
@@ -350,7 +353,7 @@ export default function ServerScreen() {
           onPress={() => router.back()}
         />
       </View>
-      <Text className="text-3xl font-semibold text-paper">
+      <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
         {locked ? t('Log in again') : t('Add a server')}
       </Text>
       <Text className="text-soft">
@@ -365,13 +368,15 @@ export default function ServerScreen() {
 
       <View className={`flex-row flex-wrap gap-2 ${locked ? 'hidden' : ''}`}>
         {(['webdav', 's3', 'jellyfin', 'audiobookshelf'] as const).map((k) => (
-          <Pressable
+          <Pill
             key={k}
             onPress={() => setKind(k)}
+            accessibilityState={{ selected: kind === k }}
+            aria-selected={kind === k}
             className={`rounded-full border px-4 py-2 ${kind === k ? 'border-amber bg-amber' : 'border-line'}`}
           >
             <Text className={kind === k ? 'text-ink' : 'text-soft'}>{KIND_LABEL[k]}</Text>
-          </Pressable>
+          </Pill>
         ))}
       </View>
 
@@ -438,7 +443,11 @@ export default function ServerScreen() {
           />
           <View className="flex-row items-center justify-between">
             <Text className="flex-1 text-soft">{t('Sign in with an API key')}</Text>
-            <Switch value={withKey} onValueChange={setWithKey} />
+            <Switch
+              accessibilityLabel={t('Sign in with an API key')}
+              value={withKey}
+              onValueChange={setWithKey}
+            />
           </View>
           {withKey ? (
             <Field
@@ -571,7 +580,9 @@ export default function ServerScreen() {
               : testJellyfin()
             : connect())
         }
-        className={`items-center rounded-full py-3 ${(testing ? ready : canConnect) ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
+        accessibilityRole="button"
+        {...(busy ? { accessibilityLabel: testing ? t('Test connection') : t('Connect') } : {})}
+        className={`min-h-12 items-center justify-center rounded-full py-3 ${(testing ? ready : canConnect) ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
       >
         {busy ? (
           <ActivityIndicator color="#1a1305" />

@@ -79,11 +79,14 @@ export default function SearchScreen() {
 
   return (
     <View className="flex-1 bg-night" style={{ paddingTop: insets.top + 12 }}>
-      <Text className="px-4 pb-3 text-3xl font-semibold text-paper">{t('Search')}</Text>
+      <Text accessibilityRole="header" className="px-4 pb-3 text-3xl font-semibold text-paper">
+        {t('Search')}
+      </Text>
       <TextInput
         value={text}
         onChangeText={setText}
         placeholder={t('Title, author or podcast')}
+        accessibilityLabel={t('Search')}
         placeholderTextColor="#8d8a83"
         autoCorrect={false}
         returnKeyType="search"
@@ -106,13 +109,20 @@ export default function SearchScreen() {
             status !== null ? (
               <View className="flex-row items-center gap-2 px-4">
                 {pending && <ActivityIndicator size="small" color="#f5b041" />}
-                <Text className="text-xs text-muted">{status}</Text>
+                <Text accessibilityLiveRegion="polite" className="text-xs text-muted">
+                  {status}
+                </Text>
               </View>
             ) : undefined
           }
           renderSectionHeader={({ section }) => (
             <View className="bg-night px-4 pb-1 pt-4">
-              <Text className="text-xs uppercase tracking-wider text-muted">{section.title}</Text>
+              <Text
+                accessibilityRole="header"
+                className="text-xs uppercase tracking-wider text-muted"
+              >
+                {section.title}
+              </Text>
               {section.error !== null && (
                 <Text className="pt-1 text-sm text-danger">{section.error}</Text>
               )}

@@ -14,6 +14,8 @@ data class WidgetModel(
   val playLabel: String,
   val backLabel: String,
   val forwardLabel: String,
+  /** What TalkBack says for the widget itself, which opens the player when tapped. */
+  val openLabel: String,
 )
 
 enum class TileState { ACTIVE, INACTIVE }
@@ -29,10 +31,12 @@ object Models {
   fun widget(now: NowPlayingSnapshot?): WidgetModel {
     val seconds = (now?.skipMs ?: NowPlayingSnapshot.DEFAULT_SKIP_MS) / 1000
     val playing = now?.playing == true
+    val title = now?.title?.takeIf { it.isNotBlank() } ?: "Nothing playing"
+    val subtitle = if (now == null) "Open Lelap to pick a book" else now.chapter ?: now.author
     return WidgetModel(
       hasBook = now != null,
-      title = now?.title?.takeIf { it.isNotBlank() } ?: "Nothing playing",
-      subtitle = if (now == null) "Open Lelap to pick a book" else now.chapter ?: now.author,
+      title = title,
+      subtitle = subtitle,
       detail = now?.author?.takeIf { now.chapter != null },
       playing = playing,
       coverUri = now?.coverUri,
@@ -40,6 +44,7 @@ object Models {
       playLabel = if (playing) "Pause" else "Play",
       backLabel = "Back $seconds seconds",
       forwardLabel = "Forward $seconds seconds",
+      openLabel = listOfNotNull(title, subtitle).joinToString(", ") + ". Opens the player.",
     )
   }
 

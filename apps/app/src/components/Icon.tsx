@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Platform, Pressable } from 'react-native';
+import { I18nManager, Platform, Pressable } from 'react-native';
 import Svg, { Circle, Path, Rect, Text as SvgText } from 'react-native-svg';
 
 // One icon set for the whole app, drawn on a 24-unit grid in the design sketch's style: 1.8
@@ -220,6 +220,10 @@ const HIDDEN =
         importantForAccessibility: 'no-hide-descendants' as const,
       };
 
+// Chevrons point the way the layout reads, so they turn round right to left. Media icons
+// (skip, previous, next) keep their direction, as time runs left to right everywhere.
+const MIRRORED = new Set<string>(['back', 'forward']);
+
 /** An icon from the app's set. Decorative unless `label` is given. */
 export function Icon({
   name,
@@ -237,6 +241,9 @@ export function Icon({
       width={size}
       height={size}
       viewBox="0 0 24 24"
+      {...(I18nManager.isRTL && MIRRORED.has(name)
+        ? { style: { transform: [{ scaleX: -1 }] } }
+        : {})}
       {...(label === undefined ? {} : { accessibilityLabel: label })}
       {...(label === undefined ? HIDDEN : {})}
     >
@@ -259,7 +266,7 @@ export const COLORS = {
   ok: '#6bd49a',
 } as const;
 
-/** A 44-point icon button for headers and toolbars. */
+/** A 48-point icon button for headers and toolbars. */
 export function IconButton({
   name,
   label,
@@ -279,7 +286,7 @@ export function IconButton({
       hitSlop={8}
       accessibilityRole="button"
       {...(label === undefined ? {} : { accessibilityLabel: label })}
-      className="h-11 w-11 items-center justify-center rounded-full active:bg-raised"
+      className="h-12 w-12 items-center justify-center rounded-full active:bg-raised"
     >
       <Icon name={name} size={size} color={color} />
     </Pressable>

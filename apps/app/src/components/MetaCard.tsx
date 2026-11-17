@@ -58,10 +58,15 @@ export const MetaTile = memo(function MetaTile({
 }) {
   const cover = useArtwork(meta);
   return (
-    <Pressable onPress={() => onPress(meta)} style={{ width }} className="gap-1 active:opacity-70">
+    <Pressable
+      onPress={() => onPress(meta)}
+      accessibilityRole="button"
+      style={{ width }}
+      className="gap-1 active:opacity-70"
+    >
       <View>
         <BookCover uri={cover} title={meta.name} size={width} />
-        <View className="absolute bottom-1.5 left-1.5 right-1.5">
+        <View className="absolute bottom-1.5 inset-x-1.5">
           <SourceBadge availability={availability} />
         </View>
       </View>
@@ -91,6 +96,7 @@ export const MetaListRow = memo(function MetaListRow({
   return (
     <Pressable
       onPress={() => onPress(meta)}
+      accessibilityRole="button"
       className="flex-row items-center gap-3 px-4 py-2 active:bg-raised"
     >
       <BookCover uri={cover} title={meta.name} size={56} />

@@ -47,6 +47,7 @@ class ModelsTest {
     assertEquals(15L, model.skipSeconds)
     assertEquals("Back 15 seconds", model.backLabel)
     assertEquals("Forward 15 seconds", model.forwardLabel)
+    assertEquals("Moby Dick, Chapter 1. Opens the player.", model.openLabel)
   }
 
   @Test fun widgetWithoutChapterShowsTheAuthorOnce() {
@@ -62,6 +63,7 @@ class ModelsTest {
     assertEquals("Nothing playing", model.title)
     assertFalse(model.playing)
     assertEquals(30L, model.skipSeconds)
+    assertEquals("Nothing playing, Open Lelap to pick a book. Opens the player.", model.openLabel)
   }
 
   @Test fun tallFromTwoRows() {

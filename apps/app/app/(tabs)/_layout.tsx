@@ -1,11 +1,17 @@
 import { BottomTabBar, Tabs } from 'expo-router/js-tabs';
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../../src/i18n';
 import { useAddons } from '../../src/addons';
 import { useSourceCacheAddons } from '../../src/availability';
 import { Icon, type IconName } from '../../src/components/Icon';
 import { MiniPlayer } from '../../src/components/MiniPlayer';
+
+// React Navigation's tab bar is 49 points tall whatever the font size; this much more per
+// step of the system font scale keeps the labels whole at the largest sizes.
+const TAB_BAR = 49;
+const LABEL_GROWTH = 16;
 
 const ICONS: Record<string, IconName> = {
   index: 'home',
@@ -17,6 +23,12 @@ const ICONS: Record<string, IconName> = {
 
 export default function TabsLayout() {
   useSourceCacheAddons(useAddons());
+  const { fontScale } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const tall =
+    fontScale > 1
+      ? { height: Math.round(TAB_BAR + LABEL_GROWTH * (fontScale - 1)) + insets.bottom }
+      : {};
   return (
     <Tabs
       tabBar={(props) => (
@@ -28,7 +40,7 @@ export default function TabsLayout() {
       screenOptions={({ route }) => ({
         headerShown: false,
         sceneStyle: { backgroundColor: '#0d0e11' },
-        tabBarStyle: { backgroundColor: '#17191e', borderTopColor: '#33353b' },
+        tabBarStyle: { backgroundColor: '#17191e', borderTopColor: '#33353b', ...tall },
         tabBarActiveTintColor: '#f5b041',
         tabBarInactiveTintColor: '#8d8a83',
         tabBarIcon: ({ color }) => (

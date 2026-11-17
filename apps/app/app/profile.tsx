@@ -18,10 +18,11 @@ import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { useAllAddons } from '../src/addons';
-import { Avatar, AVATAR_IDS } from '../src/components/Avatar';
+import { Avatar, AVATAR_IDS, avatarName } from '../src/components/Avatar';
 import { db } from '../src/db';
 import { switchProfile, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
+import { TextButton } from '../src/components/TextButton';
 
 /** One profile: name, avatar, PIN, kids limits, delete. */
 export default function ProfileScreen() {
@@ -90,7 +91,7 @@ export default function ProfileScreen() {
         gap: 16,
       }}
     >
-      <View className="-ml-2 self-start">
+      <View className="-ms-2 self-start">
         <IconButton
           name="back"
           label={t('Back')}
@@ -104,16 +105,23 @@ export default function ProfileScreen() {
           value={name}
           onChangeText={setName}
           onEndEditing={() => save({ name })}
-          className="flex-1 rounded-lg border border-line px-3 py-2 text-xl text-paper"
+          accessibilityLabel={t('Name')}
+          className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-xl text-paper"
         />
       </View>
 
-      <Text className="text-xs uppercase tracking-wider text-muted">{t('Avatar')}</Text>
+      <Text accessibilityRole="header" className="text-xs uppercase tracking-wider text-muted">
+        {t('Avatar')}
+      </Text>
       <View className="flex-row flex-wrap gap-3">
         {AVATAR_IDS.map((a) => (
           <Pressable
             key={a}
             onPress={() => save({ avatar: a })}
+            accessibilityRole="radio"
+            accessibilityLabel={avatarName(a)}
+            accessibilityState={{ checked: profile.avatar === a }}
+            aria-checked={profile.avatar === a}
             className={`rounded-2xl border-2 ${profile.avatar === a ? 'border-amber' : 'border-transparent'}`}
           >
             <Avatar avatar={a} name={profile.name} size={52} />
@@ -121,13 +129,19 @@ export default function ProfileScreen() {
         ))}
         <Pressable
           onPress={() => save({ avatar: null })}
+          accessibilityRole="radio"
+          accessibilityLabel={t('First letter of the name')}
+          accessibilityState={{ checked: profile.avatar === null }}
+          aria-checked={profile.avatar === null}
           className={`rounded-2xl border-2 ${profile.avatar === null ? 'border-amber' : 'border-transparent'}`}
         >
           <Avatar avatar={null} name={profile.name} size={52} />
         </Pressable>
       </View>
 
-      <Text className="pt-2 text-xs uppercase tracking-wider text-muted">{t('PIN')}</Text>
+      <Text accessibilityRole="header" className="pt-2 text-xs uppercase tracking-wider text-muted">
+        {t('PIN')}
+      </Text>
       <Text className="text-sm text-muted">
         {t(
           'A four-digit PIN keeps others from opening this profile on this device. It doesn’t encrypt anything.',
@@ -140,29 +154,29 @@ export default function ProfileScreen() {
           keyboardType="number-pad"
           secureTextEntry
           maxLength={4}
-          placeholder={profile.pinHash ? t('New PIN') : 'PIN'}
+          placeholder={profile.pinHash ? t('New PIN') : t('PIN')}
+          accessibilityLabel={profile.pinHash ? t('New PIN') : t('PIN')}
           placeholderTextColor="#8d8a83"
           className="w-32 rounded-lg border border-line px-3 py-2 text-paper"
         />
-        <Pressable
+        <TextButton
+          text={t('Set PIN')}
           disabled={!isPin(pin)}
           onPress={() => {
             setPin(db, profile.id, pin, Date.now());
             setPinText('');
             refresh();
           }}
-        >
-          <Text className={isPin(pin) ? 'text-amber' : 'text-muted'}>{t('Set')}</Text>
-        </Pressable>
+        />
         {profile.pinHash && (
-          <Pressable
+          <TextButton
+            text={t('Remove PIN')}
             onPress={() => {
               setPin(db, profile.id, null, Date.now());
               refresh();
             }}
-          >
-            <Text className="text-danger">{t('Remove PIN')}</Text>
-          </Pressable>
+            tone="danger"
+          />
         )}
       </View>
 
@@ -175,12 +189,21 @@ export default function ProfileScreen() {
             )}
           </Text>
         </View>
-        <Switch value={profile.kids} onValueChange={(kids) => save({ kids })} />
+        <Switch
+          accessibilityLabel={t('Kids profile')}
+          value={profile.kids}
+          onValueChange={(kids) => save({ kids })}
+        />
       </View>
 
       {profile.kids && (
         <>
-          <Text className="pt-2 text-xs uppercase tracking-wider text-muted">{t('Shelf')}</Text>
+          <Text
+            accessibilityRole="header"
+            className="pt-2 text-xs uppercase tracking-wider text-muted"
+          >
+            {t('Shelf')}
+          </Text>
           {shelf.length === 0 ? (
             <Text className="text-sm text-muted">
               {t(
@@ -193,28 +216,28 @@ export default function ProfileScreen() {
                 <Text numberOfLines={1} className="flex-1 text-paper">
                   {b.title}
                 </Text>
-                <Pressable
+                <TextButton
+                  text={t('Remove')}
                   onPress={() => {
                     removeFromShelf(db, profile.id, b.id, Date.now());
                     refresh();
                   }}
-                  hitSlop={8}
-                >
-                  <Text className="text-danger">{t('Remove')}</Text>
-                </Pressable>
+                  tone="danger"
+                />
               </View>
             ))
           )}
         </>
       )}
 
-      <Text className="pt-2 text-xs uppercase tracking-wider text-muted">
+      <Text accessibilityRole="header" className="pt-2 text-xs uppercase tracking-wider text-muted">
         {t('Catalogs this profile sees')}
       </Text>
       {addons.map((a) => (
         <View key={a.url} className="flex-row items-center gap-3 border-b border-line py-2">
           <Text className="flex-1 text-paper">{a.manifest.name}</Text>
           <Switch
+            accessibilityLabel={a.manifest.name}
             value={!hidden.has(a.url)}
             onValueChange={(shown) =>
               save({
@@ -227,9 +250,7 @@ export default function ProfileScreen() {
         </View>
       ))}
 
-      <Pressable onPress={remove} className="pt-4">
-        <Text className="text-danger">{t('Delete this profile')}</Text>
-      </Pressable>
+      <TextButton text={t('Delete this profile')} tone="danger" onPress={remove} />
     </ScrollView>
   );
 }

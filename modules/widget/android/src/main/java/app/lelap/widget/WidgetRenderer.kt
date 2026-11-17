@@ -57,6 +57,7 @@ object WidgetRenderer {
     views.setContentDescription(R.id.lelap_widget_play, model.playLabel)
     views.setContentDescription(R.id.lelap_widget_back, model.backLabel)
     views.setContentDescription(R.id.lelap_widget_forward, model.forwardLabel)
+    views.setContentDescription(R.id.lelap_widget_root, model.openLabel)
     views.setTextViewText(R.id.lelap_widget_back_seconds, model.skipSeconds.toString())
     views.setTextViewText(R.id.lelap_widget_forward_seconds, model.skipSeconds.toString())
 

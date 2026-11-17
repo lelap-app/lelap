@@ -9,6 +9,7 @@ import { db } from '../db';
 import { switchProfile, useLibrary } from '../player';
 import { profileId } from '../profile';
 import { Avatar } from './Avatar';
+import { TextButton } from './TextButton';
 
 /**
  * “Who's listening?”: tap a profile; one with a PIN asks for it first. At launch (`atLaunch`)
@@ -63,7 +64,7 @@ export function ProfilePicker({
       style={{ paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }}
       className="flex-1 items-center gap-8 bg-night px-6"
     >
-      <Text className="text-3xl font-semibold text-paper">
+      <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
         {asking ? asking.name : t('Who’s listening?')}
       </Text>
       {asking ? (
@@ -77,13 +78,16 @@ export function ProfilePicker({
             secureTextEntry
             maxLength={4}
             placeholder={t('PIN')}
+            accessibilityLabel={t('PIN')}
             placeholderTextColor="#8d8a83"
             className="w-40 rounded-lg border border-line px-3 py-3 text-center text-2xl tracking-[12px] text-paper"
           />
-          {wrong && <Text className="text-danger">{t('That PIN is not right.')}</Text>}
-          <Pressable onPress={() => setAsking(null)} hitSlop={8}>
-            <Text className="text-muted">{t('Back')}</Text>
-          </Pressable>
+          {wrong && (
+            <Text accessibilityLiveRegion="assertive" className="text-danger">
+              {t('That PIN is not right.')}
+            </Text>
+          )}
+          <TextButton text={t('Back')} tone="muted" onPress={() => setAsking(null)} />
         </View>
       ) : (
         <View className="flex-row flex-wrap justify-center gap-6">
@@ -91,6 +95,7 @@ export function ProfilePicker({
             <Pressable
               key={p.id}
               onPress={() => choose(p)}
+              accessibilityRole="button"
               className="items-center gap-2 active:opacity-70"
             >
               <Avatar avatar={p.avatar} name={p.name} size={96} />

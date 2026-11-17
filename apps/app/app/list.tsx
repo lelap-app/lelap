@@ -27,6 +27,8 @@ import { db } from '../src/db';
 import { showAlert } from '../src/dialog';
 import { playBook, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
+import { TextButton } from '../src/components/TextButton';
+import { Pill } from '../src/components/Pill';
 
 const HOUR = 3_600_000;
 
@@ -64,15 +66,16 @@ function Choice<T>({
       {options.map((o) => {
         const on = o.value === value;
         return (
-          <Pressable
+          <Pill
             key={o.label}
             onPress={() => onChange(o.value)}
             accessibilityRole="radio"
-            accessibilityState={{ selected: on }}
+            accessibilityState={{ checked: on }}
+            aria-checked={on}
             className={`rounded-full border px-3 py-1.5 ${on ? 'border-amber bg-amber' : 'border-line'}`}
           >
             <Text className={on ? 'text-ink' : 'text-soft'}>{o.label}</Text>
-          </Pressable>
+          </Pill>
         );
       })}
     </View>
@@ -142,22 +145,21 @@ function RuleSheet({
                 ? (rule.tags ?? []).filter((t) => t !== tag)
                 : [...(rule.tags ?? []), tag];
               return (
-                <Pressable
+                <Pill
                   key={tag}
                   onPress={() => set({ tags: next.length > 0 ? next : undefined })}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: on }}
+                  aria-checked={on}
                   className={`rounded-full border px-3 py-1.5 ${on ? 'border-amber bg-amber' : 'border-line'}`}
                 >
                   <Text className={on ? 'text-ink' : 'text-soft'}># {tag}</Text>
-                </Pressable>
+                </Pill>
               );
             })}
           </View>
         )}
-        <Pressable onPress={onClose} className="self-end py-2">
-          <Text className="text-amber">{t('Done')}</Text>
-        </Pressable>
+        <TextButton text={t('Done')} onPress={onClose} className="self-end" />
       </View>
     </Sheet>
   );
@@ -229,7 +231,7 @@ export default function ListScreen() {
         ListHeaderComponent={
           <View className="gap-2 px-4 pb-3">
             <View className="flex-row items-center justify-between">
-              <View className="-ml-2">
+              <View className="-ms-2">
                 <IconButton
                   name="back"
                   label={t('Back')}
@@ -255,13 +257,16 @@ export default function ListScreen() {
                 autoFocus
                 selectTextOnFocus
                 returnKeyType="done"
+                accessibilityLabel={t('List name')}
                 className="border-b border-amber pb-1 text-3xl font-semibold text-paper"
               />
             ) : (
               <Pressable
                 disabled={!list}
                 onPress={() => setName(list?.name ?? '')}
+                accessibilityRole={list ? 'button' : 'header'}
                 accessibilityHint={list ? t('Rename') : undefined}
+                className="min-h-12 justify-center"
               >
                 <Text className="text-3xl font-semibold text-paper">
                   {list ? list.name : `# ${tag ?? ''}`}
@@ -272,7 +277,7 @@ export default function ListScreen() {
               <Pressable
                 onPress={() => setEditingRule(true)}
                 accessibilityRole="button"
-                className="flex-row items-center gap-2 self-start rounded-full border border-line px-3 py-1.5 active:bg-raised"
+                className="min-h-12 flex-row items-center gap-2 self-start rounded-full border border-line px-3 active:bg-raised"
               >
                 <Icon name="moon" size={16} color={COLORS.amber} />
                 <Text className="text-sm text-soft">{describeRule(list.rule)}</Text>
@@ -301,7 +306,7 @@ export default function ListScreen() {
               <BookRow book={item} onOpen={(b) => void open(b)} onLongPress={setActionBook} />
             </View>
             {manual && list && (
-              <View className="pr-2">
+              <View className="pe-2">
                 <IconButton
                   name="up"
                   label={t('Move up')}

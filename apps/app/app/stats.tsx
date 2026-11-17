@@ -64,7 +64,7 @@ export default function StatsScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 4, paddingBottom: 24 }}
         className="px-4"
       >
-        <View className="-ml-2 self-start">
+        <View className="-ms-2 self-start">
           <IconButton
             name="back"
             label={t('Back')}
@@ -72,7 +72,9 @@ export default function StatsScreen() {
             onPress={() => router.back()}
           />
         </View>
-        <Text className="pb-4 text-3xl font-semibold text-paper">{t('Listening')}</Text>
+        <Text accessibilityRole="header" className="pb-4 text-3xl font-semibold text-paper">
+          {t('Listening')}
+        </Text>
 
         <View className="flex-row gap-3">
           <Figure label={t('Today')} value={hours(stats.todayMs)} />
@@ -85,14 +87,16 @@ export default function StatsScreen() {
             value={
               stats.streak === 1
                 ? t('1 day')
-                : `${stats.streak} days${stats.longestStreak > stats.streak ? ` · best ${stats.longestStreak}` : ''}`
+                : `${t('{n} days', { n: stats.streak })}${stats.longestStreak > stats.streak ? ` · ${t('best {n}', { n: stats.longestStreak })}` : ''}`
             }
           />
         </View>
 
         <View
           accessible
-          accessibilityLabel={`Last 7 days: ${stats.week.map((d) => hours(d.ms)).join(', ')}`}
+          accessibilityLabel={t('Last 7 days: {hours}', {
+            hours: stats.week.map((d) => hours(d.ms)).join(', '),
+          })}
           className="mt-6 h-36 flex-row items-end gap-2 rounded-xl bg-raised px-3 pb-2 pt-4"
         >
           {stats.week.map((d, index) => {
@@ -126,7 +130,9 @@ export default function StatsScreen() {
           </View>
           <Text className="text-2xl font-semibold text-paper">
             {stats.finishedThisYear}
-            {goal > 0 && <Text className="text-base text-muted"> of {goal} books</Text>}
+            {goal > 0 && (
+              <Text className="text-base text-muted"> {t('of {n} books', { n: goal })}</Text>
+            )}
           </Text>
           {goal > 0 && (
             <View className="h-1.5 overflow-hidden rounded-full bg-line">
@@ -140,7 +146,10 @@ export default function StatsScreen() {
 
         {stats.topThisYear.length > 0 && (
           <View className="mt-6 gap-2">
-            <Text className="text-xs uppercase tracking-wider text-muted">
+            <Text
+              accessibilityRole="header"
+              className="text-xs uppercase tracking-wider text-muted"
+            >
               {t('Most listened this year')}
             </Text>
             {stats.topThisYear.map((b, index) => (
@@ -156,8 +165,10 @@ export default function StatsScreen() {
         )}
 
         <Text className="pt-8 text-xs text-muted">
-          Worked out on this device from what you play here. Never synced or sent anywhere. In all:{' '}
-          {hours(stats.totalMs)}.
+          {t(
+            'Worked out on this device from what you play here. Never synced or sent anywhere. In all: {time}.',
+            { time: hours(stats.totalMs) },
+          )}
         </Text>
       </ScrollView>
 
@@ -175,7 +186,10 @@ export default function StatsScreen() {
                 setChoosingGoal(false);
                 refresh();
               }}
-              className={`rounded-full border px-4 py-2 ${n === goal ? 'border-amber bg-amber' : 'border-line'}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: n === goal }}
+              aria-selected={n === goal}
+              className={`min-h-12 justify-center rounded-full border px-4 ${n === goal ? 'border-amber bg-amber' : 'border-line'}`}
             >
               <Text className={n === goal ? 'text-ink' : 'text-soft'}>
                 {n === 0 ? t('No goal') : n}

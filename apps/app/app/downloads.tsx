@@ -73,7 +73,7 @@ export default function DownloadsScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 24 }}
         ListHeaderComponent={
           <View className="gap-4 px-4 pb-4">
-            <View className="-ml-2 self-start">
+            <View className="-ms-2 self-start">
               <IconButton
                 name="back"
                 label={t('Back')}
@@ -81,7 +81,9 @@ export default function DownloadsScreen() {
                 onPress={() => router.back()}
               />
             </View>
-            <Text className="text-3xl font-semibold text-paper">{t('Downloads')}</Text>
+            <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
+              {t('Downloads')}
+            </Text>
             {storage.data && (
               <View className="gap-2">
                 <Text className="text-base text-soft">
@@ -121,6 +123,7 @@ export default function DownloadsScreen() {
           return (
             <Pressable
               onPress={() => showActions(entry)}
+              accessibilityRole="button"
               className="flex-row items-center gap-3 px-4 py-2 active:bg-raised"
             >
               <BookCover uri={coverUri(entry)} title={entry.title} size={56} />

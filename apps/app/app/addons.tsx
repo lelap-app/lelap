@@ -30,6 +30,7 @@ import { confirmAddon, openConfigure } from '../src/addonInstall';
 import { db } from '../src/db';
 import { useLibrary } from '../src/player';
 import { activeProfile } from '../src/profile';
+import { TextButton } from '../src/components/TextButton';
 
 const STATE_COLOR: Record<HealthState, string> = {
   unknown: COLORS.muted,
@@ -86,7 +87,8 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
           <Pressable
             onPress={() => openConfigure(addon.url)}
             accessibilityRole="button"
-            className="rounded-full border border-line px-3 py-1.5 active:bg-raised"
+            accessibilityLabel={t('Configure {name}', { name: addon.manifest.name })}
+            className="min-h-12 justify-center rounded-full border border-line px-3 active:bg-raised"
           >
             <Text className="text-sm text-amber">{t('Configure')}</Text>
           </Pressable>
@@ -132,9 +134,7 @@ export default function AddonsScreen() {
     return (
       <View className="flex-1 items-center justify-center gap-4 bg-night p-8">
         <Text className="text-center text-paper">{t('Ask a grown-up to change add-ons.')}</Text>
-        <Pressable onPress={() => router.back()}>
-          <Text className="text-amber">{t('Back')}</Text>
-        </Pressable>
+        <TextButton text={t('Back')} onPress={() => router.back()} />
       </View>
     );
   }
@@ -247,7 +247,7 @@ function AddonsManager() {
         paddingBottom: 24,
       }}
     >
-      <View className="-ml-2 self-start">
+      <View className="-ms-2 self-start">
         <IconButton
           name="back"
           label={t('Back')}
@@ -255,7 +255,9 @@ function AddonsManager() {
           onPress={() => router.back()}
         />
       </View>
-      <Text className="pb-2 text-3xl font-semibold text-paper">{t('Add-ons')}</Text>
+      <Text accessibilityRole="header" className="pb-2 text-3xl font-semibold text-paper">
+        {t('Add-ons')}
+      </Text>
       <Text className="pb-4 text-sm text-muted">
         {t(
           'Add-ons bring catalogs and audio. Audio always streams straight from the add-on’s source.',
@@ -267,23 +269,28 @@ function AddonsManager() {
       ))}
       {addons.length === 0 && <Text className="py-4 text-muted">{t('No add-ons installed.')}</Text>}
 
-      <Text className="pt-6 text-xs uppercase tracking-wider text-muted">{t('Add an add-on')}</Text>
+      <Text accessibilityRole="header" className="pt-6 text-xs uppercase tracking-wider text-muted">
+        {t('Add an add-on')}
+      </Text>
       <View className="flex-row items-center gap-3 pt-2">
         <TextInput
           value={url}
           onChangeText={setUrl}
           placeholder={'https://…/manifest.json'}
+          accessibilityLabel={t('Add-on address')}
           placeholderTextColor="#8d8a83"
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="url"
           onSubmitEditing={() => void add()}
-          className="flex-1 rounded-lg bg-raised px-4 py-3 text-base text-paper"
+          className="min-w-0 flex-1 rounded-lg bg-raised px-4 py-3 text-base text-paper"
         />
         <Pressable
           disabled={adding || url.trim() === ''}
           onPress={() => void add()}
-          className="rounded-full bg-amber px-4 py-3 active:opacity-80"
+          accessibilityRole="button"
+          accessibilityLabel={t('Add')}
+          className="min-h-12 justify-center rounded-full bg-amber px-4 py-3 active:opacity-80"
         >
           {adding ? (
             <ActivityIndicator color="#1a1305" />

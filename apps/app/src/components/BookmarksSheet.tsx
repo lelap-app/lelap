@@ -39,6 +39,10 @@ export function BookmarksSheet({
             <Pressable
               onPress={() => onPick(item)}
               onLongPress={() => confirmDelete(item)}
+              accessibilityRole="button"
+              // TalkBack lists this under its actions, so nobody has to find the long press.
+              accessibilityActions={[{ name: 'delete', label: t('Delete') }]}
+              onAccessibilityAction={() => confirmDelete(item)}
               className="flex-row items-center gap-3 py-3 active:opacity-60"
             >
               <Text className="w-20 text-amber">{formatClock(item.bookPositionMs)}</Text>

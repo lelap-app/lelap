@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   ScrollView,
   Text,
   useWindowDimensions,
@@ -20,6 +19,7 @@ import { useAskWhenVisible, useAvailability } from '../../src/availability';
 import { COLORS, Icon } from '../../src/components/Icon';
 import { MetaTile } from '../../src/components/MetaCard';
 import { openItem } from '../../src/navigation';
+import { Pill } from '../../src/components/Pill';
 
 const COLUMNS = 3;
 const GAP = 12;
@@ -28,12 +28,14 @@ const keyOf = (ref: CatalogRef) => `${ref.addon.url} ${ref.catalog.type} ${ref.c
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
-    <Pressable
+    <Pill
       onPress={onPress}
+      accessibilityState={{ selected: active }}
+      aria-selected={active}
       className={`rounded-full border px-3 py-1 ${active ? 'border-amber bg-amber' : 'border-line'}`}
     >
       <Text className={active ? 'text-ink' : 'text-soft'}>{label}</Text>
-    </Pressable>
+    </Pill>
   );
 }
 
@@ -94,7 +96,9 @@ export default function DiscoverScreen() {
 
   return (
     <View className="flex-1 bg-night" style={{ paddingTop: insets.top + 12 }}>
-      <Text className="px-4 pb-3 text-3xl font-semibold text-paper">{t('Discover')}</Text>
+      <Text accessibilityRole="header" className="px-4 pb-3 text-3xl font-semibold text-paper">
+        {t('Discover')}
+      </Text>
       {catalogs.length === 0 ? (
         <Text className="px-4 text-muted">
           {t('No catalogs to browse. Add-ons in Settings bring them.')}
@@ -137,10 +141,11 @@ export default function DiscoverScreen() {
                 ))}
               </ScrollView>
               <View className="flex-row items-center gap-2 px-4">
-                <Pressable
+                <Pill
                   onPress={() => setPlayableOnly((on) => !on)}
                   accessibilityRole="switch"
                   accessibilityState={{ checked: playableOnly }}
+                  aria-checked={playableOnly}
                   className={`flex-row items-center gap-1.5 rounded-full border px-3 py-1 ${playableOnly ? 'border-amber' : 'border-line'}`}
                 >
                   <Icon
@@ -151,7 +156,7 @@ export default function DiscoverScreen() {
                   <Text className={playableOnly ? 'text-amber' : 'text-soft'}>
                     {t('Playable only')}
                   </Text>
-                </Pressable>
+                </Pill>
                 {playableOnly && hiddenCount > 0 && (
                   <Text className="text-xs text-muted">
                     {hiddenCount === 1

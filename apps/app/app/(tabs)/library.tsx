@@ -39,6 +39,7 @@ import { playBook, useLibrary } from '../../src/player';
 import { activeProfile, profileId } from '../../src/profile';
 import { LOCAL_FOLDERS } from '../../src/platform/library';
 import { chooseFolder, scanLibrary } from '../../src/scan';
+import { Pill } from '../../src/components/Pill';
 
 const sorts = (): { key: LibrarySort; label: string }[] => [
   { key: 'recent', label: t('Recent') },
@@ -126,7 +127,7 @@ export default function LibraryScreen() {
         className="flex-1 items-center justify-center gap-6 bg-night p-8"
       >
         <Lori size={150} />
-        <Text className="text-center text-2xl font-semibold text-paper">
+        <Text accessibilityRole="header" className="text-center text-2xl font-semibold text-paper">
           {t('Your audiobooks')}
         </Text>
         {LOCAL_FOLDERS ? (
@@ -138,7 +139,8 @@ export default function LibraryScreen() {
             </Text>
             <Pressable
               onPress={() => void pick()}
-              className="rounded-full bg-amber px-6 py-3 active:opacity-80"
+              accessibilityRole="button"
+              className="min-h-12 justify-center rounded-full bg-amber px-6 py-3 active:opacity-80"
             >
               <Text className="font-semibold text-ink">{t('Choose your audiobooks folder')}</Text>
             </Pressable>
@@ -159,7 +161,9 @@ export default function LibraryScreen() {
   return (
     <View style={{ paddingTop: insets.top + 12 }} className="flex-1 gap-3 bg-night">
       <View className="flex-row items-center justify-between px-4">
-        <Text className="text-3xl font-semibold text-paper">{t('Library')}</Text>
+        <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
+          {t('Library')}
+        </Text>
         <IconButton
           name="settings"
           label={t('Settings')}
@@ -193,6 +197,7 @@ export default function LibraryScreen() {
             {!root && LOCAL_FOLDERS && !activeProfile()?.kids && (
               <Pressable
                 onPress={() => void pick()}
+                accessibilityRole="button"
                 className="mx-4 rounded-lg border border-line p-3 active:bg-raised"
               >
                 <Text className="text-soft">{t('Have audiobooks on this phone?')}</Text>
@@ -204,6 +209,7 @@ export default function LibraryScreen() {
             {lostFolder && (
               <Pressable
                 onPress={() => void pick()}
+                accessibilityRole="button"
                 className="mx-4 rounded-lg border border-danger p-3"
               >
                 <Text className="text-danger">
@@ -214,7 +220,7 @@ export default function LibraryScreen() {
             )}
             {scanning !== null && scanning.total > 0 && (
               <Text className="px-4 text-sm text-muted">
-                Scanning… {scanning.done} of {scanning.total}
+                {t('Scanning… {done} of {total}', { done: scanning.done, total: scanning.total })}
               </Text>
             )}
             {next && <ContinueCard book={next} onPress={() => void open(next)} />}
@@ -228,7 +234,7 @@ export default function LibraryScreen() {
                   key={list.id}
                   onPress={() => router.push({ pathname: '/list', params: { id: list.id } })}
                   accessibilityRole="button"
-                  className="w-40 flex-row items-center gap-2.5 rounded-xl bg-raised p-2.5 active:opacity-80"
+                  className="min-h-12 w-40 flex-row items-center gap-2.5 rounded-xl bg-raised p-2.5 active:opacity-80"
                 >
                   <View
                     className={`h-10 w-10 items-center justify-center rounded-lg ${list.rule ? 'bg-[#2d3a63]' : 'bg-amber'}`}
@@ -244,7 +250,7 @@ export default function LibraryScreen() {
                       {list.name}
                     </Text>
                     <Text className="text-xs text-muted">
-                      {count} · {list.rule ? t('smart list') : 'list'}
+                      {count} · {list.rule ? t('smart list') : t('list')}
                     </Text>
                   </View>
                 </Pressable>
@@ -252,7 +258,8 @@ export default function LibraryScreen() {
               <Pressable
                 onPress={() => setChoosingList(true)}
                 accessibilityRole="button"
-                className="w-28 flex-row items-center justify-center gap-1 rounded-xl border border-dashed border-line p-2.5 active:bg-raised"
+                accessibilityLabel={t('New list')}
+                className="min-h-12 w-28 flex-row items-center justify-center gap-1 rounded-xl border border-dashed border-line p-2.5 active:bg-raised"
               >
                 <Icon name="plus" size={16} color={COLORS.muted} />
                 <Text className="text-sm text-muted">{t('List')}</Text>
@@ -265,7 +272,7 @@ export default function LibraryScreen() {
                 contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}
               >
                 {tags.map(({ tag }) => (
-                  <Pressable
+                  <Pill
                     key={tag}
                     onPress={() => router.push({ pathname: '/list', params: { tag } })}
                     className="rounded-full border border-line px-3 py-1.5 active:bg-raised"
@@ -274,19 +281,21 @@ export default function LibraryScreen() {
                       <Text className="text-muted"># </Text>
                       {tag}
                     </Text>
-                  </Pressable>
+                  </Pill>
                 ))}
               </ScrollView>
             )}
             <View className="flex-row gap-2 px-4">
               {sorts().map((s) => (
-                <Pressable
+                <Pill
                   key={s.key}
                   onPress={() => setSort(s.key)}
+                  accessibilityState={{ selected: sort === s.key }}
+                  aria-selected={sort === s.key}
                   className={`rounded-full border px-3 py-1 ${sort === s.key ? 'border-amber bg-amber' : 'border-line'}`}
                 >
                   <Text className={sort === s.key ? 'text-ink' : 'text-soft'}>{s.label}</Text>
-                </Pressable>
+                </Pill>
               ))}
             </View>
           </View>
@@ -324,6 +333,7 @@ export default function LibraryScreen() {
             <Pressable
               key={preset.name}
               onPress={() => makeList(preset.rule ? preset.name : t('New list'), preset.rule)}
+              accessibilityRole="button"
               className="flex-row items-center gap-3 rounded-lg px-2 py-3 active:bg-line"
             >
               <Icon name={preset.rule ? 'moon' : 'chapters'} size={22} color={COLORS.soft} />

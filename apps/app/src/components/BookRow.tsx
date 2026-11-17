@@ -5,6 +5,7 @@ import { Platform, Pressable, Text, View } from 'react-native';
 import { t } from '../i18n';
 import { BookCover, coverUri } from './BookCover';
 import { COLORS, IconButton } from './Icon';
+import { ROW_BUTTON } from './TextButton';
 
 function status(book: LibraryBook): string {
   if (book.missing) return t('Files not found');
@@ -31,6 +32,7 @@ export const BookRow = memo(function BookRow({
     <Pressable
       onPress={() => onOpen(book)}
       onLongPress={() => onLongPress(book)}
+      {...ROW_BUTTON}
       className={`flex-row items-center gap-3 px-4 py-2 active:bg-raised ${book.missing || unavailable ? 'opacity-40' : ''}`}
     >
       <BookCover uri={coverUri(book)} title={book.title} size={56} />
