@@ -5,7 +5,8 @@ export async function readPickedText(asset: { uri: string; file?: File }): Promi
 
 /** Saves a text file through the browser's download. */
 export async function shareText(name: string, text: string): Promise<void> {
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/x-opml' }));
+  const type = name.endsWith('.json') ? 'application/json' : 'text/x-opml';
+  const url = URL.createObjectURL(new Blob([text], { type }));
   const link = document.createElement('a');
   link.href = url;
   link.download = name;

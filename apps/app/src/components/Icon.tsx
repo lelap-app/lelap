@@ -133,6 +133,13 @@ const ICONS = {
     />
   ),
   plus: (c) => <Path d="M12 5v14M5 12h14" {...stroke(c)} />,
+  more: (c) => (
+    <>
+      <Circle cx={5} cy={12} r={1.6} fill={c} />
+      <Circle cx={12} cy={12} r={1.6} fill={c} />
+      <Circle cx={19} cy={12} r={1.6} fill={c} />
+    </>
+  ),
   lock: (c) => (
     <>
       <Rect x={5} y={11} width={14} height={10} rx={2} {...stroke(c)} />

@@ -8,13 +8,16 @@ import {
   bookFiles,
   bookmarks,
   books,
+  bookTags,
   chapters,
   episodes,
   libraryEntries,
+  playlists,
   podcasts,
   profiles,
   progress,
   settings,
+  type SmartRule,
   subscriptions,
   tombstones,
   upNext,
@@ -102,6 +105,14 @@ export type Op =
       data: { position: number; addedAt: number };
     }
   | { type: 'setting'; profile: string; key: string; at: number; data: { value: string } }
+  | { type: 'tags'; profile: string; key: string; at: number; data: { tags: string[] } }
+  | {
+      type: 'playlist';
+      profile: string;
+      key: string;
+      at: number;
+      data: { name: string; rule: SmartRule | null; items: string[]; createdAt: number };
+    }
   | {
       type: 'profile';
       key: string;
@@ -339,6 +350,31 @@ export function collectOps(db: Db, since: number): Op[] {
       data: { value: s.value },
     });
   }
+  for (const t of db.select().from(bookTags).where(gt(bookTags.updatedAt, since)).all()) {
+    const k = key(t.bookId);
+    if (!k) continue;
+    ops.push({
+      type: 'tags',
+      profile: t.profileId,
+      key: k,
+      at: t.updatedAt,
+      data: { tags: t.tags },
+    });
+  }
+  for (const p of db.select().from(playlists).where(gt(playlists.updatedAt, since)).all()) {
+    // Items are already keys; naming them here sends along streamed books the other device lacks.
+    for (const item of p.items) {
+      const bookId = bookIdForKey(db, item);
+      if (bookId) key(bookId);
+    }
+    ops.push({
+      type: 'playlist',
+      profile: p.profileId,
+      key: p.id,
+      at: p.updatedAt,
+      data: { name: p.name, rule: p.rule, items: p.items, createdAt: p.createdAt },
+    });
+  }
   for (const t of db.select().from(tombstones).where(gt(tombstones.updatedAt, since)).all()) {
     ops.push({ type: 'delete', kind: t.kind, profile: t.profileId, key: t.key, at: t.deletedAt });
   }
@@ -359,6 +395,8 @@ const ORDER: Record<Op['type'], number> = {
   bookmark: 3,
   upNext: 3,
   setting: 3,
+  tags: 3,
+  playlist: 3,
   delete: 4,
 };
 
@@ -484,7 +522,8 @@ function applyEpisode(
 /** Applies another device's operations; a row changes only when the operation is newer. */
 export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Handoff[] {
   const handoffs: Handoff[] = [];
-  const sorted = [...ops].sort((a, b) => ORDER[a.type] - ORDER[b.type]);
+  // A newer device may send types this version does not know; they sort last and are skipped.
+  const sorted = [...ops].sort((a, b) => (ORDER[a.type] ?? 9) - (ORDER[b.type] ?? 9));
   db.transaction((tx) => {
     for (const op of sorted) {
       switch (op.type) {
@@ -658,6 +697,43 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
             .run();
           break;
         }
+        case 'tags': {
+          const bookId = bookIdForKey(tx, op.key);
+          if (!bookId || !ensureProfile(tx, op.profile, now)) break;
+          const where = and(eq(bookTags.profileId, op.profile), eq(bookTags.bookId, bookId));
+          const local = tx
+            .select({ updatedAt: bookTags.updatedAt })
+            .from(bookTags)
+            .where(where)
+            .get();
+          if (local && local.updatedAt >= op.at) break;
+          const row = { tags: op.data.tags, updatedAt: op.at };
+          tx.insert(bookTags)
+            .values({ profileId: op.profile, bookId, ...row })
+            .onConflictDoUpdate({ target: [bookTags.profileId, bookTags.bookId], set: row })
+            .run();
+          break;
+        }
+        case 'playlist': {
+          if (!ensureProfile(tx, op.profile, now)) break;
+          const local = tx
+            .select({ updatedAt: playlists.updatedAt })
+            .from(playlists)
+            .where(eq(playlists.id, op.key))
+            .get();
+          if (local && local.updatedAt >= op.at) break;
+          const row = {
+            name: op.data.name,
+            rule: op.data.rule,
+            items: op.data.items,
+            updatedAt: op.at,
+          };
+          tx.insert(playlists)
+            .values({ id: op.key, profileId: op.profile, createdAt: op.data.createdAt, ...row })
+            .onConflictDoUpdate({ target: playlists.id, set: row })
+            .run();
+          break;
+        }
         case 'delete':
           applyDelete(tx, op);
           break;
@@ -709,6 +785,16 @@ function applyDelete(db: Db, op: Extract<Op, { type: 'delete' }>): void {
       db.delete(subscriptions).where(where).run();
       break;
     }
+    case 'playlist': {
+      const local = db
+        .select({ updatedAt: playlists.updatedAt })
+        .from(playlists)
+        .where(eq(playlists.id, op.key))
+        .get();
+      if (!local || local.updatedAt > op.at) return;
+      db.delete(playlists).where(eq(playlists.id, op.key)).run();
+      break;
+    }
     case 'profile': {
       const local = db
         .select({ updatedAt: profiles.updatedAt })
@@ -716,7 +802,16 @@ function applyDelete(db: Db, op: Extract<Op, { type: 'delete' }>): void {
         .where(eq(profiles.id, op.key))
         .get();
       if (!local || local.updatedAt > op.at) return;
-      for (const table of [progress, libraryEntries, bookmarks, settings, subscriptions, upNext]) {
+      for (const table of [
+        progress,
+        libraryEntries,
+        bookmarks,
+        settings,
+        subscriptions,
+        upNext,
+        bookTags,
+        playlists,
+      ]) {
         db.delete(table).where(eq(table.profileId, op.key)).run();
       }
       db.delete(tombstones).where(eq(tombstones.profileId, op.key)).run();

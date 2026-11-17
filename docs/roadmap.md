@@ -21,6 +21,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M13 Landing page 2         | In progress |
 | M14 Developer platform     | In progress |
 | M15 Find any book          | In progress |
+| M16 Organise               | In progress |
 | M17 Car and offline web    | In progress |
 | M18 Updates over the air   | In progress |
 | M19 Security and hardening | In progress |
@@ -299,3 +300,15 @@ the attestation verifies, and a copy installs 0.2.0, type-checks, passes its tes
   F-Droid's own signing key.
 - Review the terms and privacy pages.
 - Publish the add-on SDK under MIT.
+
+## M16 Organise
+
+**Status:** in progress (from [`next.md`](next.md#proposed-milestones)). Tags per book, hand-made
+lists and smart lists (a saved rule: status, books or episodes, length, ready offline, tags) live
+in `packages/core/src/organise.ts` and sync like places do. The Library shows lists and tags; a
+book's menu (long press, or the ⋯ button on the web) sets tags and adds it to a list. Settings →
+Backup exports everything as one JSON file and imports it by merging: the export is the same set of
+changes sync sends, so where both sides changed a row the newer change wins. Phone checks are in
+[`m16-follow-ups.md`](m16-follow-ups.md).
+
+**Done when** your shelves, tags and lists survive moving to a new phone through an export file.

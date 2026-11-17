@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { exportBackup, importBackup } from '../src/backup';
 import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
@@ -271,6 +272,36 @@ export default function SettingsScreen() {
         <Row label="Sync" detail="Keep your places and podcasts in step on your other devices.">
           <Pressable onPress={() => router.push('/sync')}>
             <Text className="text-amber">Open</Text>
+          </Pressable>
+        </Row>
+
+        <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Backup</Text>
+        <Row
+          label="Export library"
+          detail="Places, bookmarks, lists, tags, podcasts and add-on addresses in one file. Add-on addresses can hold your keys for them; keep the file private."
+        >
+          <Pressable
+            onPress={() =>
+              void exportBackup().catch((error: unknown) =>
+                showAlert('Export', error instanceof Error ? error.message : String(error)),
+              )
+            }
+          >
+            <Text className="text-amber">Export</Text>
+          </Pressable>
+        </Row>
+        <Row
+          label="Import library"
+          detail="Merges an export into this device. Where both have a change, the newer one stays. Local books need their folder chosen first."
+        >
+          <Pressable
+            onPress={() =>
+              void importBackup(!me?.kids, refresh).catch((error: unknown) =>
+                showAlert('Import', error instanceof Error ? error.message : String(error)),
+              )
+            }
+          >
+            <Text className="text-amber">Import</Text>
           </Pressable>
         </Row>
 
