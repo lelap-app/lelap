@@ -1,18 +1,25 @@
 import {
+  addonBase,
   addStreamedBook,
+  checkHealth,
+  type AddonHealth,
   type Fetcher,
+  fetchManifest,
   fetchMeta,
   fetchStreams,
   findSources,
   getProfile,
   type FoundStream,
+  HealthTracker,
   type InstalledAddon,
   listAddons,
   syncAddons,
+  trackedFetcher,
 } from '@lelap/core';
-import type { ContentType, Meta } from '@lelap/sdk';
+import { type ContentType, type Meta, offersHealth } from '@lelap/sdk';
 import { QueryClient } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
+import { Platform } from 'react-native';
 
 import { defaultAddons } from './config';
 import { db, newId } from './db';
@@ -25,7 +32,42 @@ export const queryClient = new QueryClient({
   },
 });
 
-export const fetcher: Fetcher = (url, init) => fetch(url, init);
+/** What each add-on's requests did during this run, for Settings → Add-ons. Kept in memory only. */
+export const addonHealth = new HealthTracker();
+
+export const fetcher: Fetcher = trackedFetcher((url, init) => fetch(url, init), addonHealth);
+
+/** One add-on's health, re-rendered when any request finishes. */
+export function useAddonHealth(url: string): AddonHealth {
+  useSyncExternalStore(addonHealth.subscribe, addonHealth.getVersion, addonHealth.getVersion);
+  return addonHealth.get(url);
+}
+
+/** Asks each add-on's `/health`, or its manifest when it has none; never throws. */
+export async function checkAddonHealth(addons: InstalledAddon[]): Promise<void> {
+  await Promise.all(
+    addons.map((a) =>
+      offersHealth(a.manifest)
+        ? checkHealth(fetcher, a, addonHealth)
+        : fetchManifest(fetcher, a.url).catch(() => null),
+    ),
+  );
+}
+
+/**
+ * Where an add-on's configure page sends the listener back: the app's own link on Android, this
+ * page's `/addon` route on the web (the add-on must list the web app's origin to allow it).
+ */
+function returnTarget(): string {
+  if (Platform.OS === 'web' && typeof window !== 'undefined')
+    return `${window.location.origin}/addon`;
+  return 'lelap://addon';
+}
+
+/** The add-on's configure page, for a manifest URL with or without settings in it. */
+export function configurePageUrl(manifestUrl: string): string {
+  return `${addonBase(manifestUrl)}configure?return=${encodeURIComponent(returnTarget())}`;
+}
 
 /** The content types the app shows. */
 export const SHOWN_TYPES: ContentType[] = ['audiobook', 'podcast'];

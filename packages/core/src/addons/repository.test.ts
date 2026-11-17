@@ -3,7 +3,17 @@ import { describe, expect, it } from 'vitest';
 
 import { createTestDb } from '../../test/db';
 import type { Fetcher } from './client';
-import { installAddon, listAddons, removeAddon, syncAddons } from './repository';
+import { createProfile, DEFAULT_PROFILE_ID, getProfile } from '../profiles';
+import {
+  findAddonById,
+  installAddon,
+  listAddons,
+  removeAddon,
+  replaceAddonUrl,
+  syncAddons,
+} from './repository';
+import { bookSourceChoice, getSourceChoice, setSourceChoice } from './sources';
+import { addStreamedBook } from './streamed';
 
 let n = 0;
 const newId = () => `id-${String(++n).padStart(6, '0')}`;
@@ -82,5 +92,57 @@ describe('add-ons', () => {
     expect(listAddons(db)).toEqual([]);
     await syncAddons(db, serve({ [A]: manifest('a') }), [A], 2, newId);
     expect(listAddons(db).map((a) => a.manifest.name)).toEqual(['a']);
+  });
+});
+
+describe('replaceAddonUrl', () => {
+  it('moves the add-on and everything that points at it to the configured URL', () => {
+    const db = createTestDb();
+    const OLD = 'https://c.example/p1.old/manifest.json';
+    const NEW = 'https://c.example/p1.new/manifest.json';
+    installAddon(db, { url: A, manifest: manifest('a'), now: 1, newId });
+    installAddon(db, { url: OLD, manifest: manifest('c'), now: 1, newId });
+    installAddon(db, { url: MINE, manifest: manifest('mine'), now: 1, newId });
+    const bookId = addStreamedBook(db, {
+      addonUrl: OLD,
+      meta: { id: 'c:1', type: 'audiobook', name: 'One' },
+      stream: { sourceKey: 'k', name: 'C', url: 'https://c.example/1.mp3' },
+      now: 1,
+      newId,
+    });
+    setSourceChoice(
+      db,
+      DEFAULT_PROFILE_ID,
+      'audiobook',
+      'c:1',
+      { addonUrl: OLD, sourceKey: 'k' },
+      1,
+    );
+    const kid = createProfile(
+      db,
+      { name: 'Kid', avatar: null, kids: true, hiddenAddons: [OLD] },
+      1,
+      newId,
+    );
+
+    replaceAddonUrl(db, { oldUrl: OLD, newUrl: NEW, manifest: manifest('c', '1.1.0'), now: 5 });
+
+    expect(listAddons(db).map((a) => [a.url, a.manifest.version])).toEqual([
+      [A, '1.0.0'],
+      [NEW, '1.1.0'],
+      [MINE, '1.0.0'],
+    ]);
+    expect(bookSourceChoice(db, bookId)?.addonUrl).toBe(NEW);
+    expect(getSourceChoice(db, DEFAULT_PROFILE_ID, 'audiobook', 'c:1')?.addonUrl).toBe(NEW);
+    expect(getProfile(db, kid)?.hiddenAddons).toEqual([NEW]);
+    expect(findAddonById(db, 'org.example.c')?.url).toBe(NEW);
+  });
+
+  it('drops the old row when the new URL is already installed', () => {
+    const db = createTestDb();
+    installAddon(db, { url: A, manifest: manifest('a'), now: 1, newId });
+    installAddon(db, { url: B, manifest: manifest('a'), now: 1, newId });
+    replaceAddonUrl(db, { oldUrl: A, newUrl: B, manifest: manifest('a', '2.0.0'), now: 2 });
+    expect(listAddons(db).map((a) => [a.url, a.manifest.version])).toEqual([[B, '2.0.0']]);
   });
 });

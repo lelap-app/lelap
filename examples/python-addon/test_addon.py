@@ -41,6 +41,11 @@ class AddonTest(unittest.TestCase):
         self.assertTrue(headers["Content-Type"].startswith("application/json"))
         self.assertEqual(body, MANIFEST)
 
+    def test_health(self):
+        status, _, body = self.request("/health")
+        self.assertEqual(status, 200)
+        self.assertEqual(body, {"status": "ok"})
+
     def test_catalog_and_paging(self):
         _, _, body = self.request("/catalog/audiobook/classics.json")
         self.assertEqual(

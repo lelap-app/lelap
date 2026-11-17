@@ -1,6 +1,8 @@
 ---
 import {
   CatalogResponse,
+  HealthResponse,
+  LATEST_PROTOCOL_VERSION,
   Manifest,
   MetaResponse,
   PROTOCOL_VERSION,
@@ -172,7 +174,35 @@ GET /catalog/{type}/{id}/{extra}.json       → { "metas": MetaPreview[] }
 GET /meta/{type}/{id}.json                  → { "meta": Meta }
 GET /stream/{type}/{id}.json                → { "streams": Stream[] }
 POST /scrobble                              ← { "events": ScrobbleEvent[] }
+GET /health                                 → HealthResponse      (revision 2)
+GET /configure                              → your settings page  (HTML)
 `;
+
+const configuredManifest = example(Manifest, {
+  id: 'com.example.readings',
+  version: '1.1.0',
+  protocol: 1,
+  protocolVersion: 2,
+  name: 'Example Readings',
+  description: 'Public-domain books read by volunteers.',
+  types: ['audiobook'],
+  resources: ['catalog', 'meta', 'stream'],
+  catalogs: [{ type: 'audiobook', id: 'new', name: 'New releases' }],
+  configurable: true,
+  behaviorHints: { configurable: true, configurationRequired: true, health: true },
+});
+
+const configureFlow = `
+1. App opens   ${base}/configure?return=lelap%3A%2F%2Faddon
+2. Listener    fills in the form, signs in if the add-on needs an account
+3. Add-on      303 → lelap://addon?manifest=${encodeURIComponent(`${base}/e1.Q2lw…/manifest.json`)}
+4. App         fetches that manifest, asks the listener, installs it or replaces the old URL
+`;
+
+const healthExample = example(HealthResponse, {
+  status: 'degraded',
+  message: 'Search is slow right now.',
+});
 
 const scrobbleExample = example(ScrobbleRequest, {
   events: [
@@ -279,11 +309,63 @@ const manifestFields: Field[] = [
     meaning: 'Your catalogs. Use `[]` when you have none.',
   },
   {
+    name: 'protocolVersion',
+    type: 'integer ≥ 1',
+    required: false,
+    meaning: `The revision of protocol ${PROTOCOL_VERSION} you write for; absent means 1. Revisions only add things. The newest is \`${LATEST_PROTOCOL_VERSION}\`.`,
+  },
+  {
+    name: 'behaviorHints',
+    type: 'BehaviorHints',
+    required: false,
+    meaning:
+      'Revision 2. How the app should treat the add-on; see below. Unknown hints are ignored.',
+  },
+  {
     name: 'configurable',
     type: 'boolean',
     required: false,
-    meaning: '`true` when the add-on has a `/configure` page.',
+    meaning:
+      'The revision 1 spelling of `behaviorHints.configurable`. Send both if apps from before revision 2 should show Configure.',
   },
+];
+
+const behaviorFields: Field[] = [
+  {
+    name: 'configurable',
+    type: 'boolean',
+    required: false,
+    meaning: 'The add-on has a `/configure` page; the app shows a Configure button.',
+  },
+  {
+    name: 'configurationRequired',
+    type: 'boolean',
+    required: false,
+    meaning:
+      'The add-on is useless without settings: the app opens `/configure` instead of installing this manifest. Leave it out of the configured manifest.',
+  },
+  {
+    name: 'health',
+    type: 'boolean',
+    required: false,
+    meaning: 'The add-on answers `GET /health`.',
+  },
+];
+
+const healthFields: Field[] = [
+  {
+    name: 'status',
+    type: '"ok" | "degraded" | "down"',
+    required: true,
+    meaning: '`degraded`: it answers, but something it relies on is slow or failing.',
+  },
+  {
+    name: 'message',
+    type: 'string',
+    required: false,
+    meaning: 'Up to 300 characters, shown in Settings → Add-ons. No secrets.',
+  },
+  { name: 'cacheMaxAge', type: 'integer ≥ 0', required: false, meaning: 'Seconds to cache.' },
 ];
 
 const resourceFields: Field[] = [
@@ -622,7 +704,9 @@ const toc: [string, string][] = [
   ['streams', 'Streams'],
   ['errors', 'Errors'],
   ['scrobble', 'Scrobble'],
+  ['versions', 'Versions'],
   ['configure', 'Configuration page'],
+  ['health', 'Health'],
   ['schema', 'JSON Schema'],
 ];
 ---
@@ -938,21 +1022,80 @@ const toc: [string, string][] = [
     <a href="/docs/scrobbling/">Scrobbling</a> for the first-party Hardcover and gPodder add-ons.
   </p>
 
+  <h2 id="versions">Versions</h2>
+  <p>
+    <code>protocol</code> is the major version, <code>{PROTOCOL_VERSION}</code>. It changes only for
+    a breaking change, and the app refuses a manifest whose <code>protocol</code> it does not know.{' '}
+    <code>protocolVersion</code> is the revision within it. Revisions only add optional fields and
+    routes, so an add-on written for revision 2 still works in an app that only knows revision 1:
+    the app ignores what it does not know. A revision 1 add-on, with no <code>protocolVersion</code>
+    , works unchanged in every app.
+  </p>
+  <p>
+    Revision 2 adds <code>behaviorHints</code>, a configure flow with sign-in, and{' '}
+    <code>/health</code>. When an add-on declares a newer revision than the app knows, Settings →
+    Add-ons says so.
+  </p>
+  <h3 id="behavior-hints">BehaviorHints</h3>
+  <FieldTable fields={behaviorFields} />
+  <CodeBlock code={configuredManifest} label="An unconfigured revision 2 manifest" />
+
   <h2 id="configure">Configuration page</h2>
   <p>
-    With <code>"configurable": true</code>, the app links to <code>/configure</code> under the
-    add-on’s base URL and opens it in the browser. It’s a normal web page; v1 has no API between it
-    and the app.
+    With <code>behaviorHints.configurable</code>, the app shows a Configure button that opens{' '}
+    <code>/configure</code> under the add-on’s base URL in the browser. It is the add-on’s own web
+    page: settings, and sign-in when the add-on needs an account with its service. The app never
+    sees the form.
   </p>
   <p>
-    The app only remembers the manifest URL, and add-ons are stateless, so put the settings in the
-    URL. For example, a page that picks a language can hand out{' '}
-    <code>https://addon.example.com/lang=de/manifest.json</code> for the listener to add in place of
-    the plain one, and serve every route under <code>/lang=de/</code>. Never put passwords or tokens
-    in those URLs in plain text: seal them with a key only your add-on has (for example AES-GCM),
-    and don’t store or log them. The first-party scrobble add-ons do this. The app keeps manifest
-    URLs on the device and syncs them end-to-end encrypted.
+    Add-ons are stateless and the app only remembers the manifest URL, so the page puts the settings
+    in a new URL, such as <code>{base}/e1.Q2lw…/manifest.json</code>, and serves every route under
+    that prefix. Seal anything private (passwords, tokens) with a key only your add-on has, for
+    example AES-GCM, and never store or log it. The app keeps manifest URLs on the device and syncs
+    them end-to-end encrypted.
   </p>
+  <p>
+    The app hands the page a <code>return</code> parameter, and the page sends the URL back:
+  </p>
+  <CodeBlock code={configureFlow} label="Configure and sign in" />
+  <ul>
+    <li>
+      Send the listener to{' '}
+      <code>
+        {'{return}'}?manifest={'{encoded manifest URL}'}
+      </code>
+      . Accept <code>lelap://addon</code>, the Android app, always. Accept{' '}
+      <code>https://{'{origin}'}/addon</code> only for web app origins you list yourself: any other
+      address would hand the listener’s settings to a stranger.
+    </li>
+    <li>
+      Without a usable <code>return</code>, show the manifest URL to copy. The listener pastes it
+      under Settings → Add-ons, which also accepts the whole <code>lelap://addon?…</code> link.
+    </li>
+    <li>
+      The app matches the new manifest to an installed add-on by <code>id</code>. If one exists, it
+      asks to update it, and books, source choices and profiles follow the new URL. Otherwise it
+      asks to add it, with the usual trust warning.
+    </li>
+    <li>
+      Opened from a configured URL (<code>{base}/e1.…/configure</code>), the page should show the
+      current settings, never a password.
+    </li>
+  </ul>
+  <p>
+    The <a href="/docs/sdk/#configure">SDK</a> does all of this from a list of fields.
+  </p>
+
+  <h2 id="health">Health</h2>
+  <p>
+    Settings → Add-ons shows each add-on’s last response time and last error, from the requests the
+    app makes anyway. It stays on the device. An add-on with <code>behaviorHints.health</code> also
+    answers <code>GET /health</code>, which the app asks when Settings opens and when the listener
+    taps Check now. Answer quickly, and with <code>200</code> even when the status is{' '}
+    <code>down</code>.
+  </p>
+  <FieldTable fields={healthFields} />
+  <CodeBlock code={healthExample} label="GET /health" />
 
   <h2 id="schema">JSON Schema</h2>
   <p>
@@ -960,9 +1103,9 @@ const toc: [string, string][] = [
       <code>/docs/protocol.schema.json</code>
     </a>{' '}
     is a JSON Schema (draft 2020-12) generated from the SDK’s schemas, with <code>Manifest</code>,{' '}
-    <code>CatalogResponse</code>, <code>MetaResponse</code>, <code>StreamResponse</code> and{' '}
-    <code>ScrobbleRequest</code> under <code>$defs</code>. Point a validator or your editor at one
-    of them:
+    <code>CatalogResponse</code>, <code>MetaResponse</code>, <code>StreamResponse</code>,{' '}
+    <code>ScrobbleRequest</code> and <code>HealthResponse</code> under <code>$defs</code>. Point a
+    validator or your editor at one of them:
   </p>
   <CodeBlock code={schemaRef} />
 </Docs>

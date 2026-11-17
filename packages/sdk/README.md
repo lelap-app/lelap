@@ -2,8 +2,8 @@
 
 Types, zod schemas and a request handler for [Lelap](https://github.com/lelap-app/lelap) add-ons.
 An add-on is a stateless HTTP service that answers with JSON: catalogs, metadata and audio sources
-for the Lelap player. The SDK speaks protocol v1, so your code is a manifest and a handler for each
-resource.
+for the Lelap player. The SDK speaks protocol v1, revision 2, so your code is a manifest and a
+handler for each resource.
 
 ```sh
 npm install @lelap/sdk
@@ -48,8 +48,15 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
   TypeScript type of the same name.
 - **`createAddon(handlers, options)`** turns handlers into `fetch(request)`. `options.basePath`
   mounts several add-ons under one host.
+- **Settings and sign-in:** `createAddon({ configure: { fields, secret, check } })` serves a form at
+  `/configure` and puts the listener's settings, encrypted, into the add-on's URL; handlers get them
+  as `config`. Nothing is stored on a server.
+- **Health:** every add-on answers `GET /health`; pass a `health` handler to report `degraded` or
+  `down`.
 - **Paths:** `catalogPath`, `metaPath`, `streamPath`, `parseRoute`, `encodeExtra`, `parseExtra`.
-- **Helpers:** `supports`, `prefixesFor`, `hasParts`, `CORS_HEADERS`, `PROTOCOL_VERSION`.
+- **Helpers:** `supports`, `prefixesFor`, `hasParts`, `isConfigurable`, `needsConfiguration`,
+  `offersHealth`, `encodeConfig`, `decodeConfig`, `CORS_HEADERS`, `PROTOCOL_VERSION`,
+  `LATEST_PROTOCOL_VERSION`.
 - **JSON Schema** of every response, for other languages: `@lelap/sdk/protocol.schema.json`.
 
 The [SDK guide](https://lelap.app/docs/sdk/), the [protocol reference](https://lelap.app/docs/protocol/)

@@ -47,7 +47,11 @@ describe('createAddon', () => {
     const response = await get(addon(), 'manifest.json');
     expect(response.status).toBe(200);
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
-    expect(await response.json()).toEqual(manifest);
+    expect(await response.json()).toEqual({
+      ...manifest,
+      protocolVersion: 2,
+      behaviorHints: { health: true },
+    });
   });
 
   it('answers preflight requests', async () => {
@@ -185,5 +189,149 @@ describe('scrobble', () => {
       }),
     );
     expect((await post(a, JSON.stringify({ events: [event] }))).status).toBe(401);
+  });
+});
+
+describe('createAddon with configure', () => {
+  const configured = (secret = 'test secret') =>
+    createAddon(
+      {
+        manifest,
+        configure: {
+          secret,
+          returnOrigins: ['https://listen.example.org'],
+          fields: [
+            { key: 'user', label: 'User', type: 'text', required: true },
+            { key: 'password', label: 'Password', type: 'password', required: true },
+          ],
+          check: (config) => (config.password === 'wrong' ? 'Wrong password.' : undefined),
+        },
+        catalog: ({ config }) => ({
+          metas: [{ ...preview, name: String(config?.user ?? 'nobody') }],
+        }),
+      },
+      { basePath: '/sub' },
+    );
+
+  const post = (a: ReturnType<typeof configured>, path: string, body: Record<string, string>) =>
+    a.fetch(
+      new Request(`https://addon.example/sub/${path}`, {
+        method: 'POST',
+        body: new URLSearchParams(body),
+      }),
+    );
+
+  it('asks for configuration in the bare manifest and refuses resources', async () => {
+    const a = configured();
+    const body = (await (
+      await a.fetch(new Request('https://addon.example/sub/manifest.json'))
+    ).json()) as Manifest;
+    expect(body.behaviorHints).toEqual({
+      health: true,
+      configurable: true,
+      configurationRequired: true,
+    });
+    expect(body.configurable).toBe(true);
+    const catalog = await a.fetch(
+      new Request(`https://addon.example/sub/${catalogPath('audiobook', 'top')}`),
+    );
+    expect(catalog.status).toBe(403);
+  });
+
+  it('serves a form that never echoes passwords and only keeps allowed return addresses', async () => {
+    const a = configured();
+    const page = await a.fetch(
+      new Request('https://addon.example/sub/configure?return=https%3A%2F%2Fevil.example%2Faddon'),
+    );
+    expect(page.headers.get('content-type')).toContain('text/html');
+    expect(page.headers.get('referrer-policy')).toBe('no-referrer');
+    const text = await page.text();
+    expect(text).toContain('name="password"');
+    expect(text).not.toContain('evil.example');
+  });
+
+  it('turns the form into a configured manifest URL', async () => {
+    const a = configured();
+    const saved = await post(a, 'configure', {
+      user: 'ada',
+      password: 'pw',
+      return: 'lelap://addon',
+    });
+    expect(saved.status).toBe(303);
+    const location = saved.headers.get('location') ?? '';
+    expect(location.startsWith('lelap://addon?manifest=')).toBe(true);
+    const manifestUrl = decodeURIComponent(location.split('manifest=')[1] ?? '');
+    expect(manifestUrl).toMatch(
+      /^https:\/\/addon\.example\/sub\/e1\.[A-Za-z0-9_-]+\/manifest\.json$/,
+    );
+    expect(manifestUrl).not.toContain('pw');
+
+    const served = (await (await a.fetch(new Request(manifestUrl))).json()) as Manifest;
+    expect(served.behaviorHints?.configurationRequired).toBe(false);
+    const base = manifestUrl.replace(/manifest\.json$/, '');
+    const catalog = await a.fetch(new Request(base + catalogPath('audiobook', 'top')));
+    expect(((await catalog.json()) as { metas: { name: string }[] }).metas[0]?.name).toBe('ada');
+  });
+
+  it('shows the URL on a page without a return address, and keeps the password when reconfiguring', async () => {
+    const a = configured();
+    const first = await post(a, 'configure', { user: 'ada', password: 'pw' });
+    expect(first.status).toBe(200);
+    const text = await first.text();
+    const manifestUrl =
+      /(https:\/\/addon\.example\/sub\/e1\.[A-Za-z0-9_-]+\/manifest\.json)/.exec(text)?.[1] ?? '';
+    expect(manifestUrl).not.toBe('');
+    const token = manifestUrl.split('/')[4] ?? '';
+    const form = await (
+      await a.fetch(new Request(`https://addon.example/sub/${token}/configure`))
+    ).text();
+    expect(form).toContain('value="ada"');
+    expect(form).not.toContain('value="pw"');
+    const again = await post(a, `${token}/configure`, { user: 'grace', password: '' });
+    expect(again.status).toBe(200);
+  });
+
+  it('shows the check and missing fields on the form', async () => {
+    const a = configured();
+    const wrong = await post(a, 'configure', { user: 'ada', password: 'wrong' });
+    expect(wrong.status).toBe(400);
+    expect(await wrong.text()).toContain('Wrong password.');
+    const missing = await post(a, 'configure', { user: 'ada' });
+    expect(await missing.text()).toContain('Password is required.');
+  });
+
+  it('refuses a token sealed with another secret', async () => {
+    const other = configured('another secret');
+    const saved = await post(other, 'configure', {
+      user: 'ada',
+      password: 'pw',
+      return: 'lelap://addon',
+    });
+    const manifestUrl = decodeURIComponent(
+      saved.headers.get('location')?.split('manifest=')[1] ?? '',
+    );
+    expect((await configured().fetch(new Request(manifestUrl))).status).toBe(403);
+  });
+
+  it('404s config tokens on an add-on without configure', async () => {
+    expect((await get(addon(), 'p1.e30/manifest.json')).status).toBe(404);
+  });
+});
+
+describe('createAddon health', () => {
+  it('says ok by default', async () => {
+    const response = await get(addon(), 'health');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: 'ok' });
+  });
+
+  it('serves and checks the health handler', async () => {
+    const ok = addon({ health: () => ({ status: 'degraded', message: 'Search is slow' }) });
+    expect(await (await get(ok, 'health')).json()).toEqual({
+      status: 'degraded',
+      message: 'Search is slow',
+    });
+    const bad = addon({ health: () => ({ status: 'fine' }) as never });
+    expect((await get(bad, 'health')).status).toBe(500);
   });
 });
