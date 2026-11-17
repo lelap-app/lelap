@@ -108,6 +108,7 @@ const podcast = example(MetaResponse, {
     author: 'Example Radio',
     cover: 'https://media.example.com/night-sky/cover.jpg',
     language: 'en',
+    feed: 'https://media.example.com/night-sky/feed.xml',
     episodes: [
       {
         id: 'example:night-sky-12',
@@ -495,7 +496,8 @@ const toc: [string, string][] = [
   <h1>Protocol v{PROTOCOL_VERSION}</h1>
   <p class="lead">
     The reference for what an add-on answers. The <a href="/docs/sdk/">SDK</a> implements all of it;
-    you only need this page to check a detail or to write an add-on in another language.
+    you only need this page to check a detail or to write an add-on in another language. For whole
+    objects to copy, see the <a href="/docs/data-model/">data model samples</a>.
   </p>
 
   <h2 id="routes">Routes</h2>

@@ -1,0 +1,83 @@
+---
+// One catalog in the manifest builder. Rendered once per starting catalog and once inside a
+// <template> that the page's script clones; fields use data-field instead of names.
+import { CONTENT_TYPES, type CatalogDraft } from '../../lib/manifest-builder';
+
+interface Props {
+  catalog?: CatalogDraft;
+}
+
+const {
+  catalog = {
+    type: 'audiobook',
+    id: '',
+    name: '',
+    extras: [{ name: 'skip', isRequired: false, options: [] }],
+  },
+} = Astro.props;
+const extra = (name: string) => catalog.extras.find((e) => e.name === name);
+const genre = extra('genre');
+---
+
+<fieldset class="catalog" data-catalog>
+  <legend>Catalog</legend>
+  <div class="fields three">
+    <label>
+      <span>Type</span>
+      <select data-field="type">
+        {CONTENT_TYPES.map((type) => (
+          <option selected={type === catalog.type}>{type}</option>
+        ))}
+      </select>
+    </label>
+    <label>
+      <span>ID</span>
+      <input data-field="id" value={catalog.id} placeholder="new" spellcheck="false" />
+    </label>
+    <label>
+      <span>Name</span>
+      <input data-field="name" value={catalog.name} placeholder="New releases" />
+    </label>
+  </div>
+  <div class="extras">
+    <span class="extras-head">Extras</span>
+    <div class="extra">
+      <label class="check">
+        <input type="checkbox" data-extra="search" checked={Boolean(extra('search'))} />
+        <code>search</code>
+      </label>
+      <label class="check">
+        <input type="checkbox" data-required="search" checked={extra('search')?.isRequired} />
+        required
+      </label>
+      <span class="hint">Listeners can search it. Required: it only answers searches.</span>
+    </div>
+    <div class="extra">
+      <label class="check">
+        <input type="checkbox" data-extra="genre" checked={Boolean(genre)} />
+        <code>genre</code>
+      </label>
+      <label class="check">
+        <input type="checkbox" data-required="genre" checked={genre?.isRequired} />
+        required
+      </label>
+      <input
+        class="options"
+        data-field="options"
+        value={genre?.options.join(', ') ?? ''}
+        placeholder="children, mystery, poetry"
+        aria-label="Genre options, separated by commas"
+      />
+    </div>
+    <div class="extra">
+      <label class="check">
+        <input type="checkbox" data-extra="skip" checked={Boolean(extra('skip'))} />
+        <code>skip</code>
+      </label>
+      <span class="hint">The app pages through it.</span>
+    </div>
+  </div>
+  <button type="button" class="remove" data-remove>
+    Remove catalog
+  </button>
+</fieldset>

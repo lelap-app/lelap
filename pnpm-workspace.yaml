@@ -4,6 +4,7 @@ packages:
   - services/*
   - modules/*
   - docker/server
+  - examples/*
 allowBuilds:
   # drizzle-kit's esbuild runs from its platform package; its install script only re-checks it.
   esbuild: false

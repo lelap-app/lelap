@@ -6,7 +6,7 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-c",
-        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && pnpm --filter @lelap/site dev"
+        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && pnpm --filter @lelap/site dev --port ${PORT:-4321}"
       ],
       "port": 4321
     },

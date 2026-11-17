@@ -1,0 +1,23 @@
+{
+  "name": "@lelap/example-seasonal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Lelap add-on with two hard-coded seasonal catalogs, from static JSON.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lelap/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261109.1",
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0",
+    "wrangler": "^4.158.0"
+  }
+}

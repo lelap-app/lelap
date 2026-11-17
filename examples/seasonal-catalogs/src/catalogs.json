@@ -1,0 +1,115 @@
+{
+  "catalogs": [
+    {
+      "id": "christmas",
+      "name": "Christmas",
+      "metas": [
+        {
+          "id": "librivox:christmascarol_librivox",
+          "type": "audiobook",
+          "name": "A Christmas Carol",
+          "author": "Charles Dickens",
+          "cover": "https://archive.org/services/img/christmascarol_librivox",
+          "year": 1843,
+          "description": "Ebenezer Scrooge is visited by three spirits on Christmas Eve."
+        },
+        {
+          "id": "librivox:nightbeforechristmas_librivox",
+          "type": "audiobook",
+          "name": "'Twas the Night Before Christmas",
+          "author": "Clement C. Moore",
+          "cover": "https://archive.org/services/img/nightbeforechristmas_librivox",
+          "year": 1823,
+          "description": "The poem that gave Saint Nicholas his sleigh and reindeer, in many voices."
+        },
+        {
+          "id": "librivox:giftofmagi",
+          "type": "audiobook",
+          "name": "The Gift of the Magi",
+          "author": "O. Henry",
+          "cover": "https://archive.org/services/img/giftofmagi",
+          "year": 1905,
+          "description": "A young couple, short of money, each sells a treasure to buy the other a present."
+        },
+        {
+          "id": "librivox:chimes_rg_librivox",
+          "type": "audiobook",
+          "name": "The Chimes",
+          "author": "Charles Dickens",
+          "cover": "https://archive.org/services/img/chimes_rg_librivox",
+          "year": 1844,
+          "description": "On New Year's Eve, the bells of an old church show a poor porter what the year could bring."
+        },
+        {
+          "id": "librivox:cricket_hearth_rg_librivox",
+          "type": "audiobook",
+          "name": "The Cricket on the Hearth",
+          "author": "Charles Dickens",
+          "cover": "https://archive.org/services/img/cricket_hearth_rg_librivox",
+          "year": 1845,
+          "description": "A carrier's household, a mysterious lodger and a cricket that keeps watch over them."
+        },
+        {
+          "id": "librivox:old_christmas_version_2_gg_1407_librivox",
+          "type": "audiobook",
+          "name": "Old Christmas",
+          "author": "Washington Irving",
+          "cover": "https://archive.org/services/img/old_christmas_version_2_gg_1407_librivox",
+          "year": 1820,
+          "description": "Christmas customs at an English country house, from The Sketch Book."
+        }
+      ]
+    },
+    {
+      "id": "autumn",
+      "name": "Autumn",
+      "metas": [
+        {
+          "id": "librivox:sleepy_hollow_librivox",
+          "type": "audiobook",
+          "name": "The Legend of Sleepy Hollow",
+          "author": "Washington Irving",
+          "cover": "https://archive.org/services/img/sleepy_hollow_librivox",
+          "year": 1820,
+          "description": "A schoolmaster, a harvest party and a headless horseman on the road home."
+        },
+        {
+          "id": "librivox:odetoautumn_0711_librivox",
+          "type": "audiobook",
+          "name": "Ode to Autumn",
+          "author": "John Keats",
+          "cover": "https://archive.org/services/img/odetoautumn_0711_librivox",
+          "year": 1820,
+          "description": "Keats's season of mists and mellow fruitfulness, read by many readers."
+        },
+        {
+          "id": "librivox:turn_screw_librivox",
+          "type": "audiobook",
+          "name": "The Turn of the Screw",
+          "author": "Henry James",
+          "cover": "https://archive.org/services/img/turn_screw_librivox",
+          "year": 1898,
+          "description": "A governess at a lonely country house comes to believe her charges are haunted."
+        },
+        {
+          "id": "librivox:dracula_librivox",
+          "type": "audiobook",
+          "name": "Dracula",
+          "author": "Bram Stoker",
+          "cover": "https://archive.org/services/img/dracula_librivox",
+          "year": 1897,
+          "description": "Letters and diaries follow a count from Transylvania to England."
+        },
+        {
+          "id": "librivox:frankenstein_cs_librivox",
+          "type": "audiobook",
+          "name": "Frankenstein",
+          "author": "Mary Wollstonecraft Shelley",
+          "cover": "https://archive.org/services/img/frankenstein_cs_librivox",
+          "year": 1818,
+          "description": "A young scientist gives life to a creature and then abandons it."
+        }
+      ]
+    }
+  ]
+}

@@ -12,7 +12,10 @@ The landing page for lelap.app. Astro, static output, no client-side framework.
   `src/components/Icon.astro`. The privacy page promises this.
 - **JavaScript:** one small inline script in `src/layouts/Base.astro` for scroll reveals. Keep it
   progressive: the page must be complete without it, and nothing moves under
-  `prefers-reduced-motion: reduce`. Don't add frameworks or other client scripts.
+  `prefers-reduced-motion: reduce`. The one other script is the manifest builder's
+  (`src/pages/docs/manifest-builder.astro`), bundled by Astro and making no requests; its rules
+  live in `src/lib/manifest-builder.ts`, tested against the SDK's schema in `test/`. Don't add
+  frameworks or other client scripts.
 - **Styling:** tokens and shared classes in `src/styles/global.css`, component styles in each
   `.astro` file. One dark theme; amber (`--accent`) is the only accent colour.
-- **Commands:** `pnpm --filter @lelap/site dev | build | check`. Deploy setup is in `README.md`.
+- **Commands:** `pnpm --filter @lelap/site dev | build | check | test`. Deploy setup is in `README.md`.

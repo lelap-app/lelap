@@ -41,6 +41,7 @@ modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer
 modules/library Kotlin Expo module: folder access, tags and chapters for the local library
 modules/download Kotlin Expo module: WorkManager downloads with Wi-Fi and charging rules
 modules/updater Kotlin Expo module: in-app APK updates through PackageInstaller
+examples/       add-on samples: plain Node, Python (stdlib), seasonal catalogs; tested in CI
 docker/         Node entries, Dockerfiles and compose for self-hosting      → docker/README.md
 scripts/        release helpers for the tag workflow (Node, type stripping)
 docs/brief.md   decisions, stack, infrastructure, v1.0 scope

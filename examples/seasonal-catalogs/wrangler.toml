@@ -1,0 +1,5 @@
+# Rename the worker; `wrangler deploy` publishes it to <name>.<your-subdomain>.workers.dev.
+name = "lelap-seasonal-catalogs"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+send_metrics = false

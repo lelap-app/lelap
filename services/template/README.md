@@ -20,7 +20,7 @@ against the protocol.
 npx wrangler dev
 ```
 
-Open <http://localhost:8787/manifest.json> to check the manifest. To try it in Lelap, open
+Open <http://localhost:8787/manifest.json> to check the manifest (the base URL redirects there). To try it in Lelap, open
 **Settings → Add-ons**, paste the manifest URL and add it. A phone needs a URL it can reach: use
 your computer's LAN address with `wrangler dev --ip 0.0.0.0`, or deploy first.
 
@@ -41,4 +41,12 @@ npm test        # Vitest, through the Hono app
 npm run check   # TypeScript
 ```
 
-The protocol reference is in the Lelap docs.
+## Not on Workers, or not in TypeScript
+
+`addon.fetch` is a standard `fetch(request)` handler, so the same code runs on Deno, Bun, or Node
+through `@hono/node-server`. For other hosts and languages, see the samples in
+[`examples/`](../../examples): plain Node with no dependencies, Python with the standard library,
+and an add-on with hard-coded seasonal catalogs.
+
+The developer docs on the Lelap site (`/docs/`) have the protocol reference, data model samples, a
+manifest builder and a hosting guide.

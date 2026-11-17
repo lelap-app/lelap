@@ -1,0 +1,305 @@
+---
+import {
+  CatalogResponse,
+  Manifest,
+  MetaResponse,
+  StreamResponse,
+  catalogPath,
+  metaPath,
+  streamPath,
+} from '@lelap/sdk';
+import type { ZodType } from 'zod';
+import CodeBlock from '../../components/CodeBlock.astro';
+import Docs from '../../layouts/Docs.astro';
+import { site } from '../../site';
+
+// Every sample is parsed with the SDK's schemas at build time, so a protocol change breaks the
+// build instead of leaving a sample wrong.
+function sample<T>(schema: ZodType<T>, value: T): string {
+  schema.parse(value);
+  return JSON.stringify(value, null, 2);
+}
+
+const archive = (file: string) => `https://archive.org/download/A_Christmas_Carol/${file}`;
+const parts = [
+  ['Preface and Stave 1', 'A_Christmas_Carol_Preface_and_Stave_1_Dickens_64kb.mp3', 2680000],
+  ['Stave 2', 'A_Christmas_Carol_Stave_2_Dickens_64kb.mp3', 2660000],
+  ['Stave 3', 'A_Christmas_Carol_Stave_3_Dickens_64kb.mp3', 2674000],
+  ['Stave 4', 'A_Christmas_Carol_Stave_4_Dickens_64kb.mp3', 2529000],
+  ['Stave 5', 'A_Christmas_Carol_Stave_5_Dickens_64kb.mp3', 1126000],
+] as const;
+const total = parts.reduce((sum, [, , ms]) => sum + ms, 0);
+// Chapters of the one-file edition start where each part of the other edition starts.
+const chapters = parts.map(([title], index) => ({
+  title,
+  startMs: parts.slice(0, index).reduce((sum, [, , ms]) => sum + ms, 0),
+}));
+
+const minimal = sample(Manifest, {
+  id: 'org.example.readings',
+  version: '1.0.0',
+  protocol: 1,
+  name: 'Example Readings',
+  description: '',
+  types: ['audiobook'],
+  resources: ['catalog'],
+  catalogs: [{ type: 'audiobook', id: 'christmas', name: 'Christmas' }],
+});
+
+const full = sample(Manifest, {
+  id: 'org.example.readings',
+  version: '2.1.0',
+  protocol: 1,
+  name: 'Example Readings',
+  description: 'Public-domain books and a podcast, read by volunteers.',
+  logo: 'https://media.example.com/logo.png',
+  types: ['audiobook', 'podcast', 'episode'],
+  resources: [
+    'catalog',
+    { name: 'meta', types: ['audiobook', 'podcast'] },
+    { name: 'stream', types: ['audiobook', 'episode'], idPrefixes: ['example:', 'ol:'] },
+  ],
+  idPrefixes: ['example:'],
+  catalogs: [
+    {
+      type: 'audiobook',
+      id: 'new',
+      name: 'New readings',
+      extra: [{ name: 'genre', options: ['children', 'mystery', 'poetry'] }, { name: 'skip' }],
+    },
+    {
+      type: 'audiobook',
+      id: 'search',
+      name: 'Example Readings',
+      extra: [{ name: 'search', isRequired: true }, { name: 'skip' }],
+    },
+    { type: 'podcast', id: 'shows', name: 'Our shows' },
+  ],
+  configurable: true,
+});
+
+const catalogUrl = `/${catalogPath('audiobook', 'new', { genre: 'children', skip: '50' })}`;
+const catalog = sample(CatalogResponse, {
+  metas: [
+    {
+      id: 'example:christmas-carol',
+      type: 'audiobook',
+      name: 'A Christmas Carol',
+      author: 'Charles Dickens',
+      cover: 'https://archive.org/services/img/A_Christmas_Carol',
+      year: 1843,
+      durationMs: total,
+    },
+    {
+      id: 'example:secret-garden',
+      type: 'audiobook',
+      name: 'The Secret Garden',
+      author: 'Frances Hodgson Burnett',
+    },
+  ],
+  cacheMaxAge: 21600,
+});
+
+const metaUrl = `/${metaPath('audiobook', 'example:christmas-carol')}`;
+const meta = sample(MetaResponse, {
+  meta: {
+    id: 'example:christmas-carol',
+    type: 'audiobook',
+    name: 'A Christmas Carol',
+    author: 'Charles Dickens',
+    cover: 'https://archive.org/services/img/A_Christmas_Carol',
+    description: 'Ebenezer Scrooge is visited by three spirits on Christmas Eve.',
+    year: 1843,
+    durationMs: total,
+    narrators: ['LibriVox volunteers'],
+    language: 'en',
+    genres: ['fiction', 'christmas'],
+    chapters,
+    externalIds: { ol: 'OL32466W' },
+    link: 'https://archive.org/details/A_Christmas_Carol',
+  },
+  cacheMaxAge: 86400,
+});
+
+const podcastUrl = `/${metaPath('podcast', 'example:night-sky')}`;
+const podcast = sample(MetaResponse, {
+  meta: {
+    id: 'example:night-sky',
+    type: 'podcast',
+    name: 'Night Sky Notes',
+    author: 'Example Radio',
+    cover: 'https://media.example.com/night-sky/cover.jpg',
+    description: 'What to look for in the sky this month, in fifteen minutes.',
+    language: 'en',
+    feed: 'https://media.example.com/night-sky/feed.xml',
+    episodes: [
+      {
+        id: 'example:night-sky-12',
+        title: 'Finding the Pleiades',
+        released: '2026-11-02T06:00:00Z',
+        durationMs: 1684000,
+        description: 'Where to look, and what you can see without a telescope.',
+      },
+    ],
+  },
+  cacheMaxAge: 3600,
+});
+
+const partsUrl = `/${streamPath('audiobook', 'example:christmas-carol')}`;
+const partsStream = sample(StreamResponse, {
+  streams: [
+    {
+      sourceKey: 'christmas-carol-librivox-64kb',
+      name: 'Example Readings',
+      title: 'LibriVox recording, 64 kbps',
+      mime: 'audio/mpeg',
+      bitrate: 64000,
+      downloadable: true,
+      parts: parts.map(([title, file, durationMs]) => ({
+        url: archive(file),
+        title,
+        durationMs,
+      })),
+    },
+  ],
+  cacheMaxAge: 86400,
+});
+
+const chaptersStream = sample(StreamResponse, {
+  streams: [
+    {
+      sourceKey: 'christmas-carol-m4b',
+      name: 'Example Readings',
+      title: 'One file, with chapters',
+      mime: 'audio/mp4',
+      size: 93348000,
+      downloadable: true,
+      url: 'https://media.example.com/christmas-carol/christmas-carol.m4b',
+      durationMs: total,
+      chapters,
+    },
+  ],
+  cacheMaxAge: 86400,
+});
+
+const episodeUrl = `/${streamPath('episode', 'example:night-sky-12')}`;
+const episodeStream = sample(StreamResponse, {
+  streams: [
+    {
+      sourceKey: 'night-sky-12',
+      name: 'Example Radio',
+      mime: 'audio/mpeg',
+      url: 'https://media.example.com/night-sky/12.mp3',
+      durationMs: 1684000,
+    },
+  ],
+});
+
+const empty = sample(StreamResponse, { streams: [] });
+
+const toc: [string, string][] = [
+  ['manifest', 'Manifest'],
+  ['catalog', 'Catalog response'],
+  ['meta', 'Meta'],
+  ['podcast', 'Podcast meta'],
+  ['parts', 'Stream with parts'],
+  ['chapters', 'Stream with chapters'],
+  ['episode', 'Episode stream'],
+  ['nothing', 'Nothing to offer'],
+];
+---
+
+<Docs
+  title="Data model samples"
+  description={`Complete, valid samples of every object a ${site.name} add-on answers with.`}
+  toc={toc}
+>
+  <h1>Data model samples</h1>
+  <p class="lead">
+    Whole responses to copy and change, one for each object the app reads. Every sample on this page
+    is checked against the protocol’s schemas when the site is built. The{' '}
+    <a href="/docs/protocol/">protocol reference</a> explains each field.
+  </p>
+  <p>
+    Paths are relative to the add-on’s base URL. IDs in paths are percent-encoded, so{' '}
+    <code>example:christmas-carol</code> becomes <code>example%3Achristmas-carol</code>.
+  </p>
+
+  <h2 id="manifest">Manifest</h2>
+  <p>
+    The smallest useful manifest: one catalog and nothing else. Items in it need IDs that another
+    add-on answers <code>meta</code> and <code>stream</code> for, such as <code>librivox:</code>{' '}
+    IDs, as in the <a href="/docs/samples/#seasonal">seasonal catalogs</a> sample.
+  </p>
+  <CodeBlock code={minimal} label="GET /manifest.json" />
+  <p>A manifest with every field:</p>
+  <ul>
+    <li>
+      <code>meta</code> is narrowed to audiobooks and podcasts: episodes come inside the podcast’s
+      meta.
+    </li>
+    <li>
+      <code>stream</code> answers audiobooks and episodes, and also <code>ol:</code> IDs, so the
+      add-on offers its readings of any Open Library book a listener opens.
+    </li>
+    <li>
+      The search catalog requires <code>search</code>, so it only answers searches and stays off
+      Home.
+    </li>
+  </ul>
+  <CodeBlock code={full} label="GET /manifest.json" />
+
+  <h2 id="catalog">Catalog response</h2>
+  <p>
+    A list of <code>MetaPreview</code> objects: enough to draw a cover and a title. Only{' '}
+    <code>id</code>, <code>type</code> and <code>name</code> are required. Extras arrive in the
+    path, keys sorted. An empty <code>metas</code> list ends paging.
+  </p>
+  <CodeBlock code={catalog} label={`GET ${catalogUrl}`} />
+
+  <h2 id="meta">Meta</h2>
+  <p>
+    Everything in the preview, plus the details shown on the book’s page. <code>chapters</code> here
+    apply to any single-file stream that brings none of its own. <code>externalIds</code> tie the
+    item to the same work under another prefix.
+  </p>
+  <CodeBlock code={meta} label={`GET ${metaUrl}`} />
+
+  <h2 id="podcast">Podcast meta</h2>
+  <p>
+    A podcast with a <code>feed</code>: the app subscribes to the RSS feed and reads new episodes
+    from it directly. Without a feed, list the <code>episodes</code>; each one’s streams are
+    requested with the type <code>episode</code>.
+  </p>
+  <CodeBlock code={podcast} label={`GET ${podcastUrl}`} />
+
+  <h2 id="parts">Stream with parts</h2>
+  <p>
+    A book as several files, played in order. Each part needs a <code>durationMs</code>, from which
+    the app builds one timeline for the whole book, and each part becomes a chapter. These files are
+    a real public-domain LibriVox recording on archive.org.
+  </p>
+  <CodeBlock code={partsStream} label={`GET ${partsUrl}`} />
+
+  <h2 id="chapters">Stream with chapters</h2>
+  <p>
+    The same book as one file with chapter marks. A stream has either <code>url</code> or{' '}
+    <code>parts</code>, never both. Keep each <code>sourceKey</code> stable: listeners’ saved places
+    depend on it.
+  </p>
+  <CodeBlock code={chaptersStream} label={`GET ${partsUrl}`} />
+
+  <h2 id="episode">Episode stream</h2>
+  <p>
+    For an episode the add-on listed in a podcast’s <code>episodes</code>. Podcasts with a{' '}
+    <code>feed</code> don’t need this: the app plays the enclosures in the feed.
+  </p>
+  <CodeBlock code={episodeStream} label={`GET ${episodeUrl}`} />
+
+  <h2 id="nothing">Nothing to offer</h2>
+  <p>
+    An add-on that has no stream for an item answers an empty list, not an error. An unknown meta ID
+    answers <code>404</code> with <code>{'{ "error": "Not found" }'}</code>.
+  </p>
+  <CodeBlock code={empty} label={`GET /${streamPath('audiobook', 'ol:OL69612W')}`} />
+</Docs>
