@@ -46,6 +46,10 @@ class UpdaterModule : Module() {
 
     Function("lastError") { lastError }
 
+    Function("pickAbi") { offered: List<String> ->
+      AbiChoice.pick(Build.SUPPORTED_ABIS.toList(), offered)
+    }
+
     AsyncFunction("openInstallSettings") {
       val intent = Intent(
         Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,

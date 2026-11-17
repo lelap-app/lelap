@@ -4,6 +4,7 @@ declare class LelapUpdaterModule extends NativeModule {
   versionCode(): number;
   canInstall(): boolean;
   lastError(): string | null;
+  pickAbi(offered: string[]): string | null;
   openInstallSettings(): Promise<void>;
   install(url: string, sha256: string, size: number): Promise<void>;
 }
@@ -17,6 +18,9 @@ export const versionCode = (): number => native.versionCode();
 export const canInstall = (): boolean => native.canInstall();
 
 export const lastError = (): string | null => native.lastError();
+
+/** Which of a release's CPU types this phone installs (`Build.SUPPORTED_ABIS`), or null. */
+export const pickAbi = (offered: string[]): string | null => native.pickAbi(offered);
 
 export const openInstallSettings = (): Promise<void> => native.openInstallSettings();
 

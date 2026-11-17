@@ -56,7 +56,11 @@ jobs:
               - 'apps/app/certs/**'
               - 'pnpm-lock.yaml'
               - '.github/workflows/ci.yml'
+              - '.github/actions/unsigned-apk/**'
               - 'scripts/android-sdk.sh'
+              - 'scripts/unsigned-apk.sh'
+              - 'scripts/release.mts'
+              - 'packages/core/src/release.ts'
 
   android-unit-tests:
     name: Android unit tests
@@ -93,3 +97,44 @@ jobs:
           name: android-unit-test-reports
           path: modules/*/android/build/reports/tests/
           retention-days: 7
+
+  apk:
+    name: Unsigned release APK
+    needs: changes
+    # The release build the tag workflow runs, for one CPU type. On main it also saves the pnpm and
+    # Gradle caches the release workflow reads; nothing else writes them (M54). On pull requests
+    # that touch native code it only checks that the build still works.
+    if: ${{ !cancelled() && (github.event_name == 'push' || needs.changes.outputs.android == 'true') }}
+    runs-on: ubuntu-latest
+    env:
+      SKIP_INSTALL_SIMPLE_GIT_HOOKS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: apk
+        uses: ./.github/actions/unsigned-apk
+        with:
+          distribution: direct
+          abi: arm64-v8a
+          tag: v0.0.0
+          domain: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
+      - name: Size
+        env:
+          NAME: ${{ steps.apk.outputs.name }}
+        run: ls -l "out/$NAME"
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.apk.outputs.pnpm-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.apk.outputs.pnpm-store }}
+          key: ${{ steps.apk.outputs.pnpm-key }}
+      # The same paths as the restore step in .github/actions/unsigned-apk.
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.apk.outputs.gradle-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches/modules-2
+            !~/.gradle/caches/modules-2/*.lock
+            !~/.gradle/caches/modules-2/gc.properties
+            ~/.gradle/wrapper/dists
+          key: ${{ steps.apk.outputs.gradle-key }}
