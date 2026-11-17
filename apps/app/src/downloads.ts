@@ -12,8 +12,9 @@ import {
 import type { Meta } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { Alert, AppState, PermissionsAndroid, Platform } from 'react-native';
+import { AppState, PermissionsAndroid, Platform } from 'react-native';
 
+import { showAlert } from './dialog';
 import { queryClient } from './addons';
 import { db } from './db';
 import { formatBytes } from './format';
@@ -41,7 +42,7 @@ async function askForBackgroundWork(): Promise<void> {
     await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
   }
   if (native.isIgnoringBatteryOptimizations()) return;
-  Alert.alert(
+  showAlert(
     'Download while the phone sleeps',
     'Android holds background work back while the screen is off. Let Lelap run in the background so a book can download overnight.',
     [

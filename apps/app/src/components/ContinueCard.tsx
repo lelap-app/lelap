@@ -1,6 +1,7 @@
 import type { LibraryBook } from '@lelap/core';
 import { Pressable, Text, View } from 'react-native';
 
+import { COLORS, Icon } from './Icon';
 import { formatLeft } from '../format';
 import { BookCover, coverUri } from './BookCover';
 
@@ -23,7 +24,7 @@ export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: ()
         )}
       </View>
       <View className="h-12 w-12 items-center justify-center rounded-full bg-amber">
-        <Text className="text-lg text-ink">▶</Text>
+        <Icon name="play" size={22} color={COLORS.ink} />
       </View>
     </Pressable>
   );

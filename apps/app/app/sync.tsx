@@ -1,16 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { showAlert } from '../src/dialog';
+import { COLORS, IconButton } from '../src/components/Icon';
 import { useLibrary } from '../src/player';
 import {
   defaultDeviceName,
@@ -53,7 +47,7 @@ export default function SyncScreen() {
     try {
       await task();
     } catch (error) {
-      Alert.alert('Sync', message(error));
+      showAlert('Sync', message(error));
     } finally {
       setBusy(false);
       setMember(membership());
@@ -75,9 +69,9 @@ export default function SyncScreen() {
         gap: 16,
       }}
     >
-      <Pressable onPress={() => router.back()} hitSlop={12} className="self-start py-2">
-        <Text className="text-2xl text-muted">‹</Text>
-      </Pressable>
+      <View className="-ml-2 self-start">
+        <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+      </View>
       <Text className="text-3xl font-semibold text-paper">Sync</Text>
       <Text className="text-soft">
         Your places, bookmarks, streamed books, podcasts and Up Next follow you between your
@@ -218,7 +212,7 @@ export default function SyncScreen() {
 
           <Pressable
             onPress={() =>
-              Alert.alert(
+              showAlert(
                 'Stop syncing on this device?',
                 'Your library stays here. Other devices keep syncing with each other.',
                 [

@@ -9,10 +9,13 @@ import {
   setFinished,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
+import { useNetworkState } from 'expo-network';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { FlatList, Platform, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { showAlert } from '../../src/dialog';
+import { COLORS, Icon, IconButton } from '../../src/components/Icon';
 import { BookRow } from '../../src/components/BookRow';
 import { ContinueCard } from '../../src/components/ContinueCard';
 import { db } from '../../src/db';
@@ -29,6 +32,7 @@ const SORTS: { key: LibrarySort; label: string }[] = [
 ];
 
 export default function LibraryScreen() {
+  const network = useNetworkState();
   const { version, refresh } = useLibrary();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -47,7 +51,7 @@ export default function LibraryScreen() {
       const result = await scanLibrary((done, total) => setScanning({ done, total }));
       setLostFolder('error' in result && result.error === 'permission');
     } catch (error) {
-      Alert.alert('Scan failed', error instanceof Error ? error.message : String(error));
+      showAlert('Scan failed', error instanceof Error ? error.message : String(error));
     } finally {
       setScanning(null);
       refresh();
@@ -66,7 +70,7 @@ export default function LibraryScreen() {
 
   const open = async (book: LibraryBook) => {
     if (book.missing) {
-      Alert.alert(
+      showAlert(
         'Files not found',
         'Lelap keeps your place until the files are back in the folder.',
       );
@@ -76,7 +80,7 @@ export default function LibraryScreen() {
       await playBook(book.id);
       router.push('/player');
     } catch (error) {
-      Alert.alert('Cannot play', error instanceof Error ? error.message : String(error));
+      showAlert('Cannot play', error instanceof Error ? error.message : String(error));
     }
   };
 
@@ -91,7 +95,7 @@ export default function LibraryScreen() {
       onPress: () => toggleFinished(book),
     };
     if (book.source === 'local') {
-      Alert.alert(
+      showAlert(
         book.title,
         undefined,
         [
@@ -116,11 +120,11 @@ export default function LibraryScreen() {
           onPress: () =>
             void startDownload(book.id, null)
               .catch((error: unknown) =>
-                Alert.alert('Download', error instanceof Error ? error.message : String(error)),
+                showAlert('Download', error instanceof Error ? error.message : String(error)),
               )
               .finally(refresh),
         };
-    Alert.alert(
+    showAlert(
       book.title,
       undefined,
       [
@@ -130,7 +134,7 @@ export default function LibraryScreen() {
           text: 'Remove from library',
           style: 'destructive',
           onPress: () =>
-            Alert.alert(
+            showAlert(
               'Remove from library?',
               'Your place and bookmarks in this book are removed too.',
               [
@@ -201,10 +205,22 @@ export default function LibraryScreen() {
           <View className="gap-4 pb-2">
             <View className="flex-row items-center justify-between px-4">
               <Text className="text-3xl font-semibold text-paper">Library</Text>
-              <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
-                <Text className="text-2xl text-muted">⚙</Text>
-              </Pressable>
+              <IconButton
+                name="settings"
+                label="Settings"
+                color={COLORS.soft}
+                onPress={() => router.push('/settings')}
+              />
             </View>
+            {network.isConnected === false && (
+              <View className="mx-4 flex-row items-center gap-3 rounded-xl bg-[#2b2414] px-4 py-3">
+                <Icon name="plane" size={20} color="#f7d9a0" />
+                <Text className="flex-1 text-sm text-[#f7d9a0]">
+                  Offline. Everything on this {Platform.OS === 'web' ? 'device' : 'phone'} works;
+                  progress syncs when you’re back online.
+                </Text>
+              </View>
+            )}
             {!root && LOCAL_FOLDERS && (
               <Pressable
                 onPress={() => void pick()}

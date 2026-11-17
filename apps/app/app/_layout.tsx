@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 
+import { DialogHost } from '../src/dialog';
 import { queryClient, syncAddonsNow } from '../src/addons';
 import { listProfiles } from '@lelap/core';
 
@@ -77,6 +78,7 @@ export default function RootLayout() {
           <Stack.Screen name="who" options={{ presentation: 'modal' }} />
         </Stack>
         <HandoffBanner />
+        <DialogHost />
         <ProfileGate />
         <StatusBar style="light" />
       </PlayerProvider>

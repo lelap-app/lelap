@@ -13,9 +13,11 @@ import { useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PressScale } from '../src/components/Motion';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { BookmarksSheet } from '../src/components/BookmarksSheet';
 import { ChaptersSheet } from '../src/components/ChaptersSheet';
+import { COLORS, Icon, IconButton, type IconName } from '../src/components/Icon';
 import { Scrubber } from '../src/components/Scrubber';
 import { Sheet } from '../src/components/Sheet';
 import { db, newId } from '../src/db';
@@ -29,22 +31,43 @@ const SLEEP_MINUTES = [5, 15, 30, 45, 60];
 // ⏮ goes to the start of the chapter, or to the previous one when pressed within this time.
 const RESTART_WINDOW_MS = 3_000;
 
-function Control({
-  label,
-  onPress,
-  big = false,
-}: {
-  label: string;
-  onPress: () => void;
-  big?: boolean;
-}) {
+function Control({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
       hitSlop={8}
-      className={`items-center justify-center rounded-full active:opacity-60 ${big ? 'h-20 w-20 bg-amber' : 'h-14 w-14'}`}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      className="h-14 w-14 items-center justify-center rounded-full active:bg-raised"
     >
-      <Text className={big ? 'text-3xl text-ink' : 'text-base text-paper'}>{label}</Text>
+      <Icon name={icon} size={icon === 'back30' || icon === 'forward30' ? 34 : 26} />
+    </Pressable>
+  );
+}
+
+/** Icon over a short label, as in the bottom row of the design sketch. */
+function Tool({
+  icon,
+  label,
+  onPress,
+  active = false,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  active?: boolean;
+}) {
+  const color = active ? COLORS.amber : COLORS.soft;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      className="flex-1 items-center gap-1 rounded-xl py-2 active:bg-raised"
+    >
+      <Icon name={icon} size={22} color={color} />
+      <Text numberOfLines={1} style={{ color }} className="text-xs font-semibold">
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -142,83 +165,122 @@ export default function Player() {
 
   const timer = state.sleepTimerRemainingMs;
 
+  const left = total > 0 ? (total - position) / Math.max(0.5, state.speed) : 0;
+  const percent = total > 0 ? Math.round((position / total) * 100) : 0;
+
   return (
     <View
-      style={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }}
+      style={{ paddingTop: insets.top + 4, paddingBottom: insets.bottom + 12 }}
       className="flex-1 bg-night px-6"
     >
-      <Pressable onPress={() => router.back()} hitSlop={12} className="self-start py-2">
-        <Text className="text-2xl text-muted">⌄</Text>
-      </Pressable>
+      <View className="flex-row items-center justify-between">
+        <IconButton name="down" label="Close player" size={26} onPress={() => router.back()} />
+        {chapters.length > 1 && (
+          <Text className="text-xs uppercase tracking-widest text-muted">
+            Chapter {current + 1} of {chapters.length}
+          </Text>
+        )}
+        <View className="w-11" />
+      </View>
 
-      <View className="flex-1 items-center justify-center gap-5">
-        <BookCover uri={coverUri(detail.book)} title={detail.book.title} size={260} />
-        <View className="items-center gap-1">
-          <Text numberOfLines={2} className="text-center text-xl font-semibold text-paper">
+      <View className="flex-1 items-center justify-center">
+        <BookCover uri={coverUri(detail.book)} title={detail.book.title} size={280} />
+      </View>
+
+      <View className="flex-row items-center gap-3 pb-4">
+        <View className="flex-1 gap-1">
+          <Text numberOfLines={2} className="text-xl font-semibold text-paper">
             {detail.book.title}
           </Text>
-          {detail.book.author !== null && <Text className="text-soft">{detail.book.author}</Text>}
-          {chapter && (
+          {chapter ? (
             <Pressable onPress={() => setSheet('chapters')}>
-              <Text numberOfLines={1} className="text-center text-amber">
+              <Text numberOfLines={1} className="text-soft">
                 {chapter.title}
               </Text>
             </Pressable>
+          ) : (
+            detail.book.author !== null && <Text className="text-soft">{detail.book.author}</Text>
           )}
         </View>
+        <Pressable
+          onPress={bookmark}
+          accessibilityRole="button"
+          accessibilityLabel="Add bookmark"
+          className="h-11 w-11 items-center justify-center rounded-full bg-raised active:opacity-70"
+        >
+          <Icon name="bookmarkAdd" size={22} />
+        </Pressable>
       </View>
 
       <Scrubber
         elapsedMs={elapsed}
         lengthMs={length}
+        middle={total > 0 ? `Book ${percent}% · ${formatLeft(left)}` : undefined}
         onSeek={(offset) => seek(rangeStart + offset)}
       />
 
       <View className="flex-row items-center justify-between py-4">
-        <Control label="⟲30" onPress={() => void audio.skip(false)} />
+        <Control icon="back30" label="Back 30 seconds" onPress={() => void audio.skip(false)} />
         {chapters.length > 0 ? (
-          <Control label="⏮" onPress={previousChapter} />
+          <Control icon="previous" label="Previous chapter" onPress={previousChapter} />
+        ) : (
+          <View className="w-14" />
+        )}
+        <PressScale
+          onPress={() => void (state.playing ? audio.pause() : audio.play())}
+          accessibilityRole="button"
+          accessibilityLabel={state.playing ? 'Pause' : 'Play'}
+          style={{
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            backgroundColor: COLORS.amber,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon name={state.playing ? 'pause' : 'play'} size={32} color={COLORS.ink} />
+        </PressScale>
+        {chapters.length > 0 ? (
+          <Control icon="next" label="Next chapter" onPress={nextChapter} />
         ) : (
           <View className="w-14" />
         )}
         <Control
-          big
-          label={state.playing ? '❚❚' : '▶'}
-          onPress={() => void (state.playing ? audio.pause() : audio.play())}
+          icon="forward30"
+          label="Forward 30 seconds"
+          onPress={() => void audio.skip(true)}
         />
-        {chapters.length > 0 ? (
-          <Control label="⏭" onPress={nextChapter} />
-        ) : (
-          <View className="w-14" />
-        )}
-        <Control label="30⟳" onPress={() => void audio.skip(true)} />
       </View>
 
-      <View className="flex-row flex-wrap justify-center gap-2">
-        <Chip label={`${Number(state.speed.toFixed(2))}×`} onPress={() => setSheet('speed')} />
-        <Chip
-          label={timer === null ? 'Sleep timer' : `Sleep ${formatClock(timer)}`}
-          onPress={() => setSheet('sleep')}
-        />
-        <Chip label="+ Bookmark" onPress={bookmark} />
-        <Chip
-          label={`Bookmarks${bookmarks.length ? ` (${bookmarks.length})` : ''}`}
-          onPress={() => setSheet('bookmarks')}
-        />
-        {chapters.length > 0 && <Chip label="Chapters" onPress={() => setSheet('chapters')} />}
-      </View>
-
-      {total > 0 && (
-        <Text className="pt-3 text-center text-sm text-muted">
-          {formatLeft((total - position) / Math.max(0.5, state.speed))} in book
-        </Text>
-      )}
       {state.waitingForCall && (
-        <Text className="text-center text-sm text-amber">Starts when the call ends</Text>
+        <Text className="pb-2 text-center text-sm text-amber">Starts when the call ends</Text>
       )}
       {state.error !== null && (
-        <Text className="text-center text-sm text-danger">{state.error}</Text>
+        <Text className="pb-2 text-center text-sm text-danger">{state.error}</Text>
       )}
+
+      <View className="flex-row">
+        <Tool
+          icon="speed"
+          label={`${Number(state.speed.toFixed(2))}×`}
+          onPress={() => setSheet('speed')}
+        />
+        <Tool
+          icon="moon"
+          label={timer === null ? 'Sleep' : formatClock(timer)}
+          active={timer !== null}
+          onPress={() => setSheet('sleep')}
+        />
+        {chapters.length > 0 && (
+          <Tool icon="chapters" label="Chapters" onPress={() => setSheet('chapters')} />
+        )}
+        <Tool
+          icon="bookmark"
+          label={bookmarks.length === 1 ? '1 bookmark' : `${bookmarks.length} bookmarks`}
+          onPress={() => setSheet('bookmarks')}
+        />
+      </View>
 
       <ChaptersSheet
         visible={sheet === 'chapters'}

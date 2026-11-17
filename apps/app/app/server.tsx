@@ -10,7 +10,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -20,6 +19,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { showAlert } from '../src/dialog';
+import { COLORS, IconButton } from '../src/components/Icon';
 import { db, newId } from '../src/db';
 import { useLibrary } from '../src/player';
 import { scanLibrary } from '../src/scan';
@@ -112,10 +113,10 @@ export default function ServerScreen() {
       else addRemoteRoot(db, remote, Date.now(), newId);
       void scanLibrary().finally(refresh);
       refresh();
-      Alert.alert('Connected', `${files.length} files found. Books appear as the scan reads them.`);
+      showAlert('Connected', `${files.length} files found. Books appear as the scan reads them.`);
       router.back();
     } catch (error) {
-      Alert.alert('Could not connect', error instanceof Error ? error.message : String(error));
+      showAlert('Could not connect', error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
     }
@@ -137,9 +138,9 @@ export default function ServerScreen() {
         gap: 16,
       }}
     >
-      <Pressable onPress={() => router.back()} hitSlop={12} className="self-start py-2">
-        <Text className="text-2xl text-muted">‹</Text>
-      </Pressable>
+      <View className="-ml-2 self-start">
+        <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+      </View>
       <Text className="text-3xl font-semibold text-paper">
         {locked ? 'Log in again' : 'Add a server'}
       </Text>

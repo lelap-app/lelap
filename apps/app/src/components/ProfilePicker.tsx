@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { COLORS, Icon } from './Icon';
 import { db } from '../db';
 import { switchProfile, useLibrary } from '../player';
 import { profileId } from '../profile';
@@ -92,10 +93,10 @@ export function ProfilePicker({
               className="items-center gap-2 active:opacity-70"
             >
               <Avatar avatar={p.avatar} name={p.name} size={96} />
-              <Text className="text-paper">
-                {p.name}
-                {p.pinHash ? ' 🔒' : ''}
-              </Text>
+              <View className="flex-row items-center gap-1">
+                <Text className="text-paper">{p.name}</Text>
+                {p.pinHash ? <Icon name="lock" size={14} color={COLORS.muted} label="PIN" /> : null}
+              </View>
             </Pressable>
           ))}
         </View>

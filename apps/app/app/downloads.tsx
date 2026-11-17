@@ -2,9 +2,11 @@ import { type DownloadEntry, getSettings, listDownloads } from '@lelap/core';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { showAlert } from '../src/dialog';
+import { COLORS, IconButton } from '../src/components/Icon';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { db } from '../src/db';
@@ -36,7 +38,7 @@ export default function DownloadsScreen() {
   const act = (task: () => Promise<void>) =>
     void task()
       .catch((error: unknown) =>
-        Alert.alert('Download', error instanceof Error ? error.message : String(error)),
+        showAlert('Download', error instanceof Error ? error.message : String(error)),
       )
       .finally(refresh);
 
@@ -53,7 +55,7 @@ export default function DownloadsScreen() {
             { text: 'Try again', onPress: () => act(() => startDownload(entry.bookId, null)) },
           ]
         : [remove];
-    Alert.alert(entry.title, entry.error ?? undefined, [
+    showAlert(entry.title, entry.error ?? undefined, [
       { text: 'Close', style: 'cancel' },
       ...buttons,
     ]);
@@ -70,9 +72,14 @@ export default function DownloadsScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 24 }}
         ListHeaderComponent={
           <View className="gap-4 px-4 pb-4">
-            <Pressable onPress={() => router.back()} hitSlop={12} className="self-start py-2">
-              <Text className="text-2xl text-muted">‹</Text>
-            </Pressable>
+            <View className="-ml-2 self-start">
+              <IconButton
+                name="back"
+                label="Back"
+                color={COLORS.soft}
+                onPress={() => router.back()}
+              />
+            </View>
             <Text className="text-3xl font-semibold text-paper">Downloads</Text>
             {storage.data && (
               <View className="gap-2">

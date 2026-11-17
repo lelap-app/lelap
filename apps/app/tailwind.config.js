@@ -16,6 +16,7 @@ module.exports = {
         amber: '#f5b041',
         ink: '#1a1305',
         danger: '#ff8a7a',
+        ok: '#6bd49a',
       },
     },
   },

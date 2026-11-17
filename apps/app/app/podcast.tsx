@@ -13,9 +13,11 @@ import { useQuery } from '@tanstack/react-query';
 import { eq } from 'drizzle-orm';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { showAlert } from '../src/dialog';
+import { COLORS, Icon, IconButton } from '../src/components/Icon';
 import { queries, useAddons } from '../src/addons';
 import { BookCover } from '../src/components/BookCover';
 import { db, newId } from '../src/db';
@@ -88,7 +90,7 @@ export default function PodcastScreen() {
     try {
       await task();
     } catch (error) {
-      Alert.alert('Podcast', message(error));
+      showAlert('Podcast', message(error));
     } finally {
       setBusy(false);
       refresh();
@@ -103,7 +105,7 @@ export default function PodcastScreen() {
 
   const showActions = (e: EpisodeItem) => {
     const bookId = () => episodeBook(db, e.id, Date.now(), newId);
-    Alert.alert(
+    showAlert(
       e.title,
       undefined,
       [
@@ -138,9 +140,14 @@ export default function PodcastScreen() {
       contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
       ListHeaderComponent={
         <View className="gap-4 px-4 pb-2">
-          <Pressable onPress={() => router.back()} hitSlop={12} className="self-start py-2">
-            <Text className="text-2xl text-muted">‹</Text>
-          </Pressable>
+          <View className="-ml-2 self-start">
+            <IconButton
+              name="back"
+              label="Back"
+              color={COLORS.soft}
+              onPress={() => router.back()}
+            />
+          </View>
           {loading && <ActivityIndicator color="#f5b041" className="pt-24" />}
           {failed && (
             <Text className="pt-24 text-center text-muted">
@@ -247,11 +254,13 @@ export default function PodcastScreen() {
           {e.downloadState === null && (
             <Pressable
               hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Download episode"
               onPress={() =>
                 void run(() => startDownload(episodeBook(db, e.id, Date.now(), newId), null))
               }
             >
-              <Text className="text-xl text-amber">↓</Text>
+              <Icon name="download" color={COLORS.amber} />
             </Pressable>
           )}
         </Pressable>
