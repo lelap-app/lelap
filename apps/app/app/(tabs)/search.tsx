@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, SectionList, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EmptyState } from '../../src/components/Lori';
 import { fetcher, SHOWN_TYPES, useAddons } from '../../src/addons';
 import { MetaListRow } from '../../src/components/MetaCard';
 import { openItem } from '../../src/navigation';
@@ -113,9 +114,10 @@ export default function SearchScreen() {
           )}
           ListEmptyComponent={
             nothing ? (
-              <Text className="px-4 pt-12 text-center text-muted">
-                Nothing found for “{query}”.
-              </Text>
+              <EmptyState
+                title={`Nothing found for “${query}”.`}
+                hint="Lori looked everywhere. Try fewer words, or another spelling."
+              />
             ) : undefined
           }
         />

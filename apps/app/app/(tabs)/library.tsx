@@ -30,6 +30,7 @@ import { COLORS, Icon, IconButton } from '../../src/components/Icon';
 import { BookActions } from '../../src/components/BookActions';
 import { BookRow } from '../../src/components/BookRow';
 import { ContinueCard } from '../../src/components/ContinueCard';
+import { EmptyState, Lori } from '../../src/components/Lori';
 import { Sheet } from '../../src/components/Sheet';
 import { db, newId } from '../../src/db';
 import { playBook, useLibrary } from '../../src/player';
@@ -122,6 +123,7 @@ export default function LibraryScreen() {
         style={{ paddingTop: insets.top }}
         className="flex-1 items-center justify-center gap-6 bg-night p-8"
       >
+        <Lori size={150} />
         <Text className="text-center text-2xl font-semibold text-paper">Your audiobooks</Text>
         {LOCAL_FOLDERS ? (
           <>
@@ -282,9 +284,14 @@ export default function LibraryScreen() {
         }
         ListEmptyComponent={
           scanning === null ? (
-            <Text className="px-4 pt-8 text-center text-muted">
-              {root ? `No audio files in ${root.name}.` : 'Nothing here yet.'}
-            </Text>
+            <EmptyState
+              title={root ? `No audio files in ${root.name}.` : 'Nothing here yet.'}
+              hint={
+                root
+                  ? 'Lori is saving her energy. Add audiobooks to the folder, then pull down.'
+                  : 'Lori is saving her energy. Books you play from Home, Discover and Search land here.'
+              }
+            />
           ) : undefined
         }
         renderItem={({ item }) => (
