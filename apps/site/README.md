@@ -31,6 +31,10 @@ Build-time environment variables, all optional:
 | `PUBLIC_LELAP_DOMAIN`   | `lelap.app`                          | Base domain; app, download and email hosts derive from it    |
 | `PUBLIC_LELAP_REPO_URL` | `https://github.com/lelap-app/lelap` | Repository links                                             |
 | `PUBLIC_LELAP_RELEASED` | unset                                | `true` swaps "Follow on GitHub" for download and app buttons |
+| `PUBLIC_LELAP_BETA`     | unset                                | `true`, before release: offers the beta APK (`beta.apk`)     |
+
+In CI the repository variables `LELAP_RELEASED` and `LELAP_BETA` set these; change one and re-run
+the site workflow.
 
 ## Deploy
 

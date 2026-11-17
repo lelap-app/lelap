@@ -20,4 +20,10 @@ export const site = {
   privacyEmail: `privacy@${domain}`,
   // Until v1.0 ships, download and "open app" buttons are replaced by links to the repository.
   released: import.meta.env.PUBLIC_LELAP_RELEASED === 'true',
+  // Before that, a beta APK can be offered on its own; the release workflow keeps beta.apk current.
+  beta:
+    import.meta.env.PUBLIC_LELAP_BETA === 'true' &&
+    import.meta.env.PUBLIC_LELAP_RELEASED !== 'true',
+  betaApkUrl: `https://dl.${domain}/beta.apk`,
+  betaInfoUrl: `https://dl.${domain}/beta.json`,
 } as const;

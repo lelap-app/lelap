@@ -33,6 +33,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @lelap/site build
+        env:
+          # Repository variables, so going to beta or release needs no code change.
+          PUBLIC_LELAP_RELEASED: ${{ vars.LELAP_RELEASED }}
+          PUBLIC_LELAP_BETA: ${{ vars.LELAP_BETA }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: site
