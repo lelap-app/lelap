@@ -11,6 +11,7 @@ export * from './library/scan';
 export * from './bookmarks';
 export * from './library/queries';
 export * from './settings';
+export * from './headphones';
 export * as schema from './schema';
 export * from './addons';
 export * from './downloads';

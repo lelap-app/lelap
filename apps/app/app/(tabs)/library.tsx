@@ -32,6 +32,7 @@ import { BookRow } from '../../src/components/BookRow';
 import { ContinueCard } from '../../src/components/ContinueCard';
 import { Sheet } from '../../src/components/Sheet';
 import { db, newId } from '../../src/db';
+import { HeadphoneBanner } from '../../src/devices';
 import { playBook, useLibrary } from '../../src/player';
 import { profileId } from '../../src/profile';
 import { LOCAL_FOLDERS } from '../../src/platform/library';
@@ -168,6 +169,7 @@ export default function LibraryScreen() {
           </Text>
         </View>
       )}
+      <HeadphoneBanner className="mx-4" />
       <FlatList
         data={books}
         keyExtractor={(b) => b.id}

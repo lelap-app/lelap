@@ -19,6 +19,13 @@ describe('settings', () => {
       betaUpdates: false,
       otaUpdates: true,
       yearlyGoalBooks: 0,
+      bedtimeTimer: false,
+      bedtimeStart: 1320,
+      bedtimeEnd: 120,
+      bedtimeChapter: false,
+      bedtimeMinutes: 30,
+      headphoneBattery: false,
+      carModeOffer: false,
     });
   });
 

@@ -13,6 +13,7 @@ import { listProfiles } from '@lelap/core';
 import { db, useDbReady } from '../src/db';
 import { ProfilePicker } from '../src/components/ProfilePicker';
 import { loadActiveProfile } from '../src/profile';
+import { DeviceRunner } from '../src/devices';
 import { DownloadSync } from '../src/downloads';
 import { PlayerProvider, useLibrary } from '../src/player';
 import { HandoffBanner } from '../src/components/HandoffBanner';
@@ -69,6 +70,7 @@ export default function RootLayout() {
         <PodcastSync />
         <SyncRunner />
         <OtaRunner />
+        <DeviceRunner />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0d0e11' } }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
@@ -76,6 +78,7 @@ export default function RootLayout() {
             options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
           />
           <Stack.Screen name="who" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="car" options={{ animation: 'fade' }} />
         </Stack>
         <HandoffBanner />
         <DialogHost />

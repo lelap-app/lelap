@@ -24,6 +24,7 @@ import { Sheet } from '../src/components/Sheet';
 import { soundActive, SoundSheet, useSoundSettings } from '../src/components/SoundSheet';
 import { CASTING_SUPPORTED, useCasting } from '../src/casting';
 import { db, newId } from '../src/db';
+import { HeadphoneBanner } from '../src/devices';
 import { formatClock, formatLeft } from '../src/format';
 import * as audio from '../src/platform/audio';
 import { seekToBookPosition, useLibrary, usePlayerState } from '../src/player';
@@ -232,8 +233,18 @@ export default function Player() {
             Chapter {current + 1} of {chapters.length}
           </Text>
         )}
-        <View className="w-11" />
+        {Platform.OS === 'android' ? (
+          <IconButton
+            name="car"
+            label="Car mode"
+            color={COLORS.soft}
+            onPress={() => router.push('/car')}
+          />
+        ) : (
+          <View className="w-11" />
+        )}
       </View>
+      <HeadphoneBanner className="mt-2" />
 
       <View className="flex-1 items-center justify-center">
         <BookCover uri={coverUri(detail.book)} title={detail.book.title} size={280} />

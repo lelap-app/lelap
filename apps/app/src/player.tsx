@@ -28,6 +28,7 @@ import {
 } from 'react';
 import { AppState, Platform } from 'react-native';
 
+import { applyBedtime } from './bedtime';
 import { db, newId } from './db';
 import * as audio from './platform/audio';
 import { profileId, setProfileId } from './profile';
@@ -258,6 +259,7 @@ export function switchProfile(id: string): Promise<void> {
     if (current.playing) await audio.pause();
     setProfileId(id);
     await audio.setSettings(getSettings(db, id));
+    await applyBedtime(getSettings(db, id));
     const next = continueListening(db, id);
     // The lock screen follows the listener: their last book, or nothing.
     if (next) await load(next.id, false).catch(() => {});
@@ -287,6 +289,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       await foldJournal();
       await foldFinished();
       await audio.setSettings(getSettings(db, profileId));
+      await applyBedtime(getSettings(db, profileId));
       const now = await audio.getState();
       setState(now);
       if (!now.bookId) {
