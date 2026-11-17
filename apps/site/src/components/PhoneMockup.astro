@@ -57,10 +57,6 @@ import Icon from './Icon.astro';
       <span>29:12 · fades out</span>
     </div>
   </div>
-  <div class="float float-top">
-    <Icon name="phone" size={18} />
-    Screen off, still playing
-  </div>
   <div class="float float-bottom">
     <span class="ok">
       <Icon name="circleCheck" size={20} />
@@ -250,13 +246,6 @@ import Icon from './Icon.astro';
 
   .float :global(svg) {
     color: var(--accent);
-  }
-
-  .float-top {
-    left: 12px;
-    top: 244px;
-    padding: 10px 12px;
-    font-weight: 600;
   }
 
   .float-bottom {
