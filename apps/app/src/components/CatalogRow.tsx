@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native
 
 import { COLORS, Icon } from './Icon';
 import { fetcher } from '../addons';
+import { useAskWhenVisible, useAvailability } from '../availability';
 import { MetaTile } from './MetaCard';
 
 const TILE = 120;
@@ -28,6 +29,8 @@ export function CatalogRow({
   onMore: () => void;
 }) {
   const { data, isPending, isError } = useQuery(catalogQuery(catalogRef));
+  const availability = useAvailability();
+  const visible = useAskWhenVisible();
   if (isError || (data && data.length === 0)) return null;
 
   return (
@@ -50,7 +53,12 @@ export function CatalogRow({
           keyExtractor={(m) => m.id}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-          renderItem={({ item }) => <MetaTile meta={item} width={TILE} onPress={onOpen} />}
+          {...visible}
+          // A new lookup means the cache learned something; re-render the tiles.
+          extraData={availability}
+          renderItem={({ item }) => (
+            <MetaTile meta={item} width={TILE} availability={availability(item)} onPress={onOpen} />
+          )}
         />
       )}
     </View>

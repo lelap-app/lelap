@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 
+import { refreshWanted } from './availability';
 import { db } from './db';
 import { refreshPodcasts } from './podcasts';
 import { loadActiveProfile } from './profile';
@@ -20,6 +21,8 @@ TaskManager.defineTask(TASK, async () => {
     // New episodes, then auto-downloads (inside refreshPodcasts), then sync.
     await refreshPodcasts(true);
     await syncOnce();
+    // Last: it asks add-ons, and a slow one must not hold up the rest.
+    await refreshWanted().catch(() => {});
     return BackgroundTask.BackgroundTaskResult.Success;
   } catch {
     return BackgroundTask.BackgroundTaskResult.Failed;

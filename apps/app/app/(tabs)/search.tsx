@@ -6,6 +6,7 @@ import { ActivityIndicator, SectionList, Text, TextInput, View } from 'react-nat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetcher, SHOWN_TYPES, useAddons } from '../../src/addons';
+import { useAskWhenVisible, useAvailability } from '../../src/availability';
 import { MetaListRow } from '../../src/components/MetaCard';
 import { openItem } from '../../src/navigation';
 
@@ -17,6 +18,8 @@ export default function SearchScreen() {
   const addons = useAddons();
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
+  const availability = useAvailability();
+  const visible = useAskWhenVisible();
 
   useEffect(() => {
     const timer = setTimeout(() => setQuery(text.trim()), DEBOUNCE_MS);
@@ -91,6 +94,8 @@ export default function SearchScreen() {
           sections={sections}
           keyExtractor={(m, index) => `${m.id} ${index}`}
           keyboardShouldPersistTaps="handled"
+          {...visible}
+          extraData={availability}
           contentContainerStyle={{ paddingBottom: 24 }}
           ListHeaderComponent={
             status !== null ? (
@@ -109,7 +114,11 @@ export default function SearchScreen() {
             </View>
           )}
           renderItem={({ item }) => (
-            <MetaListRow meta={item} onPress={(meta) => openItem(router, meta)} />
+            <MetaListRow
+              meta={item}
+              availability={availability(item)}
+              onPress={(meta) => openItem(router, meta)}
+            />
           )}
           ListEmptyComponent={
             nothing ? (

@@ -4,12 +4,22 @@ import {
   getProfile,
   listDownloads,
   listProfiles,
+  setWantedAlertsAsked,
   WANT_TO_READ,
+  wantedAlertsAsked,
 } from '@lelap/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import {
+  PermissionsAndroid,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { showAlert } from '../../src/dialog';
@@ -21,8 +31,37 @@ import { ContinueCard } from '../../src/components/ContinueCard';
 import { db } from '../../src/db';
 import { formatBytes } from '../../src/format';
 import { openCatalog, openItem } from '../../src/navigation';
+import { canNotify } from '../../src/platform/downloads';
 import { playBook, useLibrary } from '../../src/player';
 import { profileId } from '../../src/profile';
+
+/**
+ * Asks once, next to the want-to-read row, whether Lelap may say when a wanted book can be
+ * played. Never at launch, and never again after an answer.
+ */
+function WantedAlertsHint({ onDone }: { onDone: () => void }) {
+  const answer = async (allow: boolean) => {
+    if (allow && Platform.OS === 'android' && Number(Platform.Version) >= 33) {
+      await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+    }
+    setWantedAlertsAsked(db, profileId, Date.now());
+    onDone();
+  };
+  return (
+    <View className="mx-4 flex-row items-center gap-3 rounded-xl border border-line px-4 py-3">
+      <Icon name="bookmark" color={COLORS.amber} />
+      <Text className="flex-1 text-sm text-soft">
+        Get a notification when a book you want to read can be played?
+      </Text>
+      <Pressable onPress={() => void answer(false)} hitSlop={8} accessibilityRole="button">
+        <Text className="text-sm text-muted">Not now</Text>
+      </Pressable>
+      <Pressable onPress={() => void answer(true)} hitSlop={8} accessibilityRole="button">
+        <Text className="text-sm font-semibold text-amber">Allow</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 export default function HomeScreen() {
   const { version, refresh } = useLibrary();
@@ -45,6 +84,16 @@ export default function HomeScreen() {
   // Shelves of books the listener wants to read (from a reading tracker's add-on) come first.
   const wanted = allRows.filter((ref) => ref.catalog.shelf === WANT_TO_READ);
   const rows = allRows.filter((ref) => ref.catalog.shelf !== WANT_TO_READ);
+  // Only Android has the background refresh that sends these.
+  const askAlerts = useMemo(
+    () =>
+      Platform.OS === 'android' &&
+      wanted.length > 0 &&
+      !canNotify() &&
+      !wantedAlertsAsked(db, profileId),
+    // `version` is the signal to re-read the database.
+    [wanted.length, version],
+  );
 
   const reload = useCallback(async () => {
     setRefreshing(true);
@@ -144,6 +193,7 @@ export default function HomeScreen() {
           onMore={() => openCatalog(router, ref.addon.url, ref.catalog.id)}
         />
       ))}
+      {askAlerts && <WantedAlertsHint onDone={refresh} />}
       {rows.map((ref) => (
         <CatalogRow
           key={`${ref.addon.url} ${ref.catalog.type} ${ref.catalog.id}`}

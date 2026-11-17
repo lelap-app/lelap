@@ -38,6 +38,12 @@ class DownloadModule : Module() {
 
     AsyncFunction("storage") { Downloads.storage(context) }
 
+    Function("canNotify") { Alerts.canNotify(context) }
+
+    Function("notify") { tag: String, title: String, text: String, link: String? ->
+      Alerts.post(context, tag, title, text, link)
+    }
+
     Function("isIgnoringBatteryOptimizations") {
       context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
     }

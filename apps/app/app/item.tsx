@@ -14,13 +14,14 @@ import {
 import { CONTENT_TYPES, type ContentType, hasParts, type Meta } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { showAlert } from '../src/dialog';
 import { COLORS, Icon, IconButton } from '../src/components/Icon';
 import { addItem, playItem, queries, useAddons } from '../src/addons';
+import { sourceCache } from '../src/availability';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { DownloadButton } from '../src/components/DownloadButton';
 import { db } from '../src/db';
@@ -88,6 +89,14 @@ export default function ItemScreen() {
   });
 
   const found = sources.data?.found ?? [];
+  // What this page learned saves the cover badge a request of its own.
+  useEffect(() => {
+    const data = sources.data;
+    if (!data) return;
+    const first = data.found[0];
+    if (first) sourceCache.set({ type, id }, { kind: 'stream', addon: first.addon.manifest.name });
+    else if (data.failed.length === 0) sourceCache.set({ type, id }, { kind: 'none' });
+  }, [sources.data, type, id]);
   // `version` is the signal to re-read the database.
   const remembered = useMemo(() => {
     const own = findStreamedBook(db, type, id);
