@@ -17,7 +17,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M9 Profiles (v1.1)         | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
-v1.1.
+v1.1. What comes next (v1.0 gaps, proposed M10–M19, smaller tasks): [`next.md`](next.md).
 
 ## M0 Claim the name
 
