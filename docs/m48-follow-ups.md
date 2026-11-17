@@ -57,6 +57,15 @@ Covered by tests:
 - Chapter titles made up from ID3 frames without a title (“Chapter 3”) are saved in English.
 - Dates and numbers still follow the device (as in M21).
 
+## Minor review findings, not fixed here
+
+- The landing page fills `{holes}` into lines rendered with `set:html` without escaping them. The
+  values come from configuration today (`PUBLIC_LELAP_DOMAIN`); escape them before a hole ever
+  holds anything else.
+- The translation check doesn't notice a key written twice in one catalog (`JSON.parse` keeps the
+  last), and its plural pairing misses a pair whose first `t()` has parentheses in its values.
+- Media3's own notification texts (its play and pause descriptions) follow the phone's language.
+
 ## For a native speaker's review
 
 Every Malay line is open for review; these are the ones we were least sure of (English → Malay).

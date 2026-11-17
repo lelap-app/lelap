@@ -121,12 +121,11 @@ const english = lang === 'en' ? undefined : 'en';
             href={languages[other].home}
             hreflang={other}
             lang={other}
+            aria-label={`${languages[other].name} (${languages[other].short})`}
           >
             <Icon name="globe" size={18} />
             <span class="lang-name">{languages[other].name}</span>
-            <span class="lang-short" aria-hidden="true">
-              {languages[other].short}
-            </span>
+            <span class="lang-short">{languages[other].short}</span>
           </a>
         )}
         <a class="btn btn-sm btn-outline" href={site.repoUrl}>
@@ -244,6 +243,7 @@ const english = lang === 'en' ? undefined : 'en';
 
   /* Plain text beside the GitHub button; a full-height target so it is easy to hit on a phone. */
   .lang-switch {
+    position: relative;
     padding-inline: 12px;
     color: var(--fg-soft);
     font-weight: 500;
@@ -261,7 +261,7 @@ const english = lang === 'en' ? undefined : 'en';
     display: none;
   }
 
-  /* Phones: “BM” or “EN” keeps the header on one row; the full name stays for screen readers. */
+  /* Phones: “BM” or “EN” keeps the header on one row; the name says both, for voice control. */
   @media (max-width: 420px) {
     .lang-short {
       display: inline;

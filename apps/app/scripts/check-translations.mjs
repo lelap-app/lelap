@@ -51,8 +51,11 @@ const native = new Set(
 );
 const kotlinCall = /\.(?:t\(\s*(?:[\w@.]+\s*,\s*)?|channel\([^,]+,[^,]+,\s*)("(?:[^"\\]|\\.)*")/g;
 const kotlinUsed = new Set();
-for (const file of readdirSync(join(repo, 'modules')).flatMap((m) => {
-  const dir = join(repo, 'modules', m, 'android/src/main');
+const modules = readdirSync(join(repo, 'modules'), { withFileTypes: true }).filter((d) =>
+  d.isDirectory(),
+);
+for (const file of modules.flatMap((m) => {
+  const dir = join(repo, 'modules', m.name, 'android/src/main');
   return statSync(dir, { throwIfNoEntry: false }) ? files(dir, /\.kt$/) : [];
 })) {
   for (const m of readFileSync(file, 'utf8').matchAll(kotlinCall)) {
@@ -80,6 +83,10 @@ for (const name of readdirSync(catalogs)
   const code = name.slice(0, -'.json'.length);
   if (!/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(code)) {
     report(file, null, `The file name must be a language code, such as ms.json or pt-BR.json`);
+    continue;
+  }
+  if (code === 'en') {
+    report(file, null, 'English is the text in the code itself; it has no catalog file');
     continue;
   }
   let catalog;

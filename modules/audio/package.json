@@ -8,6 +8,9 @@
   "scripts": {
     "check": "tsc --noEmit"
   },
+  "dependencies": {
+    "@lelap/text": "workspace:*"
+  },
   "peerDependencies": {
     "expo": "*"
   },

@@ -446,6 +446,10 @@ importers:
         version: 4.158.0(@cloudflare/workers-types@5.20261109.1)(@types/node@26.6.6)
 
   modules/audio:
+    dependencies:
+      '@lelap/text':
+        specifier: workspace:*
+        version: link:../text
     devDependencies:
       expo:
         specifier: ~58.0.25
@@ -473,6 +477,10 @@ importers:
         version: 6.0.3
 
   modules/download:
+    dependencies:
+      '@lelap/text':
+        specifier: workspace:*
+        version: link:../text
     devDependencies:
       expo:
         specifier: ~58.0.25
@@ -482,6 +490,10 @@ importers:
         version: 6.0.3
 
   modules/library:
+    dependencies:
+      '@lelap/text':
+        specifier: workspace:*
+        version: link:../text
     devDependencies:
       '@lelap/core':
         specifier: workspace:*
@@ -512,6 +524,10 @@ importers:
         version: 6.0.3
 
   modules/widget:
+    dependencies:
+      '@lelap/text':
+        specifier: workspace:*
+        version: link:../text
     devDependencies:
       expo:
         specifier: ~58.0.25

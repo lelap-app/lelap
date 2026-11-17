@@ -28,7 +28,9 @@ object NativeText {
 
   fun t(context: Context, english: String, vararg vars: Pair<String, Any>): String = get(context).t(english, *vars)
 
-  fun save(context: Context, catalog: NativeCatalog) {
+  // Synchronized with channel(): the player, download workers and alerts call it from their own
+  // threads, and each rewrites the one list of channels.
+  @Synchronized fun save(context: Context, catalog: NativeCatalog) {
     prefs(context).edit().putString(KEY_CATALOG, catalog.encode()).apply()
     cached = catalog
     val channels = channels(context)
@@ -40,8 +42,9 @@ object NativeText {
   }
 
   /** Creates the notification channel, or renames it into the current language. */
-  fun channel(context: Context, id: String, english: String, importance: Int) {
-    // Download progress asks on every update; once per process and language is enough.
+  @Synchronized fun channel(context: Context, id: String, english: String, importance: Int) {
+    // Download progress asks on every update; once per process is enough, since save() renames
+    // every channel on a switch.
     if (id in ensured) return
     val channels = channels(context)
     if (channels.optJSONObject(id)?.optString("name") != english) {

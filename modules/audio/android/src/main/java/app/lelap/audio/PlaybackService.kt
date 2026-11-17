@@ -39,6 +39,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.session.CommandButton
+import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -60,8 +61,6 @@ private const val BOUNDARY_PUBLISH_TICKS = 20
 
 @OptIn(UnstableApi::class)
 private const val PAUSE_SETTLE_MS = 500L
-// Media3's DefaultMediaNotificationProvider posts the player notification on this channel.
-private const val MEDIA_CHANNEL_ID = "default_channel_id"
 
 class PlaybackService : MediaLibraryService() {
   private lateinit var player: ExoPlayer
@@ -309,7 +308,12 @@ class PlaybackService : MediaLibraryService() {
       )
     }
     // Media3 creates its notification channel only when there is none, so this one keeps our name.
-    NativeText.channel(this, MEDIA_CHANNEL_ID, "Now playing", NotificationManager.IMPORTANCE_LOW)
+    NativeText.channel(
+      this,
+      DefaultMediaNotificationProvider.DEFAULT_CHANNEL_ID,
+      "Now playing",
+      NotificationManager.IMPORTANCE_LOW,
+    )
     session = builder.build()
     prefs.registerOnSharedPreferenceChangeListener(carListener)
     ContextCompat.registerReceiver(
