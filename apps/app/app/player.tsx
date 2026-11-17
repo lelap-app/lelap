@@ -55,17 +55,21 @@ function Tool({
   label,
   onPress,
   active = false,
+  spoken,
 }: {
   icon: IconName;
   label: string;
   onPress: () => void;
   active?: boolean;
+  /** What a screen reader says when the short label alone is unclear, such as “Speed, 1.5×”. */
+  spoken?: string;
 }) {
   const color = active ? COLORS.amber : COLORS.soft;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel={spoken ?? label}
       className="flex-1 items-center gap-1 rounded-xl py-2 active:bg-raised"
     >
       <Icon name={icon} size={22} color={color} />
@@ -282,6 +286,7 @@ export default function Player() {
         <Tool
           icon="speed"
           label={`${Number(state.speed.toFixed(2))}×`}
+          spoken={`Speed, ${Number(state.speed.toFixed(2))}×`}
           onPress={() => setSheet('speed')}
         />
         <Tool
