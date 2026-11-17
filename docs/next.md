@@ -106,8 +106,16 @@ night theme are the start). Not planned: an iOS app, which would need an App Sto
 - **Download location:** downloads live in the app's private no-backup storage, removed with the
   app and invisible to file managers. Add a choice of a folder (SD card, shared storage) through
   Android's folder picker. (M10 or M16)
-- **Security audit** of the four services and the app. The backend is small, so this is mostly
-  the sync and proxy rate limits, pairing, CORS, headers, dependencies and secrets handling. (M19)
+- **Security, what is left** after the audit and its fixes ([`security-audit.md`](security-audit.md),
+  details in [M19 follow-ups](m19-follow-ups.md)). (M19)
+  - On a phone: lock screen, Bluetooth and Android Auto controls still work with the playback
+    commands limited to Lelap; removing a lost device; an upgrade with existing sync and a server
+    (secrets sealed), then a backup restored after a reinstall (pair and log in again); an app
+    update end to end.
+  - Elsewhere: the Docker web image and the deployed web app send the CSP and other headers.
+  - Decisions: set `WEB_ORIGIN` in the `web` environment; separate Cloudflare tokens for `web` and
+    `release`; plain http in release builds (allow, or say “needs https”); expire sync groups idle
+    for a year (with log compaction); HSTS for the zone.
 - **Next steps for M5 and M7** that need no phone: background feed refresh, sync log compaction.
 
 ## Answers worth keeping
