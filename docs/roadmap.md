@@ -233,8 +233,7 @@ the Expo Updates protocol from R2, and a release job that signs and uploads each
 the `production` or `beta` channel. Setup and phone checks: [`m18-follow-ups.md`](m18-follow-ups.md).
 
 **Done when** a JavaScript-only release reaches a phone over the air on both channels and a badly
-signed manifest is refused. Not yet checked: none of it has run on a phone, and the code-signing
-certificate is not committed yet.
+signed manifest is refused. Not yet checked: none of it has run on a phone.
 
 ## M19 Security and hardening
 
