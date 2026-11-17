@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 4x1: cover, title and chapter, then back, play and forward. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/lelap_widget_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@drawable/lelap_widget_background"
+  android:gravity="center_vertical"
+  android:orientation="horizontal"
+  android:padding="8dp">
+
+  <ImageView
+    android:id="@+id/lelap_widget_cover"
+    android:layout_width="48dp"
+    android:layout_height="48dp"
+    android:importantForAccessibility="no"
+    android:scaleType="centerCrop"
+    android:src="@drawable/lelap_widget_cover_placeholder" />
+
+  <LinearLayout
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="10dp"
+    android:layout_weight="1"
+    android:orientation="vertical">
+
+    <TextView
+      android:id="@+id/lelap_widget_title"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:ellipsize="end"
+      android:maxLines="1"
+      android:text="Nothing playing"
+      android:textColor="@color/lelap_widget_text"
+      android:textSize="14sp"
+      android:textStyle="bold" />
+
+    <TextView
+      android:id="@+id/lelap_widget_subtitle"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:ellipsize="end"
+      android:maxLines="1"
+      android:textColor="@color/lelap_widget_text_muted"
+      android:textSize="12sp" />
+  </LinearLayout>
+
+  <include layout="@layout/lelap_widget_controls" />
+</LinearLayout>

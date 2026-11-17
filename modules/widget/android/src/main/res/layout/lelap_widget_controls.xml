@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Back, play or pause, forward; the numbers are the skip interval in seconds. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="wrap_content"
+  android:layout_height="wrap_content"
+  android:gravity="center_vertical"
+  android:orientation="horizontal">
+
+  <FrameLayout
+    android:id="@+id/lelap_widget_back"
+    android:layout_width="44dp"
+    android:layout_height="44dp"
+    android:contentDescription="Back 30 seconds">
+
+    <ImageView
+      android:layout_width="32dp"
+      android:layout_height="32dp"
+      android:layout_gravity="center"
+      android:importantForAccessibility="no"
+      android:src="@drawable/lelap_widget_back" />
+
+    <TextView
+      android:id="@+id/lelap_widget_back_seconds"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_gravity="center"
+      android:layout_marginTop="3dp"
+      android:importantForAccessibility="no"
+      android:text="30"
+      android:textColor="@color/lelap_widget_text"
+      android:textSize="8sp"
+      android:textStyle="bold" />
+  </FrameLayout>
+
+  <ImageView
+    android:id="@+id/lelap_widget_play"
+    android:layout_width="48dp"
+    android:layout_height="48dp"
+    android:layout_marginStart="4dp"
+    android:layout_marginEnd="4dp"
+    android:background="@drawable/lelap_widget_play_background"
+    android:contentDescription="Play"
+    android:padding="12dp"
+    android:src="@drawable/lelap_widget_play" />
+
+  <FrameLayout
+    android:id="@+id/lelap_widget_forward"
+    android:layout_width="44dp"
+    android:layout_height="44dp"
+    android:contentDescription="Forward 30 seconds">
+
+    <ImageView
+      android:layout_width="32dp"
+      android:layout_height="32dp"
+      android:layout_gravity="center"
+      android:importantForAccessibility="no"
+      android:src="@drawable/lelap_widget_forward" />
+
+    <TextView
+      android:id="@+id/lelap_widget_forward_seconds"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_gravity="center"
+      android:layout_marginTop="3dp"
+      android:importantForAccessibility="no"
+      android:text="30"
+      android:textColor="@color/lelap_widget_text"
+      android:textSize="8sp"
+      android:textStyle="bold" />
+  </FrameLayout>
+</LinearLayout>

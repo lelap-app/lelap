@@ -1,0 +1,12 @@
+{
+  "name": "@lelap/widget",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Android home screen widget and Quick Settings tile for the player. No JavaScript API.",
+  "peerDependencies": {
+    "expo": "*"
+  },
+  "devDependencies": {
+    "expo": "~58.0.25"
+  }
+}

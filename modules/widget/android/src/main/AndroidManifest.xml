@@ -1,0 +1,46 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Covers on the widget come straight from their host, like everywhere else in the app. -->
+  <uses-permission android:name="android.permission.INTERNET" />
+
+  <application>
+    <receiver
+      android:name="app.lelap.widget.PlayerWidgetProvider"
+      android:exported="true"
+      android:label="@string/lelap_widget_name">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/lelap_widget_info" />
+    </receiver>
+    <!-- PlaybackService sends this to its own package when what plays changes. -->
+    <receiver android:name="app.lelap.widget.NowPlayingReceiver" android:exported="false">
+      <intent-filter>
+        <action android:name="app.lelap.audio.NOW_PLAYING_CHANGED" />
+      </intent-filter>
+    </receiver>
+    <receiver android:name="app.lelap.widget.WidgetActionReceiver" android:exported="false" />
+    <service
+      android:name="app.lelap.widget.PlayTileService"
+      android:exported="true"
+      android:icon="@drawable/lelap_tile"
+      android:label="@string/lelap_tile_label"
+      android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+      <intent-filter>
+        <action android:name="android.service.quicksettings.action.QS_TILE" />
+      </intent-filter>
+    </service>
+    <!-- A long press on the tile lands here and opens the player. -->
+    <activity
+      android:name="app.lelap.widget.TileLongPressActivity"
+      android:excludeFromRecents="true"
+      android:exported="true"
+      android:noHistory="true"
+      android:theme="@android:style/Theme.Translucent.NoTitleBar">
+      <intent-filter>
+        <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+      </intent-filter>
+    </activity>
+  </application>
+</manifest>

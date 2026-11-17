@@ -17,6 +17,7 @@
     "@lelap/library": "workspace:*",
     "@lelap/sdk": "workspace:*",
     "@lelap/updater": "workspace:*",
+    "@lelap/widget": "workspace:*",
     "@tanstack/react-query": "^5.107.1",
     "drizzle-orm": "^0.45.4",
     "expo": "~58.0.25",

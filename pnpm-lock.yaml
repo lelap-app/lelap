@@ -232,6 +232,9 @@ importers:
       '@lelap/updater':
         specifier: workspace:*
         version: link:../../modules/updater
+      '@lelap/widget':
+        specifier: workspace:*
+        version: link:../../modules/widget
       '@tanstack/react-query':
         specifier: ^5.107.1
         version: 5.107.1(@types/react@19.3.0)(react@19.3.0)
@@ -477,6 +480,12 @@ importers:
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
+
+  modules/widget:
+    devDependencies:
+      expo:
+        specifier: ~58.0.25
+        version: 58.0.25(@babel/core@7.29.13(supports-color@10.2.2))(@expo/dom-webview@58.0.2)(@expo/log-box@58.0.15)(@expo/metro-runtime@58.0.17)(react-dom@19.3.0(react@19.3.0))(react-native-web@0.21.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.13(supports-color@10.2.2))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)(supports-color@10.2.2)(typescript@6.0.3)
 
   packages/core:
     dependencies:

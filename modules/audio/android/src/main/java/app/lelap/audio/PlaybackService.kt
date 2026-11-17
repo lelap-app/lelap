@@ -34,6 +34,7 @@ import androidx.media3.exoplayer.PlayerMessage
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import androidx.media3.session.CommandButton
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -65,6 +66,11 @@ class PlaybackService : MediaLibraryService() {
   private var sleepBoundaryMs: Long? = null
   private var boundaryMessage: PlayerMessage? = null
   private var ticksSincePublish = 0
+
+  // The step the notification's sleep timer button last started, and the button's last state.
+  private var sleepPressed: SleepStep? = null
+  private var sleepButtonStep: SleepStep? = null
+  private var lastNowPlaying: String? = null
 
   private val sensors by lazy { getSystemService(SENSOR_SERVICE) as SensorManager }
   private val shake = ShakeDetector(SystemClock::elapsedRealtime)
@@ -250,6 +256,8 @@ class PlaybackService : MediaLibraryService() {
       override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
         if (sleepBoundaryMs != null) publishExtras()
       }
+
+      override fun onEvents(player: Player, events: Player.Events) = publishNowPlaying()
     })
 
     val builder = MediaLibrarySession.Builder(this, SkippingPlayer(), Callback())
@@ -278,6 +286,7 @@ class PlaybackService : MediaLibraryService() {
 
   override fun onDestroy() {
     writeJournal(PositionJournal.Event.DESTROY)
+    publishNowPlaying(stopping = true)
     handler.removeCallbacks(journalTicker)
     handler.removeCallbacks(chapterTicker)
     handler.removeCallbacks(timerTicker)
@@ -512,6 +521,61 @@ class PlaybackService : MediaLibraryService() {
     publishExtras()
   }
 
+  /** The notification's sleep timer button: 15 min → 30 min → end of chapter → off. */
+  private fun cycleSleepTimer() {
+    val next = SleepCycle.next(SleepCycle.current(sleepTimer.isActive, sleepTimer.mode, sleepPressed))
+    when (next) {
+      SleepStep.MIN_15 -> startSleepTimer(SleepMode.MINUTES, SleepCycle.MIN_15_MS)
+      SleepStep.MIN_30 -> startSleepTimer(SleepMode.MINUTES, SleepCycle.MIN_30_MS)
+      SleepStep.CHAPTER -> startSleepTimer(SleepMode.CHAPTER, 0L)
+      SleepStep.OFF, SleepStep.OTHER -> cancelSleepTimer()
+    }
+    // Nothing to time a chapter of: the cycle ends there.
+    if (next == SleepStep.CHAPTER && !sleepTimer.isActive) cancelSleepTimer()
+    sleepPressed = next.takeIf { sleepTimer.isActive }
+  }
+
+  /** Shows the timer's state on the notification and lock screen button; only when it changed. */
+  private fun updateSleepButton() {
+    val step = SleepCycle.current(sleepTimer.isActive, sleepTimer.mode, sleepPressed)
+    if (step == sleepButtonStep) return
+    sleepButtonStep = step
+    val button = CommandButton.Builder(CommandButton.ICON_UNDEFINED)
+      .setCustomIconResId(if (step == SleepStep.OFF) R.drawable.lelap_sleep_timer_off else R.drawable.lelap_sleep_timer_on)
+      .setDisplayName(SleepCycle.label(step))
+      .setSessionCommand(SessionCommand(Commands.CYCLE_SLEEP_TIMER, Bundle.EMPTY))
+      .setSlots(CommandButton.SLOT_OVERFLOW)
+      .build()
+    session.setMediaButtonPreferences(listOf(button))
+  }
+
+  /** Saves what plays now for the widget and tile, and tells them; only when it changed. */
+  private fun publishNowPlaying(stopping: Boolean = false) {
+    val playlist = current
+    // A service the widget woke that never loaded a book leaves the last one on the widget.
+    if (playlist == null && lastNowPlaying == null) return
+    val metadata = player.mediaMetadata
+    val encoded = if (playlist == null || player.mediaItemCount == 0) {
+      NowPlaying.NOTHING
+    } else {
+      NowPlaying(
+        bookId = playlist.bookId,
+        title = playlist.title,
+        chapter = metadata.title?.toString()?.takeIf { it != playlist.title },
+        author = playlist.author,
+        coverUri = playlist.coverUri,
+        playing = !stopping && player.playWhenReady && player.playbackState != Player.STATE_ENDED,
+        skipMs = skipIntervalMs,
+      ).encode()
+    }
+    if (encoded == lastNowPlaying) return
+    lastNowPlaying = encoded
+    val editor = getSharedPreferences(Commands.NOW_PLAYING_PREFS, MODE_PRIVATE).edit()
+      .putString(Commands.NOW_PLAYING_KEY, encoded)
+    if (stopping) editor.commit() else editor.apply()
+    sendBroadcast(Intent(Commands.NOW_PLAYING_CHANGED).setPackage(packageName))
+  }
+
   private fun startSleepTimer(mode: SleepMode, durationMs: Long) {
     clearBoundary()
     if (mode == SleepMode.MINUTES) {
@@ -646,6 +710,7 @@ class PlaybackService : MediaLibraryService() {
     if (!::session.isInitialized) return
     ticksSincePublish = 0
     updateShakeListening()
+    updateSleepButton()
     session.setSessionExtras(
       Bundle().apply {
         putBoolean(Commands.EXTRA_DUCK, focus.duckOnInterruption)
@@ -670,13 +735,17 @@ class PlaybackService : MediaLibraryService() {
     ): MediaSession.ConnectionResult {
       // The service is exported for system UI, Bluetooth and Android Auto. Only Lelap itself may
       // load books, set the queue or change settings; other apps get the standard controls.
+      // The sleep timer button is for everyone: the lock screen, watches and cars show it too.
       if (controller.packageName != packageName) {
         return MediaSession.ConnectionResult.accept(
-          MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS,
+          MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
+            .add(SessionCommand(Commands.CYCLE_SLEEP_TIMER, Bundle.EMPTY))
+            .build(),
           MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS,
         )
       }
       val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
+        .add(SessionCommand(Commands.CYCLE_SLEEP_TIMER, Bundle.EMPTY))
         .add(SessionCommand(Commands.SET_SETTINGS, Bundle.EMPTY))
         .add(SessionCommand(Commands.START_SLEEP_TIMER, Bundle.EMPTY))
         .add(SessionCommand(Commands.CANCEL_SLEEP_TIMER, Bundle.EMPTY))
@@ -717,9 +786,11 @@ class PlaybackService : MediaLibraryService() {
         }
         Commands.START_SLEEP_TIMER -> {
           val mode = SleepMode.fromWire(args.getString(Commands.KEY_SLEEP_MODE)) ?: SleepMode.MINUTES
+          sleepPressed = null
           startSleepTimer(mode, args.getLong(Commands.KEY_DURATION_MS))
         }
         Commands.CANCEL_SLEEP_TIMER -> cancelSleepTimer()
+        Commands.CYCLE_SLEEP_TIMER -> cycleSleepTimer()
         // Another profile is listening now and has nothing to play: clear the lock screen and
         // notification. The place was journaled at the pause before this.
         Commands.UNLOAD -> {
@@ -743,6 +814,8 @@ class PlaybackService : MediaLibraryService() {
         else -> return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
       }
       publishExtras()
+      // The widget's skip buttons say the skip interval.
+      publishNowPlaying()
       return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
     }
 

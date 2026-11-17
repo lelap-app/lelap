@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="lelap_widget_name">Lelap player</string>
+  <string name="lelap_widget_description">The book that plays now, with play, back and forward</string>
+  <string name="lelap_tile_label">Lelap</string>
+</resources>

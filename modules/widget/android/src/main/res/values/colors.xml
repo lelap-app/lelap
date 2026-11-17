@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- The app's background (apps/app/app.json) and its text colours. -->
+  <color name="lelap_widget_background">#FF0D0E11</color>
+  <color name="lelap_widget_surface">#FF1C1E24</color>
+  <color name="lelap_widget_text">#FFF2F2F5</color>
+  <color name="lelap_widget_text_muted">#FFA0A3AD</color>
+</resources>
