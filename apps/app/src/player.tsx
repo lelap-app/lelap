@@ -47,6 +47,7 @@ export const IDLE: audio.PlayerState = {
   duckOnInterruption: true,
   waitingForCall: false,
   sleepTimerRemainingMs: null,
+  sleepTimerMode: null,
   error: null,
 };
 

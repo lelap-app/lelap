@@ -8,7 +8,11 @@ Kotlin Expo module for Android playback.
 - `AudioFocus`: our own focus handling. ExoPlayer's pauses on phone calls; ours ducks transient
   interruptions (calls, VoIP, navigation) when “duck on interruption” is on, and pauses otherwise.
 - `SleepTimer`: runs inside the service, freezes while you pause, and fades the player's own volume over the
-  last 60 seconds, then pauses.
+  last 60 seconds, then pauses. It counts minutes, or listening time to the end of the chapter or
+  episode (`SleepBoundary`), where an ExoPlayer message stops playback exactly. `ShakeDetector`
+  adds ten minutes on a shake in the timer's last five minutes.
+- `ExpiringLinks`: a 403 or 410 from an audio host opens the item's own URL again, once, from the
+  same byte, so an add-on's `/resolve/…` redirect hands out a fresh link.
 - `AudioModule`: the JavaScript bridge (`src/index.ts`), a `MediaController` on the main thread.
 
 Unit tests for the pure parts run on the JVM:

@@ -3,6 +3,10 @@ package app.lelap.audio
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.SharedPreferences
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import org.json.JSONArray
 import org.json.JSONObject
 import android.net.Uri
@@ -16,15 +20,20 @@ import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.PlayerMessage
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
+import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -37,6 +46,8 @@ import com.google.common.util.concurrent.ListenableFuture
 
 private const val TIMER_TICK_MS = 250L
 private const val CHAPTER_TICK_MS = 1_000L
+// A chapter or episode timer's end moves with seeks and speed; the app hears it this often.
+private const val BOUNDARY_PUBLISH_TICKS = 20
 
 @OptIn(UnstableApi::class)
 private const val PAUSE_SETTLE_MS = 500L
@@ -48,6 +59,24 @@ class PlaybackService : MediaLibraryService() {
   private lateinit var mixer: VolumeMixer
   private lateinit var sleepTimer: SleepTimer
   private lateinit var rules: PlaybackRules
+
+  // A chapter or episode timer: where on the book timeline it stops, and the message that stops
+  // playback there exactly.
+  private var sleepBoundaryMs: Long? = null
+  private var boundaryMessage: PlayerMessage? = null
+  private var ticksSincePublish = 0
+
+  private val sensors by lazy { getSystemService(SENSOR_SERVICE) as SensorManager }
+  private val shake = ShakeDetector(SystemClock::elapsedRealtime)
+  private var listeningForShake = false
+  private val shakeListener = object : SensorEventListener {
+    override fun onSensorChanged(event: SensorEvent) {
+      val (x, y, z) = event.values
+      if (sleepTimer.acceptsShake && shake.onSample(x, y, z)) extendSleepTimer()
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+  }
 
   private val handler = Handler(Looper.getMainLooper())
   private val prefs by lazy { getSharedPreferences(Commands.AUDIO_PREFS, MODE_PRIVATE) }
@@ -115,6 +144,8 @@ class PlaybackService : MediaLibraryService() {
   private val timerTicker = object : Runnable {
     override fun run() {
       sleepTimer.tick()
+      updateShakeListening()
+      if (sleepBoundaryMs != null && ++ticksSincePublish >= BOUNDARY_PUBLISH_TICKS) publishExtras()
       if (sleepTimer.isRunning) handler.postDelayed(this, TIMER_TICK_MS)
     }
   }
@@ -126,7 +157,10 @@ class PlaybackService : MediaLibraryService() {
       // archive.org redirects downloads to mirror hosts, sometimes across protocols.
       .setAllowCrossProtocolRedirects(true)
     player = ExoPlayer.Builder(this)
-      .setMediaSourceFactory(DefaultMediaSourceFactory(withBookHeaders(DefaultDataSource.Factory(this, http))))
+      .setMediaSourceFactory(
+        DefaultMediaSourceFactory(withBookHeaders(DefaultDataSource.Factory(this, http)))
+          .setLoadErrorHandlingPolicy(ExpiringLinkPolicy()),
+      )
       .setAudioAttributes(
         AudioAttributes.Builder()
           .setUsage(C.USAGE_MEDIA)
@@ -143,6 +177,7 @@ class PlaybackService : MediaLibraryService() {
       clock = SystemClock::elapsedRealtime,
       onVolume = { mixer.fade = it },
       onFinished = {
+        clearBoundary()
         rules.onSleepTimerFinished()
         publishExtras()
       },
@@ -200,7 +235,16 @@ class PlaybackService : MediaLibraryService() {
           placeChangedAt = System.currentTimeMillis()
           writeJournal(PositionJournal.Event.SEEK)
           updateChapterTitle()
+          // A seek into another chapter moves a chapter timer to that chapter's end.
+          if (sleepBoundaryMs != null) {
+            placeBoundary()
+            publishExtras()
+          }
         }
+      }
+
+      override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+        if (sleepBoundaryMs != null) publishExtras()
       }
     })
 
@@ -235,6 +279,8 @@ class PlaybackService : MediaLibraryService() {
     handler.removeCallbacks(timerTicker)
     handler.removeCallbacks(pauseSettled)
     sleepTimer.cancel()
+    clearBoundary()
+    stopShakeListening()
     prefs.unregisterOnSharedPreferenceChangeListener(carListener)
     focus.abandon()
     session.release()
@@ -248,6 +294,11 @@ class PlaybackService : MediaLibraryService() {
     val log = UpNext.decodeFinished(prefs.getString(Commands.PREF_FINISHED, null)) +
       Finished(ended.bookId, System.currentTimeMillis())
     prefs.edit().putString(Commands.PREF_FINISHED, UpNext.encodeFinished(log.takeLast(100))).apply()
+    // A timer for the end of the episode (or of the last chapter) stops here, before Up Next.
+    if (sleepBoundaryMs != null) {
+      sleepTimer.finish()
+      return
+    }
     val (next, rest) = UpNext.afterEnd(currentHandsOver, queue)
     if (next == null) return
     queue = rest
@@ -280,6 +331,8 @@ class PlaybackService : MediaLibraryService() {
     )
     player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
     player.prepare()
+    // A chapter timer carries over to the new book's chapter.
+    placeBoundary()
     if (autoplay) player.play()
     writeJournal(PositionJournal.Event.ITEM_CHANGE)
   }
@@ -337,6 +390,8 @@ class PlaybackService : MediaLibraryService() {
     placeChangedAt = load.pausedAt ?: 0L
     player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
     val start = SeekRules.resumePosition(load.startPositionMs.coerceAtLeast(0L), load.pausedAt, System.currentTimeMillis(), smartRewind)
+    // The session sets the items after this returns; a chapter timer then finds the new chapter.
+    handler.post { placeBoundary() }
     return MediaSession.MediaItemsWithStartPosition(
       mediaItems(playlist),
       load.startIndex.coerceIn(0, playlist.files.lastIndex),
@@ -449,7 +504,100 @@ class PlaybackService : MediaLibraryService() {
     if (!sleepTimer.isActive) return
     handler.removeCallbacks(timerTicker)
     sleepTimer.cancel()
+    clearBoundary()
     publishExtras()
+  }
+
+  private fun startSleepTimer(mode: SleepMode, durationMs: Long) {
+    clearBoundary()
+    if (mode == SleepMode.MINUTES) {
+      sleepTimer.start(durationMs)
+    } else {
+      if (current == null || player.mediaItemCount == 0) return
+      placeBoundary(mode)
+      sleepTimer.startAtBoundary(mode, ::untilBoundary)
+    }
+    // Set while paused, the timer waits for Play like one the user paused.
+    if (!player.playWhenReady) sleepTimer.freeze() else startTicker()
+  }
+
+  /**
+   * Book-timeline lengths of the files: the tags' (which the chapter marks are measured with)
+   * when every file has one, else what the player knows.
+   */
+  private fun timelineDurations(): List<Long> {
+    val tagged = current?.files?.map { it.durationMs }.orEmpty()
+    return if (tagged.size == player.mediaItemCount && tagged.all { it > 0 }) tagged else durations()
+  }
+
+  private fun bookPositionNow(durations: List<Long>): Long =
+    SleepBoundary.bookPosition(player.currentMediaItemIndex, player.currentPosition, durations)
+
+  private fun untilBoundary(): Long {
+    val boundary = sleepBoundaryMs ?: return 0L
+    return SleepBoundary.remainingMs(boundary, bookPositionNow(timelineDurations()), player.playbackParameters.speed)
+  }
+
+  /** Finds the end of the chapter (or episode) playing now and arranges to stop there. */
+  private fun placeBoundary(mode: SleepMode? = sleepTimer.mode) {
+    if (mode == null || mode == SleepMode.MINUTES) return
+    boundaryMessage?.cancel()
+    boundaryMessage = null
+    val durations = timelineDurations()
+    val chapters = current?.chapters.orEmpty().map { it.startMs }
+    val boundary = SleepBoundary.boundaryMs(mode, bookPositionNow(durations), chapters, durations)
+    sleepBoundaryMs = boundary
+    val target = SleepBoundary.fileTarget(boundary, durations)
+    // The book's own end is caught by onBookEnded, which also keeps Up Next from starting.
+    if (target.atFileEnd && target.index >= player.mediaItemCount - 1) return
+    boundaryMessage = player.createMessage { _, _ -> onBoundaryReached(target) }
+      .setLooper(Looper.getMainLooper())
+      .setPosition(target.index, if (target.atFileEnd) C.TIME_END_OF_SOURCE else target.positionMs)
+      .setDeleteAfterDelivery(true)
+      .send()
+  }
+
+  private fun onBoundaryReached(target: FileTarget) {
+    if (sleepBoundaryMs == null) return
+    sleepTimer.finish()
+    // The message arrives a moment late; park the place on the boundary itself, so the next
+    // Play starts the next chapter (after smart rewind's few seconds).
+    if (target.atFileEnd) player.seekTo(target.index + 1, 0L) else player.seekTo(target.index, target.positionMs)
+  }
+
+  private fun clearBoundary() {
+    boundaryMessage?.cancel()
+    boundaryMessage = null
+    sleepBoundaryMs = null
+    ticksSincePublish = 0
+  }
+
+  /** A shake near the end of the timer: ten more minutes, at full volume again. */
+  private fun extendSleepTimer() {
+    // Extend first: a chapter timer's time left is measured from its boundary.
+    sleepTimer.extend(SHAKE_EXTENSION_MS)
+    clearBoundary()
+    shake.reset()
+    publishExtras()
+  }
+
+  // The accelerometer is only on while a shake would count, so it costs nothing otherwise. It
+  // needs no permission; ExoPlayer's wake lock keeps it reporting with the screen off.
+  private fun updateShakeListening() {
+    if (sleepTimer.acceptsShake) startShakeListening() else stopShakeListening()
+  }
+
+  private fun startShakeListening() {
+    if (listeningForShake) return
+    val accelerometer = sensors.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) ?: return
+    shake.reset()
+    listeningForShake = sensors.registerListener(shakeListener, accelerometer, SensorManager.SENSOR_DELAY_GAME)
+  }
+
+  private fun stopShakeListening() {
+    if (!listeningForShake) return
+    sensors.unregisterListener(shakeListener)
+    listeningForShake = false
   }
 
   private fun startTicker() {
@@ -482,6 +630,8 @@ class PlaybackService : MediaLibraryService() {
 
     override fun resumeSleepTimer() {
       if (!sleepTimer.isActive || sleepTimer.isRunning) return
+      // Smart rewind may have moved the place back across the boundary.
+      placeBoundary()
       sleepTimer.resume()
       startTicker()
       publishExtras()
@@ -490,13 +640,20 @@ class PlaybackService : MediaLibraryService() {
 
   private fun publishExtras() {
     if (!::session.isInitialized) return
+    ticksSincePublish = 0
+    updateShakeListening()
     session.setSessionExtras(
       Bundle().apply {
         putBoolean(Commands.EXTRA_DUCK, focus.duckOnInterruption)
         putBoolean(Commands.EXTRA_WAITING_FOR_FOCUS, rules.isWaitingForFocus)
-        sleepTimer.endsAtMs?.let { putLong(Commands.EXTRA_SLEEP_TIMER_END, it) }
-        if (!sleepTimer.isRunning) {
-          sleepTimer.remainingMs?.let { putLong(Commands.EXTRA_SLEEP_TIMER_FROZEN, it) }
+        sleepTimer.mode?.let { putString(Commands.EXTRA_SLEEP_TIMER_MODE, it.wire) }
+        val remaining = sleepTimer.remainingMs?.coerceAtLeast(0L)
+        if (sleepTimer.isRunning) {
+          // A chapter timer's end is an estimate from the place and speed, renewed while it runs.
+          val end = sleepTimer.endsAtMs ?: remaining?.let { SystemClock.elapsedRealtime() + it }
+          end?.let { putLong(Commands.EXTRA_SLEEP_TIMER_END, it) }
+        } else {
+          remaining?.let { putLong(Commands.EXTRA_SLEEP_TIMER_FROZEN, it) }
         }
       },
     )
@@ -549,9 +706,8 @@ class PlaybackService : MediaLibraryService() {
             .apply()
         }
         Commands.START_SLEEP_TIMER -> {
-          sleepTimer.start(args.getLong(Commands.KEY_DURATION_MS))
-          // Set while paused, the timer waits for Play like one the user paused.
-          if (!player.playWhenReady) sleepTimer.freeze() else startTicker()
+          val mode = SleepMode.fromWire(args.getString(Commands.KEY_SLEEP_MODE)) ?: SleepMode.MINUTES
+          startSleepTimer(mode, args.getLong(Commands.KEY_DURATION_MS))
         }
         Commands.CANCEL_SLEEP_TIMER -> cancelSleepTimer()
         // Another profile is listening now and has nothing to play: clear the lock screen and
@@ -560,6 +716,7 @@ class PlaybackService : MediaLibraryService() {
           writeJournal(PositionJournal.Event.PAUSE)
           handler.removeCallbacks(pauseSettled)
           player.pause()
+          cancelSleepTimer()
           player.clearMediaItems()
           current = null
         }
@@ -662,6 +819,22 @@ class PlaybackService : MediaLibraryService() {
       val load = picked?.let { CarLibrary.resolve(it.mediaId, carSnapshot(), journalLoad()) }
         ?: return super.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
       return Futures.immediateFuture(carPlay(load))
+    }
+  }
+}
+
+/** Opens a link again, once, when its host says it expired; see [ExpiringLinks]. */
+@OptIn(UnstableApi::class)
+private class ExpiringLinkPolicy : DefaultLoadErrorHandlingPolicy() {
+  override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
+    val code = generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }
+      .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
+      .firstOrNull()?.responseCode
+    return when (code?.let { ExpiringLinks.decide(it, loadErrorInfo.errorCount) }) {
+      // The retry opens the item's own URL from the byte it reached, so the place is kept.
+      LinkRetry.REFRESH -> 0L
+      LinkRetry.GIVE_UP -> C.TIME_UNSET
+      else -> super.getRetryDelayMsFor(loadErrorInfo)
     }
   }
 }

@@ -5,11 +5,27 @@ import type {
   JournalEntry,
   PlayerSettings,
   PlayerState,
+  SleepTimerMode,
 } from '@lelap/audio';
+import {
+  fadeVolume,
+  shouldRefreshLink,
+  sleepBoundaryMs,
+  sleepFileTarget,
+  sleepRemainingMs as remainingToBoundary,
+} from '@lelap/core';
 
 import * as opfs from './opfs';
 
-export type { BookLoad, CarLibrary, FinishedItem, JournalEntry, PlayerSettings, PlayerState };
+export type {
+  BookLoad,
+  CarLibrary,
+  FinishedItem,
+  JournalEntry,
+  PlayerSettings,
+  PlayerState,
+  SleepTimerMode,
+};
 
 // The web player: one <audio> element playing the book's files in order, with the same API as
 // the Android module. Media Session gives the lock screen, keyboard and headset controls. The
@@ -20,7 +36,6 @@ type Subscription = { remove: () => void };
 const JOURNAL_KEY = 'lelap.journal';
 const JOURNAL_EVERY_MS = 10_000;
 const TICK_MS = 1_000;
-const FADE_MS = 60_000;
 
 let element: HTMLAudioElement | null = null;
 let book: BookLoad | null = null;
@@ -36,7 +51,16 @@ let settings: PlayerSettings = {
   skipIntervalMs: 30_000,
   smartRewind: true,
 };
+// A minutes timer counts wall time while playing; a chapter or episode timer stops at a place on
+// the book timeline (shake to extend is Android only: browsers ask before giving motion data).
+let sleepMode: SleepTimerMode | null = null;
 let sleepRemainingMs: number | null = null;
+let sleepBoundary: number | null = null;
+let boundaryStop: ReturnType<typeof setTimeout> | null = null;
+// One more request per expiry: set when the stream was asked again, cleared once it plays.
+let linkRefreshed = false;
+let lastPositionMs = 0;
+let lastPlaying = false;
 let lastTick = 0;
 let lastJournal = 0;
 // When playback or a seek last moved the place; loading does not count (see writeJournal).
@@ -57,6 +81,53 @@ const playing = () => !!element && !element.paused && !element.ended;
 
 function offsetOf(i: number): number {
   return (book?.files ?? []).slice(0, i).reduce((sum, f) => sum + f.durationMs, 0);
+}
+
+const durations = () => (book?.files ?? []).map((f) => f.durationMs);
+
+function untilBoundary(): number | null {
+  if (sleepBoundary === null) return null;
+  return remainingToBoundary(
+    sleepBoundary,
+    offsetOf(index) + positionMs(),
+    element?.playbackRate ?? 1,
+  );
+}
+
+/** Finds the end of the chapter (or episode) playing now; seeks call it again. */
+function placeBoundary(): void {
+  clearBoundaryStop();
+  if (!book || (sleepMode !== 'chapter' && sleepMode !== 'episode')) return;
+  sleepBoundary = sleepBoundaryMs(
+    sleepMode,
+    offsetOf(index) + positionMs(),
+    book.chapters.map((c) => c.startMs),
+    durations(),
+  );
+}
+
+function clearBoundaryStop(): void {
+  if (boundaryStop) clearTimeout(boundaryStop);
+  boundaryStop = null;
+}
+
+function clearSleepTimer(): void {
+  clearBoundaryStop();
+  sleepMode = null;
+  sleepRemainingMs = null;
+  sleepBoundary = null;
+  if (element) element.volume = 1;
+}
+
+/** Stops inside a file exactly at the boundary, and parks the place on it. */
+function stopAtBoundary(): void {
+  const audio = element;
+  if (!audio || sleepBoundary === null) return;
+  const target = sleepFileTarget(sleepBoundary, durations());
+  clearSleepTimer();
+  audio.pause();
+  if (target.index === index && !target.atFileEnd) audio.currentTime = target.positionMs / 1000;
+  emit();
 }
 
 function chapterTitle(): string | null {
@@ -86,7 +157,9 @@ function state(): PlayerState {
     speed: element?.playbackRate ?? 1,
     duckOnInterruption: settings.duckOnInterruption,
     waitingForCall: false,
-    sleepTimerRemainingMs: sleepRemainingMs,
+    sleepTimerRemainingMs:
+      sleepBoundary !== null ? Math.max(0, untilBoundary() ?? 0) : sleepRemainingMs,
+    sleepTimerMode: sleepMode,
     error,
   };
 }
@@ -122,13 +195,22 @@ function tick(): void {
   const now = Date.now();
   const elapsed = now - lastTick;
   lastTick = now;
-  if (playing() && sleepRemainingMs !== null) {
+  if (playing() && sleepMode === 'minutes' && sleepRemainingMs !== null) {
     sleepRemainingMs = Math.max(0, sleepRemainingMs - elapsed);
-    if (element) element.volume = Math.min(1, sleepRemainingMs / FADE_MS);
+    if (element) element.volume = fadeVolume(sleepRemainingMs);
     if (sleepRemainingMs === 0) {
-      sleepRemainingMs = null;
       element?.pause();
-      if (element) element.volume = 1;
+      clearSleepTimer();
+    }
+  }
+  const left = untilBoundary();
+  if (playing() && left !== null && sleepBoundary !== null) {
+    if (element) element.volume = fadeVolume(left);
+    const target = sleepFileTarget(sleepBoundary, durations());
+    // Inside a file the timer stops on a timeout set just before the boundary; a file's own end
+    // is caught by 'ended'.
+    if (!target.atFileEnd && target.index === index && left < TICK_MS * 1.5 && !boundaryStop) {
+      boundaryStop = setTimeout(stopAtBoundary, Math.max(0, left));
     }
   }
   if (playing() && now - lastJournal >= JOURNAL_EVERY_MS) {
@@ -159,7 +241,14 @@ function player(): HTMLAudioElement {
     startTicker();
     emit();
   });
+  audio.addEventListener('timeupdate', () => {
+    if (audio.readyState > 0 && !audio.error) {
+      lastPositionMs = positionMs();
+      lastPlaying = playing();
+    }
+  });
   audio.addEventListener('pause', () => {
+    clearBoundaryStop();
     pausedAt = Date.now();
     placeChangedAt = pausedAt;
     writeJournal();
@@ -172,6 +261,7 @@ function player(): HTMLAudioElement {
   });
   audio.addEventListener('playing', () => {
     buffering = false;
+    linkRefreshed = false;
     emit();
   });
   audio.addEventListener('seeked', () => {
@@ -179,22 +269,39 @@ function player(): HTMLAudioElement {
     else {
       placeChangedAt = Date.now();
       writeJournal();
+      // A seek into another chapter moves a chapter timer to that chapter's end.
+      placeBoundary();
     }
     emit();
   });
   audio.addEventListener('error', () => {
+    const file = book?.files[index];
+    // An expired link: ask the stream (its `/resolve/…` URL) again, once, at the same place.
+    if (file && audio.error && shouldRefreshLink(audio.error.code, file.uri, linkRefreshed)) {
+      linkRefreshed = true;
+      void setPart(index, lastPositionMs, lastPlaying);
+      return;
+    }
     error = audio.error ? `Media error ${audio.error.code}: ${audio.error.message}` : 'Cannot play';
     emit();
   });
   audio.addEventListener('ended', () => {
+    const target = sleepBoundary !== null ? sleepFileTarget(sleepBoundary, durations()) : null;
+    const sleepsHere = target !== null && target.atFileEnd && target.index === index;
     if (book && index < book.files.length - 1) {
-      void setPart(index + 1, 0, true);
+      if (sleepsHere) {
+        // The chapter ended with its file: stop, with the place at the start of the next one.
+        clearSleepTimer();
+        void setPart(index + 1, 0, false);
+      } else void setPart(index + 1, 0, true);
     } else {
       placeChangedAt = Date.now();
       writeJournal();
       // As on Android: log the end, and an episode hands over to Up Next.
       if (book) finished.push({ bookId: book.bookId, at: Date.now() });
-      const next = book?.handsOver ? queue.shift() : undefined;
+      // A timer for the end of the episode stops here, before Up Next.
+      const next = book?.handsOver && !sleepsHere ? queue.shift() : undefined;
+      if (sleepsHere) clearSleepTimer();
       if (next) {
         void load(next, true);
         return;
@@ -223,9 +330,12 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
   const file = book?.files[i];
   if (!file) return;
   const audio = player();
+  if (i !== index) linkRefreshed = false;
   index = i;
   ended = false;
   error = null;
+  lastPositionMs = startMs;
+  lastPlaying = autoplay;
   audio.src = await sourceFor(file.uri);
   audio.playbackRate = book?.speed ?? 1;
   await new Promise<void>((resolve) => {
@@ -251,13 +361,20 @@ export async function load(next: BookLoad, autoplay: boolean): Promise<void> {
   if (autoplay && settings.smartRewind && pausedAt !== null) {
     start = Math.max(0, start - rewindOnResume(Date.now() - pausedAt));
   }
+  // A chapter timer carries over to the new book's chapter.
+  sleepBoundary = null;
+  clearBoundaryStop();
   await setPart(next.startIndex, start, autoplay);
+  placeBoundary();
 }
 
 export async function seekTo(i: number, ms: number): Promise<void> {
   if (!book) return;
   if (i === index && element) element.currentTime = Math.max(0, ms) / 1000;
-  else await setPart(i, Math.max(0, ms), playing());
+  else {
+    await setPart(i, Math.max(0, ms), playing());
+    placeBoundary();
+  }
 }
 
 export async function takeJournal(): Promise<JournalEntry | null> {
@@ -319,13 +436,22 @@ export async function skip(forward: boolean): Promise<void> {
 }
 
 export async function startSleepTimer(minutes: number): Promise<void> {
+  clearSleepTimer();
+  sleepMode = 'minutes';
   sleepRemainingMs = minutes * 60_000;
   emit();
 }
 
+export async function startSleepTimerAtEnd(mode: 'chapter' | 'episode'): Promise<void> {
+  if (!book) return;
+  clearSleepTimer();
+  sleepMode = mode;
+  placeBoundary();
+  emit();
+}
+
 export async function cancelSleepTimer(): Promise<void> {
-  sleepRemainingMs = null;
-  if (element) element.volume = 1;
+  clearSleepTimer();
   emit();
 }
 
@@ -355,6 +481,7 @@ export async function unload(): Promise<void> {
   book = null;
   index = -1;
   ended = false;
+  clearSleepTimer();
   if ('mediaSession' in navigator) navigator.mediaSession.metadata = null;
   emit();
 }

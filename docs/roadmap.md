@@ -26,6 +26,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M18 Updates over the air   | In progress |
 | M19 Security and hardening | In progress |
 | M20 SDK on npm             | Done        |
+| M29 Sleep and links        | In progress |
 | M32 Audnexus               | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
@@ -282,6 +283,19 @@ environment, through npm trusted publishing. 0.2.0 was the first release. How to
 **Done when** `npm install @lelap/sdk` gets a published version with a provenance statement, and a
 copy of `services/template` outside the repository builds against it. Both checked on 2026-11-17:
 the attestation verifies, and a copy installs 0.2.0, type-checks, passes its tests and bundles.
+
+## M29 Sleep and links
+
+**Status:** in progress (from [`next.md`](next.md#proposed-milestones)). The sleep timer can stop
+at the end of the chapter playing (books; the file's end without chapters) or of the episode
+(podcasts), with the same 60-second fade, exactly on the boundary. It follows the chapter that is
+playing: playback never crosses the boundary, so it only moves when the listener seeks or skips
+into another chapter. On Android a shake in a timer's last five minutes adds ten minutes (the
+accelerometer is on only then; no permission). Expiring links: when an audio host answers 403 or
+410, playback and downloads ask the stream's own URL (an add-on's `/resolve/…` redirect) again,
+once, and continue at the same place. Phone checks in [`m29-follow-ups.md`](m29-follow-ups.md).
+
+**Done when** the phone checks pass.
 
 ## Environments
 

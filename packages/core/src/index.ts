@@ -24,3 +24,4 @@ export * from './remote';
 export * from './secrets';
 export * from './storedSecrets';
 export * from './car';
+export * from './sleep';
