@@ -20,6 +20,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M12 Look and feel          | In progress |
 | M13 Landing page 2         | In progress |
 | M14 Developer platform     | In progress |
+| M15 Find any book          | In progress |
 | M17 Car and offline web    | In progress |
 | M18 Updates over the air   | In progress |
 | M19 Security and hardening | In progress |
@@ -231,6 +232,16 @@ hard-coded seasonal catalogs, are in [`examples/`](../examples) and tested in CI
 **Done when** someone outside the project builds an add-on from the docs alone and adds it in the
 app. Not yet checked: the samples' Dockerfiles have not been built, and none of the samples has
 been added to the app on a phone.
+
+## M15 Find any book
+
+**Status:** in progress (from [`next.md`](next.md#m15-find-any-book)). The item page asks every
+add-on with a `stream` resource for the work, by its own ID or one of its `externalIds`, lists each
+source with its add-on, length and parts, and remembers the choice per book and profile. A work
+without audio gets a page of its own with description, tags and a link to its source. Device
+checks in [`m15-follow-ups.md`](m15-follow-ups.md).
+
+**Done when** the device checks pass.
 
 ## M17 Car and offline web
 
