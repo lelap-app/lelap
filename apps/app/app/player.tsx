@@ -20,6 +20,7 @@ import { ChaptersSheet } from '../src/components/ChaptersSheet';
 import { COLORS, Icon, IconButton, type IconName } from '../src/components/Icon';
 import { Scrubber } from '../src/components/Scrubber';
 import { Sheet } from '../src/components/Sheet';
+import { soundActive, SoundSheet, useSoundSettings } from '../src/components/SoundSheet';
 import { db, newId } from '../src/db';
 import { formatClock, formatLeft } from '../src/format';
 import * as audio from '../src/platform/audio';
@@ -89,9 +90,10 @@ export default function Player() {
   const { version, refresh } = useLibrary();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [sheet, setSheet] = useState<'chapters' | 'bookmarks' | 'speed' | 'sleep' | 'note' | null>(
-    null,
-  );
+  const [sheet, setSheet] = useState<
+    'chapters' | 'bookmarks' | 'speed' | 'sleep' | 'sound' | 'note' | null
+  >(null);
+  const sound = useSoundSettings();
   const [note, setNote] = useState('');
   const [lastBookmark, setLastBookmark] = useState<string | null>(null);
 
@@ -276,6 +278,12 @@ export default function Player() {
           onPress={() => setSheet('speed')}
         />
         <Tool
+          icon="sound"
+          label="Sound"
+          active={soundActive(sound.settings)}
+          onPress={() => setSheet('sound')}
+        />
+        <Tool
           icon="moon"
           label={timer === null ? 'Sleep' : `${timerPrefix}${formatClock(timer)}`}
           active={timer !== null}
@@ -359,6 +367,12 @@ export default function Player() {
           </Text>
         )}
       </Sheet>
+      <SoundSheet
+        visible={sheet === 'sound'}
+        settings={sound.settings}
+        onChange={sound.set}
+        onClose={() => setSheet(null)}
+      />
       <Sheet visible={sheet === 'note'} title="Bookmark saved" onClose={saveNote}>
         <TextInput
           value={note}

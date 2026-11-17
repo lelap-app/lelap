@@ -168,6 +168,9 @@ export function SpikeScreen() {
                 duckOnInterruption: enabled,
                 skipIntervalMs: 30_000,
                 smartRewind: true,
+                mono: false,
+                voiceEq: false,
+                volumeBoost: false,
               }),
             )
           }

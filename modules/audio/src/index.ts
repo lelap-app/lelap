@@ -29,6 +29,12 @@ export type PlayerSettings = {
   duckOnInterruption: boolean;
   skipIntervalMs: number;
   smartRewind: boolean;
+  /** Both channels mixed into one, for one earbud or one good ear. */
+  mono: boolean;
+  /** Rumble cut below 80 Hz and a gentle lift around 3 kHz, where consonants are. */
+  voiceEq: boolean;
+  /** +6 dB with a limiter, so loud parts never clip. */
+  volumeBoost: boolean;
 };
 
 /** The service's last saved place. Same shape as `JournalEntry` in `@lelap/core`. */
@@ -82,7 +88,14 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   seekBy(deltaMs: number): Promise<void>;
   skipToPart(index: number): Promise<void>;
   setSpeed(speed: number): Promise<void>;
-  setSettings(duck: boolean, skipIntervalMs: number, smartRewind: boolean): Promise<void>;
+  setSettings(
+    duck: boolean,
+    skipIntervalMs: number,
+    smartRewind: boolean,
+    mono: boolean,
+    voiceEq: boolean,
+    volumeBoost: boolean,
+  ): Promise<void>;
   skip(forward: boolean): Promise<void>;
   startSleepTimer(minutes: number): Promise<void>;
   startSleepTimerAtEnd(mode: 'chapter' | 'episode'): Promise<void>;
@@ -135,6 +148,9 @@ export function setSettings(settings: PlayerSettings): Promise<void> {
     settings.duckOnInterruption,
     settings.skipIntervalMs,
     settings.smartRewind,
+    settings.mono,
+    settings.voiceEq,
+    settings.volumeBoost,
   );
 }
 

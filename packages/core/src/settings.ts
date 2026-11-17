@@ -8,6 +8,11 @@ export const SettingsSchema = z.object({
   duckOnInterruption: z.boolean().default(true),
   skipIntervalMs: z.number().int().positive().default(30_000),
   smartRewind: z.boolean().default(true),
+  /** Sound (M22), for every book: mono and voice EQ suit the listener's ears and follow them. */
+  mono: z.boolean().default(false),
+  voiceEq: z.boolean().default(false),
+  /** Suits a quiet speaker or recording, so it stays with this device. */
+  volumeBoost: z.boolean().default(false),
   downloadOnWifiOnly: z.boolean().default(true),
   downloadWhileChargingOnly: z.boolean().default(false),
   /** Offer beta versions of the Android app. */

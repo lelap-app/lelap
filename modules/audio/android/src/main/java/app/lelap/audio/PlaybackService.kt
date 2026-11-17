@@ -79,6 +79,7 @@ class PlaybackService : MediaLibraryService() {
   }
 
   private val handler = Handler(Looper.getMainLooper())
+  private val sound = SoundChain()
   private val prefs by lazy { getSharedPreferences(Commands.AUDIO_PREFS, MODE_PRIVATE) }
   private val journalPrefs by lazy { getSharedPreferences(Commands.JOURNAL_PREFS, MODE_PRIVATE) }
 
@@ -156,7 +157,7 @@ class PlaybackService : MediaLibraryService() {
       .setUserAgent("Lelap")
       // archive.org redirects downloads to mirror hosts, sometimes across protocols.
       .setAllowCrossProtocolRedirects(true)
-    player = ExoPlayer.Builder(this)
+    player = ExoPlayer.Builder(this, SoundRenderersFactory(this, SoundProcessor(sound)))
       .setMediaSourceFactory(
         DefaultMediaSourceFactory(withBookHeaders(DefaultDataSource.Factory(this, http)))
           .setLoadErrorHandlingPolicy(ExpiringLinkPolicy()),
@@ -191,6 +192,9 @@ class PlaybackService : MediaLibraryService() {
     }
     skipIntervalMs = prefs.getLong(Commands.KEY_SKIP_INTERVAL_MS, 30_000L)
     smartRewind = prefs.getBoolean(Commands.KEY_SMART_REWIND, true)
+    sound.mono = prefs.getBoolean(Commands.KEY_MONO, false)
+    sound.voiceEq = prefs.getBoolean(Commands.KEY_VOICE_EQ, false)
+    sound.boost = prefs.getBoolean(Commands.KEY_VOLUME_BOOST, false)
     focus.duckOnInterruption = rules.duckOnInterruption
     queue = UpNext.decodeQueue(prefs.getString(Commands.PREF_QUEUE, null))
     player.addListener(object : Player.Listener {
@@ -699,10 +703,16 @@ class PlaybackService : MediaLibraryService() {
           focus.duckOnInterruption = duck
           skipIntervalMs = args.getLong(Commands.KEY_SKIP_INTERVAL_MS, 30_000L).coerceIn(5_000L, 300_000L)
           smartRewind = args.getBoolean(Commands.KEY_SMART_REWIND, true)
+          sound.mono = args.getBoolean(Commands.KEY_MONO, false)
+          sound.voiceEq = args.getBoolean(Commands.KEY_VOICE_EQ, false)
+          sound.boost = args.getBoolean(Commands.KEY_VOLUME_BOOST, false)
           prefs.edit()
             .putBoolean(Commands.EXTRA_DUCK, duck)
             .putLong(Commands.KEY_SKIP_INTERVAL_MS, skipIntervalMs)
             .putBoolean(Commands.KEY_SMART_REWIND, smartRewind)
+            .putBoolean(Commands.KEY_MONO, sound.mono)
+            .putBoolean(Commands.KEY_VOICE_EQ, sound.voiceEq)
+            .putBoolean(Commands.KEY_VOLUME_BOOST, sound.boost)
             .apply()
         }
         Commands.START_SLEEP_TIMER -> {

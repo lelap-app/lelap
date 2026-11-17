@@ -15,6 +15,7 @@ import { exportBackup, importBackup } from '../src/backup';
 import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
+import { SOUND_OPTIONS, SoundRow } from '../src/components/SoundSheet';
 import { db } from '../src/db';
 import { applyRules } from '../src/downloads';
 import * as audio from '../src/platform/audio';
@@ -322,6 +323,15 @@ export default function SettingsScreen() {
         <Row label="Smart rewind" detail="Go back a few seconds when you resume after a pause.">
           <Switch value={settings.smartRewind} onValueChange={(v) => update('smartRewind', v)} />
         </Row>
+        {SOUND_OPTIONS.map((o) => (
+          <SoundRow
+            key={o.key}
+            label={o.label}
+            detail={o.detail}
+            value={settings[o.key]}
+            onChange={(v) => update(o.key, v)}
+          />
+        ))}
         <View className="gap-3 border-b border-line py-4">
           <Text className="text-base text-paper">Skip interval</Text>
           <Text className="text-sm text-muted">
