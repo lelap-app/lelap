@@ -47,6 +47,7 @@ and architecture live in [`brief.md`](brief.md); plans for milestones not starte
 | [M36 Jellyfin](milestones/m36.md)               | Jellyfin as a source, next to Audiobookshelf                                                            |
 | [M37 Kids profile](milestones/m37.md)           | A profile with its own library and no add-on installation                                               |
 | [M38 Add-ons in the app](milestones/m38.md)     | Sandboxed JavaScript add-ons (QuickJS) with network only to declared hosts, for LAN sources             |
+| [M39 Precise seeking](milestones/m39.md)        | Bookmarks on the progress bar with snapping, fine scrubbing and jump-to-time for long books             |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
 v1.1.
