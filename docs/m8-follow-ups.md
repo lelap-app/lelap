@@ -22,7 +22,9 @@ In the `release` environment (tags only, required reviewer):
 Cloudflare: R2 bucket `lelap-downloads` public on `dl.lelap.app` (needs a payment method on the
 account), D1 `lelap-sync` (see [M7 follow-ups](m7-follow-ups.md)).
 
-GitHub: the `ghcr.io/lelap-app/*` packages appear on the first run; make them public.
+GitHub: the `ghcr.io/lelap-app/*` packages appear on the first run; make them public. Done for
+beta 3: the organisation first has to allow public packages (organisation Settings → Packages →
+Package creation → Public), then each package's visibility can change.
 
 ## 2. Checks
 
@@ -55,7 +57,8 @@ could not be tried on a phone, so it is not in this pass. The plan:
 
 ## 4. Known limits
 
-- The APK is one universal build; per-ABI splits would make it smaller.
+- The APK is built for `arm64-v8a` and `armeabi-v7a` only (`plugins/withArchitectures.js`): x86
+  emulators and Chromebooks use the web app. Per-ABI splits would make it smaller still.
 - Base images are pinned by digest; Dependabot's `docker` entry keeps them current.
 - The updater trusts `latest.json` over HTTPS plus the SHA-256 in it; Android itself refuses an
   APK signed with another key.
