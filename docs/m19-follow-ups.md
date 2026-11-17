@@ -1,6 +1,6 @@
 # M19 follow-ups
 
-What is left of [M19 Security and hardening](roadmap.md#m19-security-and-hardening). The findings
+What is left of [M19 Security and hardening](milestones/m19.md). The findings
 and the reasoning are in [`security-audit.md`](security-audit.md).
 
 ## 1. Checks on a phone

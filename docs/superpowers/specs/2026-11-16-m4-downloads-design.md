@@ -1,6 +1,6 @@
 # M4 Downloads: design
 
-Status: builder's design, written with the code. Milestone: [M4 in the roadmap](../../roadmap.md#m4-downloads).
+Status: builder's design, written with the code. Milestone: [M4 in the roadmap](../../milestones/m4.md).
 
 ## Intent
 

@@ -1,6 +1,6 @@
 # M9 follow-ups
 
-What is left of [M9 Profiles](roadmap.md#m9-profiles-v11).
+What is left of [M9 Profiles](milestones/m9.md).
 
 ## 1. What was built
 

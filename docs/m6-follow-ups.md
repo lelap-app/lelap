@@ -1,6 +1,6 @@
 # M6 follow-ups
 
-What is left of [M6 Web build](roadmap.md#m6-web-build) after PR #16.
+What is left of [M6 Web build](milestones/m6.md) after PR #16.
 
 ## 1. Setup before it is live
 

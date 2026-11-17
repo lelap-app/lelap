@@ -1,6 +1,6 @@
 # M2 follow-ups
 
-What is left of [M2 Local library](roadmap.md#m2-local-library) after PRs #8, #9 and #10, to pick up
+What is left of [M2 Local library](milestones/m2.md) after PRs #8, #9 and #10, to pick up
 later. M2 stays “In progress” until the device checks and the week in airplane mode pass.
 
 ## 1. Device checks

@@ -1,6 +1,6 @@
 # M5 follow-ups
 
-What is left of [M5 Podcasts](roadmap.md#m5-podcasts) after PR #15. Built and unit-tested
+What is left of [M5 Podcasts](milestones/m5.md) after PR #15. Built and unit-tested
 without a phone; nothing below has run yet.
 
 ## 1. Device checks

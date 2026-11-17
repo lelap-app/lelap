@@ -1,6 +1,6 @@
 # M18 follow-ups
 
-What is left of [M18 Updates over the air](roadmap.md#m18-updates-over-the-air): one-time setup
+What is left of [M18 Updates over the air](milestones/m18.md): one-time setup
 that needs the maintainer's accounts, and checks on a phone.
 
 ## How it works
