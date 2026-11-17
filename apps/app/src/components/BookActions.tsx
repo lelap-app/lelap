@@ -1,16 +1,20 @@
 import {
   addToPlaylist,
+  addToShelf,
   addToUpNext,
   createPlaylist,
   getTags,
   type LibraryBook,
   listPlaylists,
+  listProfiles,
   listTags,
   normalizeTag,
   removeFromPlaylist,
+  removeFromShelf,
   removeStreamedBook,
   setFinished,
   setTags,
+  shelfBookIds,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -23,7 +27,7 @@ import { profileId } from '../profile';
 import { COLORS, Icon, type IconName } from './Icon';
 import { Sheet } from './Sheet';
 
-type Mode = 'menu' | 'tags' | 'lists';
+type Mode = 'menu' | 'tags' | 'lists' | 'shelf';
 
 function Row({
   icon,
@@ -75,6 +79,19 @@ export function BookActions({
   }, [book]);
 
   const known = useMemo(() => (book ? listTags(db, profileId).map((t) => t.tag) : []), [book]);
+  // Grown-ups can put a book on a kids profile's shelf; kids can't change shelves.
+  const kids = useMemo(() => {
+    if (!book) return [];
+    const all = listProfiles(db);
+    if (all.find((p) => p.id === profileId)?.kids) return [];
+    return all.filter((p) => p.kids);
+  }, [book]);
+  const [shelved, setShelved] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setShelved(
+      new Set(kids.filter((k) => book && shelfBookIds(db, k.id).has(book.id)).map((k) => k.id)),
+    );
+  }, [book, kids]);
   const lists = useMemo(
     () => (book ? listPlaylists(db, profileId).filter((p) => p.rule === null) : []),
     [book],
@@ -98,7 +115,14 @@ export function BookActions({
     setDraft('');
   };
 
-  const title = mode === 'tags' ? 'Tags' : mode === 'lists' ? 'Add to a list' : book.title;
+  const title =
+    mode === 'tags'
+      ? 'Tags'
+      : mode === 'lists'
+        ? 'Add to a list'
+        : mode === 'shelf'
+          ? 'Kids’ shelves'
+          : book.title;
 
   return (
     <Sheet visible title={title} onClose={onClose}>
@@ -122,6 +146,9 @@ export function BookActions({
           />
           <Row icon="bookmark" label="Tags…" onPress={() => setMode('tags')} />
           <Row icon="chapters" label="Add to a list…" onPress={() => setMode('lists')} />
+          {kids.length > 0 && (
+            <Row icon="library" label="Put on a kid’s shelf…" onPress={() => setMode('shelf')} />
+          )}
           {listId !== undefined && (
             <Row
               icon="close"
@@ -236,6 +263,33 @@ export function BookActions({
             <Text className="text-amber">Done</Text>
           </Pressable>
         </View>
+      )}
+
+      {mode === 'shelf' && (
+        <ScrollView>
+          {kids.map((kid) => {
+            const on = shelved.has(kid.id);
+            return (
+              <Row
+                key={kid.id}
+                icon={on ? 'check' : 'plus'}
+                label={on ? `On ${kid.name}’s shelf` : `Put on ${kid.name}’s shelf`}
+                onPress={() => {
+                  if (on) removeFromShelf(db, kid.id, book.id, now());
+                  else addToShelf(db, kid.id, book.id, now());
+                  const next = new Set(shelved);
+                  if (on) next.delete(kid.id);
+                  else next.add(kid.id);
+                  setShelved(next);
+                  onChanged();
+                }}
+              />
+            );
+          })}
+          <Text className="px-2 pb-3 pt-1 text-xs text-muted">
+            A kids profile sees the books on its shelf, and streamed books it starts itself.
+          </Text>
+        </ScrollView>
       )}
 
       {mode === 'lists' && (

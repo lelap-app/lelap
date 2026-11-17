@@ -34,7 +34,7 @@ import { EmptyState, Lori } from '../../src/components/Lori';
 import { Sheet } from '../../src/components/Sheet';
 import { db, newId } from '../../src/db';
 import { playBook, useLibrary } from '../../src/player';
-import { profileId } from '../../src/profile';
+import { activeProfile, profileId } from '../../src/profile';
 import { LOCAL_FOLDERS } from '../../src/platform/library';
 import { chooseFolder, scanLibrary } from '../../src/scan';
 
@@ -183,7 +183,7 @@ export default function LibraryScreen() {
         contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}
         ListHeaderComponent={
           <View className="gap-4 pb-2">
-            {!root && LOCAL_FOLDERS && (
+            {!root && LOCAL_FOLDERS && !activeProfile()?.kids && (
               <Pressable
                 onPress={() => void pick()}
                 className="mx-4 rounded-lg border border-line p-3 active:bg-raised"

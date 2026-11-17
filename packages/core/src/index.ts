@@ -16,6 +16,7 @@ export * from './addons';
 export * from './downloads';
 export * from './podcasts';
 export * from './backup';
+export * from './kids';
 export * from './organise';
 export * from './stats';
 export * from './upNext';
