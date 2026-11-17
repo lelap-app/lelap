@@ -203,6 +203,8 @@ offline, the background engine, sync on one device, and UI features.
 
 ### Accounts and servers
 
+- [ ] [M10] Add a WebDAV server whose address takes the request but never answers (for example a port on the laptop with `nc -l 8099` behind `adb reverse`): “Could not connect” with “did not answer within 30 s” after about 30 s, not a spinner for a minute. A large real server connects after one folder listing; its books appear as the scan reads it. ([m10](m10-follow-ups.md))
+
 - [ ] [M10] Nextcloud: add the audiobooks folder with an app password; books appear. ([m10](m10-follow-ups.md#2-checks))
 - [ ] [M10] A WebDAV book plays, seeks, keeps its place, shows cover and chapters. ([m10](m10-follow-ups.md#2-checks))
 - [ ] [M10] A WebDAV book downloads and plays in airplane mode. ([m10](m10-follow-ups.md#2-checks))
