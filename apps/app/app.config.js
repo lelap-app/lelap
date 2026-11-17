@@ -20,7 +20,11 @@ module.exports = ({ config }) => {
   const signed = !fdroid && existsSync(path.resolve(__dirname, certificate));
   return {
     ...config,
-    plugins: [...(config.plugins ?? []), './plugins/withReproducibleBuild'],
+    plugins: [
+      ...(config.plugins ?? []),
+      './plugins/withReproducibleBuild',
+      './plugins/withArchitectures',
+    ],
     // A new native build gets a new runtime; JavaScript-only releases reach older APKs of it.
     runtimeVersion: { policy: 'fingerprint' },
     updates: {

@@ -5,20 +5,21 @@ change that makes it untrue.
 
 ## Decisions
 
-| Topic        | Decision                                                                    | Why                                                                                                                                                                                                                                |
-| ------------ | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Name         | **Lelap**, Indonesian for deep, peaceful sleep                              | Short, ownable, neutral to English speakers; matching domain, GitHub and F-Droid names.                                                                                                                                            |
-| Slogan       | “From first chapter to fast asleep.”                                        | Descriptor underneath: “The open player for audiobooks and podcasts.”                                                                                                                                                              |
-| Sleep timer  | Called “Sleep timer”, no brand name                                         | Plain words beat a coined name; it was “Lull” until M1.                                                                                                                                                                            |
-| Mascot       | **Lori**, a slow loris, asleep with headphones on                           | Nocturnal like the night theme and, like the name, from Indonesia. Drawn as a wild animal at night, never as a pet: lorises are endangered and hurt by the pet trade. Fen (fennec fox) and Ollie (sea otter) are profile pictures. |
-| GitHub       | Organisation `lelap-app`, repository `lelap`; images on `ghcr.io/lelap-app` | `lelap` was taken.                                                                                                                                                                                                                 |
-| Domain       | `lelap.app` only; developer docs at `lelap.app/docs`                        | Registered through Cloudflare Registrar, WHOIS redacted.                                                                                                                                                                           |
-| Web app      | `listen.lelap.app`                                                          | Avoids `app.lelap.app`.                                                                                                                                                                                                            |
-| Platforms    | Android app and web/PWA from one codebase; no iOS app                       | iPhone users get the web app.                                                                                                                                                                                                      |
-| Distribution | APK outside Google Play: R2 download, GitHub Releases, Obtainium            | No store review. In-app updater for APKs, OTA for JavaScript changes.                                                                                                                                                              |
-| Releases     | Signed in CI on `v*` tags, behind an environment approval                   | No manual signing.                                                                                                                                                                                                                 |
-| Accounts     | None. Optional sync with a pairing code, end-to-end encrypted               | The server only sees ciphertext, including add-on URLs.                                                                                                                                                                            |
-| Content      | Neutral core; content comes from add-ons                                    | See Policy.                                                                                                                                                                                                                        |
+| Topic        | Decision                                                                    | Why                                                                                                                                                                                                                                   |
+| ------------ | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name         | **Lelap**, Indonesian for deep, peaceful sleep                              | Short, ownable, neutral to English speakers; matching domain, GitHub and F-Droid names.                                                                                                                                               |
+| Slogan       | “From first chapter to fast asleep.”                                        | Descriptor underneath: “The open player for audiobooks and podcasts.”                                                                                                                                                                 |
+| Sleep timer  | Called “Sleep timer”, no brand name                                         | Plain words beat a coined name; it was “Lull” until M1.                                                                                                                                                                               |
+| Mascot       | **Lori**, a slow loris, asleep with headphones on                           | Nocturnal like the night theme and, like the name, from Indonesia. Drawn as a wild animal at night, never as a pet: lorises are endangered and hurt by the pet trade. Fen (fennec fox) and Ollie (sea otter) are profile pictures.    |
+| GitHub       | Organisation `lelap-app`, repository `lelap`; images on `ghcr.io/lelap-app` | `lelap` was taken.                                                                                                                                                                                                                    |
+| Domain       | `lelap.app` only; developer docs at `lelap.app/docs`                        | Registered through Cloudflare Registrar, WHOIS redacted.                                                                                                                                                                              |
+| Web app      | `listen.lelap.app`                                                          | Avoids `app.lelap.app`.                                                                                                                                                                                                               |
+| Platforms    | Android app and web/PWA from one codebase; no iOS app                       | iPhone users get the web app.                                                                                                                                                                                                         |
+| Distribution | APK outside Google Play: R2 download, GitHub Releases, Obtainium            | No store review. In-app updater for APKs, OTA for JavaScript changes.                                                                                                                                                                 |
+| Releases     | Signed in CI on `v*` tags, behind an environment approval                   | No manual signing.                                                                                                                                                                                                                    |
+| Accounts     | None. Optional sync with a pairing code, end-to-end encrypted               | The server only sees ciphertext, including add-on URLs.                                                                                                                                                                               |
+| Content      | Neutral core; content comes from add-ons                                    | See Policy.                                                                                                                                                                                                                           |
+| Own storage  | WebDAV, S3, Jellyfin and Audiobookshelf built into the app, not add-ons     | Logins stay sealed on the phone; home servers are only reachable from it; Media3 sends login headers that add-on streams can't carry, and audio never goes through our servers. Each type is a module in `packages/core/src/remote/`. |
 
 ## Principles
 
@@ -98,8 +99,9 @@ GET  /configure           (the add-on's own settings page)
 - **Configuration** lives on the add-on's `/configure` page; the app stores only the URL.
 - **Scrobble events** carry an `eventId`, the real timestamp and never the source URL.
 
-First-party add-ons: Catalog (Open Library, Audnexus, Podcast Index), LibriVox, WebDAV,
-Audiobookshelf. RSS and local files are built into the app.
+First-party add-ons: Catalog (Open Library, Audnexus, Podcast Index), LibriVox, and the Hardcover
+and gPodder scrobblers. RSS, local files and the user's own storage (WebDAV, S3, Jellyfin,
+Audiobookshelf) are built into the app; see Decisions.
 
 ## Infrastructure
 
@@ -157,8 +159,8 @@ M0 to M8, their status, “done when” criteria and the Cloudflare resources ea
   sleep timer with fade and shake to extend.
 - **Library:** local files, background downloads, airplane mode, tags, playlists, smart lists,
   Up Next, RSS with OPML, full export.
-- **Add-ons:** protocol v1 (catalog, meta, stream, search), SDK, Catalog, LibriVox and WebDAV
-  add-ons, Home rows, Discover, merged search.
+- **Add-ons:** protocol v1 (catalog, meta, stream, search), SDK, Catalog and LibriVox add-ons,
+  Home rows, Discover, merged search. WebDAV is built into the app.
 - **Platform:** PWA, encrypted sync, APK updater and OTA, Docker compose, Android Auto browsing,
   landing page with terms, privacy and copyright contact.
 
