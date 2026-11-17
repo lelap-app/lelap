@@ -18,4 +18,8 @@ The landing page for lelap.app. Astro, static output, no client-side framework.
   frameworks or other client scripts.
 - **Styling:** tokens and shared classes in `src/styles/global.css`, component styles in each
   `.astro` file. One dark theme; amber (`--accent`) is the only accent colour.
+- **Languages:** the home page exists in English (`/`) and Bahasa Melayu (`/ms/`), both rendered
+  by `src/components/Home.astro`. Text goes through `t(lang, 'English text')` from `src/i18n`, with
+  the Malay line in `src/i18n/ms.ts`; `test/i18n.test.ts` fails on a missing or unused line. Docs,
+  privacy, terms and the 404 page stay English only.
 - **Commands:** `pnpm --filter @lelap/site dev | build | check | test`. Deploy setup is in `README.md`.
