@@ -1,6 +1,6 @@
 # M29 follow-ups
 
-Checks for [M29 Sleep and links](roadmap.md#m29-sleep-and-links) that need a phone or a live
+Checks for [M29 Sleep and links](milestones/m29.md) that need a phone or a live
 add-on. The rules themselves have JVM tests (`SleepBoundaryTest`, `SleepTimerTest`,
 `ShakeDetectorTest`, `ExpiringLinksTest`, `DownloadRulesTest`) and Vitest tests
 (`packages/core/src/sleep.test.ts`).

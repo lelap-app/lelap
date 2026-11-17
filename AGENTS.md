@@ -10,8 +10,10 @@ syncs; add-ons (stateless HTTP services returning JSON, modelled on Stremio's ad
 bring catalogs, metadata and audio sources. Android first, the same code on the web, and a
 self-hostable backend. The full plan, decisions and v1.0 scope are in
 [`docs/brief.md`](docs/brief.md). Read it before making architectural choices. Milestones, their
-status and the infrastructure each needs are in [`docs/roadmap.md`](docs/roadmap.md); update the
-status there when you start or finish one.
+status and the infrastructure each needs are in [`docs/milestones/`](docs/milestones/), one file
+per milestone; [`docs/roadmap.md`](docs/roadmap.md) lists them all. When you start or finish one,
+update the status line in its own file and leave the roadmap table alone, so parallel pull
+requests don't conflict.
 
 ## Hard rules
 
@@ -46,7 +48,8 @@ examples/       add-on samples: plain Node, Python (stdlib), seasonal catalogs; 
 docker/         Node entries, Dockerfiles and compose for self-hosting      → docker/README.md
 scripts/        release helpers for the tag workflow (Node, type stripping)
 docs/brief.md   decisions, stack, infrastructure, v1.0 scope
-docs/roadmap.md milestones M0–M8, status, per-milestone resources, environments
+docs/roadmap.md every milestone M0–M38 at a glance, environments
+docs/milestones/ one file per milestone: status, resources, done when
 ```
 
 ## Commands

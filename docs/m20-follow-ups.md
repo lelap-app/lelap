@@ -1,6 +1,6 @@
 # M20 follow-ups
 
-How [M20 SDK on npm](roadmap.md#m20-sdk-on-npm) was set up, and the one step left. Releasing a new
+How [M20 SDK on npm](milestones/m20.md) was set up, and the one step left. Releasing a new
 version is in [`packages/sdk/README.md`](../packages/sdk/README.md#releasing).
 
 ## Set up (2026-11-17)

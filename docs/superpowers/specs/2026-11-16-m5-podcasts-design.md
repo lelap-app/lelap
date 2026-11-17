@@ -1,6 +1,6 @@
 # M5 Podcasts: design
 
-Status: builder's design, written with the code. Milestone: [M5 in the roadmap](../../roadmap.md#m5-podcasts).
+Status: builder's design, written with the code. Milestone: [M5 in the roadmap](../../milestones/m5.md).
 
 **Done when** the maintainer's own podcast subscriptions have moved over. They live as two
 folders of episodes on the phone, which M2 scans as books, so a folder must be able to become a
