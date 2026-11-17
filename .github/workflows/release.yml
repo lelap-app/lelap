@@ -138,6 +138,12 @@ jobs:
         run: |
           pnpm exec wrangler r2 object put "lelap-downloads/apk/lelap-$VERSION.apk" --remote \
             --file "../../out/lelap-$VERSION.apk" --content-type application/vnd.android.package-archive
+          # A fixed name for the landing page's download button; stable releases only.
+          if [ "$(cat ../../out/name)" = latest ]; then
+            pnpm exec wrangler r2 object put lelap-downloads/latest.apk --remote \
+              --file "../../out/lelap-$VERSION.apk" --content-type application/vnd.android.package-archive \
+              --content-disposition "attachment; filename=\"lelap-$VERSION.apk\"" --cache-control no-cache
+          fi
           # The release file goes last, so it never points at an APK that is not there yet.
           pnpm exec wrangler r2 object put "lelap-downloads/$(cat ../../out/name).json" --remote \
             --file ../../out/release.json --content-type application/json --cache-control no-cache

@@ -9,8 +9,12 @@ export const site = {
   domain,
   appHost: `listen.${domain}`,
   appUrl: `https://listen.${domain}`,
+  downloadsHost: `dl.${domain}`,
+  // The release workflow copies each stable APK to latest.apk next to latest.json.
   apkUrl: `https://dl.${domain}/latest.apk`,
+  releaseInfoUrl: `https://dl.${domain}/latest.json`,
   repoUrl,
+  releasesUrl: `${repoUrl}/releases`,
   briefUrl: `${repoUrl}/blob/main/docs/brief.md`,
   copyrightEmail: `copyright@${domain}`,
   privacyEmail: `privacy@${domain}`,

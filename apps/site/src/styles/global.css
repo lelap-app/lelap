@@ -364,3 +364,60 @@ code {
 .table td:first-child code {
   white-space: nowrap;
 }
+
+/* Motion: small and optional. Hover colour fades for everyone, movement only without
+   prefers-reduced-motion. Reveals need the `motion` class from Base.astro's script, so content
+   is fully visible without JavaScript. */
+a,
+.btn,
+.card,
+.chip {
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.2s ease;
+}
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  .btn,
+  .card-outline,
+  .card.get {
+    transition:
+      color 0.15s ease,
+      background-color 0.15s ease,
+      border-color 0.2s ease,
+      transform 0.25s ease;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+  }
+
+  .card-outline:hover,
+  .card.get:hover {
+    transform: translateY(-3px);
+  }
+
+  .motion [data-reveal] {
+    transition:
+      opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) calc(var(--i, 0) * 80ms),
+      transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) calc(var(--i, 0) * 80ms);
+  }
+
+  .motion [data-reveal]:not(.in) {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+  }
+}
+
+.card-outline:hover,
+.card.get:hover {
+  border-color: var(--line-strong);
+}
