@@ -1,0 +1,25 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'app.lelap.widget'
+version = '0.0.0'
+
+// Same as modules/audio: the widget and tile talk to its PlaybackService through a MediaController.
+def media3Version = '1.11.1'
+
+android {
+  namespace 'app.lelap.widget'
+  defaultConfig {
+    versionCode 1
+    versionName '0.0.0'
+  }
+}
+
+dependencies {
+  implementation "androidx.media3:media3-session:$media3Version"
+  testImplementation 'junit:junit:4.13.2'
+  // Android's org.json is a stub in JVM unit tests.
+  testImplementation 'org.json:json:20240303'
+}

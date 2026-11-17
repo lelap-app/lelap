@@ -45,6 +45,7 @@ modules/library Kotlin Expo module: folder access, tags and chapters for the loc
 modules/download Kotlin Expo module: WorkManager downloads with Wi-Fi and charging rules
 modules/cast    Kotlin Expo module: casting over UPnP, an own Cast v2 client and FCast; LAN file server
 modules/updater Kotlin Expo module: in-app APK updates through PackageInstaller
+modules/widget  Kotlin module: home screen widget and Quick Settings tile, no JavaScript API
 examples/       add-on samples: plain Node, Python (stdlib), seasonal catalogs; tested in CI
 docker/         Node entries, Dockerfiles and compose for self-hosting      → docker/README.md
 scripts/        release helpers for the tag workflow (Node, type stripping)

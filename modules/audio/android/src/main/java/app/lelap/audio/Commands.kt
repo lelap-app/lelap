@@ -8,6 +8,8 @@ object Commands {
   const val LOAD_BOOK = "app.lelap.audio.LOAD_BOOK"
   const val UNLOAD = "app.lelap.audio.UNLOAD"
   const val SET_QUEUE = "app.lelap.audio.SET_QUEUE"
+  /** The sleep timer button on the notification and lock screen; see [SleepCycle]. */
+  const val CYCLE_SLEEP_TIMER = "app.lelap.audio.CYCLE_SLEEP_TIMER"
   const val KEY_QUEUE_JSON = "queue"
   /** In [AUDIO_PREFS]: the queue, and the books that ended while the app may have been closed. */
   const val PREF_QUEUE = "upNextQueue"
@@ -38,6 +40,11 @@ object Commands {
   const val JOURNAL_KEY = "journal"
   /** Places of books the service replaced by itself (Up Next, Android Auto), oldest first. */
   const val EARLIER_KEY = "earlier"
+
+  /** SharedPreferences file and key of [NowPlaying], and the broadcast sent when it changes. */
+  const val NOW_PLAYING_PREFS = "lelap_now_playing"
+  const val NOW_PLAYING_KEY = "nowPlaying"
+  const val NOW_PLAYING_CHANGED = "app.lelap.audio.NOW_PLAYING_CHANGED"
 
   const val EXTRA_DUCK = "duckOnInterruption"
   const val EXTRA_WAITING_FOR_FOCUS = "waitingForFocus"
