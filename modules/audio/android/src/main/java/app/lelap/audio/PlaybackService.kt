@@ -1,21 +1,23 @@
 package app.lelap.audio
 
+import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import org.json.JSONArray
-import org.json.JSONObject
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import java.util.TimeZone
 import androidx.annotation.OptIn
+import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
@@ -43,9 +45,13 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
+import app.lelap.text.NativeText
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import java.util.TimeZone
+import org.json.JSONArray
+import org.json.JSONObject
 
 private const val TIMER_TICK_MS = 250L
 private const val CHAPTER_TICK_MS = 1_000L
@@ -54,6 +60,8 @@ private const val BOUNDARY_PUBLISH_TICKS = 20
 
 @OptIn(UnstableApi::class)
 private const val PAUSE_SETTLE_MS = 500L
+// Media3's DefaultMediaNotificationProvider posts the player notification on this channel.
+private const val MEDIA_CHANNEL_ID = "default_channel_id"
 
 class PlaybackService : MediaLibraryService() {
   private lateinit var player: ExoPlayer
@@ -118,6 +126,15 @@ class PlaybackService : MediaLibraryService() {
       for (shelf in CarLibrary.children(CarLibrary.ROOT, CarSnapshot(), null).orEmpty()) {
         session.notifyChildrenChanged(shelf.id, Int.MAX_VALUE, null)
       }
+    }
+  }
+  // The profile's language changed (modules/text): rename the buttons and the car's shelves.
+  private val languageReceiver = object : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+      if (!::session.isInitialized) return
+      sleepButtonStep = null
+      updateSleepButton()
+      session.notifyChildrenChanged(CarLibrary.ROOT, Int.MAX_VALUE, null)
     }
   }
   private var queue: List<BookLoad> = emptyList()
@@ -291,8 +308,16 @@ class PlaybackService : MediaLibraryService() {
         ),
       )
     }
+    // Media3 creates its notification channel only when there is none, so this one keeps our name.
+    NativeText.channel(this, MEDIA_CHANNEL_ID, "Now playing", NotificationManager.IMPORTANCE_LOW)
     session = builder.build()
     prefs.registerOnSharedPreferenceChangeListener(carListener)
+    ContextCompat.registerReceiver(
+      this,
+      languageReceiver,
+      IntentFilter(NativeText.CHANGED),
+      ContextCompat.RECEIVER_NOT_EXPORTED,
+    )
     publishExtras()
   }
 
@@ -315,6 +340,7 @@ class PlaybackService : MediaLibraryService() {
     clearBoundary()
     stopShakeListening()
     prefs.unregisterOnSharedPreferenceChangeListener(carListener)
+    unregisterReceiver(languageReceiver)
     focus.abandon()
     session.release()
     player.release()
@@ -629,17 +655,17 @@ class PlaybackService : MediaLibraryService() {
     val seconds = skipIntervalMs / 1_000L
     val back = CommandButton.Builder(SkipIcons.back(skipIntervalMs))
       .setPlayerCommand(Player.COMMAND_SEEK_BACK)
-      .setDisplayName("Back $seconds seconds")
+      .setDisplayName(NativeText.t(this, "Back {n} seconds", "n" to seconds))
       .setSlots(CommandButton.SLOT_BACK)
       .build()
     val forward = CommandButton.Builder(SkipIcons.forward(skipIntervalMs))
       .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
-      .setDisplayName("Forward $seconds seconds")
+      .setDisplayName(NativeText.t(this, "Forward {n} seconds", "n" to seconds))
       .setSlots(CommandButton.SLOT_FORWARD)
       .build()
     val sleep = CommandButton.Builder(CommandButton.ICON_UNDEFINED)
       .setCustomIconResId(if (step == SleepStep.OFF) R.drawable.lelap_sleep_timer_off else R.drawable.lelap_sleep_timer_on)
-      .setDisplayName(SleepCycle.label(step))
+      .setDisplayName(SleepCycle.label(step, NativeText.get(this)))
       .setSessionCommand(SessionCommand(Commands.CYCLE_SLEEP_TIMER, Bundle.EMPTY))
       .setSlots(CommandButton.SLOT_OVERFLOW)
       .build()
@@ -982,7 +1008,7 @@ class PlaybackService : MediaLibraryService() {
       pageSize: Int,
       params: LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-      val nodes = CarLibrary.children(parentId, carSnapshot(), journalLoad())
+      val nodes = CarLibrary.children(parentId, carSnapshot(), journalLoad(), NativeText.get(this@PlaybackService))
         ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
       val from = (page.toLong() * pageSize).coerceAtMost(nodes.size.toLong()).toInt()
       val to = (from.toLong() + pageSize).coerceAtMost(nodes.size.toLong()).toInt()
@@ -996,7 +1022,7 @@ class PlaybackService : MediaLibraryService() {
       browser: MediaSession.ControllerInfo,
       mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> {
-      val node = CarLibrary.item(mediaId, carSnapshot(), journalLoad())
+      val node = CarLibrary.item(mediaId, carSnapshot(), journalLoad(), NativeText.get(this@PlaybackService))
         ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
       return Futures.immediateFuture(LibraryResult.ofItem(carItem(node), null))
     }

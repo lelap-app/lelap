@@ -48,6 +48,7 @@ modules/cast    Kotlin Expo module: casting over UPnP, an own Cast v2 client and
 modules/updater Kotlin Expo module: in-app APK updates through PackageInstaller
 modules/widget  Kotlin module: home screen widget and Quick Settings tile, no JavaScript API
 modules/bluetooth Kotlin Expo module: connected Bluetooth audio devices, battery, car detection
+modules/text    Kotlin Expo module: translated lines for notifications, widget and tile, kept for when closed
 examples/       add-on samples: plain Node, Python (stdlib), seasonal catalogs; tested in CI
 docker/         Node entries, Dockerfiles and compose for self-hosting      → docker/README.md
 scripts/        release helpers for the tag workflow (Node, type stripping)

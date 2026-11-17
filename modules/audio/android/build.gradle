@@ -17,6 +17,8 @@ android {
 }
 
 dependencies {
+  // The profile's language for notifications (modules/text).
+  implementation project(':lelap-text')
   implementation "androidx.media3:media3-exoplayer:$media3Version"
   implementation "androidx.media3:media3-session:$media3Version"
   implementation "androidx.media3:media3-datasource:$media3Version"

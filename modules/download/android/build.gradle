@@ -17,6 +17,8 @@ android {
 }
 
 dependencies {
+  // The profile's language for notifications (modules/text).
+  implementation project(':lelap-text')
   implementation 'androidx.work:work-runtime-ktx:2.10.1'
   testImplementation 'junit:junit:4.13.2'
   // Android's org.json is a stub in JVM unit tests.

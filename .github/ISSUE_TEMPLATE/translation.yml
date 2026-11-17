@@ -1,0 +1,52 @@
+name: Translation
+description: Fix a line, review a language, or offer a new one. No development setup needed.
+labels: [translation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping Lelap speak your language. Two ways in, neither needs a development setup:
+
+        - **Edit in the browser:** open the language's file in [`apps/app/src/i18n/catalogs`](https://github.com/lelap-app/lelap/tree/main/apps/app/src/i18n/catalogs), press the pencil and propose the change. The steps are in the [translation guide](https://github.com/lelap-app/lelap/blob/main/apps/app/src/i18n/README.md).
+        - **This form:** list the lines below, or attach a whole catalog file, and a maintainer puts them in.
+  - type: input
+    id: language
+    attributes:
+      label: Language
+      placeholder: Bahasa Melayu (ms)
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is it?
+      options:
+        - Fix or improve some lines
+        - A review of a whole language
+        - A new language
+    validations:
+      required: true
+  - type: textarea
+    id: lines
+    attributes:
+      label: Lines
+      description: For each line, the English as it shows in the app, then your translation. For a new language, attach your copy of `template.json` here instead.
+      placeholder: |
+        English: Sleep timer
+        Now: Pemasa tidur
+        Better: …
+        Why: …
+    validations:
+      required: true
+  - type: textarea
+    id: where
+    attributes:
+      label: Where you saw it
+      description: The screen, the notification or the widget, if it helps to find the line.
+  - type: checkboxes
+    id: license
+    attributes:
+      label: License
+      options:
+        - label: My translation may be published under Lelap's license (AGPL-3.0), like the rest of the app.
+          required: true

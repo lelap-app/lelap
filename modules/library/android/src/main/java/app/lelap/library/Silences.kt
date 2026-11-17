@@ -1,6 +1,5 @@
 package app.lelap.library
 
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
@@ -15,6 +14,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import app.lelap.text.NativeText
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -152,17 +152,14 @@ class SilenceWorker(context: Context, params: WorkerParameters) : CoroutineWorke
 
   private fun foregroundInfo(bookId: String): ForegroundInfo {
     val context = applicationContext
-    val manager = context.getSystemService(NotificationManager::class.java)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && manager.getNotificationChannel(CHANNEL_ID) == null) {
-      manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, "Finding chapters", NotificationManager.IMPORTANCE_LOW))
-    }
+    NativeText.channel(context, CHANNEL_ID, "Finding chapters", NotificationManager.IMPORTANCE_LOW)
     val notification = NotificationCompat.Builder(context, CHANNEL_ID)
       .setSmallIcon(android.R.drawable.ic_menu_search)
-      .setContentTitle("Finding chapters")
-      .setContentText("Listening for long silences")
+      .setContentTitle(NativeText.t(context, "Finding chapters"))
+      .setContentText(NativeText.t(context, "Listening for long silences"))
       .setOngoing(true)
       .setSilent(true)
-      .addAction(0, "Stop", WorkManager.getInstance(context).createCancelPendingIntent(id))
+      .addAction(0, NativeText.t(context, "Stop"), WorkManager.getInstance(context).createCancelPendingIntent(id))
       .build()
     val notificationId = "silences:$bookId".hashCode()
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

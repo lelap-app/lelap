@@ -45,8 +45,14 @@ export const SettingsSchema = z.object({
   carModeOffer: z.boolean().default(false),
   /** “Because you finished …” rows on Home (M46), worked out on this device. */
   homeSuggestions: z.boolean().default(true),
-  /** The app's language for this profile; a new profile starts with its creator's. */
-  language: z.enum(['en', 'ms']).default('en'),
+  /**
+   * The app's language for this profile; a new profile starts with its creator's. Any language
+   * code, so a new catalog needs no change here; the app shows English for one it has no file for.
+   */
+  language: z
+    .string()
+    .regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/)
+    .default('en'),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

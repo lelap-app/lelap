@@ -1,7 +1,6 @@
 package app.lelap.download
 
 import android.Manifest
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -11,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import app.lelap.text.NativeText
 
 private const val CHANNEL_ID = "wanted"
 
@@ -25,11 +25,7 @@ object Alerts {
   fun post(context: Context, tag: String, title: String, text: String, link: String?): Boolean {
     if (!canNotify(context)) return false
     val manager = context.getSystemService(NotificationManager::class.java)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && manager.getNotificationChannel(CHANNEL_ID) == null) {
-      manager.createNotificationChannel(
-        NotificationChannel(CHANNEL_ID, "Wanted books", NotificationManager.IMPORTANCE_DEFAULT),
-      )
-    }
+    NativeText.channel(context, CHANNEL_ID, "Wanted books", NotificationManager.IMPORTANCE_DEFAULT)
     val intent = if (link != null) {
       Intent(Intent.ACTION_VIEW, Uri.parse(link)).setPackage(context.packageName)
     } else {

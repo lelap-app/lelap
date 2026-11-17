@@ -19,6 +19,8 @@ android {
 
 dependencies {
   implementation "androidx.media3:media3-session:$media3Version"
+  // The profile's language for the widget and tile (modules/text).
+  implementation project(':lelap-text')
   testImplementation 'junit:junit:4.13.2'
   // Android's org.json is a stub in JVM unit tests.
   testImplementation 'org.json:json:20240303'
