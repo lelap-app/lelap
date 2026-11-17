@@ -308,7 +308,7 @@ export default function SettingsScreen() {
         </Row>
         <Row
           label="Import from another app"
-          detail="Goodreads shelves and finished books, AntennaPod subscriptions and places."
+          detail="Goodreads shelves, AntennaPod subscriptions and Smart AudioBook Player places."
         >
           <Pressable onPress={() => setImporting(true)}>
             <Text className="text-amber">Choose</Text>

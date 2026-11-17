@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { showAlert } from '../dialog';
-import { importAntennaPod, importGoodreads } from '../importers';
+import { importAntennaPod, importGoodreads, importSmartAudiobook } from '../importers';
+import { LOCAL_FOLDERS } from '../platform/library';
 import { Sheet } from './Sheet';
 
 const SOURCES = [
@@ -17,6 +18,12 @@ const SOURCES = [
     label: 'AntennaPod',
     detail:
       'The database export (or OPML) from Settings → Import/Export. Subscriptions, played episodes and places.',
+  },
+  {
+    key: 'sabp',
+    label: 'Smart AudioBook Player',
+    detail:
+      'Reads the position files it keeps in each book folder of your audiobooks folder. Places and finished books.',
   },
 ] as const;
 
@@ -34,7 +41,12 @@ export function ImportSheet({
 
   const run = (key: (typeof SOURCES)[number]['key']) => {
     setBusy('Reading the file…');
-    const work = key === 'goodreads' ? importGoodreads() : importAntennaPod(setBusy);
+    const work =
+      key === 'goodreads'
+        ? importGoodreads()
+        : key === 'antennapod'
+          ? importAntennaPod(setBusy)
+          : importSmartAudiobook(setBusy);
     void work
       .then((imported) => {
         if (!imported) return;
@@ -53,7 +65,7 @@ export function ImportSheet({
         <Text className="pb-6 text-muted">{busy}</Text>
       ) : (
         <View className="pb-2">
-          {SOURCES.map((source) => (
+          {SOURCES.filter((s) => LOCAL_FOLDERS || s.key !== 'sabp').map((source) => (
             <Pressable
               key={source.key}
               onPress={() => run(source.key)}
