@@ -18,15 +18,22 @@ const {
 
 const MARKER = '// lelap: reproducible build';
 
+// Compiler flags that turn the repository and Gradle's cache into fixed prefixes. On macOS /tmp
+// and /var are links into /private, and compilers see either spelling, so both are mapped.
+const maps = (indent) => `def maps = [
+${indent}    (rootProject.projectDir.parentFile.parentFile.parentFile.canonicalPath): '/lelap',
+${indent}    (gradle.gradleUserHomeDir.canonicalPath): '/gradle',
+${indent}].collectMany { path, to ->
+${indent}    (path.startsWith('/private/') ? [path, path.substring(8)] : [path]).collect { "-ffile-prefix-map=\${it}=\${to}" }
+${indent}}`;
+
 // After each library module's own build.gradle, before Android's plugin reads it.
 const LIBRARY_PATHS = `
 // lelap: reproducible native libraries (plugins/withReproducibleBuild.js)
 def lelapMapPaths = { sub ->
     def android = sub.extensions.findByName('android')
     if (sub.plugins.hasPlugin('com.android.library') && android != null) {
-        def repo = rootProject.projectDir.parentFile.parentFile.parentFile.canonicalPath
-        def gradleHome = gradle.gradleUserHomeDir.canonicalPath
-        def maps = ["-ffile-prefix-map=\${repo}=/lelap", "-ffile-prefix-map=\${gradleHome}=/gradle"]
+        ${maps('        ')}
         android.defaultConfig.externalNativeBuild.cmake.cFlags(*maps)
         android.defaultConfig.externalNativeBuild.cmake.cppFlags(*maps)
     }
@@ -66,9 +73,7 @@ module.exports = function withReproducibleBuild(config) {
         (open) => `${open}
         externalNativeBuild {
             cmake {
-                def repo = rootProject.projectDir.parentFile.parentFile.parentFile.canonicalPath
-                def gradleHome = gradle.gradleUserHomeDir.canonicalPath
-                def maps = ["-ffile-prefix-map=\${repo}=/lelap", "-ffile-prefix-map=\${gradleHome}=/gradle"]
+                ${maps('                ')}
                 cFlags(*maps)
                 cppFlags(*maps)
             }
