@@ -106,6 +106,7 @@ describe('one APK per CPU type', () => {
     );
     // Android's ceiling for versionCode.
     expect(abiVersionCode(version('v209.99.99'), 'arm64-v8a')).toBeLessThanOrEqual(2_100_000_000);
+    expect(parseVersion('v210.0.0')).toBeNull();
   });
 
   it('keeps the plain file name for arm64', () => {

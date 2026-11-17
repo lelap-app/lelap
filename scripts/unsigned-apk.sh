@@ -55,6 +55,10 @@ native="$(sed -n 's/^native-code: //p' <<< "$badging")"
   exit 1
 }
 
+# The signing job only checks alignment (rewriting would break F-Droid's comparison); fail here
+# already, so CI on main notices a packaging change before a tag does.
+"$tools/zipalign" -c -P 16 4 "$built"
+
 mkdir -p "$out"
 cp "$built" "$out/$name"
 sha256="$( (cd "$out" && sha256sum -- "$name") | cut -d' ' -f1)"

@@ -12,7 +12,9 @@ export function parseVersion(tag: string): Version | null {
   if (!m) return null;
   const [major, minor, patch] = [m[1], m[2], m[3]].map(Number) as [number, number, number];
   const beta = m[4] === undefined ? null : Number(m[4]);
-  if (minor > 99 || patch > 99 || (beta !== null && (beta < 1 || beta > 98))) return null;
+  // Major 209 keeps abiVersionCode under Android's limit of 2,100,000,000.
+  if (major > 209 || minor > 99 || patch > 99 || (beta !== null && (beta < 1 || beta > 98)))
+    return null;
   return { major, minor, patch, beta };
 }
 

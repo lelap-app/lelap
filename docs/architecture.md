@@ -106,7 +106,8 @@ A release tag (`v1.2.3`, or `v1.2.3-beta.4` for a beta):
 2. **Build:** four unsigned APKs in parallel, direct and F-Droid (no self-updates,
    reproducible), each for `arm64-v8a` and `armeabi-v7a` with its own versionCode. No secrets,
    so this job may read the pnpm and Gradle caches that runs on `main` saved
-   (`.github/actions/unsigned-apk`); pull requests and tags never write them.
+   (`.github/actions/unsigned-apk`) and nothing else writes. A pull request's or a tag's own
+   caches are invisible to other runs.
 3. **Approval:** jobs in the `release` environment wait for a maintainer; it holds the signing
    keys and only tags can use it.
 4. **Sign:** the direct and the F-Droid APKs in parallel. Each APK's SHA-256 must match what the
@@ -122,7 +123,9 @@ A release tag (`v1.2.3`, or `v1.2.3-beta.4` for a beta):
 8. **Sync to production:** stable tags only.
 
 Jobs that hold secrets use no caches and install no packages for the APKs; only the build job,
-which holds none, reads caches ([M54](milestones/m54.md)).
+which holds none, reads caches ([M54](milestones/m54.md)). The SHA-256 check between build and
+signing only proves the file was not swapped on the way: what keeps a poisoned cache out is that
+only `main` writes the caches the build reads.
 
 `beta.json` and `latest.json` list one APK per CPU type under `apks`; the top-level `url`,
 `sha256`, `size` and `versionCode` are the arm64 APK's, which is all that apps from before M54

@@ -1,7 +1,7 @@
 name: Unsigned APK
 description: >-
   Builds one unsigned release APK with scripts/unsigned-apk.sh, reading the pnpm and Gradle
-  caches. It never writes them: only runs on main save caches, in their own steps (ci.yml).
+  caches that runs on main saved (the apk job in ci.yml). It never writes them.
   Used by the release workflow's build job and by CI on main, so both use the same cache keys.
 
 inputs:

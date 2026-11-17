@@ -89,7 +89,8 @@ jobs:
           name: unsigned-${{ matrix.distribution }}-${{ matrix.abi }}
           path: out/*.apk
           if-no-files-found: error
-          retention-days: 1
+          # As long as the signed ones: the approval may come days after the tag.
+          retention-days: 7
 
   # Signs the two direct APKs. Holds the keystore, so it uses no cache and installs no packages:
   # it only checks the SHA-256 the build job reported, checks alignment and signs.

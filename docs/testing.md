@@ -48,6 +48,7 @@ offline, the background engine, sync on one device, and UI features.
 - [x] [M3] A LibriVox book streams within a few seconds and shows as Streaming in the Library. ([m3](m3-follow-ups.md#1-device-checks)) **Passed 2026-11-17**.
 - [ ] [M2] A book from the `Audiobooks` folder plays; `dumpsys media_session` shows PLAYING with title and a moving position. ([README](../apps/app/README.md#m2-device-checklist))
 - [x] [M12] Icons render crisp in the tab bar, Player, mini player, Up Next and headers (screenshots). ([m12](m12-follow-ups.md)) **Passed 2026-11-17**.
+- [ ] [M54] The release APK holds one CPU type: `adb shell getprop ro.product.cpu.abilist` names it first, `adb shell dumpsys package app.lelap | grep -E 'primaryCpuAbi|versionCode'` shows it and its versionCode ends in 2 (arm64) or 1 (32-bit), and the app starts and plays. ([m54](m54-follow-ups.md#on-a-phone))
 
 ### A2. Playback core
 
@@ -310,6 +311,11 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M28] The first tagged release has the F-Droid APK, `SHA256SUMS` and attestations; it installs over the direct APK and back. ([m28](m28-follow-ups.md))
 - [ ] [M28] `scripts/verify-fdroid-apk.sh v<version>` on a Linux machine reproduces the F-Droid APK. ([m28](m28-follow-ups.md))
 - [ ] [M28] Screenshots for the F-Droid listing. ([m28](m28-follow-ups.md))
+- [ ] [M54] The first tag after M54: four unsigned builds, then the signing jobs pass the SHA-256 check; the GitHub release has four APKs, `SHA256SUMS` and `release.json`; `beta.json` lists both APKs; `beta.apk` and `beta-armv7.apk` download. ([m54](m54-follow-ups.md#with-a-tag))
+- [ ] [M54] A tag with a warm cache and no native changes signs its APKs within ten minutes of the tag (build job times in the run). ([m54](m54-follow-ups.md#with-a-tag))
+- [ ] [M54] A 64-bit phone on 0.1.0-beta.4 or older updates in the app to the arm64 APK of the first M54 release; the next release after that reaches it again. ([m54](m54-follow-ups.md#on-a-phone))
+- [ ] [M54] A 32-bit-only phone (Android Go) with an M54 build updates to the next `-armv7` APK, and is not offered the same version again. ([m54](m54-follow-ups.md#on-a-phone))
+- [ ] [M54] `scripts/verify-fdroid-apk.sh v<version>` on Linux reproduces both F-Droid APKs, arm64 and 32-bit. ([m54](m54-follow-ups.md#with-a-tag))
 - [ ] [M20] Validate npm trusted publishing with 0.2.1 before 2026-11-19 10:08 UTC, then lock publishing to 2FA. ([m20](m20-follow-ups.md#left-to-do))
 - [ ] [M7] Staging deploy of sync against real D1 (`sync-staging.lelap.app`). ([m7](m7-follow-ups.md#2-checks))
 - [ ] [M52] Set `SYNC_IDLE_EXPIRY_DAYS` = `730` in the `release` environment; after the staging deploy, groups have `last_push_at` and the cron trigger shows. ([m52](m52-follow-ups.md#1-setup-before-it-is-live))
