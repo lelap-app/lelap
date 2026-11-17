@@ -54,6 +54,7 @@ export const ms: Record<string, string> = {
   Bookmarks: 'Penanda',
   Books: 'Buku',
   'Books and episodes': 'Buku dan episod',
+  'Books appear as the scan reads the folders.': 'Buku muncul semasa imbasan membaca folder.',
   'Books appear as the scan reads the libraries.': 'Buku muncul semasa imbasan membaca pustaka.',
   'Books to finish this year': 'Buku untuk dihabiskan tahun ini',
   'Books you already play from it stay in your library.':
