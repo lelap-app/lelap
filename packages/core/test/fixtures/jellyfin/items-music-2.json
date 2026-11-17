@@ -1,0 +1,26 @@
+{
+  "Items": [
+    {
+      "Name": "Part 1",
+      "Id": "bbb0000000000000000000000000000b",
+      "Type": "Audio",
+      "Container": "mp3",
+      "Path": "/media/music/Dickens/Loose tracks/01 Part 1.mp3",
+      "ParentId": "ddd0000000000000000000000000000d",
+      "AlbumId": "eee0000000000000000000000000000e",
+      "IndexNumber": 1,
+      "RunTimeTicks": 12000000000,
+      "Artists": ["Charles Dickens"],
+      "AlbumArtist": "Charles Dickens",
+      "AlbumPrimaryImageTag": "1a2b3c",
+      "MediaSources": [{ "Size": 1000, "Container": "mp3" }],
+      "UserData": {
+        "PlaybackPositionTicks": 0,
+        "Played": true,
+        "LastPlayedDate": "2026-11-12T08:00:00.0000000Z"
+      }
+    }
+  ],
+  "TotalRecordCount": 2,
+  "StartIndex": 1
+}

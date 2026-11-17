@@ -265,7 +265,9 @@ export default function SettingsScreen() {
                     ? 'Password needed: it is not in backups.'
                     : s.remote?.type === 's3'
                       ? 'S3 bucket'
-                      : 'WebDAV'
+                      : s.remote?.type === 'jellyfin'
+                        ? 'Jellyfin'
+                        : 'WebDAV'
                 }
               >
                 {s.needsLogin && (

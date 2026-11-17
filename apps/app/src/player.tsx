@@ -32,6 +32,7 @@ import { applyBedtime } from './bedtime';
 import { db, newId } from './db';
 import * as audio from './platform/audio';
 import { profileId, setProfileId } from './profile';
+import { jellyfinFinished, trackJellyfin } from './jellyfin';
 import { fileAccess } from './remote';
 import { flushScrobbles, trackFinished, trackPlayerState } from './scrobble';
 
@@ -242,6 +243,7 @@ async function foldFinished(): Promise<boolean> {
   for (const item of done) {
     finishFromPlayer(db, playerProfile(), item.bookId, item.at);
     trackFinished(item.bookId, item.at, playerProfile());
+    jellyfinFinished(item.bookId, item.at, playerProfile());
   }
   return done.length > 0;
 }
@@ -333,6 +335,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     trackPlayerState(state, playerProfile());
+    trackJellyfin(state, playerProfile());
   }, [state]);
 
   useEffect(() => {

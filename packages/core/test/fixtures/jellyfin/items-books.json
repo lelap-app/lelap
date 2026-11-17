@@ -1,0 +1,37 @@
+{
+  "Items": [
+    {
+      "Name": "The Time Machine",
+      "Id": "aaa0000000000000000000000000000a",
+      "Type": "AudioBook",
+      "Container": "mov,mp4,m4a,3gp,3g2,mj2",
+      "Path": "/media/audiobooks/H. G. Wells/The Time Machine/The Time Machine.m4b",
+      "DateCreated": "2026-03-01T10:00:00.0000000Z",
+      "ParentId": "fff0000000000000000000000000000f",
+      "RunTimeTicks": 126000000000,
+      "Album": "The Time Machine",
+      "AlbumArtist": "H. G. Wells",
+      "Artists": ["H. G. Wells"],
+      "People": [
+        { "Name": "H. G. Wells", "Type": "Author" },
+        { "Name": "Mark Nelson", "Type": "Composer" }
+      ],
+      "Chapters": [
+        { "StartPositionTicks": 0, "Name": "Introduction" },
+        { "StartPositionTicks": 9000000000, "Name": "Chapter 1" },
+        { "StartPositionTicks": 45000000000, "Name": "" }
+      ],
+      "MediaSources": [{ "Size": 101000000, "Container": "mov,mp4,m4a,3gp,3g2,mj2" }],
+      "ImageTags": { "Primary": "9f8e7d6c5b4a" },
+      "UserData": {
+        "PlaybackPositionTicks": 600000000,
+        "PlayCount": 1,
+        "IsFavorite": false,
+        "Played": false,
+        "LastPlayedDate": "2026-11-10T20:00:00.0000000Z"
+      }
+    }
+  ],
+  "TotalRecordCount": 1,
+  "StartIndex": 0
+}

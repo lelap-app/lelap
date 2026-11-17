@@ -45,9 +45,22 @@ export const profiles = sqliteTable('profiles', {
   updatedAt: integer('updated_at').notNull(),
 });
 
-/** A WebDAV server or an S3 bucket used as a library folder. Kept on this device, never synced. */
+/**
+ * A WebDAV server, an S3 bucket or a Jellyfin server used as a library folder. Kept on this
+ * device, never synced. Jellyfin keeps an access token, not the password.
+ */
 export type RemoteSource =
   | { type: 'webdav'; url: string; username: string; password: string }
+  | {
+      type: 'jellyfin';
+      url: string;
+      username: string;
+      userId: string;
+      deviceId: string;
+      token: string;
+      libraryIds: string[];
+      profileId: string;
+    }
   | {
       type: 's3';
       endpoint: string;

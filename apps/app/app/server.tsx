@@ -1,9 +1,13 @@
 import {
   addRemoteRoot,
+  type JellyfinLibrary,
+  listJellyfinLibraries,
   listRoots,
   listS3,
   listWebdav,
+  RemoteError,
   type RemoteSource,
+  signInJellyfin,
   updateRemoteRoot,
 } from '@lelap/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -13,6 +17,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   TextInput,
   View,
@@ -23,9 +28,27 @@ import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { db, newId } from '../src/db';
 import { useLibrary } from '../src/player';
+import { profileId } from '../src/profile';
 import { scanLibrary } from '../src/scan';
 
-type Kind = 'webdav' | 's3';
+type Kind = 'webdav' | 's3' | 'jellyfin';
+
+const KIND_LABEL: Record<Kind, string> = {
+  webdav: 'WebDAV',
+  s3: 'S3-compatible',
+  jellyfin: 'Jellyfin',
+};
+
+/** Why a server could not be reached, with what a browser adds to it. */
+function reason(error: unknown, kind: Kind): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (Platform.OS === 'web' && error instanceof RemoteError && error.status === 0) {
+    return `${message}\n\nIn the browser the ${KIND_LABEL[kind]} server must allow this site (CORS headers), and an http:// server can't be reached from an https:// page. The Android app has neither limit.`;
+  }
+  return message;
+}
+
+type SignedIn = { userId: string; token: string; libraries: JellyfinLibrary[] };
 
 function Field({
   label,
@@ -64,7 +87,7 @@ function Field({
   );
 }
 
-/** Adds a WebDAV server or an S3-compatible bucket as a place where books live. */
+/** Adds a WebDAV server, an S3-compatible bucket or a Jellyfin server as a place where books live. */
 export default function ServerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -74,11 +97,29 @@ export default function ServerScreen() {
   const [existing] = useState(() => listRoots(db).find((r) => r.id === rootId)?.remote ?? null);
   const dav = existing?.type === 'webdav' ? existing : null;
   const s3 = existing?.type === 's3' ? existing : null;
+  const jf = existing?.type === 'jellyfin' ? existing : null;
   const [kind, setKind] = useState<Kind>(existing?.type ?? 'webdav');
   const [busy, setBusy] = useState(false);
-  const [url, setUrl] = useState(dav?.url ?? '');
-  const [username, setUsername] = useState(dav?.username ?? '');
-  const [password, setPassword] = useState('');
+  const [url, setUrlValue] = useState(dav?.url ?? jf?.url ?? '');
+  const [username, setUsernameValue] = useState(dav?.username ?? jf?.username ?? '');
+  const [password, setPasswordValue] = useState('');
+  // Jellyfin: signed in after "Test connection", then the libraries to take books from.
+  const [deviceId] = useState(() => jf?.deviceId ?? newId());
+  const [signedIn, setSignedIn] = useState<SignedIn | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set(jf?.libraryIds ?? []));
+  // A changed address or login needs a new test.
+  const setUrl = (v: string) => {
+    setUrlValue(v);
+    setSignedIn(null);
+  };
+  const setUsername = (v: string) => {
+    setUsernameValue(v);
+    setSignedIn(null);
+  };
+  const setPassword = (v: string) => {
+    setPasswordValue(v);
+    setSignedIn(null);
+  };
   const [endpoint, setEndpoint] = useState(s3?.endpoint ?? '');
   const [region, setRegion] = useState(s3?.region ?? 'auto');
   const [bucket, setBucket] = useState(s3?.bucket ?? '');
@@ -87,36 +128,75 @@ export default function ServerScreen() {
   const [secretAccessKey, setSecret] = useState('');
   const locked = existing !== null;
 
+  const testJellyfin = async () => {
+    setBusy(true);
+    try {
+      const login = { url: url.trim(), username: username.trim(), password, deviceId };
+      const { userId, token } = await signInJellyfin((u, i) => fetch(u, i), login);
+      const libraries = await listJellyfinLibraries((u, i) => fetch(u, i), {
+        ...login,
+        userId,
+        token,
+      });
+      setSignedIn({ userId, token, libraries });
+      // Book libraries are picked to begin with; music libraries only when the user says so.
+      if (!jf) setPicked(new Set(libraries.filter((l) => l.kind === 'books').map((l) => l.id)));
+    } catch (error) {
+      showAlert('Could not connect', reason(error, 'jellyfin'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const source = (): RemoteSource =>
     kind === 'webdav'
       ? { type: 'webdav', url: url.trim(), username: username.trim(), password }
-      : {
-          type: 's3',
-          endpoint: endpoint.trim(),
-          region: region.trim() || 'auto',
-          bucket: bucket.trim(),
-          prefix: prefix.trim().replace(/^\/+/, ''),
-          accessKeyId: accessKeyId.trim(),
-          secretAccessKey,
-        };
+      : kind === 'jellyfin'
+        ? {
+            type: 'jellyfin',
+            url: url.trim(),
+            username: username.trim(),
+            userId: signedIn?.userId ?? '',
+            deviceId,
+            token: signedIn?.token ?? '',
+            libraryIds: [...picked].filter((id) => signedIn?.libraries.some((l) => l.id === id)),
+            profileId: jf?.profileId ?? profileId,
+          }
+        : {
+            type: 's3',
+            endpoint: endpoint.trim(),
+            region: region.trim() || 'auto',
+            bucket: bucket.trim(),
+            prefix: prefix.trim().replace(/^\/+/, ''),
+            accessKeyId: accessKeyId.trim(),
+            secretAccessKey,
+          };
 
   const connect = async () => {
     setBusy(true);
     try {
       const remote = source();
       // Reading the listing once checks the address and the login before anything is saved.
+      // Jellyfin was checked by "Test connection".
       const files =
         remote.type === 'webdav'
           ? await listWebdav((u, i) => fetch(u, i), remote)
-          : await listS3((u, i) => fetch(u, i), remote, Date.now());
+          : remote.type === 's3'
+            ? await listS3((u, i) => fetch(u, i), remote, Date.now())
+            : null;
       if (existing && rootId) updateRemoteRoot(db, rootId, remote, Date.now());
       else addRemoteRoot(db, remote, Date.now(), newId);
       void scanLibrary().finally(refresh);
       refresh();
-      showAlert('Connected', `${files.length} files found. Books appear as the scan reads them.`);
+      showAlert(
+        'Connected',
+        files
+          ? `${files.length} files found. Books appear as the scan reads them.`
+          : 'Books appear as the scan reads the libraries.',
+      );
       router.back();
     } catch (error) {
-      showAlert('Could not connect', error instanceof Error ? error.message : String(error));
+      showAlert('Could not connect', reason(error, kind));
     } finally {
       setBusy(false);
     }
@@ -125,7 +205,12 @@ export default function ServerScreen() {
   const ready =
     kind === 'webdav'
       ? /^https?:\/\//.test(url.trim())
-      : /^https?:\/\//.test(endpoint.trim()) && bucket.trim() !== '' && accessKeyId.trim() !== '';
+      : kind === 'jellyfin'
+        ? /^https?:\/\//.test(url.trim()) && username.trim() !== ''
+        : /^https?:\/\//.test(endpoint.trim()) && bucket.trim() !== '' && accessKeyId.trim() !== '';
+  // Jellyfin connects in two steps: test the login, then pick libraries.
+  const testing = kind === 'jellyfin' && !signedIn;
+  const canConnect = ready && (kind !== 'jellyfin' || (signedIn !== null && picked.size > 0));
 
   return (
     <ScrollView
@@ -151,20 +236,75 @@ export default function ServerScreen() {
       </Text>
 
       <View className={`flex-row gap-2 ${locked ? 'hidden' : ''}`}>
-        {(['webdav', 's3'] as const).map((k) => (
+        {(['webdav', 's3', 'jellyfin'] as const).map((k) => (
           <Pressable
             key={k}
             onPress={() => setKind(k)}
             className={`rounded-full border px-4 py-2 ${kind === k ? 'border-amber bg-amber' : 'border-line'}`}
           >
-            <Text className={kind === k ? 'text-ink' : 'text-soft'}>
-              {k === 'webdav' ? 'WebDAV' : 'S3-compatible'}
-            </Text>
+            <Text className={kind === k ? 'text-ink' : 'text-soft'}>{KIND_LABEL[k]}</Text>
           </Pressable>
         ))}
       </View>
 
-      {kind === 'webdav' ? (
+      {kind === 'jellyfin' ? (
+        <>
+          <Field
+            label="Server address"
+            locked={locked}
+            value={url}
+            onChange={setUrl}
+            placeholder="https://jellyfin.example.org"
+            hint="The address you open Jellyfin at, with its path if it has one."
+          />
+          <Field label="Username" value={username} onChange={setUsername} />
+          <Field
+            label="Password"
+            value={password}
+            onChange={setPassword}
+            secret
+            hint="Used once to sign in. Lelap keeps the server's token, not the password, and plays the original files."
+          />
+          {signedIn && (
+            <View className="gap-2">
+              <Text className="text-sm text-soft">Libraries</Text>
+              {signedIn.libraries.length === 0 ? (
+                <Text className="text-muted">
+                  This account has no book or music libraries on the server.
+                </Text>
+              ) : (
+                signedIn.libraries.map((library) => (
+                  <View key={library.id} className="flex-row items-center justify-between py-1">
+                    <View className="flex-1">
+                      <Text className="text-paper">{library.name}</Text>
+                      <Text className="text-xs text-muted">
+                        {library.kind === 'books' ? 'Books' : 'Music'}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={picked.has(library.id)}
+                      onValueChange={(on) => {
+                        const next = new Set(picked);
+                        if (on) next.add(library.id);
+                        else next.delete(library.id);
+                        setPicked(next);
+                      }}
+                    />
+                  </View>
+                ))
+              )}
+              <Text className="text-xs text-muted">
+                Places sync both ways with this Jellyfin user, for the profile adding the server.
+              </Text>
+            </View>
+          )}
+          {Platform.OS === 'web' && (
+            <Text className="text-sm text-muted">
+              In the browser the Jellyfin server must allow this site (CORS headers).
+            </Text>
+          )}
+        </>
+      ) : kind === 'webdav' ? (
         <>
           <Field
             label="Folder address"
@@ -225,14 +365,18 @@ export default function ServerScreen() {
       )}
 
       <Pressable
-        disabled={!ready || busy}
-        onPress={() => void connect()}
-        className={`items-center rounded-full py-3 ${ready ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
+        disabled={(testing ? !ready : !canConnect) || busy}
+        onPress={() => void (testing ? testJellyfin() : connect())}
+        className={`items-center rounded-full py-3 ${(testing ? ready : canConnect) ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
       >
         {busy ? (
           <ActivityIndicator color="#1a1305" />
         ) : (
-          <Text className={`font-semibold ${ready ? 'text-ink' : 'text-muted'}`}>Connect</Text>
+          <Text
+            className={`font-semibold ${(testing ? ready : canConnect) ? 'text-ink' : 'text-muted'}`}
+          >
+            {testing ? 'Test connection' : 'Connect'}
+          </Text>
         )}
       </Pressable>
     </ScrollView>

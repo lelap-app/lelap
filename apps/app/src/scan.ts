@@ -1,5 +1,11 @@
 import {
+  applyRemotePlaces,
   applyScan,
+  DEFAULT_PROFILE_ID,
+  getProfile,
+  jellyfinScan,
+  listJellyfinItems,
+  setRemoteCovers,
   type FileTags,
   filesNeedingTags,
   type ListedFile,
@@ -50,6 +56,7 @@ type Root = ReturnType<typeof listRoots>[number];
 async function listRoot(root: Root): Promise<ListedFile[]> {
   if (!root.remote) return listTree(root.uri);
   if (root.remote.type === 'webdav') return listWebdav((u, i) => fetch(u, i), root.remote);
+  if (root.remote.type === 'jellyfin') throw new Error('Jellyfin is scanned by scanJellyfin.');
   return listS3((u, i) => fetch(u, i), root.remote, Date.now());
 }
 
@@ -68,6 +75,12 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
   let lostLocal = false;
 
   for (const root of roots) {
+    if (root.remote?.type === 'jellyfin') {
+      const result = await scanJellyfin(root, root.remote).catch(() => null);
+      added += result?.added ?? 0;
+      missing += result?.missing ?? 0;
+      continue;
+    }
     let listed: ListedFile[];
     try {
       listed = await listRoot(root);
@@ -114,6 +127,34 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
   }
   if (lostLocal) return { error: 'permission' };
   return { added, missing };
+}
+
+/**
+ * A Jellyfin server gives its tags, chapters and covers with the listing, so no file is read.
+ * The user's places there come along and win where they are newer.
+ */
+async function scanJellyfin(
+  root: Root,
+  remote: Extract<NonNullable<Root['remote']>, { type: 'jellyfin' }>,
+): Promise<{ added: number; missing: number }> {
+  if (root.needsLogin) throw new Error('The Jellyfin login is needed again.');
+  const items = await listJellyfinItems((u, i) => fetch(u, i), remote);
+  const scan = jellyfinScan(remote, items);
+  const now = Date.now();
+  const result = applyScan(db, {
+    rootId: root.id,
+    rootLocation: root.location,
+    listed: scan.listed,
+    tags: scan.tags,
+    folderCovers: new Map(),
+    now,
+    newId,
+  });
+  setRemoteCovers(db, root.id, scan.covers, now);
+  // The profile that added the server; the first one if it has since been deleted.
+  const profile = getProfile(db, remote.profileId) ? remote.profileId : DEFAULT_PROFILE_ID;
+  applyRemotePlaces(db, profile, scan.places, now);
+  return result;
 }
 
 /** Lets the user choose the library folder. Returns false when they cancel. */
