@@ -12,6 +12,9 @@ import {
   saveProgress,
   stripExtension,
   toFilePosition,
+  dayKey,
+  listenedBetween,
+  recordListening,
 } from '@lelap/core';
 import {
   createContext,
@@ -297,6 +300,45 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [refresh]);
 
+  // Listening time for the stats: what the position advanced since the last report, buffered and
+  // written with the saves below, or as soon as another book starts.
+  const lastTick = useRef<{
+    bookId: string;
+    title: string | null;
+    fileLocation: string | null;
+    positionMs: number;
+    at: number;
+  } | null>(null);
+  const listened = useRef(0);
+  const flushListening = useCallback((bookId: string | null, title: string | null) => {
+    if (!bookId || listened.current < 1_000) return;
+    recordListening(db, playerProfile(), {
+      day: dayKey(new Date()),
+      bookId,
+      title: title ?? '',
+      ms: listened.current,
+    });
+    listened.current = 0;
+  }, []);
+  useEffect(() => {
+    const now = Date.now();
+    const before = lastTick.current;
+    if (before && before.bookId !== state.bookId) flushListening(before.bookId, before.title);
+    if (state.playing && state.bookId && before?.bookId === state.bookId) {
+      listened.current += listenedBetween(before, { ...state, at: now });
+    }
+    lastTick.current =
+      state.playing && state.bookId
+        ? {
+            bookId: state.bookId,
+            title: state.bookTitle,
+            fileLocation: state.fileLocation,
+            positionMs: state.positionMs,
+            at: now,
+          }
+        : null;
+  }, [state, flushListening]);
+
   // The app's own saves, from what the player reports: every 10 s while playing and on pause.
   useEffect(() => {
     if (state.playing && state.bookId) playedThisSession.add(state.bookId);
@@ -305,8 +347,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const now = Date.now();
     if (!paused && !(state.playing && now - lastSave.current >= SAVE_INTERVAL_MS)) return;
     lastSave.current = now;
+    flushListening(state.bookId, state.bookTitle);
     if (savePlace(state) && paused) refresh();
-  }, [state, refresh]);
+  }, [state, refresh, flushListening]);
 
   // The service hands over to Up Next by itself, also with the app closed. Here the app folds in
   // what finished and sends the queue again whenever the book, its end or Up Next changes.

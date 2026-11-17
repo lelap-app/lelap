@@ -11,6 +11,7 @@ import m0006 from './0006_profiles.sql';
 import m0007 from './0007_remote_roots.sql';
 import m0008 from './0008_organise.sql';
 import m0009 from './0009_podcasting.sql';
+import m0010 from './0010_listening_log.sql';
 
 export default {
   journal,
@@ -25,5 +26,6 @@ export default {
     m0007,
     m0008,
     m0009,
+    m0010,
   },
 };

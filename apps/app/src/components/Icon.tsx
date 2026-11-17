@@ -133,6 +133,7 @@ const ICONS = {
     />
   ),
   plus: (c) => <Path d="M12 5v14M5 12h14" {...stroke(c)} />,
+  stats: (c) => <Path d="M5 20V11M12 20V5M19 20v-6M3 20h18" {...stroke(c)} />,
   more: (c) => (
     <>
       <Circle cx={5} cy={12} r={1.6} fill={c} />

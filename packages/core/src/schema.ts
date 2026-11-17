@@ -397,6 +397,25 @@ export const playlists = sqliteTable(
   (t) => [index('playlists_profile_idx').on(t.profileId)],
 );
 
+/**
+ * Time spent listening, per profile, day and book; it stays on this device and is never synced.
+ * `day` is the listener's local date (YYYY-MM-DD); `book_id` has no foreign key so the totals
+ * outlive a removed book.
+ */
+export const listeningLog = sqliteTable(
+  'listening_log',
+  {
+    profileId: text('profile_id')
+      .notNull()
+      .references(() => profiles.id),
+    day: text('day').notNull(),
+    bookId: text('book_id').notNull(),
+    title: text('title').notNull(),
+    ms: integer('ms').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.day, t.bookId] })],
+);
+
 /** This device's sync settings and progress: group, key, device ID, cursor. Never synced. */
 export const syncState = sqliteTable('sync_state', {
   key: text('key').primaryKey(),

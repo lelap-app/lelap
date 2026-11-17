@@ -15,6 +15,7 @@ describe('settings', () => {
       downloadWhileChargingOnly: false,
       betaUpdates: false,
       otaUpdates: true,
+      yearlyGoalBooks: 0,
     });
   });
 
