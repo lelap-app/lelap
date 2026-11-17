@@ -5,7 +5,7 @@ import {
   type LibrarySort,
   listBooks,
   removeStreamedBook,
-  schema,
+  localRoot,
   setFinished,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
@@ -37,7 +37,7 @@ export default function LibraryScreen() {
   const [lostFolder, setLostFolder] = useState(false);
 
   // `version` is the signal to re-read the database.
-  const root = useMemo(() => db.select().from(schema.libraryRoots).get(), [version]);
+  const root = useMemo(() => localRoot(db), [version]);
   const books = useMemo(() => listBooks(db, profileId, sort), [sort, version]);
   const next = useMemo(() => continueListening(db, profileId), [version]);
 

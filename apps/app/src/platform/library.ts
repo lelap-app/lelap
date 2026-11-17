@@ -5,6 +5,7 @@ export {
   listTree,
   pickFolder,
   readImage,
+  readRemoteTags,
   readTags,
 } from '@lelap/library';
 

@@ -18,3 +18,4 @@ export * from './podcasts';
 export * from './upNext';
 export * from './sync';
 export * from './release';
+export * from './remote';

@@ -1,9 +1,10 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
 import {
   bookFiles,
+  type RemoteSource,
   bookmarks,
   books,
   chapters,
@@ -75,7 +76,12 @@ export function upsertRoot(
   now: number,
   newId: IdGenerator,
 ): string {
-  const existing = db.select({ id: libraryRoots.id }).from(libraryRoots).get();
+  // The phone's own folder; servers are roots of their own (`addRemoteRoot`).
+  const existing = db
+    .select({ id: libraryRoots.id })
+    .from(libraryRoots)
+    .where(isNull(libraryRoots.remote))
+    .get();
   if (existing) {
     db.update(libraryRoots)
       .set({ ...folder, updatedAt: now })
@@ -362,4 +368,69 @@ function handOver(tx: Db, from: string, first: string, targets: string[], now: n
         .run();
     }
   }
+}
+
+/** The library folder on this phone, if one was chosen. */
+export function localRoot(db: Db) {
+  return db.select().from(libraryRoots).where(isNull(libraryRoots.remote)).get() ?? null;
+}
+
+/** Every library root: the phone's folder and each server. */
+export function listRoots(db: Db) {
+  return db.select().from(libraryRoots).all();
+}
+
+/** A server's display name: its host and folder, or bucket and prefix. */
+export function remoteName(remote: RemoteSource): string {
+  if (remote.type === 's3') return `${remote.bucket}${remote.prefix ? `/${remote.prefix}` : ''}`;
+  try {
+    const url = new URL(remote.url);
+    return `${url.host}${decodeURIComponent(url.pathname)}`.replace(/\/$/, '');
+  } catch {
+    return remote.url;
+  }
+}
+
+/** Adds a WebDAV server or an S3 bucket as a library root and returns its ID. */
+export function addRemoteRoot(
+  db: Db,
+  remote: RemoteSource,
+  now: number,
+  newId: IdGenerator,
+): string {
+  const id = newId();
+  const location =
+    remote.type === 's3' ? `s3:${remote.bucket}/${remote.prefix}` : `webdav:${remoteName(remote)}`;
+  db.insert(libraryRoots)
+    .values({
+      id,
+      uri: location,
+      name: remoteName(remote),
+      location,
+      remote,
+      addedAt: now,
+      updatedAt: now,
+    })
+    .run();
+  return id;
+}
+
+/**
+ * Removes a server and the books found on it, with their places. Played and downloaded books go
+ * too: they live on that server.
+ */
+export function removeRemoteRoot(db: Db, rootId: string): void {
+  db.transaction((tx) => {
+    const ids = tx
+      .select({ id: books.id })
+      .from(books)
+      .where(eq(books.rootId, rootId))
+      .all()
+      .map((b) => b.id);
+    for (const id of ids) tx.delete(books).where(eq(books.id, id)).run();
+    tx.delete(bookFiles).where(eq(bookFiles.rootId, rootId)).run();
+    tx.delete(libraryRoots)
+      .where(and(eq(libraryRoots.id, rootId)))
+      .run();
+  });
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `library_roots` ADD `remote` text;

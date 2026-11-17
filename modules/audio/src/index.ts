@@ -17,6 +17,8 @@ export type BookLoad = {
   pausedAt: number | null;
   /** At its end, play the next item in Up Next (podcast episodes); books stop at their end. */
   handsOver?: boolean;
+  /** Sent with every request for this book's files: the login of a WebDAV server. */
+  headers?: Record<string, string>;
 };
 
 /** A book or episode that played to its end, possibly with the app closed. */

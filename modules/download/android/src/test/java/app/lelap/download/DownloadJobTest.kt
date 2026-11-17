@@ -17,6 +17,8 @@ class DownloadJobTest {
 
   @Test fun `round-trips through JSON`() {
     assertEquals(job, DownloadJob.decode(job.encode()))
+    val withLogin = job.copy(headers = mapOf("Authorization" to "Basic bWU6cHc="))
+    assertEquals(withLogin, DownloadJob.decode(withLogin.encode()))
     assertEquals(job.copy(cover = null), DownloadJob.decode(job.copy(cover = null).encode()))
   }
 

@@ -26,6 +26,7 @@ import { AppState } from 'react-native';
 import { db } from './db';
 import * as audio from './platform/audio';
 import { profileId, setProfileId } from './profile';
+import { fileAccess } from './remote';
 
 export const IDLE: audio.PlayerState = {
   connected: false,
@@ -158,14 +159,16 @@ function bookLoad(bookId: string): audio.BookLoad | null {
   const detail = getBook(db, profileId, bookId);
   if (!detail || detail.files.length === 0) return null;
   const start = resumePoint(db, profileId, bookId);
+  const now = Date.now();
+  const access = detail.files.map((f) => fileAccess(f, now));
   return {
     bookId,
     title: detail.book.title,
     author: detail.book.author,
     coverUri: detail.book.coverPath ? `file://${detail.book.coverPath}` : detail.book.coverUrl,
-    files: detail.files.map((f) => ({
-      // A downloaded part plays from the phone; the rest stream.
-      uri: f.downloadPath ? `file://${f.downloadPath}` : f.uri,
+    files: detail.files.map((f, i) => ({
+      // A downloaded part plays from the phone; the rest stream (signed, if on a server).
+      uri: f.downloadPath ? `file://${f.downloadPath}` : (access[i]?.uri ?? f.uri),
       location: f.location,
       title: f.title ?? stripExtension(f.name),
       durationMs: f.durationMs,
@@ -176,6 +179,8 @@ function bookLoad(bookId: string): audio.BookLoad | null {
     speed: detail.speed,
     pausedAt: detail.book.lastPlayedAt,
     handsOver: detail.book.source === 'feed',
+    // A book's files all come from one place, so one login covers them.
+    headers: access[0]?.headers ?? {},
   };
 }
 

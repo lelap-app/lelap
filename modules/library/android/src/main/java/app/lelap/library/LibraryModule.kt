@@ -74,6 +74,21 @@ class LibraryModule : Module() {
       }
     }
 
+    AsyncFunction("readRemoteTags") Coroutine { url: String, headers: Map<String, String>, name: String, coverDir: String ->
+      withContext(Dispatchers.IO) {
+        val tags = TagReader(context).readRemote(url, headers, name, File(coverDir))
+        mapOf(
+          "durationMs" to tags.durationMs.toDouble(),
+          "title" to tags.title,
+          "album" to tags.album,
+          "artist" to tags.artist,
+          "albumArtist" to tags.albumArtist,
+          "coverPath" to tags.coverPath,
+          "chapters" to tags.chapters.map { mapOf("title" to it.title, "startMs" to it.startMs.toDouble()) },
+        )
+      }
+    }
+
     AsyncFunction("readImage") Coroutine { uri: String, coverDir: String ->
       withContext(Dispatchers.IO) { TagReader(context).readImage(Uri.parse(uri), File(coverDir)) }
     }

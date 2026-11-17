@@ -43,8 +43,23 @@ export const profiles = sqliteTable('profiles', {
   updatedAt: integer('updated_at').notNull(),
 });
 
+/** A WebDAV server or an S3 bucket used as a library folder. Kept on this device, never synced. */
+export type RemoteSource =
+  | { type: 'webdav'; url: string; username: string; password: string }
+  | {
+      type: 's3';
+      endpoint: string;
+      region: string;
+      bucket: string;
+      prefix: string;
+      accessKeyId: string;
+      secretAccessKey: string;
+    };
+
 export const libraryRoots = sqliteTable('library_roots', {
   id: text('id').primaryKey(),
+  /** Null for a folder on this phone. */
+  remote: text('remote', { mode: 'json' }).$type<RemoteSource>(),
   uri: text('uri').notNull(),
   name: text('name').notNull(),
   /** Volume path of the folder, such as `primary:Audiobooks`. */

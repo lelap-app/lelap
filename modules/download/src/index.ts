@@ -6,6 +6,8 @@ export type DownloadJob = {
   title: string;
   files: { url: string; name: string; size: number }[];
   cover: { url: string; name: string } | null;
+  /** Sent to the files' own host only: the login of a WebDAV server. */
+  headers?: Record<string, string>;
 };
 
 /** When downloads may run. */

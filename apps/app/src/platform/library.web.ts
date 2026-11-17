@@ -15,3 +15,26 @@ export const hasPermission = (): Promise<boolean> => Promise.resolve(false);
 export const listTree = (): Promise<ListedFile[]> => unsupported();
 export const readTags = (): Promise<FileTags> => unsupported();
 export const readImage = (): Promise<string | null> => Promise.resolve(null);
+
+/**
+ * In the browser only the duration, from the audio element: enough for the book's timeline. Tags
+ * and chapters of files on servers are read by the Android app.
+ */
+export function readRemoteTags(url: string): Promise<FileTags> {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    audio.onloadedmetadata = () =>
+      resolve({
+        durationMs: Number.isFinite(audio.duration) ? Math.round(audio.duration * 1000) : 0,
+        title: null,
+        album: null,
+        artist: null,
+        albumArtist: null,
+        coverPath: null,
+        chapters: [],
+      });
+    audio.onerror = () => reject(new Error('The browser could not read this file.'));
+    audio.src = url;
+  });
+}
