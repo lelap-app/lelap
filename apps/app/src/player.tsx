@@ -15,6 +15,8 @@ import {
   dayKey,
   listenedBetween,
   recordListening,
+  trimOfBook,
+  trimmedStart,
 } from '@lelap/core';
 import {
   createContext,
@@ -178,6 +180,7 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
   const detail = getBook(db, profileId, bookId);
   if (!detail || detail.files.length === 0) return null;
   const start = resumePoint(db, profileId, bookId);
+  const trim = detail.book.source === 'feed' ? trimOfBook(db, profileId, bookId) : null;
   const now = Date.now();
   const access = detail.files.map((f) => fileAccess(f, now));
   return {
@@ -194,12 +197,15 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
     })),
     chapters: detail.chapters,
     startIndex: start.index,
-    startPositionMs: start.positionMs,
+    // Past the intro here too, so a receiver that is cast to starts after it as well.
+    startPositionMs: trimmedStart(start.index, start.positionMs, 0, trim?.skipIntroMs ?? 0),
     speed: detail.speed,
     pausedAt: detail.book.lastPlayedAt,
     handsOver: detail.book.source === 'feed',
     // A book's files all come from one place, so one login covers them.
     headers: access[0]?.headers ?? {},
+    // The player skips them, also for episodes Up Next or the car starts with the app closed.
+    ...trim,
   };
 }
 

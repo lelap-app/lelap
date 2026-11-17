@@ -66,6 +66,8 @@ class PlaybackService : MediaLibraryService() {
   // playback there exactly.
   private var sleepBoundaryMs: Long? = null
   private var boundaryMessage: PlayerMessage? = null
+  // A podcast's outro (M45): the message that ends the episode where its outro starts.
+  private var outroMessage: PlayerMessage? = null
   private var ticksSincePublish = 0
 
   // The step the notification's sleep timer button last started, and the button's last state.
@@ -231,6 +233,9 @@ class PlaybackService : MediaLibraryService() {
         if (playbackState == Player.STATE_ENDED) onBookEnded()
       }
 
+      // New items, or their real durations once known: the outro is found from the last one.
+      override fun onTimelineChanged(timeline: Timeline, reason: Int) = placeOutro()
+
       override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         // Replacing an item's metadata reports a transition too; only real ones are journaled.
         if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
@@ -330,6 +335,12 @@ class PlaybackService : MediaLibraryService() {
     currentHandsOver = load.handsOver
     // The book that is already loaded keeps its live place, which is newer than any saved one.
     if (PositionJournal.isSameBook(current, player.mediaItemCount, load)) {
+      // A changed intro or outro for the show applies to the episode that is loaded.
+      val loaded = current
+      if (loaded != null && (loaded.introMs != playlist.introMs || loaded.outroMs != playlist.outroMs)) {
+        current = loaded.copy(introMs = playlist.introMs, outroMs = playlist.outroMs)
+        placeOutro()
+      }
       if (autoplay) player.play()
       return
     }
@@ -337,14 +348,18 @@ class PlaybackService : MediaLibraryService() {
     keepEarlierPlace(playlist.bookId)
     current = playlist
     val start = load.startPositionMs.coerceAtLeast(0L)
-    val position = if (autoplay) SeekRules.resumePosition(start, load.pausedAt, System.currentTimeMillis(), smartRewind) else start
+    val index = load.startIndex.coerceIn(0, playlist.files.lastIndex)
+    val position = SeekRules.startPosition(
+      index,
+      start,
+      if (autoplay) load.pausedAt else null,
+      System.currentTimeMillis(),
+      smartRewind,
+      playlist.introMs,
+    )
     pausedAt = if (autoplay) null else load.pausedAt
     placeChangedAt = load.pausedAt ?: 0L
-    player.setMediaItems(
-      mediaItems(playlist),
-      load.startIndex.coerceIn(0, playlist.files.lastIndex),
-      position,
-    )
+    player.setMediaItems(mediaItems(playlist), index, position)
     player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
     player.prepare()
     // A chapter timer carries over to the new book's chapter.
@@ -405,14 +420,18 @@ class PlaybackService : MediaLibraryService() {
     pausedAt = null
     placeChangedAt = load.pausedAt ?: 0L
     player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
-    val start = SeekRules.resumePosition(load.startPositionMs.coerceAtLeast(0L), load.pausedAt, System.currentTimeMillis(), smartRewind)
+    val index = load.startIndex.coerceIn(0, playlist.files.lastIndex)
+    val start = SeekRules.startPosition(
+      index,
+      load.startPositionMs.coerceAtLeast(0L),
+      load.pausedAt,
+      System.currentTimeMillis(),
+      smartRewind,
+      playlist.introMs,
+    )
     // The session sets the items after this returns; a chapter timer then finds the new chapter.
     handler.post { placeBoundary() }
-    return MediaSession.MediaItemsWithStartPosition(
-      mediaItems(playlist),
-      load.startIndex.coerceIn(0, playlist.files.lastIndex),
-      start,
-    )
+    return MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, start)
   }
 
   private fun mediaItems(playlist: BookPlaylist): List<MediaItem> = playlist.files.mapIndexed { index, file ->
@@ -440,8 +459,38 @@ class PlaybackService : MediaLibraryService() {
     pausedAt = null
     if (!smartRewind || player.mediaItemCount == 0) return
     val rewind = SeekRules.rewindOnResume(System.currentTimeMillis() - since)
-    // Never across a file start: the rewind stays inside the file that is playing.
-    if (rewind > 0) player.seekTo(player.currentMediaItemIndex, (player.currentPosition - rewind).coerceAtLeast(0L))
+    if (rewind <= 0) return
+    val index = player.currentMediaItemIndex
+    val position = player.currentPosition
+    // Never across a file start, and not back into a skipped intro once past it; a listener who
+    // went back into the intro on purpose stays there.
+    val intro = current?.introMs?.takeIf { position >= it } ?: 0L
+    player.seekTo(index, SeekRules.trimmedStart(index, position, rewind, intro))
+  }
+
+  /** Ends the episode where its outro starts, by a message at that place in the last file. */
+  private fun placeOutro() {
+    outroMessage?.cancel()
+    outroMessage = null
+    val playlist = current ?: return
+    val last = player.mediaItemCount - 1
+    if (last < 0 || playlist.outroMs <= 0) return
+    val at = SeekRules.outroStart(durations().getOrElse(last) { 0L }, playlist.outroMs, playlist.introMs, last == 0)
+      ?: return
+    // Kept after delivery: a listener who goes back before the outro has it skipped again. One
+    // who seeks past the place hears the outro, since playback never crosses it.
+    outroMessage = player.createMessage { _, _ -> skipOutro(last) }
+      .setLooper(Looper.getMainLooper())
+      .setPosition(last, at)
+      .setDeleteAfterDelivery(false)
+      .send()
+  }
+
+  /** At the end of the last file the player ends the book: logged as played, then Up Next. */
+  private fun skipOutro(last: Int) {
+    if (player.mediaItemCount - 1 != last || player.currentMediaItemIndex != last) return
+    val end = durations().getOrElse(last) { 0L }
+    if (end > 0) player.seekTo(last, end)
   }
 
   /** Durations the player knows, else those from the tags. */
@@ -885,7 +934,7 @@ class PlaybackService : MediaLibraryService() {
       current = playlist
       player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
       pausedAt = null
-      val start = SeekRules.resumePosition(entry.filePositionMs, entry.savedAt, System.currentTimeMillis(), smartRewind)
+      val start = SeekRules.startPosition(index, entry.filePositionMs, entry.savedAt, System.currentTimeMillis(), smartRewind, playlist.introMs)
       return Futures.immediateFuture(MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, start))
     }
 

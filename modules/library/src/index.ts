@@ -24,6 +24,19 @@ type LelapLibraryModule = {
     name: string,
     coverDir: string,
   ): Promise<FileTags>;
+  findSilences(jobJson: string): Promise<void>;
+  silenceStatuses(): Promise<SilenceStatus[]>;
+  removeSilences(bookId: string): Promise<void>;
+};
+
+/** Same shape as `SilenceScanStatus` in the app. `result` is JSON: silences per file. */
+export type SilenceStatus = {
+  bookId: string;
+  state: 'waiting' | 'running' | 'done' | 'failed';
+  filesDone: number;
+  filesTotal: number;
+  result: string | null;
+  error: string | null;
 };
 
 const native = requireNativeModule<LelapLibraryModule>('LelapLibrary');
@@ -63,4 +76,26 @@ export function readRemoteTags(
   coverDir: string,
 ): Promise<FileTags> {
   return native.readRemoteTags(url, headers, name, coverDir);
+}
+
+/**
+ * Starts a background scan of a book's files on this device for long silences (M45). Files are
+ * `content://` or `file://` URIs; it waits for enough battery and stops when it runs low.
+ */
+export function findSilences(job: {
+  bookId: string;
+  files: string[];
+  thresholdDb: number;
+  minSilenceMs: number;
+}): Promise<void> {
+  return native.findSilences(JSON.stringify(job));
+}
+
+export function silenceStatuses(): Promise<SilenceStatus[]> {
+  return native.silenceStatuses();
+}
+
+/** Stops a scan, or forgets a finished one. */
+export function removeSilences(bookId: string): Promise<void> {
+  return native.removeSilences(bookId);
 }

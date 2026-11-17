@@ -177,8 +177,15 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
       .where(and(eq(bookFiles.bookId, bookId), notInArray(bookFiles.location, locations)))
       .run();
 
-    tx.delete(chapters).where(eq(chapters.bookId, bookId)).run();
     const built = chaptersOf(meta, stream, parts);
+    // Chapters found from silences stay until the add-on brings chapters of its own.
+    tx.delete(chapters)
+      .where(
+        built.length > 0
+          ? eq(chapters.bookId, bookId)
+          : and(eq(chapters.bookId, bookId), eq(chapters.found, false)),
+      )
+      .run();
     if (built.length > 0) {
       tx.insert(chapters)
         .values(

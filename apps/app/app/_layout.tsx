@@ -19,6 +19,7 @@ import { ProfilePicker } from '../src/components/ProfilePicker';
 import { loadActiveProfile } from '../src/profile';
 import { DeviceRunner } from '../src/devices';
 import { DownloadSync } from '../src/downloads';
+import { SilenceSync } from '../src/silences';
 import { PlayerProvider, useLibrary } from '../src/player';
 import { HandoffBanner } from '../src/components/HandoffBanner';
 import { PlayerPane } from '../src/components/PlayerPane';
@@ -76,6 +77,7 @@ export default function RootLayout() {
       <PlayerProvider>
         <AddonSync />
         <DownloadSync />
+        <SilenceSync />
         <PodcastSync />
         <SyncRunner />
         <OtaRunner />

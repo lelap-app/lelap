@@ -19,6 +19,9 @@ export type BookLoad = {
   handsOver?: boolean;
   /** Sent with every request for this book's files: the login of a WebDAV server. */
   headers?: Record<string, string>;
+  /** A podcast's intro and outro to skip (M45): from the first file's start, the last's end. */
+  skipIntroMs?: number;
+  skipOutroMs?: number;
 };
 
 /** A book or episode that played to its end, possibly with the app closed. */

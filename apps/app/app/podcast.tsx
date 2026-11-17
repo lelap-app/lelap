@@ -3,6 +3,7 @@ import {
   castOf,
   type EpisodeItem,
   episodeBook,
+  episodeOfBook,
   type FeedPerson,
   groupBySeason,
   getSubscription,
@@ -10,6 +11,8 @@ import {
   schema,
   setAutoDownload,
   setFinished,
+  setTrim,
+  TRIM_STEPS_S,
   unsubscribe,
 } from '@lelap/core';
 import { useQuery } from '@tanstack/react-query';
@@ -20,6 +23,7 @@ import {
   ActivityIndicator,
   FlatList,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   Switch,
@@ -39,7 +43,8 @@ import { BookCover } from '../src/components/BookCover';
 import { db, newId } from '../src/db';
 import { startDownload } from '../src/downloads';
 import { formatDuration, formatLeft } from '../src/format';
-import { useLibrary } from '../src/player';
+import * as audio from '../src/platform/audio';
+import { reloadBook, useLibrary } from '../src/player';
 import { fetchFeed, playEpisode, runAutoDownload, subscribeToFeed } from '../src/podcasts';
 import { profileId } from '../src/profile';
 import { Pill } from '../src/components/Pill';
@@ -83,6 +88,52 @@ function People({ persons }: { persons: FeedPerson[] }) {
         </Pressable>
       ))}
     </ScrollView>
+  );
+}
+
+/** Seconds to skip at one end of every episode; set once for the show. */
+function TrimRow({
+  label,
+  hint,
+  valueMs,
+  onPick,
+}: {
+  label: string;
+  hint: string;
+  valueMs: number;
+  onPick: (ms: number) => void;
+}) {
+  return (
+    <View className="gap-2">
+      <View>
+        <Text className="text-paper">{label}</Text>
+        <Text className="text-sm text-muted">{hint}</Text>
+      </View>
+      <View
+        accessibilityRole="radiogroup"
+        accessibilityLabel={label}
+        className="flex-row flex-wrap gap-2"
+      >
+        {TRIM_STEPS_S.map((s) => {
+          const selected = valueMs === s * 1000;
+          return (
+            <Pill
+              key={s}
+              accessibilityRole="radio"
+              accessibilityLabel={s === 0 ? t('Off') : t('{n} seconds', { n: s })}
+              onPress={() => onPick(s * 1000)}
+              accessibilityState={{ checked: selected }}
+              aria-checked={selected}
+              className={`rounded-full border px-3 py-1 ${selected ? 'border-amber bg-amber' : 'border-line'}`}
+            >
+              <Text className={selected ? 'text-ink' : 'text-soft'}>
+                {s === 0 ? t('Off') : t('{n} s', { n: s })}
+              </Text>
+            </Pill>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -185,6 +236,19 @@ export default function PodcastScreen() {
     if (!podcastId) return;
     setAutoDownload(db, profileId, podcastId, { autoDownload, keepLatest }, Date.now());
     void run(runAutoDownload);
+  };
+
+  const changeTrim = (trim: { skipIntroMs: number; skipOutroMs: number }) => {
+    if (!podcastId) return;
+    setTrim(db, profileId, podcastId, trim, Date.now());
+    // Up Next is sent again on refresh. A loaded episode of this show takes the new values now
+    // on Android; the web player, which would restart the file, takes them while paused.
+    void audio.getState().then(({ bookId: loaded }) => {
+      if (loaded && episodeOfBook(db, loaded)?.podcastId === podcastId) {
+        void reloadBook(loaded, Platform.OS === 'android').catch(() => {});
+      }
+    });
+    refresh();
   };
 
   const [actionEpisode, setActionEpisode] = useState<EpisodeItem | null>(null);
@@ -314,6 +378,18 @@ export default function PodcastScreen() {
                         ))}
                       </View>
                     )}
+                    <TrimRow
+                      label={t('Skip intro')}
+                      hint={t('Every episode starts this far in.')}
+                      valueMs={sub.skipIntroMs}
+                      onPick={(ms) => changeTrim({ skipIntroMs: ms, skipOutroMs: sub.skipOutroMs })}
+                    />
+                    <TrimRow
+                      label={t('Skip outro')}
+                      hint={t('Every episode ends this long before its end.')}
+                      valueMs={sub.skipOutroMs}
+                      onPick={(ms) => changeTrim({ skipIntroMs: sub.skipIntroMs, skipOutroMs: ms })}
+                    />
                     <TextButton
                       text={t('Unsubscribe')}
                       onPress={() => {

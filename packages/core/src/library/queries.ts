@@ -125,6 +125,8 @@ export type BookDetail = {
   book: LibraryBook;
   files: ReturnType<typeof presentFiles>;
   chapters: StoredChapter[];
+  /** The chapters were found from silences on this device, and the listener may remove them. */
+  foundChapters: boolean;
   speed: number;
 };
 
@@ -136,17 +138,60 @@ export function getBook(db: Db, profileId: string, bookId: string): BookDetail |
     .from(libraryEntries)
     .where(and(eq(libraryEntries.profileId, profileId), eq(libraryEntries.bookId, bookId)))
     .get();
+  const list = db
+    .select({ title: chapters.title, startMs: chapters.startMs, found: chapters.found })
+    .from(chapters)
+    .where(eq(chapters.bookId, bookId))
+    .orderBy(asc(chapters.idx))
+    .all();
   return {
     book,
     files: presentFiles(db, bookId),
-    chapters: db
-      .select({ title: chapters.title, startMs: chapters.startMs })
-      .from(chapters)
-      .where(eq(chapters.bookId, bookId))
-      .orderBy(asc(chapters.idx))
-      .all(),
+    chapters: list.map(({ title, startMs }) => ({ title, startMs })),
+    foundChapters: list.length > 0 && list.every((c) => c.found),
     speed: entry?.speed ?? 1,
   };
+}
+
+/**
+ * Stores chapters found from silences, only while the book has no chapters at all: found ones
+ * never replace chapters from tags, a feed or an add-on. Returns whether they were stored.
+ */
+export function saveFoundChapters(
+  db: Db,
+  bookId: string,
+  list: StoredChapter[],
+  now: number,
+  newId: () => string,
+): boolean {
+  if (list.length === 0) return false;
+  return db.transaction((tx) => {
+    if (!tx.select({ id: books.id }).from(books).where(eq(books.id, bookId)).get()) return false;
+    if (tx.select({ id: chapters.id }).from(chapters).where(eq(chapters.bookId, bookId)).get()) {
+      return false;
+    }
+    tx.insert(chapters)
+      .values(
+        list.map((c, idx) => ({
+          id: newId(),
+          bookId,
+          idx,
+          title: c.title,
+          startMs: c.startMs,
+          found: true,
+          updatedAt: now,
+        })),
+      )
+      .run();
+    return true;
+  });
+}
+
+/** Removes the chapters found from silences; chapters from anywhere else stay. */
+export function removeFoundChapters(db: Db, bookId: string): void {
+  db.delete(chapters)
+    .where(and(eq(chapters.bookId, bookId), eq(chapters.found, true)))
+    .run();
 }
 
 function upsertEntry(

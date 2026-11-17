@@ -10,6 +10,7 @@ import {
   SPEED_STEPS,
   toBookPosition,
   parseTime,
+  removeFoundChapters,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -39,8 +40,9 @@ import { db, newId } from '../db';
 import { HeadphoneBanner } from '../devices';
 import { formatClock, formatLeft } from '../format';
 import * as audio from '../platform/audio';
-import { seekToBookPosition, useLibrary, usePlayerState } from '../player';
+import { reloadBook, seekToBookPosition, useLibrary, usePlayerState } from '../player';
 import { transcriptOf } from '../podcasting';
+import { canFindChapters, findChapters, stopFindingChapters, useSilenceScans } from '../silences';
 import { profileId } from '../profile';
 
 const SLEEP_MINUTES = [5, 15, 30, 45, 60];
@@ -179,6 +181,8 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
     () => (bookId ? listBookmarks(db, profileId, bookId) : []),
     [bookId, version],
   );
+  const scans = useSilenceScans();
+  const canFind = useMemo(() => canFindChapters(detail), [detail]);
   const hasTranscript = useMemo(
     () => (bookId ? transcriptOf(bookId) !== null : false),
     [bookId, version],
@@ -437,7 +441,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           active={timer !== null}
           onPress={() => setSheet('sleep')}
         />
-        {chapters.length > 0 && (
+        {(chapters.length > 0 || canFind) && (
           <Tool icon="chapters" label={t('Chapters')} onPress={() => setSheet('chapters')} />
         )}
         {hasTranscript && (
@@ -503,6 +507,18 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           setSheet(null);
         }}
         onClose={() => setSheet(null)}
+        silences={{
+          found: detail.foundChapters,
+          canFind,
+          scan: scans.get(bookId),
+          onFind: () => void findChapters(bookId),
+          onStop: () => void stopFindingChapters(bookId),
+          onRemove: () => {
+            removeFoundChapters(db, bookId);
+            refresh();
+            void reloadBook(bookId, false).catch(() => {});
+          },
+        }}
       />
       <BookmarksSheet
         visible={sheet === 'bookmarks'}

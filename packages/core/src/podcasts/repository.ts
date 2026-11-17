@@ -156,6 +156,45 @@ export function setAutoDownload(
     .run();
 }
 
+/**
+ * Seconds to skip at the start and the end of every episode of a show (M45), per profile. Like
+ * auto-download, it syncs with the subscription.
+ */
+export function setTrim(
+  db: Db,
+  profileId: string,
+  podcastId: string,
+  trim: { skipIntroMs: number; skipOutroMs: number },
+  now: number,
+): void {
+  db.update(subscriptions)
+    .set({
+      skipIntroMs: Math.max(0, Math.round(trim.skipIntroMs)),
+      skipOutroMs: Math.max(0, Math.round(trim.skipOutroMs)),
+      updatedAt: now,
+    })
+    .where(and(eq(subscriptions.profileId, profileId), eq(subscriptions.podcastId, podcastId)))
+    .run();
+}
+
+/** The intro and outro to skip for an episode's book, from its show's subscription. */
+export function trimOfBook(
+  db: Db,
+  profileId: string,
+  bookId: string,
+): { skipIntroMs: number; skipOutroMs: number } {
+  const row = db
+    .select({ skipIntroMs: subscriptions.skipIntroMs, skipOutroMs: subscriptions.skipOutroMs })
+    .from(episodes)
+    .innerJoin(
+      subscriptions,
+      and(eq(subscriptions.podcastId, episodes.podcastId), eq(subscriptions.profileId, profileId)),
+    )
+    .where(eq(episodes.bookId, bookId))
+    .get();
+  return row ?? { skipIntroMs: 0, skipOutroMs: 0 };
+}
+
 export type Subscription = {
   podcastId: string;
   feedUrl: string;
@@ -167,6 +206,8 @@ export type Subscription = {
   guid: string | null;
   autoDownload: boolean;
   keepLatest: number;
+  skipIntroMs: number;
+  skipOutroMs: number;
   subscribedAt: number;
   latestAt: number | null;
   unplayed: number;
@@ -186,6 +227,8 @@ export function listSubscriptions(db: Db, profileId: string, podcastId?: string)
       guid: podcasts.guid,
       autoDownload: subscriptions.autoDownload,
       keepLatest: subscriptions.keepLatest,
+      skipIntroMs: subscriptions.skipIntroMs,
+      skipOutroMs: subscriptions.skipOutroMs,
       subscribedAt: subscriptions.subscribedAt,
       latestAt: sql<number | null>`max(${episodes.publishedAt})`,
       // count() of a column skips nulls: every episode, less those this profile finished.
@@ -460,12 +503,14 @@ export function saveEpisodeChapters(
       .get();
     const file = files[0];
     if (!episode || !file || files.length !== 1 || file.chaptersJson.length > 0) return false;
+    // Chapters found from silences give way to the feed's.
     const existing = tx
       .select({ id: chapters.id })
       .from(chapters)
-      .where(eq(chapters.bookId, bookId))
+      .where(and(eq(chapters.bookId, bookId), eq(chapters.found, false)))
       .get();
     if (existing) return false;
+    tx.delete(chapters).where(eq(chapters.bookId, bookId)).run();
     tx.update(bookFiles)
       .set({ chaptersJson: list, updatedAt: now })
       .where(eq(bookFiles.id, file.id))

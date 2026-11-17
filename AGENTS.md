@@ -41,7 +41,8 @@ services/       Hono services on Cloudflare Workers: catalog (Catalog + LibriVox
                 and covers for the web app), sync (encrypted oplog, D1), updates (signed
                 over-the-air bundles from R2), template
 modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer
-modules/library Kotlin Expo module: folder access, tags and chapters for the local library
+modules/library Kotlin Expo module: folder access, tags and chapters for the local library; chapters
+                from silences
 modules/download Kotlin Expo module: WorkManager downloads with Wi-Fi and charging rules
 modules/cast    Kotlin Expo module: casting over UPnP, an own Cast v2 client and FCast; LAN file server
 modules/updater Kotlin Expo module: in-app APK updates through PackageInstaller

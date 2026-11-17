@@ -729,4 +729,24 @@ export const ms: Record<string, string> = {
   'Show these shortcuts': 'Tunjukkan pintasan ini',
   Slower: 'Lebih perlahan',
   Space: 'Space',
+  // M45 Trim silence
+  'Waiting for enough battery.': 'Menunggu bateri yang mencukupi.',
+  'Listening for silences: file {n} of {total}.': 'Mendengar senyap: fail {n} daripada {total}.',
+  'Listening for silences.': 'Mendengar senyap.',
+  'No long silences were found, so the book stays without chapters.':
+    'Tiada senyap panjang ditemui, jadi buku ini kekal tanpa bab.',
+  'The scan stopped: {error}': 'Imbasan berhenti: {error}',
+  'The scan was stopped.': 'Imbasan telah dihentikan.',
+  'This book has no chapters. Lelap can listen for long silences in its files and start a chapter at each. It runs on this phone in the background and stops when the battery is low.':
+    'Buku ini tiada bab. Lelap boleh mendengar senyap panjang dalam failnya dan memulakan bab pada setiap satu. Ia berjalan di latar belakang pada telefon ini dan berhenti apabila bateri rendah.',
+  'Find chapters': 'Cari bab',
+  'Found from long silences on this phone.': 'Ditemui daripada senyap panjang pada telefon ini.',
+  'Remove found chapters': 'Buang bab yang ditemui',
+  Off: 'Tutup',
+  '{n} s': '{n} s',
+  'Skip intro': 'Langkau pengenalan',
+  'Skip outro': 'Langkau penutup',
+  'Every episode starts this far in.': 'Setiap episod bermula sejauh ini ke dalam.',
+  'Every episode ends this long before its end.':
+    'Setiap episod berakhir selama ini sebelum hujungnya.',
 };

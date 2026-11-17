@@ -181,6 +181,11 @@ export const chapters = sqliteTable(
     title: text('title').notNull(),
     /** On the whole-book timeline. */
     startMs: integer('start_ms').notNull(),
+    /**
+     * Found on this device from long silences (M45), for a book that had no chapters. Never
+     * synced: tags, a feed or an add-on replace them whenever they bring chapters of their own.
+     */
+    found: integer('found', { mode: 'boolean' }).notNull().default(false),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [index('chapters_book_idx').on(t.bookId, t.idx)],
@@ -378,6 +383,9 @@ export const subscriptions = sqliteTable(
     autoDownload: integer('auto_download', { mode: 'boolean' }).notNull().default(false),
     /** How many of the newest unplayed episodes auto-download keeps on the phone. */
     keepLatest: integer('keep_latest').notNull().default(3),
+    /** Skipped at the start and the end of every episode of this show (M45); 0 plays it all. */
+    skipIntroMs: integer('skip_intro_ms').notNull().default(0),
+    skipOutroMs: integer('skip_outro_ms').notNull().default(0),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [primaryKey({ columns: [t.profileId, t.podcastId] })],

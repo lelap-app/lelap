@@ -19,6 +19,9 @@ data class BookPlaylist(
   val speed: Float,
   /** Sent with every request for this book's files: the login of a WebDAV server. */
   val headers: Map<String, String> = emptyMap(),
+  /** A podcast's intro and outro to skip (M45), at the first file's start and the last's end. */
+  val introMs: Long = 0L,
+  val outroMs: Long = 0L,
 )
 
 /** The last known place. Mirrors `JournalEntry` in `@lelap/core`. */
@@ -144,6 +147,8 @@ object PositionJournal {
     )
     .put("chapters", JSONArray(p.chapters.map { JSONObject().put("title", it.title).put("startMs", it.startMs) }))
     .put("headers", JSONObject(p.headers))
+    .put("skipIntroMs", p.introMs)
+    .put("skipOutroMs", p.outroMs)
 
   private fun decodePlaylist(o: JSONObject): BookPlaylist {
     val files = o.getJSONArray("files")
@@ -164,6 +169,8 @@ object PositionJournal {
       speed = o.getDouble("speed").toFloat(),
       headers = o.optJSONObject("headers")?.let { h -> h.keys().asSequence().associateWith { h.getString(it) } }
         ?: emptyMap(),
+      introMs = o.optLong("skipIntroMs", 0L).coerceAtLeast(0L),
+      outroMs = o.optLong("skipOutroMs", 0L).coerceAtLeast(0L),
     )
   }
 

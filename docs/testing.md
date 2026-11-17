@@ -155,6 +155,9 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M44] A 10-inch tablet (or a tablet emulator), upright and sideways: the tabs are a rail, the player stands beside the list once a book plays, and a book tapped in the Library plays there without the full-screen player. ([m44](m44-follow-ups.md#tablet))
 - [ ] [M44] On the tablet, car mode and the full-screen player hide the pane; Back returns to the two panes. ([m44](m44-follow-ups.md#tablet))
 - [ ] [M44] A phone turned sideways (`adb shell settings put system user_rotation 1` with auto-rotate off): the Player shows the cover beside the controls, nothing under the camera cut-out; upright again gives the usual Player. ([m44](m44-follow-ups.md#tablet))
+- [ ] [M45] A library book without chapter tags: Chapters → Find chapters; after the scan the sheet lists Part 1, Part 2, … with “Found from long silences on this phone”; Remove takes them away. ([m45](m45-follow-ups.md#silences))
+- [ ] [M45] Battery at 10 % (`adb shell dumpsys battery set level 10`): a scan waits, and one running stops; back at 50 % it goes on from its checkpoint. ([m45](m45-follow-ups.md#silences))
+- [ ] [M45] A show with Skip intro and Skip outro at 30 s: a new episode starts at 0:30, ends 30 s early as played, and Up Next goes on, also with the app closed. ([m45](m45-follow-ups.md#intro-outro))
 - [x] [M12] Player buttons carry names for TalkBack (Back 30 seconds, Play, Next chapter, …) in `uiautomator dump`. ([m12](m12-follow-ups.md)) **Passed 2026-11-17**: speed button now says Speed, 1× (#66).
 - [ ] [M9] Install the web app from Chrome on the phone: `listen.lelap.app` → Add to home screen. ([README](../apps/app/README.md#checks-after-m9-2026-11-16))
 - [ ] [M29] Expired link, playback and download: an add-on on the laptop (`adb reverse`) whose `/resolve/…` link answers 403 after a minute; playback continues, the download resumes, a link that keeps failing errors after one retry. ([m29](m29-follow-ups.md#phone-checks))
@@ -203,6 +206,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M43] A real folder of a few hundred books: a second scan is quicker than before M43, and no book loses its place, bookmarks or chapters. ([m43](m43-follow-ups.md#m43-follow-ups))
 - [ ] [M43] Android Auto (Desktop Head Unit) with the test library: the browse tree opens without delay. ([m43](m43-follow-ups.md#m43-follow-ups))
 - [ ] [M44] TalkBack on a tablet reads the rail's tabs, then the list, then the player pane. ([m44](m44-follow-ups.md#tablet))
+- [ ] [M45] Found chapters fall at the real chapter breaks of a few books (MP3 and M4B); a ten-hour book's scan finishes. ([m45](m45-follow-ups.md#silences))
 - [ ] [M2] Revoke Lelap's folder access in Android settings, reopen: a banner asks for the folder; no book is dimmed. ([README](../apps/app/README.md#m2-device-checklist))
 
 ### Accounts and servers
@@ -237,6 +241,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M16] A hand-made list keeps its order after a sync to a second device. ([m16](m16-follow-ups.md))
 - [ ] [M22] Mono and voice clarity changed on another device reach the player at the next start; boost does not. ([m22](m22-follow-ups.md))
 - [ ] [M34] After an import, sync sends tags, marks, places and subscriptions to a second device. ([m34](m34-follow-ups.md))
+- [ ] [M45] A show's Skip intro and Skip outro reach the other device with the next sync. ([m45](m45-follow-ups.md#intro-outro))
 
 ### Over days and nights
 

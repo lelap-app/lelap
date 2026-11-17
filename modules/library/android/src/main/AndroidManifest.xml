@@ -1,0 +1,13 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools">
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+  <application>
+    <!-- The chapter scan runs in WorkManager's foreground service, as downloads do. -->
+    <service
+      android:name="androidx.work.impl.foreground.SystemForegroundService"
+      android:foregroundServiceType="dataSync"
+      tools:node="merge" />
+  </application>
+</manifest>

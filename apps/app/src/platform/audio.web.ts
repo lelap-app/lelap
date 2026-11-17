@@ -10,10 +10,12 @@ import type {
 } from '@lelap/audio';
 import {
   fadeVolume,
+  outroStartMs,
   shouldRefreshLink,
   sleepBoundaryMs,
   sleepFileTarget,
   sleepRemainingMs as remainingToBoundary,
+  trimmedStart,
 } from '@lelap/core';
 
 import * as opfs from './opfs';
@@ -254,6 +256,7 @@ function player(): HTMLAudioElement {
   });
   on('timeupdate', () => {
     if (audio.readyState > 0 && !audio.error) {
+      skipOutro(audio);
       lastPositionMs = positionMs();
       lastPlaying = playing();
     }
@@ -331,6 +334,24 @@ function player(): HTMLAudioElement {
 
 let pageHideListened = false;
 
+/**
+ * Ends a podcast episode where its outro starts (M45), as the Android service does: only when
+ * playback runs across that place, so a listener who seeks into the outro hears it.
+ */
+function skipOutro(audio: HTMLAudioElement): void {
+  const last = (book?.files.length ?? 0) - 1;
+  if (!book || index !== last || !book.skipOutroMs || audio.paused) return;
+  const durationMs = Number.isFinite(audio.duration)
+    ? Math.round(audio.duration * 1000)
+    : (book.files[last]?.durationMs ?? 0);
+  const at = outroStartMs(durationMs, book.skipOutroMs, book.skipIntroMs ?? 0, last === 0);
+  const now = positionMs();
+  // Seeks jump further than playback moves between two time updates.
+  if (at !== null && lastPositionMs < at && now >= at && now - lastPositionMs < 2_000) {
+    audio.currentTime = durationMs / 1000;
+  }
+}
+
 /** Lets the element go, so the next part gets a fresh one: a routed element cannot be unrouted. */
 function retire(): void {
   const old = element;
@@ -398,10 +419,11 @@ export async function load(next: BookLoad, autoplay: boolean): Promise<void> {
   book = next;
   pausedAt = next.pausedAt;
   placeChangedAt = next.pausedAt ?? 0;
-  let start = next.startPositionMs;
-  if (autoplay && settings.smartRewind && pausedAt !== null) {
-    start = Math.max(0, start - rewindOnResume(Date.now() - pausedAt));
-  }
+  const rewind =
+    autoplay && settings.smartRewind && pausedAt !== null
+      ? rewindOnResume(Date.now() - pausedAt)
+      : 0;
+  const start = trimmedStart(next.startIndex, next.startPositionMs, rewind, next.skipIntroMs ?? 0);
   // A chapter timer carries over to the new book's chapter.
   sleepBoundary = null;
   clearBoundaryStop();
@@ -429,12 +451,13 @@ export async function takeJournal(): Promise<JournalEntry | null> {
 
 export async function play(): Promise<void> {
   if (!element || !book) return;
-  if (ended) await setPart(0, 0, false);
+  if (ended) await setPart(0, book.skipIntroMs ?? 0, false);
   if (settings.smartRewind && pausedAt !== null) {
-    element.currentTime = Math.max(
-      0,
-      element.currentTime - rewindOnResume(Date.now() - pausedAt) / 1000,
-    );
+    const at = positionMs();
+    // Not back into a skipped intro once past it, as on Android.
+    const intro = book.skipIntroMs && at >= book.skipIntroMs ? book.skipIntroMs : 0;
+    element.currentTime =
+      trimmedStart(index, at, rewindOnResume(Date.now() - pausedAt), intro) / 1000;
   }
   pausedAt = null;
   await sound.resume(element);
