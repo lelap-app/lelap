@@ -167,3 +167,36 @@ describe('redirects and headers', () => {
     expect(response.headers.get('referrer-policy')).toBe('no-referrer');
   });
 });
+
+describe('text proxy', () => {
+  const textUrl = (url: string) => `/text?url=${encodeURIComponent(url)}`;
+
+  it('passes chapters and transcripts on as plain text, and caches them', async () => {
+    const chapters = '{"version":"1.2.0","chapters":[{"startTime":0,"title":"Intro"}]}';
+    const { get, calls } = setup(
+      () => new Response(chapters, { headers: { 'Content-Type': 'application/json+chapters' } }),
+    );
+    const response = await get(textUrl('https://example.org/chapters.json'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+    expect(await response.text()).toBe(chapters);
+    await get(textUrl('https://example.org/chapters.json'));
+    expect(calls).toHaveLength(1);
+  });
+
+  it('never passes audio or other binary files', async () => {
+    const audio = setup(() => new Response('ID3', { headers: { 'Content-Type': 'audio/mpeg' } }));
+    expect((await audio.get(textUrl('https://example.org/a.srt'))).status).toBe(415);
+    const binary = setup(
+      () =>
+        new Response(new Uint8Array([0x49, 0x44, 0x33, 0x00, 0xff]), {
+          headers: { 'Content-Type': 'application/octet-stream' },
+        }),
+    );
+    expect((await binary.get(textUrl('https://example.org/a.srt'))).status).toBe(415);
+    const large = setup(
+      () => new Response('x', { headers: { 'Content-Length': String(LIMITS.textBytes + 1) } }),
+    );
+    expect((await large.get(textUrl('https://example.org/a.srt'))).status).toBe(413);
+  });
+});

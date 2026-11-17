@@ -1,6 +1,6 @@
 # M3 follow-ups
 
-What is left of [M3 Add-on protocol and SDK](roadmap.md#m3-add-on-protocol-and-sdk) after PR #12,
+What is left of [M3 Add-on protocol and SDK](milestones/m3.md) after PR #12,
 to pick up later. The done-when (find a LibriVox book in the app and play it) passed on the device.
 
 ## 1. Device checks

@@ -1,8 +1,9 @@
 import type { LibraryBook } from '@lelap/core';
 import { memo } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 
 import { BookCover, coverUri } from './BookCover';
+import { COLORS, IconButton } from './Icon';
 
 function status(book: LibraryBook): string {
   if (book.missing) return 'Files not found';
@@ -52,6 +53,16 @@ export const BookRow = memo(function BookRow({
       <Text className={`text-sm ${book.finishedAt !== null ? 'text-amber' : 'text-muted'}`}>
         {status(book)}
       </Text>
+      {/* A mouse can't long-press comfortably, so the web shows the menu as a button. */}
+      {Platform.OS === 'web' && (
+        <IconButton
+          name="more"
+          label={`More for ${book.title}`}
+          size={20}
+          color={COLORS.muted}
+          onPress={() => onLongPress(book)}
+        />
+      )}
     </Pressable>
   );
 });

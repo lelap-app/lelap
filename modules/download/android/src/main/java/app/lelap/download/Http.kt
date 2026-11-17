@@ -28,12 +28,13 @@ object Http {
   ) {
     val part = File(target.parentFile, target.name + PART_SUFFIX)
     var discarded = false
+    var refreshed = false
     while (true) {
       val existing = if (part.isFile) part.length() else 0L
       val connection = open(url, existing, headers)
       try {
         val code = connection.responseCode
-        when (DownloadRules.decide(code, existing, connection.getHeaderField("Content-Range"), expectedSize)) {
+        when (DownloadRules.decide(code, existing, connection.getHeaderField("Content-Range"), expectedSize, refreshed)) {
           Resume.APPEND -> copy(connection, part, append = true, start = existing, onBytes)
           Resume.RESTART -> copy(connection, part, append = false, start = 0L, onBytes)
           Resume.COMPLETE -> Unit
@@ -41,6 +42,10 @@ object Http {
             part.delete()
             if (discarded) throw IOException("The server does not continue downloads (HTTP $code).")
             discarded = true
+            continue
+          }
+          Resume.REFRESH -> {
+            refreshed = true
             continue
           }
           Resume.RETRY -> throw IOException("HTTP $code")

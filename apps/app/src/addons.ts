@@ -3,6 +3,7 @@ import {
   type Fetcher,
   fetchMeta,
   fetchStreams,
+  findSources,
   getProfile,
   type FoundStream,
   type InstalledAddon,
@@ -78,5 +79,15 @@ export const queries = {
   streams: (addons: InstalledAddon[], type: ContentType, id: string) => ({
     queryKey: ['streams', type, id, addons.map((a) => a.url)],
     queryFn: () => fetchStreams(fetcher, addons, type, id),
+  }),
+  /** Streams from every add-on, asked by the work's ID or one of its external IDs. */
+  sources: (
+    addons: InstalledAddon[],
+    type: ContentType,
+    id: string,
+    externalIds: Meta['externalIds'],
+  ) => ({
+    queryKey: ['sources', type, id, externalIds ?? {}, addons.map((a) => a.url)],
+    queryFn: () => findSources(fetcher, addons, type, id, externalIds),
   }),
 };

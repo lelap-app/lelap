@@ -34,7 +34,14 @@ class DownloadRulesTest {
 
   @Test fun `retries temporary failures and gives up on refusals`() {
     listOf(408, 429, 500, 503).forEach { assertEquals(Resume.RETRY, DownloadRules.decide(it, 0, null, 0)) }
-    listOf(401, 403, 404, 410).forEach { assertEquals(Resume.FAIL, DownloadRules.decide(it, 0, null, 0)) }
+    listOf(401, 404).forEach { assertEquals(Resume.FAIL, DownloadRules.decide(it, 0, null, 0)) }
+  }
+
+  @Test fun expiredLinksAreAskedForAgainOnce() {
+    listOf(403, 410).forEach {
+      assertEquals(Resume.REFRESH, DownloadRules.decide(it, 4_096, null, 0))
+      assertEquals(Resume.FAIL, DownloadRules.decide(it, 4_096, null, 0, refreshed = true))
+    }
   }
 
   @Test fun `derives the state JavaScript sees`() {

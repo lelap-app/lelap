@@ -1,6 +1,6 @@
 # M8 follow-ups
 
-What is left of [M8 Release pipeline](roadmap.md#m8-release-pipeline). Nothing here has run on a
+What is left of [M8 Release pipeline](milestones/m8.md). Nothing here has run on a
 tag yet.
 
 ## 1. Setup before the first tag

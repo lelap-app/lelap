@@ -1,25 +1,37 @@
 import {
-  addToUpNext,
   continueListening,
+  createPlaylist,
   type LibraryBook,
   type LibrarySort,
   listBooks,
-  removeStreamedBook,
+  listPlaylists,
+  listTags,
   localRoot,
-  setFinished,
+  playlistBooks,
+  SMART_PRESETS,
+  type SmartRule,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useNetworkState } from 'expo-network';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Platform, Pressable, RefreshControl, Text, View } from 'react-native';
+import {
+  FlatList,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { showAlert } from '../../src/dialog';
 import { COLORS, Icon, IconButton } from '../../src/components/Icon';
+import { BookActions } from '../../src/components/BookActions';
 import { BookRow } from '../../src/components/BookRow';
 import { ContinueCard } from '../../src/components/ContinueCard';
-import { db } from '../../src/db';
-import { deleteDownload, startDownload } from '../../src/downloads';
+import { Sheet } from '../../src/components/Sheet';
+import { db, newId } from '../../src/db';
 import { playBook, useLibrary } from '../../src/player';
 import { profileId } from '../../src/profile';
 import { LOCAL_FOLDERS } from '../../src/platform/library';
@@ -44,6 +56,23 @@ export default function LibraryScreen() {
   const root = useMemo(() => localRoot(db), [version]);
   const books = useMemo(() => listBooks(db, profileId, sort), [sort, version]);
   const next = useMemo(() => continueListening(db, profileId), [version]);
+  const lists = useMemo(
+    () =>
+      listPlaylists(db, profileId).map((list) => ({
+        list,
+        count: playlistBooks(db, profileId, list).length,
+      })),
+    [version],
+  );
+  const tags = useMemo(() => listTags(db, profileId), [version]);
+
+  const [choosingList, setChoosingList] = useState(false);
+  const makeList = (name: string, rule: SmartRule | null) => {
+    setChoosingList(false);
+    const id = createPlaylist(db, profileId, newId, { name, rule }, Date.now());
+    refresh();
+    router.push({ pathname: '/list', params: { id, rename: rule ? '' : '1' } });
+  };
 
   const rescan = useCallback(async () => {
     setScanning({ done: 0, total: 0 });
@@ -84,79 +113,8 @@ export default function LibraryScreen() {
     }
   };
 
-  const toggleFinished = (book: LibraryBook) => {
-    setFinished(db, profileId, book.id, book.finishedAt === null, Date.now());
-    refresh();
-  };
-
-  const showActions = (book: LibraryBook) => {
-    const finish = {
-      text: book.finishedAt === null ? 'Mark as finished' : 'Mark as not finished',
-      onPress: () => toggleFinished(book),
-    };
-    if (book.source === 'local') {
-      showAlert(
-        book.title,
-        undefined,
-        [
-          finish,
-          {
-            text: 'Add to Up Next',
-            onPress: () => addToUpNext(db, profileId, book.id, 'last', Date.now()),
-          },
-          {
-            text: 'This is a podcast…',
-            onPress: () => router.push({ pathname: '/convert', params: { bookId: book.id } }),
-          },
-        ],
-        { cancelable: true },
-      );
-      return;
-    }
-    const download = book.downloaded
-      ? { text: 'Remove download', onPress: () => void deleteDownload(book.id).finally(refresh) }
-      : {
-          text: 'Download',
-          onPress: () =>
-            void startDownload(book.id, null)
-              .catch((error: unknown) =>
-                showAlert('Download', error instanceof Error ? error.message : String(error)),
-              )
-              .finally(refresh),
-        };
-    showAlert(
-      book.title,
-      undefined,
-      [
-        finish,
-        download,
-        {
-          text: 'Remove from library',
-          style: 'destructive',
-          onPress: () =>
-            showAlert(
-              'Remove from library?',
-              'Your place and bookmarks in this book are removed too.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Remove',
-                  style: 'destructive',
-                  onPress: () => {
-                    removeStreamedBook(db, book.id);
-                    refresh();
-                    // Its download, if any, goes too.
-                    void deleteDownload(book.id).catch(() => {});
-                  },
-                },
-              ],
-            ),
-        },
-        // Android shows at most three buttons; a tap outside closes the menu.
-      ],
-      { cancelable: true },
-    );
-  };
+  const [actionBook, setActionBook] = useState<LibraryBook | null>(null);
+  const showActions = useCallback((book: LibraryBook) => setActionBook(book), []);
 
   if (!root && books.length === 0) {
     return (
@@ -247,6 +205,66 @@ export default function LibraryScreen() {
               </Text>
             )}
             {next && <ContinueCard book={next} onPress={() => void open(next)} />}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 10, paddingHorizontal: 16 }}
+            >
+              {lists.map(({ list, count }) => (
+                <Pressable
+                  key={list.id}
+                  onPress={() => router.push({ pathname: '/list', params: { id: list.id } })}
+                  accessibilityRole="button"
+                  className="w-40 flex-row items-center gap-2.5 rounded-xl bg-raised p-2.5 active:opacity-80"
+                >
+                  <View
+                    className={`h-10 w-10 items-center justify-center rounded-lg ${list.rule ? 'bg-[#2d3a63]' : 'bg-amber'}`}
+                  >
+                    <Icon
+                      name={list.rule ? 'moon' : 'chapters'}
+                      size={20}
+                      color={list.rule ? '#dce3f5' : COLORS.ink}
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Text numberOfLines={1} className="text-sm font-semibold text-paper">
+                      {list.name}
+                    </Text>
+                    <Text className="text-xs text-muted">
+                      {count} · {list.rule ? 'smart list' : 'list'}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+              <Pressable
+                onPress={() => setChoosingList(true)}
+                accessibilityRole="button"
+                className="w-28 flex-row items-center justify-center gap-1 rounded-xl border border-dashed border-line p-2.5 active:bg-raised"
+              >
+                <Icon name="plus" size={16} color={COLORS.muted} />
+                <Text className="text-sm text-muted">List</Text>
+              </Pressable>
+            </ScrollView>
+            {tags.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}
+              >
+                {tags.map(({ tag }) => (
+                  <Pressable
+                    key={tag}
+                    onPress={() => router.push({ pathname: '/list', params: { tag } })}
+                    className="rounded-full border border-line px-3 py-1.5 active:bg-raised"
+                  >
+                    <Text className="text-sm text-paper">
+                      <Text className="text-muted"># </Text>
+                      {tag}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
             <View className="flex-row gap-2 px-4">
               {SORTS.map((s) => (
                 <Pressable
@@ -271,6 +289,26 @@ export default function LibraryScreen() {
           <BookRow book={item} onOpen={(b) => void open(b)} onLongPress={showActions} />
         )}
       />
+      <Sheet visible={choosingList} title="New list" onClose={() => setChoosingList(false)}>
+        <ScrollView>
+          {[{ name: 'Hand-made list', rule: null }, ...SMART_PRESETS].map((preset) => (
+            <Pressable
+              key={preset.name}
+              onPress={() => makeList(preset.rule ? preset.name : 'New list', preset.rule)}
+              className="flex-row items-center gap-3 rounded-lg px-2 py-3 active:bg-line"
+            >
+              <Icon name={preset.rule ? 'moon' : 'chapters'} size={22} color={COLORS.soft} />
+              <View>
+                <Text className="text-paper">{preset.name}</Text>
+                <Text className="text-xs text-muted">
+                  {preset.rule ? 'Smart list: fills itself' : 'You pick the books and their order'}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </Sheet>
+      <BookActions book={actionBook} onClose={() => setActionBook(null)} onChanged={refresh} />
     </View>
   );
 }

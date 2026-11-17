@@ -146,6 +146,15 @@ class AudioModule : Module() {
       }
     }.runOnQueue(Queues.MAIN)
 
+    // "chapter" or "episode": stops at the end of the chapter playing, or of the episode.
+    AsyncFunction("startSleepTimerAtEnd") { mode: String, promise: Promise ->
+      withController(promise) { c ->
+        val args = Bundle().apply { putString(Commands.KEY_SLEEP_MODE, mode) }
+        c.sendCustomCommand(SessionCommand(Commands.START_SLEEP_TIMER, Bundle.EMPTY), args)
+        startTicker()
+      }
+    }.runOnQueue(Queues.MAIN)
+
     AsyncFunction("cancelSleepTimer") { promise: Promise ->
       withController(promise) { c ->
         c.sendCustomCommand(SessionCommand(Commands.CANCEL_SLEEP_TIMER, Bundle.EMPTY), Bundle.EMPTY)
@@ -270,7 +279,7 @@ class AudioModule : Module() {
         "connected" to false, "playing" to false, "buffering" to false, "ended" to false,
         "bookId" to null, "fileLocation" to null, "bookTitle" to null, "partTitle" to null,
         "partIndex" to -1, "partCount" to 0, "positionMs" to 0.0, "durationMs" to 0.0,
-        "speed" to 1.0, "duckOnInterruption" to true, "waitingForCall" to false, "sleepTimerRemainingMs" to null, "error" to null,
+        "speed" to 1.0, "duckOnInterruption" to true, "waitingForCall" to false, "sleepTimerRemainingMs" to null, "sleepTimerMode" to null, "error" to null,
       )
     }
     val extras = c.sessionExtras
@@ -298,6 +307,7 @@ class AudioModule : Module() {
       "duckOnInterruption" to extras.getBoolean(Commands.EXTRA_DUCK, true),
       "waitingForCall" to extras.getBoolean(Commands.EXTRA_WAITING_FOR_FOCUS, false),
       "sleepTimerRemainingMs" to timerRemaining?.toDouble(),
+      "sleepTimerMode" to timerRemaining?.let { extras.getString(Commands.EXTRA_SLEEP_TIMER_MODE) },
       "error" to c.playerError?.let { "${it.errorCodeName}: ${it.message}" },
     )
   }

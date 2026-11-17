@@ -1,6 +1,6 @@
 # M7 follow-ups
 
-What is left of [M7 Sync](roadmap.md#m7-sync). Design notes are in [the brief](brief.md#sync-m7).
+What is left of [M7 Sync](milestones/m7.md). Design notes are in [the brief](brief.md#sync-m7).
 
 ## 1. Setup before it is live
 

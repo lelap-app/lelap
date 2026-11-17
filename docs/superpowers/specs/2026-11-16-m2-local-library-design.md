@@ -1,6 +1,6 @@
 # M2 Local library: design
 
-Status: draft for approval. Milestone: [M2 in the roadmap](../../roadmap.md#m2-local-library).
+Status: draft for approval. Milestone: [M2 in the roadmap](../../milestones/m2.md).
 
 ## Intent
 

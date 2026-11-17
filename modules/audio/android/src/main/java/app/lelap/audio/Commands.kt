@@ -18,6 +18,8 @@ object Commands {
   const val KEY_SKIP_INTERVAL_MS = "skipIntervalMs"
   const val KEY_SMART_REWIND = "smartRewind"
   const val KEY_DURATION_MS = "durationMs"
+  /** A [SleepMode]'s wire name; minutes when missing. */
+  const val KEY_SLEEP_MODE = "sleepMode"
   const val KEY_BOOK_JSON = "book"
   const val KEY_AUTOPLAY = "autoplay"
 
@@ -37,4 +39,5 @@ object Commands {
   const val EXTRA_WAITING_FOR_FOCUS = "waitingForFocus"
   const val EXTRA_SLEEP_TIMER_END = "sleepTimerEndsAtElapsedMs"
   const val EXTRA_SLEEP_TIMER_FROZEN = "sleepTimerFrozenRemainingMs"
+  const val EXTRA_SLEEP_TIMER_MODE = "sleepTimerMode"
 }

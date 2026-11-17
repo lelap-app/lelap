@@ -14,6 +14,8 @@ import {
   syncState,
   tombstones,
   upNext,
+  bookTags,
+  playlists,
 } from './schema';
 import { recordDeletion } from './sync/keys';
 
@@ -101,6 +103,8 @@ export function deleteProfile(db: Db, id: string, now: number): boolean {
     tx.delete(settings).where(eq(settings.profileId, id)).run();
     tx.delete(subscriptions).where(eq(subscriptions.profileId, id)).run();
     tx.delete(upNext).where(eq(upNext.profileId, id)).run();
+    tx.delete(bookTags).where(eq(bookTags.profileId, id)).run();
+    tx.delete(playlists).where(eq(playlists.profileId, id)).run();
     tx.delete(tombstones).where(eq(tombstones.profileId, id)).run();
     tx.delete(profiles).where(eq(profiles.id, id)).run();
     recordDeletion(tx, 'profile', id, null, now);

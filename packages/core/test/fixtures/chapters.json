@@ -1,0 +1,11 @@
+{
+  "version": "1.2.0",
+  "chapters": [
+    { "startTime": 95.5, "title": "Finding Orion" },
+    { "startTime": 0, "title": "Intro", "img": "https://example.org/intro.jpg" },
+    { "startTime": 120, "title": "Artwork change", "toc": false },
+    { "startTime": "300", "title": "" },
+    { "title": "No start" },
+    { "startTime": 95.5, "title": "Duplicate start" }
+  ]
+}

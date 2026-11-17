@@ -10,8 +10,10 @@ syncs; add-ons (stateless HTTP services returning JSON, modelled on Stremio's ad
 bring catalogs, metadata and audio sources. Android first, the same code on the web, and a
 self-hostable backend. The full plan, decisions and v1.0 scope are in
 [`docs/brief.md`](docs/brief.md). Read it before making architectural choices. Milestones, their
-status and the infrastructure each needs are in [`docs/roadmap.md`](docs/roadmap.md); update the
-status there when you start or finish one.
+status and the infrastructure each needs are in [`docs/milestones/`](docs/milestones/), one file
+per milestone; [`docs/roadmap.md`](docs/roadmap.md) lists them all. When you start or finish one,
+update the status line in its own file and leave the roadmap table alone, so parallel pull
+requests don't conflict.
 
 ## Hard rules
 
@@ -20,8 +22,8 @@ status there when you start or finish one.
   Never add code, docs, examples, tests or issue templates that target torrent indexes or services
   that resolve torrents or file-hoster links, and never name such services anywhere in the repo.
 - **No add-on directory.** Don't add lists, links or recommendations for third-party add-ons.
-- **Audio never touches our servers.** Services may proxy RSS feeds and cover images for the web
-  app; they never proxy, cache or transcode audio.
+- **Audio never touches our servers.** Services may proxy RSS feeds, cover images, chapters files
+  and transcripts for the web app; they never proxy, cache or transcode audio.
 - **Secrets stay out of the repo.** Keystores, API tokens and `.dev.vars` are ignored for a
   reason. Runtime secrets go to `wrangler secret put`; CI secrets go to GitHub environments.
 - **English everywhere:** UI copy, docs, commits and pull requests.
@@ -47,7 +49,8 @@ examples/       add-on samples: plain Node, Python (stdlib), seasonal catalogs; 
 docker/         Node entries, Dockerfiles and compose for self-hosting      → docker/README.md
 scripts/        release helpers for the tag workflow (Node, type stripping)
 docs/brief.md   decisions, stack, infrastructure, v1.0 scope
-docs/roadmap.md milestones M0–M8, status, per-milestone resources, environments
+docs/roadmap.md every milestone M0–M38 at a glance, environments
+docs/milestones/ one file per milestone: status, resources, done when
 ```
 
 ## Commands

@@ -1,5 +1,12 @@
 # @lelap/sdk
 
+## 0.2.1
+
+### Patch Changes
+
+- README: link the SDK guide, protocol reference and samples on the docs site instead of their source
+  files.
+
 ## 0.2.0
 
 ### Minor Changes

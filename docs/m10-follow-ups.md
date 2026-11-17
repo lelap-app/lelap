@@ -1,6 +1,6 @@
 # M10 follow-ups
 
-What is left of [M10 Your own storage](roadmap.md#m10-your-own-storage). Built without a phone or
+What is left of [M10 Your own storage](milestones/m10.md). Built without a phone or
 a real server; the listing and signing are unit-tested (the S3 signature matches AWS's own
 example).
 

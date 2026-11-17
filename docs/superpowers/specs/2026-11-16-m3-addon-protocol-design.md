@@ -1,7 +1,7 @@
 # M3 Add-on protocol and SDK: design
 
 Status: approved approach, details are the builder's calls. Milestone:
-[M3 in the roadmap](../../roadmap.md#m3-add-on-protocol-and-sdk).
+[M3 in the roadmap](../../milestones/m3.md).
 
 ## Intent
 

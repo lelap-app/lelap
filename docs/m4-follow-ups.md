@@ -1,6 +1,6 @@
 # M4 follow-ups
 
-What is left of [M4 Downloads](roadmap.md#m4-downloads) after PR #14. Built and unit-tested
+What is left of [M4 Downloads](milestones/m4.md) after PR #14. Built and unit-tested
 without a phone; nothing below has run yet. M4 stays “In progress” until the device checks pass.
 
 ## 1. Device checks

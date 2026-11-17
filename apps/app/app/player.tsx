@@ -10,7 +10,7 @@ import {
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressScale } from '../src/components/Motion';
@@ -26,6 +26,7 @@ import { db, newId } from '../src/db';
 import { formatClock, formatLeft } from '../src/format';
 import * as audio from '../src/platform/audio';
 import { seekToBookPosition, useLibrary, usePlayerState } from '../src/player';
+import { transcriptOf } from '../src/podcasting';
 import { profileId } from '../src/profile';
 
 const SPEEDS = [0.8, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
@@ -104,6 +105,10 @@ export default function Player() {
     () => (bookId ? listBookmarks(db, profileId, bookId) : []),
     [bookId, version],
   );
+  const hasTranscript = useMemo(
+    () => (bookId ? transcriptOf(bookId) !== null : false),
+    [bookId, version],
+  );
 
   if (!bookId || !detail) {
     return (
@@ -167,6 +172,10 @@ export default function Player() {
   };
 
   const timer = state.sleepTimerRemainingMs;
+  // Podcasts stop at the end of the episode, books at the end of the chapter (or file).
+  const endMode = detail.book.source === 'feed' ? 'episode' : 'chapter';
+  const timerPrefix =
+    state.sleepTimerMode === 'chapter' ? 'ch. ' : state.sleepTimerMode === 'episode' ? 'ep. ' : '';
 
   const left = total > 0 ? (total - position) / Math.max(0.5, state.speed) : 0;
   const percent = total > 0 ? Math.round((position / total) * 100) : 0;
@@ -271,12 +280,15 @@ export default function Player() {
         />
         <Tool
           icon="moon"
-          label={timer === null ? 'Sleep' : formatClock(timer)}
+          label={timer === null ? 'Sleep' : `${timerPrefix}${formatClock(timer)}`}
           active={timer !== null}
           onPress={() => setSheet('sleep')}
         />
         {chapters.length > 0 && (
           <Tool icon="chapters" label="Chapters" onPress={() => setSheet('chapters')} />
+        )}
+        {hasTranscript && (
+          <Tool icon="transcript" label="Transcript" onPress={() => router.push('/transcript')} />
         )}
         <Tool
           icon="bookmark"
@@ -336,6 +348,13 @@ export default function Player() {
               }}
             />
           ))}
+          <Chip
+            label={endMode === 'episode' ? 'End of episode' : 'End of chapter'}
+            onPress={() => {
+              void audio.startSleepTimerAtEnd(endMode);
+              setSheet(null);
+            }}
+          />
           {timer !== null && (
             <Chip
               label="Turn off"
@@ -346,6 +365,11 @@ export default function Player() {
             />
           )}
         </View>
+        {Platform.OS === 'android' && (
+          <Text className="pb-2 text-sm text-muted">
+            In the last five minutes, shake the phone for ten more.
+          </Text>
+        )}
       </Sheet>
       <Sheet visible={sheet === 'note'} title="Bookmark saved" onClose={saveNote}>
         <TextInput

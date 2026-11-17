@@ -82,6 +82,7 @@ function castState(s: Session): PlayerState {
     connected: true,
     duckOnInterruption: true,
     sleepTimerRemainingMs: null,
+    sleepTimerMode: null,
   };
   return {
     ...base,

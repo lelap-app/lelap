@@ -1,6 +1,6 @@
 # M26 follow-ups
 
-What is left of [M26 Casting](roadmap.md#m26-casting): checks on a phone and real receivers, and
+What is left of [M26 Casting](milestones/m26.md): checks on a phone and real receivers, and
 what this round left out.
 
 ## How it works
