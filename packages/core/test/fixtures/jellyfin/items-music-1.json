@@ -1,0 +1,22 @@
+{
+  "Items": [
+    {
+      "Name": "Part 2",
+      "Id": "ccc0000000000000000000000000000c",
+      "Type": "Audio",
+      "Container": "mp3",
+      "Path": "/media/music/Dickens/Loose tracks/02 Part 2.mp3",
+      "ParentId": "ddd0000000000000000000000000000d",
+      "AlbumId": "eee0000000000000000000000000000e",
+      "Album": null,
+      "IndexNumber": 2,
+      "RunTimeTicks": 18000000000,
+      "Artists": ["Charles Dickens"],
+      "AlbumArtist": "Charles Dickens",
+      "MediaSources": [{ "Size": 2000, "Container": "mp3" }],
+      "UserData": { "PlaybackPositionTicks": 0, "Played": false }
+    }
+  ],
+  "TotalRecordCount": 2,
+  "StartIndex": 0
+}

@@ -1,0 +1,18 @@
+{
+  "User": {
+    "Name": "reader",
+    "ServerId": "4d3b8c1f0a2e4e0e9f6c2b1a7d5e3f10",
+    "Id": "6f1e2d3c4b5a69788796a5b4c3d2e1f0",
+    "HasPassword": true,
+    "Policy": { "IsAdministrator": false }
+  },
+  "SessionInfo": {
+    "Id": "b6a5c4d3e2f1",
+    "UserId": "6f1e2d3c4b5a69788796a5b4c3d2e1f0",
+    "Client": "Lelap",
+    "DeviceName": "Lelap",
+    "DeviceId": "device-1"
+  },
+  "AccessToken": "0123456789abcdef0123456789abcdef",
+  "ServerId": "4d3b8c1f0a2e4e0e9f6c2b1a7d5e3f10"
+}

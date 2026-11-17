@@ -12,6 +12,7 @@ import {
   libraryRoots,
   progress,
 } from '../schema';
+import { jellyfinRootLocation } from '../remote/jellyfin';
 import { isSealed, secretBox } from '../secrets';
 import { presentFiles } from './bookFiles';
 import { buildChapters } from './chapters';
@@ -377,12 +378,18 @@ export function localRoot(db: Db) {
 }
 
 const secretOf = (remote: RemoteSource) =>
-  remote.type === 'webdav' ? remote.password : remote.secretAccessKey;
+  remote.type === 'webdav'
+    ? remote.password
+    : remote.type === 'jellyfin'
+      ? remote.token
+      : remote.secretAccessKey;
 
 const withSecret = (remote: RemoteSource, secret: string): RemoteSource =>
   remote.type === 'webdav'
     ? { ...remote, password: secret }
-    : { ...remote, secretAccessKey: secret };
+    : remote.type === 'jellyfin'
+      ? { ...remote, token: secret }
+      : { ...remote, secretAccessKey: secret };
 
 /**
  * Every library root: the phone's folder and each server, with its password or secret key opened.
@@ -434,6 +441,9 @@ export function updateRemoteRoot(db: Db, rootId: string, remote: RemoteSource, n
 /** A server's display name: its host and folder, or bucket and prefix. */
 export function remoteName(remote: RemoteSource): string {
   if (remote.type === 's3') return `${remote.bucket}${remote.prefix ? `/${remote.prefix}` : ''}`;
+  if (remote.type === 'jellyfin') {
+    return `${remote.username}@${jellyfinRootLocation(remote.url).slice('jellyfin:'.length)}`;
+  }
   try {
     const url = new URL(remote.url);
     return `${url.host}${decodeURIComponent(url.pathname)}`.replace(/\/$/, '');
@@ -442,7 +452,14 @@ export function remoteName(remote: RemoteSource): string {
   }
 }
 
-/** Adds a WebDAV server or an S3 bucket as a library root and returns its ID. */
+/** Where a server's books live in the library: `webdav:…`, `s3:…` or `jellyfin:…`. */
+export function remoteLocation(remote: RemoteSource): string {
+  if (remote.type === 's3') return `s3:${remote.bucket}/${remote.prefix}`;
+  if (remote.type === 'jellyfin') return jellyfinRootLocation(remote.url);
+  return `webdav:${remoteName(remote)}`;
+}
+
+/** Adds a WebDAV server, an S3 bucket or a Jellyfin server as a library root; returns its ID. */
 export function addRemoteRoot(
   db: Db,
   remote: RemoteSource,
@@ -450,8 +467,7 @@ export function addRemoteRoot(
   newId: IdGenerator,
 ): string {
   const id = newId();
-  const location =
-    remote.type === 's3' ? `s3:${remote.bucket}/${remote.prefix}` : `webdav:${remoteName(remote)}`;
+  const location = remoteLocation(remote);
   db.insert(libraryRoots)
     .values({
       id,
