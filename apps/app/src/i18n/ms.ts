@@ -617,4 +617,9 @@ export const ms: Record<string, string> = {
   'About the language': 'Tentang bahasa',
   'This changes Lelap’s own buttons, menus and messages. Titles, descriptions, covers and audio come from add-ons and your files, and stay as they are.':
     'Ini menukar butang, menu dan mesej Lelap sendiri. Tajuk, penerangan, kulit buku dan audio datang daripada alat tambah dan fail anda, dan kekal seperti asal.',
+  'Lelap {version}': 'Lelap {version}',
+  'Running the version that came with this install.':
+    'Menjalankan versi yang disertakan dengan pemasangan ini.',
+  'Running update {id} from {date}.': 'Menjalankan kemas kini {id} dari {date}.',
+  'Running update {id}.': 'Menjalankan kemas kini {id}.',
 };

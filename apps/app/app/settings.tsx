@@ -6,6 +6,7 @@ import {
   type Settings,
   setSetting,
 } from '@lelap/core';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
@@ -615,6 +616,9 @@ export default function SettingsScreen() {
             </Row>
           </>
         )}
+        <Text selectable className="pt-8 text-center text-xs text-muted">
+          {t('Lelap {version}', { version: Constants.expoConfig?.version ?? '?' })}
+        </Text>
       </ScrollView>
       <MiniPlayer />
     </View>
