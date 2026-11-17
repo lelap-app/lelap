@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 420" width="1180" height="420" font-family="Inter, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" role="img" aria-label="From a tag to people’s phones"><title>From a tag to people’s phones</title><defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c4c8cf"/></marker><marker id="aa" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f5b041"/></marker><pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#1b1e25"/></pattern></defs><rect width="1180" height="420" rx="22" fill="#0d0e11"/><rect width="1180" height="420" rx="22" fill="url(#dots)"/><text x="40" y="52" font-size="22" fill="#f3f1ec" font-weight="700" text-anchor="start">From a tag to people’s phones</text><text x="40" y="78" font-size="14" fill="#a3a8b2" font-weight="400" text-anchor="start">One push of a version tag; a maintainer approves; everything else is automatic.</text><path d="M60,245 L1120,245" stroke="#2a2e37" stroke-width="10" stroke-linecap="round"/>
+<path d="M60,245 L1120,245" stroke="#1b1e25" stroke-width="2" stroke-dasharray="14 10"/>
+<g><path d="M60,207 h96 l20,22 l-20,22 h-96 z" fill="#f5b041"/><circle cx="76" cy="229" r="5" fill="#0d0e11"/><text x="118" y="234" font-size="15" fill="#1a1305" font-weight="700" text-anchor="middle">tag v*</text></g>
+<polygon points="210,201 224,192.6 374,192.6 360,201" fill="#2a2e38" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="360,201 374,192.6 374,248.6 360,257" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<rect x="210" y="201" width="150" height="56" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="285.0" y="224.5" font-size="15" fill="#f3f1ec" font-weight="600" text-anchor="middle">Verify</text>
+<text x="285.0" y="244.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">version · every check</text>
+<rect x="400" y="193" width="120" height="72" rx="14" fill="#2b2414" stroke="#f5b041" stroke-width="1.6"/>
+<path d="M460,205 l16,6 v12 c0,10 -7,16 -16,20 c-9,-4 -16,-10 -16,-20 v-12 z" fill="#f5b041"/>
+<text x="460" y="257" font-size="12.5" fill="#f5b041" font-weight="600" text-anchor="middle">you approve</text>
+<polygon points="570,151 584,142.6 754,142.6 740,151" fill="#2d4268" stroke="#5b7fc0" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="740,151 754,142.6 754,196.6 740,205" fill="#19253b" stroke="#5b7fc0" stroke-opacity=".55" stroke-width="1"/>
+<rect x="570" y="151" width="170" height="54" fill="#22324f" stroke="#5b7fc0" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="655.0" y="173.5" font-size="15" fill="#f3f1ec" font-weight="600" text-anchor="middle">Direct APK</text>
+<text x="655.0" y="193.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">signed · attested</text>
+<polygon points="570,255 584,246.6 754,246.6 740,255" fill="#2a5d5b" stroke="#4fa39f" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="740,255 754,246.6 754,300.6 740,309" fill="#173533" stroke="#4fa39f" stroke-opacity=".55" stroke-width="1"/>
+<rect x="570" y="255" width="170" height="54" fill="#1f4746" stroke="#4fa39f" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="655.0" y="277.5" font-size="15" fill="#f3f1ec" font-weight="600" text-anchor="middle">F-Droid APK</text>
+<text x="655.0" y="297.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">reproducible</text>
+<rect x="608.58" y="214.5" width="92.84" height="23.5" rx="11.75" fill="#0d0e11" stroke="#2a2e37"/><text x="655.0" y="230" font-size="11.5" fill="#a3a8b2" font-weight="500" text-anchor="middle">in parallel</text>
+<polygon points="830,105 844,96.6 1094,96.6 1080,105" fill="#365741" stroke="#6fae7f" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="1080,105 1094,96.6 1094,150.6 1080,159" fill="#1f3124" stroke="#6fae7f" stroke-opacity=".55" stroke-width="1"/>
+<rect x="830" y="105" width="250" height="54" fill="#2a4231" stroke="#6fae7f" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="955.0" y="127.5" font-size="15" fill="#f3f1ec" font-weight="600" text-anchor="middle">Publish</text>
+<text x="955.0" y="147.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">R2 · GitHub release · SHA256SUMS</text>
+<polygon points="830,201 844,192.6 1094,192.6 1080,201" fill="#53385e" stroke="#a57bb8" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="1080,201 1094,192.6 1094,246.6 1080,255" fill="#2e1f35" stroke="#a57bb8" stroke-opacity=".55" stroke-width="1"/>
+<rect x="830" y="201" width="250" height="54" fill="#3f2a48" stroke="#a57bb8" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="955.0" y="223.5" font-size="15" fill="#f3f1ec" font-weight="600" text-anchor="middle">Over the air</text>
+<text x="955.0" y="243.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">JavaScript bundle, signed</text>
+<polygon points="830,297 844,288.6 1094,288.6 1080,297" fill="#2a2e38" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<polygon points="1080,297 1094,288.6 1094,342.6 1080,351" fill="#17191f" stroke="#4a505d" stroke-opacity=".55" stroke-width="1"/>
+<rect x="830" y="297" width="250" height="54" fill="#20232b" stroke="#4a505d" stroke-opacity=".8" stroke-width="1.2"/>
+<text x="955.0" y="319.5" font-size="15" fill="#f3f1ec" font-weight="600" text-anchor="middle">Images</text>
+<text x="955.0" y="339.5" font-size="12.5" fill="#c4c8cf" font-weight="400" text-anchor="middle">5 × ghcr.io, multi-arch</text>
+<path d="M756,242 C 790,242 790,132 826,132" fill="none" stroke="#c4c8cf" stroke-width="1.5" marker-end="url(#a)"/>
+<path d="M756,242 C 790,242 790,228 826,228" fill="none" stroke="#c4c8cf" stroke-width="1.5" marker-end="url(#a)"/>
+<path d="M756,242 C 790,242 790,324 826,324" fill="none" stroke="#c4c8cf" stroke-width="1.5" marker-end="url(#a)"/>
+<path d="M178,229 L206,229" stroke="#c4c8cf" stroke-width="1.5" marker-end="url(#a)"/>
+<path d="M370,229 L396,229" stroke="#c4c8cf" stroke-width="1.5" marker-end="url(#a)"/>
+<path d="M524,229 L566,229" stroke="#c4c8cf" stroke-width="1.5" marker-end="url(#a)"/>
+<path d="M524,229 C 545,229 545,178 566,178" fill="none" stroke="#c4c8cf" stroke-width="1.5" marker-end="url(#a)"/>
+<path d="M524,229 C 545,229 545,282 566,282" fill="none" stroke="#c4c8cf" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="60" y="363" font-size="12.5" fill="#a3a8b2" font-weight="400" text-anchor="start">beta.json or latest.json is written last, so it never points at a missing file.</text>
+<text x="60" y="383" font-size="12.5" fill="#a3a8b2" font-weight="400" text-anchor="start">Stable tags also deploy sync to production and update latest.apk.</text></svg>

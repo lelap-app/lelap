@@ -1,7 +1,8 @@
 # Contributing to Lelap
 
-Thanks for helping. Lelap is early, so the most useful contributions right now are bug reports,
-ideas that fit [the plan](docs/brief.md), and small focused pull requests.
+Thanks for helping. Bug reports, ideas that fit [the plan](docs/brief.md) and small focused pull
+requests are all welcome. Start with [`docs/architecture.md`](docs/architecture.md) for how the
+pieces fit together; [`docs/roadmap.md`](docs/roadmap.md) lists what is planned.
 
 ## Setup
 
@@ -10,10 +11,21 @@ You need Node 24 (`.nvmrc`) and pnpm through Corepack.
 ```bash
 corepack enable
 pnpm install
-pnpm dev:site
 ```
 
 `pnpm install` also installs a pre-commit hook that runs ESLint and Prettier on staged files.
+
+## Running things
+
+| What                        | Command                           | Notes                                                      |
+| --------------------------- | --------------------------------- | ---------------------------------------------------------- |
+| The app in a browser        | `pnpm dev:app`                    | Then press `w`. The web app keeps its database in OPFS.    |
+| The app on an Android phone | `pnpm android`                    | Needs Android Studio's SDK and a phone with USB debugging. |
+| The landing page and docs   | `pnpm dev:site`                   |                                                            |
+| A service                   | `pnpm --filter @lelap/<name> dev` | `wrangler dev` simulates D1, R2 and KV offline.            |
+
+A development build on a phone is signed with a debug key, so a release APK can't install over it
+(and the other way round): uninstall one before installing the other.
 
 ## Before you open a pull request
 
@@ -21,19 +33,32 @@ pnpm dev:site
 pnpm format:check
 pnpm lint
 pnpm check
+pnpm test
 pnpm build
 ```
 
-CI runs the same four commands on every pull request.
+CI runs the same five on every pull request, plus the Kotlin unit tests when native code changes.
 
 ## Pull requests
 
 - Keep each pull request to one change, with a title that says what it does.
 - Write in English: code, comments, docs and commit messages.
-- If your change makes [`docs/brief.md`](docs/brief.md) or an `AGENTS.md` untrue, update it in the
-  same pull request.
+- If your change makes [`docs/brief.md`](docs/brief.md), [`docs/architecture.md`](docs/architecture.md)
+  or an `AGENTS.md` untrue, update it in the same pull request.
 - Comment the why, only where a reader would otherwise be surprised.
-- Add a test when you fix a bug or add logic, once the package has a test setup.
+- Add a test when you fix a bug or add logic.
+- **Database changes:** generate the migration with `pnpm exec drizzle-kit generate` in
+  `packages/core`, on top of the latest `main`; never write or renumber one by hand.
+- **UI text** goes through `t()` with the English as the key; see
+  [`apps/app/src/i18n/README.md`](apps/app/src/i18n/README.md).
+- **Milestones:** each has a file in [`docs/milestones/`](docs/milestones/) with its status, and
+  open checks in `docs/mN-follow-ups.md`. Update the status in that file, not in the roadmap table.
+
+## Releases
+
+Maintainers tag `vX.Y.Z` (or `vX.Y.Z-beta.N`) on `main`. The release workflow builds and signs
+the APKs after a maintainer approves it, publishes them, ships the over-the-air update and the
+Docker images. The steps are in [`docs/architecture.md`](docs/architecture.md#pipelines).
 
 ## What we won't accept
 
