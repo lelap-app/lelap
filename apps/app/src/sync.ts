@@ -6,7 +6,7 @@ import {
   joinWithCode,
   leaveSync,
   offerPairing,
-  removedFromSyncAt,
+  removedFromSync,
   resetSync,
   startSync,
   syncNow,
@@ -39,8 +39,8 @@ export const joinSyncing = (code: string, name: string) =>
 export const makePairingCode = () => offerPairing(db, client, random);
 export const stopSyncing = () => leaveSync(db);
 export const resetSyncing = () => resetSync(db, client, random, Date.now());
-/** Set when another device reset sync and this one was left out. */
-export const removedAt = () => removedFromSyncAt(db);
+/** Why this device stopped syncing by itself: a reset elsewhere, or a restored backup. */
+export const removal = () => removedFromSync(db);
 export const membership = () => getMembership(db);
 
 /** The newest place from another device worth offering. */

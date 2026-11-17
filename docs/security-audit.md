@@ -17,7 +17,7 @@ layer that matters), Low (hardening), Info (checked and fine, or by design).
 | 3   | Medium   | Sync server     | Request bodies read in full before size checks (memory on Node)         | Fixed    |
 | 4   | Medium   | Sync, proxy     | No rate limits in code: groups, pairings and proxy fetches              | In place |
 | 5   | Medium   | Android audio   | Any app could send Lelap's custom playback commands                     | Fixed    |
-| 6   | Medium   | Android, web    | Sync group key and server passwords in plain SQLite; in Android backups | Decision |
+| 6   | Medium   | Android, web    | Sync group key and server passwords in plain SQLite; in Android backups | Fixed    |
 | 7   | Medium   | Sync crypto     | No way to remove a lost device: the group key never changes             | Fixed    |
 | 8   | Medium   | Web app         | No Content-Security-Policy or security headers                          | Fixed    |
 | 9   | Medium   | GitHub Actions  | Release jobs with secrets restored shared caches                        | Fixed    |
@@ -235,28 +235,35 @@ replace Up Next or change settings.
 session, library and player commands. Media buttons, the notification (Lelap's own package) and
 Android Auto use standard commands. Device check listed in the follow-ups.
 
-### 6. Secrets in plain SQLite and in backups (Medium, decision)
+### 6. Secrets in plain SQLite and in backups (Medium, fixed on Android)
 
 **Where:** `sync_state.value` (group key), `library_roots.remote` (WebDAV passwords, S3 secret
 keys), WorkManager job data (the WebDAV header for queued downloads), `android:allowBackup="true"`
 in the generated manifest.
 **What:** App-private storage keeps other apps out, but Android's cloud and device-to-device
-backups copy the database, so the keys and passwords travel with every backup. On the web they sit
-in the OPFS database, readable by any script that runs on the origin (the CSP in 8 is the defence).
-**Decision (not done here):** Moving them is not contained. Core reads the membership and remote
-settings synchronously in the sync engine, scanning, playback and downloads; the web needs a
-fallback; existing rows need a migration; and none of it can be checked on a device now. Proposed
-design:
+backups copied the database, so the keys and passwords travelled with every backup. On the web they
+sit in the OPFS database, readable by any script that runs on the origin (the CSP in 8 is the
+defence).
+**Fix (Android):**
 
-1. A `SecretStore` in core (`get`, `set`, `delete`, synchronous), injected like `random`.
-2. Android: `expo-secure-store` (Android Keystore AES keys, maintained, unlike the deprecated
-   `EncryptedSharedPreferences`), with its config plugin excluding it from backups. Keystore keys
-   do not survive a restore on a new phone, so the store must be out of backups or restores fail.
-3. Web: the same SQLite rows as now.
-4. Rows keep a reference (`secret:sync-group`, `secret:root:<id>`); a migration moves existing
-   values on first start.
-5. Either set `android:allowBackup="false"` or add data extraction rules that leave out the
-   database's secrets. That is a product decision: backups of places and the library are useful.
+- A random 32-byte key lives in `expo-secure-store` (encrypted with an Android Keystore key, which
+  can't be exported). `packages/core/src/secrets.ts` seals the group key and the server's password
+  or secret key with it (XChaCha20-Poly1305, `sec1:` prefix) before they are written; the rest of
+  the row stays readable. Sealing is in `getMembership`/`saveMembership` and
+  `listRoots`/`addRemoteRoot`/`updateRemoteRoot`, so callers are unchanged.
+- On the first start after the update, `sealStoredSecrets` seals values stored in plain text.
+- Backups (`plugins/withBackupRules.js`) keep the library, places and settings but leave out the
+  key store and WorkManager's database. expo-secure-store's own backup rules are off: they back up
+  only shared preferences, which would have dropped the database from backups altogether.
+- Restored on a new phone, the key is missing, so a new one is made. Sync stops and the Sync screen
+  says to pair again; a server shows “Password needed” in Settings and “Log in” enters it again
+  without losing its books or places.
+- If the key store can't be read, sealed secrets stay unread for that run and nothing is cleaned
+  up.
+
+**Web (decision):** browsers have no store a page's own scripts can't read. A non-extractable
+WebCrypto key would only stop someone copying the browser profile, and its async API would make
+every secret read async in core. The web build keeps secrets as they are; the CSP is its defence.
 
 ### 12. Updater download without a size cap (Low, fixed)
 

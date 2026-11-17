@@ -19,3 +19,5 @@ export * from './upNext';
 export * from './sync';
 export * from './release';
 export * from './remote';
+export * from './secrets';
+export * from './storedSecrets';
