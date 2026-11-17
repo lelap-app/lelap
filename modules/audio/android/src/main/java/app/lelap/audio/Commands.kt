@@ -12,6 +12,8 @@ object Commands {
   /** In [AUDIO_PREFS]: the queue, and the books that ended while the app may have been closed. */
   const val PREF_QUEUE = "upNextQueue"
   const val PREF_FINISHED = "finished"
+  /** In [AUDIO_PREFS]: the app's [CarSnapshot], the books Android Auto can browse. */
+  const val PREF_CAR_LIBRARY = "carLibrary"
 
   const val KEY_SKIP_INTERVAL_MS = "skipIntervalMs"
   const val KEY_SMART_REWIND = "smartRewind"
@@ -28,6 +30,8 @@ object Commands {
   /** SharedPreferences file and key of the position journal, read by the app in-process. */
   const val JOURNAL_PREFS = "lelap_journal"
   const val JOURNAL_KEY = "journal"
+  /** Places of books the service replaced by itself (Up Next, Android Auto), oldest first. */
+  const val EARLIER_KEY = "earlier"
 
   const val EXTRA_DUCK = "duckOnInterruption"
   const val EXTRA_WAITING_FOR_FOCUS = "waitingForFocus"

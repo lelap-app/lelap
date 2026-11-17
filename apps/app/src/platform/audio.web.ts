@@ -1,5 +1,6 @@
 import type {
   BookLoad,
+  CarLibrary,
   FinishedItem,
   JournalEntry,
   PlayerSettings,
@@ -8,7 +9,7 @@ import type {
 
 import * as opfs from './opfs';
 
-export type { BookLoad, FinishedItem, JournalEntry, PlayerSettings, PlayerState };
+export type { BookLoad, CarLibrary, FinishedItem, JournalEntry, PlayerSettings, PlayerState };
 
 // The web player: one <audio> element playing the book's files in order, with the same API as
 // the Android module. Media Session gives the lock screen, keyboard and headset controls. The
@@ -330,6 +331,15 @@ export async function cancelSleepTimer(): Promise<void> {
 
 export async function setQueue(next: BookLoad[]): Promise<void> {
   queue = [...next];
+}
+
+// The web player runs inside the app, which saves every place itself; there is no car here.
+export async function takeEarlierPlaces(): Promise<JournalEntry[]> {
+  return [];
+}
+
+export async function setCarLibrary(library: CarLibrary): Promise<void> {
+  void library;
 }
 
 export async function takeFinished(): Promise<FinishedItem[]> {
