@@ -54,7 +54,7 @@ describe('Catalog manifest', () => {
   it('leaves Podcast Index out without its secrets', () => {
     const manifest = Manifest.parse(catalogManifest(false));
     expect(manifest.types).toEqual(['audiobook']);
-    expect(manifest.idPrefixes).toEqual(['ol:']);
+    expect(manifest.idPrefixes).toEqual(['ol:', 'asin:']);
     expect(manifest.catalogs.map((c) => [c.type, c.id, c.extra?.map((e) => e.name)])).toEqual([
       ['audiobook', 'openlibrary-search', ['search', 'skip']],
     ]);
@@ -64,7 +64,7 @@ describe('Catalog manifest', () => {
   it('adds the podcast catalogs and prefix with them', () => {
     const manifest = Manifest.parse(catalogManifest(true));
     expect(manifest.types).toEqual(['audiobook', 'podcast']);
-    expect(manifest.idPrefixes).toEqual(['ol:', 'podcast:']);
+    expect(manifest.idPrefixes).toEqual(['ol:', 'asin:', 'podcast:']);
     expect(manifest.catalogs.map((c) => [c.type, c.id, c.extra?.map((e) => e.name)])).toEqual([
       ['audiobook', 'openlibrary-search', ['search', 'skip']],
       ['podcast', 'trending', undefined],

@@ -41,6 +41,15 @@ export type Work = z.infer<typeof Work>;
 
 const Author = z.object({ name: z.string().min(1) });
 
+const Edition = z.object({
+  physical_format: lenient(z.string()),
+  identifiers: lenient(z.object({ amazon: lenient(z.array(z.string())) })),
+});
+const Editions = z.object({ entries: z.array(z.unknown()) });
+
+/** Audible ASINs start with B0; ten-digit ISBNs in the same field are print or CD editions. */
+const AUDIBLE_ASIN = /^B0[0-9A-Z]{8}$/;
+
 /** `OL69612W` from `ol:OL69612W`, or null for anything that is not a work ID. */
 export function workIdOf(id: string): string | null {
   const value = id.startsWith(PREFIX) ? id.slice(PREFIX.length) : '';
@@ -119,6 +128,27 @@ export async function authorNames(upstream: Upstream, work: Work, max = 2): Prom
   return results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
 }
 
+/**
+ * The Audible ASIN of an audio edition of the work, if Open Library records one. Editions marked
+ * as Audible come first; ebooks have ASINs too, so only audio formats count.
+ */
+export async function audioAsin(upstream: Upstream, workId: string): Promise<string | null> {
+  const parsed = Editions.safeParse(
+    await upstream.json(`${OPEN_LIBRARY}/works/${workId}/editions.json?limit=100`, {
+      ttl: TTL.item,
+    }),
+  );
+  if (!parsed.success) return null;
+  const candidates = parsed.data.entries.flatMap((raw) => {
+    const edition = Edition.safeParse(raw).data;
+    const format = edition?.physical_format?.toLowerCase() ?? '';
+    if (!/audi|mp3/.test(format)) return [];
+    const asin = edition?.identifiers?.amazon?.find((id) => AUDIBLE_ASIN.test(id));
+    return asin ? [{ asin, audible: format.includes('audible') }] : [];
+  });
+  return (candidates.find((c) => c.audible) ?? candidates[0])?.asin ?? null;
+}
+
 /** Open Library descriptions are Markdown with a source footer; keep the prose. */
 export function cleanDescription(text: string): string {
   const [prose = ''] = text.split(/\r?\n-{3,}\r?\n/);
@@ -143,7 +173,14 @@ export async function workMeta(upstream: Upstream, id: string): Promise<Meta | n
     link: `${OPEN_LIBRARY}/works/${workId}`,
     externalIds: { ol: workId },
   };
-  const authors = await authorNames(upstream, work);
+  const [authors, asin] = await Promise.all([
+    authorNames(upstream, work),
+    // A merged work's editions live under the work it points to.
+    audioAsin(upstream, workIdOf(`${PREFIX}${work.key.replace('/works/', '')}`) ?? workId).catch(
+      () => null,
+    ),
+  ]);
+  if (asin) meta.externalIds = { ol: workId, asin };
   if (authors.length > 0) meta.author = authors.join(', ');
   const raw = typeof work.description === 'string' ? work.description : work.description?.value;
   const description = raw ? cleanDescription(raw) : '';

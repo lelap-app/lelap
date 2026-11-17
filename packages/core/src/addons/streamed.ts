@@ -1,4 +1,4 @@
-import { hasParts, type Meta, type MetaPreview, type Stream } from '@lelap/sdk';
+import { type Chapter, hasParts, type Meta, type MetaPreview, type Stream } from '@lelap/sdk';
 import { and, eq, like, notInArray } from 'drizzle-orm';
 
 import type { Db } from '../db';
@@ -40,8 +40,34 @@ function partsOf(meta: Meta | MetaPreview, stream: Stream): Part[] {
   ];
 }
 
-function chaptersOf(meta: Meta | MetaPreview, stream: Stream, parts: Part[]) {
-  if (!hasParts(stream)) return stream.chapters ?? ('chapters' in meta ? meta.chapters : []) ?? [];
+/** How far a stream's length may be from the meta's for the meta's chapters to apply. */
+export const CHAPTER_FIT_MS = 15_000;
+
+/**
+ * The meta's chapters, for a stream without its own. Chapters from metadata (Audnexus, say)
+ * belong to one recording, so they only apply when the stream is as long as the meta says.
+ * A meta without a length keeps the older rule: its chapters apply to any single file.
+ */
+function metaChapters(meta: Meta | MetaPreview, stream: Stream, totalMs: number): Chapter[] {
+  const list = 'chapters' in meta ? (meta.chapters ?? []) : [];
+  if (list.length === 0) return [];
+  if (meta.durationMs === undefined) return hasParts(stream) ? [] : list;
+  const fits =
+    totalMs > 0 &&
+    Math.abs(totalMs - meta.durationMs) <= CHAPTER_FIT_MS &&
+    list.every((c) => c.startMs < totalMs);
+  return fits ? list : [];
+}
+
+function chaptersOf(meta: Meta | MetaPreview, stream: Stream, parts: Part[]): Chapter[] {
+  if (!hasParts(stream))
+    return stream.chapters ?? metaChapters(meta, stream, stream.durationMs ?? 0);
+  const fromMeta = metaChapters(
+    meta,
+    stream,
+    parts.reduce((sum, p) => sum + p.durationMs, 0),
+  );
+  if (fromMeta.length > 0) return fromMeta;
   if (parts.length === 1) return [];
   let startMs = 0;
   return parts.map((part) => {

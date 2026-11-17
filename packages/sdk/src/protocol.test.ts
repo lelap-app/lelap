@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type Manifest, Stream, supports } from './protocol';
+import { type Manifest, Meta, Stream, supports } from './protocol';
 
 const base: Manifest = {
   id: 'org.example.test',
@@ -64,5 +64,16 @@ describe('Stream with both url and parts', () => {
       parts: [{ url: 'https://x.example/1.mp3', durationMs: 1 }],
     });
     expect('parts' in parsed).toBe(true);
+  });
+});
+
+describe('Meta series', () => {
+  it('is optional and takes a position label', () => {
+    const base = { id: 'ol:OL1W', type: 'audiobook', name: 'A' };
+    expect(Meta.safeParse(base).success).toBe(true);
+    expect(
+      Meta.parse({ ...base, series: [{ name: 'Kingkiller Chronicle', position: '1' }] }).series,
+    ).toEqual([{ name: 'Kingkiller Chronicle', position: '1' }]);
+    expect(Meta.safeParse({ ...base, series: [{ name: '' }] }).success).toBe(false);
   });
 });

@@ -5,8 +5,10 @@ import {
   type ContentType,
   createAddon,
   type Manifest,
+  type Meta,
 } from '@lelap/sdk';
 
+import { createAudnexus, PREFIX as ASIN } from '../audnexus';
 import * as openLibrary from '../openlibrary';
 import {
   createPodcastIndex,
@@ -37,15 +39,16 @@ const PODCAST_CATALOGS: CatalogDefinition[] = [
 /** Podcast Index only appears when both of its secrets are configured. */
 export function catalogManifest(podcasts: boolean): Manifest {
   const types: ContentType[] = podcasts ? ['audiobook', 'podcast'] : ['audiobook'];
-  const idPrefixes = podcasts ? [openLibrary.PREFIX, PODCAST] : [openLibrary.PREFIX];
+  const books = [openLibrary.PREFIX, ASIN];
+  const idPrefixes = podcasts ? [...books, PODCAST] : books;
   return {
     id: 'app.lelap.catalog',
     version: '1.0.0',
     protocol: 1,
     name: 'Catalog',
     description: podcasts
-      ? 'Books from Open Library and podcasts from Podcast Index.'
-      : 'Books from Open Library.',
+      ? 'Books from Open Library with narrators, series and chapters from Audnexus, and podcasts from Podcast Index.'
+      : 'Books from Open Library with narrators, series and chapters from Audnexus.',
     types,
     resources: ['catalog', { name: 'meta', types, idPrefixes }],
     idPrefixes,
@@ -58,6 +61,7 @@ export function createCatalogAddon(
   podcastIndex: PodcastIndexCredentials | null,
 ): Addon {
   const podcasts = podcastIndex ? createPodcastIndex(upstream, podcastIndex) : null;
+  const audnexus = createAudnexus(upstream);
 
   return createAddon(
     {
@@ -82,12 +86,19 @@ export function createCatalogAddon(
         return { metas: [], cacheMaxAge: TTL.catalog };
       },
       async meta({ type, id }) {
-        const meta =
-          type === 'audiobook'
-            ? await openLibrary.workMeta(upstream, id)
-            : type === 'podcast' && podcasts
-              ? await podcasts.meta(id)
-              : null;
+        if (type === 'audiobook') {
+          // Audnexus is extra: when it is down the meta still goes out, cached briefly.
+          let found: { meta: Meta | null; failed: boolean };
+          if (id.startsWith(ASIN)) {
+            found = await audnexus.meta(id);
+          } else {
+            const work = await openLibrary.workMeta(upstream, id);
+            found = work ? await audnexus.enrich(work) : { meta: null, failed: false };
+          }
+          if (!found.meta) return null;
+          return { meta: found.meta, cacheMaxAge: found.failed ? TTL.failure : TTL.item };
+        }
+        const meta = type === 'podcast' && podcasts ? await podcasts.meta(id) : null;
         return meta ? { meta, cacheMaxAge: TTL.item } : null;
       },
     },

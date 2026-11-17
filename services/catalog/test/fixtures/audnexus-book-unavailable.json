@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "REGION_UNAVAILABLE",
+    "message": "Item not available in region 'us' for ASIN: B08GB58KD5",
+    "details": {
+      "asin": "B08GB58KD5",
+      "code": "REGION_UNAVAILABLE"
+    }
+  }
+}

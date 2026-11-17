@@ -1,0 +1,587 @@
+{
+  "asin": "B002UZMLXM",
+  "brandIntroDurationMs": 3970,
+  "brandOutroDurationMs": 4945,
+  "chapters": [
+    {
+      "lengthMs": 42662,
+      "startOffsetMs": 0,
+      "startOffsetSec": 0,
+      "title": "Opening Credits"
+    },
+    {
+      "lengthMs": 150086,
+      "startOffsetMs": 42662,
+      "startOffsetSec": 42,
+      "title": "Prologue: A Silence of Three Parts"
+    },
+    {
+      "lengthMs": 2534458,
+      "startOffsetMs": 192748,
+      "startOffsetSec": 192,
+      "title": "Chapter One: A Place for Demons"
+    },
+    {
+      "lengthMs": 500111,
+      "startOffsetMs": 2727206,
+      "startOffsetSec": 2727,
+      "title": "Chapter Two: A Beautiful Day"
+    },
+    {
+      "lengthMs": 1796133,
+      "startOffsetMs": 3227317,
+      "startOffsetSec": 3227,
+      "title": "Chapter Three: Wood and Word"
+    },
+    {
+      "lengthMs": 730128,
+      "startOffsetMs": 5023450,
+      "startOffsetSec": 5023,
+      "title": "Chapter Four: Halfway to Newarre"
+    },
+    {
+      "lengthMs": 437115,
+      "startOffsetMs": 5753578,
+      "startOffsetSec": 5753,
+      "title": "Chapter Five: Notes"
+    },
+    {
+      "lengthMs": 1234140,
+      "startOffsetMs": 6190693,
+      "startOffsetSec": 6190,
+      "title": "Chapter Six: The Price of Remembering"
+    },
+    {
+      "lengthMs": 807102,
+      "startOffsetMs": 7424833,
+      "startOffsetSec": 7424,
+      "title": "Chapter Seven: Of Beginnings and the Names of Things"
+    },
+    {
+      "lengthMs": 1646109,
+      "startOffsetMs": 8231935,
+      "startOffsetSec": 8231,
+      "title": "Chapter Eight: Thieves, Heretics, and Whores"
+    },
+    {
+      "lengthMs": 769137,
+      "startOffsetMs": 9878044,
+      "startOffsetSec": 9878,
+      "title": "Chapter Nine: Riding in the Wagon with Ben"
+    },
+    {
+      "lengthMs": 402123,
+      "startOffsetMs": 10647181,
+      "startOffsetSec": 10647,
+      "title": "Chapter Ten: Alar and Several Stones"
+    },
+    {
+      "lengthMs": 976120,
+      "startOffsetMs": 11049304,
+      "startOffsetSec": 11049,
+      "title": "Chapter Eleven: The Binding of Iron"
+    },
+    {
+      "lengthMs": 1642115,
+      "startOffsetMs": 12025424,
+      "startOffsetSec": 12025,
+      "title": "Chapter Twelve: Puzzle Pieces Fitting"
+    },
+    {
+      "lengthMs": 902118,
+      "startOffsetMs": 13667539,
+      "startOffsetSec": 13667,
+      "title": "Chapter Thirteen: Interlude—Flesh with Blood Beneath"
+    },
+    {
+      "lengthMs": 1435109,
+      "startOffsetMs": 14569657,
+      "startOffsetSec": 14569,
+      "title": "Chapter Fourteen: The Name of the Wind"
+    },
+    {
+      "lengthMs": 767117,
+      "startOffsetMs": 16004766,
+      "startOffsetSec": 16004,
+      "title": "Chapter Fifteen: Distractions and Farewells"
+    },
+    {
+      "lengthMs": 1417113,
+      "startOffsetMs": 16771883,
+      "startOffsetSec": 16771,
+      "title": "Chapter Sixteen: Hope"
+    },
+    {
+      "lengthMs": 306131,
+      "startOffsetMs": 18188996,
+      "startOffsetSec": 18188,
+      "title": "Chapter Seventeen: Interlude—Autumn"
+    },
+    {
+      "lengthMs": 615119,
+      "startOffsetMs": 18495127,
+      "startOffsetSec": 18495,
+      "title": "Chapter Eighteen: Roads to Safe Places"
+    },
+    {
+      "lengthMs": 620135,
+      "startOffsetMs": 19110246,
+      "startOffsetSec": 19110,
+      "title": "Chapter Nineteen: Fingers and Strings"
+    },
+    {
+      "lengthMs": 1208111,
+      "startOffsetMs": 19730381,
+      "startOffsetSec": 19730,
+      "title": "Chapter Twenty: Bloody Hands into Stinging Fists"
+    },
+    {
+      "lengthMs": 626126,
+      "startOffsetMs": 20938492,
+      "startOffsetSec": 20938,
+      "title": "Chapter Twenty-One: Basement, Bread and Bucket"
+    },
+    {
+      "lengthMs": 1613113,
+      "startOffsetMs": 21564618,
+      "startOffsetSec": 21564,
+      "title": "Chapter Twenty-Two: A Time for Demons"
+    },
+    {
+      "lengthMs": 2072125,
+      "startOffsetMs": 23177731,
+      "startOffsetSec": 23177,
+      "title": "Chapter Twenty-Three: The Burning Wheel"
+    },
+    {
+      "lengthMs": 240117,
+      "startOffsetMs": 25249856,
+      "startOffsetSec": 25249,
+      "title": "Chapter Twenty-Four: Shadows Themselves"
+    },
+    {
+      "lengthMs": 295102,
+      "startOffsetMs": 25489973,
+      "startOffsetSec": 25489,
+      "title": "Chapter Twenty-Five: Interlude—Eager for Reasons"
+    },
+    {
+      "lengthMs": 2447127,
+      "startOffsetMs": 25785075,
+      "startOffsetSec": 25785,
+      "title": "Chapter Twenty-Six: Lanre Turned"
+    },
+    {
+      "lengthMs": 393113,
+      "startOffsetMs": 28232202,
+      "startOffsetSec": 28232,
+      "title": "Chapter Twenty-Seven: His Eyes Unveiled"
+    },
+    {
+      "lengthMs": 914123,
+      "startOffsetMs": 28625315,
+      "startOffsetSec": 28625,
+      "title": "Chapter Twenty-Eight: Tehlu’s Watchful Eye"
+    },
+    {
+      "lengthMs": 307130,
+      "startOffsetMs": 29539438,
+      "startOffsetSec": 29539,
+      "title": "Chapter Twenty-Nine: The Doors of My Mind"
+    },
+    {
+      "lengthMs": 354127,
+      "startOffsetMs": 29846568,
+      "startOffsetSec": 29846,
+      "title": "Chapter Thirty: The Broken Binding"
+    },
+    {
+      "lengthMs": 898124,
+      "startOffsetMs": 30200695,
+      "startOffsetSec": 30200,
+      "title": "Chapter Thirty-One: The Nature of Nobility"
+    },
+    {
+      "lengthMs": 1119108,
+      "startOffsetMs": 31098819,
+      "startOffsetSec": 31098,
+      "title": "Chapter Thirty-Two: Coppers, Cobblers and Crowds"
+    },
+    {
+      "lengthMs": 681110,
+      "startOffsetMs": 32217927,
+      "startOffsetSec": 32217,
+      "title": "Chapter Thirty-Three: A Sea of Stars"
+    },
+    {
+      "lengthMs": 558114,
+      "startOffsetMs": 32899037,
+      "startOffsetSec": 32899,
+      "title": "Chapter Thirty-Four: Yet to Learn"
+    },
+    {
+      "lengthMs": 394112,
+      "startOffsetMs": 33457151,
+      "startOffsetSec": 33457,
+      "title": "Chapter Thirty-Five: A Parting of Ways"
+    },
+    {
+      "lengthMs": 2128132,
+      "startOffsetMs": 33851263,
+      "startOffsetSec": 33851,
+      "title": "Chapter Thirty-Six: Less Talents"
+    },
+    {
+      "lengthMs": 1607099,
+      "startOffsetMs": 35979395,
+      "startOffsetSec": 35979,
+      "title": "Chapter Thirty-Seven: Bright-Eyed"
+    },
+    {
+      "lengthMs": 1302128,
+      "startOffsetMs": 37586494,
+      "startOffsetSec": 37586,
+      "title": "Chapter Thirty-Eight: Sympathy in the Mains"
+    },
+    {
+      "lengthMs": 755136,
+      "startOffsetMs": 38888622,
+      "startOffsetSec": 38888,
+      "title": "Chapter Thirty-Nine: Enough Rope"
+    },
+    {
+      "lengthMs": 1718137,
+      "startOffsetMs": 39643758,
+      "startOffsetSec": 39643,
+      "title": "Chapter Forty: On the Horns"
+    },
+    {
+      "lengthMs": 842118,
+      "startOffsetMs": 41361895,
+      "startOffsetSec": 41361,
+      "title": "Chapter Forty-One: Friend’s Blood"
+    },
+    {
+      "lengthMs": 884122,
+      "startOffsetMs": 42204013,
+      "startOffsetSec": 42204,
+      "title": "Chapter Forty-Two: Bloodless"
+    },
+    {
+      "lengthMs": 2126111,
+      "startOffsetMs": 43088135,
+      "startOffsetSec": 43088,
+      "title": "Chapter Forty-Three: The Flickering Way"
+    },
+    {
+      "lengthMs": 1141121,
+      "startOffsetMs": 45214246,
+      "startOffsetSec": 45214,
+      "title": "Chapter Forty-Four: The Burning Glass"
+    },
+    {
+      "lengthMs": 260133,
+      "startOffsetMs": 46355367,
+      "startOffsetSec": 46355,
+      "title": "Chapter Forty-Five: Interlude—Some Tavern Tale"
+    },
+    {
+      "lengthMs": 1750134,
+      "startOffsetMs": 46615500,
+      "startOffsetSec": 46615,
+      "title": "Chapter Forty-Six: The Ever-Changing Wind"
+    },
+    {
+      "lengthMs": 361116,
+      "startOffsetMs": 48365634,
+      "startOffsetSec": 48365,
+      "title": "Chapter Forty-Seven: Barbs"
+    },
+    {
+      "lengthMs": 385126,
+      "startOffsetMs": 48726750,
+      "startOffsetSec": 48726,
+      "title": "Chapter Forty-Eight: Interlude—A Silence of a Different Kind"
+    },
+    {
+      "lengthMs": 378136,
+      "startOffsetMs": 49111876,
+      "startOffsetSec": 49111,
+      "title": "Chapter Forty-Nine: The Nature of Wild Things"
+    },
+    {
+      "lengthMs": 1424126,
+      "startOffsetMs": 49490012,
+      "startOffsetSec": 49490,
+      "title": "Chapter Fifty: Negotiations"
+    },
+    {
+      "lengthMs": 635112,
+      "startOffsetMs": 50914138,
+      "startOffsetSec": 50914,
+      "title": "Chapter Fifty-One: Tar and Tin"
+    },
+    {
+      "lengthMs": 1699120,
+      "startOffsetMs": 51549250,
+      "startOffsetSec": 51549,
+      "title": "Chapter Fifty-Two: Burning"
+    },
+    {
+      "lengthMs": 844115,
+      "startOffsetMs": 53248370,
+      "startOffsetSec": 53248,
+      "title": "Chapter Fifty-Three: Slow Circles"
+    },
+    {
+      "lengthMs": 2249131,
+      "startOffsetMs": 54092485,
+      "startOffsetSec": 54092,
+      "title": "Chapter Fifty-Four: A Place to Burn"
+    },
+    {
+      "lengthMs": 90116,
+      "startOffsetMs": 56341616,
+      "startOffsetSec": 56341,
+      "title": "Chapter Fifty-Five: Flame and Thunder"
+    },
+    {
+      "lengthMs": 1530125,
+      "startOffsetMs": 56431732,
+      "startOffsetSec": 56431,
+      "title": "Chapter Fifty-Six: Patrons, Maids and Metheglin"
+    },
+    {
+      "lengthMs": 576110,
+      "startOffsetMs": 57961857,
+      "startOffsetSec": 57961,
+      "title": "Chapter Fifty-Seven: Interlude—The Parts that Form Us"
+    },
+    {
+      "lengthMs": 1438127,
+      "startOffsetMs": 58537967,
+      "startOffsetSec": 58537,
+      "title": "Chapter Fifty-Eight: Names for Beginning"
+    },
+    {
+      "lengthMs": 99102,
+      "startOffsetMs": 59976094,
+      "startOffsetSec": 59976,
+      "title": "Chapter Fifty-Nine: All This Knowing"
+    },
+    {
+      "lengthMs": 1858130,
+      "startOffsetMs": 60075196,
+      "startOffsetSec": 60075,
+      "title": "Chapter Sixty: Fortune"
+    },
+    {
+      "lengthMs": 1527129,
+      "startOffsetMs": 61933326,
+      "startOffsetSec": 61933,
+      "title": "Chapter Sixty-One: Jackass, Jackass"
+    },
+    {
+      "lengthMs": 1475117,
+      "startOffsetMs": 63460455,
+      "startOffsetSec": 63460,
+      "title": "Chapter Sixty-Two: Leaves"
+    },
+    {
+      "lengthMs": 497116,
+      "startOffsetMs": 64935572,
+      "startOffsetSec": 64935,
+      "title": "Chapter Sixty-Three: Walking and Talking"
+    },
+    {
+      "lengthMs": 922134,
+      "startOffsetMs": 65432688,
+      "startOffsetSec": 65432,
+      "title": "Chapter Sixty-Four: Nine in the Fire"
+    },
+    {
+      "lengthMs": 1196129,
+      "startOffsetMs": 66354822,
+      "startOffsetSec": 66354,
+      "title": "Chapter Sixty-Five: Spark"
+    },
+    {
+      "lengthMs": 1147112,
+      "startOffsetMs": 67550951,
+      "startOffsetSec": 67550,
+      "title": "Chapter Sixty-Six: Volatile"
+    },
+    {
+      "lengthMs": 803108,
+      "startOffsetMs": 68698063,
+      "startOffsetSec": 68698,
+      "title": "Chapter Sixty-Seven: A Matter of Hands"
+    },
+    {
+      "lengthMs": 1552114,
+      "startOffsetMs": 69501171,
+      "startOffsetSec": 69501,
+      "title": "Chapter Sixty-Eight: The Ever-Changing Wind"
+    },
+    {
+      "lengthMs": 2284123,
+      "startOffsetMs": 71053285,
+      "startOffsetSec": 71053,
+      "title": "Chapter Sixty-Nine: Wind or Women’s Fancy"
+    },
+    {
+      "lengthMs": 1400116,
+      "startOffsetMs": 73337408,
+      "startOffsetSec": 73337,
+      "title": "Chapter Seventy: Signs"
+    },
+    {
+      "lengthMs": 2250106,
+      "startOffsetMs": 74737524,
+      "startOffsetSec": 74737,
+      "title": "Chapter Seventy-One: Strange Attraction"
+    },
+    {
+      "lengthMs": 2995211,
+      "startOffsetMs": 76987630,
+      "startOffsetSec": 76987,
+      "title": "Chapter Seventy-Two: Borrorill"
+    },
+    {
+      "lengthMs": 1761117,
+      "startOffsetMs": 79982841,
+      "startOffsetSec": 79982,
+      "title": "Chapter Seventy-Three: Pegs"
+    },
+    {
+      "lengthMs": 965114,
+      "startOffsetMs": 81743958,
+      "startOffsetSec": 81743,
+      "title": "Chapter Seventy-Four: Waystone"
+    },
+    {
+      "lengthMs": 104118,
+      "startOffsetMs": 82709072,
+      "startOffsetSec": 82709,
+      "title": "Chapter Seventy-Five: Interlude—Obedience"
+    },
+    {
+      "lengthMs": 427131,
+      "startOffsetMs": 82813190,
+      "startOffsetSec": 82813,
+      "title": "Chapter Seventy-Six: The Mating Habits of the Common Draccus"
+    },
+    {
+      "lengthMs": 2723166,
+      "startOffsetMs": 83240321,
+      "startOffsetSec": 83240,
+      "title": "Chapter Seventy- Seven: Bluffs"
+    },
+    {
+      "lengthMs": 623130,
+      "startOffsetMs": 85963487,
+      "startOffsetSec": 85963,
+      "title": "Chapter Seventy-Eight: Poison"
+    },
+    {
+      "lengthMs": 1341138,
+      "startOffsetMs": 86586617,
+      "startOffsetSec": 86586,
+      "title": "Chapter Seventy-Nine: Sweet Talk"
+    },
+    {
+      "lengthMs": 1320124,
+      "startOffsetMs": 87927755,
+      "startOffsetSec": 87927,
+      "title": "Chapter Eighty: Touching Iron"
+    },
+    {
+      "lengthMs": 75139,
+      "startOffsetMs": 89247879,
+      "startOffsetSec": 89247,
+      "title": "Chapter Eighty-One: Pride"
+    },
+    {
+      "lengthMs": 1469126,
+      "startOffsetMs": 89323018,
+      "startOffsetSec": 89323,
+      "title": "Chapter Eighty-Two: Ash and Elm . . "
+    },
+    {
+      "lengthMs": 219126,
+      "startOffsetMs": 90792144,
+      "startOffsetSec": 90792,
+      "title": "Chapter Eighty-Three: Return"
+    },
+    {
+      "lengthMs": 1223111,
+      "startOffsetMs": 91011270,
+      "startOffsetSec": 91011,
+      "title": "Chapter Eighty-Four: A Sudden Storm"
+    },
+    {
+      "lengthMs": 674121,
+      "startOffsetMs": 92234381,
+      "startOffsetSec": 92234,
+      "title": "Chapter Eighty-Five: Hands Against Me"
+    },
+    {
+      "lengthMs": 765120,
+      "startOffsetMs": 92908502,
+      "startOffsetSec": 92908,
+      "title": "Chapter Eighty-Six: The Fire Itself"
+    },
+    {
+      "lengthMs": 699129,
+      "startOffsetMs": 93673622,
+      "startOffsetSec": 93673,
+      "title": "Chapter Eighty-Seven: Winter"
+    },
+    {
+      "lengthMs": 2828167,
+      "startOffsetMs": 94372751,
+      "startOffsetSec": 94372,
+      "title": "Chapter Eighty-Eight: Interlude—Looking"
+    },
+    {
+      "lengthMs": 77113,
+      "startOffsetMs": 97200918,
+      "startOffsetSec": 97200,
+      "title": "Chapter Eighty-Nine: A Pleasant Afternoon"
+    },
+    {
+      "lengthMs": 1146136,
+      "startOffsetMs": 97278031,
+      "startOffsetSec": 97278,
+      "title": "Chapter Ninety: Half-Built Houses"
+    },
+    {
+      "lengthMs": 559136,
+      "startOffsetMs": 98424167,
+      "startOffsetSec": 98424,
+      "title": "Chapter Ninety-One: Worthy of Pursuit"
+    },
+    {
+      "lengthMs": 1352099,
+      "startOffsetMs": 98983303,
+      "startOffsetSec": 98983,
+      "title": "Chapter Ninety-Two: The Music that Plays"
+    },
+    {
+      "lengthMs": 140272,
+      "startOffsetMs": 100335402,
+      "startOffsetSec": 100335,
+      "title": "Epilogue"
+    },
+    {
+      "lengthMs": 78690,
+      "startOffsetMs": 100475674,
+      "startOffsetSec": 100475,
+      "title": "End Credits"
+    }
+  ],
+  "isAccurate": true,
+  "region": "us",
+  "runtimeLengthMs": 100554364,
+  "runtimeLengthSec": 100554
+}
