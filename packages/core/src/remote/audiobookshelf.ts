@@ -7,16 +7,30 @@ import { failure, type Fetch, RemoteError } from './http';
 import type { RemotePlace } from './jellyfin';
 
 /**
- * An Audiobookshelf server used as a library. `token` is the one long-lived secret, sealed like a
- * password: a refresh token (`refresh: true`, servers from 2.26 on), or an API key or a pre-2.26
- * token used as is. The password is never kept. `profileId` is the Lelap profile whose places
- * sync with it.
+ * An Audiobookshelf server used as a library, signed in with an API key (Audiobookshelf 2.26 and
+ * later). The key is sealed like a password and sent as it is; there is nothing to renew.
+ * `profileId` is the Lelap profile whose places sync with it.
  */
 export type AudiobookshelfSource = Omit<Extract<RemoteSource, { type: 'audiobookshelf' }>, 'type'>;
 
 const WHAT = 'Audiobookshelf server';
 const PAGE = 200;
 const BATCH = 50;
+
+/** Audiobookshelf answers 401 or 403 to a key that expired, was turned off or never existed. */
+function refused(status: number): RemoteError {
+  if (status === 401 || status === 403) {
+    return new RemoteError(
+      status,
+      `The Audiobookshelf server refused the API key (HTTP ${status}). Ask for a new key in Audiobookshelf.`,
+    );
+  }
+  return failure(status, WHAT);
+}
+
+/** Whether an error means the server refused the API key (expired, turned off, unknown). */
+export const isKeyRefused = (error: unknown) =>
+  error instanceof RemoteError && (error.status === 401 || error.status === 403);
 
 export const audiobookshelfBase = (url: string) => url.trim().replace(/\/+$/, '');
 
@@ -26,15 +40,14 @@ type Call = {
   timeoutMs?: number;
   body?: unknown;
   query?: Record<string, string>;
-  headers?: Record<string, string>;
 };
 
 async function call(
   fetcher: Fetch,
   url: string,
-  bearer: string | null,
+  bearer: string,
   path: string,
-  { method = 'GET', body, query, headers = {}, timeoutMs = 30_000 }: Call = {},
+  { method = 'GET', body, query, timeoutMs = 30_000 }: Call = {},
 ): Promise<Response> {
   const search = query ? `?${new URLSearchParams(query).toString()}` : '';
   const controller = new AbortController();
@@ -45,9 +58,8 @@ async function call(
       signal: controller.signal,
       headers: {
         Accept: 'application/json',
-        ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+        Authorization: `Bearer ${bearer}`,
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        ...headers,
       },
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
@@ -58,58 +70,6 @@ async function call(
   } finally {
     clearTimeout(timer);
   }
-}
-
-const LoginUser = z.object({
-  id: z.string(),
-  username: z.string().nullish(),
-  token: z.string().nullish(),
-  accessToken: z.string().nullish(),
-  refreshToken: z.string().nullish(),
-});
-const Login = z.object({ user: LoginUser });
-
-/** What a sign-in gives: the secret to keep, and a first access token to use right away. */
-export type AudiobookshelfLogin = {
-  userId: string;
-  username: string;
-  token: string;
-  refresh: boolean;
-  accessToken: string;
-};
-
-/**
- * Signs in with a username and password. Servers from 2.26 on give a short-lived access token and
- * a refresh token (asked for with `x-return-tokens`); older ones give one token that doesn't expire.
- */
-export async function signInAudiobookshelf(
-  fetcher: Fetch,
-  login: { url: string; username: string; password: string },
-): Promise<AudiobookshelfLogin> {
-  const response = await call(fetcher, login.url, null, '/login', {
-    method: 'POST',
-    body: { username: login.username, password: login.password },
-    headers: { 'x-return-tokens': 'true' },
-  });
-  if (!response.ok) throw failure(response.status, WHAT);
-  const parsed = Login.safeParse(await response.json().catch(() => null));
-  if (!parsed.success) {
-    throw new RemoteError(200, 'That address does not answer like Audiobookshelf.');
-  }
-  const user = parsed.data.user;
-  const username = user.username ?? login.username;
-  if (user.refreshToken && user.accessToken) {
-    return {
-      userId: user.id,
-      username,
-      token: user.refreshToken,
-      refresh: true,
-      accessToken: user.accessToken,
-    };
-  }
-  const token = user.accessToken ?? user.token;
-  if (!token) throw new RemoteError(200, 'The Audiobookshelf server gave no token.');
-  return { userId: user.id, username, token, refresh: false, accessToken: token };
 }
 
 const Progress = z.object({
@@ -130,14 +90,14 @@ const Me = z.object({
 });
 export type AudiobookshelfMe = z.infer<typeof Me>;
 
-/** The signed-in user with their places (`/api/me`); also checks an API key. */
+/** The key's user with their places (`/api/me`); also checks the key. */
 export async function audiobookshelfMe(
   fetcher: Fetch,
   url: string,
   bearer: string,
 ): Promise<AudiobookshelfMe> {
   const response = await call(fetcher, url, bearer, '/api/me');
-  if (!response.ok) throw failure(response.status, WHAT);
+  if (!response.ok) throw refused(response.status);
   const parsed = Me.safeParse(await response.json().catch(() => null));
   if (!parsed.success) {
     throw new RemoteError(200, 'That address does not answer like Audiobookshelf.');
@@ -164,63 +124,9 @@ export async function audiobookshelfItemProgress(
     { timeoutMs },
   );
   if (response.status === 404) return null;
-  if (!response.ok) throw failure(response.status, WHAT);
+  if (!response.ok) throw refused(response.status);
   const parsed = Progress.safeParse(await response.json().catch(() => null));
   return parsed.success ? parsed.data : null;
-}
-
-const Refreshed = z.object({
-  user: z.object({ accessToken: z.string(), refreshToken: z.string().nullish() }),
-});
-
-/**
- * Trades the refresh token for a new access token. The server rotates the refresh token too, so
- * the returned one must be kept in place of the old. A 401 means the login has expired.
- */
-export async function refreshAudiobookshelf(
-  fetcher: Fetch,
-  url: string,
-  refreshToken: string,
-): Promise<{ accessToken: string; refreshToken: string }> {
-  const response = await call(fetcher, url, null, '/auth/refresh', {
-    method: 'POST',
-    headers: { 'x-refresh-token': refreshToken },
-    timeoutMs: 10_000,
-  });
-  if (!response.ok) throw failure(response.status, WHAT);
-  const parsed = Refreshed.safeParse(await response.json().catch(() => null));
-  if (!parsed.success) throw new RemoteError(200, 'The Audiobookshelf server gave no token.');
-  return {
-    accessToken: parsed.data.user.accessToken,
-    refreshToken: parsed.data.user.refreshToken ?? refreshToken,
-  };
-}
-
-const B64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-
-/** When a JWT expires, in ms; null when it says nothing (pre-2.26 tokens never expire). */
-export function tokenExpiry(token: string): number | null {
-  const payload = token.split('.')[1];
-  if (!payload) return null;
-  let bits = 0;
-  let value = 0;
-  let text = '';
-  for (const char of payload.replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')) {
-    const index = B64URL.indexOf(char);
-    if (index < 0) return null;
-    value = (value << 6) | index;
-    bits += 6;
-    if (bits >= 8) {
-      bits -= 8;
-      text += String.fromCharCode((value >> bits) & 0xff);
-    }
-  }
-  try {
-    const exp = (JSON.parse(text) as { exp?: unknown }).exp;
-    return typeof exp === 'number' ? exp * 1000 : null;
-  } catch {
-    return null;
-  }
 }
 
 export type AudiobookshelfLibrary = { id: string; name: string };
@@ -238,7 +144,7 @@ export async function listAudiobookshelfLibraries(
   bearer: string,
 ): Promise<AudiobookshelfLibrary[]> {
   const response = await call(fetcher, url, bearer, '/api/libraries');
-  if (!response.ok) throw failure(response.status, WHAT);
+  if (!response.ok) throw refused(response.status);
   const { libraries } = Libraries.parse(await response.json());
   return libraries.flatMap((l) =>
     l.mediaType === 'book' ? [{ id: l.id, name: l.name ?? 'Books' }] : [],
@@ -298,7 +204,7 @@ export async function listAudiobookshelfItems(
         `/api/libraries/${encodeURIComponent(libraryId)}/items`,
         { query: { limit: String(PAGE), page: String(page), minified: '1' } },
       );
-      if (!response.ok) throw failure(response.status, WHAT);
+      if (!response.ok) throw refused(response.status);
       const result = ItemPage.parse(await response.json());
       ids.push(...result.results.map((r) => r.id));
       const total = result.total ?? 0;
@@ -311,7 +217,7 @@ export async function listAudiobookshelfItems(
       method: 'POST',
       body: { libraryItemIds: ids.slice(i, i + BATCH) },
     });
-    if (!response.ok) throw failure(response.status, WHAT);
+    if (!response.ok) throw refused(response.status);
     items.push(...Batch.parse(await response.json()).libraryItems);
   }
   return items;
@@ -498,5 +404,5 @@ export async function reportAudiobookshelfProgress(
     `/api/me/progress/${encodeURIComponent(itemId)}`,
     { method: 'PATCH', body },
   );
-  if (!response.ok) throw failure(response.status, WHAT);
+  if (!response.ok) throw refused(response.status);
 }

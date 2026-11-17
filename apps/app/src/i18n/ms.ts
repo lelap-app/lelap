@@ -619,22 +619,14 @@ export const ms: Record<string, string> = {
     'Menjalankan versi yang disertakan dengan pemasangan ini.',
   'Running update {id} from {date}.': 'Menjalankan kemas kini {id} dari {date}.',
   'Running update {id}.': 'Menjalankan kemas kini {id}.',
-  'The Audiobookshelf login is needed again.': 'Log masuk Audiobookshelf diperlukan sekali lagi.',
   'The address you open Audiobookshelf at, with its path if it has one.':
     'Alamat yang anda gunakan untuk membuka Audiobookshelf, bersama laluannya jika ada.',
-  'Sign in with an API key': 'Log masuk dengan kunci API',
   'API key': 'Kunci API',
-  'Audiobookshelf → Settings → API Keys. A key without an end date never needs a new login, which suits downloads that wait for Wi-Fi.':
-    'Audiobookshelf → Settings → API Keys. Kunci tanpa tarikh tamat tidak pernah memerlukan log masuk baharu, sesuai untuk muat turun yang menunggu Wi-Fi.',
-  'Used once to sign in. Lelap keeps the token the server gives, not the password.':
-    'Digunakan sekali untuk log masuk. Lelap menyimpan token yang diberi pelayan, bukan kata laluan.',
   'This account has no book libraries on the server.': 'Akaun ini tiada pustaka buku pada pelayan.',
   'Places sync both ways with this Audiobookshelf user, for the profile adding the server.':
     'Kedudukan disegerakkan dua hala dengan pengguna Audiobookshelf ini, untuk profil yang menambah pelayan.',
   'In the browser the Audiobookshelf server must allow this site (CORS headers).':
     'Dalam pelayar, pelayan Audiobookshelf mesti membenarkan laman ini (pengepala CORS).',
-  'Log in again: the login has expired or is not in backups.':
-    'Log masuk semula: log masuk telah tamat tempoh atau tiada dalam sandaran.',
   '1 episode': '1 episod',
   '{n} episodes': '{n} episod',
   'Add-on address': 'Alamat alat tambah',
@@ -715,4 +707,13 @@ export const ms: Record<string, string> = {
   Turtle: 'Penyu',
   Frog: 'Katak',
   Snail: 'Siput',
+  'The Audiobookshelf API key is needed again.': 'Kunci API Audiobookshelf diperlukan sekali lagi.',
+  'Make one in Audiobookshelf under Settings → API Keys. Audiobookshelf 2.26 or later; older servers are not supported.':
+    'Buat satu dalam Audiobookshelf di Settings → API Keys. Audiobookshelf 2.26 atau lebih baharu; pelayan yang lebih lama tidak disokong.',
+  'API key needed: it is not in backups.': 'Kunci API diperlukan: ia tiada dalam sandaran.',
+  'Audiobookshelf refused the API key. Change it to keep syncing.':
+    'Audiobookshelf menolak kunci API. Tukar kunci untuk terus menyegerak.',
+  'Change key': 'Tukar kunci',
+  'Enter a new API key for this server. The server, its books and your places stay.':
+    'Masukkan kunci API baharu untuk pelayan ini. Pelayan, bukunya dan kedudukan anda kekal.',
 };

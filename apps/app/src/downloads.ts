@@ -22,7 +22,6 @@ import { formatBytes } from './format';
 import * as native from './platform/downloads';
 import { reloadBook, useLibrary } from './player';
 import { profileId } from './profile';
-import { freshAudiobookshelfTokens } from './audiobookshelf';
 import { fileAccess } from './remote';
 
 export type { DownloadStatus } from './platform/downloads';
@@ -61,7 +60,6 @@ export async function startDownload(bookId: string, meta: Meta | null): Promise<
   const first = listDownloads(db).length === 0;
   const plan = planDownload(db, bookId);
   requestDownload(db, plan, meta, Date.now());
-  await freshAudiobookshelfTokens([bookId], profileId);
   // Files on a server: S3 links signed now, WebDAV with its login (sent to that host only).
   const access = plan.files.map((f) => fileAccess({ uri: f.url, rootId: f.rootId }));
   await native.enqueue(

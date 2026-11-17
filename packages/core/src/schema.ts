@@ -48,7 +48,7 @@ export const profiles = sqliteTable('profiles', {
 
 /**
  * A WebDAV server, an S3 bucket, or a Jellyfin or Audiobookshelf server used as a library folder.
- * Kept on this device, never synced. Jellyfin and Audiobookshelf keep a token, not the password.
+ * Kept on this device, never synced. Jellyfin keeps a token, not the password; Audiobookshelf an API key.
  */
 export type RemoteSource =
   | { type: 'webdav'; url: string; username: string; password: string }
@@ -67,9 +67,10 @@ export type RemoteSource =
       url: string;
       username: string;
       userId: string;
-      /** A refresh token when `refresh`; otherwise an API key or an older server's token. */
+      /** An API key, made in Audiobookshelf's settings. */
       token: string;
-      refresh: boolean;
+      /** The server refused the key (expired or turned off); Settings asks for a new one. */
+      keyRefused?: boolean;
       libraryIds: string[];
       profileId: string;
     }
