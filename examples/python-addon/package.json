@@ -1,0 +1,11 @@
+{
+  "name": "@lelap/example-python",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Lelap add-on on Python's standard library. The package only lets pnpm run its tests.",
+  "license": "MIT",
+  "scripts": {
+    "start": "python3 addon.py",
+    "test": "python3 -m unittest"
+  }
+}

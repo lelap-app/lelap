@@ -1,0 +1,222 @@
+---
+import CodeBlock from '../../components/CodeBlock.astro';
+import Docs from '../../layouts/Docs.astro';
+import { site } from '../../site';
+
+// The samples' real Dockerfiles, so the page shows what's in the repository.
+import nodeDockerfile from '../../../../../examples/node-addon/Dockerfile?raw';
+import pythonDockerfile from '../../../../../examples/python-addon/Dockerfile?raw';
+
+const tree = (path: string) => `${site.repoUrl}/tree/main/${path}`;
+
+const workers = `
+cd services/template     # or your copy of it
+npx wrangler login
+npx wrangler deploy      # prints https://<name>.<your-subdomain>.workers.dev
+`;
+
+const honoNode = `
+// server.ts, for any Node host: npm install @hono/node-server
+import { serve } from '@hono/node-server';
+
+import app from './src/index';
+
+serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 8787) });
+`;
+
+const fetchAdapter = `
+// Serves any fetch(request) handler, such as addon.fetch, with node:http alone.
+import { createServer } from 'node:http';
+
+import { addon } from './src/addon';
+
+createServer(async (req, res) => {
+  const url = new URL(req.url ?? '/', \`http://\${req.headers.host ?? 'localhost'}\`);
+  const response = await addon.fetch(new Request(url, { method: req.method }));
+  res.writeHead(response.status, Object.fromEntries(response.headers));
+  res.end(Buffer.from(await response.arrayBuffer()));
+}).listen(Number(process.env.PORT ?? 8787));
+`;
+
+const compose = `
+services:
+  addon:
+    build: .
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8787:8787'
+`;
+
+const caddy = `
+# Caddy gets and renews the certificate on its own.
+addon.example.com {
+	reverse_proxy 127.0.0.1:8787
+}
+`;
+
+const nginx = `
+location / {
+    # No path after the port: nginx then passes the path on as it arrived, still encoded.
+    proxy_pass http://127.0.0.1:8787;
+}
+`;
+
+const staticTree = `
+manifest.json
+catalog/audiobook/christmas.json
+catalog/audiobook/autumn.json
+`;
+
+const staticHeaders = `
+/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=3600
+`;
+
+const check = `
+curl -i https://addon.example.com/manifest.json
+curl -i https://addon.example.com/meta/audiobook/example%3Araven.json
+curl -i -X OPTIONS https://addon.example.com/manifest.json
+`;
+
+const toc: [string, string][] = [
+  ['requirements', 'What every host needs'],
+  ['workers', 'Cloudflare Workers'],
+  ['node', 'Docker and Node hosts'],
+  ['https', 'HTTPS in front'],
+  ['static', 'Static files'],
+  ['check', 'Check it'],
+];
+---
+
+<Docs
+  title="Hosting"
+  description={`Run a ${site.name} add-on on Cloudflare Workers, in Docker, on any Node host or any HTTPS host.`}
+  toc={toc}
+>
+  <h1>Hosting</h1>
+  <p class="lead">
+    An add-on is a few <code>GET</code> routes that answer JSON, so it runs anywhere that serves
+    HTTP. It stores nothing and never carries audio, so a free plan or a small machine is plenty.
+  </p>
+
+  <h2 id="requirements">What every host needs</h2>
+  <ul>
+    <li>
+      <strong>HTTPS.</strong> The web app runs on an HTTPS page and can’t reach plain HTTP. Share
+      only HTTPS URLs; a LAN address is fine for trying the add-on on your own phone.
+    </li>
+    <li>
+      <strong>CORS for everyone.</strong> Send <code>Access-Control-Allow-Origin: *</code> on every
+      response, errors included, and answer <code>OPTIONS</code> with <code>204</code>. The web app
+      calls add-ons straight from the listener’s browser; without the header it sees nothing.
+    </li>
+    <li>
+      <strong>Paths as they arrive.</strong> IDs in paths are percent-encoded (
+      <code>example%3Araven</code>). Proxies and hosts in front of the add-on must pass them on
+      unchanged.
+    </li>
+    <li>
+      <strong>JSON answers within 10 seconds</strong>, with{' '}
+      <code>Content-Type: application/json</code>. The app gives up on slower add-ons.
+    </li>
+    <li>
+      <strong>A stable URL.</strong> Listeners keep the manifest URL; if it moves, they have to add
+      the add-on again.
+    </li>
+  </ul>
+  <p>
+    The <a href="/docs/sdk/">SDK</a> and the <a href="/docs/samples/">samples</a> already do the
+    first four. Audio URLs in your streams point at wherever the files are; the app fetches them
+    from there, never through your add-on.
+  </p>
+
+  <h2 id="workers">Cloudflare Workers</h2>
+  <p>
+    The <a href={tree('services/template')}>template</a> is a Worker. Workers come with HTTPS, a{' '}
+    <code>workers.dev</code> address and a free plan that covers a busy add-on. Rename the worker in{' '}
+    <code>wrangler.toml</code>, then:
+  </p>
+  <CodeBlock code={workers} label="Terminal" />
+  <p>
+    Add <code>/manifest.json</code> to the printed URL and paste that into {site.name}. To use your
+    own domain, add it to the worker under <strong>Settings → Domains &amp; Routes</strong> in the
+    Cloudflare dashboard. The <a href={tree('examples/seasonal-catalogs')}>seasonal catalogs</a>{' '}
+    sample deploys the same way. {site.name}’s own add-ons run like this too.
+  </p>
+
+  <h2 id="node">Docker and Node hosts</h2>
+  <p>
+    Any machine or platform that runs a container or a Node process can host an add-on: a VPS, a
+    home server, or a platform that builds from a Dockerfile. Listen on the port in{' '}
+    <code>PORT</code>, since most platforms set it.
+  </p>
+  <h3>The SDK or Hono on Node</h3>
+  <p>
+    <code>addon.fetch</code> and a Hono app are standard <code>fetch(request)</code> handlers. Serve
+    them with <code>@hono/node-server</code>:
+  </p>
+  <CodeBlock code={honoNode} />
+  <p>
+    Or without a dependency, with a few lines of <code>node:http</code>. {site.name}’s{' '}
+    <a href={tree('docker/server')}>self-hosting images</a> serve its services the same way.
+  </p>
+  <CodeBlock code={fetchAdapter} />
+  <h3>Containers</h3>
+  <p>The plain Node and Python samples need nothing installed, so their images are short:</p>
+  <CodeBlock code={nodeDockerfile} label="examples/node-addon/Dockerfile" />
+  <CodeBlock code={pythonDockerfile} label="examples/python-addon/Dockerfile" />
+  <CodeBlock code={compose} label="compose.yml" />
+  <p>
+    The port is bound to <code>127.0.0.1</code>, so only the HTTPS proxy on the same machine reaches
+    it.
+  </p>
+
+  <h2 id="https">HTTPS in front</h2>
+  <p>
+    On your own machine, put a reverse proxy with a certificate in front of the add-on. Caddy gets
+    one from Let’s Encrypt by itself:
+  </p>
+  <CodeBlock code={caddy} label="Caddyfile" />
+  <p>
+    With nginx, leave the path off <code>proxy_pass</code>; with a path, nginx decodes{' '}
+    <code>%3A</code> and <code>%2F</code> in IDs before passing them on:
+  </p>
+  <CodeBlock code={nginx} label="nginx" />
+  <p>
+    Your proxy may add its own CORS headers; make sure it doesn’t remove the add-on’s or send a
+    second <code>Access-Control-Allow-Origin</code>, which browsers reject.
+  </p>
+
+  <h2 id="static">Static files</h2>
+  <p>
+    An add-on with only fixed catalogs and no extras, like the{' '}
+    <a href="/docs/samples/#seasonal">seasonal catalogs</a>, can be plain files on any static host
+    that serves HTTPS and lets you send the CORS header:
+  </p>
+  <CodeBlock code={staticTree} label="Files" />
+  <CodeBlock code={staticHeaders} label="_headers (on hosts that read one)" />
+  <p>
+    Declare only <code>catalog</code> in <code>resources</code>, with no extras. Search, genres,
+    paging and percent-encoded IDs in <code>meta</code> and <code>stream</code> paths need a server.
+  </p>
+
+  <h2 id="check">Check it</h2>
+  <p>From any terminal, before you share the URL:</p>
+  <CodeBlock code={check} label="Terminal" />
+  <ul>
+    <li>
+      Every answer, the <code>404</code> for an unknown ID included, has{' '}
+      <code>access-control-allow-origin: *</code> and a JSON body.
+    </li>
+    <li>
+      The <code>OPTIONS</code> request answers <code>204</code>.
+    </li>
+    <li>
+      The manifest passes the <a href="/docs/manifest-builder/#check">manifest checker</a>.
+    </li>
+  </ul>
+  <p>
+    Then open <strong>Settings → Add-ons</strong> in {site.name}, paste the manifest URL and add it.
+  </p>
+</Docs>

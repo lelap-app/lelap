@@ -13,7 +13,11 @@ const { title, description, toc = [] } = Astro.props;
 const pages = [
   { href: '/docs/', label: 'Overview' },
   { href: '/docs/protocol/', label: 'Protocol v1' },
+  { href: '/docs/data-model/', label: 'Data model samples' },
   { href: '/docs/sdk/', label: 'SDK guide' },
+  { href: '/docs/samples/', label: 'Samples' },
+  { href: '/docs/hosting/', label: 'Hosting' },
+  { href: '/docs/manifest-builder/', label: 'Manifest builder' },
 ];
 const current = Astro.url.pathname.replace(/\/?$/, '/');
 ---
@@ -21,7 +25,7 @@ const current = Astro.url.pathname.replace(/\/?$/, '/');
 <Base title={`${title} · ${site.name} docs`} description={description}>
   <div class="container docs-shell">
     <nav class="docs-nav" aria-label="Docs">
-      <span class="docs-nav-head">Add-on docs</span>
+      <span class="docs-nav-head">Developers</span>
       <ul>
         {pages.map((page) => (
           <li>

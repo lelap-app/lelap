@@ -18,6 +18,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M10 Your own storage       | In progress |
 | M11 Background engine      | In progress |
 | M13 Landing page 2         | In progress |
+| M14 Developer platform     | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
 v1.1. What comes next (v1.0 gaps, proposed M10–M19, smaller tasks): [`next.md`](next.md).
@@ -199,6 +200,18 @@ JavaScript or with reduced motion nothing moves and nothing is hidden. Stable re
 
 **Done when** the released build's download buttons fetch the current APK on a phone, and the page
 reads well on a phone and a desktop with and without reduced motion.
+
+## M14 Developer platform
+
+**Status:** in progress (from [`next.md`](next.md#m14-developer-platform)). `lelap.app/docs` is a
+developer section: overview, protocol reference, data model samples, SDK guide, samples, hosting
+and a manifest builder that checks manifests in the browser. Samples in Hono
+([`services/template`](../services/template)), plain Node and Python, and an add-on with
+hard-coded seasonal catalogs, are in [`examples/`](../examples) and tested in CI.
+
+**Done when** someone outside the project builds an add-on from the docs alone and adds it in the
+app. Not yet checked: the samples' Dockerfiles have not been built, and none of the samples has
+been added to the app on a phone.
 
 ## Environments
 

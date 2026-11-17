@@ -1,0 +1,263 @@
+---
+import CodeBlock from '../../components/CodeBlock.astro';
+import Docs from '../../layouts/Docs.astro';
+import { site } from '../../site';
+
+// The code shown here is the samples' own source, read at build time, so the page and the tested
+// files never drift apart.
+import honoAddon from '../../../../../services/template/src/addon.ts?raw';
+import honoIndex from '../../../../../services/template/src/index.ts?raw';
+import nodeAddon from '../../../../../examples/node-addon/addon.mjs?raw';
+import nodeServer from '../../../../../examples/node-addon/server.mjs?raw';
+import pythonAddon from '../../../../../examples/python-addon/addon.py?raw';
+import seasonalAddon from '../../../../../examples/seasonal-catalogs/src/addon.ts?raw';
+import seasonalData from '../../../../../examples/seasonal-catalogs/src/catalogs.json';
+
+const tree = (path: string) => `${site.repoUrl}/tree/main/${path}`;
+
+// Each season's first book, then "…" where the rest would be.
+const seasonalExcerpt = JSON.stringify(
+  {
+    catalogs: seasonalData.catalogs.map(({ id, name, metas }) => ({
+      id,
+      name,
+      metas: [metas[0], 'MORE'],
+    })),
+  },
+  null,
+  2,
+).replaceAll('"MORE"', '…');
+
+const seasons = seasonalData.catalogs.map(({ name, metas }) => ({
+  name,
+  books: metas.map((m) => `${m.name} (${m.author})`),
+}));
+
+const honoRun = `
+cd services/template
+pnpm dev             # http://localhost:8787/manifest.json
+pnpm test
+`;
+
+const nodeRun = `
+cd examples/node-addon
+npm start            # http://localhost:8787/manifest.json
+npm test             # node:test, no dependencies
+`;
+
+const pythonRun = `
+cd examples/python-addon
+python3 addon.py     # http://localhost:8787/manifest.json
+python3 -m unittest
+`;
+
+const seasonalRun = `
+cd examples/seasonal-catalogs
+pnpm dev             # http://localhost:8787/manifest.json
+pnpm test
+`;
+
+const toc: [string, string][] = [
+  ['hono', 'Hono on Workers'],
+  ['node', 'Plain Node'],
+  ['python', 'Python'],
+  ['seasonal', 'Hard-coded catalogs'],
+  ['checks', 'What every sample checks'],
+];
+---
+
+<Docs
+  title="Samples"
+  description={`Small, tested ${site.name} add-ons in TypeScript with Hono, plain Node and Python, plus one with hard-coded catalogs.`}
+  toc={toc}
+>
+  <h1>Samples</h1>
+  <p class="lead">
+    Four small add-ons, each runnable and tested in the repository. The first three serve the same
+    two public-domain LibriVox recordings with one catalog, meta and streams; pick the one closest
+    to your stack and replace the data with your own source.
+  </p>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Sample</th>
+          <th scope="col">Needs</th>
+          <th scope="col">Source</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <a href="#hono">Hono on Workers</a>
+          </td>
+          <td>
+            Node 20+, <code>@lelap/sdk</code>, Hono, Wrangler
+          </td>
+          <td>
+            <a href={tree('services/template')}>
+              <code>services/template</code>
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <a href="#node">Plain Node</a>
+          </td>
+          <td>Node 20+, nothing to install</td>
+          <td>
+            <a href={tree('examples/node-addon')}>
+              <code>examples/node-addon</code>
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <a href="#python">Python</a>
+          </td>
+          <td>Python 3.9+, nothing to install</td>
+          <td>
+            <a href={tree('examples/python-addon')}>
+              <code>examples/python-addon</code>
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <a href="#seasonal">Hard-coded catalogs</a>
+          </td>
+          <td>
+            Node 20+, <code>@lelap/sdk</code>, Wrangler
+          </td>
+          <td>
+            <a href={tree('examples/seasonal-catalogs')}>
+              <code>examples/seasonal-catalogs</code>
+            </a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="hono">Hono on Workers</h2>
+  <p>
+    The template: <code>@lelap/sdk</code> does the routing, CORS, caching headers and checks every
+    answer against the protocol, so the code is the manifest and three handlers. It runs on
+    Cloudflare Workers, and the same <code>addon.fetch</code> runs on Deno, Bun and Node. The{' '}
+    <a href="/docs/sdk/">SDK guide</a> explains each piece; <code>src/books.ts</code> holds the
+    data.
+  </p>
+  <CodeBlock code={honoAddon} label="services/template/src/addon.ts" />
+  <CodeBlock code={honoIndex} label="services/template/src/index.ts" />
+  <CodeBlock code={honoRun} label="Terminal" />
+
+  <h2 id="node">Plain Node</h2>
+  <p>
+    The protocol by hand with <code>node:http</code>: no framework, no SDK, no dependencies.{' '}
+    <code>route()</code> turns a path into a status and a JSON body, and the server adds the
+    headers. Read it to see everything an add-on has to get right; it is also the shape to follow in
+    any other language.
+  </p>
+  <details>
+    <summary>
+      <code>examples/node-addon/addon.mjs</code>
+    </summary>
+    <CodeBlock code={nodeAddon} />
+  </details>
+  <CodeBlock code={nodeServer} label="examples/node-addon/server.mjs" />
+  <CodeBlock code={nodeRun} label="Terminal" />
+
+  <h2 id="python">Python</h2>
+  <p>
+    The same add-on with Python’s standard library: <code>http.server</code> for serving and{' '}
+    <code>urllib.parse</code> for IDs and extras. Nothing to install. For more than a handful of
+    listeners, keep <code>route()</code> and serve it from the WSGI or ASGI framework you already
+    use.
+  </p>
+  <details>
+    <summary>
+      <code>examples/python-addon/addon.py</code>
+    </summary>
+    <CodeBlock code={pythonAddon} />
+  </details>
+  <CodeBlock code={pythonRun} label="Terminal" />
+
+  <h2 id="seasonal">Hard-coded catalogs</h2>
+  <p>
+    A catalog doesn’t have to come from a database or an API. This add-on serves two fixed lists
+    from a JSON file, with no code beyond the SDK:
+  </p>
+  <ul>
+    {seasons.map((season) => (
+      <li>
+        <strong>{season.name}</strong>: {season.books.join(', ')}.
+      </li>
+    ))}
+  </ul>
+  <p>
+    It only answers <code>catalog</code>. Every book has a <code>librivox:</code> ID, the
+    archive.org identifier of a LibriVox recording, so the LibriVox add-on that {site.name} ships
+    with answers its meta and streams. Listeners get two new rows on Home, and the audio comes
+    straight from archive.org.
+  </p>
+  <CodeBlock
+    code={seasonalExcerpt}
+    label="examples/seasonal-catalogs/src/catalogs.json (excerpt)"
+  />
+  <CodeBlock code={seasonalAddon} label="examples/seasonal-catalogs/src/addon.ts" />
+  <CodeBlock code={seasonalRun} label="Terminal" />
+  <p>
+    To change the lists, edit the JSON: each catalog has an <code>id</code>, a <code>name</code> and
+    a list of <a href="/docs/protocol/#meta-preview">MetaPreview</a> objects. The add-on checks the
+    file against the protocol when it starts. A recording’s ID is the last part of its archive.org
+    address: <code>archive.org/details/christmascarol_librivox</code> is{' '}
+    <code>librivox:christmascarol_librivox</code>. <code>ol:</code> IDs of Open Library works work
+    too; the LibriVox add-on looks up recordings for them.
+  </p>
+  <p>
+    Catalogs of your own recordings need <code>meta</code> and <code>stream</code> as well: start
+    from the template instead.
+  </p>
+
+  <h2 id="checks">What every sample checks</h2>
+  <p>Each sample’s tests run in CI with the rest of the repository. Between them they check:</p>
+  <ul>
+    <li>
+      the manifest, a catalog with <code>skip</code> paging, meta and both kinds of stream;
+    </li>
+    <li>
+      percent-encoded IDs, and <code>404</code> JSON errors for unknown routes and IDs;
+    </li>
+    <li>
+      <code>Access-Control-Allow-Origin: *</code> on every answer and <code>204</code> for{' '}
+      <code>OPTIONS</code>;
+    </li>
+    <li>that every answer passes the protocol’s schemas, Python’s included.</li>
+  </ul>
+  <p>
+    Before you share your own add-on, paste its manifest into the{' '}
+    <a href="/docs/manifest-builder/#check">manifest checker</a>, then add it in the app.
+  </p>
+</Docs>
+
+<style>
+  details {
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+  }
+
+  summary {
+    padding: 12px 20px;
+    cursor: pointer;
+    color: var(--fg-soft);
+  }
+
+  details[open] summary {
+    border-bottom: 1px solid var(--line-strong);
+  }
+
+  details :global(.code) {
+    border: none;
+    border-radius: 0 0 14px 14px;
+  }
+</style>

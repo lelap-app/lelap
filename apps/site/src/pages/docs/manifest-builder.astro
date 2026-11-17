@@ -1,0 +1,799 @@
+---
+import CatalogRow from '../../components/docs/CatalogRow.astro';
+import Docs from '../../layouts/Docs.astro';
+import {
+  CONTENT_TYPES,
+  RESOURCES,
+  type Draft,
+  adviseManifest,
+  buildManifest,
+  checkManifest,
+  starterCode,
+} from '../../lib/manifest-builder';
+import { site } from '../../site';
+
+// The page renders this draft's output at build time, so it reads well before (or without) the
+// script; the script then rebuilds it on every change.
+const initial: Draft = {
+  id: 'org.example.readings',
+  version: '1.0.0',
+  name: 'Example Readings',
+  description: 'Public-domain books read by volunteers.',
+  logo: '',
+  configurable: false,
+  types: ['audiobook'],
+  resources: RESOURCES.map((name) => ({ name, types: [], idPrefixes: [] })),
+  idPrefixes: ['example:'],
+  catalogs: [
+    {
+      type: 'audiobook',
+      id: 'new',
+      name: 'New releases',
+      extras: [{ name: 'skip', isRequired: false, options: [] }],
+    },
+  ],
+};
+const manifest = buildManifest(initial);
+if (checkManifest(manifest).length > 0 || adviseManifest(manifest).length > 0)
+  throw new Error('The manifest builder’s starting draft should be valid and quiet.');
+const json = JSON.stringify(manifest, null, 2);
+const templateUrl = `${site.repoUrl}/tree/main/services/template`;
+
+const resourceHelp: Record<string, string> = {
+  catalog: 'Lists of items to browse or search.',
+  meta: 'The details of one item.',
+  stream: 'Where to play an item.',
+};
+
+const toc: [string, string][] = [
+  ['form', 'Describe your add-on'],
+  ['result', 'manifest.json'],
+  ['starter', 'Starter code'],
+  ['check', 'Check a manifest'],
+];
+---
+
+<Docs
+  title="Manifest builder"
+  description={`Fill in a form and get a valid manifest.json for a ${site.name} add-on, checked in your browser.`}
+  toc={toc}
+>
+  <div class="builder-page">
+    <h1>Manifest builder</h1>
+    <p class="lead">
+      Describe your add-on and get a <code>manifest.json</code> that follows{' '}
+      <a href="/docs/protocol/#manifest">protocol v1</a>, to copy or download, plus starter code for
+      the SDK.
+    </p>
+    <p>Everything happens in this page: nothing you type is sent anywhere.</p>
+    <noscript>
+      <div class="note">
+        <p>
+          The builder needs JavaScript. Without it, the manifest below is the starting example; edit
+          it by hand with the <a href="/docs/protocol/#manifest">protocol reference</a>.
+        </p>
+      </div>
+    </noscript>
+
+    <form id="builder" class="builder" novalidate>
+      <h2 id="form">Describe your add-on</h2>
+
+      <fieldset>
+        <legend>About</legend>
+        <div class="fields two">
+          <label>
+            <span>ID</span>
+            <input name="id" value={initial.id} required spellcheck="false" />
+            <small>Reverse DNS of a domain you control. Keep it stable.</small>
+          </label>
+          <label>
+            <span>Version</span>
+            <input name="version" value={initial.version} required spellcheck="false" />
+            <small>
+              Semantic version, such as <code>1.0.0</code>.
+            </small>
+          </label>
+          <label>
+            <span>Name</span>
+            <input name="name" value={initial.name} required />
+            <small>Shown to listeners.</small>
+          </label>
+          <label>
+            <span>
+              Logo URL <em>(optional)</em>
+            </span>
+            <input
+              name="logo"
+              type="url"
+              value={initial.logo}
+              placeholder="https://"
+              spellcheck="false"
+            />
+            <small>
+              An <code>https</code> image.
+            </small>
+          </label>
+        </div>
+        <label>
+          <span>Description</span>
+          <textarea name="description" rows="2">{initial.description}</textarea>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="configurable" checked={initial.configurable} />
+          The add-on has a <code>/configure</code> page
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Types</legend>
+        <p class="help">
+          What the add-on serves. Podcast episodes are their own type, <code>episode</code>, for
+          streams.
+        </p>
+        <div class="row">
+          {CONTENT_TYPES.map((type) => (
+            <label class="check">
+              <input
+                type="checkbox"
+                name="types"
+                value={type}
+                checked={initial.types.includes(type)}
+              />
+              {type}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>ID prefixes</legend>
+        <label>
+          <span>Prefixes of the IDs you answer meta and streams for</span>
+          <input
+            name="idPrefixes"
+            value={initial.idPrefixes.join(', ')}
+            placeholder="example:"
+            spellcheck="false"
+          />
+          <small>
+            Separated by commas, each ending in a colon, such as <code>example:</code>. Add{' '}
+            <code>ol:</code> to offer streams for Open Library books.
+          </small>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Resources</legend>
+        {RESOURCES.map((resource) => (
+          <div class="resource">
+            <label class="check">
+              <input type="checkbox" name="resources" value={resource} checked />
+              <code>{resource}</code>
+              <span class="hint">{resourceHelp[resource]}</span>
+            </label>
+            <details>
+              <summary>Narrow {resource}</summary>
+              <p class="help">Only for some types:</p>
+              <div class="row">
+                {CONTENT_TYPES.map((type) => (
+                  <label class="check">
+                    <input type="checkbox" name={`${resource}-types`} value={type} />
+                    {type}
+                  </label>
+                ))}
+              </div>
+              <label>
+                <span>Own ID prefixes, in place of the ones above</span>
+                <input
+                  name={`${resource}-prefixes`}
+                  placeholder="example:, ol:"
+                  spellcheck="false"
+                />
+              </label>
+            </details>
+          </div>
+        ))}
+      </fieldset>
+
+      <div class="catalogs">
+        <h3>Catalogs</h3>
+        <div id="catalog-list">
+          {initial.catalogs.map((catalog) => (
+            <CatalogRow catalog={catalog} />
+          ))}
+        </div>
+        <template id="catalog-template">
+          <CatalogRow />
+        </template>
+        <button type="button" class="btn btn-sm btn-outline" id="add-catalog">
+          Add a catalog
+        </button>
+      </div>
+    </form>
+
+    <h2 id="result">manifest.json</h2>
+    <div id="issues" class="issues" role="status" aria-live="polite">
+      <p class="ok">Valid for protocol v1.</p>
+    </div>
+    <figure class="code-block">
+      <figcaption>manifest.json</figcaption>
+      <pre class="code"><code id="manifest-output">{json}</code></pre>
+    </figure>
+    <div class="actions">
+      <button type="button" class="btn btn-sm btn-primary" data-copy="manifest-output">
+        Copy
+      </button>
+      <button
+        type="button"
+        class="btn btn-sm btn-outline"
+        data-download="manifest-output"
+        data-filename="manifest.json"
+      >
+        Download manifest.json
+      </button>
+    </div>
+    <p>
+      Serve this at <code>/manifest.json</code> under your add-on’s base URL. The manifest is a
+      promise: answer every route it declares, as the <a href="/docs/protocol/">protocol</a>{' '}
+      describes.
+    </p>
+
+    <h2 id="starter">Starter code</h2>
+    <p>
+      The same manifest as <code>src/addon.ts</code> for the <a href={templateUrl}>template</a>,
+      with an empty handler for each resource. Replace the template’s file with it and fill in the
+      handlers. Other languages: see the <a href="/docs/samples/">samples</a>.
+    </p>
+    <figure class="code-block">
+      <figcaption>src/addon.ts</figcaption>
+      <pre class="code"><code id="starter-output">{starterCode(manifest)}</code></pre>
+    </figure>
+    <div class="actions">
+      <button type="button" class="btn btn-sm btn-outline" data-copy="starter-output">
+        Copy
+      </button>
+      <button
+        type="button"
+        class="btn btn-sm btn-outline"
+        data-download="starter-output"
+        data-filename="addon.ts"
+      >
+        Download addon.ts
+      </button>
+    </div>
+
+    <h2 id="check">Check a manifest</h2>
+    <p>
+      Paste a <code>manifest.json</code> you already have, such as the one your add-on serves, to
+      check it against the same rules.
+    </p>
+    <label class="paste">
+      <span class="visually-hidden">Manifest to check</span>
+      <textarea id="check-input" rows="8" spellcheck="false" placeholder='{ "id": …'></textarea>
+    </label>
+    <div id="check-issues" class="issues" role="status" aria-live="polite"></div>
+  </div>
+</Docs>
+
+<script>
+  import {
+    CONTENT_TYPES,
+    EXTRAS,
+    RESOURCES,
+    type CatalogDraft,
+    type Draft,
+    type Issue,
+    type JsonObject,
+    adviseManifest,
+    buildManifest,
+    checkManifest,
+    splitList,
+    starterCode,
+  } from '../../lib/manifest-builder';
+
+  const form = document.querySelector<HTMLFormElement>('#builder');
+  const list = document.querySelector<HTMLElement>('#catalog-list');
+  const template = document.querySelector<HTMLTemplateElement>('#catalog-template');
+  const manifestOutput = document.querySelector<HTMLElement>('#manifest-output');
+  const starterOutput = document.querySelector<HTMLElement>('#starter-output');
+  const issuesBox = document.querySelector<HTMLElement>('#issues');
+  const checkInput = document.querySelector<HTMLTextAreaElement>('#check-input');
+  const checkBox = document.querySelector<HTMLElement>('#check-issues');
+
+  const isType = (value: string) => (CONTENT_TYPES as readonly string[]).includes(value);
+
+  function readCatalog(row: Element): CatalogDraft {
+    const field = (name: string) =>
+      row.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-field="${name}"]`)?.value ??
+      '';
+    const checked = (selector: string) =>
+      row.querySelector<HTMLInputElement>(selector)?.checked ?? false;
+    return {
+      type: field('type'),
+      id: field('id'),
+      name: field('name'),
+      extras: EXTRAS.filter((name) => checked(`[data-extra="${name}"]`)).map((name) => ({
+        name,
+        isRequired: name !== 'skip' && checked(`[data-required="${name}"]`),
+        // Options may hold spaces ("science fiction"), so only commas separate them.
+        options:
+          name === 'genre'
+            ? field('options')
+                .split(',')
+                .map((option) => option.trim())
+                .filter(Boolean)
+            : [],
+      })),
+    };
+  }
+
+  function readDraft(builder: HTMLFormElement): Draft {
+    const data = new FormData(builder);
+    const text = (name: string) => String(data.get(name) ?? '');
+    const all = (name: string) => data.getAll(name).map(String);
+    return {
+      id: text('id'),
+      version: text('version'),
+      name: text('name'),
+      description: text('description'),
+      logo: text('logo'),
+      configurable: data.has('configurable'),
+      types: all('types').filter(isType),
+      resources: RESOURCES.filter((name) => all('resources').includes(name)).map((name) => ({
+        name,
+        types: all(`${name}-types`).filter(isType),
+        idPrefixes: splitList(text(`${name}-prefixes`)),
+      })),
+      idPrefixes: splitList(text('idPrefixes')),
+      catalogs: [...builder.querySelectorAll('[data-catalog]')].map(readCatalog),
+    };
+  }
+
+  /** The form control an issue is about, to mark it invalid. */
+  function controlFor(builder: HTMLFormElement, field: string): Element | null {
+    const catalog = /^catalogs\[(\d+)\](?:\.(\w+))?/.exec(field);
+    if (catalog) {
+      const row = builder.querySelectorAll('[data-catalog]')[Number(catalog[1])];
+      return (catalog[2] && row?.querySelector(`[data-field="${catalog[2]}"]`)) || null;
+    }
+    const name = field.replace(/\[.*$/, '');
+    const control = builder.elements.namedItem(name);
+    return control instanceof Element ? control : null;
+  }
+
+  const describe = (field: string) =>
+    field
+      .replace(/^catalogs\[(\d+)\]\.?/, (_, i: string) => `Catalog ${Number(i) + 1} `)
+      .replace(/\.extra\[(\d+)\]/, (_, i: string) => ` extra ${Number(i) + 1}`)
+      .trim();
+
+  function renderIssues(box: HTMLElement, issues: Issue[], okText: string) {
+    box.replaceChildren();
+    if (issues.length === 0) {
+      const ok = document.createElement('p');
+      ok.className = 'ok';
+      ok.textContent = okText;
+      box.append(ok);
+      return;
+    }
+    const ul = document.createElement('ul');
+    for (const issue of issues) {
+      const li = document.createElement('li');
+      li.className = issue.level;
+      const label = document.createElement('strong');
+      label.textContent = `${issue.level === 'error' ? 'Error' : 'Warning'} · ${describe(issue.field)}: `;
+      li.append(label, issue.message);
+      ul.append(li);
+    }
+    box.append(ul);
+  }
+
+  function update() {
+    if (!form || !manifestOutput || !starterOutput || !issuesBox) return;
+    const manifest = buildManifest(readDraft(form));
+    const errors = checkManifest(manifest);
+    const issues = [...errors, ...(errors.length === 0 ? adviseManifest(manifest) : [])];
+    for (const control of form.querySelectorAll('[aria-invalid]'))
+      control.removeAttribute('aria-invalid');
+    for (const issue of errors) controlFor(form, issue.field)?.setAttribute('aria-invalid', 'true');
+    renderIssues(issuesBox, issues, 'Valid for protocol v1.');
+    manifestOutput.textContent = JSON.stringify(manifest, null, 2);
+    starterOutput.textContent = starterCode(manifest);
+    for (const button of document.querySelectorAll<HTMLButtonElement>(
+      '[data-copy], [data-download]',
+    ))
+      button.disabled = errors.length > 0;
+  }
+
+  function addCatalog() {
+    const row = template?.content.firstElementChild?.cloneNode(true);
+    if (!(row instanceof HTMLElement) || !list) return;
+    list.append(row);
+    row.querySelector<HTMLInputElement>('[data-field="id"]')?.focus();
+    update();
+  }
+
+  function check() {
+    if (!checkInput || !checkBox) return;
+    const text = checkInput.value.trim();
+    if (!text) {
+      checkBox.replaceChildren();
+      return;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      renderIssues(
+        checkBox,
+        [
+          {
+            level: 'error',
+            field: 'JSON',
+            message: error instanceof Error ? error.message : 'Not JSON.',
+          },
+        ],
+        '',
+      );
+      return;
+    }
+    const errors = checkManifest(parsed);
+    const issues = [
+      ...errors,
+      ...(errors.length === 0 ? adviseManifest(parsed as JsonObject) : []),
+    ];
+    renderIssues(checkBox, issues, 'Valid for protocol v1.');
+  }
+
+  async function copy(button: HTMLButtonElement, text: string) {
+    const label = button.textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      button.textContent = 'Copied';
+    } catch {
+      button.textContent = 'Select the text to copy';
+    }
+    setTimeout(() => (button.textContent = label), 1600);
+  }
+
+  function download(text: string, filename: string) {
+    const type = filename.endsWith('.json') ? 'application/json' : 'text/plain';
+    const url = URL.createObjectURL(new Blob([text.endsWith('\n') ? text : `${text}\n`], { type }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  form?.addEventListener('input', update);
+  form?.addEventListener('change', update);
+  form?.addEventListener('submit', (event) => event.preventDefault());
+  form?.addEventListener('click', (event) => {
+    const remove = (event.target as Element).closest('[data-remove]');
+    if (!remove) return;
+    remove.closest('[data-catalog]')?.remove();
+    update();
+  });
+  document.querySelector('#add-catalog')?.addEventListener('click', addCatalog);
+  checkInput?.addEventListener('input', check);
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    '[data-copy], [data-download]',
+  )) {
+    button.addEventListener('click', () => {
+      const id = button.dataset.copy ?? button.dataset.download ?? '';
+      const text = document.getElementById(id)?.textContent ?? '';
+      if (button.dataset.copy) void copy(button, text);
+      else download(text, button.dataset.filename ?? 'download.txt');
+    });
+  }
+  update();
+</script>
+
+<style is:global>
+  /* Global so they reach the catalog rows, which come from a component; all under .builder-page. */
+  .builder-page {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .builder-page .builder {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .builder-page fieldset {
+    margin: 0;
+    padding: 18px 20px 20px;
+    border: 1px solid var(--line-strong);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .builder-page legend {
+    padding: 0 6px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 17px;
+  }
+
+  .builder-page .fields {
+    display: grid;
+    gap: 14px;
+  }
+
+  .builder-page .fields.two {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  }
+
+  .builder-page .fields.three {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  }
+
+  .builder-page label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    font-size: 15px;
+    color: var(--fg);
+  }
+
+  .builder-page label > span {
+    font-weight: 600;
+  }
+
+  .builder-page em {
+    font-weight: 400;
+    color: var(--muted);
+  }
+
+  .builder-page small,
+  .builder-page .help,
+  .builder-page .hint {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  .builder-page .builder .help {
+    font-size: 14px;
+  }
+
+  .builder-page input:not([type='checkbox']),
+  .builder-page select,
+  .builder-page textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--fg);
+    font: inherit;
+    font-size: 15px;
+  }
+
+  .builder-page textarea {
+    resize: vertical;
+    font-family: var(--font-mono);
+    font-size: 14px;
+  }
+
+  .builder-page textarea[name='description'] {
+    font-family: var(--font-body);
+    font-size: 15px;
+  }
+
+  .builder-page input:focus-visible,
+  .builder-page select:focus-visible,
+  .builder-page textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .builder-page [aria-invalid='true'] {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .builder-page input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--accent);
+  }
+
+  .builder-page label.check {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    min-height: 32px;
+    flex-wrap: wrap;
+  }
+
+  .builder-page .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+  }
+
+  .builder-page .resource {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .builder-page .resource:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .builder-page details {
+    margin-left: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .builder-page details[open] {
+    padding-bottom: 6px;
+  }
+
+  .builder-page details > * + * {
+    margin-top: 10px;
+  }
+
+  .builder-page summary {
+    cursor: pointer;
+    color: var(--fg-soft);
+    font-size: 14px;
+  }
+
+  .builder-page .catalogs {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .builder-page #catalog-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-self: stretch;
+  }
+
+  .builder-page .catalogs .extras {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .builder-page .catalogs .extras-head {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .builder-page .catalogs .extra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 18px;
+  }
+
+  .builder-page .catalogs .extra .options {
+    flex: 1 1 220px;
+    width: auto;
+  }
+
+  .builder-page .catalogs .remove {
+    align-self: flex-start;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: none;
+    color: var(--fg-soft);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .builder-page .catalogs .remove:hover {
+    color: var(--fg);
+    border-color: var(--muted);
+  }
+
+  .builder-page button.btn {
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .builder-page button.btn-outline {
+    border: 1px solid var(--line-strong);
+    background: none;
+  }
+
+  .builder-page button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .builder-page .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .builder-page .issues ul {
+    padding: 0;
+    list-style: none;
+    gap: 6px;
+  }
+
+  .builder-page .issues li,
+  .builder-page .issues .ok {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 15px;
+  }
+
+  .builder-page .issues .ok {
+    background: var(--surface);
+    color: var(--fg);
+  }
+
+  .builder-page .issues li.error {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-tint);
+    color: var(--fg);
+  }
+
+  .builder-page .issues li.warning {
+    border-left: 3px solid var(--line-strong);
+    background: var(--surface);
+  }
+
+  .builder-page .code-block {
+    margin: 0;
+    min-width: 0;
+  }
+
+  .builder-page figcaption {
+    padding: 8px 20px;
+    border: 1px solid #23262e;
+    border-bottom: none;
+    border-radius: 14px 14px 0 0;
+    background: var(--surface);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .builder-page figcaption + .code {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  .builder-page .paste textarea {
+    min-height: 160px;
+  }
+
+  .builder-page .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+</style>
