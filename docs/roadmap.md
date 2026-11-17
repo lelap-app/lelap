@@ -64,7 +64,7 @@ v1.1.
 ## Before the first public release
 
 - Check Google's developer verification requirements for sideloaded apps.
-- Decide on F-Droid: a `foss` build flavor without the Google Cast SDK, and reproducible builds or
-  F-Droid's own signing key.
+- Decide on F-Droid: reproducible builds or F-Droid's own signing key. No separate flavor is
+  needed: casting ([M26](milestones/m26.md)) uses open protocols, not the Google Cast SDK.
 - Review the terms and privacy pages.
 - Publish the add-on SDK under MIT.

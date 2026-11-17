@@ -16,11 +16,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PressScale } from '../src/components/Motion';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { BookmarksSheet } from '../src/components/BookmarksSheet';
+import { CastSheet } from '../src/components/CastSheet';
 import { ChaptersSheet } from '../src/components/ChaptersSheet';
 import { COLORS, Icon, IconButton, type IconName } from '../src/components/Icon';
 import { Scrubber } from '../src/components/Scrubber';
 import { Sheet } from '../src/components/Sheet';
 import { soundActive, SoundSheet, useSoundSettings } from '../src/components/SoundSheet';
+import { CASTING_SUPPORTED, useCasting } from '../src/casting';
 import { db, newId } from '../src/db';
 import { formatClock, formatLeft } from '../src/format';
 import * as audio from '../src/platform/audio';
@@ -91,9 +93,10 @@ export default function Player() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [sheet, setSheet] = useState<
-    'chapters' | 'bookmarks' | 'speed' | 'sleep' | 'sound' | 'note' | null
+    'chapters' | 'bookmarks' | 'speed' | 'sleep' | 'sound' | 'note' | 'cast' | null
   >(null);
   const sound = useSoundSettings();
+  const casting = useCasting();
   const [note, setNote] = useState('');
   const [lastBookmark, setLastBookmark] = useState<string | null>(null);
 
@@ -300,6 +303,14 @@ export default function Player() {
           label={bookmarks.length === 1 ? '1 bookmark' : `${bookmarks.length} bookmarks`}
           onPress={() => setSheet('bookmarks')}
         />
+        {CASTING_SUPPORTED && (
+          <Tool
+            icon="cast"
+            label={casting.device?.name ?? 'Cast'}
+            active={casting.device !== null}
+            onPress={() => setSheet('cast')}
+          />
+        )}
       </View>
 
       <ChaptersSheet
@@ -325,6 +336,7 @@ export default function Player() {
         }}
         onClose={() => setSheet(null)}
       />
+      <CastSheet visible={sheet === 'cast'} bookId={bookId} onClose={() => setSheet(null)} />
       <Sheet visible={sheet === 'speed'} title="Speed" onClose={() => setSheet(null)}>
         <View className="flex-row flex-wrap gap-2 pb-2">
           {SPEEDS.map((s) => (

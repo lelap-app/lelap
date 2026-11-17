@@ -34,7 +34,7 @@ change that makes it untrue.
 UI (Expo Router, NativeWind)          same screens on Android and web
 Core (TypeScript)                     model, add-on client, ID graph, downloads, sync
 Platform adapters                     audio, storage, downloads, casting (.native.ts / .web.ts)
-Kotlin modules                        Media3 MediaLibraryService, downloads, Cast/UPnP, updater
+Kotlin modules                        Media3 MediaLibraryService, downloads, casting, updater
 Storage                               SQLite (Android), SQLite WASM on OPFS (web)
 ```
 
@@ -47,7 +47,7 @@ packages/core     domain model, add-on client, sync, ID graph
 packages/sdk      add-on SDK and types (npm)
 modules/audio     Kotlin: Media3 service, focus, fade
 modules/download  Kotlin: background downloads
-modules/cast      Kotlin: Cast SDK, UPnP
+modules/cast      Kotlin: UPnP, own Cast v2 client, FCast; no Google SDK
 services/catalog  catalog add-on (Hono)
 services/proxy    RSS, cover and transcript proxy for the web (Hono)
 services/sync     encrypted sync (Hono)
