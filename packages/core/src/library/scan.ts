@@ -12,6 +12,7 @@ import {
   libraryRoots,
   progress,
 } from '../schema';
+import { isSealed, secretBox } from '../secrets';
 import { presentFiles } from './bookFiles';
 import { buildChapters } from './chapters';
 import { isAudioFile, type ScannedFile } from './files';
@@ -375,9 +376,59 @@ export function localRoot(db: Db) {
   return db.select().from(libraryRoots).where(isNull(libraryRoots.remote)).get() ?? null;
 }
 
-/** Every library root: the phone's folder and each server. */
+const secretOf = (remote: RemoteSource) =>
+  remote.type === 'webdav' ? remote.password : remote.secretAccessKey;
+
+const withSecret = (remote: RemoteSource, secret: string): RemoteSource =>
+  remote.type === 'webdav'
+    ? { ...remote, password: secret }
+    : { ...remote, secretAccessKey: secret };
+
+/**
+ * Every library root: the phone's folder and each server, with its password or secret key opened.
+ * `needsLogin` marks a server whose secret this device can't open (a backup restored on a new
+ * phone); its secret is empty until it is entered again.
+ */
 export function listRoots(db: Db) {
-  return db.select().from(libraryRoots).all();
+  const box = secretBox();
+  return db
+    .select()
+    .from(libraryRoots)
+    .all()
+    .map((row) => {
+      if (!row.remote) return { ...row, needsLogin: false };
+      const secret = box.open(secretOf(row.remote));
+      return {
+        ...row,
+        remote: withSecret(row.remote, secret ?? ''),
+        needsLogin: secret === null,
+      };
+    });
+}
+
+/** At start: seals server secrets stored before sealing existed. */
+export function sealRemoteRoots(db: Db, now: number): void {
+  const box = secretBox();
+  if (!box.sealing) return;
+  for (const row of db.select().from(libraryRoots).all()) {
+    if (!row.remote || isSealed(secretOf(row.remote))) continue;
+    db.update(libraryRoots)
+      .set({ remote: withSecret(row.remote, box.seal(secretOf(row.remote))), updatedAt: now })
+      .where(eq(libraryRoots.id, row.id))
+      .run();
+  }
+}
+
+/** Changes a server's settings, such as a password entered again; its books stay. */
+export function updateRemoteRoot(db: Db, rootId: string, remote: RemoteSource, now: number): void {
+  db.update(libraryRoots)
+    .set({
+      remote: withSecret(remote, secretBox().seal(secretOf(remote))),
+      name: remoteName(remote),
+      updatedAt: now,
+    })
+    .where(eq(libraryRoots.id, rootId))
+    .run();
 }
 
 /** A server's display name: its host and folder, or bucket and prefix. */
@@ -407,7 +458,7 @@ export function addRemoteRoot(
       uri: location,
       name: remoteName(remote),
       location,
-      remote,
+      remote: withSecret(remote, secretBox().seal(secretOf(remote))),
       addedAt: now,
       updatedAt: now,
     })

@@ -38,7 +38,7 @@ import {
   getMembership,
   joinWithCode,
   offerPairing,
-  removedFromSyncAt,
+  removedFromSync,
   resetSync,
   startSync,
   syncNow,
@@ -172,13 +172,13 @@ describe('sync between two devices', () => {
     // The laptop (or a lost phone) finds its group gone and stops, keeping its data.
     await syncNow(laptop, server, random, 13, newId);
     expect(getMembership(laptop)).toBeNull();
-    expect(removedFromSyncAt(laptop)).toBe(13);
+    expect(removedFromSync(laptop)).toEqual({ at: 13, reason: 'reset' });
 
     // Everything goes to the new group; a device that pairs again gets it.
     await syncNow(phone, server, random, 14, newId);
     const code = await offerPairing(phone, server, random);
     await joinWithCode(laptop, server, code, 'Laptop', random, 15);
-    expect(removedFromSyncAt(laptop)).toBeNull();
+    expect(removedFromSync(laptop)).toBeNull();
     const tablet = createTestDb();
     await joinWithCode(
       tablet,

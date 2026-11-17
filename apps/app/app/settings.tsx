@@ -156,7 +156,22 @@ export default function SettingsScreen() {
 
         <Text className="pt-6 text-xs uppercase tracking-wider text-muted">Servers</Text>
         {servers.map((s) => (
-          <Row key={s.id} label={s.name} detail={s.remote?.type === 's3' ? 'S3 bucket' : 'WebDAV'}>
+          <Row
+            key={s.id}
+            label={s.name}
+            detail={
+              s.needsLogin
+                ? 'Password needed: it is not in backups.'
+                : s.remote?.type === 's3'
+                  ? 'S3 bucket'
+                  : 'WebDAV'
+            }
+          >
+            {s.needsLogin && (
+              <Pressable onPress={() => router.push(`/server?root=${s.id}`)}>
+                <Text className="text-amber">Log in</Text>
+              </Pressable>
+            )}
             <Pressable
               onPress={() =>
                 Alert.alert(

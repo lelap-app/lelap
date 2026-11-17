@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
 import { syncState } from '../schema';
+import { isSealed, secretBox } from '../secrets';
 import { type SyncClient, SyncError } from './client';
 import {
   authHash,
@@ -37,12 +38,12 @@ export type SyncMembership = {
 type Envelope = { v: 1; device: string; name: string; ops: Op[] };
 
 const STATE_KEY = 'membership';
-/** Set when the server no longer knows this device's group: another device reset sync. */
+/** Set when this device stopped syncing on its own: its group was reset, or its key was lost. */
 const REMOVED_KEY = 'removed';
 const OPS_PER_MESSAGE = 200;
 const PULL_LIMIT = 200;
 
-export function getMembership(db: Db): SyncMembership | null {
+function readMembership(db: Db): SyncMembership | null {
   const row = db.select().from(syncState).where(eq(syncState.key, STATE_KEY)).get();
   if (!row) return null;
   try {
@@ -52,8 +53,16 @@ export function getMembership(db: Db): SyncMembership | null {
   }
 }
 
+/** This device's membership, with its group key opened; null when it can't be opened here. */
+export function getMembership(db: Db): SyncMembership | null {
+  const stored = readMembership(db);
+  if (!stored) return null;
+  const key = secretBox().open(stored.key);
+  return key === null ? null : { ...stored, key };
+}
+
 function saveMembership(db: Db, membership: SyncMembership, now: number): void {
-  const value = JSON.stringify(membership);
+  const value = JSON.stringify({ ...membership, key: secretBox().seal(membership.key) });
   db.insert(syncState)
     .values({ key: STATE_KEY, value, updatedAt: now })
     .onConflictDoUpdate({ target: syncState.key, set: { value, updatedAt: now } })
@@ -65,14 +74,40 @@ export function leaveSync(db: Db): void {
   db.delete(syncState).where(eq(syncState.key, STATE_KEY)).run();
 }
 
-/** When this device was dropped because its group was reset elsewhere, or null. */
-export function removedFromSyncAt(db: Db): number | null {
+/**
+ * Why this device stopped syncing without being asked: another device reset sync (`reset`), or
+ * the group key did not come back with a restored backup (`restore`). Null otherwise.
+ */
+export type SyncRemoval = { at: number; reason: 'reset' | 'restore' };
+
+export function removedFromSync(db: Db): SyncRemoval | null {
   const row = db.select().from(syncState).where(eq(syncState.key, REMOVED_KEY)).get();
-  return row ? row.updatedAt : null;
+  if (!row) return null;
+  return { at: row.updatedAt, reason: row.value === 'restore' ? 'restore' : 'reset' };
+}
+
+function markRemoved(db: Db, reason: SyncRemoval['reason'], now: number): void {
+  leaveSync(db);
+  db.insert(syncState)
+    .values({ key: REMOVED_KEY, value: reason, updatedAt: now })
+    .onConflictDoUpdate({ target: syncState.key, set: { value: reason, updatedAt: now } })
+    .run();
 }
 
 function clearRemoved(db: Db): void {
   db.delete(syncState).where(eq(syncState.key, REMOVED_KEY)).run();
+}
+
+/**
+ * At start: seals a group key stored before sealing existed, and drops a membership whose key
+ * this device can't open (restored on a new phone), so the Sync screen asks to pair again.
+ */
+export function sealMembership(db: Db, now: number): void {
+  const stored = readMembership(db);
+  if (!stored) return;
+  const box = secretBox();
+  if (box.open(stored.key) === null) markRemoved(db, 'restore', now);
+  else if (box.sealing && !isSealed(stored.key)) saveMembership(db, stored, now);
 }
 
 function member(
@@ -220,11 +255,7 @@ export async function syncNow(
     } catch (error) {
       // The group is gone: another device reset sync. Stop here; the data stays.
       if (error instanceof SyncError && error.status === 403) {
-        leaveSync(db);
-        db.insert(syncState)
-          .values({ key: REMOVED_KEY, value: membership.groupId, updatedAt: now })
-          .onConflictDoUpdate({ target: syncState.key, set: { updatedAt: now } })
-          .run();
+        markRemoved(db, 'reset', now);
         return { pulled: 0, pushed: 0, handoffs: [] };
       }
       throw error;

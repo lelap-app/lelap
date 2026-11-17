@@ -20,6 +20,9 @@ let real: Db | null = null;
 let sqlite: Database | null = null;
 let savedChanges = 0;
 
+// No setSecretBox here: browsers have no key store a page's own scripts can't read, so secrets
+// stay as stored (core's plain box) and the Content-Security-Policy keeps other scripts out.
+
 /** The database, usable once `useDbReady` says so; the same Drizzle API as on Android. */
 export const db: Db = new Proxy({} as Db, {
   get(_, key) {

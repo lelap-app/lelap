@@ -11,6 +11,10 @@ and the reasoning are in [`security-audit.md`](security-audit.md).
   settings should too.
 - **Remove a lost device** (finding 7): pair a phone and the web app, reset on one, check the other
   shows “Another device reset sync” within a minute and can join again with a new code.
+- **Sealed secrets** (finding 6): update a phone that already syncs and has a WebDAV server; sync
+  and playback keep working, and `adb shell run-as app.lelap sqlite3` shows `sec1:` values. Then
+  `adb shell bmgr backupnow app.lelap`, reinstall, restore: the library and places come back, the
+  Sync screen asks to pair again, and the server shows “Log in”.
 - **Updater** (finding 12): install an update from `beta.json` end to end; a wrong `size` in the
   release file should fail with “The download is larger than the release.”
 
@@ -25,8 +29,6 @@ and the reasoning are in [`security-audit.md`](security-audit.md).
 ## 3. Decisions for the maintainer
 
 - **`WEB_ORIGIN`** (4): set it in the `web` environment (rate limits are already on Cloudflare).
-- **Secrets on the device** (6): the `SecretStore` design in the audit, and whether Android backups
-  stay on.
 - **Separate Cloudflare tokens** (11) for the `web` and `release` environments.
 - **Plain http on Android** (17): keep it off and explain, or allow it.
 - **Idle groups** (18): expire sync groups with no push for a year, with the log compaction.

@@ -17,7 +17,7 @@ import {
   joinSyncing,
   makePairingCode,
   membership,
-  removedAt,
+  removal,
   resetSyncing,
   startSyncing,
   stopSyncing,
@@ -39,7 +39,7 @@ export default function SyncScreen() {
   const [offered, setOffered] = useState<{ code: string; until: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
-  const [removed, setRemoved] = useState(removedAt);
+  const [removed, setRemoved] = useState(removal);
   const [, tick] = useState(0);
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export default function SyncScreen() {
     } finally {
       setBusy(false);
       setMember(membership());
-      setRemoved(removedAt());
+      setRemoved(removal());
       refresh();
     }
   };
@@ -91,8 +91,9 @@ export default function SyncScreen() {
         <View className="gap-4">
           {removed && (
             <Text className="text-amber">
-              Another device reset sync, so this one stopped syncing. Your library is still here.
-              Join again with a code from one of your devices.
+              {removed.reason === 'restore'
+                ? 'The sync key stays on the phone it was made on and is not in backups. Your library is here; join again with a code from one of your devices.'
+                : 'Another device reset sync, so this one stopped syncing. Your library is still here. Join again with a code from one of your devices.'}
             </Text>
           )}
           <View className="gap-2">

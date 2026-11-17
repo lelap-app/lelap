@@ -16,7 +16,18 @@
       },
       "versionCode": 1
     },
-    "plugins": ["expo-router", "expo-sqlite", "./plugins/withReleaseSigning"],
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "./plugins/withReleaseSigning",
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": false
+        }
+      ],
+      "./plugins/withBackupRules"
+    ],
     "web": {
       "bundler": "metro",
       "output": "single",
