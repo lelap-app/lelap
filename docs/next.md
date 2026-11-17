@@ -18,27 +18,39 @@ In [the brief's v1.0 scope](brief.md#v10-scope) but not built by M1–M9:
 
 ## Proposed milestones
 
-| #   | Milestone              | In short                                                                                        |
-| --- | ---------------------- | ----------------------------------------------------------------------------------------------- |
-| M10 | Your own storage       | WebDAV (Nextcloud, ownCloud, any server), S3-compatible buckets, Audiobookshelf                 |
-| M11 | Background engine      | Up Next with the app closed, feed refresh and auto-download in the background, background sync  |
-| M12 | Look and feel          | UI pass against the design sketch, one icon set, player polish, simple motion                   |
-| M13 | Landing page 2         | Download options (APK, GitHub Releases, Obtainium, F-Droid later), light motion, drop the badge |
-| M14 | Developer platform     | Developer docs on the site, manifest builder, samples (Hono, Node, Python), hosting guide       |
-| M15 | Find any book          | Search every book (Open Library), item pages without a source, choose between editions/sources  |
-| M16 | Organise               | Tags, playlists, smart lists, full export and import                                            |
-| M17 | Car and offline web    | Android Auto browsing, service worker for the web app                                           |
-| M18 | Updates over the air   | OTA bundles with code signing, beta channel for OTA                                             |
-| M19 | Security and hardening | Audit of the services and app, key storage in the Android Keystore, CSP for the web app         |
-| M20 | SDK on npm             | Build step for `@lelap/sdk`, Changesets, publishing with provenance from CI                     |
-| M21 | Translations           | UI text in translation files, a few first languages, a way for others to contribute             |
-| M22 | Smarter audio          | Volume boost, voice EQ and mono through Media3's audio processors                               |
-| M23 | Podcasting 2.0         | Transcripts, chapter files, person and season tags, funding links from feeds                    |
-| M24 | Stats and goals        | Listening time, streaks, finished books, an optional yearly goal; computed and kept on device   |
-| M25 | Home screen and tiles  | Android widget, Quick Settings tile, sleep timer from the lock screen                           |
-| M26 | Casting                | Chromecast; the cast device fetches audio from its source, never through our servers            |
-| M27 | Add-on protocol v2     | Settings pages for add-ons, add-on sign-in, health checks, protocol versioning                  |
-| M28 | F-Droid                | Reproducible APKs, an F-Droid listing, signed checksums on the site                             |
+| #   | Milestone              | In short                                                                                                |
+| --- | ---------------------- | ------------------------------------------------------------------------------------------------------- |
+| M10 | Your own storage       | WebDAV (Nextcloud, ownCloud, any server), S3-compatible buckets, Audiobookshelf                         |
+| M11 | Background engine      | Up Next with the app closed, feed refresh and auto-download in the background, background sync          |
+| M12 | Look and feel          | UI pass against the design sketch, one icon set, player polish, simple motion                           |
+| M13 | Landing page 2         | Download options (APK, GitHub Releases, Obtainium, F-Droid later), light motion, drop the badge         |
+| M14 | Developer platform     | Developer docs on the site, manifest builder, samples (Hono, Node, Python), hosting guide               |
+| M15 | Find any book          | Search every book (Open Library), item pages without a source, choose between editions/sources          |
+| M16 | Organise               | Tags, playlists, smart lists, full export and import                                                    |
+| M17 | Car and offline web    | Android Auto browsing, service worker for the web app                                                   |
+| M18 | Updates over the air   | OTA bundles with code signing, beta channel for OTA                                                     |
+| M19 | Security and hardening | Audit of the services and app, key storage in the Android Keystore, CSP for the web app                 |
+| M20 | SDK on npm             | Build step for `@lelap/sdk`, Changesets, publishing with provenance from CI                             |
+| M21 | Translations           | UI text in translation files, a few first languages, a way for others to contribute                     |
+| M22 | Smarter audio          | Volume boost, voice EQ and mono through Media3's audio processors                                       |
+| M23 | Podcasting 2.0         | Transcripts, chapter files, person and season tags, funding links from feeds                            |
+| M24 | Stats and goals        | Listening time, streaks, finished books, an optional yearly goal; computed and kept on device           |
+| M25 | Home screen and tiles  | Android widget, Quick Settings tile, sleep timer from the lock screen                                   |
+| M26 | Casting                | Sonos and DLNA over UPnP, Google Cast speakers (Nest) through an open Cast client, FCast; no Google SDK |
+| M27 | Add-on protocol v2     | Settings pages for add-ons, add-on sign-in, health checks, protocol versioning                          |
+| M28 | F-Droid                | Reproducible APKs, an F-Droid listing, signed checksums on the site                                     |
+| M29 | Sleep and links        | Sleep timer until end of chapter or episode, shake to extend, retry `/resolve` on 403 and 410           |
+| M30 | Scrobbling             | `POST /scrobble` in the app, Hardcover and gPodder add-ons, a "Want to read" row on Home                |
+| M31 | Discover 2             | "Playable only" filter, source badges on covers, alerts when a wanted book gets a source                |
+| M32 | Audnexus               | Narrators, series and chapters from Audnexus in the Catalog add-on                                      |
+| M33 | Everyday Android       | Wear OS controls, car mode, bedtime sleep timer; nothing that needs Google Play services                |
+| M34 | Importers              | Goodreads CSV, AntennaPod and Smart AudioBook Player backups                                            |
+| M35 | Add-on trust and art   | Permission view before install, an artwork resource for covers                                          |
+| M36 | Jellyfin               | Jellyfin as a source, next to Audiobookshelf                                                            |
+| M37 | Kids profile           | A profile with its own library and no add-on installation                                               |
+| M38 | Add-ons in the app     | Sandboxed JavaScript add-ons (QuickJS) with network only to declared hosts, for LAN sources             |
+
+M29 and M32 close gaps in the brief's v1.0 scope; they can run before the others.
 
 Much later (around M40): themes, community skins and community players (the M9 avatars and the
 night theme are the start). Not planned: an iOS app, which would need an App Store account.
@@ -86,7 +98,9 @@ night theme are the start). Not planned: an iOS app, which would need an App Sto
 ## Smaller tasks
 
 - **UI review:** compare every screen with the design sketch and the landing page mockup; the skip
-  and rewind buttons are text glyphs today and should be icons. (M12)
+  and rewind buttons are text glyphs today and should be icons. Also from the sketch: a “Ready for
+  offline” card and an add-on status pill on Home, “Searched 5 add-ons · 4 answered” in Search,
+  and the airplane-mode banner in Library. (M12)
 - **Landing page:** remove the “Screen off, still playing” badge (a commit for it sits on branch
   `site/drop-screen-off-badge` and never got a PR). (M13)
 - **Download location:** downloads live in the app's private no-backup storage, removed with the
@@ -102,3 +116,14 @@ night theme are the start). Not planned: an iOS app, which would need an App Sto
   people its manifest URL; Lelap never needs to know about it, and the project neither lists nor
   builds add-ons for services outside its scope.
 - **Hard-coded catalogs:** yes, see M14.
+
+## Decisions on 2026-11-17
+
+- **Casting** uses open protocols instead of the Google Cast SDK, so one build works for F-Droid
+  too: UPnP for Sonos and DLNA renderers, FCast, and for Google Cast speakers such as the Nest Mini
+  our own client for the Cast protocol (TLS on port 8009, the Default Media Receiver), as VLC does.
+  Every receiver fetches the audio itself; files on the phone are served from the phone on the LAN.
+- **No guessed chapters:** chapters come from tags, feeds and Audnexus, never from silence
+  detection. Skip silence is out as well.
+- **Wear OS and car mode** only if they need no Google Play services; Wear OS controls come from
+  the media session, without a separate watch app that needs the Wearable Data Layer.
