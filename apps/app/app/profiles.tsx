@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { COLORS, IconButton } from '../src/components/Icon';
 import { useAllAddons } from '../src/addons';
 import { Avatar, pickAvatar } from '../src/components/Avatar';
 import { db, newId } from '../src/db';
@@ -52,9 +53,9 @@ export default function ProfilesScreen() {
         gap: 16,
       }}
     >
-      <Pressable onPress={() => router.back()} hitSlop={12} className="self-start py-2">
-        <Text className="text-2xl text-muted">‹</Text>
-      </Pressable>
+      <View className="-ml-2 self-start">
+        <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+      </View>
       <Text className="text-3xl font-semibold text-paper">Profiles</Text>
       <Text className="text-soft">
         Each profile has its own places, library, Up Next, podcasts and settings. Downloads are

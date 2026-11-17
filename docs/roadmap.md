@@ -17,6 +17,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M9 Profiles (v1.1)         | In progress |
 | M10 Your own storage       | In progress |
 | M11 Background engine      | In progress |
+| M12 Look and feel          | In progress |
 | M13 Landing page 2         | In progress |
 | M14 Developer platform     | In progress |
 | M19 Security and hardening | In progress |
@@ -189,6 +190,19 @@ once an hour. Phone checks are in [`apps/app/README.md`](../apps/app/README.md#m
 
 **Done when** a queued episode starts after the previous one with the phone locked and the app
 swiped away, and a new episode of an auto-download podcast is on the phone the next morning.
+
+## M12 Look and feel
+
+**Status:** in progress (from [`next.md`](next.md#proposed-milestones)). One SVG icon set
+(`apps/app/src/components/Icon.tsx`) replaces the text glyphs; the Player follows the design
+sketch (skip-30 icons, bookmark button by the title, book progress under the scrubber, a tool row
+for speed, sleep, chapters and bookmarks). Home shows the add-on count and a “Ready for offline”
+card, Search says how many add-ons answered, Library shows a banner when offline. Alerts go
+through `showAlert`, which draws an in-app dialog on the web. Covers fade in, the mini player
+slides up, the play button gives under the finger; nothing moves with reduced motion. Phone checks
+are in [`m12-follow-ups.md`](m12-follow-ups.md).
+
+**Done when** every screen matches the sketch's look on a phone and on the web.
 
 ## M13 Landing page 2
 

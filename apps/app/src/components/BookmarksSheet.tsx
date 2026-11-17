@@ -1,6 +1,7 @@
 import type { Bookmark } from '@lelap/core';
-import { Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 
+import { showAlert } from '../dialog';
 import { formatClock } from '../format';
 import { Sheet } from './Sheet';
 
@@ -18,7 +19,7 @@ export function BookmarksSheet({
   onClose: () => void;
 }) {
   const confirmDelete = (bookmark: Bookmark) =>
-    Alert.alert('Delete bookmark?', bookmark.note ?? formatClock(bookmark.bookPositionMs), [
+    showAlert('Delete bookmark?', bookmark.note ?? formatClock(bookmark.bookPositionMs), [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => onDelete(bookmark.id) },
     ]);

@@ -1,6 +1,6 @@
 import { getSettings, pickUpdate, ReleaseInfo } from '@lelap/core';
-import { Alert } from 'react-native';
 
+import { showAlert } from './dialog';
 import { downloadsBase } from './config';
 import { db } from './db';
 import * as updater from './platform/updater';
@@ -31,7 +31,7 @@ export async function checkForUpdate(): Promise<ReleaseInfo | null> {
 /** Installs a release, first sending the user to Android's permission if needed. */
 export async function installUpdate(release: ReleaseInfo): Promise<void> {
   if (!updater.canInstall()) {
-    Alert.alert(
+    showAlert(
       'Allow updates',
       'Android asks once before an app may install its own updates. Turn on “Allow from this source” for Lelap, then come back and install.',
       [
@@ -52,7 +52,7 @@ export async function offerUpdateOnStart(): Promise<void> {
   offered = true;
   const release = await checkForUpdate();
   if (!release) return;
-  Alert.alert(`Lelap ${release.version} is available`, undefined, [
+  showAlert(`Lelap ${release.version} is available`, undefined, [
     { text: 'Later', style: 'cancel' },
     { text: 'Install', onPress: () => void installUpdate(release).catch(() => {}) },
   ]);

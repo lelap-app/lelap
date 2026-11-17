@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { showAlert } from '../../src/dialog';
 import { BookCover } from '../../src/components/BookCover';
 import { db } from '../../src/db';
 import { useLibrary } from '../../src/player';
@@ -38,7 +38,7 @@ export default function PodcastsScreen() {
     try {
       await task();
     } catch (error) {
-      Alert.alert('Podcasts', message(error));
+      showAlert('Podcasts', message(error));
     } finally {
       setBusy(false);
       refresh();
@@ -58,7 +58,7 @@ export default function PodcastsScreen() {
       const asset = picked.canceled ? undefined : picked.assets[0];
       if (!asset) return;
       const result = await importOpml(await readPickedText(asset));
-      Alert.alert(
+      showAlert(
         `${result.added} podcasts added`,
         result.failed.length > 0 ? `Could not read: ${result.failed.join(', ')}` : undefined,
       );

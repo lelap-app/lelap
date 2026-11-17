@@ -1,9 +1,11 @@
 import { deleteProfile, getProfile, isPin, listProfiles, setPin, updateProfile } from '@lelap/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { showAlert } from '../src/dialog';
+import { COLORS, IconButton } from '../src/components/Icon';
 import { useAllAddons } from '../src/addons';
 import { Avatar, AVATAR_IDS } from '../src/components/Avatar';
 import { db } from '../src/db';
@@ -37,7 +39,7 @@ export default function ProfileScreen() {
   const hidden = new Set(profile.hiddenAddons);
 
   const remove = () =>
-    Alert.alert(
+    showAlert(
       `Delete ${profile.name}?`,
       'Their places, bookmarks, Up Next, podcasts and settings go too, on every synced device. Downloads stay.',
       [
@@ -70,9 +72,9 @@ export default function ProfileScreen() {
         gap: 16,
       }}
     >
-      <Pressable onPress={() => router.back()} hitSlop={12} className="self-start py-2">
-        <Text className="text-2xl text-muted">‹</Text>
-      </Pressable>
+      <View className="-ml-2 self-start">
+        <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+      </View>
       <View className="flex-row items-center gap-4">
         <Avatar avatar={profile.avatar} name={profile.name} size={72} />
         <TextInput

@@ -8,9 +8,11 @@ import {
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { showAlert } from '../src/dialog';
+import { COLORS, IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { db } from '../src/db';
 import { applyRules } from '../src/downloads';
@@ -109,7 +111,7 @@ export default function SettingsScreen() {
     setScanning(true);
     try {
       const result = await scanLibrary();
-      if ('error' in result) Alert.alert('Cannot read the folder', 'Choose the folder again.');
+      if ('error' in result) showAlert('Cannot read the folder', 'Choose the folder again.');
     } finally {
       setScanning(false);
       refresh();
@@ -125,9 +127,9 @@ export default function SettingsScreen() {
           paddingBottom: 24,
         }}
       >
-        <Pressable onPress={() => router.back()} hitSlop={12} className="self-start py-2">
-          <Text className="text-2xl text-muted">‹</Text>
-        </Pressable>
+        <View className="-ml-2 self-start">
+          <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+        </View>
         <Text className="pb-4 text-3xl font-semibold text-paper">Settings</Text>
 
         {LOCAL_FOLDERS && (
@@ -174,7 +176,7 @@ export default function SettingsScreen() {
             )}
             <Pressable
               onPress={() =>
-                Alert.alert(
+                showAlert(
                   `Remove ${s.name}?`,
                   'Its books and your places in them are removed from Lelap. Nothing on the server changes.',
                   [

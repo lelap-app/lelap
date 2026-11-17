@@ -1,9 +1,11 @@
 import { listUpNext, moveInUpNext, removeFromUpNext } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { showAlert } from '../src/dialog';
+import { COLORS, Icon, IconButton } from '../src/components/Icon';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { db } from '../src/db';
@@ -32,9 +34,14 @@ export default function UpNextScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 24 }}
         ListHeaderComponent={
           <View className="gap-2 px-4 pb-4">
-            <Pressable onPress={() => router.back()} hitSlop={12} className="self-start py-2">
-              <Text className="text-2xl text-muted">‹</Text>
-            </Pressable>
+            <View className="-ml-2 self-start">
+              <IconButton
+                name="back"
+                label="Back"
+                color={COLORS.soft}
+                onPress={() => router.back()}
+              />
+            </View>
             <Text className="text-3xl font-semibold text-paper">Up Next</Text>
             <Text className="text-sm text-muted">
               When a podcast episode ends, the first item here plays. Books stop at their end.
@@ -52,10 +59,7 @@ export default function UpNextScreen() {
               void playBook(item.bookId)
                 .then(() => router.push('/player'))
                 .catch((error: unknown) =>
-                  Alert.alert(
-                    'Cannot play',
-                    error instanceof Error ? error.message : String(error),
-                  ),
+                  showAlert('Cannot play', error instanceof Error ? error.message : String(error)),
                 )
             }
             className="flex-row items-center gap-3 px-4 py-2 active:bg-raised"
@@ -74,26 +78,33 @@ export default function UpNextScreen() {
             <View className="flex-row gap-4">
               <Pressable
                 hitSlop={8}
+                accessibilityLabel="Move up"
                 disabled={index === 0}
                 onPress={() => move(item.bookId, index - 1)}
               >
-                <Text className={index === 0 ? 'text-line' : 'text-soft'}>▲</Text>
+                <Icon name="up" size={22} color={index === 0 ? COLORS.line : COLORS.soft} />
               </Pressable>
               <Pressable
                 hitSlop={8}
+                accessibilityLabel="Move down"
                 disabled={index === items.length - 1}
                 onPress={() => move(item.bookId, index + 1)}
               >
-                <Text className={index === items.length - 1 ? 'text-line' : 'text-soft'}>▼</Text>
+                <Icon
+                  name="down"
+                  size={22}
+                  color={index === items.length - 1 ? COLORS.line : COLORS.soft}
+                />
               </Pressable>
               <Pressable
                 hitSlop={8}
+                accessibilityLabel="Remove from Up Next"
                 onPress={() => {
                   removeFromUpNext(db, profileId, item.bookId);
                   refresh();
                 }}
               >
-                <Text className="text-muted">✕</Text>
+                <Icon name="close" size={22} color={COLORS.muted} />
               </Pressable>
             </View>
           </Pressable>

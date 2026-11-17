@@ -9,9 +9,11 @@ import { CONTENT_TYPES, type ContentType, hasParts } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { showAlert } from '../src/dialog';
+import { COLORS, IconButton } from '../src/components/Icon';
 import { addItem, playItem, queries, useAddons } from '../src/addons';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { DownloadButton } from '../src/components/DownloadButton';
@@ -85,7 +87,7 @@ export default function ItemScreen() {
       refresh();
       router.push('/player');
     } catch (error) {
-      Alert.alert('Cannot play', error instanceof Error ? error.message : String(error));
+      showAlert('Cannot play', error instanceof Error ? error.message : String(error));
     } finally {
       setStarting(false);
     }
@@ -103,9 +105,9 @@ export default function ItemScreen() {
       className="flex-1 bg-night"
       contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
     >
-      <Pressable onPress={() => router.back()} hitSlop={12} className="self-start px-4 py-2">
-        <Text className="text-2xl text-muted">‹</Text>
-      </Pressable>
+      <View className="-ml-2 self-start px-2">
+        <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+      </View>
 
       {meta.isPending && !saved ? (
         <ActivityIndicator color="#f5b041" className="pt-24" />

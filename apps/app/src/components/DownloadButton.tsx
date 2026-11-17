@@ -1,7 +1,8 @@
 import { getDownload, getSettings } from '@lelap/core';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
+import { showAlert } from '../dialog';
 import { db } from '../db';
 import { deleteDownload, describeDownload, useDownloadStatuses } from '../downloads';
 import { formatBytes } from '../format';
@@ -33,7 +34,7 @@ export function DownloadButton({
     try {
       await task();
     } catch (error) {
-      Alert.alert('Download', error instanceof Error ? error.message : String(error));
+      showAlert('Download', error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
       refresh();
@@ -60,7 +61,7 @@ export function DownloadButton({
 
   const view = describeDownload(entry, status, getSettings(db, profileId));
   const remove = () =>
-    Alert.alert(
+    showAlert(
       entry.state === 'done' ? 'Remove download?' : 'Cancel download?',
       'The book stays in your library and streams while online.',
       [
@@ -74,7 +75,7 @@ export function DownloadButton({
     );
   const onPress = () => {
     if (!view.failed) return remove();
-    Alert.alert('Download failed', entry.error ?? undefined, [
+    showAlert('Download failed', entry.error ?? undefined, [
       { text: 'Close', style: 'cancel' },
       {
         text: 'Remove',

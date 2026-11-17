@@ -1,14 +1,15 @@
 import { BottomTabBar, Tabs } from 'expo-router/js-tabs';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { Icon, type IconName } from '../../src/components/Icon';
 import { MiniPlayer } from '../../src/components/MiniPlayer';
 
-const ICONS: Record<string, string> = {
-  index: '⌂',
-  discover: '◎',
-  search: '⌕',
-  podcasts: '◉',
-  library: '▤',
+const ICONS: Record<string, IconName> = {
+  index: 'home',
+  discover: 'discover',
+  search: 'search',
+  podcasts: 'podcast',
+  library: 'library',
 };
 
 export default function TabsLayout() {
@@ -27,7 +28,7 @@ export default function TabsLayout() {
         tabBarActiveTintColor: '#f5b041',
         tabBarInactiveTintColor: '#8d8a83',
         tabBarIcon: ({ color }) => (
-          <Text style={{ color, fontSize: 20, lineHeight: 24 }}>{ICONS[route.name] ?? '•'}</Text>
+          <Icon name={ICONS[route.name] ?? 'home'} color={String(color)} />
         ),
       })}
     >

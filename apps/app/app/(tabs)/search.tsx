@@ -38,6 +38,15 @@ export default function SearchScreen() {
       error: r.error,
       data: r.metas,
     }));
+  const asked = new Set((results.data ?? []).map((r) => r.ref.addon.url));
+  const failed = new Set(
+    (results.data ?? []).filter((r) => r.error !== null).map((r) => r.ref.addon.url),
+  );
+  const status =
+    asked.size === 0
+      ? null
+      : `Searched ${asked.size === 1 ? '1 add-on' : `${asked.size} add-ons`}` +
+        (failed.size > 0 ? ` · ${asked.size - failed.size} answered` : '');
   const nothing =
     results.isSuccess && (results.data ?? []).every((r) => r.metas.length === 0 && !r.error);
 
@@ -64,6 +73,11 @@ export default function SearchScreen() {
           keyExtractor={(m, index) => `${m.id} ${index}`}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 24 }}
+          ListHeaderComponent={
+            status !== null && !results.isFetching ? (
+              <Text className="px-4 text-xs text-muted">{status}</Text>
+            ) : undefined
+          }
           renderSectionHeader={({ section }) => (
             <View className="bg-night px-4 pb-1 pt-4">
               <Text className="text-xs uppercase tracking-wider text-muted">{section.title}</Text>

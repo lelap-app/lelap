@@ -11,7 +11,6 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   Pressable,
   ScrollView,
@@ -21,6 +20,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { showAlert } from '../src/dialog';
+import { COLORS, IconButton } from '../src/components/Icon';
 import { fetcher, useAddons } from '../src/addons';
 import { db, newId } from '../src/db';
 import { useLibrary } from '../src/player';
@@ -86,13 +87,13 @@ function AddonsManager() {
   const add = async () => {
     const manifestUrl = normalizeManifestUrl(url);
     if (!manifestUrl) {
-      Alert.alert('Not a web address', 'Paste the add-on’s manifest URL.');
+      showAlert('Not a web address', 'Paste the add-on’s manifest URL.');
       return;
     }
     setAdding(true);
     try {
       const manifest = await fetchManifest(fetcher, manifestUrl);
-      Alert.alert(
+      showAlert(
         `Add ${manifest.name}?`,
         `${manifest.description}\n\nAdd-ons are run by their authors, not by Lelap. Only add ones you trust.`,
         [
@@ -108,14 +109,14 @@ function AddonsManager() {
         ],
       );
     } catch (error) {
-      Alert.alert('Cannot add', error instanceof Error ? error.message : String(error));
+      showAlert('Cannot add', error instanceof Error ? error.message : String(error));
     } finally {
       setAdding(false);
     }
   };
 
   const remove = (addon: InstalledAddon) =>
-    Alert.alert(
+    showAlert(
       `Remove ${addon.manifest.name}?`,
       'Books you already play from it stay in your library.',
       [
@@ -141,9 +142,9 @@ function AddonsManager() {
         paddingBottom: 24,
       }}
     >
-      <Pressable onPress={() => router.back()} hitSlop={12} className="self-start py-2">
-        <Text className="text-2xl text-muted">‹</Text>
-      </Pressable>
+      <View className="-ml-2 self-start">
+        <IconButton name="back" label="Back" color={COLORS.soft} onPress={() => router.back()} />
+      </View>
       <Text className="pb-2 text-3xl font-semibold text-paper">Add-ons</Text>
       <Text className="pb-4 text-sm text-muted">
         Add-ons bring catalogs and audio. Audio always streams straight from the add-on’s source.

@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Image, Platform, Text, View } from 'react-native';
 
+import { FadeIn } from './Motion';
 import { proxyBase } from '../config';
 
 /** On the web, plain-http covers go through the proxy so an https page can show them. */
@@ -31,16 +33,7 @@ export function BookCover({
   title: string;
   size: number;
 }) {
-  if (uri) {
-    return (
-      <Image
-        source={{ uri: webSafe(uri) ?? uri }}
-        accessibilityIgnoresInvertColors
-        style={{ width: size, height: size }}
-        className="rounded-md bg-raised"
-      />
-    );
-  }
+  if (uri) return <CoverImage uri={webSafe(uri) ?? uri} size={size} />;
   return (
     <View
       style={{ width: size, height: size }}
@@ -49,6 +42,24 @@ export function BookCover({
       <Text style={{ fontSize: size / 2.5 }} className="font-semibold text-muted">
         {title.trim().charAt(0).toUpperCase()}
       </Text>
+    </View>
+  );
+}
+
+/** The cover fades in once loaded, over the same raised tile the letter cover uses. */
+function CoverImage({ uri, size }: { uri: string; size: number }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <View style={{ width: size, height: size }} className="overflow-hidden rounded-md bg-raised">
+      <FadeIn show={loaded} lift={0} duration={180}>
+        <Image
+          source={{ uri }}
+          accessibilityIgnoresInvertColors
+          onLoad={() => setLoaded(true)}
+          onError={() => setLoaded(true)}
+          style={{ width: size, height: size }}
+        />
+      </FadeIn>
     </View>
   );
 }

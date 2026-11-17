@@ -17,10 +17,13 @@ const clamp = (n: number) => Math.min(1, Math.max(0, n));
 export function Scrubber({
   elapsedMs,
   lengthMs,
+  middle,
   onSeek,
 }: {
   elapsedMs: number;
   lengthMs: number;
+  /** A note between the two times, such as progress in the whole book. */
+  middle?: string | undefined;
   /** Offset into the range, in ms. */
   onSeek: (offsetMs: number) => void;
 }) {
@@ -81,13 +84,14 @@ export function Scrubber({
             height: thumb,
             borderRadius: thumb / 2,
           }}
-          className="bg-amber"
+          className="bg-paper"
         />
       </View>
-      <View className="flex-row justify-between">
+      <View className="flex-row items-center justify-between">
         <Text className={`text-sm ${held?.dragging ? 'font-semibold text-amber' : 'text-muted'}`}>
           {formatClock(ratio * lengthMs)}
         </Text>
+        {middle !== undefined && <Text className="text-xs text-muted">{middle}</Text>}
         <Text className="text-sm text-muted">-{formatClock((1 - ratio) * lengthMs)}</Text>
       </View>
     </View>

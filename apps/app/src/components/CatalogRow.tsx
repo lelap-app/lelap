@@ -3,6 +3,7 @@ import type { MetaPreview } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 
+import { COLORS, Icon } from './Icon';
 import { fetcher } from '../addons';
 import { MetaTile } from './MetaCard';
 
@@ -28,9 +29,12 @@ export function CatalogRow({
 
   return (
     <View className="gap-2">
-      <Pressable onPress={onMore} className="flex-row items-baseline justify-between px-4">
+      <Pressable onPress={onMore} className="flex-row items-center justify-between px-4">
         <Text className="text-lg font-semibold text-paper">{catalogRef.catalog.name}</Text>
-        <Text className="text-sm text-amber">More ›</Text>
+        <View className="flex-row items-center">
+          <Text className="text-sm text-amber">More</Text>
+          <Icon name="forward" size={16} color={COLORS.amber} />
+        </View>
       </Pressable>
       {isPending ? (
         <View style={{ height: TILE + 40 }} className="justify-center">
