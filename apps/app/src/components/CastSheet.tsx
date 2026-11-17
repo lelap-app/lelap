@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 
 import {
   addDevicesListener,
   type CastDevice,
   listDevices,
+  localNetworkAccess,
+  type LocalNetworkAccess,
+  requestLocalNetworkAccess,
   setCastVolume,
   startCasting,
   startDiscovery,
@@ -49,10 +52,27 @@ export function CastSheet({
   const casting = useCasting();
   const [devices, setDevices] = useState<CastDevice[]>([]);
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [access, setAccess] = useState<LocalNetworkAccess | null>(null);
+
+  // Android 17 asks before an app reaches the Wi-Fi's devices; the sheet explains first.
+  useEffect(() => {
+    if (!visible) return;
+    let live = true;
+    void localNetworkAccess()
+      .then((answer) => {
+        if (live) setAccess(answer);
+      })
+      .catch(() => {
+        if (live) setAccess('granted');
+      });
+    return () => {
+      live = false;
+    };
+  }, [visible]);
 
   // Looks only while the sheet is open: discovery keeps Wi-Fi multicast on.
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || access !== 'granted') return;
     const subscription = addDevicesListener(setDevices);
     void listDevices().then(setDevices);
     void startDiscovery();
@@ -60,7 +80,7 @@ export function CastSheet({
       subscription.remove();
       void stopDiscovery();
     };
-  }, [visible]);
+  }, [visible, access]);
 
   const pick = async (device: CastDevice) => {
     if (device.id === casting.device?.id) return;
@@ -117,41 +137,70 @@ export function CastSheet({
         </View>
       )}
       {casting.error !== null && <Text className="pb-3 text-sm text-danger">{casting.error}</Text>}
-      <ScrollView>
-        {devices.map((device) => {
-          const current = device.id === casting.device?.id;
-          return (
-            <Pressable
-              key={device.id}
-              onPress={() => void pick(device)}
-              disabled={connecting !== null}
-              accessibilityRole="button"
-              accessibilityState={{ selected: current }}
-              aria-selected={current}
-              className="min-h-12 flex-row items-center gap-3 py-3 active:opacity-60"
-            >
-              <Icon name="cast" size={22} color={current ? COLORS.amber : COLORS.soft} />
-              <View className="flex-1">
-                <Text numberOfLines={1} className={current ? 'text-amber' : 'text-paper'}>
-                  {device.name}
-                </Text>
-                <Text numberOfLines={1} className="text-xs text-muted">
-                  {[device.model, KIND[device.kind]].filter(Boolean).join(' · ')}
-                </Text>
-              </View>
-              {connecting === device.id && <ActivityIndicator color={COLORS.amber} />}
-            </Pressable>
-          );
-        })}
-        <View className="flex-row items-center gap-3 py-3">
-          <ActivityIndicator color={COLORS.muted} />
-          <Text className="flex-1 text-sm text-muted">
+      {access === 'ask' && (
+        <View className="gap-3 pb-4">
+          <Text className="text-soft">
             {t(
-              'Looking for speakers and TVs on this Wi-Fi. Sonos, DLNA, Google Cast and FCast receivers play the book themselves; files on this phone are shared with them only while casting.',
+              'To find speakers and TVs, Lelap needs Android’s “nearby devices” permission. It only looks on this Wi-Fi, and only while this sheet is open.',
             )}
           </Text>
+          <View className="flex-row">
+            <Chip
+              label={t('Allow')}
+              onPress={() => void requestLocalNetworkAccess().then(setAccess)}
+            />
+          </View>
         </View>
-      </ScrollView>
+      )}
+      {access === 'blocked' && (
+        <View className="gap-3 pb-4">
+          <Text className="text-soft">
+            {t(
+              '“Nearby devices” is off for Lelap, so it can’t find speakers and TVs. Turn it on in Android’s settings.',
+            )}
+          </Text>
+          <View className="flex-row">
+            <Chip label={t('Open settings')} onPress={() => void Linking.openSettings()} />
+          </View>
+        </View>
+      )}
+      {access === 'granted' && (
+        <ScrollView>
+          {devices.map((device) => {
+            const current = device.id === casting.device?.id;
+            return (
+              <Pressable
+                key={device.id}
+                onPress={() => void pick(device)}
+                disabled={connecting !== null}
+                accessibilityRole="button"
+                accessibilityState={{ selected: current }}
+                aria-selected={current}
+                className="min-h-12 flex-row items-center gap-3 py-3 active:opacity-60"
+              >
+                <Icon name="cast" size={22} color={current ? COLORS.amber : COLORS.soft} />
+                <View className="flex-1">
+                  <Text numberOfLines={1} className={current ? 'text-amber' : 'text-paper'}>
+                    {device.name}
+                  </Text>
+                  <Text numberOfLines={1} className="text-xs text-muted">
+                    {[device.model, KIND[device.kind]].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+                {connecting === device.id && <ActivityIndicator color={COLORS.amber} />}
+              </Pressable>
+            );
+          })}
+          <View className="flex-row items-center gap-3 py-3">
+            <ActivityIndicator color={COLORS.muted} />
+            <Text className="flex-1 text-sm text-muted">
+              {t(
+                'Looking for speakers and TVs on this Wi-Fi. Sonos, DLNA, Google Cast and FCast receivers play the book themselves; files on this phone are shared with them only while casting.',
+              )}
+            </Text>
+          </View>
+        </ScrollView>
+      )}
     </Sheet>
   );
 }

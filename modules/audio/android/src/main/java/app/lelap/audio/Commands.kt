@@ -10,6 +10,11 @@ object Commands {
   const val SET_QUEUE = "app.lelap.audio.SET_QUEUE"
   /** The sleep timer button on the notification and lock screen; see [SleepCycle]. */
   const val CYCLE_SLEEP_TIMER = "app.lelap.audio.CYCLE_SLEEP_TIMER"
+  /** Casting (M50): play the loaded book on the receiver the cast module connected, or hand back. */
+  const val START_CAST = "app.lelap.audio.START_CAST"
+  const val STOP_CAST = "app.lelap.audio.STOP_CAST"
+  /** With [STOP_CAST]: play on here after the hand-back; missing means as the receiver was. */
+  const val KEY_RESUME = "resume"
   const val KEY_QUEUE_JSON = "queue"
   /** In [AUDIO_PREFS]: the queue, and the books that ended while the app may have been closed. */
   const val PREF_QUEUE = "upNextQueue"

@@ -12,6 +12,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import expo.modules.kotlin.Promise
@@ -235,6 +236,40 @@ class AudioModule : Module() {
           "bookId" to it.bookId,
           "part" to it.part,
         )
+      }
+    }.runOnQueue(Queues.MAIN)
+
+    // Resolves once the receiver loaded the first file; rejects with the receiver's reason.
+    AsyncFunction("castTo") { promise: Promise ->
+      val future = connect()
+      future.addListener(
+        {
+          try {
+            val result = future.get().sendCustomCommand(SessionCommand(Commands.START_CAST, Bundle.EMPTY), Bundle.EMPTY)
+            result.addListener(
+              {
+                val r = runCatching { result.get() }.getOrNull()
+                if (r?.resultCode == SessionResult.RESULT_SUCCESS) {
+                  promise.resolve(null)
+                } else {
+                  promise.reject("ERR_LELAP_CAST", r?.sessionError?.message ?: "Casting failed", null)
+                }
+              },
+              ContextCompat.getMainExecutor(context),
+            )
+          } catch (e: Exception) {
+            promise.reject("ERR_LELAP_AUDIO", e.cause?.message ?: e.message ?: "Player unavailable", e)
+          }
+        },
+        ContextCompat.getMainExecutor(context),
+      )
+    }.runOnQueue(Queues.MAIN)
+
+    // Hands back to the phone; null plays on here if the receiver was playing.
+    AsyncFunction("stopCasting") { resume: Boolean?, promise: Promise ->
+      withController(promise) { c ->
+        val args = Bundle().apply { resume?.let { putBoolean(Commands.KEY_RESUME, it) } }
+        c.sendCustomCommand(SessionCommand(Commands.STOP_CAST, Bundle.EMPTY), args)
       }
     }.runOnQueue(Queues.MAIN)
 

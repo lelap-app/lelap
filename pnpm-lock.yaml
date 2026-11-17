@@ -447,6 +447,9 @@ importers:
 
   modules/audio:
     dependencies:
+      '@lelap/cast':
+        specifier: workspace:*
+        version: link:../cast
       '@lelap/text':
         specifier: workspace:*
         version: link:../text

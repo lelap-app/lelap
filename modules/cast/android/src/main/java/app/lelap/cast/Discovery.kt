@@ -78,6 +78,7 @@ class Discovery(private val context: Context, private val onChange: (List<CastDe
           model = listOfNotNull(description.manufacturer, description.model).joinToString(" ").ifEmpty { null },
           avTransportUrl = description.avTransportUrl,
           renderingControlUrl = description.renderingControlUrl,
+          avTransportScpdUrl = description.avTransportScpdUrl,
         )
         publish()
       }.onFailure { seenLocations.remove(answer.location) }

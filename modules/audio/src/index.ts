@@ -104,6 +104,8 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   startSleepTimerAtEnd(mode: 'chapter' | 'episode'): Promise<void>;
   cancelSleepTimer(): Promise<void>;
   unload(): Promise<void>;
+  castTo(): Promise<void>;
+  stopCasting(resume: boolean | null): Promise<void>;
   setQueue(queueJson: string): Promise<void>;
   takeFinished(): Promise<FinishedItem[]>;
   takeEarlierPlaces(): Promise<JournalEntry[]>;
@@ -250,6 +252,20 @@ export function takeDiagnostics(): Promise<PlayerDiagnostic[]> {
 }
 
 /** Empties the player: no book on the lock screen or in the notification. */
+/**
+ * Plays the loaded book on the receiver `@lelap/cast` connected, from the place here. The
+ * notification, lock screen and headphones then control the receiver. Resolves once the first
+ * file loaded there.
+ */
+export function castTo(): Promise<void> {
+  return native.castTo();
+}
+
+/** Back to this phone at the receiver's place; `resume` null plays on if the receiver played. */
+export function stopCasting(resume: boolean | null = null): Promise<void> {
+  return native.stopCasting(resume);
+}
+
 export function unload(): Promise<void> {
   return native.unload();
 }

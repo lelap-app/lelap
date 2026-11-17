@@ -20,6 +20,8 @@ object Upnp {
     val model: String?,
     val avTransportUrl: String?,
     val renderingControlUrl: String?,
+    /** AVTransport's service description, which lists the play speeds the renderer takes. */
+    val avTransportScpdUrl: String? = null,
   )
 
   /**
@@ -33,13 +35,17 @@ object Upnp {
     val base = root.childText("URLBase")?.takeIf { it.isNotBlank() } ?: location
     var avTransport: String? = null
     var rendering: String? = null
+    var avScpd: String? = null
     val services = doc.getElementsByTagName("service")
     for (i in 0 until services.length) {
       val service = services.item(i) as Element
       val type = service.childText("serviceType") ?: continue
       val control = service.childText("controlURL") ?: continue
       val url = resolve(base, control) ?: continue
-      if (type.contains(":AVTransport:") && avTransport == null) avTransport = url
+      if (type.contains(":AVTransport:") && avTransport == null) {
+        avTransport = url
+        avScpd = service.childText("SCPDURL")?.let { resolve(base, it) }
+      }
       if (type.contains(":RenderingControl:") && rendering == null) rendering = url
     }
     // Sonos names the room separately; its friendlyName is an IP address and a model.
@@ -51,8 +57,43 @@ object Upnp {
       model = device.childText("modelName")?.trim(),
       avTransportUrl = avTransport,
       renderingControlUrl = rendering,
+      avTransportScpdUrl = avScpd,
     )
   }
+
+  /**
+   * The values AVTransport's `TransportPlaySpeed` allows, as the renderer writes them (`1`,
+   * `3/2`, `2`). Only `1` when the description lists none.
+   */
+  fun parseSpeeds(scpd: String): List<String> {
+    val doc = parse(scpd) ?: return listOf("1")
+    val variable = doc.allElements().firstOrNull {
+      localName(it.tagName) == "stateVariable" && it.childText("name")?.trim() == "TransportPlaySpeed"
+    } ?: return listOf("1")
+    val values = variable.child("allowedValueList")?.childElements()
+      ?.filter { localName(it.tagName) == "allowedValue" }
+      ?.mapNotNull { it.textContent?.trim()?.takeIf(String::isNotEmpty) }
+      .orEmpty()
+    return values.ifEmpty { listOf("1") }
+  }
+
+  /** A play speed as UPnP writes it, a fraction (`3/2`) or a number (`1.5`); null if neither. */
+  fun speedValue(text: String): Float? {
+    val parts = text.trim().split('/')
+    return when (parts.size) {
+      1 -> parts[0].toFloatOrNull()
+      2 -> {
+        val top = parts[0].toFloatOrNull() ?: return null
+        val bottom = parts[1].toFloatOrNull()?.takeIf { it != 0f } ?: return null
+        top / bottom
+      }
+      else -> null
+    }
+  }
+
+  /** The renderer's own spelling of [speed], or null when it does not offer it. */
+  fun speedArg(speed: Float, allowed: List<String>): String? =
+    allowed.firstOrNull { text -> speedValue(text)?.let { kotlin.math.abs(it - speed) < 0.01f } == true }
 
   fun resolve(base: String, path: String): String? = try {
     URI(base).resolve(path.trim()).toString()
@@ -191,14 +232,23 @@ class UpnpRenderer(private val device: CastDevice) : Renderer {
   private val ends = EndWatch()
   private var media: CastMedia? = null
 
+  // Most renderers list only 1; some take 1/2, 3/2 or 2 as Play's Speed.
+  private val speeds: List<String> = device.avTransportScpdUrl
+    ?.let { url -> runCatching { Upnp.parseSpeeds(MiniHttp.request("GET", url).text()) }.getOrNull() }
+    ?: listOf("1")
+  private var speed = "1"
+
   private fun av(action: String, vararg args: Pair<String, String>) =
     Upnp.call(transport, Upnp.AV_TRANSPORT, action, listOf("InstanceID" to "0") + args)
+
+  override fun canPlayAt(speed: Float): Boolean = Upnp.speedArg(speed, speeds) != null
 
   override fun load(media: CastMedia, startMs: Long, autoplay: Boolean, speed: Float) {
     this.media = media
     ends.reset()
+    this.speed = Upnp.speedArg(speed, speeds) ?: "1"
     av("SetAVTransportURI", "CurrentURI" to media.url, "CurrentURIMetaData" to Upnp.didl(media))
-    av("Play", "Speed" to "1")
+    play()
     if (startMs > 1_000) seekWhenReady(startMs)
     if (!autoplay) pause()
   }
@@ -216,7 +266,14 @@ class UpnpRenderer(private val device: CastDevice) : Renderer {
   }
 
   override fun play() {
-    av("Play", "Speed" to "1")
+    try {
+      av("Play", "Speed" to speed)
+    } catch (e: CastException) {
+      // A renderer that listed the speed but refuses it still plays at 1x.
+      if (speed == "1") throw e
+      speed = "1"
+      av("Play", "Speed" to speed)
+    }
   }
 
   override fun pause() {
@@ -228,8 +285,13 @@ class UpnpRenderer(private val device: CastDevice) : Renderer {
     av("Seek", "Unit" to "REL_TIME", "Target" to Upnp.formatTime(positionMs))
   }
 
-  // UPnP renderers play at 1x; Play's Speed argument is rarely anything else.
-  override fun setSpeed(speed: Float) = Unit
+  // UPnP sets the speed with Play; a playing renderer takes Play again with the new one.
+  override fun setSpeed(speed: Float) {
+    val arg = Upnp.speedArg(speed, speeds) ?: "1"
+    if (arg == this.speed) return
+    this.speed = arg
+    if (ends.isPlaying) play()
+  }
 
   override fun setVolume(level: Float) {
     val url = device.renderingControlUrl ?: return

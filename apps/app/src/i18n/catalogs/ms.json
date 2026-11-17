@@ -505,7 +505,6 @@
   "The server answered HTTP {status}.": "Pelayan menjawab HTTP {status}.",
   "This add-on is not on this device.": "Alat tambah ini tiada dalam peranti ini.",
   "This file is not an in-app add-on: its manifest has no `sandbox` hosts.": "Fail ini bukan alat tambah dalam aplikasi: manifestnya tiada hos `sandbox`.",
-  "This part of the book is missing.": "Bahagian buku ini tiada.",
   "Try new versions before everyone else.": "Cuba versi baharu sebelum orang lain.",
   "Update": "Kemas kini",
   "Update {name}?": "Kemas kini {name}?",
@@ -677,5 +676,7 @@
   "1 new episode": "1 episod baharu",
   "{n} new episodes": "{n} episod baharu",
   "{n} new": "{n} baharu",
-  "Rated {stars} of 5": "Penarafan {stars} daripada 5"
+  "Rated {stars} of 5": "Penarafan {stars} daripada 5",
+  "To find speakers and TVs, Lelap needs Android’s “nearby devices” permission. It only looks on this Wi-Fi, and only while this sheet is open.": "Untuk mencari pembesar suara dan TV, Lelap memerlukan kebenaran “peranti berdekatan” Android. Ia hanya mencari pada Wi-Fi ini, dan hanya semasa helaian ini dibuka.",
+  "“Nearby devices” is off for Lelap, so it can’t find speakers and TVs. Turn it on in Android’s settings.": "“Peranti berdekatan” dimatikan untuk Lelap, jadi ia tidak dapat mencari pembesar suara dan TV. Hidupkannya dalam tetapan Android."
 }

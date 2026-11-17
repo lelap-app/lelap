@@ -559,7 +559,6 @@
   "This item was not found.": "",
   "This link could not be opened.": "",
   "This link has no add-on address in it.": "",
-  "This part of the book is missing.": "",
   "This podcast has no feed address.": "",
   "This podcast has no feed address. Paste it below instead.": "",
   "This podcast was not found.": "",
@@ -569,6 +568,7 @@
   "Title": "",
   "Title, author or podcast": "",
   "To": "",
+  "To find speakers and TVs, Lelap needs Android’s “nearby devices” permission. It only looks on this Wi-Fi, and only while this sheet is open.": "",
   "Today": "",
   "Transcript": "",
   "Try again": "",
@@ -675,6 +675,7 @@
   "{what}. Opens the player.": "",
   "“Because you finished …” rows, worked out on this device from what you finish.": "",
   "“Because you finished …” rows, worked out on this phone from what you finish.": "",
+  "“Nearby devices” is off for Lelap, so it can’t find speakers and TVs. Turn it on in Android’s settings.": "",
   "“auto” for R2; the bucket’s region elsewhere.": "",
   "…and {n} more": "",
   "✓ Finished": ""

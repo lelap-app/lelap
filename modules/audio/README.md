@@ -27,6 +27,10 @@ Kotlin Expo module for Android playback.
   start seeks to the end, so the episode is logged as played and Up Next goes on.
 - Media button preferences: back and forward by the skip interval (`SkipIcons` picks Media3's
   icon with the seconds) and the sleep timer button. Phones, watches and cars all read them.
+- Casting (M50): `RemotePlayer` becomes the session's player while a receiver plays, through the
+  cast module's `CastLink`; `RemoteSession` there decides parts, the book's end and speed. The
+  sleep timer fades the receiver's volume and pauses it; the book's end is logged and Up Next goes
+  on there. ExoPlayer keeps the book, paused, for the hand-back.
 - `AudioModule`: the JavaScript bridge (`src/index.ts`), a `MediaController` on the main thread.
 
 Unit tests for the pure parts run on the JVM:

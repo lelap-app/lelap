@@ -9,6 +9,7 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@lelap/cast": "workspace:*",
     "@lelap/text": "workspace:*"
   },
   "peerDependencies": {
