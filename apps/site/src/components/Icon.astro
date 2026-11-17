@@ -27,6 +27,9 @@ const paths = {
   tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><path d="M7.5 7.5h.01"/>',
   cloud: '<path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19.5 10 4 4 0 0 1 18 18z"/>',
   books: '<path d="M5 4h4v16H5zM10 4h4v16h-4z"/><path d="m15.5 5 3.5-1 2.5 15-3.5 1z"/>',
+  screens:
+    '<rect x="2" y="5" width="14" height="10" rx="1.5"/><path d="M6 19h6"/><rect x="18" y="8" width="4" height="11" rx="1"/>',
+  access: '<circle cx="12" cy="4.5" r="1.5"/><path d="M5 8.5l7 1.5 7-1.5M12 10v4l-3 6M12 14l3 6"/>',
 } as const;
 
 export type IconName = keyof typeof paths;

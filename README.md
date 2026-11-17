@@ -20,7 +20,11 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Syncs progress between devices with a pairing code. No account, end-to-end encrypted.
 - Plays from your own files and folders, your own WebDAV, S3-compatible, Jellyfin or
   Audiobookshelf server, and add-ons: LibriVox, Open Library, Podcast Index, RSS feeds, or add-ons you write yourself.
-- Casts to Sonos, DLNA and Google Cast speakers without Google's SDK, and works in Android Auto.
+- Finds chapters at the long silences of a book without any (Android), and skips a podcast's
+  intro and outro.
+- Casts to Sonos, DLNA, Google Cast and FCast speakers without Google's SDK, with the lock screen,
+  headphones and sleep timer controlling the speaker; works in Android Auto.
+- Works with TalkBack and at the largest text size, and uses the width of tablets and laptops.
 - Profiles for a household, and the app in English and Bahasa Melayu.
 
 ## Repository layout

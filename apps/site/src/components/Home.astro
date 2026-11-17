@@ -39,7 +39,7 @@ const features: { icon: IconName; title: string; text: string }[] = [
     title: t(lang, 'Your server, your bucket'),
     text: t(
       lang,
-      'Play straight from a WebDAV server or an S3-compatible bucket. The app talks to it directly and keeps the credentials on your device.',
+      'Play straight from your WebDAV, S3-compatible, Jellyfin or Audiobookshelf server. The app talks to it directly and keeps the credentials on your device.',
     ),
   },
   {
@@ -77,7 +77,10 @@ const features: { icon: IconName; title: string; text: string }[] = [
   {
     icon: 'cast',
     title: t(lang, 'Cast to the living room'),
-    text: t(lang, 'Chromecast and Sonos from Android, with your progress kept while it plays.'),
+    text: t(
+      lang,
+      'Sonos, DLNA, Google Cast and FCast from Android. The lock screen, your headphones and the sleep timer control the speaker.',
+    ),
   },
   {
     icon: 'folder',
@@ -85,6 +88,30 @@ const features: { icon: IconName; title: string; text: string }[] = [
     text: t(
       lang,
       'Import m4b, mp3, opus and flac, or point it at a folder. Chapters come from the tags. OPML in and out for podcasts.',
+    ),
+  },
+  {
+    icon: 'books',
+    title: t(lang, 'Chapters where there were none'),
+    text: t(
+      lang,
+      'On Android, finds chapters at the long silences of a book without any. Skips a show’s intro and outro, set once per show.',
+    ),
+  },
+  {
+    icon: 'screens',
+    title: t(lang, 'Phone, tablet or laptop'),
+    text: t(
+      lang,
+      'On a wide screen the player stands beside your library. The web app has keyboard shortcuts for play, skip and speed.',
+    ),
+  },
+  {
+    icon: 'access',
+    title: t(lang, 'Works with a screen reader'),
+    text: t(
+      lang,
+      'Every control has a name for TalkBack, buttons are large enough to hit, and screens hold up at the largest text size.',
     ),
   },
 ];

@@ -6,6 +6,7 @@ Lelap is an open-source player for audiobooks and podcasts. It plays, downloads,
 <li>Keeps going through calls by lowering the volume, if you choose.</li>
 <li>Sleep timer that fades out, by minutes or at the end of a chapter or episode; shake for ten more minutes.</li>
 <li>Speed per book, smart rewind after a pause, chapters, bookmarks with notes.</li>
+<li>Finds chapters at the long silences of a book without any, and skips a podcast's intro and outro.</li>
 </ul>
 
 <b>Your library</b>
@@ -19,9 +20,10 @@ Lelap is an open-source player for audiobooks and podcasts. It plays, downloads,
 
 <b>Around the house</b>
 <ul>
-<li>Casts to Sonos, DLNA and Google Cast speakers through open protocols, and to FCast receivers.</li>
+<li>Casts to Sonos, DLNA and Google Cast speakers through open protocols, and to FCast receivers. The lock screen, headphones and sleep timer control the speaker.</li>
 <li>Android Auto, a home screen widget and a Quick Settings tile.</li>
 <li>Profiles for everyone in the household, with an optional PIN and a kids profile.</li>
+<li>Works with TalkBack and at the largest text size, and uses the width of a tablet.</li>
 <li>In English and Bahasa Melayu.</li>
 </ul>
 
