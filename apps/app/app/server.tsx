@@ -1,12 +1,17 @@
 import {
   addRemoteRoot,
+  type AudiobookshelfLibrary,
+  type AudiobookshelfLogin,
+  audiobookshelfMe,
   type JellyfinLibrary,
+  listAudiobookshelfLibraries,
   listJellyfinLibraries,
   listRoots,
   listS3,
   listWebdav,
   RemoteError,
   type RemoteSource,
+  signInAudiobookshelf,
   signInJellyfin,
   updateRemoteRoot,
 } from '@lelap/core';
@@ -24,6 +29,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { rememberAccess } from '../src/audiobookshelf';
 import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
@@ -32,12 +38,13 @@ import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { scanLibrary } from '../src/scan';
 
-type Kind = 'webdav' | 's3' | 'jellyfin';
+type Kind = 'webdav' | 's3' | 'jellyfin' | 'audiobookshelf';
 
 const KIND_LABEL: Record<Kind, string> = {
   webdav: 'WebDAV',
   s3: t('S3-compatible'),
   jellyfin: 'Jellyfin',
+  audiobookshelf: 'Audiobookshelf',
 };
 
 /** Why a server could not be reached, with what a browser adds to it. */
@@ -50,6 +57,30 @@ function reason(error: unknown, kind: Kind): string {
 }
 
 type SignedIn = { userId: string; token: string; libraries: JellyfinLibrary[] };
+type AbsSignedIn = AudiobookshelfLogin & { libraries: AudiobookshelfLibrary[] };
+
+/** A library to pick, with what it holds when that can differ. */
+function LibrarySwitch({
+  name,
+  detail,
+  on,
+  onChange,
+}: {
+  name: string;
+  detail?: string;
+  on: boolean;
+  onChange: (on: boolean) => void;
+}) {
+  return (
+    <View className="flex-row items-center justify-between py-1">
+      <View className="flex-1">
+        <Text className="text-paper">{name}</Text>
+        {detail && <Text className="text-xs text-muted">{detail}</Text>}
+      </View>
+      <Switch value={on} onValueChange={onChange} />
+    </View>
+  );
+}
 
 function Field({
   label,
@@ -88,7 +119,7 @@ function Field({
   );
 }
 
-/** Adds a WebDAV server, an S3-compatible bucket or a Jellyfin server as a place where books live. */
+/** Adds a WebDAV server, an S3-compatible bucket, or a Jellyfin or Audiobookshelf server. */
 export default function ServerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -99,27 +130,47 @@ export default function ServerScreen() {
   const dav = existing?.type === 'webdav' ? existing : null;
   const s3 = existing?.type === 's3' ? existing : null;
   const jf = existing?.type === 'jellyfin' ? existing : null;
+  const abs = existing?.type === 'audiobookshelf' ? existing : null;
   const [kind, setKind] = useState<Kind>(existing?.type ?? 'webdav');
   const [busy, setBusy] = useState(false);
-  const [url, setUrlValue] = useState(dav?.url ?? jf?.url ?? '');
-  const [username, setUsernameValue] = useState(dav?.username ?? jf?.username ?? '');
+  const [url, setUrlValue] = useState(dav?.url ?? jf?.url ?? abs?.url ?? '');
+  const [username, setUsernameValue] = useState(
+    dav?.username ?? jf?.username ?? abs?.username ?? '',
+  );
   const [password, setPasswordValue] = useState('');
   // Jellyfin: signed in after "Test connection", then the libraries to take books from.
   const [deviceId] = useState(() => jf?.deviceId ?? newId());
   const [signedIn, setSignedIn] = useState<SignedIn | null>(null);
-  const [picked, setPicked] = useState<Set<string>>(new Set(jf?.libraryIds ?? []));
+  const [picked, setPicked] = useState<Set<string>>(
+    new Set(jf?.libraryIds ?? abs?.libraryIds ?? []),
+  );
+  // Audiobookshelf: the same two steps, signed in with a password or an API key.
+  const [absSignedIn, setAbsSignedIn] = useState<AbsSignedIn | null>(null);
+  const [withKey, setWithKeyValue] = useState(false);
+  const [apiKey, setApiKeyValue] = useState('');
   // A changed address or login needs a new test.
   const setUrl = (v: string) => {
     setUrlValue(v);
     setSignedIn(null);
+    setAbsSignedIn(null);
   };
   const setUsername = (v: string) => {
     setUsernameValue(v);
     setSignedIn(null);
+    setAbsSignedIn(null);
   };
   const setPassword = (v: string) => {
     setPasswordValue(v);
     setSignedIn(null);
+    setAbsSignedIn(null);
+  };
+  const setApiKey = (v: string) => {
+    setApiKeyValue(v);
+    setAbsSignedIn(null);
+  };
+  const setWithKey = (v: boolean) => {
+    setWithKeyValue(v);
+    setAbsSignedIn(null);
   };
   const [endpoint, setEndpoint] = useState(s3?.endpoint ?? '');
   const [region, setRegion] = useState(s3?.region ?? 'auto');
@@ -149,6 +200,40 @@ export default function ServerScreen() {
     }
   };
 
+  const testAudiobookshelf = async () => {
+    setBusy(true);
+    try {
+      const fetcher = (u: string, i?: RequestInit) => fetch(u, i);
+      const address = url.trim();
+      let login: AudiobookshelfLogin;
+      if (withKey) {
+        // An API key is used as it is: it lasts until it expires or is turned off on the server.
+        const key = apiKey.trim();
+        const me = await audiobookshelfMe(fetcher, address, key);
+        login = {
+          userId: me.id,
+          username: me.username ?? '',
+          token: key,
+          refresh: false,
+          accessToken: key,
+        };
+      } else {
+        login = await signInAudiobookshelf(fetcher, {
+          url: address,
+          username: username.trim(),
+          password,
+        });
+      }
+      const libraries = await listAudiobookshelfLibraries(fetcher, address, login.accessToken);
+      setAbsSignedIn({ ...login, libraries });
+      if (!abs) setPicked(new Set(libraries.map((l) => l.id)));
+    } catch (error) {
+      showAlert(t('Could not connect'), reason(error, 'audiobookshelf'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const source = (): RemoteSource =>
     kind === 'webdav'
       ? { type: 'webdav', url: url.trim(), username: username.trim(), password }
@@ -163,15 +248,28 @@ export default function ServerScreen() {
             libraryIds: [...picked].filter((id) => signedIn?.libraries.some((l) => l.id === id)),
             profileId: jf?.profileId ?? profileId,
           }
-        : {
-            type: 's3',
-            endpoint: endpoint.trim(),
-            region: region.trim() || 'auto',
-            bucket: bucket.trim(),
-            prefix: prefix.trim().replace(/^\/+/, ''),
-            accessKeyId: accessKeyId.trim(),
-            secretAccessKey,
-          };
+        : kind === 'audiobookshelf'
+          ? {
+              type: 'audiobookshelf',
+              url: url.trim(),
+              username: absSignedIn?.username ?? '',
+              userId: absSignedIn?.userId ?? '',
+              token: absSignedIn?.token ?? '',
+              refresh: absSignedIn?.refresh ?? false,
+              libraryIds: [...picked].filter((id) =>
+                absSignedIn?.libraries.some((l) => l.id === id),
+              ),
+              profileId: abs?.profileId ?? profileId,
+            }
+          : {
+              type: 's3',
+              endpoint: endpoint.trim(),
+              region: region.trim() || 'auto',
+              bucket: bucket.trim(),
+              prefix: prefix.trim().replace(/^\/+/, ''),
+              accessKeyId: accessKeyId.trim(),
+              secretAccessKey,
+            };
 
   const connect = async () => {
     setBusy(true);
@@ -185,8 +283,11 @@ export default function ServerScreen() {
           : remote.type === 's3'
             ? await listS3((u, i) => fetch(u, i), remote, Date.now())
             : null;
+      let id = rootId;
       if (existing && rootId) updateRemoteRoot(db, rootId, remote, Date.now());
-      else addRemoteRoot(db, remote, Date.now(), newId);
+      else id = addRemoteRoot(db, remote, Date.now(), newId);
+      // The access token from signing in serves until it is due for renewal.
+      if (absSignedIn && id) rememberAccess(id, absSignedIn.accessToken);
       void scanLibrary().finally(refresh);
       refresh();
       showAlert(
@@ -208,10 +309,27 @@ export default function ServerScreen() {
       ? /^https?:\/\//.test(url.trim())
       : kind === 'jellyfin'
         ? /^https?:\/\//.test(url.trim()) && username.trim() !== ''
-        : /^https?:\/\//.test(endpoint.trim()) && bucket.trim() !== '' && accessKeyId.trim() !== '';
-  // Jellyfin connects in two steps: test the login, then pick libraries.
-  const testing = kind === 'jellyfin' && !signedIn;
-  const canConnect = ready && (kind !== 'jellyfin' || (signedIn !== null && picked.size > 0));
+        : kind === 'audiobookshelf'
+          ? /^https?:\/\//.test(url.trim()) &&
+            (withKey ? apiKey.trim() !== '' : username.trim() !== '')
+          : /^https?:\/\//.test(endpoint.trim()) &&
+            bucket.trim() !== '' &&
+            accessKeyId.trim() !== '';
+  // Jellyfin and Audiobookshelf connect in two steps: test the login, then pick libraries.
+  const testing = (kind === 'jellyfin' && !signedIn) || (kind === 'audiobookshelf' && !absSignedIn);
+  const canConnect =
+    ready &&
+    (kind === 'jellyfin'
+      ? signedIn !== null && picked.size > 0
+      : kind === 'audiobookshelf'
+        ? absSignedIn !== null && picked.size > 0
+        : true);
+  const toggle = (id: string, on: boolean) => {
+    const next = new Set(picked);
+    if (on) next.add(id);
+    else next.delete(id);
+    setPicked(next);
+  };
 
   return (
     <ScrollView
@@ -245,8 +363,8 @@ export default function ServerScreen() {
             )}
       </Text>
 
-      <View className={`flex-row gap-2 ${locked ? 'hidden' : ''}`}>
-        {(['webdav', 's3', 'jellyfin'] as const).map((k) => (
+      <View className={`flex-row flex-wrap gap-2 ${locked ? 'hidden' : ''}`}>
+        {(['webdav', 's3', 'jellyfin', 'audiobookshelf'] as const).map((k) => (
           <Pressable
             key={k}
             onPress={() => setKind(k)}
@@ -286,23 +404,13 @@ export default function ServerScreen() {
                 </Text>
               ) : (
                 signedIn.libraries.map((library) => (
-                  <View key={library.id} className="flex-row items-center justify-between py-1">
-                    <View className="flex-1">
-                      <Text className="text-paper">{library.name}</Text>
-                      <Text className="text-xs text-muted">
-                        {library.kind === 'books' ? t('Books') : t('Music')}
-                      </Text>
-                    </View>
-                    <Switch
-                      value={picked.has(library.id)}
-                      onValueChange={(on) => {
-                        const next = new Set(picked);
-                        if (on) next.add(library.id);
-                        else next.delete(library.id);
-                        setPicked(next);
-                      }}
-                    />
-                  </View>
+                  <LibrarySwitch
+                    key={library.id}
+                    name={library.name}
+                    detail={library.kind === 'books' ? t('Books') : t('Music')}
+                    on={picked.has(library.id)}
+                    onChange={(on) => toggle(library.id, on)}
+                  />
                 ))
               )}
               <Text className="text-xs text-muted">
@@ -315,6 +423,74 @@ export default function ServerScreen() {
           {Platform.OS === 'web' && (
             <Text className="text-sm text-muted">
               {t('In the browser the Jellyfin server must allow this site (CORS headers).')}
+            </Text>
+          )}
+        </>
+      ) : kind === 'audiobookshelf' ? (
+        <>
+          <Field
+            label={t('Server address')}
+            locked={locked}
+            value={url}
+            onChange={setUrl}
+            placeholder={'https://abs.example.org'}
+            hint={t('The address you open Audiobookshelf at, with its path if it has one.')}
+          />
+          <View className="flex-row items-center justify-between">
+            <Text className="flex-1 text-soft">{t('Sign in with an API key')}</Text>
+            <Switch value={withKey} onValueChange={setWithKey} />
+          </View>
+          {withKey ? (
+            <Field
+              label={t('API key')}
+              value={apiKey}
+              onChange={setApiKey}
+              secret
+              hint={t(
+                'Audiobookshelf → Settings → API Keys. A key without an end date never needs a new login, which suits downloads that wait for Wi-Fi.',
+              )}
+            />
+          ) : (
+            <>
+              <Field label={t('Username')} value={username} onChange={setUsername} />
+              <Field
+                label={t('Password')}
+                value={password}
+                onChange={setPassword}
+                secret
+                hint={t(
+                  'Used once to sign in. Lelap keeps the token the server gives, not the password.',
+                )}
+              />
+            </>
+          )}
+          {absSignedIn && (
+            <View className="gap-2">
+              <Text className="text-sm text-soft">{t('Libraries')}</Text>
+              {absSignedIn.libraries.length === 0 ? (
+                <Text className="text-muted">
+                  {t('This account has no book libraries on the server.')}
+                </Text>
+              ) : (
+                absSignedIn.libraries.map((library) => (
+                  <LibrarySwitch
+                    key={library.id}
+                    name={library.name}
+                    on={picked.has(library.id)}
+                    onChange={(on) => toggle(library.id, on)}
+                  />
+                ))
+              )}
+              <Text className="text-xs text-muted">
+                {t(
+                  'Places sync both ways with this Audiobookshelf user, for the profile adding the server.',
+                )}
+              </Text>
+            </View>
+          )}
+          {Platform.OS === 'web' && (
+            <Text className="text-sm text-muted">
+              {t('In the browser the Audiobookshelf server must allow this site (CORS headers).')}
             </Text>
           )}
         </>
@@ -388,7 +564,13 @@ export default function ServerScreen() {
 
       <Pressable
         disabled={(testing ? !ready : !canConnect) || busy}
-        onPress={() => void (testing ? testJellyfin() : connect())}
+        onPress={() =>
+          void (testing
+            ? kind === 'audiobookshelf'
+              ? testAudiobookshelf()
+              : testJellyfin()
+            : connect())
+        }
         className={`items-center rounded-full py-3 ${(testing ? ready : canConnect) ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
       >
         {busy ? (

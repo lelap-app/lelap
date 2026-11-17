@@ -16,7 +16,7 @@ directly.
 - **Add-ons bring content.** Stateless HTTP services returning JSON ([protocol](../apps/site/src/pages/docs/protocol.astro),
   [SDK](../packages/sdk)); in-app add-ons run the same routes in a sandbox
   ([M38](milestones/m38.md)). The app stores only their URLs.
-- **The user's own storage is built in, not an add-on:** local folders, WebDAV, S3, Jellyfin.
+- **The user's own storage is built in, not an add-on:** local folders, WebDAV, S3, Jellyfin, Audiobookshelf.
   Logins stay sealed on the phone (see the decision in the brief).
 - **Audio never touches our servers.** Services proxy feeds, covers, chapters and transcripts for
   the web app, which browsers can't fetch across origins; never audio.

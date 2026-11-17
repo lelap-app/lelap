@@ -303,12 +303,16 @@ export default function SettingsScreen() {
                 label={s.name}
                 detail={
                   s.needsLogin
-                    ? t('Password needed: it is not in backups.')
+                    ? s.remote?.type === 'audiobookshelf'
+                      ? t('Log in again: the login has expired or is not in backups.')
+                      : t('Password needed: it is not in backups.')
                     : s.remote?.type === 's3'
                       ? t('S3 bucket')
                       : s.remote?.type === 'jellyfin'
                         ? 'Jellyfin'
-                        : 'WebDAV'
+                        : s.remote?.type === 'audiobookshelf'
+                          ? 'Audiobookshelf'
+                          : 'WebDAV'
                 }
               >
                 {s.needsLogin && (
@@ -343,7 +347,7 @@ export default function SettingsScreen() {
             ))}
             <Row
               label={t('Add a server')}
-              detail={t('WebDAV (Nextcloud, ownCloud, a NAS) or an S3-compatible bucket.')}
+              detail={t('WebDAV, an S3-compatible bucket, Jellyfin or Audiobookshelf.')}
             >
               <Pressable onPress={() => router.push('/server')}>
                 <Text className="text-amber">{t('Add')}</Text>

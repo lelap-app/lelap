@@ -17,7 +17,7 @@ never breaks while a translation catches up.
 
 - Keep `{holes}` as they are; move them wherever the sentence needs them.
 - Plurals: write both forms in code, such as `n === 1 ? t('1 book') : t('{n} books', { n })`.
-- Brand and product names (Lelap, Jellyfin, Podcast Index) stay as they are.
+- Brand and product names (Lelap, Jellyfin, Audiobookshelf, Podcast Index) stay as they are.
 - When you change English text in code, change its key in `ms.ts` too.
 
 ## Checking

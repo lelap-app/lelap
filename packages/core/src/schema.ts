@@ -47,8 +47,8 @@ export const profiles = sqliteTable('profiles', {
 });
 
 /**
- * A WebDAV server, an S3 bucket or a Jellyfin server used as a library folder. Kept on this
- * device, never synced. Jellyfin keeps an access token, not the password.
+ * A WebDAV server, an S3 bucket, or a Jellyfin or Audiobookshelf server used as a library folder.
+ * Kept on this device, never synced. Jellyfin and Audiobookshelf keep a token, not the password.
  */
 export type RemoteSource =
   | { type: 'webdav'; url: string; username: string; password: string }
@@ -59,6 +59,17 @@ export type RemoteSource =
       userId: string;
       deviceId: string;
       token: string;
+      libraryIds: string[];
+      profileId: string;
+    }
+  | {
+      type: 'audiobookshelf';
+      url: string;
+      username: string;
+      userId: string;
+      /** A refresh token when `refresh`; otherwise an API key or an older server's token. */
+      token: string;
+      refresh: boolean;
       libraryIds: string[];
       profileId: string;
     }

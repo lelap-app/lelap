@@ -595,8 +595,8 @@ export const ms: Record<string, string> = {
   'Try new versions before everyone else.': 'Cuba versi baharu sebelum orang lain.',
   Update: 'Kemas kini',
   'Update {name}?': 'Kemas kini {name}?',
-  'WebDAV (Nextcloud, ownCloud, a NAS) or an S3-compatible bucket.':
-    'WebDAV (Nextcloud, ownCloud, NAS) atau baldi serasi S3.',
+  'WebDAV, an S3-compatible bucket, Jellyfin or Audiobookshelf.':
+    'WebDAV, baldi serasi S3, Jellyfin atau Audiobookshelf.',
   'What is on the phone and how much space it takes.':
     'Apa yang ada dalam telefon dan berapa banyak ruang yang digunakan.',
   'When your Bluetooth headphones or speaker likely won’t last the sleep timer or the chapter. Needs “nearby devices”; devices that don’t report a level show nothing.':
@@ -622,4 +622,20 @@ export const ms: Record<string, string> = {
     'Menjalankan versi yang disertakan dengan pemasangan ini.',
   'Running update {id} from {date}.': 'Menjalankan kemas kini {id} dari {date}.',
   'Running update {id}.': 'Menjalankan kemas kini {id}.',
+  'The Audiobookshelf login is needed again.': 'Log masuk Audiobookshelf diperlukan sekali lagi.',
+  'The address you open Audiobookshelf at, with its path if it has one.':
+    'Alamat yang anda gunakan untuk membuka Audiobookshelf, bersama laluannya jika ada.',
+  'Sign in with an API key': 'Log masuk dengan kunci API',
+  'API key': 'Kunci API',
+  'Audiobookshelf → Settings → API Keys. A key without an end date never needs a new login, which suits downloads that wait for Wi-Fi.':
+    'Audiobookshelf → Settings → API Keys. Kunci tanpa tarikh tamat tidak pernah memerlukan log masuk baharu, sesuai untuk muat turun yang menunggu Wi-Fi.',
+  'Used once to sign in. Lelap keeps the token the server gives, not the password.':
+    'Digunakan sekali untuk log masuk. Lelap menyimpan token yang diberi pelayan, bukan kata laluan.',
+  'This account has no book libraries on the server.': 'Akaun ini tiada pustaka buku pada pelayan.',
+  'Places sync both ways with this Audiobookshelf user, for the profile adding the server.':
+    'Kedudukan disegerakkan dua hala dengan pengguna Audiobookshelf ini, untuk profil yang menambah pelayan.',
+  'In the browser the Audiobookshelf server must allow this site (CORS headers).':
+    'Dalam pelayar, pelayan Audiobookshelf mesti membenarkan laman ini (pengepala CORS).',
+  'Log in again: the login has expired or is not in backups.':
+    'Log masuk semula: log masuk telah tamat tempoh atau tiada dalam sandaran.',
 };

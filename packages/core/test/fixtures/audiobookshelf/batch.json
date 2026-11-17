@@ -1,0 +1,173 @@
+{
+  "libraryItems": [
+    {
+      "id": "li_carol",
+      "ino": "649521",
+      "libraryId": "lib_books",
+      "folderId": "fol_1",
+      "path": "/audiobooks/Charles Dickens/A Christmas Carol",
+      "relPath": "Charles Dickens/A Christmas Carol",
+      "isFile": false,
+      "mtimeMs": 1794000000000,
+      "addedAt": 1794000000000,
+      "updatedAt": 1794000000000,
+      "isMissing": false,
+      "isInvalid": false,
+      "mediaType": "book",
+      "media": {
+        "id": "bk_carol",
+        "libraryItemId": "li_carol",
+        "metadata": {
+          "title": "A Christmas Carol",
+          "subtitle": null,
+          "authors": [{ "id": "au_dickens", "name": "Charles Dickens" }],
+          "narrators": ["Kristin Hughes"],
+          "series": [],
+          "authorName": "Charles Dickens",
+          "narratorName": "Kristin Hughes",
+          "seriesName": ""
+        },
+        "coverPath": "/metadata/items/li_carol/cover.jpg",
+        "tags": [],
+        "numTracks": 2,
+        "numAudioFiles": 2,
+        "numChapters": 2,
+        "duration": 3000,
+        "size": 48000000,
+        "audioFiles": [],
+        "chapters": [
+          { "id": 0, "start": 0, "end": 1200, "title": "Stave One: Marley's Ghost" },
+          {
+            "id": 1,
+            "start": 1200,
+            "end": 3000,
+            "title": "Stave Two: The First of the Three Spirits"
+          }
+        ],
+        "ebookFile": null,
+        "tracks": [
+          {
+            "index": 1,
+            "ino": "649523",
+            "metadata": {
+              "filename": "01 Stave One.mp3",
+              "ext": ".mp3",
+              "path": "/audiobooks/Charles Dickens/A Christmas Carol/01 Stave One.mp3",
+              "relPath": "01 Stave One.mp3",
+              "size": 19200000,
+              "mtimeMs": 1793000000000,
+              "ctimeMs": 1793000000000,
+              "birthtimeMs": 0
+            },
+            "addedAt": 1794000000000,
+            "updatedAt": 1794000000000,
+            "trackNumFromMeta": 1,
+            "discNumFromMeta": null,
+            "duration": 1200,
+            "bitRate": 128000,
+            "codec": "mp3",
+            "mimeType": "audio/mpeg",
+            "title": "01 Stave One.mp3",
+            "startOffset": 0,
+            "contentUrl": "/api/items/li_carol/file/649523"
+          },
+          {
+            "index": 2,
+            "ino": "649524",
+            "metadata": {
+              "filename": "02 Stave Two.mp3",
+              "ext": ".mp3",
+              "path": "/audiobooks/Charles Dickens/A Christmas Carol/02 Stave Two.mp3",
+              "relPath": "02 Stave Two.mp3",
+              "size": 28800000,
+              "mtimeMs": 1793000000000,
+              "ctimeMs": 1793000000000,
+              "birthtimeMs": 0
+            },
+            "addedAt": 1794000000000,
+            "updatedAt": 1794000000000,
+            "trackNumFromMeta": 2,
+            "discNumFromMeta": null,
+            "duration": 1800,
+            "bitRate": 128000,
+            "codec": "mp3",
+            "mimeType": "audio/mpeg",
+            "title": "02 Stave Two.mp3",
+            "startOffset": 1200,
+            "contentUrl": "/api/items/li_carol/file/649524"
+          }
+        ]
+      },
+      "libraryFiles": []
+    },
+    {
+      "id": "li_machine",
+      "ino": "649530",
+      "libraryId": "lib_books",
+      "folderId": "fol_1",
+      "path": "/audiobooks/H. G. Wells/The Time Machine",
+      "relPath": "H. G. Wells/The Time Machine",
+      "isFile": false,
+      "mtimeMs": 1794000000000,
+      "addedAt": 1794000000000,
+      "updatedAt": 1794000000000,
+      "isMissing": false,
+      "isInvalid": false,
+      "mediaType": "book",
+      "media": {
+        "id": "bk_machine",
+        "libraryItemId": "li_machine",
+        "metadata": {
+          "title": "The Time Machine",
+          "subtitle": null,
+          "authors": [{ "id": "au_wells", "name": "H. G. Wells" }],
+          "narrators": ["Mark Nelson"],
+          "series": [],
+          "authorName": "H. G. Wells",
+          "narratorName": "Mark Nelson",
+          "seriesName": ""
+        },
+        "coverPath": null,
+        "tags": [],
+        "numTracks": 1,
+        "numAudioFiles": 1,
+        "numChapters": 3,
+        "duration": 3600,
+        "size": 57600000,
+        "audioFiles": [],
+        "chapters": [
+          { "id": 0, "start": 0, "end": 900, "title": "Introduction" },
+          { "id": 1, "start": 900, "end": 2400, "title": "Chapter 1" },
+          { "id": 2, "start": 2400, "end": 3600, "title": "" }
+        ],
+        "ebookFile": null,
+        "tracks": [
+          {
+            "index": 1,
+            "ino": "649531",
+            "metadata": {
+              "filename": "The Time Machine.m4b",
+              "ext": ".m4b",
+              "path": "/audiobooks/H. G. Wells/The Time Machine/The Time Machine.m4b",
+              "relPath": "The Time Machine.m4b",
+              "size": 57600000,
+              "mtimeMs": 1793500000000,
+              "ctimeMs": 1793500000000,
+              "birthtimeMs": 0
+            },
+            "addedAt": 1794000000000,
+            "updatedAt": 1794000000000,
+            "duration": 3600,
+            "bitRate": 128000,
+            "codec": "aac",
+            "mimeType": "audio/mp4",
+            "title": "The Time Machine.m4b",
+            "startOffset": 0,
+            "contentUrl": "/api/items/li_machine/file/649531"
+          }
+        ]
+      },
+      "libraryFiles": []
+    }
+  ]
+}

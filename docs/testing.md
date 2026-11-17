@@ -198,6 +198,13 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M10] Cloudflare R2 or MinIO: add a bucket; a book plays and downloads. ([m10](m10-follow-ups.md#2-checks))
 - [ ] [M10] A wrong password says so; a server that is down keeps its books. ([m10](m10-follow-ups.md#2-checks))
 - [ ] [M25] Covers from an Audiobookshelf server that needs a login on the widget (expected: placeholder). ([m25](m25-follow-ups.md#1-device-checks))
+- [ ] [M41] Audiobookshelf 2.26 or later and 2.25 or before: add with a password, then with an API key; book libraries picked, podcast libraries not listed. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M41] Audiobookshelf books: single `.m4b` with chapters, several `.mp3` files as one book with a chapter per file; titles, authors, covers. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M41] An Audiobookshelf book plays, seeks and downloads. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M41] Audiobookshelf places both ways: pause in Lelap, the web player resumes there; play on in the web player, rescan, Lelap moves there; finished books both ways. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M41] Audiobookshelf password login: a stream played for over an hour still seeks; a download that waits over an hour for Wi-Fi still downloads. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M41] Audiobookshelf login past the refresh token life (`REFRESH_TOKEN_EXPIRY=120`): Settings shows “Log in”; logging in keeps books and places. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M41] Cast an Audiobookshelf book to Chromecast and a UPnP renderer. ([m41](m41-follow-ups.md#m41-follow-ups))
 - [ ] [M30] Hardcover with a real token: Currently reading with progress after a few minutes, Read with today's date after finishing, the Want to read row. ([m30](m30-follow-ups.md))
 - [ ] [M30] Hardcover events from an offline session arrive with their own times once back online. ([m30](m30-follow-ups.md))
 - [ ] [M30] gPodder (gpodder.net and Nextcloud gPodder Sync): play and pause an episode; AntennaPod on the same server continues there. ([m30](m30-follow-ups.md))
@@ -252,6 +259,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M22] Web: effects on a download and a LibriVox stream; a host without CORS plays without them, never silent; a switch reloads once at the same place; Safari and Firefox levels match Chrome. ([m22](m22-follow-ups.md))
 - [ ] [M29] Web: timer checks 1, 3, 6 and the expired link in Chrome and Firefox. ([m29](m29-follow-ups.md#phone-checks))
 - [ ] [M34] The AntennaPod file and its OPML export import in the web app. ([m34](m34-follow-ups.md))
+- [ ] [M41] Web: an Audiobookshelf server that allows the site lists, plays with `?token=` and reports places; one that does not shows the CORS hint. ([m41](m41-follow-ups.md#m41-follow-ups))
 
 ## C. Already covered elsewhere or obsolete
 

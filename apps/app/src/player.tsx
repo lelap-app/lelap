@@ -33,6 +33,12 @@ import { db, newId } from './db';
 import * as audio from './platform/audio';
 import { profileId, setProfileId } from './profile';
 import { jellyfinFinished, trackJellyfin } from './jellyfin';
+import {
+  audiobookshelfFinished,
+  freshAudiobookshelfTokens,
+  prepareAudiobookshelfBook,
+  trackAudiobookshelf,
+} from './audiobookshelf';
 import { fileAccess } from './remote';
 import { flushScrobbles, trackFinished, trackPlayerState } from './scrobble';
 
@@ -160,6 +166,9 @@ async function load(bookId: string, autoplay: boolean, force = false): Promise<v
     return;
   }
   if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
+  // Audiobookshelf access tokens last about an hour; streams get one with time left on it, and
+  // a newer place from Audiobookshelf's own player is taken first.
+  await prepareAudiobookshelfBook(bookId, profileId);
   const book = bookLoad(bookId);
   if (!book) throw new Error('The files of this book are not available.');
   setDeviceValue(db, PLAYER_PROFILE, profileId, Date.now());
@@ -203,8 +212,13 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
 async function syncQueue(): Promise<void> {
   if (playerProfile() !== profileId) return;
   const loaded = (await audio.getState()).bookId;
+  const upNext = listUpNext(db, profileId);
+  await freshAudiobookshelfTokens(
+    upNext.map((i) => i.bookId),
+    profileId,
+  );
   const queue: audio.BookLoad[] = [];
-  for (const item of listUpNext(db, profileId)) {
+  for (const item of upNext) {
     if (item.bookId === loaded) continue;
     const book = bookLoad(item.bookId);
     if (!book) continue;
@@ -221,6 +235,10 @@ async function syncQueue(): Promise<void> {
 async function syncCar(): Promise<void> {
   if (playerProfile() !== profileId) return;
   const shelves = carShelves(db, profileId);
+  await freshAudiobookshelfTokens(
+    [...shelves.continueListening, ...shelves.onPhone, ...shelves.upNext],
+    profileId,
+  );
   const loads = (ids: string[]) =>
     ids.map((id) => bookLoad(id)).filter((b): b is audio.BookLoad => b !== null);
   // An episode needs its library book before it can play; it is made here, like on first play.
@@ -244,6 +262,7 @@ async function foldFinished(): Promise<boolean> {
     finishFromPlayer(db, playerProfile(), item.bookId, item.at);
     trackFinished(item.bookId, item.at, playerProfile());
     jellyfinFinished(item.bookId, item.at, playerProfile());
+    audiobookshelfFinished(item.bookId, item.at, playerProfile());
   }
   return done.length > 0;
 }
@@ -336,6 +355,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     trackPlayerState(state, playerProfile());
     trackJellyfin(state, playerProfile());
+    trackAudiobookshelf(state, playerProfile());
   }, [state]);
 
   useEffect(() => {

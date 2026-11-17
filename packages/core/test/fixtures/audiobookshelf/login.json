@@ -1,0 +1,34 @@
+{
+  "user": {
+    "id": "usr_reader",
+    "username": "reader",
+    "type": "user",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c3JfcmVhZGVyIiwidXNlcm5hbWUiOiJyZWFkZXIiLCJpYXQiOjE3MDAwMDAwMDB9.bGVnYWN5",
+    "mediaProgress": [],
+    "seriesHideFromContinueListening": [],
+    "bookmarks": [],
+    "isActive": true,
+    "isLocked": false,
+    "lastSeen": 1794996400000,
+    "createdAt": 1700000000000,
+    "permissions": {
+      "download": true,
+      "update": false,
+      "delete": false,
+      "upload": false,
+      "accessAllLibraries": true,
+      "accessAllTags": true,
+      "accessExplicitContent": true
+    },
+    "librariesAccessible": [],
+    "itemTagsSelected": [],
+    "hasOpenIDLink": false,
+    "isOldToken": false,
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c3JfcmVhZGVyIiwidXNlcm5hbWUiOiJyZWFkZXIiLCJ0eXBlIjoicmVmcmVzaCIsImlhdCI6MTc5NDk5NjQwMCwiZXhwIjoxNzk3NTg4NDAwfQ.cmVmcmVzaA",
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c3JfcmVhZGVyIiwidXNlcm5hbWUiOiJyZWFkZXIiLCJ0eXBlIjoiYWNjZXNzIiwiaWF0IjoxNzk0OTk2NDAwLCJleHAiOjE3OTUwMDAwMDB9.c2lnbmF0dXJl"
+  },
+  "userDefaultLibraryId": "lib_books",
+  "serverSettings": { "id": "server-settings", "version": "2.30.0" },
+  "ereaderDevices": [],
+  "Source": "docker"
+}

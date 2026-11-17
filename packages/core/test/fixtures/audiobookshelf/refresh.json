@@ -1,0 +1,11 @@
+{
+  "user": {
+    "id": "usr_reader",
+    "username": "reader",
+    "accessToken": "access-2",
+    "refreshToken": "refresh-2"
+  },
+  "userDefaultLibraryId": "lib_books",
+  "serverSettings": { "id": "server-settings", "version": "2.30.0" },
+  "Source": "docker"
+}

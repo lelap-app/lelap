@@ -2,6 +2,9 @@ import { t } from './i18n';
 import {
   applyRemotePlaces,
   applyScan,
+  audiobookshelfMe,
+  audiobookshelfScan,
+  listAudiobookshelfItems,
   DEFAULT_PROFILE_ID,
   getProfile,
   jellyfinScan,
@@ -13,10 +16,12 @@ import {
   listRoots,
   listS3,
   listWebdav,
+  RemoteError,
   upsertRoot,
 } from '@lelap/core';
 import { Directory, Paths } from 'expo-file-system';
 
+import { forgetAudiobookshelfParts, freshBearer, loginExpired } from './audiobookshelf';
 import { db, newId } from './db';
 import {
   FOLDER_UNAVAILABLE,
@@ -58,6 +63,9 @@ async function listRoot(root: Root): Promise<ListedFile[]> {
   if (!root.remote) return listTree(root.uri);
   if (root.remote.type === 'webdav') return listWebdav((u, i) => fetch(u, i), root.remote);
   if (root.remote.type === 'jellyfin') throw new Error('Jellyfin is scanned by scanJellyfin.');
+  if (root.remote.type === 'audiobookshelf') {
+    throw new Error('Audiobookshelf is scanned by scanAudiobookshelf.');
+  }
   return listS3((u, i) => fetch(u, i), root.remote, Date.now());
 }
 
@@ -70,7 +78,10 @@ async function tagsFor(root: Root, file: ListedFile, dir: string): Promise<FileT
 async function run(onProgress: (done: number, total: number) => void): Promise<ScanResult> {
   const roots = listRoots(db);
   if (roots.length === 0) return { error: 'no-folder' };
-  const dir = coverDir();
+  // Only folder and WebDAV or S3 scans keep covers on the device; the web build has no such
+  // folder, and Jellyfin and Audiobookshelf scans don't need one.
+  let covers: string | null = null;
+  const dir = () => (covers ??= coverDir());
   let added = 0;
   let missing = 0;
   let lostLocal = false;
@@ -78,6 +89,12 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
   for (const root of roots) {
     if (root.remote?.type === 'jellyfin') {
       const result = await scanJellyfin(root, root.remote).catch(() => null);
+      added += result?.added ?? 0;
+      missing += result?.missing ?? 0;
+      continue;
+    }
+    if (root.remote?.type === 'audiobookshelf') {
+      const result = await scanAudiobookshelf(root, root.remote).catch(() => null);
       added += result?.added ?? 0;
       missing += result?.missing ?? 0;
       continue;
@@ -96,7 +113,7 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
     for (const [i, file] of need.entries()) {
       onProgress(i, need.length);
       try {
-        tags.set(file.location, await tagsFor(root, file, dir));
+        tags.set(file.location, await tagsFor(root, file, dir()));
       } catch {
         // Unreadable now; stored with empty tags and tried again on the next scan.
       }
@@ -109,7 +126,7 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
       for (const file of listed.filter((f) => COVER_IMAGE.test(f.name))) {
         const folder = file.location.slice(0, file.location.lastIndexOf('/'));
         if (folderCovers.has(folder)) continue;
-        const path = await readImage(file.uri, dir).catch(() => null);
+        const path = await readImage(file.uri, dir()).catch(() => null);
         if (path) folderCovers.set(folder, path);
       }
     }
@@ -155,6 +172,47 @@ async function scanJellyfin(
   // The profile that added the server; the first one if it has since been deleted.
   const profile = getProfile(db, remote.profileId) ? remote.profileId : DEFAULT_PROFILE_ID;
   applyRemotePlaces(db, profile, scan.places, now);
+  return result;
+}
+
+/**
+ * Audiobookshelf, like Jellyfin, gives tags, chapters and covers with the listing. The user's
+ * places come from `/api/me` and win where they are newer.
+ */
+async function scanAudiobookshelf(
+  root: Root,
+  remote: Extract<NonNullable<Root['remote']>, { type: 'audiobookshelf' }>,
+): Promise<{ added: number; missing: number }> {
+  const bearer = await freshBearer(root.id);
+  if (!bearer) throw new Error(t('The Audiobookshelf login is needed again.'));
+  const fetcher = (u: string, i?: RequestInit) => fetch(u, i);
+  let items: Awaited<ReturnType<typeof listAudiobookshelfItems>>;
+  let me: Awaited<ReturnType<typeof audiobookshelfMe>>;
+  try {
+    items = await listAudiobookshelfItems(fetcher, remote, bearer);
+    me = await audiobookshelfMe(fetcher, remote.url, bearer);
+  } catch (error) {
+    // A revoked API key or an older server's token that no longer works: ask for the login.
+    if (!remote.refresh && error instanceof RemoteError && error.status === 401) {
+      loginExpired({ ...remote, rootId: root.id });
+    }
+    throw error;
+  }
+  const scan = audiobookshelfScan(remote, items, me.mediaProgress);
+  const now = Date.now();
+  const result = applyScan(db, {
+    rootId: root.id,
+    rootLocation: root.location,
+    listed: scan.listed,
+    tags: scan.tags,
+    folderCovers: new Map(),
+    now,
+    newId,
+  });
+  setRemoteCovers(db, root.id, scan.covers, now);
+  const profile = getProfile(db, remote.profileId) ? remote.profileId : DEFAULT_PROFILE_ID;
+  applyRemotePlaces(db, profile, scan.places, now);
+  forgetAudiobookshelfParts();
   return result;
 }
 

@@ -12,6 +12,7 @@ import {
   libraryRoots,
   progress,
 } from '../schema';
+import { audiobookshelfRootLocation } from '../remote/audiobookshelf';
 import { jellyfinRootLocation } from '../remote/jellyfin';
 import { isSealed, secretBox } from '../secrets';
 import { presentFiles } from './bookFiles';
@@ -380,21 +381,21 @@ export function localRoot(db: Db) {
 const secretOf = (remote: RemoteSource) =>
   remote.type === 'webdav'
     ? remote.password
-    : remote.type === 'jellyfin'
+    : remote.type === 'jellyfin' || remote.type === 'audiobookshelf'
       ? remote.token
       : remote.secretAccessKey;
 
 const withSecret = (remote: RemoteSource, secret: string): RemoteSource =>
   remote.type === 'webdav'
     ? { ...remote, password: secret }
-    : remote.type === 'jellyfin'
+    : remote.type === 'jellyfin' || remote.type === 'audiobookshelf'
       ? { ...remote, token: secret }
       : { ...remote, secretAccessKey: secret };
 
 /**
  * Every library root: the phone's folder and each server, with its password or secret key opened.
  * `needsLogin` marks a server whose secret this device can't open (a backup restored on a new
- * phone); its secret is empty until it is entered again.
+ * phone), or an Audiobookshelf login that expired; its secret is empty until it is entered again.
  */
 export function listRoots(db: Db) {
   const box = secretBox();
@@ -408,7 +409,7 @@ export function listRoots(db: Db) {
       return {
         ...row,
         remote: withSecret(row.remote, secret ?? ''),
-        needsLogin: secret === null,
+        needsLogin: secret === null || (row.remote.type === 'audiobookshelf' && secret === ''),
       };
     });
 }
@@ -444,6 +445,10 @@ export function remoteName(remote: RemoteSource): string {
   if (remote.type === 'jellyfin') {
     return `${remote.username}@${jellyfinRootLocation(remote.url).slice('jellyfin:'.length)}`;
   }
+  if (remote.type === 'audiobookshelf') {
+    const place = audiobookshelfRootLocation(remote.url).slice('audiobookshelf:'.length);
+    return `${remote.username}@${place}`;
+  }
   try {
     const url = new URL(remote.url);
     return `${url.host}${decodeURIComponent(url.pathname)}`.replace(/\/$/, '');
@@ -452,14 +457,15 @@ export function remoteName(remote: RemoteSource): string {
   }
 }
 
-/** Where a server's books live in the library: `webdav:…`, `s3:…` or `jellyfin:…`. */
+/** Where a server's books live: `webdav:…`, `s3:…`, `jellyfin:…` or `audiobookshelf:…`. */
 export function remoteLocation(remote: RemoteSource): string {
   if (remote.type === 's3') return `s3:${remote.bucket}/${remote.prefix}`;
   if (remote.type === 'jellyfin') return jellyfinRootLocation(remote.url);
+  if (remote.type === 'audiobookshelf') return audiobookshelfRootLocation(remote.url);
   return `webdav:${remoteName(remote)}`;
 }
 
-/** Adds a WebDAV server, an S3 bucket or a Jellyfin server as a library root; returns its ID. */
+/** Adds a WebDAV, S3, Jellyfin or Audiobookshelf server as a library root; returns its ID. */
 export function addRemoteRoot(
   db: Db,
   remote: RemoteSource,
