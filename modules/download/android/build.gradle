@@ -11,6 +11,8 @@ android {
   defaultConfig {
     versionCode 1
     versionName '0.0.0'
+    // Shipped to the app's R8 run: keeps what WorkManager reaches by reflection.
+    consumerProguardFiles 'proguard-rules.pro'
   }
 }
 
