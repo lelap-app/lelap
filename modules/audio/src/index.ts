@@ -133,6 +133,7 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   takeEarlierPlaces(): Promise<JournalEntry[]>;
   takeAccounting(): Promise<ServiceAccounting>;
   ackAccounting(epoch: string, through: number): Promise<void>;
+  settleAccounting(): Promise<void>;
   setCarLibrary(json: string): Promise<void>;
   setBedtime(json: string | null): Promise<void>;
   setDiagnostics(on: boolean): Promise<void>;
@@ -234,6 +235,14 @@ export const countsInService = true;
  */
 export function takeAccounting(): Promise<ServiceAccounting> {
   return native.takeAccounting();
+}
+
+/**
+ * Has the service count what it heard up to now, after the commands sent before this one (a
+ * pause), so a fold right after it is complete.
+ */
+export function settleAccounting(): Promise<void> {
+  return native.settleAccounting();
 }
 
 /** Drops the records up to `through`, once the app has merged them. */

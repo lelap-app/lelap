@@ -52,3 +52,20 @@ unreadable records, no scrobblers, a book that is gone. Checked here: `pnpm chec
 - Change the phone's clock by an hour while playing: Stats does not jump.
 
 ## Review findings left for later
+
+Fixed from the review: ASCII numerals in the day whatever the phone's language, the snapshot
+saved to disk before the app merges it (so record numbers are never reused), no pause and start
+when a book moves to or from a receiver, the service settling its count before a profile switch,
+speed changes counted at the speed each interval played, and no event for a file the book no
+longer has. Left for later:
+
+- `finish` events on Android carry no `sessionStartMs`: the app's tracker no longer holds the
+  session. The service could add it to its end-of-book log.
+- Weeks of playback without opening the app: progress events stop the listening record from
+  growing, so the log gains about two records per 5 min; after about 125 h unopened the oldest
+  listening is dropped (progress first). Each change also encodes and saves the whole log on the
+  main thread, which grows with it. A per-book-and-day total kept beside the events would fix both.
+- While a receiver drops off silently, its extrapolated place counts until the link loss is
+  noticed (seconds, bounded by the poll timeout).
+- Android backup restores `lelap_accounting` and the database separately; a restored log could
+  carry record numbers the database already merged. Excluding the file from backup would avoid it.

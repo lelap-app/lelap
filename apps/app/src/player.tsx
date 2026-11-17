@@ -171,8 +171,12 @@ async function load(bookId: string, autoplay: boolean, force = false): Promise<v
   await prepareAudiobookshelfBook(bookId, profileId);
   const book = bookLoad(bookId);
   if (!book) throw new Error('The files of this book are not available.');
-  // What the service heard so far belongs to the profile it played for, which may change here.
-  await foldServiceAccounting(playerProfile());
+  // What the service heard so far belongs to the profile it played for, which may change here:
+  // after the service has counted up to the pause, so none of it lands in the next profile.
+  if (playerProfile() !== profileId) {
+    await audio.settleAccounting().catch(() => {});
+    await foldServiceAccounting(playerProfile());
+  }
   setDeviceValue(db, PLAYER_PROFILE, profileId, Date.now());
   await audio.load(book, autoplay);
 }

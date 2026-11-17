@@ -148,6 +148,8 @@ describe('mergeServiceAccounting', () => {
       merge({ epoch: 'e1', records: [start(1, bookId), listen(2, bookId, MIN)] }, []),
     ).toMatchObject({ listenedMs: MIN, scrobbles: 0 });
     expect(merge({ epoch: 'e1', records: [start(3, 'gone')] }).scrobbles).toBe(0);
+    // A file the book no longer has: no place to report, so nothing at the book's start either.
+    expect(merge({ epoch: 'e1', records: [start(4, bookId)] }).scrobbles).toBe(0);
     expect(outbox()).toEqual([]);
     expect(todayMs()).toBe(MIN);
   });

@@ -87,6 +87,8 @@ export function mergeServiceAccounting(
         files = getBook(tx, profileId, bookId)?.files ?? [];
         timelines.set(bookId, files);
       }
+      // A file the book no longer has (a rescan replaced it): no place to report.
+      if (!files.some((f) => f.location === location)) return null;
       return toBookPosition(files, location, positionMs);
     };
     const records = batch.records
@@ -102,20 +104,18 @@ export function mergeServiceAccounting(
         result.listenedMs += record.ms;
         continue;
       }
+      const positionMs = bookPosition(record.bookId, record.fileLocation, record.filePositionMs);
+      if (positionMs === null) continue;
+      const sessionStartMs =
+        record.startLocation !== null && record.startPositionMs !== null
+          ? bookPosition(record.bookId, record.startLocation, record.startPositionMs)
+          : null;
       const event = scrobbleEventFor(tx, {
         event: record.kind,
         bookId: record.bookId,
         at: record.at,
-        positionMs: bookPosition(record.bookId, record.fileLocation, record.filePositionMs),
-        ...(record.startLocation !== null && record.startPositionMs !== null
-          ? {
-              sessionStartMs: bookPosition(
-                record.bookId,
-                record.startLocation,
-                record.startPositionMs,
-              ),
-            }
-          : {}),
+        positionMs,
+        ...(sessionStartMs !== null ? { sessionStartMs } : {}),
       });
       if (!event) continue;
       // Named after the record, so even a second merge could never send it twice.

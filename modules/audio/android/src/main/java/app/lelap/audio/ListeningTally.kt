@@ -3,6 +3,7 @@ package app.lelap.audio
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import java.util.Locale
 
 /**
  * What the player does at one moment, as the tally needs it. [playing]: audio is coming out (not
@@ -266,7 +267,8 @@ class ListeningTally(
       now.positionMs
     }
     if (advance <= 0) return 0L
-    return minOf(wall.toDouble(), advance / maxOf(0.5, now.speed.toDouble())).toLong()
+    // The speed the interval played at; a change is observed as it happens.
+    return minOf(wall.toDouble(), advance / maxOf(0.5, a.heard.speed.toDouble())).toLong()
   }
 
   // start when a book starts playing, progress about every five minutes, pause when it stops or
@@ -333,6 +335,7 @@ object LocalDay {
     val day = doy - (153 * mp + 2) / 5 + 1
     val month = if (mp < 10) mp + 3 else mp - 9
     val year = yoe + era * 400 + if (month <= 2) 1 else 0
-    return "%04d-%02d-%02d".format(year, month, day)
+    // ASCII digits whatever the phone's language: the app reads the day as YYYY-MM-DD.
+    return String.format(Locale.ROOT, "%04d-%02d-%02d", year, month, day)
   }
 }

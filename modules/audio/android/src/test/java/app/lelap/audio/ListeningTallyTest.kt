@@ -45,6 +45,17 @@ class ListeningTallyTest {
   }
 
   @Test
+  fun aSpeedChangeCountsEachIntervalAtItsOwnSpeed() {
+    val log = log()
+    val t = tally()
+    t.observe(log, heard(0), 0, 0)
+    // Switched to 2× after 9 s at 1×: observed as it happens.
+    t.observe(log, heard(9_000, speed = 2f), 9_000, 9_000)
+    t.observe(log, heard(11_000, speed = 2f), 10_000, 10_000)
+    assertEquals(10_000L, log.listened().single().ms)
+  }
+
+  @Test
   fun aSkipForwardCountsOnlyTheTimeThatPassed() {
     val log = log()
     val t = tally()
@@ -215,5 +226,13 @@ class ListeningTallyTest {
     assertEquals("2026-11-17", LocalDay.key(1_794_871_800_000, 3_600_000))
     assertEquals("2024-02-29", LocalDay.key(1_709_164_800_000, 0))
     assertEquals("1969-12-31", LocalDay.key(-1, 0))
+    // Persian digits are the default there; the app needs ASCII ones.
+    val before = java.util.Locale.getDefault()
+    try {
+      java.util.Locale.setDefault(java.util.Locale.forLanguageTag("fa-IR"))
+      assertEquals("2026-11-17", LocalDay.key(1_794_873_600_000, 0))
+    } finally {
+      java.util.Locale.setDefault(before)
+    }
   }
 }

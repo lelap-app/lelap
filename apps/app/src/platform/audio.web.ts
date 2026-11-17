@@ -569,6 +569,8 @@ export async function takeAccounting(): Promise<ServiceAccounting> {
   return { epoch: '', records: [] };
 }
 
+export async function settleAccounting(): Promise<void> {}
+
 export async function ackAccounting(epoch: string, through: number): Promise<void> {
   void epoch;
   void through;

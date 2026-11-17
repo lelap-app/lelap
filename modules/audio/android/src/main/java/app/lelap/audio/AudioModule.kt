@@ -191,13 +191,21 @@ class AudioModule : Module() {
 
     // Same process: what the service heard (M51), for the app to merge, then acknowledge.
     AsyncFunction("takeAccounting") {
-      Accounting.edit(context) { log ->
+      // On disk before the app merges: a record number it has seen must never be handed out again.
+      Accounting.edit(context, durable = true) { log ->
         mapOf(
           "epoch" to log.epoch,
           "records" to log.take().map(::recordMap),
         )
       }
     }
+
+    // The service counts up to now (after commands sent before this one), before the app folds.
+    AsyncFunction("settleAccounting") { promise: Promise ->
+      withController(promise) { c ->
+        c.sendCustomCommand(SessionCommand(Commands.SETTLE_ACCOUNTING, Bundle.EMPTY), Bundle.EMPTY)
+      }
+    }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("ackAccounting") { epoch: String, through: Double ->
       Accounting.edit(context) { it.ack(epoch, through.toLong()) }

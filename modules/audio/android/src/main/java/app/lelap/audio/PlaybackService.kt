@@ -167,6 +167,9 @@ class PlaybackService : MediaLibraryService() {
   // Listening time and scrobble sessions (M51), counted here so they keep counting with the app
   // closed; the app takes them from [Accounting] when it wakes.
   private val tally = ListeningTally(dayOf = { wall -> LocalDay.key(wall, TimeZone.getDefault().getOffset(wall)) })
+  // While the book moves between ExoPlayer and a receiver, the paused or stale player in between
+  // is not what the listener hears: no pause, and no place from it.
+  private var handingOver = false
 
   private val chapterTicker = object : Runnable {
     override fun run() {
@@ -296,6 +299,7 @@ class PlaybackService : MediaLibraryService() {
       }
 
       override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+        if (remote == null) account()
         if (sleepBoundaryMs != null) publishExtras()
       }
 
@@ -671,6 +675,7 @@ class PlaybackService : MediaLibraryService() {
 
   /** Counts what was heard since the last call; must never throw, like [writeJournal]. */
   private fun account(observed: Heard? = heard(), durable: Boolean = false) {
+    if (handingOver) return
     Accounting.edit(this, durable) { tally.observe(it, observed, SystemClock.elapsedRealtime(), System.currentTimeMillis()) }
   }
 
@@ -892,7 +897,7 @@ class PlaybackService : MediaLibraryService() {
 
   private fun onDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
     // Exact places on both sides of a seek or a file change, so neither adds nor loses time.
-    Accounting.edit(this) {
+    if (!handingOver) Accounting.edit(this) {
       tally.jumped(
         it,
         heard(oldPosition.mediaItemIndex, oldPosition.mediaItem?.mediaId, oldPosition.positionMs),
@@ -972,9 +977,11 @@ class PlaybackService : MediaLibraryService() {
     val rewind = if (smartRewind && since != null) SeekRules.rewindOnResume(System.currentTimeMillis() - since) else 0L
     val intro = current?.introMs?.takeIf { player.currentPosition >= it } ?: 0L
     val position = if (rewind > 0) SeekRules.trimmedStart(index, player.currentPosition, rewind, intro) else player.currentPosition
+    handingOver = true
     player.pause()
     // Stopped, not only paused: ExoPlayer keeps the book and place but fetches nothing meanwhile.
     player.stop()
+    handingOver = false
     val items = List(player.mediaItemCount) { player.getMediaItemAt(it) }
     val r = RemotePlayer(Looper.getMainLooper(), link, ::castRequest, ::onRemoteItemsPicked, ::onRemoteLoaded)
     remote = r
@@ -1014,11 +1021,13 @@ class PlaybackService : MediaLibraryService() {
     link?.closeInBackground(error)
     castStart?.set(SessionResult(SessionError(SessionError.ERROR_UNKNOWN, error ?: "Casting stopped")))
     castStart = null
+    handingOver = true
     if (player.mediaItemCount > 0) {
       player.setPlaybackSpeed(speed)
       player.seekTo(index.coerceIn(0, player.mediaItemCount - 1), position)
       player.prepare()
     }
+    handingOver = false
     if (resume ?: playing) {
       // Handed over while playing: no smart rewind, the listener heard every second.
       if (playing) pausedAt = null
@@ -1027,6 +1036,8 @@ class PlaybackService : MediaLibraryService() {
       // Lost or handed back paused: the timer waits for Play, and so does smart rewind.
       if (playing) pausedAt = System.currentTimeMillis()
       port.freezeSleepTimer()
+      // Nothing plays now: the scrobble session ends at the receiver's place.
+      account()
     }
     publishExtras()
     publishNowPlaying()
@@ -1151,6 +1162,7 @@ class PlaybackService : MediaLibraryService() {
         .add(SessionCommand(Commands.SET_QUEUE, Bundle.EMPTY))
         .add(SessionCommand(Commands.START_CAST, Bundle.EMPTY))
         .add(SessionCommand(Commands.STOP_CAST, Bundle.EMPTY))
+        .add(SessionCommand(Commands.SETTLE_ACCOUNTING, Bundle.EMPTY))
         .build()
       return MediaSession.ConnectionResult.accept(
         commands,
@@ -1208,6 +1220,7 @@ class PlaybackService : MediaLibraryService() {
           prefs.edit().putString(Commands.PREF_QUEUE, encodeQueue(queue)).apply()
         }
         Commands.START_CAST -> return startRemote()
+        Commands.SETTLE_ACCOUNTING -> account()
         Commands.STOP_CAST ->
           endRemote(resume = if (args.containsKey(Commands.KEY_RESUME)) args.getBoolean(Commands.KEY_RESUME) else null)
         Commands.LOAD_BOOK -> {
