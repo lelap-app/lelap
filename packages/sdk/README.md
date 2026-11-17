@@ -52,8 +52,8 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
 - **Helpers:** `supports`, `prefixesFor`, `hasParts`, `CORS_HEADERS`, `PROTOCOL_VERSION`.
 - **JSON Schema** of every response, for other languages: `@lelap/sdk/protocol.schema.json`.
 
-The SDK guide, the protocol reference and samples in plain Node and Python are in the
-[developer docs](https://github.com/lelap-app/lelap/tree/main/apps/site/src/pages/docs). The
+The [SDK guide](https://lelap.app/docs/sdk/), the [protocol reference](https://lelap.app/docs/protocol/)
+and [samples](https://lelap.app/docs/samples/) in plain Node and Python are in the developer docs. The
 smallest complete add-on is [`services/template`](https://github.com/lelap-app/lelap/tree/main/services/template).
 
 ## License
