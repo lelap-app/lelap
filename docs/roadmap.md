@@ -72,6 +72,11 @@ far.
 Ideas without a number or a place in the order yet. One becomes a milestone, with its own file,
 when it is planned.
 
+- **WebDAV and S3 integration tests in CI:** a small WebDAV server (for example `rclone serve webdav`)
+  as a service container, with `checkWebdav` and `listWebdav` run against it over real HTTP, so
+  the WebDAV code is tested against a real server on every pull request, not only stand-ins.
+  One-off checks against Nextcloud 35 and MinIO (S3) in Docker passed on 2026-11-17; the same
+  CI job can cover S3 with MinIO.
 - **Themes and community looks:** themes for the app beyond the night theme, community skins and
   community players. The M9 avatars and the night theme are the start.
 
