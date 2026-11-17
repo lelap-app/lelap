@@ -8,7 +8,7 @@ What is left of M23 Podcasting 2.0 ([`next.md`](next.md)) after its first pull r
 - `parseFeed` reads `podcast:chapters`, `podcast:transcript`, `podcast:person` (show and episode),
   `podcast:season` (number and name), `podcast:episode`, `podcast:funding` and `podcast:guid`.
   Addresses that are not http(s) are dropped. `itunes:season` and `itunes:episode` still win.
-- Migration `0008_podcasting` adds one nullable JSON column, `extras`, to `podcasts` and `episodes`.
+- Migration `0009_podcasting` adds one nullable JSON column, `extras`, to `podcasts` and `episodes`.
   A feed stored before it is fetched once without its ETag, so the fields fill in.
 - Chapters: an episode whose audio has no chapters gets its chapters file (`toc: false` entries are
   skipped) when it starts playing. Playing from the podcast page waits up to 2.5 s for it, so the
@@ -43,5 +43,3 @@ file, the SRT transcript following along and seeking on tap.
 - Transcripts are cached for the session in memory (and for a day by the proxy on the web); they
   are not kept offline with a downloaded episode. Storing them with downloads is a follow-up.
 - `podcast:soundbite`, `podcast:location`, `podcast:value` and alternate enclosures are not read.
-- M16 (Organise) adds a migration in parallel; whichever merges second renumbers its migration and
-  regenerates the Drizzle snapshot.
