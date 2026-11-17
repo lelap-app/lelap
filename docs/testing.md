@@ -154,6 +154,8 @@ offline, the background engine, sync on one device, and UI features.
 
 ### Calls, headphones, car and speakers
 
+- [ ] [M1] With “Duck on calls” on, press Play during a phone call and during a VoIP call: the book plays quietly at once (it paused at once in `v0.1.0-beta.3`), and at full volume when the call ends. With it off: “starts when the call ends”, then it starts. **Passed on the emulator 2026-11-17** (Android 17, a faked phone call): −14 dB during the call, 0 dB after. Known: a book already playing when a call rings is muted by Android itself until the call ends (“muted player piids due to call/ring” in `dumpsys audio`), so it is silent rather than ducked. ([README](../modules/audio/README.md#m1-device-checklist))
+
 - [ ] [M2] With the app closed, Play on Bluetooth headphones resumes the last book; ⏮/⏭ on them skip 30 s. ([README](../apps/app/README.md#m2-device-checklist))
 - [ ] [M19] Play, pause and skip from Bluetooth headphones still work after the controller allowlist. ([m19](m19-follow-ups.md#1-checks-on-a-phone))
 - [ ] [M22] A phone call and a VoIP call mid-book duck or pause and resume; ducking and sleep fade still work with boost on. ([m22](m22-follow-ups.md))

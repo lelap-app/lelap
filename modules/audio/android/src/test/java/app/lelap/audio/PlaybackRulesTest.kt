@@ -127,7 +127,33 @@ class PlaybackRulesTest {
     assertEquals(0, port.timerResumed)
   }
 
-  @Test fun playDuringACallStartsWhenTheCallEnds() {
+  // A call that started before Play holds focus with a lock, so Android delays our request.
+  @Test fun playDuringACallWithDuckOnPlaysDuckedUntilTheCallEnds() {
+    port.focusResult = FocusResult.DELAYED
+    port.play()
+    assertTrue(port.playWhenReady)
+    assertFalse(rules.isWaitingForFocus)
+    assertEquals(0.2f, port.duckLevel, 1e-6f)
+    assertEquals(1, port.timerResumed)
+    port.focusResult = FocusResult.GRANTED
+    rules.onFocus(FocusAction.RESTORE)
+    assertTrue(port.playWhenReady)
+    assertEquals(1f, port.duckLevel, 0f)
+  }
+
+  @Test fun pauseDuringADuckedCallStaysPausedAfterIt() {
+    port.focusResult = FocusResult.DELAYED
+    port.play()
+    port.pause()
+    assertEquals(1, port.timerFrozen)
+    rules.onFocus(FocusAction.RESTORE)
+    assertFalse(port.playWhenReady)
+    port.play()
+    assertEquals(0.2f, port.duckLevel, 1e-6f)
+  }
+
+  @Test fun playDuringACallWithDuckOffStartsWhenTheCallEnds() {
+    rules.duckOnInterruption = false
     port.focusResult = FocusResult.DELAYED
     port.play()
     assertFalse(port.playWhenReady)
