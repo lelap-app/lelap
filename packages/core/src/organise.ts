@@ -4,6 +4,7 @@ import type { Db } from './db';
 import type { IdGenerator } from './ids';
 import { type LibraryBook, listAllBooks } from './library/queries';
 import { bookTags, playlists, type SmartRule } from './schema';
+import { isShelf } from './kids';
 import { bookIdForKey, bookKey, recordDeletion } from './sync/keys';
 
 // Tags, hand-made playlists and smart lists. Tags are free text per book and profile; a smart
@@ -130,7 +131,8 @@ export function listPlaylists(db: Db, profileId: string): Playlist[] {
     .from(playlists)
     .where(eq(playlists.profileId, profileId))
     .orderBy(asc(playlists.createdAt))
-    .all();
+    .all()
+    .filter((p) => !isShelf(p.id));
 }
 
 export function getPlaylist(db: Db, profileId: string, id: string): Playlist | null {

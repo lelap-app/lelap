@@ -11,6 +11,7 @@ import {
 } from '../schema';
 import { presentFiles } from './bookFiles';
 import { compareNatural } from './files';
+import { kidFilter } from '../kids';
 
 export type LibraryBook = {
   id: string;
@@ -87,16 +88,24 @@ export function listAllBooks(db: Db, profileId: string): LibraryBook[] {
 
 /** Books in the Library; podcast episodes are listed under their podcast instead. */
 export function listBooks(db: Db, profileId: string, sort: LibrarySort): LibraryBook[] {
+  const kid = kidFilter<LibraryBook>(db, profileId);
   return selectBooks(db, profileId)
-    .filter((b) => b.source !== 'feed')
+    .filter((b) => b.source !== 'feed' && (kid === null || kid(b)))
     .sort(SORTS[sort]);
 }
 
 /** The latest played book that is neither finished nor missing. */
 export function continueListening(db: Db, profileId: string): LibraryBook | null {
+  const kid = kidFilter<LibraryBook>(db, profileId);
   return (
     selectBooks(db, profileId)
-      .filter((b) => b.lastPlayedAt !== null && b.finishedAt === null && !b.missing)
+      .filter(
+        (b) =>
+          b.lastPlayedAt !== null &&
+          b.finishedAt === null &&
+          !b.missing &&
+          (kid === null || kid(b)),
+      )
       .sort(byRecent)[0] ?? null
   );
 }

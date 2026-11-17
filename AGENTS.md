@@ -82,6 +82,11 @@ CI runs the same. pnpm 12 only runs dependency build scripts listed under `allow
 For an urgent security fix, add the exact `name@version` to `minimumReleaseAgeExclude` with a comment
 saying why. Dependabot waits the same 7 days. Never weaken these settings to make an install pass.
 
+**Migrations.** Generate them with `pnpm exec drizzle-kit generate` in `packages/core` on top of the
+latest `main`; never write or renumber them by hand. When parallel pull requests both add one, the
+one that merges later regenerates its migration after merging `main`. A dev database (the web
+preview, a test phone) that already ran the old number must be reset, or it fails on start.
+
 ## Stack decisions
 
 Don't swap these without updating `docs/brief.md` in the same pull request.
