@@ -19,6 +19,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M11 Background engine      | In progress |
 | M13 Landing page 2         | In progress |
 | M14 Developer platform     | In progress |
+| M17 Car and offline web    | In progress |
 | M19 Security and hardening | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
@@ -213,6 +214,15 @@ hard-coded seasonal catalogs, are in [`examples/`](../examples) and tested in CI
 **Done when** someone outside the project builds an add-on from the docs alone and adds it in the
 app. Not yet checked: the samples' Dockerfiles have not been built, and none of the samples has
 been added to the app on a phone.
+
+## M17 Car and offline web
+
+**Status:** in progress (from [`next.md`](next.md#proposed-milestones)). Android Auto browses
+Continue listening, On this phone, Podcasts and Up Next from a snapshot the app hands the playback
+service, so the car works with the app closed. A service worker keeps the web app's shell so
+`listen.` starts offline. Car and phone checks in [`m17-follow-ups.md`](m17-follow-ups.md).
+
+**Done when** the car checks pass on a head unit or the Desktop Head Unit.
 
 ## M19 Security and hardening
 

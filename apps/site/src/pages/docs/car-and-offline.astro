@@ -1,0 +1,85 @@
+---
+import Docs from '../../layouts/Docs.astro';
+import { site } from '../../site';
+---
+
+<Docs
+  title="Car and offline"
+  toc={[
+    ['auto', 'Android Auto'],
+    ['unknown-sources', 'Unknown sources'],
+    ['offline', 'The web app offline'],
+  ]}
+  description={`Browse and play ${site.name} in Android Auto, and start the web app without a connection.`}
+>
+  <h1>In the car and offline</h1>
+  <p class="lead">
+    {site.name} plays in Android Auto with the phone in your pocket, and the web app starts without
+    a connection once you have opened it.
+  </p>
+
+  <h2 id="auto">Android Auto</h2>
+  <p>
+    In the car, {site.name} shows four lists: <strong>Continue listening</strong>,
+    <strong>On this phone</strong> (local folders and downloads), <strong>Podcasts</strong> (the
+    newest unplayed episode of each subscription) and <strong>Up Next</strong>. Picking a book plays
+    it from its saved place, the same way the app does.
+  </p>
+  <p>
+    The lists come from the playback service, so they work when the app is closed. They show what
+    the app knew the last time it was open; open the app once to bring them up to date after you add
+    books or subscribe to podcasts on another device.
+  </p>
+  <p>
+    Downloaded books and local folders play without a connection. Streamed books and episodes need
+    one, just like on the phone.
+  </p>
+
+  <h2 id="unknown-sources">Unknown sources</h2>
+  <p>
+    Android Auto only lists media apps from the Play Store unless you allow others. {site.name} is
+    installed from its own APK, so turn this on once:
+  </p>
+  <ol>
+    <li>
+      On the phone, open Android Auto’s settings (Settings → Connected devices → Android Auto).
+    </li>
+    <li>
+      Tap <strong>Version</strong> at the bottom about ten times until developer settings unlock.
+    </li>
+    <li>
+      Open the menu (⋮) → <strong>Developer settings</strong>.
+    </li>
+    <li>
+      Turn on <strong>Unknown sources</strong>.
+    </li>
+    <li>
+      Disconnect from the car and connect again. {site.name} now appears among the media apps.
+    </li>
+  </ol>
+  <p>
+    The setting only lets Android Auto list apps that were not installed from the Play Store. It
+    gives {site.name} no extra permissions.
+  </p>
+
+  <h2 id="offline">The web app offline</h2>
+  <p>
+    The web app keeps its own files (the page, its code, the database engine and icons) in the
+    browser, so after the first visit it starts without a connection. Your library lives in the
+    browser already; downloaded books play offline as well.
+  </p>
+  <ul>
+    <li>
+      Add-on catalogs and podcast feeds load from the network first. Offline, the app shows the last
+      answer it got.
+    </li>
+    <li>
+      Audio is never kept by this cache. Streaming needs a connection; use downloads for offline
+      listening.
+    </li>
+    <li>
+      A new version installs in the background and takes over the next time you open the app after
+      closing every tab of it.
+    </li>
+  </ul>
+</Docs>
