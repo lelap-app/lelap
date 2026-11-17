@@ -30,9 +30,25 @@ In [the brief's v1.0 scope](brief.md#v10-scope) but not built by M1–M9:
 | M17 | Car and offline web    | Android Auto browsing, service worker for the web app                                           |
 | M18 | Updates over the air   | OTA bundles with code signing, beta channel for OTA                                             |
 | M19 | Security and hardening | Audit of the services and app, key storage in the Android Keystore, CSP for the web app         |
+| M20 | SDK on npm             | Build step for `@lelap/sdk`, Changesets, publishing with provenance from CI                     |
+| M21 | Translations           | UI text in translation files, a few first languages, a way for others to contribute             |
+| M22 | Smarter audio          | Volume boost, voice EQ and mono through Media3's audio processors                               |
+| M23 | Podcasting 2.0         | Transcripts, chapter files, person and season tags, funding links from feeds                    |
+| M24 | Stats and goals        | Listening time, streaks, finished books, an optional yearly goal; computed and kept on device   |
+| M25 | Home screen and tiles  | Android widget, Quick Settings tile, sleep timer from the lock screen                           |
+| M26 | Casting                | Chromecast; the cast device fetches audio from its source, never through our servers            |
+| M27 | Add-on protocol v2     | Settings pages for add-ons, add-on sign-in, health checks, protocol versioning                  |
+| M28 | F-Droid                | Reproducible APKs, an F-Droid listing, signed checksums on the site                             |
 
-Later still: themes, community skins and community players (low priority; the M9 avatars and the
-night theme are the start), stats and Replay, casting.
+Much later (around M40): themes, community skins and community players (the M9 avatars and the
+night theme are the start). Not planned: an iOS app, which would need an App Store account.
+
+### M20 SDK on npm
+
+- `@lelap/sdk` (MIT) gets a build step (ESM and type declarations), a `files` list and a README.
+- Changesets for versions and changelogs; a workflow on the `release` environment publishes with
+  `npm publish --provenance`. Needs an npm account, the `@lelap` scope and an automation token.
+- M14's samples and manifest builder then install the SDK from npm instead of the workspace.
 
 ### M10 Your own storage
 
