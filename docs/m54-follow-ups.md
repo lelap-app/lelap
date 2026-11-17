@@ -37,6 +37,12 @@ the same version twice, nothing for a CPU the release lacks (core, Vitest); the 
   `app.json`'s code and the CPU type (`plugins/withArchitectures.js`) and checked against
   `release.mts apk` in the build. 64-bit is higher, so a phone that runs both prefers it.
 - **Release file:** `apks` lists both; the top-level fields are the arm64 APK's.
+- **Reproducible in another folder:** the first rebuild in a different folder did not match. Only
+  the build IDs of the C++ libraries that library modules compile (Reanimated, Screens, Expo
+  modules) differed: their debug info held this machine's paths, and the path mapping applied
+  only to the app's own native code. `plugins/withReproducibleBuild.js` now maps the paths in
+  every library module too. CI builds in `/home/runner/work/…` and F-Droid in its own folder, so
+  this mattered before M54 as well.
 - **F-Droid:** two `Builds` entries per version, each with its versionCode, `-PreactNativeArchitectures`
   and `binary:` URL; `VercodeOperation` makes both from the base code.
 

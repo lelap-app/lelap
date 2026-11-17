@@ -21,17 +21,19 @@ const MARKER = '// lelap: reproducible build';
 // After each library module's own build.gradle, before Android's plugin reads it.
 const LIBRARY_PATHS = `
 // lelap: reproducible native libraries (plugins/withReproducibleBuild.js)
-subprojects { sub ->
-    sub.afterEvaluate {
-        def android = sub.extensions.findByName('android')
-        if (sub.plugins.hasPlugin('com.android.library') && android != null) {
-            def repo = rootProject.projectDir.parentFile.parentFile.parentFile.canonicalPath
-            def gradleHome = gradle.gradleUserHomeDir.canonicalPath
-            def maps = ["-ffile-prefix-map=\${repo}=/lelap", "-ffile-prefix-map=\${gradleHome}=/gradle"]
-            android.defaultConfig.externalNativeBuild.cmake.cFlags(*maps)
-            android.defaultConfig.externalNativeBuild.cmake.cppFlags(*maps)
-        }
+def lelapMapPaths = { sub ->
+    def android = sub.extensions.findByName('android')
+    if (sub.plugins.hasPlugin('com.android.library') && android != null) {
+        def repo = rootProject.projectDir.parentFile.parentFile.parentFile.canonicalPath
+        def gradleHome = gradle.gradleUserHomeDir.canonicalPath
+        def maps = ["-ffile-prefix-map=\${repo}=/lelap", "-ffile-prefix-map=\${gradleHome}=/gradle"]
+        android.defaultConfig.externalNativeBuild.cmake.cFlags(*maps)
+        android.defaultConfig.externalNativeBuild.cmake.cppFlags(*maps)
     }
+}
+// React Native's root plugin has some projects evaluated before this runs.
+subprojects { sub ->
+    if (sub.state.executed) lelapMapPaths(sub) else sub.afterEvaluate { lelapMapPaths(sub) }
 }
 `;
 
