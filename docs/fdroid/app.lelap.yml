@@ -46,8 +46,9 @@ Builds:
       - EXPO_PUBLIC_LELAP_DISTRIBUTION=fdroid LELAP_UNSIGNED=1 ./gradlew --no-daemon :app:assembleRelease
     ndk: 27.1.12297006
 
-# The SHA-256 of our signing certificate: `apksigner verify --print-certs lelap-x.y.z.apk`.
-AllowedAPKSigningKeys: FILL_IN_FROM_THE_RELEASE_KEYSTORE
+# The SHA-256 of our signing certificate (CN=Lelap), from `apksigner verify --print-certs` on a
+# released APK.
+AllowedAPKSigningKeys: 104bfde7bfcbcc898031493164e3e76b9fcc3bcb98c85110ccb8667b702a59e3
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
