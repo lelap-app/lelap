@@ -3,9 +3,21 @@
   "configurations": [
     {
       "name": "site",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@lelap/site", "dev"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && pnpm --filter @lelap/site dev"
+      ],
       "port": 4321
+    },
+    {
+      "name": "site-released",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && PUBLIC_LELAP_RELEASED=true pnpm --filter @lelap/site dev --port 4331"
+      ],
+      "port": 4331
     },
     {
       "name": "metro",

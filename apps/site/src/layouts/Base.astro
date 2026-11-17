@@ -46,6 +46,34 @@ const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
+    <script is:inline>
+      // Scroll reveals, progressive: without this script nothing is hidden.
+      (() => {
+        if (!('IntersectionObserver' in window)) return;
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        document.documentElement.classList.add('motion');
+        addEventListener('DOMContentLoaded', () => {
+          const io = new IntersectionObserver(
+            (entries) => {
+              for (const { isIntersecting, target } of entries) {
+                if (!isIntersecting) continue;
+                io.unobserve(target);
+                // Drop the reveal styles once shown so hover transitions lose the stagger delay.
+                const done = (e) => {
+                  if (e.target !== target) return;
+                  target.removeEventListener('transitionend', done);
+                  target.removeAttribute('data-reveal');
+                };
+                target.addEventListener('transitionend', done);
+                target.classList.add('in');
+              }
+            },
+            { rootMargin: '0px 0px -8% 0px' },
+          );
+          document.querySelectorAll('[data-reveal]').forEach((el) => io.observe(el));
+        });
+      })();
+    </script>
   </head>
   <body>
     <header class="container site-header">

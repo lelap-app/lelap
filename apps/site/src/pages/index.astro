@@ -17,9 +17,9 @@ const features: { icon: IconName; title: string; text: string }[] = [
     text: 'Download books and episodes over Wi-Fi with the screen off. Airplane mode is a normal day, not an error state.',
   },
   {
-    icon: 'phone',
-    title: 'Plays in your pocket',
-    text: 'Screen off, app closed. Lock screen, headphone buttons, Bluetooth and Android Auto all work.',
+    icon: 'cloud',
+    title: 'Your server, your bucket',
+    text: 'Play straight from a WebDAV server or an S3-compatible bucket. The app talks to it directly and keeps the credentials on your device.',
   },
   {
     icon: 'call',
@@ -50,6 +50,44 @@ const features: { icon: IconName; title: string; text: string }[] = [
     icon: 'folder',
     title: 'Bring your own files',
     text: 'Import m4b, mp3, opus and flac, or point it at a folder. Chapters come from the tags. OPML in and out for podcasts.',
+  },
+];
+
+const bare = (url: string) => url.replace(/^https?:\/\//, '');
+
+const channels: {
+  icon: IconName;
+  title: string;
+  where?: string;
+  text: string;
+  link?: { href: string; label: string; primary?: boolean };
+  later?: boolean;
+}[] = [
+  {
+    icon: 'download',
+    title: 'Direct download',
+    where: site.downloadsHost,
+    text: 'The signed APK from our own downloads host. Once installed, the app checks for updates itself.',
+    link: { href: site.apkUrl, label: 'Download .apk', primary: true },
+  },
+  {
+    icon: 'tag',
+    title: 'GitHub Releases',
+    where: bare(site.releasesUrl),
+    text: 'Every version with its release notes, the same APK and a build attestation.',
+    link: { href: site.releasesUrl, label: 'All releases' },
+  },
+  {
+    icon: 'sync',
+    title: 'Obtainium',
+    where: bare(site.repoUrl),
+    text: 'Add the repository URL in Obtainium and it installs new versions from GitHub Releases.',
+  },
+  {
+    icon: 'grid',
+    title: 'F-Droid',
+    text: 'We plan to submit the app to F-Droid after version 1.0.',
+    later: true,
   },
 ];
 
@@ -91,8 +129,8 @@ const compose = `services:
       </span>
       <h1>{site.tagline}</h1>
       <p class="hero-lead">
-        Connect the libraries you already have through add-ons, download for the flight, and keep
-        listening with the screen off. Open source, no account, no app store, no lock-in.
+        Connect the libraries you already have through add-ons, download for the flight, and drift
+        off to a timer that fades. Open source, no account, no app store, no lock-in.
       </p>
       <div class="cta">
         {site.released ? (
@@ -143,7 +181,7 @@ const compose = `services:
   <div class="band" id="how">
     <section class="container section">
       <div class="how">
-        <div class="how-copy">
+        <div class="how-copy" data-reveal>
           <div class="section-head">
             <span class="eyebrow">How it works</span>
             <h2 class="h2">
@@ -169,12 +207,12 @@ const compose = `services:
             <span class="chip chip-dashed">gPodder</span>
           </div>
         </div>
-        <div class="how-visual">
+        <div class="how-visual" data-reveal style="--i: 1">
           <CatalogMockup />
         </div>
       </div>
       <div class="grid">
-        <div class="card">
+        <div class="card" data-reveal>
           <span class="step">1 · Add-ons answer</span>
           <div class="roles">
             {addonRoles.map(([name, text]) => (
@@ -185,7 +223,7 @@ const compose = `services:
             ))}
           </div>
         </div>
-        <div class="card">
+        <div class="card" data-reveal style="--i: 1">
           <span class="step">2 · Your device keeps it</span>
           <p class="statement">
             Library, progress, downloads and playlists live on your phone first.
@@ -195,7 +233,7 @@ const compose = `services:
             your progress never depends on someone else’s server.
           </p>
         </div>
-        <div class="card">
+        <div class="card" data-reveal style="--i: 2">
           <span class="step">3 · Install by URL</span>
           <pre class="code"><code>{`GET /manifest.json
 {
@@ -213,13 +251,13 @@ const compose = `services:
   </div>
 
   <section class="container section" id="features">
-    <div class="section-head">
+    <div class="section-head" data-reveal>
       <span class="eyebrow">Features</span>
       <h2 class="h2">Built for long listens.</h2>
     </div>
     <div class="grid">
-      {features.map((f) => (
-        <div class="card card-outline">
+      {features.map((f, i) => (
+        <div class="card card-outline" data-reveal style={`--i: ${i % 3}`}>
           <span class="icon-tile">
             <Icon name={f.icon} />
           </span>
@@ -232,61 +270,113 @@ const compose = `services:
 
   <div class="band" id="get">
     <section class="container section">
-      <div class="section-head">
-        <span class="eyebrow">Get it</span>
-        <h2 class="h2">One codebase, three ways to listen.</h2>
-        {!site.released && <p class="lead">All three arrive with version 1.0.</p>}
+      <div class="section-head" data-reveal>
+        <span class="eyebrow">Download</span>
+        <h2 class="h2">Get it on Android, or open it in a browser.</h2>
+        <p class="lead">
+          {site.released
+            ? 'No Play Store and no account. Every channel ships the same signed APK.'
+            : 'Nothing to download yet. These are the ways you’ll get version 1.0.'}
+        </p>
       </div>
-      <div class="grid">
-        <div class="card get">
-          <span class="get-icon">
-            <Icon name="globe" size={28} strokeWidth={1.6} />
-          </span>
-          <h3 class="get-title">Web app</h3>
-          <span class="mono-accent">{site.appHost}</span>
-          <p>
-            Nothing to install. Add it to your home screen as a PWA. Best for your laptop, or any
-            device that isn’t an Android phone.
-          </p>
-          {site.released ? (
-            <a class="btn btn-primary get-cta" href={site.appUrl}>
-              Start listening
-            </a>
-          ) : (
-            <span class="badge get-cta">Planned for v1.0</span>
-          )}
-        </div>
-        <div class="card get">
-          <span class="get-icon">
-            <Icon name="phone" size={28} strokeWidth={1.6} />
-          </span>
-          <h3 class="get-title">Android</h3>
-          <span class="mono-accent">.apk · no Play Store</span>
+      <div class="download">
+        <div class="card android" data-reveal>
+          <div class="android-head">
+            <span class="get-icon">
+              <Icon name="phone" size={28} strokeWidth={1.6} />
+            </span>
+            <div class="android-title">
+              <h3 class="get-title">Android</h3>
+              <span class="mono-accent">.apk · Android 8.0 or newer</span>
+            </div>
+            {!site.released && <span class="badge">Coming with v1.0</span>}
+          </div>
           <p>
             The full experience: background playback, downloads with the screen off, casting and
             Android Auto. Small updates install themselves; new versions take one tap.
           </p>
-          {site.released ? (
-            <a class="btn btn-primary get-cta" href={site.apkUrl}>
-              Download .apk
-            </a>
-          ) : (
-            <span class="badge get-cta">Planned for v1.0</span>
-          )}
+          <ul class="channels">
+            {channels.map((c) => (
+              <li class="channel">
+                <span class="icon-tile">
+                  <Icon name={c.icon} />
+                </span>
+                <div class="channel-copy">
+                  <strong>{c.title}</strong>
+                  {c.where && <code class="channel-where">{c.where}</code>}
+                  <p>{c.text}</p>
+                </div>
+                {c.later ? (
+                  <span class="badge channel-end">Later</span>
+                ) : (
+                  site.released &&
+                  c.link && (
+                    <a
+                      class:list={[
+                        'btn btn-sm channel-end',
+                        c.link.primary ? 'btn-primary' : 'btn-outline',
+                      ]}
+                      href={c.link.href}
+                    >
+                      {c.link.primary && <Icon name="download" size={18} strokeWidth={2} />}
+                      {c.link.label}
+                    </a>
+                  )
+                )}
+              </li>
+            ))}
+          </ul>
+          <div class="verify">
+            <Icon name="shield" size={22} />
+            {site.released ? (
+              <p>
+                <b>Checking the file?</b> <a href={site.releaseInfoUrl}>latest.json</a> lists the
+                version, size and SHA-256 of the current APK, and each GitHub release carries the
+                same file with a build attestation. Compare with <code>sha256sum</code>, or run{' '}
+                <code>gh attestation verify</code> against the repository.
+              </p>
+            ) : (
+              <p>
+                <b>For people who verify:</b> each release will publish the APK’s SHA-256 in{' '}
+                <code>latest.json</code> on {site.downloadsHost} and on GitHub, with a build
+                attestation, so you can check the file before you install it.
+              </p>
+            )}
+          </div>
         </div>
-        <div class="card get">
-          <span class="get-icon">
-            <Icon name="box" size={28} strokeWidth={1.6} />
-          </span>
-          <h3 class="get-title">Self-hosted</h3>
-          <span class="mono-accent">docker compose up</span>
-          <p>
-            Run the web app, catalog, feed proxy and sync on your own machine, and point the Android
-            app at it.
-          </p>
-          <a class="btn btn-outline get-cta" href="#selfhost">
-            Self-hosting
-          </a>
+        <div class="side">
+          <div class="card get" data-reveal style="--i: 1">
+            <span class="get-icon">
+              <Icon name="globe" size={28} strokeWidth={1.6} />
+            </span>
+            <h3 class="get-title">Web app</h3>
+            <span class="mono-accent">{site.appHost}</span>
+            <p>
+              Nothing to install. Add it to your home screen as a PWA. Best for your laptop, an
+              iPhone or iPad, or any device that isn’t an Android phone.
+            </p>
+            {site.released ? (
+              <a class="btn btn-primary get-cta" href={site.appUrl}>
+                Start listening
+              </a>
+            ) : (
+              <span class="badge get-cta">Coming with v1.0</span>
+            )}
+          </div>
+          <div class="card get" data-reveal style="--i: 2">
+            <span class="get-icon">
+              <Icon name="box" size={28} strokeWidth={1.6} />
+            </span>
+            <h3 class="get-title">Self-hosted</h3>
+            <span class="mono-accent">docker compose up</span>
+            <p>
+              Run the web app, catalog, feed proxy and sync on your own machine, and point the
+              Android app at it.
+            </p>
+            <a class="btn btn-outline get-cta" href="#selfhost">
+              Self-hosting
+            </a>
+          </div>
         </div>
       </div>
       <p class="muted small">
@@ -297,7 +387,7 @@ const compose = `services:
   </div>
 
   <section class="container section selfhost" id="selfhost">
-    <div class="selfhost-copy">
+    <div class="selfhost-copy" data-reveal>
       <span class="eyebrow">Self-host</span>
       <h2 class="h2">Run the whole thing yourself.</h2>
       <p class="lead">
@@ -314,7 +404,7 @@ const compose = `services:
       </ul>
       {!site.released && <p class="muted small">Images are published with the first release.</p>}
     </div>
-    <div class="terminal">
+    <div class="terminal" data-reveal style="--i: 1">
       <div class="terminal-head">docker-compose.yml</div>
       <pre class="terminal-body"><code>{compose}</code></pre>
       <div class="terminal-foot">
@@ -325,24 +415,26 @@ const compose = `services:
 
   <div class="band">
     <section class="container section">
-      <h2 class="h2 narrow">Nothing to look at, by design.</h2>
+      <h2 class="h2 narrow" data-reveal>
+        Nothing to look at, by design.
+      </h2>
       <div class="grid promises">
-        <div>
+        <div data-reveal>
           <h3>No account</h3>
           <p>Your library lives on your device. There is no profile to sign up for.</p>
         </div>
-        <div>
+        <div data-reveal style="--i: 1">
           <h3>Encrypted sync</h3>
           <p>
             Devices pair with a code. The sync server only ever sees ciphertext, including your
             add-on list.
           </p>
         </div>
-        <div>
+        <div data-reveal style="--i: 2">
           <h3>No audio through us</h3>
           <p>Your phone talks to add-ons and their sources directly. We never see what you play.</p>
         </div>
-        <div>
+        <div data-reveal style="--i: 3">
           <h3>No ads, no tracking</h3>
           <p>Open source, so you can check every line of that claim.</p>
         </div>
@@ -351,8 +443,10 @@ const compose = `services:
   </div>
 
   <section class="container section faq" id="faq">
-    <h2 class="h2">Questions</h2>
-    <div>
+    <h2 class="h2" data-reveal>
+      Questions
+    </h2>
+    <div data-reveal style="--i: 1">
       {!site.released && (
         <details open>
           <summary>When can I use it?</summary>
@@ -418,7 +512,7 @@ const compose = `services:
 
   <div class="band" id="rights">
     <section class="container section rights">
-      <div class="rights-copy">
+      <div class="rights-copy" data-reveal>
         <span class="eyebrow">For rights holders</span>
         <h2 class="h2 h2-small">Report copyright infringement</h2>
         <p class="lead">
@@ -427,7 +521,7 @@ const compose = `services:
           own add-ons infringes your rights, tell us and we’ll act on it.
         </p>
       </div>
-      <div class="card rights-card">
+      <div class="card rights-card" data-reveal style="--i: 1">
         <a class="mono-accent email" href={`mailto:${site.copyrightEmail}`}>
           {site.copyrightEmail}
         </a>
@@ -466,6 +560,35 @@ const compose = `services:
   .hero-visual {
     flex: 0 1 340px;
     margin-inline: auto;
+  }
+
+  /* Entrance on load; pure CSS, so the hero shows even if no script runs. */
+  @media screen and (prefers-reduced-motion: no-preference) {
+    .hero-copy > *,
+    .hero-visual {
+      animation: rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    }
+
+    .hero-copy > :nth-child(2) {
+      animation-delay: 60ms;
+    }
+
+    .hero-copy > :nth-child(3) {
+      animation-delay: 120ms;
+    }
+
+    .hero-copy > :nth-child(4) {
+      animation-delay: 180ms;
+    }
+
+    .hero-copy > :nth-child(5) {
+      animation-delay: 240ms;
+    }
+
+    .hero-visual {
+      animation-duration: 1s;
+      animation-delay: 200ms;
+    }
   }
 
   .pill {
@@ -608,6 +731,118 @@ const compose = `services:
   .get-cta {
     margin-top: auto;
     align-self: flex-start;
+  }
+
+  .download {
+    display: grid;
+    gap: 16px;
+  }
+
+  @media (min-width: 960px) {
+    .download {
+      grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+    }
+  }
+
+  .android {
+    gap: 16px;
+  }
+
+  .android-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+  }
+
+  .android-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-right: auto;
+  }
+
+  .channels {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .channel {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px 16px;
+    padding-block: 16px;
+    border-top: 1px solid var(--line-strong);
+  }
+
+  .channel-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .channel-where {
+    font-size: 13px;
+    color: var(--accent);
+    overflow-wrap: anywhere;
+  }
+
+  .channel-copy p {
+    margin-top: 4px;
+  }
+
+  .channel-end {
+    align-self: center;
+  }
+
+  /* Phones: the button or badge moves under the text, which keeps its full width. */
+  @media (max-width: 560px) {
+    .channel {
+      grid-template-columns: 42px minmax(0, 1fr);
+    }
+
+    .channel-end {
+      grid-column: 2;
+      justify-self: start;
+    }
+  }
+
+  .verify {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 14px;
+    background: var(--surface-2);
+  }
+
+  .verify :global(svg) {
+    flex: none;
+    color: var(--accent);
+  }
+
+  .verify p {
+    font-size: 14px;
+  }
+
+  .verify b {
+    color: var(--fg);
+  }
+
+  .verify code {
+    font-size: 13px;
+    color: var(--fg);
+  }
+
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .side .get {
+    flex: 1;
   }
 
   .small {

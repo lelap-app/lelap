@@ -17,6 +17,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M9 Profiles (v1.1)         | In progress |
 | M10 Your own storage       | In progress |
 | M11 Background engine      | In progress |
+| M13 Landing page 2         | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
 v1.1. What comes next (v1.0 gaps, proposed M10–M19, smaller tasks): [`next.md`](next.md).
@@ -186,6 +187,18 @@ once an hour. Phone checks are in [`apps/app/README.md`](../apps/app/README.md#m
 
 **Done when** a queued episode starts after the previous one with the phone locked and the app
 swiped away, and a new episode of an auto-download podcast is on the phone the next morning.
+
+## M13 Landing page 2
+
+**Status:** in progress (from [`next.md`](next.md#proposed-milestones)). The site's “Get it”
+section lists the Android channels (direct APK from the downloads host, GitHub Releases,
+Obtainium, F-Droid later) with a SHA-256 note, all in a “coming with v1.0” state until
+`PUBLIC_LELAP_RELEASED` is set. Sections fade in on scroll through a small inline script; without
+JavaScript or with reduced motion nothing moves and nothing is hidden. Stable releases also upload
+`latest.apk` so the site's download button has a fixed address.
+
+**Done when** the released build's download buttons fetch the current APK on a phone, and the page
+reads well on a phone and a desktop with and without reduced motion.
 
 ## Environments
 
