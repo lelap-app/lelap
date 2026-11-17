@@ -12,6 +12,11 @@ enum class Resume {
   DISCARD,
   /** A temporary failure; WorkManager retries with backoff. */
   RETRY,
+  /**
+   * 403 or 410: the link may have expired. Ask the original URL again now, once; a `/resolve/…`
+   * URL redirects to a fresh link, and the partial file continues where it stopped.
+   */
+  REFRESH,
   /** The server refuses for good (404, 403, …). */
   FAIL,
 }
@@ -33,8 +38,15 @@ object DownloadRules {
   /**
    * [existing] is the length of the partial file the request asked to continue (0: no Range
    * header was sent); [expectedSize] is the add-on's size for the part, 0 when unknown.
+   * [refreshed]: this run already asked again after a 403 or 410.
    */
-  fun decide(code: Int, existing: Long, contentRange: String?, expectedSize: Long): Resume = when {
+  fun decide(
+    code: Int,
+    existing: Long,
+    contentRange: String?,
+    expectedSize: Long,
+    refreshed: Boolean = false,
+  ): Resume = when {
     code == 200 -> Resume.RESTART
     code == 206 -> if (existing > 0 && contentRangeStart(contentRange) == existing) Resume.APPEND else Resume.DISCARD
     code == 416 -> {
@@ -42,6 +54,7 @@ object DownloadRules {
       if (existing > 0 && total == existing) Resume.COMPLETE else Resume.DISCARD
     }
     code == 408 || code == 429 || code in 500..599 -> Resume.RETRY
+    (code == 403 || code == 410) && !refreshed -> Resume.REFRESH
     else -> Resume.FAIL
   }
 

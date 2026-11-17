@@ -92,4 +92,81 @@ class SleepTimerTest {
     assertFalse(sleepTimer.isActive)
     assertTrue(volumes.isEmpty())
   }
+
+  // A chapter timer: the owner reports listening time left before the boundary.
+  private var untilEnd = 0L
+
+  @Test fun chapterTimerFadesByListeningTimeLeft() {
+    untilEnd = 300_000
+    sleepTimer.startAtBoundary(SleepMode.CHAPTER) { untilEnd }
+    assertEquals(SleepMode.CHAPTER, sleepTimer.mode)
+    assertEquals(1f, volumes.last(), 1e-6f)
+    untilEnd = 30_000; sleepTimer.tick()
+    assertEquals(0.5f, volumes.last(), 1e-6f)
+    assertEquals(30_000L, sleepTimer.remainingMs)
+  }
+
+  @Test fun chapterTimerWaitsForTheOwnerAtTheBoundary() {
+    sleepTimer.startAtBoundary(SleepMode.CHAPTER) { untilEnd }
+    untilEnd = 0; sleepTimer.tick()
+    untilEnd = -500; sleepTimer.tick()
+    assertEquals(0, finished)
+    sleepTimer.finish()
+    assertEquals(1, finished)
+    assertEquals(1f, volumes.last(), 1e-6f)
+    assertFalse(sleepTimer.isActive)
+    assertNull(sleepTimer.mode)
+  }
+
+  @Test fun chapterTimerStopsByItselfWhenTheBoundaryWasMissed() {
+    sleepTimer.startAtBoundary(SleepMode.CHAPTER) { untilEnd }
+    untilEnd = -1_000; sleepTimer.tick()
+    assertEquals(1, finished)
+  }
+
+  @Test fun chapterTimerFreezesWithoutLosingItsBoundary() {
+    untilEnd = 100_000
+    sleepTimer.startAtBoundary(SleepMode.EPISODE) { untilEnd }
+    sleepTimer.freeze()
+    assertTrue(sleepTimer.isActive)
+    assertFalse(sleepTimer.isRunning)
+    assertEquals(100_000L, sleepTimer.remainingMs)
+    sleepTimer.resume()
+    assertTrue(sleepTimer.isRunning)
+  }
+
+  @Test fun extendAddsToAMinutesTimer() {
+    sleepTimer.start(60_000)
+    now = 30_000; sleepTimer.tick()
+    sleepTimer.extend(SHAKE_EXTENSION_MS)
+    assertEquals(630_000L, sleepTimer.remainingMs)
+    assertEquals(1f, volumes.last(), 1e-6f)
+  }
+
+  @Test fun extendTurnsAChapterTimerIntoACountdown() {
+    untilEnd = 20_000
+    sleepTimer.startAtBoundary(SleepMode.CHAPTER) { untilEnd }
+    sleepTimer.extend(SHAKE_EXTENSION_MS)
+    assertEquals(SleepMode.MINUTES, sleepTimer.mode)
+    untilEnd = -5_000
+    assertEquals(620_000L, sleepTimer.remainingMs)
+    assertTrue(sleepTimer.isRunning)
+  }
+
+  @Test fun extendWhileFrozenStaysFrozen() {
+    sleepTimer.start(60_000)
+    sleepTimer.freeze()
+    sleepTimer.extend(60_000)
+    assertFalse(sleepTimer.isRunning)
+    assertEquals(120_000L, sleepTimer.remainingMs)
+  }
+
+  @Test fun shakeCountsOnlyNearTheEndWhileRunning() {
+    sleepTimer.start(30 * 60_000L)
+    assertFalse(sleepTimer.acceptsShake)
+    now = 26 * 60_000L
+    assertTrue(sleepTimer.acceptsShake)
+    sleepTimer.freeze()
+    assertFalse(sleepTimer.acceptsShake)
+  }
 }

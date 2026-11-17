@@ -757,6 +757,16 @@ const toc: [string, string][] = [
     the meta’s.
   </p>
   <CodeBlock code={streams} label={`GET ${streamUrl}`} />
+  <h3 id="resolve">Links that expire</h3>
+  <p>
+    If your source hands out audio URLs that stop working after a while, give the stream or part a
+    stable <code>url</code> on your add-on instead, such as <code>/resolve/…</code>, and answer it
+    with a <code>302</code> redirect to a fresh audio URL and <code>Cache-Control: no-store</code>.
+    When the audio host later answers <code>403</code> or <code>410</code>, the player and the
+    downloader request your <code>url</code> again, once per expiry, and continue at the same place.
+    The web player can’t see the status of a failed audio request, so it does this after any network
+    error. The audio still goes straight from the source to the listener.
+  </p>
 
   <h2 id="errors">Errors</h2>
   <p>
@@ -784,16 +794,6 @@ const toc: [string, string][] = [
   <h2 id="planned">Planned</h2>
   <p>Not in v1 clients yet; the details may change.</p>
   <ul>
-    <li>
-      <strong>
-        <code>/resolve/…</code>
-      </strong>
-      , for sources whose audio URLs expire. A stream or part <code>url</code> points at a{' '}
-      <code>/resolve/…</code> path of the add-on, which answers with a redirect to a fresh audio
-      URL. When the audio host later answers <code>403</code> or <code>410</code>, the player
-      requests the <code>/resolve/…</code> URL again and keeps its place. The audio still goes
-      straight from the source to the listener.
-    </li>
     <li>
       <strong>
         <code>POST /scrobble</code>

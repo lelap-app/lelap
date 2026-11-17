@@ -39,6 +39,9 @@ export type JournalEntry = {
   savedAt: number;
 };
 
+/** Minutes, or the end of the chapter playing, or of the episode (or book). */
+export type SleepTimerMode = 'minutes' | 'chapter' | 'episode';
+
 export type PlayerState = {
   connected: boolean;
   playing: boolean;
@@ -61,6 +64,8 @@ export type PlayerState = {
   /** Play was pressed during a call; playback starts when the call ends. */
   waitingForCall: boolean;
   sleepTimerRemainingMs: number | null;
+  /** What the running timer counts down to; null without a timer. */
+  sleepTimerMode: SleepTimerMode | null;
   error: string | null;
 };
 
@@ -80,6 +85,7 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   setSettings(duck: boolean, skipIntervalMs: number, smartRewind: boolean): Promise<void>;
   skip(forward: boolean): Promise<void>;
   startSleepTimer(minutes: number): Promise<void>;
+  startSleepTimerAtEnd(mode: 'chapter' | 'episode'): Promise<void>;
   cancelSleepTimer(): Promise<void>;
   unload(): Promise<void>;
   setQueue(queueJson: string): Promise<void>;
@@ -139,6 +145,14 @@ export function skip(forward: boolean): Promise<void> {
 
 export function startSleepTimer(minutes: number): Promise<void> {
   return native.startSleepTimer(minutes);
+}
+
+/**
+ * Stops at the end of the chapter playing (the file's, without chapters) or of the episode. A
+ * seek into another chapter moves the end to that chapter's.
+ */
+export function startSleepTimerAtEnd(mode: 'chapter' | 'episode'): Promise<void> {
+  return native.startSleepTimerAtEnd(mode);
 }
 
 export function cancelSleepTimer(): Promise<void> {
