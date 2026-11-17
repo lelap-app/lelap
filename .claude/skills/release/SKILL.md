@@ -7,7 +7,7 @@ description: Use when preparing, tagging or publishing a Lelap release (a beta l
 
 A release is a `v*` tag on `main`. `.github/workflows/release.yml` does the building: the signed
 APK, the F-Droid APK, `SHA256SUMS`, `latest.json` or `beta.json` on the downloads host, an
-over-the-air bundle (only when `apps/app/certs/certificate.pem` is committed), five images on `ghcr.io`, and (stable only) sync to production. This skill
+over-the-air bundle (only when `apps/app/certs/certificate.pem` is committed), five images on `ghcr.io`, and sync to production. This skill
 covers everything around it: choosing the version, writing what changed, and making every
 public text match what the tag ships.
 
@@ -20,7 +20,7 @@ or a previous description.
 | Fact                 | Where it comes from                                                                                                                                                                                                                                |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Version rules        | `packages/core/src/release.ts`: `vMAJOR.MINOR.PATCH` or `-beta.N`; minor and patch at most 99, beta 1–98. Beta versionCode sits below its stable.                                                                                                  |
-| What the tag deploys | APK, OTA, images; sync to production on stable tags only. The web app, catalog, proxy and updates deploy on every merge to `main` already (`web.yml`, `services.yml`), so they are live before the tag.                                            |
+| What the tag deploys | APK, OTA, images, and sync to production (beta and stable tags alike: beta apps use it). The web app, catalog, proxy and updates deploy on every merge to `main` already (`web.yml`, `services.yml`), so they are live before the tag.             |
 | Site state           | Repository variables `LELAP_BETA` and `LELAP_RELEASED` (read by `site.yml`). `apps/site/src/site.ts` turns them into `site.beta` and `site.released`.                                                                                              |
 | SDK                  | Released on its own through Changesets and `sdk.yml`, not by the app tag. See `packages/sdk/README.md`.                                                                                                                                            |
 | F-Droid              | Every tag builds an F-Droid APK, but F-Droid itself only picks up stable tags, and only after the recipe in `docs/fdroid/app.lelap.yml` is submitted to fdroiddata. Release notes: `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`. |
@@ -65,7 +65,7 @@ Keep the task list in this order. Stop and ask where a step says so.
     a new native build means the OTA bundle won't reach older APKs; users must install the APK.
   - **App database migrations** (`packages/core/drizzle/`, upgrade range): run on every phone at first start.
     Ask whether an upgrade from the previous release was tested on a phone.
-  - **Sync migrations** (`services/sync/migrations/`): a stable tag applies them to production.
+  - **Sync migrations** (`services/sync/migrations/`): every tag, beta or stable, applies them to production.
   - **Permissions** in the Android manifest or `app.json`: users see these; name them.
   - **SDK:** compare `.changeset/*.md` (pending, unreleased changes) with what npm has
     (`npm view @lelap/sdk version`). Pending changesets mean the docs site may already describe

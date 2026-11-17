@@ -72,6 +72,7 @@ jobs:
         with:
           cache-disabled: true
       - run: pnpm install --frozen-lockfile
+      - run: bash scripts/android-sdk.sh
       - run: node scripts/release.mts stamp "$GITHUB_REF_NAME"
       - run: pnpm --filter @lelap/app exec expo prebuild --platform android --no-install
         env:
@@ -147,6 +148,7 @@ jobs:
         with:
           cache-disabled: true
       - run: pnpm install --frozen-lockfile
+      - run: bash scripts/android-sdk.sh
       - run: node scripts/release.mts stamp "$GITHUB_REF_NAME"
       - name: Prebuild for F-Droid
         env:
@@ -385,10 +387,11 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
+  # Beta tags too: beta testers' apps use the production sync server, so it must exist before
+  # the first stable release.
   sync:
     name: Deploy sync to production
     needs: verify
-    if: needs.verify.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     environment:
       name: release

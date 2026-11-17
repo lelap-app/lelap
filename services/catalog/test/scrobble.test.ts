@@ -84,7 +84,10 @@ describe('sealed settings', () => {
     expect(sealed).toMatch(/^v1\.[A-Za-z0-9_-]+$/);
     expect(sealed).not.toContain('abc');
     expect(await sealer.open(sealed)).toEqual({ token: 'abc' });
-    const flipped = sealed.slice(0, -2) + (sealed.endsWith('A') ? 'BB' : 'AA');
+    // A character in the middle: the last one can carry bits base64url decoders ignore, so
+    // changing it sometimes leaves the bytes as they were.
+    const at = Math.floor(sealed.length / 2);
+    const flipped = sealed.slice(0, at) + (sealed[at] === 'A' ? 'B' : 'A') + sealed.slice(at + 1);
     expect(await sealer.open(flipped)).toBe(null);
     expect(await sealerFor(`${SECRET}x`, 'hardcover').open(sealed)).toBe(null);
     expect(await sealerFor(SECRET, 'gpodder').open(sealed)).toBe(null);
