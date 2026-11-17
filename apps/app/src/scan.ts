@@ -16,12 +16,11 @@ import {
   listRoots,
   listS3,
   listWebdav,
-  RemoteError,
   upsertRoot,
 } from '@lelap/core';
 import { Directory, Paths } from 'expo-file-system';
 
-import { forgetAudiobookshelfParts, freshBearer, loginExpired } from './audiobookshelf';
+import { forgetAudiobookshelfParts, withKey } from './audiobookshelf';
 import { db, newId } from './db';
 import {
   FOLDER_UNAVAILABLE,
@@ -183,21 +182,15 @@ async function scanAudiobookshelf(
   root: Root,
   remote: Extract<NonNullable<Root['remote']>, { type: 'audiobookshelf' }>,
 ): Promise<{ added: number; missing: number }> {
-  const bearer = await freshBearer(root.id);
-  if (!bearer) throw new Error(t('The Audiobookshelf login is needed again.'));
+  if (root.needsLogin) throw new Error(t('The Audiobookshelf API key is needed again.'));
   const fetcher = (u: string, i?: RequestInit) => fetch(u, i);
-  let items: Awaited<ReturnType<typeof listAudiobookshelfItems>>;
-  let me: Awaited<ReturnType<typeof audiobookshelfMe>>;
-  try {
-    items = await listAudiobookshelfItems(fetcher, remote, bearer);
-    me = await audiobookshelfMe(fetcher, remote.url, bearer);
-  } catch (error) {
-    // A revoked API key or an older server's token that no longer works: ask for the login.
-    if (!remote.refresh && error instanceof RemoteError && error.status === 401) {
-      loginExpired({ ...remote, rootId: root.id });
-    }
-    throw error;
-  }
+  const [items, me] = await withKey(
+    root.id,
+    Promise.all([
+      listAudiobookshelfItems(fetcher, remote, remote.token),
+      audiobookshelfMe(fetcher, remote.url, remote.token),
+    ]),
+  );
   const scan = audiobookshelfScan(remote, items, me.mediaProgress);
   const now = Date.now();
   const result = applyScan(db, {

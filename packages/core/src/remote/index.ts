@@ -24,7 +24,6 @@ export {
 export {
   type AudiobookshelfItem,
   type AudiobookshelfLibrary,
-  type AudiobookshelfLogin,
   type AudiobookshelfMe,
   type AudiobookshelfProgress,
   type AudiobookshelfScan,
@@ -36,11 +35,9 @@ export {
   audiobookshelfRootLocation,
   audiobookshelfScan,
   audiobookshelfStream,
+  isKeyRefused,
   listAudiobookshelfItems,
   listAudiobookshelfLibraries,
-  refreshAudiobookshelf,
   reportAudiobookshelfProgress,
-  signInAudiobookshelf,
-  tokenExpiry,
 } from './audiobookshelf';
 export { applyRemotePlaces, setRemoteCovers } from './places';

@@ -472,7 +472,7 @@ const withSecret = (remote: RemoteSource, secret: string): RemoteSource =>
 /**
  * Every library root: the phone's folder and each server, with its password or secret key opened.
  * `needsLogin` marks a server whose secret this device can't open (a backup restored on a new
- * phone), or an Audiobookshelf login that expired; its secret is empty until it is entered again.
+ * phone); its secret is empty until it is entered again.
  */
 export function listRoots(db: Db) {
   const box = secretBox();
@@ -486,7 +486,7 @@ export function listRoots(db: Db) {
       return {
         ...row,
         remote: withSecret(row.remote, secret ?? ''),
-        needsLogin: secret === null || (row.remote.type === 'audiobookshelf' && secret === ''),
+        needsLogin: secret === null,
       };
     });
 }
@@ -502,6 +502,28 @@ export function sealRemoteRoots(db: Db, now: number): void {
       .where(eq(libraryRoots.id, row.id))
       .run();
   }
+}
+
+/**
+ * Marks an Audiobookshelf server whose API key was refused, or clears the mark once a request
+ * with the key worked. The sealed key is left as it is. Returns whether anything changed.
+ */
+export function setAudiobookshelfKeyRefused(
+  db: Db,
+  rootId: string,
+  refused: boolean,
+  now: number,
+): boolean {
+  const row = db.select().from(libraryRoots).where(eq(libraryRoots.id, rootId)).get();
+  const remote = row?.remote;
+  if (remote?.type !== 'audiobookshelf' || (remote.keyRefused ?? false) === refused) return false;
+  const rest = { ...remote };
+  delete rest.keyRefused;
+  db.update(libraryRoots)
+    .set({ remote: refused ? { ...rest, keyRefused: true } : rest, updatedAt: now })
+    .where(eq(libraryRoots.id, rootId))
+    .run();
+  return true;
 }
 
 /** Changes a server's settings, such as a password entered again; its books stay. */

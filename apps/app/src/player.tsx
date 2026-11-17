@@ -35,7 +35,6 @@ import { profileId, setProfileId } from './profile';
 import { jellyfinFinished, trackJellyfin } from './jellyfin';
 import {
   audiobookshelfFinished,
-  freshAudiobookshelfTokens,
   prepareAudiobookshelfBook,
   trackAudiobookshelf,
 } from './audiobookshelf';
@@ -166,8 +165,7 @@ async function load(bookId: string, autoplay: boolean, force = false): Promise<v
     return;
   }
   if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
-  // Audiobookshelf access tokens last about an hour; streams get one with time left on it, and
-  // a newer place from Audiobookshelf's own player is taken first.
+  // A newer place from Audiobookshelf's own player is taken first.
   await prepareAudiobookshelfBook(bookId, profileId);
   const book = bookLoad(bookId);
   if (!book) throw new Error('The files of this book are not available.');
@@ -212,13 +210,8 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
 async function syncQueue(): Promise<void> {
   if (playerProfile() !== profileId) return;
   const loaded = (await audio.getState()).bookId;
-  const upNext = listUpNext(db, profileId);
-  await freshAudiobookshelfTokens(
-    upNext.map((i) => i.bookId),
-    profileId,
-  );
   const queue: audio.BookLoad[] = [];
-  for (const item of upNext) {
+  for (const item of listUpNext(db, profileId)) {
     if (item.bookId === loaded) continue;
     const book = bookLoad(item.bookId);
     if (!book) continue;
@@ -235,10 +228,6 @@ async function syncQueue(): Promise<void> {
 async function syncCar(): Promise<void> {
   if (playerProfile() !== profileId) return;
   const shelves = carShelves(db, profileId);
-  await freshAudiobookshelfTokens(
-    [...shelves.continueListening, ...shelves.onPhone, ...shelves.upNext],
-    profileId,
-  );
   const loads = (ids: string[]) =>
     ids.map((id) => bookLoad(id)).filter((b): b is audio.BookLoad => b !== null);
   // An episode needs its library book before it can play; it is made here, like on first play.
