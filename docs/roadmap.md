@@ -58,6 +58,10 @@ and architecture live in [`brief.md`](brief.md); plans for milestones not starte
 | [M47 Diagnostics](milestones/m47.md)            | Opt-in local log and health, exported for bug reports; nothing collected                                |
 | [M48 More languages](milestones/m48.md)         | Contribution flow for translators, native Android text, landing page in Malay                           |
 | [M49 Artwork badges](milestones/m49.md)         | Rating and progress badges drawn by the app on add-on artwork                                           |
+| [M50 Casting 2](milestones/m50.md)              | Casting that survives a locked phone: foreground service, sleep timer, finish and Up Next on receivers  |
+| [M51 Background accounting](milestones/m51.md)  | Stats and scrobbles from the playback service when the app is swiped away                               |
+| [M52 Sync upkeep](milestones/m52.md)            | Snapshots that compact the sync log, expiry of idle groups                                              |
+| [M53 Storage choices](milestones/m53.md)        | Download location, covers from server folders, Atom feeds, export to a file                             |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
 v1.1.
