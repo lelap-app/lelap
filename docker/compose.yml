@@ -38,5 +38,13 @@ services:
     ports: ['8789:8789']
     restart: unless-stopped
 
+  # Only for Android builds of your own (see README.md): signed bundles from scripts/ota.mts.
+  updates:
+    image: ghcr.io/lelap-app/updates:latest
+    volumes: ['updates-data:/data:ro']
+    ports: ['8790:8790']
+    restart: unless-stopped
+
 volumes:
   sync-data:
+  updates-data:

@@ -19,6 +19,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M11 Background engine      | In progress |
 | M13 Landing page 2         | In progress |
 | M14 Developer platform     | In progress |
+| M18 Updates over the air   | In progress |
 | M19 Security and hardening | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
@@ -213,6 +214,17 @@ hard-coded seasonal catalogs, are in [`examples/`](../examples) and tested in CI
 **Done when** someone outside the project builds an add-on from the docs alone and adds it in the
 app. Not yet checked: the samples' Dockerfiles have not been built, and none of the samples has
 been added to the app on a phone.
+
+## M18 Updates over the air
+
+**Status:** in progress (from [`next.md`](next.md#proposed-milestones)). `expo-updates` with code
+signing and a fingerprint runtime version, the `lelap-updates` Worker (and a Docker image) serving
+the Expo Updates protocol from R2, and a release job that signs and uploads each tag's bundle to
+the `production` or `beta` channel. Setup and phone checks: [`m18-follow-ups.md`](m18-follow-ups.md).
+
+**Done when** a JavaScript-only release reaches a phone over the air on both channels and a badly
+signed manifest is refused. Not yet checked: none of it has run on a phone, and the code-signing
+certificate is not committed yet.
 
 ## M19 Security and hardening
 

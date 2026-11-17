@@ -1,7 +1,7 @@
 // Bundles each Node entry into one file, so the runtime image needs Node and nothing else.
 import { build } from 'esbuild';
 
-for (const name of ['catalog', 'proxy', 'sync']) {
+for (const name of ['catalog', 'proxy', 'sync', 'updates']) {
   await build({
     entryPoints: [`src/${name}.ts`],
     bundle: true,

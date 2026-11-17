@@ -16,6 +16,9 @@ coverage/
 # Android signing material never belongs in the repo
 *.keystore
 *.jks
+# The over-the-air signing key lives in a CI secret; only certs/certificate.pem is committed
+private-key.pem
+public-key.pem
 
 # OS and editor
 .DS_Store

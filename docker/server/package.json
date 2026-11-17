@@ -13,7 +13,8 @@
   "dependencies": {
     "@lelap/catalog": "workspace:*",
     "@lelap/proxy": "workspace:*",
-    "@lelap/sync": "workspace:*"
+    "@lelap/sync": "workspace:*",
+    "@lelap/updates": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

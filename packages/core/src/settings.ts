@@ -12,6 +12,8 @@ export const SettingsSchema = z.object({
   downloadWhileChargingOnly: z.boolean().default(false),
   /** Offer beta versions of the Android app. */
   betaUpdates: z.boolean().default(false),
+  /** Download JavaScript updates in the background; they apply on the next start. */
+  otaUpdates: z.boolean().default(true),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

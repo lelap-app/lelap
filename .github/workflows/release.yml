@@ -47,6 +47,9 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: release
+    outputs:
+      runtime: ${{ steps.runtime.outputs.runtime }}
+      ota: ${{ steps.runtime.outputs.ota }}
     permissions:
       contents: read
       id-token: write
@@ -73,6 +76,17 @@ jobs:
       - run: pnpm --filter @lelap/app exec expo prebuild --platform android --no-install
         env:
           EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
+      # The native fingerprint this APK is built with; the `ota` job publishes bundles for it.
+      - id: runtime
+        name: Runtime version
+        env:
+          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
+        run: |
+          runtime="$(pnpm --silent --filter @lelap/app exec expo-updates runtimeversion:resolve --platform android | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).runtimeVersion))')"
+          echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
+          # Without a committed certificate the app has updates turned off; nothing to publish.
+          if [ -f apps/app/certs/certificate.pem ]; then echo "ota=true" >> "$GITHUB_OUTPUT"; fi
+          echo "Runtime version: $runtime"
       - name: Build and sign
         working-directory: apps/app/android
         env:
@@ -164,6 +178,92 @@ jobs:
           gh release create "$GITHUB_REF_NAME" "out/lelap-$VERSION.apk" out/release.json \
             --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --title "Lelap $VERSION" "${flags[@]}"
 
+  ota:
+    name: Over-the-air update
+    needs: [verify, apk]
+    if: needs.apk.outputs.ota == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          # No shared caches in jobs that hold release secrets.
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/release.mts stamp "$GITHUB_REF_NAME"
+      - run: pnpm --filter @lelap/app exec expo prebuild --platform android --no-install
+        env:
+          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
+      - name: Export the bundle
+        env:
+          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
+          APK_RUNTIME: ${{ needs.apk.outputs.runtime }}
+        working-directory: apps/app
+        run: |
+          runtime="$(pnpm --silent exec expo-updates runtimeversion:resolve --platform android | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).runtimeVersion))')"
+          # A bundle for another native build would crash on start: refuse rather than publish.
+          if [ "$runtime" != "$APK_RUNTIME" ]; then
+            echo "::error::Runtime $runtime differs from the APK's $APK_RUNTIME"
+            exit 1
+          fi
+          pnpm exec expo export --platform android --output-dir dist-ota
+          pnpm --silent exec expo config --type public --json > dist-ota/expo-config.json
+      - name: Sign the manifest
+        env:
+          OTA_SIGNING_KEY: ${{ secrets.OTA_SIGNING_KEY }}
+          RUNTIME: ${{ needs.apk.outputs.runtime }}
+          CHANNEL: ${{ needs.verify.outputs.channel }}
+          DOWNLOADS: ${{ vars.DOWNLOADS_BASE }}
+        run: |
+          # The commit's time, not now: a fresh install of this APK (built later) skips the
+          # bundle it already carries, while older APKs of the same runtime take it.
+          created="$(git log -1 --format=%cI)"
+          # Stable releases also reach beta testers, whose channel would otherwise lag behind.
+          channels=(beta)
+          if [ "$CHANNEL" = stable ]; then channels=(production beta); fi
+          for channel in "${channels[@]}"; do
+            node scripts/ota.mts apps/app/dist-ota apps/app/dist-ota/expo-config.json \
+              "$RUNTIME" "$DOWNLOADS" "$created" "$channel" out-ota
+          done
+      - name: Upload to R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        working-directory: services/updates
+        run: |
+          root=../../out-ota
+          type_of() {
+            case "${1##*.}" in
+              bundle) echo application/javascript ;;
+              png) echo image/png ;;
+              jpg | jpeg) echo image/jpeg ;;
+              gif) echo image/gif ;;
+              webp) echo image/webp ;;
+              svg) echo image/svg+xml ;;
+              ttf) echo font/ttf ;;
+              otf) echo font/otf ;;
+              woff) echo font/woff ;;
+              woff2) echo font/woff2 ;;
+              json) echo application/json ;;
+              *) echo application/octet-stream ;;
+            esac
+          }
+          # Bundle and assets first; the manifests last, so they never name a missing file.
+          find "$root/ota" -type f -not -path "*/ota/channels/*" | while read -r file; do
+            pnpm exec wrangler r2 object put "lelap-downloads/${file#"$root/"}" --remote --file "$file" \
+              --content-type "$(type_of "$file")" --cache-control "public, max-age=31536000, immutable"
+          done
+          find "$root/ota/channels" -type f | while read -r file; do
+            pnpm exec wrangler r2 object put "lelap-downloads/${file#"$root/"}" --remote --file "$file" \
+              --content-type application/json --cache-control no-cache
+          done
+
   images:
     name: Docker image (${{ matrix.service }})
     # After the APK job, so images (and `latest`) wait for the release reviewer's approval too.
@@ -171,7 +271,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [web, catalog, proxy, sync]
+        service: [web, catalog, proxy, sync, updates]
     permissions:
       contents: read
       packages: write

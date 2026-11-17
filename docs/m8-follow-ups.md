@@ -39,6 +39,8 @@ The landing page links to the APK only once `site.released` is true (see `apps/s
 
 ## 3. Left out of this pass: OTA bundles
 
+Done in M18; see [`m18-follow-ups.md`](m18-follow-ups.md).
+
 `expo-updates` with a self-hosted server and code signing changes how release builds start, and
 could not be tried on a phone, so it is not in this pass. The plan:
 

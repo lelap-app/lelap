@@ -1,0 +1,13 @@
+# Over-the-air JavaScript updates for the Android app (the Expo Updates protocol). It reads the
+# manifests and bundles that the release workflow signs and uploads to the downloads bucket; it
+# holds no secret, since signing happens in CI. Never audio.
+# No routes here: the deploy passes the custom domain, so forks deploy to their own.
+name = "lelap-updates"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+workers_dev = true
+send_metrics = false
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "lelap-downloads"

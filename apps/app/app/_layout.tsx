@@ -18,6 +18,7 @@ import { HandoffBanner } from '../src/components/HandoffBanner';
 import { PodcastSync } from '../src/podcasts';
 import { SyncRunner } from '../src/sync';
 import { offerUpdateOnStart } from '../src/updates';
+import { OtaRunner } from '../src/ota';
 import { registerBackgroundRefresh } from '../src/background';
 
 /** Installs the default add-ons on first start and refreshes manifests on every start. */
@@ -66,6 +67,7 @@ export default function RootLayout() {
         <DownloadSync />
         <PodcastSync />
         <SyncRunner />
+        <OtaRunner />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0d0e11' } }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
