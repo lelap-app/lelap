@@ -30,7 +30,8 @@ while read -r _ name; do
   # Gradle already aligned the APK (4 bytes, native libraries to 16 KB pages). Only check it:
   # rewriting it would change the bytes F-Droid compares with its own build.
   "$tools/zipalign" -c -P 16 4 "$in/$name"
-  "$tools/apksigner" sign --alignment-preserved \
+  # No v4 signature: it is a separate .idsig file that only `adb install --incremental` uses.
+  "$tools/apksigner" sign --alignment-preserved --v4-signing-enabled false \
     --ks "$LELAP_KEYSTORE_PATH" --ks-key-alias "$LELAP_KEY_ALIAS" \
     --ks-pass env:LELAP_KEYSTORE_PASSWORD --key-pass env:LELAP_KEY_PASSWORD \
     --out "$out/$name" "$in/$name"
