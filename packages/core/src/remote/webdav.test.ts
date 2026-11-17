@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { basicAuth } from './http';
-import { listWebdav, parseMultistatus, webdavRoot } from './webdav';
+import { basicAuth, RemoteError } from './http';
+import { checkWebdav, listWebdav, parseMultistatus, webdavRoot } from './webdav';
 
 const folder = (path: string, entries: string) => `<?xml version="1.0"?>
 <d:multistatus xmlns:d="DAV:">
@@ -60,5 +60,47 @@ describe('WebDAV', () => {
     ]);
     expect(seen[0]?.init?.method).toBe('PROPFIND');
     expect((seen[0]?.init?.headers as Record<string, string>).Depth).toBe('1');
+  });
+
+  const source = { url: 'https://nas.example.org/dav/Audiobooks', username: 'me', password: 'pw' };
+
+  // A server that takes the request and never answers, until the request is cancelled.
+  const silent = async (_url: string, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+    });
+
+  it('gives up on a folder that does not answer in time', async () => {
+    const error = await listWebdav(silent, source, { timeoutMs: 20 }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(RemoteError);
+    expect((error as RemoteError).message).toMatch(/did not answer within/);
+  });
+
+  it('reports a network failure as no answer', async () => {
+    const offline = async () => {
+      throw new TypeError('Network request failed');
+    };
+    const error = await checkWebdav(offline, source).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(RemoteError);
+    expect((error as RemoteError).status).toBe(0);
+    expect((error as RemoteError).message).toMatch(/No answer from the WebDAV server/);
+  });
+
+  it('checks a server by reading only the folder entered', async () => {
+    const base = '/dav/Audiobooks/';
+    const urls: string[] = [];
+    const fetcher = async (url: string) => {
+      urls.push(url);
+      return new Response(folder(base, dir(`${base}Dune/`) + file(`${base}Loose.mp3`, 5)), {
+        status: 207,
+      });
+    };
+    expect(await checkWebdav(fetcher, source)).toEqual({ folders: 1, files: 1 });
+    expect(urls).toEqual(['https://nas.example.org/dav/Audiobooks/']);
+  });
+
+  it('checks the login before anything else', async () => {
+    const refused = async () => new Response('', { status: 401 });
+    await expect(checkWebdav(refused, source)).rejects.toThrow(/refused the login/);
   });
 });
