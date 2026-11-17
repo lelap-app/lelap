@@ -76,6 +76,40 @@ function Tool({
   );
 }
 
+/** One full-width choice in the sleep timer sheet. */
+function SleepOption({
+  label,
+  onPress,
+  active = false,
+  muted = false,
+}: {
+  label: string;
+  onPress: () => void;
+  active?: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      className={`flex-row items-center gap-3 rounded-xl px-3 py-3.5 active:bg-line ${active ? 'bg-line' : ''}`}
+    >
+      <Icon
+        name={muted ? 'close' : 'moon'}
+        size={20}
+        color={active ? COLORS.amber : muted ? COLORS.muted : COLORS.soft}
+      />
+      <Text
+        className={`flex-1 text-base ${active ? 'text-amber' : muted ? 'text-muted' : 'text-paper'}`}
+      >
+        {label}
+      </Text>
+      {active && <Icon name="check" size={20} color={COLORS.amber} />}
+    </Pressable>
+  );
+}
+
 function Chip({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable
@@ -345,32 +379,45 @@ export default function Player() {
         </View>
       </Sheet>
       <Sheet visible={sheet === 'sleep'} title="Sleep timer" onClose={() => setSheet(null)}>
-        <View className="flex-row flex-wrap gap-2 pb-2">
+        {timer !== null && (
+          <Text className="pb-3 text-amber">
+            {state.sleepTimerMode === 'chapter'
+              ? `Stops at the end of this chapter, in ${formatClock(timer)}`
+              : state.sleepTimerMode === 'episode'
+                ? `Stops at the end of this episode, in ${formatClock(timer)}`
+                : `Stops in ${formatClock(timer)}`}
+          </Text>
+        )}
+        <View className="gap-1 pb-2">
           {SLEEP_MINUTES.map((m) => (
-            <Chip
+            <SleepOption
               key={m}
-              label={`${m} min`}
+              label={`${m} minutes`}
               onPress={() => {
                 void audio.startSleepTimer(m);
                 setSheet(null);
               }}
             />
           ))}
-          <Chip
+          <SleepOption
             label={endMode === 'episode' ? 'End of episode' : 'End of chapter'}
+            active={state.sleepTimerMode === endMode}
             onPress={() => {
               void audio.startSleepTimerAtEnd(endMode);
               setSheet(null);
             }}
           />
           {timer !== null && (
-            <Chip
-              label="Turn off"
-              onPress={() => {
-                void audio.cancelSleepTimer();
-                setSheet(null);
-              }}
-            />
+            <View className="mt-2 border-t border-line pt-2">
+              <SleepOption
+                label="Turn off"
+                muted
+                onPress={() => {
+                  void audio.cancelSleepTimer();
+                  setSheet(null);
+                }}
+              />
+            </View>
           )}
         </View>
         {Platform.OS === 'android' && (
