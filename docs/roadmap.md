@@ -48,6 +48,20 @@ and architecture live in [`brief.md`](brief.md); plans for milestones not starte
 | [M37 Kids profile](milestones/m37.md)           | A profile with its own library and no add-on installation                                               |
 | [M38 Add-ons in the app](milestones/m38.md)     | Sandboxed JavaScript add-ons (QuickJS) with network only to declared hosts, for LAN sources             |
 | [M39 Precise seeking](milestones/m39.md)        | Bookmarks on the progress bar with snapping, fine scrubbing and jump-to-time for long books             |
+| [M40 First release](milestones/m40.md)          | Beta with everything, test round 2 on the phone, fixes, a stable `v0.1.0`                               |
+| [M41 Audiobookshelf](milestones/m41.md)         | Audiobookshelf libraries as a source, with progress synced both ways                                    |
+| [M42 Accessibility](milestones/m42.md)          | TalkBack, large text, contrast, focus order, right-to-left layouts                                      |
+| [M43 Big libraries](milestones/m43.md)          | 10,000 books: start-up, lists, indexes, scan speed, bundle size                                         |
+| [M44 Tablet and desktop](milestones/m44.md)     | Two panes on wide screens, landscape player, keyboard shortcuts on the web                              |
+| [M45 Trim silence](milestones/m45.md)           | Chapters from silences for books without them, intro and outro skipping per podcast                     |
+| [M46 Recommendations](milestones/m46.md)        | “Because you finished …” rows worked out on the device                                                  |
+| [M47 Diagnostics](milestones/m47.md)            | Opt-in local log and health, exported for bug reports; nothing collected                                |
+| [M48 More languages](milestones/m48.md)         | Contribution flow for translators, native Android text, landing page in Malay                           |
+| [M49 Artwork badges](milestones/m49.md)         | Rating and progress badges drawn by the app on add-on artwork                                           |
+| [M50 Casting 2](milestones/m50.md)              | Casting that survives a locked phone: foreground service, sleep timer, finish and Up Next on receivers  |
+| [M51 Background accounting](milestones/m51.md)  | Stats and scrobbles from the playback service when the app is swiped away                               |
+| [M52 Sync upkeep](milestones/m52.md)            | Snapshots that compact the sync log, expiry of idle groups                                              |
+| [M53 Storage choices](milestones/m53.md)        | Download location, covers from server folders, Atom feeds, export to a file                             |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
 v1.1.
