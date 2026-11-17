@@ -84,6 +84,37 @@ describe('groups and messages', () => {
     ).toBe(400);
   });
 
+  it('refuses oversized bodies and odd cursors, and keeps answers out of caches', async () => {
+    const { call, json } = setup();
+    await call(`/v1/groups/${GROUP}`, json('PUT', { authHash: await hash('t') }));
+    const huge = 'a'.repeat(LIMITS.pushBodyBytes);
+    const push = await call(
+      `/v1/groups/${GROUP}/messages`,
+      json('POST', { device: DEVICE, messages: [huge] }, 't'),
+    );
+    expect(push.status).toBe(413);
+    const pairing = await call(`/v1/pairings/${'c'.repeat(64)}`, json('PUT', { blob: huge }));
+    expect(pairing.status).toBe(413);
+    // A full push of the largest messages still fits.
+    const full = Array.from({ length: LIMITS.messagesPerPush }, () =>
+      'a'.repeat(LIMITS.messageBytes),
+    );
+    const ok = await call(
+      `/v1/groups/${GROUP}/messages`,
+      json('POST', { device: DEVICE, messages: full }, 't'),
+    );
+    expect(ok.status).toBe(204);
+
+    const auth = { headers: { Authorization: 'Bearer t' } };
+    for (const query of ['after=1e400', 'after=-1', 'after=1.5', 'limit=0', 'after=abc']) {
+      expect((await call(`/v1/groups/${GROUP}/messages?${query}`, auth)).status, query).toBe(400);
+    }
+    const page = await call(`/v1/groups/${GROUP}/messages?after=0&limit=1`, auth);
+    expect(page.status).toBe(200);
+    expect(page.headers.get('cache-control')).toBe('no-store');
+    expect(page.headers.get('content-security-policy')).toContain("default-src 'none'");
+  });
+
   it('deletes a group with its messages', async () => {
     const { call, json } = setup();
     await call(`/v1/groups/${GROUP}`, json('PUT', { authHash: await hash('t') }));

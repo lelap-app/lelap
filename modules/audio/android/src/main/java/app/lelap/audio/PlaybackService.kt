@@ -433,6 +433,14 @@ class PlaybackService : MediaLibraryService() {
       session: MediaSession,
       controller: MediaSession.ControllerInfo,
     ): MediaSession.ConnectionResult {
+      // The service is exported for system UI, Bluetooth and Android Auto. Only Lelap itself may
+      // load books, set the queue or change settings; other apps get the standard controls.
+      if (controller.packageName != packageName) {
+        return MediaSession.ConnectionResult.accept(
+          MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS,
+          MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS,
+        )
+      }
       val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
         .add(SessionCommand(Commands.SET_SETTINGS, Bundle.EMPTY))
         .add(SessionCommand(Commands.START_SLEEP_TIMER, Bundle.EMPTY))

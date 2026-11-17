@@ -4,5 +4,6 @@
 	encode zstd gzip
 	try_files {path} /index.html
 	file_server
+	import headers.caddy
 	header /_expo/* Cache-Control "public, max-age=31536000, immutable"
 }

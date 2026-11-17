@@ -6,9 +6,13 @@ WORKDIR /src
 RUN corepack enable
 COPY . .
 RUN pnpm install --frozen-lockfile --filter "@lelap/app..." \
-  && EXPO_PUBLIC_LELAP_DOMAIN=$LELAP_DOMAIN pnpm --filter @lelap/app build
+  && EXPO_PUBLIC_LELAP_DOMAIN=$LELAP_DOMAIN LELAP_CADDY_HEADERS=/src/headers.caddy \
+    pnpm --filter @lelap/app build \
+  && rm apps/app/dist-web/_headers
 
 FROM caddy:2-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
 COPY docker/Caddyfile /etc/caddy/Caddyfile
+# The Content-Security-Policy and other headers, written by the build for this domain.
+COPY --from=build /src/headers.caddy /etc/caddy/headers.caddy
 COPY --from=build /src/apps/app/dist-web /srv
 EXPOSE 8080

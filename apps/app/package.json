@@ -7,7 +7,7 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "check": "tsc --noEmit",
-    "build": "expo export --platform web --output-dir dist-web && node scripts/fix-web-export.mjs dist-web"
+    "build": "expo export --platform web --output-dir dist-web && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/fix-web-export.mjs dist-web"
   },
   "dependencies": {
     "@lelap/audio": "workspace:*",

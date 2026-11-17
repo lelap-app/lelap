@@ -128,3 +128,42 @@ describe('cover proxy', () => {
     expect((await audio.get('/cover?url=https%3A%2F%2Fcdn.example.org%2Fa.mp3')).status).toBe(415);
   });
 });
+
+describe('redirects and headers', () => {
+  it('follows redirects itself, so every hop goes through the platform fetch', async () => {
+    const { get, calls } = setup((url, init) => {
+      expect(init.redirect).toBe('manual');
+      return url === 'https://old.example.org/a.xml'
+        ? new Response(null, { status: 301, headers: { Location: '/b.xml' } })
+        : new Response(FEED, { headers: { 'Content-Type': 'text/xml' } });
+    });
+    const response = await get(feedUrl('https://old.example.org/a.xml'));
+    expect(response.status).toBe(200);
+    expect(calls.map((c) => c.url)).toEqual([
+      'https://old.example.org/a.xml',
+      'https://old.example.org/b.xml',
+    ]);
+  });
+
+  it('refuses redirects to other schemes and endless redirects', async () => {
+    const other = setup(
+      () => new Response(null, { status: 302, headers: { Location: 'file:///etc/passwd' } }),
+    );
+    expect((await other.get(feedUrl('https://a.example.org/f.xml'))).status).toBe(400);
+    expect(other.calls).toHaveLength(1);
+
+    const loop = setup(
+      (url) => new Response(null, { status: 307, headers: { Location: `${url}x` } }),
+    );
+    expect((await loop.get(feedUrl('https://a.example.org/f'))).status).toBe(502);
+    expect(loop.calls).toHaveLength(6);
+  });
+
+  it('marks every answer as a sandboxed, non-sniffable resource', async () => {
+    const { get } = setup(() => new Response(FEED, { headers: { 'Content-Type': 'text/xml' } }));
+    const response = await get(feedUrl('https://feeds.example.org/a.xml'));
+    expect(response.headers.get('content-security-policy')).toContain('sandbox');
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer');
+  });
+});

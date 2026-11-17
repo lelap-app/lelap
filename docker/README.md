@@ -27,5 +27,11 @@ Put the four ports behind HTTPS with those names (any reverse proxy). The publis
 built for `lelap.app`, so build your own with `LELAP_DOMAIN`; the other images need no domain.
 Android builds for your domain need `EXPO_PUBLIC_LELAP_DOMAIN` set when they are built.
 
+The proxy refuses addresses on private networks (loopback, `10.x`, `192.168.x`, link-local and so
+on), also after DNS and redirects, so strangers can't use it to reach the services next to it. If
+your own feeds are on your network, set `PROXY_ALLOW_PRIVATE=true` and keep the proxy off the
+internet. The `web` image sends a Content-Security-Policy built for `LELAP_DOMAIN`; the services
+send no-sniff and sandbox headers. Rate limits belong in your reverse proxy.
+
 Back up the `sync-data` volume: it holds encrypted messages only, but losing it means devices
 pair again.

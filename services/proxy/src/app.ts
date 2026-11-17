@@ -8,6 +8,10 @@ export type ResponseCache = {
 };
 
 export type Platform = {
+  /**
+   * Called with `redirect: 'manual'`: the app follows redirects itself, so every hop goes through
+   * this function. The Node build checks each address here; Workers cannot reach private networks.
+   */
   fetch: (url: string, init: RequestInit) => Promise<Response>;
   cache?: ResponseCache;
 };
@@ -20,21 +24,29 @@ export const LIMITS = {
 } as const;
 
 const TIMEOUT_MS = 15_000;
+const MAX_REDIRECTS = 5;
+
+/** Proxied bodies come from anywhere: never let a browser run them as a page on this origin. */
+export const SECURITY_HEADERS = {
+  'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'; sandbox",
+  'Referrer-Policy': 'no-referrer',
+  'X-Content-Type-Options': 'nosniff',
+} as const;
 const USER_AGENT = 'Lelap feed proxy (+https://github.com/lelap-app/lelap)';
 
-class Refused extends Error {
+export class Refused extends Error {
   constructor(
-    readonly status: 400 | 413 | 415 | 502,
+    readonly status: 400 | 403 | 413 | 415 | 502,
     message: string,
   ) {
     super(message);
   }
 }
 
-function targetOf(raw: string | undefined): URL {
+function targetOf(raw: string | undefined, base?: URL): URL {
   let url: URL;
   try {
-    url = new URL(raw ?? '');
+    url = new URL(raw ?? '', base);
   } catch {
     throw new Refused(400, 'Pass the address as ?url=.');
   }
@@ -91,7 +103,7 @@ export function createApp(platform: Platform, env: Env): Hono {
     c.res.headers.set('Access-Control-Allow-Origin', origin);
     c.res.headers.set('Access-Control-Expose-Headers', 'ETag, Last-Modified');
     c.res.headers.set('Vary', 'Origin');
-    c.res.headers.set('X-Content-Type-Options', 'nosniff');
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) c.res.headers.set(name, value);
   });
 
   app.options('*', (c) =>
@@ -108,12 +120,23 @@ export function createApp(platform: Platform, env: Env): Hono {
       : c.json({ error: 'The upstream could not be read.' }, 502),
   );
 
-  const upstream = async (url: URL, headers: Record<string, string>) =>
-    platform.fetch(url.toString(), {
-      headers: { 'User-Agent': USER_AGENT, ...headers },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
+  // Redirects by hand, so each hop is checked like the first address.
+  const upstream = async (first: URL, headers: Record<string, string>) => {
+    const signal = AbortSignal.timeout(TIMEOUT_MS);
+    let url = first;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      const response = await platform.fetch(url.toString(), {
+        headers: { 'User-Agent': USER_AGENT, ...headers },
+        redirect: 'manual',
+        signal,
+      });
+      const location = response.headers.get('location');
+      if (![301, 302, 303, 307, 308].includes(response.status) || !location) return response;
+      await response.body?.cancel();
+      url = targetOf(location, url);
+    }
+    throw new Refused(502, 'Too many redirects.');
+  };
 
   app.get('/feed', async (c) => {
     const url = targetOf(c.req.query('url'));

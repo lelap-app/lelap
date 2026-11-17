@@ -1,4 +1,5 @@
-import { Hono } from 'hono';
+import { type Context, Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 
 import type { SyncStore } from './store';
 
@@ -9,6 +10,10 @@ export const LIMITS = {
   pullMax: 500,
   pairingBytes: 4 * 1024,
   pairingMs: 10 * 60_000,
+  /** A full push as JSON, with room for the device ID and punctuation. */
+  pushBodyBytes: 50 * 256 * 1024 + 64 * 1024,
+  /** Group creation and pairings. */
+  smallBodyBytes: 8 * 1024,
 } as const;
 
 const HEX32 = /^[0-9a-f]{32}$/;
@@ -35,7 +40,15 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
     await next();
     c.res.headers.set('Access-Control-Allow-Origin', '*');
     c.res.headers.set('X-Content-Type-Options', 'nosniff');
+    c.res.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+    c.res.headers.set('Referrer-Policy', 'no-referrer');
+    // Sealed, but still per group: no shared cache should keep a copy.
+    c.res.headers.set('Cache-Control', 'no-store');
   });
+  // Bodies are refused while they arrive, before JSON parsing holds them in memory (Node build).
+  const tooLarge = { onError: (c: Context) => c.json({ error: 'Too large.' }, 413) };
+  app.post('/v1/groups/:id/messages', bodyLimit({ maxSize: LIMITS.pushBodyBytes, ...tooLarge }));
+  app.put('*', bodyLimit({ maxSize: LIMITS.smallBodyBytes, ...tooLarge }));
   app.options('*', (c) =>
     c.body(null, 204, {
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
@@ -102,9 +115,12 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
     const id = c.req.param('id');
     if (!(await authorized(id, c.req.header('authorization'))))
       return c.json({ error: 'Not allowed.' }, 403);
-    const after = Math.max(0, Number(c.req.query('after') ?? 0) || 0);
-    const limit = Math.min(LIMITS.pullMax, Math.max(1, Number(c.req.query('limit') ?? 100) || 100));
-    const messages = await store.read(id, after, limit);
+    const after = Number(c.req.query('after') ?? 0);
+    const limit = Number(c.req.query('limit') ?? 100);
+    if (!Number.isSafeInteger(after) || after < 0 || !Number.isSafeInteger(limit) || limit < 1) {
+      return c.json({ error: 'after and limit are whole numbers.' }, 400);
+    }
+    const messages = await store.read(id, after, Math.min(LIMITS.pullMax, limit));
     return c.json({ messages, last: messages.at(-1)?.seq ?? after });
   });
 
