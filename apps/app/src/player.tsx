@@ -160,7 +160,7 @@ async function load(bookId: string, autoplay: boolean, force = false): Promise<v
 }
 
 /** What the player needs for a book, at its saved place; null when it has no files here. */
-function bookLoad(bookId: string): audio.BookLoad | null {
+export function bookLoad(bookId: string): audio.BookLoad | null {
   const detail = getBook(db, profileId, bookId);
   if (!detail || detail.files.length === 0) return null;
   const start = resumePoint(db, profileId, bookId);

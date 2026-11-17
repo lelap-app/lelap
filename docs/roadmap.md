@@ -24,6 +24,7 @@ milestone starts or finishes. Scope and architecture live in [`brief.md`](brief.
 | M18 Updates over the air   | In progress |
 | M19 Security and hardening | In progress |
 | M20 SDK on npm             | In progress |
+| M26 Casting                | In progress |
 | M32 Audnexus               | In progress |
 
 v1.0 is M1 to M8 together; the feature list is in [the brief](brief.md#v10-scope). M9 follows in
@@ -270,6 +271,19 @@ The samples' docs install it from npm. What the maintainer sets up on npm and Gi
 **Done when** `npm install @lelap/sdk` gets a published version with a provenance statement, and a
 copy of `services/template` outside the repository builds against it.
 
+## M26 Casting
+
+**Status:** in progress (from [`next.md`](next.md#proposed-milestones)). `modules/cast` speaks
+open protocols only, so one build also suits F-Droid: SSDP and UPnP AVTransport for Sonos and
+DLNA renderers, mDNS and our own Cast v2 client (the Default Media Receiver) for Google Cast
+speakers such as the Nest Mini, and FCast. Receivers fetch audio from its source; files on the
+phone come from a small server in the app on the Wi-Fi, only while casting. The Cast tool in the
+player picks the receiver; the phone's player stays paused at the receiver's place, so the journal
+keeps progress. Phone checks: [`m26-follow-ups.md`](m26-follow-ups.md).
+
+**Done when** a book plays on a Sonos speaker, a Nest Mini and a DLNA TV, from a stream and from a
+file on the phone, and handing back resumes on the phone at the same place.
+
 ## Environments
 
 | Environment | When     | What                                                                                                                                                    |
@@ -283,7 +297,7 @@ copy of `services/template` outside the repository builds against it.
 ## Before the first public release
 
 - Check Google's developer verification requirements for sideloaded apps.
-- Decide on F-Droid: a `foss` build flavor without the Google Cast SDK, and reproducible builds or
-  F-Droid's own signing key.
+- Decide on F-Droid: reproducible builds or F-Droid's own signing key. No separate flavor is
+  needed: casting (M26) uses open protocols, not the Google Cast SDK.
 - Review the terms and privacy pages.
 - Publish the add-on SDK under MIT.

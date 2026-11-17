@@ -116,6 +116,13 @@ const ICONS = {
       <Path d="m12 13 4-5" {...stroke(c)} />
     </>
   ),
+  cast: (c) => (
+    <>
+      <Path d="M3 8V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" {...stroke(c)} />
+      <Path d="M3 12a8 8 0 0 1 8 8M3 16a4 4 0 0 1 4 4" {...stroke(c)} />
+      <Circle cx={3.5} cy={19.5} r={1.2} fill={c} />
+    </>
+  ),
   check: (c) => (
     <>
       <Circle cx={12} cy={12} r={9} {...stroke(c)} />
