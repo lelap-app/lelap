@@ -16,6 +16,7 @@ export const site = {
   repoUrl,
   releasesUrl: `${repoUrl}/releases`,
   briefUrl: `${repoUrl}/blob/main/docs/brief.md`,
+  contributingUrl: `${repoUrl}/blob/main/CONTRIBUTING.md`,
   copyrightEmail: `copyright@${domain}`,
   privacyEmail: `privacy@${domain}`,
   // Until v1.0 ships, download and "open app" buttons are replaced by links to the repository.
