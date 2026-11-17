@@ -100,6 +100,12 @@ export default function HomeScreen() {
             </Pressable>
           )}
           <IconButton
+            name="stats"
+            label="Listening stats"
+            color={COLORS.soft}
+            onPress={() => router.push('/stats')}
+          />
+          <IconButton
             name="settings"
             label="Settings"
             color={COLORS.soft}

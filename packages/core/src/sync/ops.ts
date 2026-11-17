@@ -12,6 +12,7 @@ import {
   chapters,
   episodes,
   libraryEntries,
+  listeningLog,
   playlists,
   podcasts,
   profiles,
@@ -811,6 +812,7 @@ function applyDelete(db: Db, op: Extract<Op, { type: 'delete' }>): void {
         upNext,
         bookTags,
         playlists,
+        listeningLog,
       ]) {
         db.delete(table).where(eq(table.profileId, op.key)).run();
       }

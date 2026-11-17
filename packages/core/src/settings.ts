@@ -14,6 +14,8 @@ export const SettingsSchema = z.object({
   betaUpdates: z.boolean().default(false),
   /** Download JavaScript updates in the background; they apply on the next start. */
   otaUpdates: z.boolean().default(true),
+  /** Books to finish this year; 0 means no goal. Stays on this device. */
+  yearlyGoalBooks: z.number().int().min(0).max(1000).default(0),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;
