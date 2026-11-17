@@ -1,33 +1,72 @@
 import {
-  addonBase,
-  fetchManifest,
-  installAddon,
+  type AddonHealth,
+  healthState,
+  type HealthState,
   type InstalledAddon,
   normalizeManifestUrl,
+  parseAddonLink,
   removeAddon,
 } from '@lelap/core';
+import {
+  isConfigurable,
+  LATEST_PROTOCOL_VERSION,
+  needsConfiguration,
+  protocolVersionOf,
+} from '@lelap/sdk';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Linking,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { showAlert } from '../src/dialog';
+import { ActionSheet, type Action } from '../src/components/ActionSheet';
 import { COLORS, IconButton } from '../src/components/Icon';
-import { fetcher, useAddons } from '../src/addons';
-import { db, newId } from '../src/db';
+import { showAlert } from '../src/dialog';
+import { checkAddonHealth, useAddonHealth, useAddons } from '../src/addons';
+import { confirmAddon, openConfigure } from '../src/addonInstall';
+import { db } from '../src/db';
 import { useLibrary } from '../src/player';
 import { activeProfile } from '../src/profile';
 
-function AddonRow({ addon, onRemove }: { addon: InstalledAddon; onRemove: () => void }) {
+const STATE_COLOR: Record<HealthState, string> = {
+  unknown: COLORS.muted,
+  ok: COLORS.ok,
+  slow: COLORS.amber,
+  degraded: COLORS.amber,
+  failing: COLORS.danger,
+};
+
+const STATE_LABEL: Record<HealthState, string> = {
+  unknown: 'Not asked yet',
+  ok: 'Working',
+  slow: 'Slow',
+  degraded: 'Partly working',
+  failing: 'Not working',
+};
+
+function ago(at: number, now: number): string {
+  const minutes = Math.round((now - at) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  return hours < 24 ? `${hours} h ago` : `${Math.round(hours / 24)} d ago`;
+}
+
+/** One or two lines on how the add-on answered this session. */
+function healthLines(health: AddonHealth, now: number): string[] {
+  const lines: string[] = [];
+  if (health.reported?.message) lines.push(health.reported.message);
+  if (health.lastOkAt !== null && health.lastLatencyMs !== null)
+    lines.push(`Answered in ${health.lastLatencyMs} ms, ${ago(health.lastOkAt, now)}`);
+  if (health.lastError && (health.lastOkAt === null || health.lastError.at > health.lastOkAt))
+    lines.push(`${health.lastError.message}, ${ago(health.lastError.at, now)}`);
+  return lines;
+}
+
+function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void }) {
+  const health = useAddonHealth(addon.url);
+  const state = healthState(health);
+  const newer = protocolVersionOf(addon.manifest) > LATEST_PROTOCOL_VERSION;
   return (
     <View className="gap-1 border-b border-line py-4">
       <View className="flex-row items-center gap-3">
@@ -35,20 +74,44 @@ function AddonRow({ addon, onRemove }: { addon: InstalledAddon; onRemove: () => 
           {addon.manifest.name}
           <Text className="text-sm text-muted"> {addon.manifest.version}</Text>
         </Text>
-        {addon.manifest.configurable && (
-          <Pressable onPress={() => void Linking.openURL(`${addonBase(addon.url)}configure`)}>
-            <Text className="text-amber">Configure</Text>
+        {isConfigurable(addon.manifest) && (
+          <Pressable
+            onPress={() => openConfigure(addon.url)}
+            accessibilityRole="button"
+            className="rounded-full border border-line px-3 py-1.5 active:bg-raised"
+          >
+            <Text className="text-sm text-amber">Configure</Text>
           </Pressable>
         )}
-        <Pressable onPress={onRemove} hitSlop={8}>
-          <Text className="text-danger">Remove</Text>
-        </Pressable>
+        <IconButton
+          name="more"
+          label={`More for ${addon.manifest.name}`}
+          color={COLORS.soft}
+          onPress={onMore}
+        />
       </View>
       {addon.manifest.description !== '' && (
         <Text className="text-sm text-soft">{addon.manifest.description}</Text>
       )}
+      <View className="flex-row items-center gap-2 pt-1">
+        <View style={{ backgroundColor: STATE_COLOR[state] }} className="h-2 w-2 rounded-full" />
+        <Text className="text-xs text-soft">{STATE_LABEL[state]}</Text>
+      </View>
+      {healthLines(health, Date.now()).map((line) => (
+        <Text key={line} className="text-xs text-muted">
+          {line}
+        </Text>
+      ))}
+      {needsConfiguration(addon.manifest) && (
+        <Text className="text-xs text-amber">Needs settings before it can be used.</Text>
+      )}
+      {newer && (
+        <Text className="text-xs text-muted">
+          Made for a newer Lelap; update the app to use all of it.
+        </Text>
+      )}
       <Text numberOfLines={1} className="text-xs text-muted">
-        {addon.url}
+        {addon.url.replace(/\/(e1|p1)\.[A-Za-z0-9_-]+\//, '/…/')}
       </Text>
     </View>
   );
@@ -84,30 +147,27 @@ function AddonsManager() {
     void queryClient.invalidateQueries();
   };
 
+  const [menu, setMenu] = useState<InstalledAddon | null>(null);
+
+  // Real requests fill in most of the health; `/health` adds what the add-on says about itself.
+  useEffect(() => {
+    void checkAddonHealth(addons);
+    // Once per visit, not on every library change.
+  }, []);
+
   const add = async () => {
-    const manifestUrl = normalizeManifestUrl(url);
+    // A link from a configure page works here too, for the web app or a copied link.
+    const manifestUrl = parseAddonLink(url) ?? normalizeManifestUrl(url);
     if (!manifestUrl) {
       showAlert('Not a web address', 'Paste the add-on’s manifest URL.');
       return;
     }
     setAdding(true);
     try {
-      const manifest = await fetchManifest(fetcher, manifestUrl);
-      showAlert(
-        `Add ${manifest.name}?`,
-        `${manifest.description}\n\nAdd-ons are run by their authors, not by Lelap. Only add ones you trust.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Add',
-            onPress: () => {
-              installAddon(db, { url: manifestUrl, manifest, now: Date.now(), newId });
-              setUrl('');
-              changed();
-            },
-          },
-        ],
-      );
+      if ((await confirmAddon(manifestUrl)) === 'added') {
+        setUrl('');
+        changed();
+      }
     } catch (error) {
       showAlert('Cannot add', error instanceof Error ? error.message : String(error));
     } finally {
@@ -132,6 +192,18 @@ function AddonsManager() {
       ],
     );
 
+  const actions = (addon: InstalledAddon): Action[] => [
+    ...(isConfigurable(addon.manifest)
+      ? [{ icon: 'settings' as const, label: 'Configure', onPress: () => openConfigure(addon.url) }]
+      : []),
+    {
+      icon: 'check',
+      label: 'Check now',
+      onPress: () => void checkAddonHealth([addon]),
+    },
+    { icon: 'close', label: 'Remove', danger: true, onPress: () => remove(addon) },
+  ];
+
   return (
     <ScrollView
       className="flex-1 bg-night"
@@ -151,7 +223,7 @@ function AddonsManager() {
       </Text>
 
       {addons.map((addon) => (
-        <AddonRow key={addon.url} addon={addon} onRemove={() => remove(addon)} />
+        <AddonRow key={addon.url} addon={addon} onMore={() => setMenu(addon)} />
       ))}
       {addons.length === 0 && <Text className="py-4 text-muted">No add-ons installed.</Text>}
 
@@ -180,6 +252,14 @@ function AddonsManager() {
           )}
         </Pressable>
       </View>
+      <Text className="pt-3 text-xs text-muted">
+        Health shows how each add-on answered since Lelap started. It stays on this device.
+      </Text>
+      <ActionSheet
+        title={menu?.manifest.name ?? null}
+        actions={menu ? actions(menu) : []}
+        onClose={() => setMenu(null)}
+      />
     </ScrollView>
   );
 }

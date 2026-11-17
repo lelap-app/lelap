@@ -148,8 +148,9 @@ const toc: [string, string][] = [
   <h2 id="hono">Hono on Workers</h2>
   <p>
     The template: <code>@lelap/sdk</code> does the routing, CORS, caching headers and checks every
-    answer against the protocol, so the code is the manifest and three handlers. It runs on
-    Cloudflare Workers, and the same <code>addon.fetch</code> runs on Deno, Bun and Node. The{' '}
+    answer against the protocol, so the code is the manifest and a handler per resource, plus a
+    settings page (<code>configure</code>) and <code>health</code>. It runs on Cloudflare Workers,
+    and the same <code>addon.fetch</code> runs on Deno, Bun and Node. The{' '}
     <a href="/docs/sdk/">SDK guide</a> explains each piece; <code>src/books.ts</code> holds the
     data.
   </p>
@@ -167,7 +168,8 @@ const toc: [string, string][] = [
     The protocol by hand with <code>node:http</code>: no framework, no SDK, no dependencies.{' '}
     <code>route()</code> turns a path into a status and a JSON body, and the server adds the
     headers. Read it to see everything an add-on has to get right; it is also the shape to follow in
-    any other language.
+    any other language. It answers <code>/health</code> too; for a settings page without the SDK,
+    follow the <a href="/docs/protocol/#configure">configure flow</a>.
   </p>
   <details>
     <summary>

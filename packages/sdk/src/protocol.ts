@@ -1,7 +1,17 @@
 import { z } from 'zod';
 
-/** The protocol version this SDK speaks; manifests declare it as `protocol`. */
+/**
+ * The protocol's major version; manifests declare it as `protocol`. It changes only for a breaking
+ * change, and an app refuses a manifest whose `protocol` it does not know.
+ */
 export const PROTOCOL_VERSION = 1;
+
+/**
+ * The newest revision of protocol 1 this SDK knows; manifests declare it as `protocolVersion`.
+ * Revisions only add things, so an older app ignores what it does not know. Absent means 1.
+ * 2 adds `behaviorHints` (a `/configure` page, sign-in) and `GET /health`.
+ */
+export const LATEST_PROTOCOL_VERSION = 2;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
@@ -53,11 +63,26 @@ export const ResourceDefinition = z.union([
 ]);
 export type ResourceDefinition = z.infer<typeof ResourceDefinition>;
 
+export const BehaviorHints = z.object({
+  /** The add-on has a `/configure` page next to its manifest. */
+  configurable: z.boolean().optional(),
+  /**
+   * The add-on does nothing useful until it is configured: the app opens `/configure` instead of
+   * installing this manifest. The manifest the configure page hands back leaves it out.
+   */
+  configurationRequired: z.boolean().optional(),
+  /** The add-on answers `GET /health`. */
+  health: z.boolean().optional(),
+});
+export type BehaviorHints = z.infer<typeof BehaviorHints>;
+
 export const Manifest = z.object({
   /** Reverse DNS, such as `org.example.myaddon`. */
   id: z.string().min(3),
   version: z.string().regex(/^\d+\.\d+\.\d+/, 'Use semantic versioning'),
   protocol: z.literal(PROTOCOL_VERSION),
+  /** The protocol revision the add-on is written for; absent means 1. */
+  protocolVersion: z.number().int().min(1).optional(),
   name: z.string().min(1),
   description: z.string(),
   logo: Url.optional(),
@@ -66,8 +91,10 @@ export const Manifest = z.object({
   /** Prefixes of the IDs this add-on answers `meta` and `stream` for. */
   idPrefixes: z.array(z.string().min(1)).optional(),
   catalogs: z.array(CatalogDefinition),
-  /** The add-on has a `/configure` page. */
+  /** Protocol 1.1 spelling of `behaviorHints.configurable`; still read, so older add-ons work. */
   configurable: z.boolean().optional(),
+  /** Since revision 2. Unknown hints are ignored. */
+  behaviorHints: BehaviorHints.optional(),
 });
 export type Manifest = z.infer<typeof Manifest>;
 
@@ -216,6 +243,45 @@ export type ScrobbleEvent = z.infer<typeof ScrobbleEvent>;
 /** The body of `POST /scrobble`: oldest event first. */
 export const ScrobbleRequest = z.object({ events: z.array(ScrobbleEvent).min(1).max(100) });
 export type ScrobbleRequest = z.infer<typeof ScrobbleRequest>;
+
+export const HEALTH_STATUSES = ['ok', 'degraded', 'down'] as const;
+export const HealthStatus = z.enum(HEALTH_STATUSES);
+export type HealthStatus = z.infer<typeof HealthStatus>;
+
+/**
+ * The body of `GET /health`. `degraded` means it answers but something it relies on is slow or
+ * failing; `message` is shown to the listener, so keep it short and free of secrets.
+ */
+export const HealthResponse = z.object({
+  status: HealthStatus,
+  message: z.string().max(300).optional(),
+  cacheMaxAge: CacheMaxAge,
+});
+export type HealthResponse = z.infer<typeof HealthResponse>;
+
+/** The revision a manifest is written for. */
+export function protocolVersionOf(manifest: Manifest): number {
+  return manifest.protocolVersion ?? 1;
+}
+
+/** Whether the add-on has a `/configure` page, in either spelling. */
+export function isConfigurable(manifest: Manifest): boolean {
+  return (
+    manifest.behaviorHints?.configurable === true ||
+    manifest.behaviorHints?.configurationRequired === true ||
+    manifest.configurable === true
+  );
+}
+
+/** Whether the add-on must be configured before it is installed. */
+export function needsConfiguration(manifest: Manifest): boolean {
+  return manifest.behaviorHints?.configurationRequired === true;
+}
+
+/** Whether the add-on answers `GET /health`. */
+export function offersHealth(manifest: Manifest): boolean {
+  return manifest.behaviorHints?.health === true;
+}
 
 /** Whether a stream has parts rather than one URL. */
 export function hasParts(stream: Stream): stream is z.infer<typeof MultiPartStream> {

@@ -6,12 +6,15 @@ export const manifest = {
   id: 'org.example.node',
   version: '1.0.0',
   protocol: 1,
+  // Revision 2 adds `behaviorHints` and `GET /health`; older apps ignore both.
+  protocolVersion: 2,
   name: 'Node example',
   description: 'Two public-domain LibriVox recordings, served without a framework.',
   types: ['audiobook'],
   resources: ['catalog', 'meta', 'stream'],
   idPrefixes: ['example:'],
   catalogs: [{ type: 'audiobook', id: 'classics', name: 'Classics', extra: [{ name: 'skip' }] }],
+  behaviorHints: { health: true },
 };
 
 // Replace these with your own source. Only serve audio you are allowed to share.
@@ -96,6 +99,8 @@ const preview = ({ id, type, name, author, cover, year }) => ({
 /** Answers one request: `{ status, body, maxAge? }`. Pure, so tests need no server. */
 export function route(pathname) {
   if (pathname === '/manifest.json') return { status: 200, body: manifest, maxAge: 3600 };
+  // Check what your add-on relies on here; `degraded` or `down` with a short `message`.
+  if (pathname === '/health') return { status: 200, body: { status: 'ok' }, maxAge: 0 };
   // /{resource}/{type}/{id}.json or /catalog/{type}/{id}/{extra}.json, IDs percent-encoded.
   const match = /^\/(catalog|meta|stream)\/([^/]+)\/([^/]+?)(?:\/([^/]*))?\.json$/.exec(pathname);
   if (!match) return notFound();

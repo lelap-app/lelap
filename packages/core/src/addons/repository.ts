@@ -1,9 +1,9 @@
 import { Manifest } from '@lelap/sdk';
-import { asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, like, sql } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
-import { addons, removedAddons } from '../schema';
+import { addons, books, profiles, removedAddons, scrobbleOutbox, settings } from '../schema';
 import { type Fetcher, fetchManifest, type InstalledAddon } from './client';
 
 /** Installed add-ons in the user's order. Rows whose stored manifest no longer parses are skipped. */
@@ -54,6 +54,86 @@ export function installAddon(
       .run();
     tx.delete(removedAddons).where(eq(removedAddons.url, url)).run();
   });
+}
+
+/**
+ * Points an installed add-on at a new manifest URL, such as the one its configure page made after
+ * the listener changed a setting or signed in. It keeps its place, and books, source choices,
+ * profiles and unsent scrobbles follow it to the new URL.
+ */
+export function replaceAddonUrl(
+  db: Db,
+  args: { oldUrl: string; newUrl: string; manifest: Manifest; now: number },
+): void {
+  const { oldUrl, newUrl, manifest, now } = args;
+  if (oldUrl === newUrl) {
+    db.update(addons)
+      .set({ manifest: JSON.stringify(manifest), updatedAt: now })
+      .where(eq(addons.url, oldUrl))
+      .run();
+    return;
+  }
+  db.transaction((tx) => {
+    const taken = tx.select({ id: addons.id }).from(addons).where(eq(addons.url, newUrl)).get();
+    if (taken) {
+      tx.delete(addons).where(eq(addons.url, oldUrl)).run();
+      tx.update(addons)
+        .set({ manifest: JSON.stringify(manifest), updatedAt: now })
+        .where(eq(addons.url, newUrl))
+        .run();
+    } else {
+      tx.update(addons)
+        .set({ url: newUrl, manifest: JSON.stringify(manifest), updatedAt: now })
+        .where(eq(addons.url, oldUrl))
+        .run();
+    }
+
+    for (const book of tx
+      .select({ id: books.id, addonItem: books.addonItem })
+      .from(books)
+      .where(eq(books.source, 'addon'))
+      .all()) {
+      if (book.addonItem?.addonUrl !== oldUrl) continue;
+      tx.update(books)
+        .set({ addonItem: { ...book.addonItem, addonUrl: newUrl }, updatedAt: now })
+        .where(eq(books.id, book.id))
+        .run();
+    }
+
+    for (const row of tx.select().from(settings).where(like(settings.key, 'source:%')).all()) {
+      let value: unknown;
+      try {
+        value = JSON.parse(row.value);
+      } catch {
+        continue;
+      }
+      if (typeof value !== 'object' || value === null) continue;
+      if ((value as { addonUrl?: unknown }).addonUrl !== oldUrl) continue;
+      tx.update(settings)
+        .set({ value: JSON.stringify({ ...value, addonUrl: newUrl }), updatedAt: now })
+        .where(and(eq(settings.profileId, row.profileId), eq(settings.key, row.key)))
+        .run();
+    }
+
+    for (const profile of tx.select().from(profiles).all()) {
+      if (!profile.hiddenAddons.includes(oldUrl)) continue;
+      const hidden = [...new Set(profile.hiddenAddons.map((u) => (u === oldUrl ? newUrl : u)))];
+      tx.update(profiles)
+        .set({ hiddenAddons: hidden, updatedAt: now })
+        .where(eq(profiles.id, profile.id))
+        .run();
+    }
+
+    tx.update(scrobbleOutbox)
+      .set({ addonUrl: newUrl })
+      .where(eq(scrobbleOutbox.addonUrl, oldUrl))
+      .run();
+  });
+}
+
+/** The installed add-on with this manifest ID, if any. */
+export function findAddonById(db: Db, manifestId: string): InstalledAddon | null {
+  return listAddons(db).find((a) => a.manifest.id === manifestId) ?? null;
 }
 
 /** Removes an add-on; a default one is remembered so it is not installed again. */

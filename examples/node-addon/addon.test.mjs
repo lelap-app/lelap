@@ -25,6 +25,12 @@ test('serves the manifest with CORS', async () => {
   assert.deepEqual(body, manifest);
 });
 
+test('answers /health', async () => {
+  const { response, body } = await get('/health');
+  assert.equal(response.status, 200);
+  assert.deepEqual(body, { status: 'ok' });
+});
+
 test('serves the catalog, and pages with skip', async () => {
   const { body } = await get('/catalog/audiobook/classics.json');
   assert.deepEqual(

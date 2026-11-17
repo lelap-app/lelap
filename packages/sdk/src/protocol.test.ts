@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { Manifest, Meta, ScrobbleEvent, Stream, supports, wantsScrobble } from './protocol';
+import {
+  HealthResponse,
+  isConfigurable,
+  Manifest,
+  Meta,
+  needsConfiguration,
+  offersHealth,
+  protocolVersionOf,
+  ScrobbleEvent,
+  Stream,
+  supports,
+  wantsScrobble,
+} from './protocol';
 
 const base: Manifest = {
   id: 'org.example.test',
@@ -116,5 +128,44 @@ describe('ScrobbleEvent', () => {
         catalogs: [{ type: 'audiobook', id: 'w', name: 'W', shelf: 'something-new' }],
       }).success,
     ).toBe(true);
+  });
+});
+
+describe('protocol revision 2', () => {
+  it('reads a v1 manifest as revision 1 with nothing new', () => {
+    const parsed = Manifest.parse(base);
+    expect(protocolVersionOf(parsed)).toBe(1);
+    expect(isConfigurable(parsed)).toBe(false);
+    expect(needsConfiguration(parsed)).toBe(false);
+    expect(offersHealth(parsed)).toBe(false);
+  });
+
+  it('still reads the old top-level configurable', () => {
+    expect(isConfigurable(Manifest.parse({ ...base, configurable: true }))).toBe(true);
+  });
+
+  it('reads behavior hints and drops unknown ones', () => {
+    const parsed = Manifest.parse({
+      ...base,
+      protocolVersion: 2,
+      behaviorHints: { configurationRequired: true, health: true, somethingLater: 1 },
+    });
+    expect(protocolVersionOf(parsed)).toBe(2);
+    expect(isConfigurable(parsed)).toBe(true);
+    expect(needsConfiguration(parsed)).toBe(true);
+    expect(offersHealth(parsed)).toBe(true);
+    expect(parsed.behaviorHints).not.toHaveProperty('somethingLater');
+  });
+
+  it('accepts a later revision but not another major protocol', () => {
+    expect(Manifest.safeParse({ ...base, protocolVersion: 7 }).success).toBe(true);
+    expect(Manifest.safeParse({ ...base, protocolVersion: 0 }).success).toBe(false);
+    expect(Manifest.safeParse({ ...base, protocol: 2 }).success).toBe(false);
+  });
+
+  it('checks health answers', () => {
+    expect(HealthResponse.safeParse({ status: 'ok' }).success).toBe(true);
+    expect(HealthResponse.safeParse({ status: 'degraded', message: 'Slow' }).success).toBe(true);
+    expect(HealthResponse.safeParse({ status: 'fine' }).success).toBe(false);
   });
 });

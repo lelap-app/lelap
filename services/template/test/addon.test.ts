@@ -53,3 +53,27 @@ describe('template add-on', () => {
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
   });
 });
+
+describe('template add-on settings', () => {
+  it('serves a configure page and sorts by the chosen order', async () => {
+    const page = await get('configure');
+    expect(page.headers.get('Content-Type')).toContain('text/html');
+    expect(await page.text()).toContain('Sort books by');
+
+    const saved = await get('configure', {
+      method: 'POST',
+      body: new URLSearchParams({ order: 'Year', return: 'lelap://addon' }),
+    });
+    expect(saved.status).toBe(303);
+    const manifestUrl = decodeURIComponent(
+      saved.headers.get('Location')?.split('manifest=')[1] ?? '',
+    );
+    const base = manifestUrl.replace('https://addon.test/', '').replace('manifest.json', '');
+    const catalog = CatalogResponse.parse(await json(`${base}catalog/audiobook/books.json`));
+    expect(catalog.metas.map((m) => m.year)).toEqual([1843, 1845]);
+  });
+
+  it('answers /health', async () => {
+    expect(await json('health')).toEqual({ status: 'ok' });
+  });
+});

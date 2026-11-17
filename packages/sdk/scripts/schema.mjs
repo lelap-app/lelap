@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import {
   CatalogResponse,
+  HealthResponse,
   Manifest,
   MetaResponse,
   PROTOCOL_VERSION,
@@ -21,6 +22,7 @@ registry.add(CatalogResponse, { id: 'CatalogResponse' });
 registry.add(MetaResponse, { id: 'MetaResponse' });
 registry.add(StreamResponse, { id: 'StreamResponse' });
 registry.add(ScrobbleRequest, { id: 'ScrobbleRequest' });
+registry.add(HealthResponse, { id: 'HealthResponse' });
 
 const { schemas } = z.toJSONSchema(registry, {
   io: 'output',

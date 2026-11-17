@@ -14,6 +14,8 @@ MANIFEST = {
     "id": "org.example.python",
     "version": "1.0.0",
     "protocol": 1,
+    # Revision 2 adds `behaviorHints` and `GET /health`; older apps ignore both.
+    "protocolVersion": 2,
     "name": "Python example",
     "description": "Two public-domain LibriVox recordings, served by the standard library.",
     "types": ["audiobook"],
@@ -22,6 +24,7 @@ MANIFEST = {
     "catalogs": [
         {"type": "audiobook", "id": "classics", "name": "Classics", "extra": [{"name": "skip"}]}
     ],
+    "behaviorHints": {"health": True},
 }
 
 
@@ -111,6 +114,9 @@ def route(path):
     """Answers one request path with (status, body, max_age). Pure, so tests need no server."""
     if path == "/manifest.json":
         return 200, MANIFEST, 3600
+    if path == "/health":
+        # Check what your add-on relies on here; "degraded" or "down" with a short message.
+        return 200, {"status": "ok"}, 0
     match = ROUTE.match(path)
     if not match:
         return not_found()

@@ -1,10 +1,26 @@
 import type { ZodType } from 'zod';
 
-import { type Extra, parseRoute } from './paths';
+import {
+  allowedReturn,
+  checkFields,
+  type Config,
+  type ConfigField,
+  configuredPage,
+  configurePage,
+  decodeConfig,
+  encodeConfig,
+  isConfigToken,
+  readForm,
+  returnUrl,
+} from './config';
+import { type Extra, parseExtra, parseRoute } from './paths';
 import {
   type CatalogResponse,
   CatalogResponse as CatalogResponseSchema,
   type ContentType,
+  type HealthResponse,
+  HealthResponse as HealthResponseSchema,
+  LATEST_PROTOCOL_VERSION,
   Manifest as ManifestSchema,
   type Manifest,
   type MetaResponse,
@@ -17,9 +33,37 @@ import {
 
 type Awaitable<T> = T | Promise<T>;
 
-export type CatalogArgs = { type: ContentType; id: string; extra: Extra; request: Request };
-export type ItemArgs = { type: ContentType; id: string; request: Request };
-export type ScrobbleArgs = { events: ScrobbleEvent[]; request: Request };
+/** `config` is what the listener chose on the configure page, or `null` without one. */
+export type CatalogArgs = {
+  type: ContentType;
+  id: string;
+  extra: Extra;
+  config: Config | null;
+  request: Request;
+};
+export type ItemArgs = { type: ContentType; id: string; config: Config | null; request: Request };
+export type ScrobbleArgs = { events: ScrobbleEvent[]; config: Config | null; request: Request };
+export type HealthArgs = { config: Config | null; request: Request };
+
+export type ConfigureOptions = {
+  fields: ConfigField[];
+  /**
+   * Encrypts the config in the URL with AES-GCM, so only this add-on can read it. Required for
+   * `password` fields. Keep it out of your repository (a Workers secret, an environment variable);
+   * changing it makes every configured URL unreadable.
+   */
+  secret?: string;
+  /**
+   * Origins of web builds of the app that may receive the manifest URL at `<origin>/addon`, such
+   * as `https://listen.example.org`. The Android app's `lelap://addon` is always allowed.
+   */
+  returnOrigins?: string[];
+  /**
+   * Checks a config before the URL is made, such as signing in to your service with the given
+   * account. Return a message to show it on the form; return nothing to accept it.
+   */
+  check?: (config: Config, request: Request) => Awaitable<string | null | undefined>;
+};
 
 export type AddonHandlers = {
   manifest: Manifest;
@@ -32,6 +76,16 @@ export type AddonHandlers = {
    * ignored); throw an `AddonError` with a 4xx status for events that should not be sent again.
    */
   scrobble?: (args: ScrobbleArgs) => Awaitable<void>;
+  /**
+   * Serves `/configure` and reads `/{token}/…` URLs, where the token carries the config. The
+   * config lives in the URL the app stores, never on a server.
+   */
+  configure?: ConfigureOptions;
+  /**
+   * Answers `GET /health`; check what the add-on relies on, quickly. Without it, `/health` says
+   * `ok` whenever the add-on runs.
+   */
+  health?: (args: HealthArgs) => Awaitable<HealthResponse>;
 };
 
 export type AddonOptions = {
@@ -73,6 +127,21 @@ function json(body: unknown, status = 200, maxAge?: number): Response {
   return new Response(JSON.stringify(body), { status, headers });
 }
 
+function html(body: string, status = 200): Response {
+  return new Response(body, {
+    status,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      // The page and its URLs can carry the listener's settings.
+      'Referrer-Policy': 'no-referrer',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy':
+        "default-src 'none'; style-src 'unsafe-inline'; img-src https:; frame-ancestors 'none'; base-uri 'none'",
+    },
+  });
+}
+
 function checked<T>(schema: ZodType<T>, value: T, validate: boolean): T {
   if (!validate) return value;
   const result = schema.safeParse(value);
@@ -86,7 +155,21 @@ function checked<T>(schema: ZodType<T>, value: T, validate: boolean): T {
  * (through an adapter such as `@hono/node-server`) can serve.
  */
 export function createAddon(handlers: AddonHandlers, options: AddonOptions = {}): Addon {
-  const manifest = ManifestSchema.parse(handlers.manifest);
+  const declared = ManifestSchema.parse(handlers.manifest);
+  const configure = handlers.configure;
+  if (configure) checkFields(configure.fields, configure.secret);
+  const required = configure?.fields.some((f) => f.required) ?? false;
+  const served = (configured: boolean): Manifest => ({
+    ...declared,
+    protocolVersion: Math.max(declared.protocolVersion ?? 1, LATEST_PROTOCOL_VERSION),
+    ...(configure ? { configurable: true } : {}),
+    behaviorHints: {
+      ...declared.behaviorHints,
+      health: true,
+      ...(configure ? { configurable: true, configurationRequired: required && !configured } : {}),
+    },
+  });
+  const manifest = served(false);
   const base = (options.basePath ?? '').replace(/\/+$/, '');
   const validate = options.validate ?? true;
   const typesFor = (resource: string) => {
@@ -104,7 +187,32 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
     const { pathname } = new URL(request.url);
     if (base && pathname !== base && !pathname.startsWith(`${base}/`))
       return json({ error: 'Not found' }, 404);
-    const path = pathname.slice(base.length).replace(/^\/+/, '');
+    let path = pathname.slice(base.length).replace(/^\/+/, '');
+    let config: Config | null = null;
+    let token: string | null = null;
+    const first = path.split('/')[0] ?? '';
+    if (isConfigToken(first)) {
+      if (!configure) return json({ error: 'Not found' }, 404);
+      token = first;
+      path = path.slice(first.length + 1);
+      config = await decodeConfig(first, configure.secret);
+      if (!config)
+        return json({ error: 'These settings cannot be read. Configure the add-on again.' }, 403);
+    }
+
+    if (path === 'configure' && configure) return await serveConfigure(request, config);
+    if (path === 'health') {
+      if (request.method !== 'GET' && request.method !== 'HEAD')
+        return json({ error: 'Method not allowed' }, 405);
+      const body = handlers.health
+        ? checked(HealthResponseSchema, await handlers.health({ config, request }), validate)
+        : { status: 'ok' as const };
+      return json(body, 200, body.cacheMaxAge ?? 0);
+    }
+    if (path === 'manifest.json' && (request.method === 'GET' || request.method === 'HEAD'))
+      return json(token ? served(true) : manifest, 200, 3600);
+    if (required && !config) return json({ error: 'Configure this add-on first' }, 403);
+
     if (path === 'scrobble') {
       if (!handlers.scrobble || !typesFor('scrobble').length)
         return json({ error: 'Not found' }, 404);
@@ -117,7 +225,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
       }
       const parsed = ScrobbleRequest.safeParse(body);
       if (!parsed.success) return json({ error: 'These are not scrobble events' }, 400);
-      await handlers.scrobble({ events: parsed.data.events, request });
+      await handlers.scrobble({ events: parsed.data.events, config, request });
       return json({ received: parsed.data.events.length });
     }
     if (request.method !== 'GET' && request.method !== 'HEAD')
@@ -125,7 +233,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
     const route = parseRoute(path);
     if (!route) return json({ error: 'Not found' }, 404);
 
-    if (route.resource === 'manifest') return json(manifest, 200, 3600);
+    if (route.resource === 'manifest') return json({ error: 'Not found' }, 404);
     if (!typesFor(route.resource).includes(route.type)) return json({ error: 'Not found' }, 404);
 
     switch (route.resource) {
@@ -135,14 +243,14 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
         if (!known) return json({ error: 'Unknown catalog' }, 404);
         const body = checked(
           CatalogResponseSchema,
-          await handlers.catalog({ ...route, request }),
+          await handlers.catalog({ ...route, config, request }),
           validate,
         );
         return json(body, 200, body.cacheMaxAge);
       }
       case 'meta': {
         if (!handlers.meta) break;
-        const result = await handlers.meta({ ...route, request });
+        const result = await handlers.meta({ ...route, config, request });
         if (!result) return json({ error: 'Not found' }, 404);
         const body = checked(MetaResponseSchema, result, validate);
         return json(body, 200, body.cacheMaxAge);
@@ -151,7 +259,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
         if (!handlers.stream) break;
         const body = checked(
           StreamResponseSchema,
-          await handlers.stream({ ...route, request }),
+          await handlers.stream({ ...route, config, request }),
           validate,
         );
         return json(body, 200, body.cacheMaxAge);
@@ -159,6 +267,62 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
     }
     return json({ error: 'Not found' }, 404);
   };
+
+  async function serveConfigure(request: Request, previous: Config | null): Promise<Response> {
+    if (!configure) return json({ error: 'Not found' }, 404);
+    const url = new URL(request.url);
+    const allowed = (target: string | null | undefined) =>
+      target && allowedReturn(target, configure.returnOrigins) ? target : undefined;
+    const page = {
+      name: declared.name,
+      description: declared.description,
+      fields: configure.fields,
+    };
+    if (request.method === 'GET' || request.method === 'HEAD') {
+      const returnTo = allowed(url.searchParams.get('return'));
+      return html(
+        configurePage({
+          ...page,
+          ...(previous ? { values: previous } : {}),
+          ...(returnTo ? { returnTo } : {}),
+        }),
+      );
+    }
+    if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+    // The form posts as `application/x-www-form-urlencoded`, which reads like catalog extras.
+    let values: Extra;
+    try {
+      values = parseExtra(await request.text());
+    } catch {
+      return html(configurePage({ ...page, error: 'The form could not be read.' }), 400);
+    }
+    const form = { get: (name: string): string | null => values[name] ?? null };
+    const raw = form.get('return');
+    const returnTo = allowed(typeof raw === 'string' ? raw : null);
+    const keep = new Set(configure.fields.filter((f) => f.type === 'password').map((f) => f.key));
+    // An empty password field keeps the one already in the URL, so changing a setting does not
+    // mean typing the password again.
+    const read = readForm(configure.fields, {
+      get: (name) => {
+        const value = form.get(name);
+        if (keep.has(name) && (value === null || value === '') && previous) return previous[name];
+        return value;
+      },
+    });
+    const again = (error: string, values: Config) =>
+      html(configurePage({ ...page, values, error, ...(returnTo ? { returnTo } : {}) }), 400);
+    if ('error' in read) return again(read.error, previous ?? {});
+    const problem = await configure.check?.(read.config, request);
+    if (problem) return again(problem, read.config);
+    const newToken = await encodeConfig(read.config, configure.secret);
+    const manifestUrl = `${url.origin}${base}/${newToken}/manifest.json`;
+    if (returnTo)
+      return new Response(null, {
+        status: 303,
+        headers: { Location: returnUrl(returnTo, manifestUrl), 'Referrer-Policy': 'no-referrer' },
+      });
+    return html(configuredPage({ name: declared.name, manifestUrl }));
+  }
 
   return {
     manifest,

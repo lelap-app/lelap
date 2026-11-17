@@ -162,11 +162,45 @@ test('unknown IDs are a 404', async () => {
 });
 `;
 
+const configure = `
+import { createAddon } from '@lelap/sdk';
+
+export function makeAddon(env: { CONFIG_SECRET: string }) {
+  return createAddon({
+    manifest,
+    configure: {
+      // Encrypts the settings in the URL. Keep it in a Workers secret or an environment variable.
+      secret: env.CONFIG_SECRET,
+      // Web builds of the app that may receive the URL at <origin>/addon.
+      returnOrigins: ['https://listen.example.org'],
+      fields: [
+        { key: 'user', label: 'Username', type: 'text', required: true },
+        { key: 'password', label: 'Password', type: 'password', required: true },
+        { key: 'language', label: 'Language', type: 'select', options: ['en', 'de', 'fr'] },
+        { key: 'explicit', label: 'Show explicit episodes', type: 'checkbox' },
+      ],
+      // Sign in before the URL is made; a returned message shows on the form.
+      check: async (config) => ((await signIn(config)) ? undefined : 'Wrong username or password.'),
+    },
+    catalog: async ({ config }) => ({ metas: await listFor(config) }),
+  });
+}
+`;
+
+const health = `
+health: async () => {
+  const response = await fetch(upstreamStatusUrl, { signal: AbortSignal.timeout(3000) });
+  return response.ok ? { status: 'ok' } : { status: 'degraded', message: 'Search is slow' };
+},
+`;
+
 const toc: [string, string][] = [
   ['install', 'Install'],
   ['example', 'A complete add-on'],
   ['runtimes', 'Deno, Bun and Node'],
   ['options', 'Options'],
+  ['configure', 'Settings and sign-in'],
+  ['health', 'Health'],
   ['errors', 'Errors'],
   ['validation', 'Validation'],
   ['testing', 'Testing'],
@@ -264,6 +298,60 @@ const toc: [string, string][] = [
   <p>Several add-ons, each with its own manifest, can share one Worker:</p>
   <CodeBlock code={mounted} />
   <CodeBlock code={onError} />
+
+  <h2 id="configure">Settings and sign-in</h2>
+  <p>
+    Give <code>createAddon</code> a <code>configure</code> option and the SDK serves a settings form
+    at <code>/configure</code>, turns what the listener chose into a token in the add-on’s URL (
+    <code>/e1.…/manifest.json</code>), sends them back to the app, and hands every handler the
+    result as <code>config</code>. Nothing is stored on a server, yours or ours.
+  </p>
+  <CodeBlock code={configure} />
+  <ul>
+    <li>
+      Fields are <code>text</code>, <code>password</code>, <code>select</code> (with{' '}
+      <code>options</code>) and <code>checkbox</code>. Checkboxes arrive as booleans, the rest as
+      strings; empty optional fields are left out.
+    </li>
+    <li>
+      With <code>secret</code>, the token is encrypted with AES-GCM and only your add-on can read
+      it; <code>password</code> fields need one. Without, the token is only encoded (
+      <code>p1.…</code>), so anyone with the URL can read it. Changing the secret makes every
+      configured URL unreadable; those requests answer <code>403</code>.
+    </li>
+    <li>
+      With a required field, the bare manifest says <code>configurationRequired</code> and resources
+      answer <code>403</code> until the listener configures it. The configured manifest leaves the
+      hint out.
+    </li>
+    <li>
+      Reopening Configure from the app shows the current settings, never the password, and an empty
+      password keeps the old one.
+    </li>
+    <li>
+      The page sends the URL back to <code>lelap://addon</code>, or to{' '}
+      <code>https://{'{origin}'}/addon</code> for origins in <code>returnOrigins</code>. Otherwise
+      it shows the URL to copy. The <a href="/docs/protocol/#configure">protocol reference</a>{' '}
+      describes the flow for add-ons without the SDK.
+    </li>
+    <li>
+      On Workers the secret arrives in <code>env</code> with each request, so build the add-on on
+      the first one:{' '}
+      <code>
+        {'let addon; export default { fetch: (req, env) => (addon ??= makeAddon(env)).fetch(req) }'}
+      </code>
+      .
+    </li>
+  </ul>
+
+  <h2 id="health">Health</h2>
+  <p>
+    Every SDK add-on answers <code>GET /health</code> with <code>{'{ "status": "ok" }'}</code> and
+    declares <code>behaviorHints.health</code>; the SDK also sets <code>protocolVersion</code> to{' '}
+    <code>2</code>. Pass a <code>health</code> handler to check what your add-on relies on. Keep it
+    quick: the app asks when Settings → Add-ons opens.
+  </p>
+  <CodeBlock code={health} />
 
   <h2 id="errors">Errors</h2>
   <p>
