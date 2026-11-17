@@ -82,13 +82,13 @@ when it is planned.
 
 ## Environments
 
-| Environment | When     | What                                                                                                                                                    |
-| ----------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Local dev   | Now      | `pnpm dev:site`; `wrangler dev` simulates D1, R2 and KV offline.                                                                                        |
-| Production  | Now      | Merges to `main` deploy the site (and later the PWA).                                                                                                   |
-| PR previews | Optional | Pages branch deploys at `<branch>.lelap-site.pages.dev`; only for branches in this repository, since forks get no secrets.                              |
-| Staging     | From M7  | A `staging` environment in each service's `wrangler.toml` with its own D1 and R2. Merges to `main` deploy services to staging, `v*` tags to production. |
-| Beta        | From M8  | expo-updates `beta` channel and pre-release tags (`v1.2.0-beta.1`) publishing `beta.json`; testers opt in from the app's settings.                      |
+| Environment | When     | What                                                                                                                                                                      |
+| ----------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local dev   | Now      | `pnpm dev:site`; `wrangler dev` simulates D1, R2 and KV offline.                                                                                                          |
+| Production  | Now      | Merges to `main` deploy the site (and later the PWA).                                                                                                                     |
+| PR previews | Optional | Pages branch deploys at `<branch>.lelap-site.pages.dev`; only for branches in this repository, since forks get no secrets.                                                |
+| Staging     | From M7  | A `staging` environment in each service's `wrangler.toml` with its own D1 and R2. Merges to `main` deploy services to staging, `v*` tags (beta and stable) to production. |
+| Beta        | From M8  | expo-updates `beta` channel and pre-release tags (`v1.2.0-beta.1`) publishing `beta.json`; testers opt in from the app's settings.                                        |
 
 ## Before the first public release
 
