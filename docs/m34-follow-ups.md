@@ -2,11 +2,17 @@
 
 Covered by tests (`packages/core/src/importers/importers.test.ts`, fixtures in
 `packages/core/test/fixtures/`): CSV quoting, Goodreads shelves, ISBN formulas and read dates,
-title and author matching, ambiguous titles, AntennaPod feeds, local feeds, unsubscribed feeds,
+title and author matching, the Java serialization reader, Smart AudioBook Player places and finished marks, ambiguous titles, AntennaPod feeds, local feeds, unsubscribed feeds,
 played marks, places, episodes gone from the feed, a second import changing nothing and a newer
 Lelap place winning.
 
 Open on a phone:
+
+- Smart AudioBook Player: with the audiobooks folder chosen and scanned, the import finds the
+  `position.sabp.dat` files, `File.arrayBuffer()` reads their `content://` document URIs, and the
+  books show the same place (file and second) and finished marks as Smart AudioBook Player. The
+  format was worked out from six real files from a Pixel; the tests use two of them with the file
+  names replaced.
 
 - Import a real Goodreads CSV: the counts in the dialog fit, tags show on the matched books and
   the finished books appear in Stats under the year they were read.
@@ -21,9 +27,7 @@ Open on a phone:
 
 Not done:
 
-- **Smart AudioBook Player.** Its backup and per-folder files (`position.sabp.dat`,
-  `bookmarks.sabp.xml`) are undocumented. Needs sample files from a real install (a folder with a
-  place and two bookmarks) to write the parser; the applying side would match by folder and file
-  name against local books and use `saveProgress` and `addBookmark`.
+- **Smart AudioBook Player bookmarks.** `bookmarks.sabp.xml` was not on the test phone; read it
+  once a sample with bookmarks turns up (apply through `addBookmark`).
 - Goodreads books that are not in the library could be looked up through the Catalog add-on
   (Open Library) for a "Want to read" list once M30 lands.
