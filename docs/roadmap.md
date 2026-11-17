@@ -63,6 +63,7 @@ in [`brief.md`](brief.md).
 | [M53 Storage choices](milestones/m53.md)             | Download location, covers from server folders, Atom feeds, export to a file                             |
 | [M54 Faster builds, smaller APKs](milestones/m54.md) | Build unsigned with caches and sign separately; one APK per CPU type                                    |
 | [M55 Light landing page](milestones/m55.md)          | The site and docs in a light theme too, following the system, with a switch                             |
+| [M56 Your copy, linked](milestones/m56.md)           | Books found in Discover linked to your own copy on a folder, WebDAV, S3 or a media server               |
 
 The first stable release is `v0.1.0`, shipped by [M40](milestones/m40.md) with everything built so
 far.
