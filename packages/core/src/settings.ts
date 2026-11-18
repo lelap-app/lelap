@@ -27,7 +27,10 @@ export const SettingsSchema = z.object({
   otaUpdates: z.boolean().default(true),
   /** Books to finish this year; 0 means no goal. Stays on this device. */
   yearlyGoalBooks: z.number().int().min(0).max(1000).default(0),
-  /** Bedtime (M33): a sleep timer starts by itself when playback starts inside the window. */
+  /**
+   * The bedtime routine (M33, M86): a sleep timer and `bedtimeVolume` start by themselves when
+   * the window opens while playing, or when playback starts inside it.
+   */
   bedtimeTimer: z.boolean().default(false),
   /** Minutes after local midnight; the window may cross midnight. */
   bedtimeStart: z
@@ -45,6 +48,10 @@ export const SettingsSchema = z.object({
   /** To the end of the chapter (or episode) instead of `bedtimeMinutes`. */
   bedtimeChapter: z.boolean().default(false),
   bedtimeMinutes: z.number().int().min(1).max(240).default(30),
+  /** Percent of the normal volume while the routine's timer runs; 100 leaves it as it is. */
+  bedtimeVolume: z.number().int().min(10).max(100).default(100),
+  /** In the sleep timer's last five minutes, a shake adds ten more (Android). */
+  shakeToExtend: z.boolean().default(true),
   /** Warn when the Bluetooth headphones' battery likely won't last; needs nearby devices. */
   headphoneBattery: z.boolean().default(false),
   /** Offer car mode when the phone connects to a car's Bluetooth; needs nearby devices. */

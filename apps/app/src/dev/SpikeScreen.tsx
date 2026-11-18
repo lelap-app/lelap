@@ -180,6 +180,7 @@ export function SpikeScreen() {
                 volumeBoost: false,
                 skipSilence: false,
                 evenLoudness: false,
+                shakeToExtend: true,
               }),
             )
           }

@@ -402,7 +402,6 @@
   "Warn about low headphone battery": "Beri amaran tentang bateri fon kepala yang rendah",
   "What it can do": "Apa yang boleh dilakukannya",
   "What this list shows": "Apa yang ditunjukkan senarai ini",
-  "When you press Play in this window, once a night.": "Apabila anda menekan Main dalam tempoh ini, sekali setiap malam.",
   "Whole book": "Seluruh buku",
   "Whole episode": "Seluruh episod",
   "Who’s listening?": "Siapa yang mendengar?",
@@ -978,5 +977,14 @@
   "Look for it in the catalog": "Cari dalam katalog",
   "Open in the Lelap app": "Buka dalam aplikasi Lelap",
   "Back to the book’s chapters?": "Kembali ke bab asal buku?",
-  "Your own chapters for this book go, on your other devices too.": "Bab anda sendiri untuk buku ini akan dibuang, pada peranti anda yang lain juga."
+  "Your own chapters for this book go, on your other devices too.": "Bab anda sendiri untuk buku ini akan dibuang, pada peranti anda yang lain juga.",
+  "Once a night: when this window opens while you listen, or when you press Play in it. Works with the app closed.": "Sekali setiap malam: apabila tempoh ini bermula semasa anda mendengar, atau apabila anda menekan Main di dalamnya. Berfungsi walaupun aplikasi ditutup.",
+  "Volume until the timer ends": "Kelantangan sehingga pemasa tamat",
+  "As it is": "Seperti biasa",
+  "Shake for more time": "Goncang untuk masa tambahan",
+  "In the last five minutes of a sleep timer, shake the phone for ten more.": "Dalam lima minit terakhir pemasa tidur, goncang telefon untuk sepuluh minit lagi.",
+  "The sleep timer stopped playback at {clock}.": "Pemasa tidur menghentikan main balik pada {clock}.",
+  "Back to when you last used it": "Kembali ke saat anda kali terakhir menggunakannya",
+  "{clock}, {n} min before it stopped": "{clock}, {n} min sebelum ia berhenti",
+  "{n} min back": "{n} min ke belakang"
 }

@@ -96,7 +96,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M83 Accessibility 2](milestones/m83.md)             | Planned     |             | One pass over every screen with TalkBack, large text and contrast                                        |
 | [M84 Better sound](milestones/m84.md)                | Done        |          12 | Voice boost, skip silence and even loudness between books                                                |
 | [M85 Chapters and bookmarks 2](milestones/m85.md)    | Done        |          10 | Edit chapter names and times, notes on bookmarks, share a short clip                                     |
-| [M86 Sleep 2](milestones/m86.md)                     | Planned     |             | Shake to extend the timer, a bedtime routine and back to where you fell asleep                           |
+| [M86 Sleep 2](milestones/m86.md)                     | Done        |          14 | Shake for more time as a setting, a bedtime routine with its volume, back to when you last used it       |
 | [M87 Stats and year in sound](milestones/m87.md)     | Done        |           7 | Listening time, finished books and a year overview, worked out on the phone                              |
 | [M88 Podcasts 4](milestones/m88.md)                  | Planned     |             | Transcripts while listening, chapter images, soundbite clips and alternate files                         |
 | [M90 Web app 3](milestones/m90.md)                   | Planned     |             | Offline downloads in the browser, a better installed app, desktop keys                                   |

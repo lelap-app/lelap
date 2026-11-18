@@ -5,6 +5,7 @@ import {
   shouldRefreshLink,
   sleepBoundaryMs,
   sleepFileTarget,
+  sleepStopChoices,
   sleepRemainingMs,
 } from './sleep';
 
@@ -69,5 +70,54 @@ describe('expiring links', () => {
   it('leaves local files and decode errors alone', () => {
     expect(shouldRefreshLink(2, 'file://books/a.mp3', false)).toBe(false);
     expect(shouldRefreshLink(3, 'https://addon.example/a.mp3', false)).toBe(false);
+  });
+});
+
+describe('sleep stop choices', () => {
+  const min = 60_000;
+  const night = 1_000_000_000;
+  // Stopped 90 min into the book; last used 18 min before, at minute 72.
+  const stop = {
+    bookId: 'b',
+    stoppedMs: 90 * min,
+    stoppedAt: night,
+    usedMs: 72 * min,
+    usedAt: night - 18 * min,
+  };
+
+  it('offers the last touch and a few minutes back, about where the timer stopped', () => {
+    expect(sleepStopChoices(stop, 'b', 90 * min, night + 8 * 60 * min)).toEqual({
+      lastUsed: { positionMs: 72 * min, at: night - 18 * min, beforeStopMs: 18 * min },
+      back: [
+        { minutes: 5, positionMs: 85 * min },
+        { minutes: 10, positionMs: 80 * min },
+        { minutes: 15, positionMs: 75 * min },
+      ],
+    });
+    // Smart rewind moved back a few seconds.
+    expect(sleepStopChoices(stop, 'b', 90 * min - 10_000, night + min)).not.toBeNull();
+  });
+
+  it('offers only the minutes back without a touch worth naming', () => {
+    const untouched = { ...stop, usedMs: null, usedAt: null };
+    expect(sleepStopChoices(untouched, 'b', 90 * min, night)?.lastUsed).toBeNull();
+    const justBefore = { ...stop, usedMs: 89.5 * min, usedAt: night - 30_000 };
+    expect(sleepStopChoices(justBefore, 'b', 90 * min, night)?.lastUsed).toBeNull();
+  });
+
+  it('leaves out choices before the start of the book', () => {
+    const early = { ...stop, stoppedMs: 7 * min, usedMs: null, usedAt: null };
+    expect(sleepStopChoices(early, 'b', 7 * min, night)?.back).toEqual([
+      { minutes: 5, positionMs: 2 * min },
+    ]);
+    const start = { ...early, stoppedMs: 3 * min };
+    expect(sleepStopChoices(start, 'b', 3 * min, night)).toBeNull();
+  });
+
+  it('stops offering once the listener plays on, in another book, or a day later', () => {
+    expect(sleepStopChoices(stop, 'b', 93 * min, night)).toBeNull();
+    expect(sleepStopChoices(stop, 'other', 90 * min, night)).toBeNull();
+    expect(sleepStopChoices(stop, 'b', 90 * min, night + 25 * 60 * min)).toBeNull();
+    expect(sleepStopChoices(null, 'b', 90 * min, night)).toBeNull();
   });
 });

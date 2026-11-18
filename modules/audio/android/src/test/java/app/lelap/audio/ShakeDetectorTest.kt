@@ -50,4 +50,19 @@ class ShakeDetectorTest {
     assertFalse(jolt(2_700))
     assertTrue(jolt(2_900))
   }
+
+  @Test fun batchedSamplesCountByTheirOwnTime() {
+    // Delivered together long after; the measured times still make three separate jolts.
+    now = 5_000
+    assertFalse(detector.onSample(hard, 0f, 0f, atMs = 4_600))
+    assertFalse(detector.onSample(hard, 0f, 0f, atMs = 4_750))
+    assertTrue(detector.onSample(hard, 0f, 0f, atMs = 4_900))
+  }
+
+  @Test fun batchedSamplesOfOneJoltCountOnce() {
+    now = 5_000
+    assertFalse(detector.onSample(hard, 0f, 0f, atMs = 4_600))
+    assertFalse(detector.onSample(hard, 0f, 0f, atMs = 4_620))
+    assertFalse(detector.onSample(hard, 0f, 0f, atMs = 4_640))
+  }
 }

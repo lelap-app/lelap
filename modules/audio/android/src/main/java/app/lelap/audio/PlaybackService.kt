@@ -70,6 +70,9 @@ private const val TIMER_TICK_MS = 250L
 private const val CHAPTER_TICK_MS = 1_000L
 // A chapter or episode timer's end moves with seeks and speed; the app hears it this often.
 private const val BOUNDARY_PUBLISH_TICKS = 20
+// How long the sensor may hold accelerometer samples before handing them over; a shake answers
+// this much later at most.
+private const val SHAKE_BATCH_US = 200_000
 
 @OptIn(UnstableApi::class)
 private const val PAUSE_SETTLE_MS = 500L
@@ -110,10 +113,13 @@ class PlaybackService : MediaLibraryService() {
   private val sensors by lazy { getSystemService(SENSOR_SERVICE) as SensorManager }
   private val shake = ShakeDetector(SystemClock::elapsedRealtime)
   private var listeningForShake = false
+  private var shakeToExtend = true
   private val shakeListener = object : SensorEventListener {
     override fun onSensorChanged(event: SensorEvent) {
       val (x, y, z) = event.values
-      if (sleepTimer.acceptsShake && shake.onSample(x, y, z)) extendSleepTimer()
+      // Batched samples arrive together; the sensor's own time keeps their spacing.
+      val atMs = event.timestamp / 1_000_000L
+      if (sleepTimer.acceptsShake && shake.onSample(x, y, z, atMs)) extendSleepTimer()
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
@@ -194,6 +200,25 @@ class PlaybackService : MediaLibraryService() {
       session.notifyChildrenChanged(CarLibrary.ROOT, Int.MAX_VALUE, null)
     }
   }
+  // The bedtime window opens now (BedtimeAlarm): a book already playing gets the routine. A new
+  // clock time or time zone moves the window's next start.
+  private val bedtimeReceiver = object : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+      BedtimeAlarm.schedule(context)
+      if (intent.action != Commands.BEDTIME_NOW) return
+      if (::session.isInitialized && active.playWhenReady) startBedtimeTimer()
+    }
+  }
+  // The routine changed while its volume applies (turned off, a new volume, another profile's).
+  private val bedtimeListener = SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
+    if (key != Commands.PREF_BEDTIME || !::mixer.isInitialized || mixer.bedtime >= 1f) return@OnSharedPreferenceChangeListener
+    mixer.bedtime = Bedtime.decode(p.getString(Commands.PREF_BEDTIME, null))?.gain ?: 1f
+  }
+
+  // The listener's last touch of the player (M86): the last moment they surely were awake, offered
+  // when the sleep timer stops playback. Only their own commands count, never auto-advance.
+  private var lastInteraction: PlaceMark? = null
+
   private var queue: List<BookLoad> = emptyList()
 
   private var skipIntervalMs = 30_000L
@@ -277,10 +302,13 @@ class PlaybackService : MediaLibraryService() {
         remote?.setFade(it)
       },
       onFinished = {
+        keepSleepPlace()
         clearBoundary()
         // A receiver is paused straight away; it holds no audio focus to give up.
         val r = remote
         if (r != null) r.pause() else rules.onSleepTimerFinished()
+        // The routine's quieter volume ends with its timer; the next Play is at full volume.
+        mixer.bedtime = 1f
         publishExtras()
       },
     )
@@ -295,6 +323,7 @@ class PlaybackService : MediaLibraryService() {
     }
     skipIntervalMs = prefs.getLong(Commands.KEY_SKIP_INTERVAL_MS, 30_000L)
     smartRewind = prefs.getBoolean(Commands.KEY_SMART_REWIND, true)
+    shakeToExtend = prefs.getBoolean(Commands.KEY_SHAKE_TO_EXTEND, true)
     sound.mono = prefs.getBoolean(Commands.KEY_MONO, false)
     sound.boost = prefs.getBoolean(Commands.KEY_VOLUME_BOOST, false)
     soundDefaults = SoundChoice(
@@ -391,6 +420,18 @@ class PlaybackService : MediaLibraryService() {
       IntentFilter(NativeText.CHANGED),
       ContextCompat.RECEIVER_NOT_EXPORTED,
     )
+    ContextCompat.registerReceiver(
+      this,
+      bedtimeReceiver,
+      IntentFilter(Commands.BEDTIME_NOW).apply {
+        addAction(Intent.ACTION_TIME_CHANGED)
+        addAction(Intent.ACTION_TIMEZONE_CHANGED)
+      },
+      ContextCompat.RECEIVER_NOT_EXPORTED,
+    )
+    prefs.registerOnSharedPreferenceChangeListener(bedtimeListener)
+    // After a reboot the alarm is gone until the service or the app starts again.
+    BedtimeAlarm.schedule(this)
     publishExtras()
   }
 
@@ -420,6 +461,8 @@ class PlaybackService : MediaLibraryService() {
     stopShakeListening()
     prefs.unregisterOnSharedPreferenceChangeListener(carListener)
     unregisterReceiver(languageReceiver)
+    unregisterReceiver(bedtimeReceiver)
+    prefs.unregisterOnSharedPreferenceChangeListener(bedtimeListener)
     focus.abandon()
     session.release()
     player.release()
@@ -758,10 +801,12 @@ class PlaybackService : MediaLibraryService() {
     if (known != null && known != C.TIME_UNSET) known else current?.files?.getOrNull(i)?.durationMs ?: 0L
   }
 
+  /** Back or forward by [deltaMs]: always the listener's own press (a controller or the widget). */
   private fun skipBy(deltaMs: Long) {
     if (player.mediaItemCount == 0) return
     val (index, position) = SeekRules.skip(active.currentMediaItemIndex, active.currentPosition, deltaMs, durations())
     active.seekTo(index, position)
+    noteInteraction()
   }
 
   private fun chapterTitleAt(playlist: BookPlaylist, index: Int, positionMs: Long): String? {
@@ -784,9 +829,27 @@ class PlaybackService : MediaLibraryService() {
 
   /**
    * The session's player, ExoPlayer or the receiver: previous and next skip by the skip interval,
-   * across files.
+   * across files. Every controller goes through it (the app, the notification, the lock screen,
+   * headphones, watches and cars), while the service's own moves (smart rewind, the timer's stop,
+   * the next part) use the players directly. So its commands are the listener's touches.
    */
   private inner class SkippingPlayer(private val base: Player = player) : ForwardingPlayer(base) {
+    private fun touched(command: () -> Unit) {
+      command()
+      noteInteraction()
+    }
+
+    override fun play() = touched { super.play() }
+    override fun pause() = touched { super.pause() }
+    override fun setPlayWhenReady(playWhenReady: Boolean) = touched { super.setPlayWhenReady(playWhenReady) }
+    override fun seekTo(positionMs: Long) = touched { super.seekTo(positionMs) }
+    override fun seekTo(mediaItemIndex: Int, positionMs: Long) = touched { super.seekTo(mediaItemIndex, positionMs) }
+    override fun seekToDefaultPosition() = touched { super.seekToDefaultPosition() }
+    override fun seekToDefaultPosition(mediaItemIndex: Int) = touched { super.seekToDefaultPosition(mediaItemIndex) }
+    override fun setPlaybackSpeed(speed: Float) = touched { super.setPlaybackSpeed(speed) }
+    override fun setPlaybackParameters(playbackParameters: PlaybackParameters) =
+      touched { super.setPlaybackParameters(playbackParameters) }
+
     private val skipCommands = intArrayOf(
       Player.COMMAND_SEEK_TO_PREVIOUS, Player.COMMAND_SEEK_TO_NEXT,
       Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM, Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
@@ -879,7 +942,28 @@ class PlaybackService : MediaLibraryService() {
     handler.removeCallbacks(timerTicker)
     sleepTimer.cancel()
     clearBoundary()
+    mixer.bedtime = 1f
     publishExtras()
+  }
+
+  /** Where the listener is now, for [SleepPlace]; null with no book. */
+  private fun placeMark(): PlaceMark? {
+    val bookId = current?.bookId ?: return null
+    if (player.mediaItemCount == 0) return null
+    return PlaceMark(bookId, System.currentTimeMillis(), bookPositionNow(timelineDurations()))
+  }
+
+  /** The listener touched the player: they were surely awake here. */
+  private fun noteInteraction() {
+    placeMark()?.let { lastInteraction = it }
+  }
+
+  /** The timer stops playback: keep where, and where the listener last used the player, for the app. */
+  private fun keepSleepPlace() {
+    val place = placeMark()?.let { SleepPlace.at(it, lastInteraction) }
+    val edit = prefs.edit()
+    if (place == null) edit.remove(Commands.PREF_SLEEP_PLACE) else edit.putString(Commands.PREF_SLEEP_PLACE, place.encode())
+    edit.apply()
   }
 
   /** The notification's sleep timer button: 15 min → 30 min → end of chapter → off. */
@@ -926,7 +1010,11 @@ class PlaybackService : MediaLibraryService() {
     session.setMediaButtonPreferences(listOf(back, forward, sleep))
   }
 
-  /** Starts the bedtime timer when Play falls inside the window the app set; once per night. */
+  /**
+   * The bedtime routine, once per night: when Play falls inside the window the app set, or when
+   * the window opens while playing. A timer, unless the listener set one, and the quieter volume
+   * until the timer ends.
+   */
   private fun startBedtimeTimer() {
     val bedtime = Bedtime.decode(prefs.getString(Commands.PREF_BEDTIME, null)) ?: return
     val now = System.currentTimeMillis()
@@ -935,9 +1023,11 @@ class PlaybackService : MediaLibraryService() {
     val night = Bedtime.nightToMark(bedtime, day, minute, lastNight) ?: return
     // A timer the listener set first counts as tonight's, so turning it off later keeps it off.
     prefs.edit().putLong(Commands.PREF_BEDTIME_NIGHT, night).apply()
-    if (sleepTimer.isActive) return
-    sleepPressed = null
-    if (bedtime.chapter) startSleepTimer(SleepMode.CHAPTER, 0L) else startSleepTimer(SleepMode.MINUTES, bedtime.minutes * 60_000L)
+    if (!sleepTimer.isActive) {
+      sleepPressed = null
+      if (bedtime.chapter) startSleepTimer(SleepMode.CHAPTER, 0L) else startSleepTimer(SleepMode.MINUTES, bedtime.minutes * 60_000L)
+    }
+    if (sleepTimer.isActive) mixer.bedtime = bedtime.gain
   }
 
   /** Saves what plays now for the widget and tile, and tells them; only when it changed. */
@@ -1040,20 +1130,28 @@ class PlaybackService : MediaLibraryService() {
     sleepTimer.extend(SHAKE_EXTENSION_MS)
     clearBoundary()
     shake.reset()
+    noteInteraction()
     publishExtras()
   }
 
-  // The accelerometer is only on while a shake would count, so it costs nothing otherwise. It
-  // needs no permission; ExoPlayer's wake lock keeps it reporting with the screen off.
+  // The accelerometer is only on while a shake would count (the timer counting down, in its last
+  // minutes, with the setting on), so it costs nothing otherwise. It needs no permission;
+  // ExoPlayer's wake lock keeps it reporting with the screen off.
   private fun updateShakeListening() {
-    if (sleepTimer.acceptsShake) startShakeListening() else stopShakeListening()
+    if (shakeToExtend && sleepTimer.acceptsShake) startShakeListening() else stopShakeListening()
   }
 
   private fun startShakeListening() {
     if (listeningForShake) return
     val accelerometer = sensors.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) ?: return
     shake.reset()
-    listeningForShake = sensors.registerListener(shakeListener, accelerometer, SensorManager.SENSOR_DELAY_GAME)
+    // Batched by the sensor hub, so the app wakes a few times a second rather than 50.
+    listeningForShake = sensors.registerListener(
+      shakeListener,
+      accelerometer,
+      SensorManager.SENSOR_DELAY_GAME,
+      SHAKE_BATCH_US,
+    )
   }
 
   private fun stopShakeListening() {
@@ -1390,6 +1488,8 @@ class PlaybackService : MediaLibraryService() {
             (session.player as? SkippingPlayer)?.increments?.announce(interval)
           }
           smartRewind = args.getBoolean(Commands.KEY_SMART_REWIND, true)
+          shakeToExtend = args.getBoolean(Commands.KEY_SHAKE_TO_EXTEND, true)
+          updateShakeListening()
           sound.mono = args.getBoolean(Commands.KEY_MONO, false)
           sound.boost = args.getBoolean(Commands.KEY_VOLUME_BOOST, false)
           soundDefaults = SoundChoice(
@@ -1402,6 +1502,7 @@ class PlaybackService : MediaLibraryService() {
             .putBoolean(Commands.EXTRA_DUCK, duck)
             .putLong(Commands.KEY_SKIP_INTERVAL_MS, skipIntervalMs)
             .putBoolean(Commands.KEY_SMART_REWIND, smartRewind)
+            .putBoolean(Commands.KEY_SHAKE_TO_EXTEND, shakeToExtend)
             .putBoolean(Commands.KEY_MONO, sound.mono)
             .putBoolean(Commands.KEY_VOICE_EQ, soundDefaults.voiceEq)
             .putBoolean(Commands.KEY_SKIP_SILENCE, soundDefaults.skipSilence)
@@ -1412,10 +1513,20 @@ class PlaybackService : MediaLibraryService() {
         Commands.START_SLEEP_TIMER -> {
           val mode = SleepMode.fromWire(args.getString(Commands.KEY_SLEEP_MODE)) ?: SleepMode.MINUTES
           sleepPressed = null
+          // The listener's own timer replaces the routine's, and its volume with it.
+          mixer.bedtime = 1f
           startSleepTimer(mode, args.getLong(Commands.KEY_DURATION_MS))
+          noteInteraction()
         }
-        Commands.CANCEL_SLEEP_TIMER -> cancelSleepTimer()
-        Commands.CYCLE_SLEEP_TIMER -> cycleSleepTimer()
+        Commands.CANCEL_SLEEP_TIMER -> {
+          cancelSleepTimer()
+          noteInteraction()
+        }
+        Commands.CYCLE_SLEEP_TIMER -> {
+          mixer.bedtime = 1f
+          cycleSleepTimer()
+          noteInteraction()
+        }
         // Another profile is listening now and has nothing to play: clear the lock screen and
         // notification. The place was journaled at the pause before this.
         Commands.UNLOAD -> {
@@ -1428,6 +1539,7 @@ class PlaybackService : MediaLibraryService() {
           player.clearMediaItems()
           current = null
           forgetJournaledBook()
+          lastInteraction = null
         }
         Commands.SET_QUEUE -> {
           val json = args.getString(Commands.KEY_QUEUE_JSON).orEmpty()
@@ -1451,7 +1563,12 @@ class PlaybackService : MediaLibraryService() {
             ?: return Futures.immediateFuture(
               SessionResult(SessionError(SessionError.ERROR_BAD_VALUE, "The player could not read this book")),
             )
-          loadBook(load, args.getBoolean(Commands.KEY_AUTOPLAY, false))
+          val autoplay = args.getBoolean(Commands.KEY_AUTOPLAY, false)
+          // A touch in another book says nothing about this one.
+          if (lastInteraction?.bookId != load.playlist.bookId) lastInteraction = null
+          loadBook(load, autoplay)
+          // The listener's Play from the library: it plays through ExoPlayer, not the session.
+          if (autoplay) noteInteraction()
         }
         else -> return Futures.immediateFuture(
           SessionResult(SessionError(SessionError.ERROR_NOT_SUPPORTED, "Unknown command ${customCommand.customAction}")),

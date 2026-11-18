@@ -74,4 +74,47 @@ class BedtimeTest {
     assertNull(Bedtime.decode(null))
     assertNull(Bedtime.decode("not json"))
   }
+
+  @Test
+  fun keepsTheRoutineVolumeAndNeverMutes() {
+    val w = Bedtime(minute("22:00"), minute("02:00"), chapter = false, minutes = 30, volume = 60)
+    assertEquals(w, Bedtime.decode(w.encode()))
+    assertEquals(0.6f, w.gain, 1e-6f)
+    // A window saved before M86 plays at full volume.
+    val old = """{"startMinute":1320,"endMinute":120,"chapter":false,"minutes":30}"""
+    assertEquals(100, Bedtime.decode(old)?.volume)
+    val silent = """{"startMinute":1320,"endMinute":120,"chapter":false,"minutes":30,"volume":0}"""
+    assertEquals(Bedtime.MIN_VOLUME, Bedtime.decode(silent)?.volume)
+  }
+
+  private val hour = 3_600_000L
+  private val day = 24 * hour
+
+  @Test
+  fun nextStartIsTonightOrTomorrow() {
+    val w = window("22:00", "02:00")
+    // Day 10, 21:00 UTC: tonight at 22:00.
+    assertEquals(10 * day + 22 * hour, Bedtime.nextStartMs(w, 10 * day + 21 * hour) { 0 })
+    // Exactly at the start, or after it: tomorrow, as the alarm sets the next one when it fires.
+    assertEquals(11 * day + 22 * hour, Bedtime.nextStartMs(w, 10 * day + 22 * hour) { 0 })
+    assertEquals(11 * day + 22 * hour, Bedtime.nextStartMs(w, 10 * day + 23 * hour) { 0 })
+    assertEquals(11 * day + 22 * hour, Bedtime.nextStartMs(w, 11 * day + 1 * hour) { 0 })
+  }
+
+  @Test
+  fun nextStartFollowsTheLocalZone() {
+    val w = window("22:00", "02:00")
+    // At UTC+2, 22:00 local is 20:00 UTC.
+    assertEquals(10 * day + 20 * hour, Bedtime.nextStartMs(w, 10 * day + 12 * hour) { (2 * hour).toInt() })
+    // Summer time ends before tonight: the offset at the start counts, not the one now.
+    val change = 10 * day + 18 * hour
+    val offset = { at: Long -> (if (at < change) 2 * hour else 1 * hour).toInt() }
+    assertEquals(10 * day + 21 * hour, Bedtime.nextStartMs(w, 10 * day + 12 * hour, offset))
+  }
+
+  @Test
+  fun noNextStartWhenOffOrEmpty() {
+    assertNull(Bedtime.nextStartMs(null, 0L) { 0 })
+    assertNull(Bedtime.nextStartMs(window("22:00", "22:00"), 0L) { 0 })
+  }
 }

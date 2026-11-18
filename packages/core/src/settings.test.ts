@@ -26,6 +26,8 @@ describe('settings', () => {
       bedtimeEnd: 120,
       bedtimeChapter: false,
       bedtimeMinutes: 30,
+      bedtimeVolume: 100,
+      shakeToExtend: true,
       headphoneBattery: false,
       carModeOffer: false,
       homeSuggestions: true,

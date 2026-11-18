@@ -60,6 +60,8 @@ export type PlayerSettings = {
   evenLoudness: boolean;
   /** +6 dB with a limiter, so loud parts never clip. */
   volumeBoost: boolean;
+  /** In the sleep timer's last minutes, a shake adds ten more (Android). */
+  shakeToExtend: boolean;
 };
 
 /** The service's last saved place. Same shape as `JournalEntry` in `@lelap/core`. */
@@ -143,7 +145,10 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
     duck: boolean,
     skipIntervalMs: number,
     smartRewind: boolean,
-    sound: Record<'mono' | 'voiceEq' | 'volumeBoost' | 'skipSilence' | 'evenLoudness', boolean>,
+    switches: Record<
+      'mono' | 'voiceEq' | 'volumeBoost' | 'skipSilence' | 'evenLoudness' | 'shakeToExtend',
+      boolean
+    >,
   ): Promise<void>;
   silenceSavedMs(bookId: string): Promise<number>;
   skip(forward: boolean): Promise<void>;
@@ -161,6 +166,8 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   settleAccounting(): Promise<void>;
   setCarLibrary(json: string): Promise<void>;
   setBedtime(json: string | null): Promise<void>;
+  getSleepPlace(): Promise<SleepPlace | null>;
+  clearSleepPlace(): Promise<void>;
   setDiagnostics(on: boolean): Promise<void>;
   takeDiagnostics(): Promise<PlayerDiagnostic[]>;
   getState(): Promise<PlayerState>;
@@ -217,6 +224,7 @@ export function setSettings(settings: PlayerSettings): Promise<void> {
       volumeBoost: settings.volumeBoost,
       skipSilence: settings.skipSilence,
       evenLoudness: settings.evenLoudness,
+      shakeToExtend: settings.shakeToExtend,
     },
   );
 }
@@ -311,8 +319,9 @@ export function setCarLibrary(library: CarLibrary): Promise<void> {
 }
 
 /**
- * "Start a sleep timer at bedtime": when playback starts inside the window (minutes after local
- * midnight; it may cross midnight), the service starts a timer by itself, once per night.
+ * The bedtime routine: when the window (minutes after local midnight; it may cross midnight)
+ * opens while playing, or when playback starts inside it, the service starts a timer and plays at
+ * `volume` percent until it ends, by itself, once per night.
  */
 export type Bedtime = {
   startMinute: number;
@@ -320,11 +329,36 @@ export type Bedtime = {
   /** To the end of the chapter instead of `minutes`. */
   chapter: boolean;
   minutes: number;
+  /** Percent of the normal volume while the routine's timer runs; 100 keeps it. */
+  volume: number;
 };
 
-/** Hands the service the bedtime window; null turns it off. Works with the app closed. */
+/** Hands the service the bedtime routine; null turns it off. Works with the app closed. */
 export function setBedtime(bedtime: Bedtime | null): Promise<void> {
   return native.setBedtime(bedtime ? JSON.stringify(bedtime) : null);
+}
+
+/**
+ * Where and when the sleep timer stopped playback (M86), and where and when the listener last used
+ * the player before that: the last moment they surely were awake. Positions are on the whole-book
+ * timeline; times are wall-clock.
+ */
+export type SleepPlace = {
+  bookId: string;
+  stoppedMs: number;
+  stoppedAt: number;
+  /** Null when they didn't touch the player in this book before the stop. */
+  usedMs: number | null;
+  usedAt: number | null;
+};
+
+/** The place the timer last left, kept until the app clears it. */
+export function getSleepPlace(): Promise<SleepPlace | null> {
+  return native.getSleepPlace();
+}
+
+export function clearSleepPlace(): Promise<void> {
+  return native.clearSleepPlace();
 }
 
 /**

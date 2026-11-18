@@ -63,6 +63,7 @@ const SETTINGS: (keyof Settings)[] = [
   'downloadOnWifiOnly',
   'downloadWhileChargingOnly',
   'bedtimeTimer',
+  'shakeToExtend',
   'headphoneBattery',
   'carModeOffer',
   'homeSuggestions',
