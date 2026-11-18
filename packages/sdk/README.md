@@ -123,8 +123,8 @@ this package is published; the rest of the workspace is private and Changesets s
    Open a pull request with the result.
 
 3. Merging it to `main` starts the `SDK` workflow (`.github/workflows/sdk.yml`). It builds and
-   tests the package, sees that npm doesn't have the version yet and waits in the `npm`
-   environment for a reviewer. Once approved, it packs the tarball with `pnpm pack` and runs
+   tests the package, sees that npm doesn't have the version yet, packs the tarball with
+   `pnpm pack` and runs
    `npm publish --provenance`, so npm shows where and how the package was built. Versions with a
    prerelease part (`0.3.0-beta.1`) go to the `next` tag.
 

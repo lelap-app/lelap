@@ -1,8 +1,8 @@
 name: SDK
 
 # Publishes @lelap/sdk to npm when a merge to main carries a version that npm doesn't have yet
-# (after `pnpm changeset version`, see packages/sdk/README.md). Publishing runs in the `npm`
-# environment, limited to main and gated by a reviewer, so pull requests never reach it.
+# (after `pnpm changeset version`, see packages/sdk/README.md). It runs only on pushes to main, so
+# pull requests never reach the publish job; merging the version bump is the approval.
 on:
   push:
     branches: [main]
@@ -61,9 +61,6 @@ jobs:
     needs: check
     if: needs.check.outputs.publish == 'true'
     runs-on: ubuntu-latest
-    environment:
-      name: npm
-      url: https://www.npmjs.com/package/@lelap/sdk/v/${{ needs.check.outputs.version }}
     permissions:
       contents: read
       # OIDC for npm trusted publishing and the provenance statement.
@@ -76,7 +73,6 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
-          registry-url: https://registry.npmjs.org
           # No shared caches in jobs that publish.
           package-manager-cache: false
       - run: pnpm install --frozen-lockfile --filter @lelap/sdk
@@ -86,13 +82,11 @@ jobs:
       - name: Pack
         working-directory: packages/sdk
         run: pnpm pack --pack-destination "$RUNNER_TEMP"
-      # npm tries trusted publishing (OIDC, `id-token: write` above) before any token; 0.4.0 went
-      # out that way with NPM_TOKEN empty, which also hides setup-node's placeholder token. The
-      # line goes once the maintainer has confirmed the trusted publisher and turned off token
-      # publishing (docs/milestones/m70.md).
+      # Trusted publishing: npm takes this workflow's OIDC token (`id-token: write` above), so no
+      # npm token exists anywhere. The trusted publisher on npmjs.com names this repository and
+      # `sdk.yml`, with no environment.
       - name: Publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ needs.check.outputs.version }}
         run: |
           # Prereleases (0.3.0-beta.1) go to the `next` tag so `npm install` keeps the stable one.
