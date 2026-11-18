@@ -36,6 +36,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { hint as hintProps } from '../src/a11y';
 import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
@@ -147,7 +148,7 @@ function Field({
         onChangeText={onChange}
         placeholder={placeholder}
         accessibilityLabel={label}
-        {...(hint === undefined ? {} : { accessibilityHint: hint })}
+        {...hintProps(hint)}
         placeholderTextColor="#8d8a83"
         autoCapitalize="none"
         autoCorrect={false}

@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { hint } from '../a11y';
 import { t } from '../i18n';
 import { FadeIn } from './Motion';
 import { COLORS, Icon } from './Icon';
@@ -31,7 +32,7 @@ export function MiniPlayer({ inset = true }: { inset?: boolean }) {
       <Pressable
         onPress={() => router.push('/player')}
         {...ROW_BUTTON}
-        accessibilityHint={t('Opens the player')}
+        {...hint(t('Opens the player'))}
         style={{ paddingBottom: (inset ? insets.bottom : 0) + 8 }}
         className="border-t border-line bg-raised"
       >

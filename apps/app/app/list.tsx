@@ -16,6 +16,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { hint } from '../src/a11y';
 import { t } from '../src/i18n';
 import { openPlayer } from '../src/navigation';
 import { EmptyState } from '../src/components/Lori';
@@ -266,7 +267,7 @@ export default function ListScreen() {
                 disabled={!list}
                 onPress={() => setName(list?.name ?? '')}
                 accessibilityRole={list ? 'button' : 'header'}
-                accessibilityHint={list ? t('Rename') : undefined}
+                {...hint(list ? t('Rename') : undefined)}
                 className="min-h-12 justify-center"
               >
                 <Text className="text-3xl font-semibold text-paper">

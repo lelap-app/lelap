@@ -198,6 +198,8 @@ export type AddonScan = {
   listed: ListedFile[];
   /** For files the add-on gave a length for; the rest are read like a WebDAV server's. */
   tags: Map<string, FileTags>;
+  /** Tags given for a file that is read anyway, for what its own tags lack (see `fillTags`). */
+  hints: Map<string, TagHints>;
   /** Cover addresses by book location: the folder's, and the file's for a single-file book. */
   covers: Map<string, string>;
   /** Files and covers left out because they point at a host the add-on may not reach. */
@@ -218,6 +220,7 @@ export function addonLibraryScan(
 ): AddonScan {
   const listed: ListedFile[] = [];
   const tags = new Map<string, FileTags>();
+  const hints = new Map<string, TagHints>();
   const covers = new Map<string, string>();
   const places: RemotePlace[] = [];
   const seen = new Set<string>();
@@ -262,6 +265,14 @@ export function addonLibraryScan(
         chapters: file.chapters ?? [],
         ids: file.ids ? normalizeIds(file.ids) : null,
       });
+    } else if (file.title || file.album || file.artist || file.albumArtist || file.ids) {
+      hints.set(location, {
+        title: file.title ?? null,
+        album: file.album ?? null,
+        artist: file.artist ?? null,
+        albumArtist: file.albumArtist ?? null,
+        ids: file.ids ? normalizeIds(file.ids) : null,
+      });
     }
     if (file.cover) {
       if (!hostAllowed(file.cover, hosts)) {
@@ -273,7 +284,25 @@ export function addonLibraryScan(
       covers.set(location, file.cover);
     }
   }
-  return { listed, tags, covers, refused, places };
+  return { listed, tags, hints, covers, refused, places };
+}
+
+export type TagHints = Pick<FileTags, 'title' | 'album' | 'artist' | 'albumArtist' | 'ids'>;
+
+/**
+ * A file's own tags, with the add-on's for what they lack: a browser reads only the length, so
+ * without these the first file of a Subsonic or Plex book would be named after its file.
+ */
+export function fillTags(read: FileTags, hints: TagHints | undefined): FileTags {
+  if (!hints) return read;
+  return {
+    ...read,
+    title: read.title ?? hints.title,
+    album: read.album ?? hints.album,
+    artist: read.artist ?? hints.artist,
+    albumArtist: read.albumArtist ?? hints.albumArtist,
+    ...(read.ids || hints.ids ? { ids: read.ids ?? hints.ids ?? null } : {}),
+  };
 }
 
 /**

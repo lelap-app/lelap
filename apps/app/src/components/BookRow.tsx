@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { deleteKeyAction } from '../a11y';
 import { t } from '../i18n';
 import { BookCover, coverUri } from './BookCover';
 import { useBookBadges } from './CoverBadges';
@@ -129,6 +130,7 @@ export const BookRow = memo(function BookRow({
           {...ROW_BUTTON}
           {...actions}
           onAccessibilityAction={onAction}
+          {...deleteKeyAction(swipe?.label, () => swipe?.onSwipe(book))}
           className={`flex-row items-center gap-3 bg-night px-4 py-2 active:bg-raised ${book.missing || unavailable ? 'opacity-40' : ''}`}
         >
           <BookCover uri={coverUri(book)} title={book.title} size={56} badges={badges} />

@@ -1,7 +1,8 @@
-import { SCRUB_RATE_LABELS, scrubRate, snapTo } from '@lelap/core';
+import { SCRUB_RATE_LABELS, scrubRate, sliderKey, snapTo } from '@lelap/core';
 import { useMemo, useRef, useState } from 'react';
 import { PanResponder, Platform, Pressable, Text, Vibration, View } from 'react-native';
 
+import { hint } from '../a11y';
 import { t } from '../i18n';
 import { formatClock } from '../format';
 
@@ -119,6 +120,25 @@ export function Scrubber({
   const thumb = held?.dragging ? THUMB_DRAGGING : THUMB;
   const length = Math.max(1, lengthMs);
 
+  // On the web the bar takes focus, and the arrows, Page Up and Down, Home and End move it.
+  // react-native-web passes both to the element; React Native's types don't know them.
+  const keys: object =
+    Platform.OS === 'web'
+      ? {
+          tabIndex: 0,
+          onKeyDown: (event: { key: string; preventDefault: () => void }) => {
+            const next = sliderKey(event.key, ratio, STEP);
+            if (next === null) return;
+            event.preventDefault();
+            // Held like a drop after a drag, so quick presses add up before the player catches up.
+            if (settle.current) clearTimeout(settle.current);
+            setHeld({ ratio: next, dragging: false, rate: 1, snapped: false });
+            settle.current = setTimeout(() => setHeld(null), SETTLE_MS);
+            onSeek(next * lengthMs);
+          },
+        }
+      : {};
+
   return (
     <View className="gap-1">
       {held?.dragging && held.rate < 1 && (
@@ -148,6 +168,7 @@ export function Scrubber({
           const by = e.nativeEvent.actionName === 'increment' ? STEP : -STEP;
           onSeek(clamp(ratio + by) * lengthMs);
         }}
+        {...keys}
         style={LTR}
         className="h-12 justify-center"
       >
@@ -200,7 +221,7 @@ export function Scrubber({
           disabled={!onPressElapsed}
           accessibilityRole={onPressElapsed ? 'button' : 'text'}
           className="min-h-12 justify-center"
-          accessibilityHint={onPressElapsed ? t('Jump to a time') : undefined}
+          {...hint(onPressElapsed ? t('Jump to a time') : undefined)}
         >
           <Text
             className={`text-sm ${held?.dragging ? 'font-semibold text-amber' : 'text-muted'} ${onPressElapsed ? 'underline' : ''}`}

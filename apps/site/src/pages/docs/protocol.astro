@@ -519,7 +519,7 @@ const libraryFields: Field[] = [
     type: 'integer ≥ 0',
     required: false,
     meaning:
-      'With it, the app takes `title`, `album`, `artist`, `albumArtist`, `chapters` and `ids` as they are; without it, it reads the tags from the file itself.',
+      'With it, the app takes `title`, `album`, `artist`, `albumArtist`, `chapters` and `ids` as they are; without it, it reads the tags from the file itself, and `title`, `album`, `artist`, `albumArtist` and `ids` fill in what the file lacks (a browser reads only the length).',
   },
   {
     name: 'album',

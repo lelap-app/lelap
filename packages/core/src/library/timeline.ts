@@ -41,3 +41,20 @@ export function chapterAt(chapters: { startMs: number }[], bookPositionMs: numbe
   }
   return current;
 }
+
+/**
+ * The stretch a system media control shows as its progress bar: the chapter playing, or the whole
+ * book when it has no chapters. Offsets are whole-book milliseconds.
+ */
+export function mediaSpan(
+  chapters: { startMs: number }[],
+  totalMs: number,
+  bookPositionMs: number,
+): { startMs: number; lengthMs: number } {
+  const current = chapterAt(chapters, bookPositionMs);
+  const start = chapters[current]?.startMs ?? 0;
+  const end = Math.min(totalMs, chapters[current + 1]?.startMs ?? totalMs);
+  // Durations still unknown, or chapters past the end of the files: the whole book.
+  if (end <= start) return { startMs: 0, lengthMs: Math.max(0, totalMs) };
+  return { startMs: start, lengthMs: end - start };
+}

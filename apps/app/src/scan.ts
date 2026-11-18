@@ -18,6 +18,7 @@ import {
   setRemoteCovers,
   type FileTags,
   filesNeedingTags,
+  fillTags,
   folderCoverCacheName,
   folderCoverFiles,
   type ListedFile,
@@ -50,6 +51,7 @@ import {
 import { listNetServer } from './netServers';
 import { copyTo, NETFS_ERRORS } from './platform/netfs';
 import { fileAccess } from './remote';
+import { saveWebCover } from './webCovers';
 
 export type ScanResult = { added: number; missing: number } | { error: 'permission' | 'no-folder' };
 
@@ -104,11 +106,14 @@ async function tagsFor(root: Root, file: ListedFile, dir: string): Promise<FileT
 }
 
 /**
- * A WebDAV, SMB, SFTP or S3 folder's cover, downloaded once per version of the image. Null on the
- * web, which keeps no covers folder.
+ * A WebDAV, SMB, SFTP or S3 folder's cover, or an add-on server's, downloaded once per version of
+ * the image. The web keeps it in the origin private file system.
  */
 async function fetchFolderCover(root: Root, file: ListedFile): Promise<string | null> {
-  if (Platform.OS === 'web') return null;
+  if (Platform.OS === 'web') {
+    const access = fileAccess({ uri: file.uri, rootId: root.id });
+    return saveWebCover(access.uri, access.headers, folderCoverCacheName(file));
+  }
   const folder = new Directory(Paths.document, 'covers');
   if (!folder.exists) folder.create({ intermediates: true });
   const target = new File(folder, folderCoverCacheName(file));
@@ -135,8 +140,8 @@ async function fetchFolderCover(root: Root, file: ListedFile): Promise<string | 
 async function run(onProgress: (done: number, total: number) => void): Promise<ScanResult> {
   const roots = listRoots(db);
   if (roots.length === 0) return { error: 'no-folder' };
-  // Only folder, WebDAV, SMB, SFTP and S3 scans keep covers on the device; the web build has no such
-  // folder, and Jellyfin and Audiobookshelf scans don't need one.
+  // Only folder, WebDAV, SMB, SFTP and S3 scans keep covers on the device; the web build keeps
+  // server covers in OPFS instead, and Jellyfin and Audiobookshelf scans don't need one.
   let covers: string | null = null;
   const dir = () => (covers ??= coverDir());
   let added = 0;
@@ -194,8 +199,10 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
     for (const [i, file] of need.entries()) {
       onProgress(i, need.length);
       try {
-        // The browser keeps no covers folder (asking for one throws) and reads only durations.
-        tags.set(file.location, await tagsFor(root, file, Platform.OS === 'web' ? '' : dir()));
+        // The browser keeps no covers folder (asking for one throws) and reads only durations;
+        // an add-on's tags for the file fill in the rest.
+        const read = await tagsFor(root, file, Platform.OS === 'web' ? '' : dir());
+        tags.set(file.location, fillTags(read, fromAddon?.hints.get(file.location)));
       } catch {
         // Unreadable now; stored with empty tags and tried again on the next scan.
       }

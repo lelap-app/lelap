@@ -12,6 +12,7 @@ import type {
 } from '@lelap/audio';
 import {
   fadeVolume,
+  mediaSpan,
   outroStartMs,
   PLAY_REFUSED,
   shouldRefreshLink,
@@ -500,9 +501,13 @@ export async function pause(): Promise<void> {
 
 /** Moves along the whole book, across files. */
 export async function seekBy(deltaMs: number): Promise<void> {
+  await seekToBook(offsetOf(index) + positionMs() + deltaMs);
+}
+
+async function seekToBook(bookMs: number): Promise<void> {
   if (!book) return;
   const total = offsetOf(book.files.length);
-  const target = Math.max(0, Math.min(total - 1, offsetOf(index) + positionMs() + deltaMs));
+  const target = Math.max(0, Math.min(total - 1, bookMs));
   let i = 0;
   while (i < book.files.length - 1 && offsetOf(i + 1) <= target) i++;
   await seekTo(i, target - offsetOf(i));
@@ -610,7 +615,7 @@ export async function unload(): Promise<void> {
   index = -1;
   ended = false;
   clearSleepTimer();
-  if ('mediaSession' in navigator) navigator.mediaSession.metadata = null;
+  clearMediaSession();
   emit();
 }
 
@@ -633,12 +638,15 @@ function setUpMediaSession(): void {
   session.setActionHandler('nexttrack', () => void skip(true));
   session.setActionHandler('seekbackward', () => void skip(false));
   session.setActionHandler('seekforward', () => void skip(true));
-  // The browser's media overlay and the system's media controls can drag within the file and stop.
+  // The browser's media overlay and the system's media controls can drag within the chapter (the
+  // whole book without chapters) and stop.
   const optional: [MediaSessionAction, MediaSessionActionHandler][] = [
     [
       'seekto',
       (details) => {
-        if (details.seekTime !== undefined) void seekTo(index, details.seekTime * 1000);
+        if (details.seekTime !== undefined) {
+          void seekToBook(shownSpanStart + Math.max(0, details.seekTime) * 1000);
+        }
       },
     ],
     ['stop', () => void pause()],
@@ -653,6 +661,22 @@ function setUpMediaSession(): void {
 }
 
 let shownMeta = '';
+// Where the stretch the system controls show starts on the book's timeline, for their seeks.
+let shownSpanStart = 0;
+
+/** Nothing loaded: the system controls let go of the last book and its progress. */
+function clearMediaSession(): void {
+  shownMeta = '';
+  shownSpanStart = 0;
+  if (!('mediaSession' in navigator)) return;
+  navigator.mediaSession.metadata = null;
+  navigator.mediaSession.playbackState = 'none';
+  try {
+    navigator.mediaSession.setPositionState();
+  } catch {
+    // Not every browser has position state.
+  }
+}
 
 function updateMediaSession(now: PlayerState): void {
   if (!('mediaSession' in navigator) || !book) return;
@@ -668,11 +692,19 @@ function updateMediaSession(now: PlayerState): void {
     });
   }
   navigator.mediaSession.playbackState = now.playing ? 'playing' : 'paused';
-  if (now.durationMs > 0 && now.speed > 0) {
+  // The chapter, as the Player's bar shows it; the file when the book's durations are unknown.
+  const bookMs = offsetOf(index) + now.positionMs;
+  const total = offsetOf(book.files.length);
+  const span =
+    total > 0
+      ? mediaSpan(book.chapters, total, bookMs)
+      : { startMs: offsetOf(index), lengthMs: now.durationMs };
+  if (span.lengthMs > 0 && now.speed > 0) {
+    shownSpanStart = span.startMs;
     try {
       navigator.mediaSession.setPositionState({
-        duration: now.durationMs / 1000,
-        position: Math.min(now.positionMs, now.durationMs) / 1000,
+        duration: span.lengthMs / 1000,
+        position: Math.min(Math.max(0, bookMs - span.startMs), span.lengthMs) / 1000,
         playbackRate: now.speed,
       });
     } catch {
