@@ -15,6 +15,7 @@ Lelap is an open-source player for audiobooks and podcasts. It plays, downloads,
 <li>Your own servers: WebDAV (Nextcloud, ownCloud), S3-compatible storage, Jellyfin, Emby, Plex, Navidrome and other Subsonic servers, Audiobookshelf, and SMB and SFTP shares.</li>
 <li>Public-domain audiobooks from LibriVox, and podcasts by RSS with OPML import and export.</li>
 <li>Tags, hand-made lists and smart lists; Up Next for books and episodes.</li>
+<li>Hide what you don't want in the library; files that look like music are pointed out.</li>
 <li>Downloads over Wi-Fi with the screen off, to an SD card if you like; airplane mode is a normal day.</li>
 </ul>
 
@@ -28,6 +29,6 @@ Lelap is an open-source player for audiobooks and podcasts. It plays, downloads,
 </ul>
 
 <b>Open by design</b>
-Catalogs, metadata and audio sources come from add-ons: small web services anyone can run. Lelap ships with add-ons for open sources only. Audio always goes straight from its source to your phone, never through our servers.
+Catalogs, metadata and audio sources come from add-ons: small web services anyone can run. Lelap ships with add-ons for open sources only. Optional add-ons show Hardcover's trending books and your lists, and keep Hardcover and a gPodder server up to date as you listen; set them up in Settings → Add-ons. Audio always goes straight from its source to your phone, never through our servers.
 
 The same app runs in the browser, and the backend can be self-hosted with Docker.

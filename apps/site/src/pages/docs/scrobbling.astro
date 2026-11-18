@@ -54,16 +54,20 @@ const catalog = `catalog.${site.domain}`;
   </p>
   <ol>
     <li>
-      On Hardcover, open Settings → Hardcover API and make a token with the permissions
-      <code>read:me</code>, <code>read:library</code>, <code>write:library</code>,{' '}
-      <code>read:catalog</code> and <code>read:lists</code>. Tokens made before August 2026 have
-      them all.
+      In {site.name}, open Settings → Add-ons. Under Comes with {site.name}, choose Set up next to
+      Hardcover. This opens <code>https://{catalog}/hardcover/configure</code> in the browser.
     </li>
     <li>
-      Open <code>https://{catalog}/hardcover/configure</code>, paste the token, choose your rows and
-      make your add-on link.
+      Choose Make a token on Hardcover. It opens Hardcover’s form for a new token with the
+      permissions <code>read:me</code>, <code>read:library</code>, <code>write:library</code>,{' '}
+      <code>read:catalog</code> and <code>read:lists</code> ticked. Tokens made before August 2026
+      have them all.
     </li>
-    <li>In {site.name}, open Settings → Add-ons and paste the link.</li>
+    <li>Paste the token, choose your rows and make your add-on link.</li>
+    <li>
+      On Android, choose Open in {site.name} to add it. In the web app, copy the link and paste it
+      in Settings → Add-ons.
+    </li>
   </ol>
   <p>
     To change the rows later, open the add-on link with <code>configure</code> in place of{' '}
@@ -103,11 +107,11 @@ const catalog = `catalog.${site.domain}`;
   <p>
     The add-on runs inside the app, in a sandbox that can reach only openlibrary.org. The keys stay
     on your phone, sealed with its key store, and are never synced, exported or sent anywhere else;
-    no {site.name} server sees them. Books from the Catalog are Open Library works already. Books
-    from other add-ons count when the add-on gives their Open Library work ID; all others, your own
-    files among them, are skipped rather than guessed. The keys also work for the rest of
-    archive.org, such as uploads. To stop the add-on, remove it, or make new keys on the same
-    archive.org page.
+    no {site.name} server sees them. Books from the Open Library catalog are Open Library works
+    already. Books from other add-ons count when the add-on gives their Open Library work ID; all
+    others, your own files among them, are skipped rather than guessed. The keys also work for the
+    rest of archive.org, such as uploads. To stop the add-on, remove it, or make new keys on the
+    same archive.org page.
   </p>
   <p>
     It works in the Android app only. Open Library signs apps in with a cookie, and a browser never
@@ -122,14 +126,18 @@ const catalog = `catalog.${site.domain}`;
   </p>
   <ol>
     <li>
-      Open <code>https://{catalog}/gpodder/configure</code> and choose the server type: the
-      gpodder.net API, or Nextcloud gPodder Sync.
+      In {site.name}, open Settings → Add-ons. Under Comes with {site.name}, choose Set up next to
+      gPodder sync. This opens <code>https://{catalog}/gpodder/configure</code> in the browser.
     </li>
     <li>
-      Enter the server address (https only), your user name and your password. Use an app password
-      where the server offers one. The add-on checks the login before it makes the link.
+      Choose the server type: the gpodder.net API, or Nextcloud gPodder Sync. Enter the server
+      address (https only), your user name and your password. Use an app password where the server
+      offers one. The add-on checks the login before it makes the link.
     </li>
-    <li>In {site.name}, open Settings → Add-ons and paste the link.</li>
+    <li>
+      On Android, choose Open in {site.name} to add it. In the web app, copy the link and paste it
+      in Settings → Add-ons.
+    </li>
   </ol>
   <p>
     The gPodder API identifies episodes by their audio URL, which the app never sends. The add-on

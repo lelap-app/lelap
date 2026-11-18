@@ -16,12 +16,16 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Plays audiobooks and podcasts in the background, with the screen off and through calls.
 - Downloads for offline listening, and works fully in airplane mode.
 - Remembers speed per book, rewinds smartly after pauses, and fades out with the sleep timer.
-- Organises with tags, playlists, smart lists and one Up Next queue.
+- Organises with tags, playlists, smart lists and one Up Next queue. Hides what you don't want in
+  the library, and points out files that look like music.
 - Syncs progress between devices with a pairing code. No account, end-to-end encrypted.
 - Plays from your own files and folders; your own WebDAV, S3-compatible, Jellyfin, Emby, Plex,
   Navidrome (or other Subsonic) or Audiobookshelf server; SMB and SFTP shares on Android; and
   add-ons: LibriVox, Open Library, Podcast Index, RSS feeds, the Internet Archive, or add-ons you
   write yourself.
+- Shows Hardcover's trending books and your Hardcover lists as catalog rows, with your own token,
+  and keeps your Hardcover shelves and a gPodder server up to date as you listen. Both are offered
+  in Settings → Add-ons.
 - Downloads to an SD card if you like (Android), and lists your own copy first on a book's
   catalog page.
 - Finds chapters at the long silences of a book without any (Android), and skips a podcast's
