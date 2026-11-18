@@ -31,6 +31,7 @@ import {
   workLinks,
 } from '../schema';
 import { bookIdForKey, bookKey, parseEpisodeKey, recordDeletion, type TombstoneKind } from './keys';
+import { type SoundOverrides, syncedOverrides } from '../sound';
 
 /** Where a profile's source choices live in `settings` (see addons/sources.ts). */
 const SOURCE_PREFIX = 'source:';
@@ -58,6 +59,8 @@ export const SYNCED_SETTINGS = [
   'smartRewind',
   'mono',
   'voiceEq',
+  'skipSilence',
+  'evenLoudness',
 ];
 
 type Part = {
@@ -108,7 +111,12 @@ export type Op =
       profile: string;
       key: string;
       at: number;
-      data: { speed: number; lastPlayedAt: number | null; finishedAt: number | null };
+      /** The book's own sound since M84; absent from older devices, which keep what is here. */
+      data: {
+        speed: number;
+        lastPlayedAt: number | null;
+        finishedAt: number | null;
+      } & Partial<SoundOverrides>;
     }
   | {
       type: 'bookmark';
@@ -131,7 +139,7 @@ export type Op =
         skipIntroMs?: number;
         skipOutroMs?: number;
         subscribedAt: number;
-      };
+      } & Partial<SoundOverrides>;
     }
   | {
       type: 'upNext';
@@ -352,7 +360,14 @@ export function collectOps(db: Db, since: number): Op[] {
       profile: e.profileId,
       key: k,
       at: e.updatedAt,
-      data: { speed: e.speed, lastPlayedAt: e.lastPlayedAt, finishedAt: e.finishedAt },
+      data: {
+        speed: e.speed,
+        lastPlayedAt: e.lastPlayedAt,
+        finishedAt: e.finishedAt,
+        voiceEq: e.voiceEq,
+        skipSilence: e.skipSilence,
+        evenLoudness: e.evenLoudness,
+      },
     });
   }
   for (const m of db.select().from(bookmarks).where(gt(bookmarks.updatedAt, since)).all()) {
@@ -394,6 +409,9 @@ export function collectOps(db: Db, since: number): Op[] {
         skipIntroMs: sub.skipIntroMs,
         skipOutroMs: sub.skipOutroMs,
         subscribedAt: sub.subscribedAt,
+        voiceEq: sub.voiceEq,
+        skipSilence: sub.skipSilence,
+        evenLoudness: sub.evenLoudness,
       },
     });
   }
@@ -733,7 +751,13 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
             .where(where)
             .get();
           if (local && local.updatedAt >= op.at) break;
-          const row = { ...op.data, updatedAt: op.at };
+          const row = {
+            speed: op.data.speed,
+            lastPlayedAt: op.data.lastPlayedAt,
+            finishedAt: op.data.finishedAt,
+            ...syncedOverrides(op.data),
+            updatedAt: op.at,
+          };
           tx.insert(libraryEntries)
             .values({ profileId: op.profile, bookId, ...row })
             .onConflictDoUpdate({
@@ -789,6 +813,7 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
             autoDownload: op.data.autoDownload,
             keepLatest: op.data.keepLatest,
             ...trimOf(op.data),
+            ...syncedOverrides(op.data),
             updatedAt: op.at,
           };
           tx.insert(subscriptions)

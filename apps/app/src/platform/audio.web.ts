@@ -11,6 +11,7 @@ import type {
   SleepTimerMode,
 } from '@lelap/audio';
 import {
+  chooseSound,
   fadeVolume,
   mediaSpan,
   outroStartMs,
@@ -65,7 +66,19 @@ let settings: PlayerSettings = {
   mono: false,
   voiceEq: false,
   volumeBoost: false,
+  skipSilence: false,
+  evenLoudness: false,
 };
+
+/**
+ * The effects for the book loaded: its own voice boost over the listener's default (M84). Skip
+ * silence and even loudness are Android only; Web Audio has no cheap way to drop pauses.
+ */
+const effects = (): sound.SoundSettings => ({
+  mono: settings.mono,
+  volumeBoost: settings.volumeBoost,
+  voiceEq: chooseSound(book?.sound, settings).voiceEq,
+});
 // A minutes timer counts wall time while playing; a chapter or episode timer stops at a place on
 // the book timeline (shake to extend is Android only: browsers ask before giving motion data).
 let sleepMode: SleepTimerMode | null = null;
@@ -393,13 +406,15 @@ function retire(): void {
 
 /** The element for a source: routed through the sound effects when they are on and may read it. */
 async function playerFor(src: string): Promise<HTMLAudioElement> {
-  const routed = sound.soundOn(settings) && (await sound.canRoute(src));
+  const routed = sound.soundOn(effects()) && (await sound.canRoute(src));
   if (element && sound.isRouted(element) !== routed) retire();
   const audio = player();
   if (routed && !sound.isRouted(audio)) {
     audio.crossOrigin = 'anonymous';
-    sound.route(audio, settings);
+    sound.route(audio, effects());
   }
+  // Another book may have its own voice boost.
+  if (routed) sound.update(audio, effects());
   return audio;
 }
 
@@ -526,13 +541,32 @@ export async function setSpeed(speed: number): Promise<void> {
 
 export async function setSettings(next: PlayerSettings): Promise<void> {
   settings = next;
+  await applyEffects();
+  emit();
+}
+
+/** Gives the loaded book its new sound (M84) at its place; another book is left alone. */
+export async function updateBook(next: BookLoad): Promise<void> {
+  if (!book || book.bookId !== next.bookId) return;
+  book = { ...book, sound: next.sound ?? {} };
+  await applyEffects();
+  emit();
+}
+
+async function applyEffects(): Promise<void> {
   const audio = element;
-  if (audio && sound.isRouted(audio)) sound.update(audio, next);
-  else if (audio && book && sound.soundOn(next) && (await sound.canRoute(audio.currentSrc))) {
+  const now = effects();
+  if (audio && sound.isRouted(audio)) sound.update(audio, now);
+  else if (audio && book && sound.soundOn(now) && (await sound.canRoute(audio.currentSrc))) {
     // A plain element cannot take the effects: reload the part, routed, at the same place.
     await setPart(index, positionMs(), playing());
   }
-  emit();
+}
+
+/** Skip silence is Android only, so the web saves nothing. */
+export async function silenceSavedMs(bookId: string): Promise<number> {
+  void bookId;
+  return 0;
 }
 
 export async function skip(forward: boolean): Promise<void> {

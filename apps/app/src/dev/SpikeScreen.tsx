@@ -178,6 +178,8 @@ export function SpikeScreen() {
                 mono: false,
                 voiceEq: false,
                 volumeBoost: false,
+                skipSilence: false,
+                evenLoudness: false,
               }),
             )
           }

@@ -21,7 +21,7 @@ import { syncBase } from './config';
 import { db, newId } from './db';
 import { logDiagnostic } from './diagnostics';
 import { getState as playerState } from './platform/audio';
-import { useLibrary, usePlayerState } from './player';
+import { applySyncedSound, useLibrary, usePlayerState } from './player';
 import { refreshPodcasts } from './podcasts';
 import { profileId } from './profile';
 
@@ -119,7 +119,12 @@ export function SyncRunner() {
   const { refresh } = useLibrary();
   const { playing } = usePlayerState();
   useEffect(() => {
-    const run = () => void syncOnce().then((r) => r && r.pulled > 0 && refresh());
+    const run = () =>
+      void syncOnce().then((r) => {
+        if (!r || r.pulled === 0) return;
+        refresh();
+        void applySyncedSound().catch(() => {});
+      });
     run();
     const timer = setInterval(run, SYNC_EVERY_MS);
     const subscription = AppState.addEventListener('change', (status) => {

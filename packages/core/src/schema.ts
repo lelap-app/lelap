@@ -279,6 +279,10 @@ export const libraryEntries = sqliteTable(
       .notNull()
       .references(() => books.id, { onDelete: 'cascade' }),
     speed: real('speed').notNull().default(1),
+    /** This book's own sound (M84); null follows the listener's default. Synced like speed. */
+    voiceEq: integer('voice_eq', { mode: 'boolean' }),
+    skipSilence: integer('skip_silence', { mode: 'boolean' }),
+    evenLoudness: integer('even_loudness', { mode: 'boolean' }),
     lastPlayedAt: integer('last_played_at'),
     finishedAt: integer('finished_at'),
     updatedAt: integer('updated_at').notNull(),
@@ -495,6 +499,10 @@ export const subscriptions = sqliteTable(
     /** Skipped at the start and the end of every episode of this show (M45); 0 plays it all. */
     skipIntroMs: integer('skip_intro_ms').notNull().default(0),
     skipOutroMs: integer('skip_outro_ms').notNull().default(0),
+    /** The show's own sound for every episode (M84); null follows the listener's default. */
+    voiceEq: integer('voice_eq', { mode: 'boolean' }),
+    skipSilence: integer('skip_silence', { mode: 'boolean' }),
+    evenLoudness: integer('even_loudness', { mode: 'boolean' }),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [primaryKey({ columns: [t.profileId, t.podcastId] })],

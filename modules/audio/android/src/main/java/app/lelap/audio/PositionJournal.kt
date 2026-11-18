@@ -28,6 +28,8 @@ data class BookPlaylist(
    * the phone's file server, never the address itself.
    */
   val privateUris: Boolean = false,
+  /** The book's or show's own sound (M84), laid over the listener's defaults. */
+  val sound: SoundOverrides = SoundOverrides(),
 )
 
 /**
@@ -58,6 +60,8 @@ data class BookLoad(
   val startPositionMs: Long,
   val pausedAt: Long? = null,
   val handsOver: Boolean = false,
+  /** Only an update of the book already loaded (M84): any other book is left playing. */
+  val onlyIfLoaded: Boolean = false,
 )
 
 /**
@@ -169,6 +173,7 @@ object PositionJournal {
       root.getLong("startPositionMs"),
       if (root.isNull("pausedAt")) null else root.getLong("pausedAt"),
       root.optBoolean("handsOver", false),
+      root.optBoolean("onlyIfLoaded", false),
     )
   } catch (e: JSONException) {
     null
@@ -202,6 +207,7 @@ object PositionJournal {
     .put("skipIntroMs", p.introMs)
     .put("skipOutroMs", p.outroMs)
     .put("privateUris", p.privateUris)
+    .put("sound", p.sound.toJson())
 
   private fun decodePlaylist(o: JSONObject): BookPlaylist {
     val files = o.getJSONArray("files")
@@ -225,6 +231,7 @@ object PositionJournal {
       introMs = o.optLong("skipIntroMs", 0L).coerceAtLeast(0L),
       outroMs = o.optLong("skipOutroMs", 0L).coerceAtLeast(0L),
       privateUris = o.optBoolean("privateUris", false),
+      sound = SoundOverrides.fromJson(o.optJSONObject("sound")),
     )
   }
 

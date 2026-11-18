@@ -704,6 +704,9 @@ export default function SettingsScreen() {
         >
           <Toggle value={settings.smartRewind} onValueChange={(v) => update('smartRewind', v)} />
         </Row>
+        <Text className="pt-4 text-sm text-muted">
+          {t('Sound for every book and show. In the player, a book or show can have its own.')}
+        </Text>
         {soundOptions().map((o) => (
           <SoundRow
             key={o.key}

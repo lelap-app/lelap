@@ -13,6 +13,8 @@ describe('settings', () => {
       smartRewind: true,
       mono: false,
       voiceEq: false,
+      skipSilence: false,
+      evenLoudness: false,
       volumeBoost: false,
       downloadOnWifiOnly: true,
       downloadWhileChargingOnly: false,

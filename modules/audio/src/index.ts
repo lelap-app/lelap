@@ -30,6 +30,13 @@ export type BookLoad = {
   /** A podcast's intro and outro to skip (M45): from the first file's start, the last's end. */
   skipIntroMs?: number;
   skipOutroMs?: number;
+  /**
+   * The book's or show's own voice boost, skip silence and even loudness (M84); a missing key
+   * follows the listener's default in `PlayerSettings`.
+   */
+  sound?: Partial<Record<'voiceEq' | 'skipSilence' | 'evenLoudness', boolean>>;
+  /** Only an update of the book already loaded: the service ignores it for any other book. */
+  onlyIfLoaded?: boolean;
 };
 
 /** A book or episode that played to its end, possibly with the app closed. */
@@ -42,8 +49,15 @@ export type PlayerSettings = {
   smartRewind: boolean;
   /** Both channels mixed into one, for one earbud or one good ear. */
   mono: boolean;
-  /** Rumble cut below 80 Hz and a gentle lift around 3 kHz, where consonants are. */
+  /**
+   * Voice boost: rumble cut below 80 Hz, a gentle lift around 3 kHz, where consonants are, and
+   * gentle compression (M84). This and the next two are defaults a book may override.
+   */
   voiceEq: boolean;
+  /** Pauses longer than 0.4 s are shortened (M84). */
+  skipSilence: boolean;
+  /** ReplayGain tags, or a slow measured gain, bring every book to about the same level (M84). */
+  evenLoudness: boolean;
   /** +6 dB with a limiter, so loud parts never clip. */
   volumeBoost: boolean;
 };
@@ -129,10 +143,9 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
     duck: boolean,
     skipIntervalMs: number,
     smartRewind: boolean,
-    mono: boolean,
-    voiceEq: boolean,
-    volumeBoost: boolean,
+    sound: Record<'mono' | 'voiceEq' | 'volumeBoost' | 'skipSilence' | 'evenLoudness', boolean>,
   ): Promise<void>;
+  silenceSavedMs(bookId: string): Promise<number>;
   skip(forward: boolean): Promise<void>;
   startSleepTimer(minutes: number): Promise<void>;
   startSleepTimerAtEnd(mode: 'chapter' | 'episode'): Promise<void>;
@@ -198,10 +211,27 @@ export function setSettings(settings: PlayerSettings): Promise<void> {
     settings.duckOnInterruption,
     settings.skipIntervalMs,
     settings.smartRewind,
-    settings.mono,
-    settings.voiceEq,
-    settings.volumeBoost,
+    {
+      mono: settings.mono,
+      voiceEq: settings.voiceEq,
+      volumeBoost: settings.volumeBoost,
+      skipSilence: settings.skipSilence,
+      evenLoudness: settings.evenLoudness,
+    },
   );
+}
+
+/**
+ * Hands the loaded book new settings that apply at its live place, such as its own sound (M84);
+ * the service treats it as a load of the book it already has. Another book is left alone.
+ */
+export function updateBook(book: BookLoad): Promise<void> {
+  return native.load(JSON.stringify({ ...book, onlyIfLoaded: true }), false);
+}
+
+/** Listening time skip silence saved in a book on this phone (M84). */
+export function silenceSavedMs(bookId: string): Promise<number> {
+  return native.silenceSavedMs(bookId);
 }
 
 /** Skips by the skip interval across files, like ⏮/⏭ on the lock screen. */
