@@ -108,8 +108,7 @@ node server.mjs      # http://localhost:8787/manifest.json
   <h2 id="sdk">The matcher in the SDK</h2>
   <p>
     All of it is in <code>@lelap/sdk</code> (MIT). Everything but <code>lookupWork</code> is pure:
-    no requests, no state. It comes with the SDK release after 0.3.0; until that is on npm, 0.3.0
-    doesn’t have it.
+    no requests, no state. It needs <code>@lelap/sdk</code> 0.4.0 or later.
   </p>
   <div class="table-wrap">
     <table class="table">
@@ -188,7 +187,7 @@ node server.mjs      # http://localhost:8787/manifest.json
   <CodeBlock code={run} label="Terminal" />
   <p>
     In the repository the sample uses the SDK’s TypeScript source, which only its tests can load.
-    Copy the folder out to run it with Node, once the SDK release after 0.3.0 is on npm:
+    Copy the folder out to run it with Node and SDK 0.4.0 or later from npm:
   </p>
   <CodeBlock code={fromNpm} label="Terminal" />
 

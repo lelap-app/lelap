@@ -376,8 +376,7 @@ const toc: [string, string][] = [
     item, never as text in the picture. The app draws badges in one style next to its own (finished,
     how far in), reads them out with the title, and the listener can turn them off. Apps from before
     revision 4 ignore them. See <a href="/docs/protocol/#badges">Badges</a> for the fields. Badges
-    come with the SDK release after 0.3.0; until it is on npm, the published SDK declares revision
-    3.
+    need SDK 0.4.0 or later; 0.3.0 declares revision 3.
   </p>
   <CodeBlock code={badges} />
 
@@ -390,7 +389,7 @@ const toc: [string, string][] = [
     <code>readSettings</code> checks a form as the app does, and <code>settingHosts</code> gives the
     hosts a form grants. A stream from <code>createAddon</code> never carries <code>headers</code>:
     the answer passes through the network, so the SDK refuses one that does, also with validation
-    off. These helpers, revisions 5 to 8, come with the SDK release after 0.3.0, like badges.
+    off. These helpers, revisions 5 to 8, need SDK 0.4.0 or later, like badges.
   </p>
 
   <h2 id="errors">Errors</h2>
