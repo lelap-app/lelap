@@ -1,3 +1,5 @@
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import {
   createWorkIndex,
   type Meta,
@@ -286,4 +288,21 @@ export function linkedMetaByKey(db: Db, keys?: string[]): Map<string, LinkedMeta
   const out = new Map<string, LinkedMeta>();
   for (const row of rows) if (row.meta) out.set(row.bookKey, row.meta);
   return out;
+}
+
+/** Every cover a matched book shows, for keeping a copy on this device (M80). */
+export function linkedCoverUrls(db: Db): string[] {
+  const urls = new Set<string>();
+  for (const meta of linkedMetaByKey(db).values()) {
+    if (meta.cover && /^https?:\/\//i.test(meta.cover)) urls.add(meta.cover);
+  }
+  return [...urls];
+}
+
+/**
+ * The file name a matched cover is kept under on this device: its address's SHA-256, so the
+ * synced link finds its copy without a column of its own, and the name says nothing of the book.
+ */
+export function catalogCoverName(url: string): string {
+  return bytesToHex(sha256(utf8ToBytes(url))).slice(0, 32);
 }

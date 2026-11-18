@@ -1,5 +1,5 @@
-import { SCRUB_RATE_LABELS, scrubRate, sliderKey, snapTo } from '@lelap/core';
-import { useMemo, useRef, useState } from 'react';
+import { SCRUB_RATE_LABELS, scrubRate, sliderKey, snapTo, zoomWindow } from '@lelap/core';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PanResponder, Platform, Pressable, Text, Vibration, View } from 'react-native';
 
 import { hint } from '../a11y';
@@ -30,6 +30,7 @@ export type ScrubMark = {
  * Progress over a range of the book (the chapter, or the whole book). Tap to jump; drag the
  * playhead to scrub with a live time, and the seek happens once, on release. Moving the finger up
  * away from the bar slows the playhead down for fine positioning; near a mark it snaps to it.
+ * A long press on the time zooms the bar to ten minutes around the playhead (M80).
  */
 export function Scrubber({
   elapsedMs,
@@ -62,11 +63,31 @@ export function Scrubber({
     rate: number;
     snapped: boolean;
   } | null>(null);
+  // The part of the range the bar shows while zoomed, in ms from the range's start.
+  const [zoom, setZoom] = useState<{ startMs: number; endMs: number } | null>(null);
   const widthRef = useRef(1);
   const drag = useRef({ ratio: 0, lastDx: 0, snapped: false });
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latest = useRef({ lengthMs, onSeek, marks, onDragChange });
-  latest.current = { lengthMs, onSeek, marks, onDragChange };
+  const windowStart = zoom?.startMs ?? 0;
+  const windowLength = zoom ? zoom.endMs - zoom.startMs : lengthMs;
+  // Marks as offsets into what the bar shows.
+  const shown = zoom
+    ? marks
+        .filter((m) => m.atMs >= zoom.startMs && m.atMs <= zoom.endMs)
+        .map((m) => ({ ...m, atMs: m.atMs - zoom.startMs }))
+    : marks;
+  const latest = useRef({ windowStart, windowLength, onSeek, shown, onDragChange });
+  latest.current = { windowStart, windowLength, onSeek, shown, onDragChange };
+
+  // Playing out of the zoomed part moves it along; a range too short to zoom ends it.
+  useEffect(() => {
+    if (!zoom || held) return;
+    // Clamped, so a playhead outside the range can't move the zoomed part on every render.
+    const now = Math.min(Math.max(0, elapsedMs), lengthMs);
+    if (now < zoom.startMs || now > zoom.endMs || zoom.endMs > lengthMs) {
+      setZoom(zoomWindow(now, lengthMs));
+    }
+  }, [zoom, held, elapsedMs, lengthMs]);
 
   const responder = useMemo(() => {
     // Where the finger points, slowed down by its distance from the bar, then pulled to a mark.
@@ -75,7 +96,7 @@ export function Scrubber({
       const state = drag.current;
       state.ratio = clamp(state.ratio + ((dx - state.lastDx) * rate) / widthRef.current);
       state.lastDx = dx;
-      const { lengthMs: length, marks: list } = latest.current;
+      const { windowLength: length, shown: list } = latest.current;
       const tolerance = (SNAP_POINTS / widthRef.current) * length * rate;
       const snap = snapTo(
         state.ratio * length,
@@ -105,7 +126,8 @@ export function Scrubber({
       onPanResponderRelease: (_, g) => {
         latest.current.onDragChange?.(false);
         const { ratio } = follow(g.dx, g.dy);
-        latest.current.onSeek(ratio * latest.current.lengthMs);
+        const { windowStart: start, windowLength: length } = latest.current;
+        latest.current.onSeek(start + ratio * length);
         setHeld({ ratio, dragging: false, rate: 1, snapped: false });
         settle.current = setTimeout(() => setHeld(null), SETTLE_MS);
       },
@@ -116,9 +138,20 @@ export function Scrubber({
     });
   }, []);
 
-  const ratio = held ? held.ratio : clamp(elapsedMs / Math.max(1, lengthMs));
+  const ratio = held ? held.ratio : clamp((elapsedMs - windowStart) / Math.max(1, windowLength));
   const thumb = held?.dragging ? THUMB_DRAGGING : THUMB;
-  const length = Math.max(1, lengthMs);
+  const length = Math.max(1, windowLength);
+  // The time under the playhead, in the whole range.
+  const at = windowStart + ratio * windowLength;
+  const toggleZoom = () => {
+    // A drop still held is a point on the old bar.
+    if (settle.current) clearTimeout(settle.current);
+    setHeld(null);
+    if (zoom) return setZoom(null);
+    const next = zoomWindow(elapsedMs, lengthMs);
+    if (next && Platform.OS !== 'web') Vibration.vibrate(8);
+    setZoom(next);
+  };
 
   // On the web the bar takes focus, and the arrows, Page Up and Down, Home and End move it.
   // react-native-web passes both to the element; React Native's types don't know them.
@@ -142,13 +175,28 @@ export function Scrubber({
             if (settle.current) clearTimeout(settle.current);
             setHeld({ ratio: next, dragging: false, rate: 1, snapped: false });
             settle.current = setTimeout(() => setHeld(null), SETTLE_MS);
-            onSeek(next * lengthMs);
+            onSeek(windowStart + next * windowLength);
           },
         }
       : {};
 
   return (
     <View className="gap-1">
+      {zoom && (
+        <Pressable
+          onPress={() => setZoom(null)}
+          accessibilityRole="button"
+          {...hint(t('Shows the whole bar again'))}
+          className="min-h-12 items-center justify-center"
+        >
+          <Text className="text-center text-xs font-semibold text-amber">
+            {t('Zoomed in: {start} to {end}', {
+              start: formatClock(zoom.startMs),
+              end: formatClock(zoom.endMs),
+            })}
+          </Text>
+        </Pressable>
+      )}
       {held?.dragging && held.rate < 1 && (
         <Text className="text-center text-xs font-semibold text-amber">
           {t('{rate} scrubbing', { rate: SCRUB_RATE_LABELS[held.rate] ?? '' })}
@@ -165,16 +213,16 @@ export function Scrubber({
         accessibilityLabel={t('Position')}
         // The aria- form, as react-native-web ignores accessibilityValue.
         aria-valuemin={0}
-        aria-valuemax={Math.round(length / 1000)}
-        aria-valuenow={Math.round((ratio * length) / 1000)}
+        aria-valuemax={Math.round(lengthMs / 1000)}
+        aria-valuenow={Math.round(at / 1000)}
         aria-valuetext={t('{time} of {total}', {
-          time: formatClock(ratio * lengthMs),
+          time: formatClock(at),
           total: formatClock(lengthMs),
         })}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={(e) => {
           const by = e.nativeEvent.actionName === 'increment' ? STEP : -STEP;
-          onSeek(clamp(ratio + by) * lengthMs);
+          onSeek(windowStart + clamp(ratio + by) * windowLength);
         }}
         {...keys}
         style={LTR}
@@ -183,7 +231,7 @@ export function Scrubber({
         <View pointerEvents="none" className="h-1.5 overflow-hidden rounded-full bg-line">
           <View style={{ width: `${ratio * 100}%` }} className="h-1.5 bg-amber" />
         </View>
-        {marks.map((m) =>
+        {shown.map((m) =>
           m.kind === 'chapter' ? (
             <View
               key={`c${m.atMs}`}
@@ -226,15 +274,19 @@ export function Scrubber({
       <View style={LTR} className="flex-row items-center justify-between gap-2">
         <Pressable
           onPress={onPressElapsed}
-          disabled={!onPressElapsed}
-          accessibilityRole={onPressElapsed ? 'button' : 'text'}
+          onLongPress={toggleZoom}
+          accessibilityRole="button"
           className="min-h-12 justify-center"
-          {...hint(onPressElapsed ? t('Jump to a time') : undefined)}
+          {...hint(
+            onPressElapsed
+              ? t('Jump to a time. Long press to zoom the bar in or out.')
+              : t('Long press to zoom the bar in or out.'),
+          )}
         >
           <Text
             className={`text-sm ${held?.dragging ? 'font-semibold text-amber' : 'text-muted'} ${onPressElapsed ? 'underline' : ''}`}
           >
-            {formatClock(ratio * lengthMs)}
+            {formatClock(at)}
           </Text>
         </Pressable>
         {middle !== undefined && (
@@ -248,7 +300,7 @@ export function Scrubber({
             <Text className="text-center text-xs text-muted">{middle}</Text>
           </Pressable>
         )}
-        <Text className="text-sm text-muted">-{formatClock((1 - ratio) * lengthMs)}</Text>
+        <Text className="text-sm text-muted">-{formatClock(lengthMs - at)}</Text>
       </View>
     </View>
   );

@@ -157,7 +157,7 @@ async function fetchFolderCover(root: Root, file: ListedFile): Promise<string | 
     } else {
       await File.downloadFileAsync(access.uri, part, { headers: access.headers });
     }
-    part.move(target);
+    await part.move(target);
   } catch (error) {
     if (part.exists) part.delete();
     throw error;

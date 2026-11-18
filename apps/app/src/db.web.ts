@@ -4,11 +4,9 @@ import {
   type ChunkStore,
   createIdGenerator,
   type Db,
-  type Digest,
   migrateSafely,
   type SaveResult,
   schema,
-  sha256Digest,
 } from '@lelap/core';
 import migrations from '@lelap/core/migrations';
 import type { ExpoSQLiteDatabase } from 'drizzle-orm/expo-sqlite';
@@ -94,14 +92,6 @@ function chunkStore(dir: FileSystemDirectoryHandle): ChunkStore {
   };
 }
 
-// crypto.subtle is only there on https and localhost; on plain http the hash runs in JavaScript.
-const digest: Digest = globalThis.crypto?.subtle
-  ? async (bytes) => {
-      const hash = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>);
-      return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, '0')).join('');
-    }
-  : sha256Digest;
-
 let saving: Promise<unknown> = Promise.resolve();
 
 /** Saves the changed chunks, one save at a time: the timer and a hidden tab can both ask. */
@@ -150,7 +140,7 @@ function open(): Promise<void> {
     });
     const root = await opfsRoot();
     saved = root
-      ? new ChunkedFile(chunkStore(await root.getDirectoryHandle(FOLDER, { create: true })), digest)
+      ? new ChunkedFile(chunkStore(await root.getDirectoryHandle(FOLDER, { create: true })))
       : null;
     // A missing chunk throws here: starting empty would save over the rest of the library.
     const chunks = saved ? await saved.load() : null;

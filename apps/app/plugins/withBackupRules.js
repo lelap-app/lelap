@@ -23,6 +23,9 @@ const EXCLUDES = [
   // The service's listening log (M51): restored apart from the database, its record numbers
   // could repeat ones the database already merged.
   '<exclude domain="sharedpref" path="lelap_accounting.xml"/>',
+  // Copies of matched catalog covers (M80): each phone fetches its own, and they would only
+  // take room in the 25 MB a backup may hold.
+  '<exclude domain="file" path="catalog-covers/"/>',
 ];
 
 const lines = (indent) => EXCLUDES.map((line) => `${indent}${line}`).join('\n');

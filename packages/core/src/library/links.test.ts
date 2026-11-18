@@ -13,7 +13,9 @@ import { applyOps, collectOps, type Op } from '../sync/ops';
 import type { ScannedFile } from './files';
 import {
   bookLinks,
+  catalogCoverName,
   findYourCopy,
+  linkedCoverUrls,
   type LinkableWork,
   linkBook,
   rejectLink,
@@ -172,8 +174,17 @@ describe('your copy', () => {
       coverUrl: 'https://covers.example/lathe.jpg',
     });
     expect(listBooks(db, ME, 'title').some((b) => b.title === 'Unrelated')).toBe(false);
+    expect(linkedCoverUrls(db)).toEqual(['https://covers.example/lathe.jpg']);
     unlinkBook(db, bookId, 20);
     expect(getBook(db, ME, bookId)?.book.title).toBe('Unrelated');
+    expect(linkedCoverUrls(db)).toEqual([]);
+  });
+
+  it('names a kept cover by its address alone', () => {
+    const name = catalogCoverName('https://covers.example/lathe.jpg');
+    expect(name).toMatch(/^[0-9a-f]{32}$/);
+    expect(catalogCoverName('https://covers.example/lathe.jpg')).toBe(name);
+    expect(catalogCoverName('https://covers.example/dune.jpg')).not.toBe(name);
   });
 
   it('a book is one work: linking it again moves the link', () => {

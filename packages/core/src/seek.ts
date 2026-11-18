@@ -52,3 +52,20 @@ export function snapTo(offset: number, marks: number[], tolerance: number): numb
   }
   return best;
 }
+
+/** How far either side of the playhead the zoomed scrubber reaches (M80). */
+export const ZOOM_SPAN_MS = 5 * 60_000;
+
+/**
+ * The part of a range the zoomed scrubber covers: `span` either side of `atMs`, moved inside the
+ * range at its ends. Null when the range is no longer than that, so zooming would show nothing new.
+ */
+export function zoomWindow(
+  atMs: number,
+  lengthMs: number,
+  span = ZOOM_SPAN_MS,
+): { startMs: number; endMs: number } | null {
+  if (lengthMs <= span * 2) return null;
+  const startMs = Math.min(Math.max(0, atMs - span), lengthMs - span * 2);
+  return { startMs, endMs: startMs + span * 2 };
+}
