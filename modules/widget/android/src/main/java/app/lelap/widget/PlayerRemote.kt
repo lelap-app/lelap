@@ -2,10 +2,12 @@ package app.lelap.widget
 
 import android.content.ComponentName
 import android.content.Context
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import java.util.concurrent.Executor
 
@@ -15,6 +17,9 @@ object PlayerRemote {
 
   // By name, so this module needs no compile-time link to modules/audio.
   private const val PLAYBACK_SERVICE = "app.lelap.audio.PlaybackService"
+  // `Commands.SKIP` and `Commands.KEY_FORWARD` there.
+  private const val SKIP = "app.lelap.audio.SKIP"
+  private const val KEY_FORWARD = "forward"
   // Lets the command reach the session before the controller disconnects.
   private const val RELEASE_DELAY_MS = 1_000L
 
@@ -39,7 +44,7 @@ object PlayerRemote {
     }, mainExecutor)
   }
 
-  private fun perform(player: Player, action: Action) {
+  private fun perform(player: MediaController, action: Action) {
     when (action) {
       Action.PLAY_PAUSE ->
         if (player.playWhenReady && player.playbackState != Player.STATE_ENDED) {
@@ -49,8 +54,11 @@ object PlayerRemote {
           if (player.playbackState == Player.STATE_IDLE && player.mediaItemCount > 0) player.prepare()
           player.play()
         }
-      Action.BACK -> player.seekBack()
-      Action.FORWARD -> player.seekForward()
+      // The session skips itself, so it can load the last book first when nothing is loaded.
+      Action.BACK, Action.FORWARD -> player.sendCustomCommand(
+        SessionCommand(SKIP, Bundle.EMPTY),
+        Bundle().apply { putBoolean(KEY_FORWARD, action == Action.FORWARD) },
+      )
     }
   }
 }

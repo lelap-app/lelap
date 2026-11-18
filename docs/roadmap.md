@@ -84,7 +84,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M71 App polish](milestones/m71.md)                  | Done        |          13 | Small fixes on Home, the Library, the Player and Settings, left from earlier reviews                     |
 | [M72 Languages 2](milestones/m72.md)                 | Done        |           7 | Native errors, made-up chapter titles, dates and numbers in the profile’s language                       |
 | [M73 Landing page polish](milestones/m73.md)         | Done        |           2 | Theme switch announcements, one shared hidden class, narrow screens and escaped holes                    |
-| [M74 Car and widget 2](milestones/m74.md)            | Planned     |             | Covers from servers in the widget and the car, a list of your cars, a better battery estimate            |
+| [M74 Car and widget 2](milestones/m74.md)            | In progress |          10 | Covers from servers in the widget and the car, a list of your cars, a better battery estimate            |
 | [M75 Podcasts 3](milestones/m75.md)                  | Done        |           4 | More Podcasting 2.0 tags, Atom content and logging from the background refresh                           |
 | [M76 Hardcover catalogs](milestones/m76.md)          | Done        |           8 | Trending books, featured lists and your own Hardcover lists as catalogs, on your own token               |
 | [M77 Hide from library](milestones/m77.md)           | Done        |          15 | Hide items from the library and bring them back; suggestions to hide what looks like music               |

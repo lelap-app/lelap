@@ -20,7 +20,7 @@ import { LANGUAGES, setLanguage, t } from '../src/i18n';
 import { READABLE, useWide } from '../src/layout';
 import { exportBackup, importBackup } from '../src/backup';
 import { applyBedtime } from '../src/bedtime';
-import { allowDevices, followDevices } from '../src/devices';
+import { allowDevices, followDevices, setMarkedCar, useCarChoices } from '../src/devices';
 import { formatTimeOfDay } from '../src/format';
 import { BLUETOOTH } from '../src/platform/bluetooth';
 import { showAlert } from '../src/dialog';
@@ -133,6 +133,41 @@ function Row({
         {detail !== undefined && <Text className="text-sm text-muted">{detail}</Text>}
       </View>
       <RowLabel.Provider value={label}>{children}</RowLabel.Provider>
+    </View>
+  );
+}
+
+/** Cars that connect as headphones, marked so car mode is offered for them too (M74). */
+function MarkedCars() {
+  const choices = useCarChoices();
+  return (
+    <View className="gap-1 border-b border-line py-4">
+      <Text className="text-base text-paper">{t('Your cars')}</Text>
+      <Text className="text-sm text-muted">
+        {t(
+          'Some cars connect as headphones. Mark yours while it is connected, and Lelap offers car mode when it connects.',
+        )}
+      </Text>
+      {choices.length === 0 && (
+        <Text className="pt-2 text-sm text-muted">
+          {t('Connect to your car’s Bluetooth to mark it here.')}
+        </Text>
+      )}
+      {choices.map((c) => (
+        <View key={c.id} className="min-h-12 flex-row items-center gap-4 pt-2">
+          <View className="flex-1">
+            <Text className="text-base text-paper">{c.name}</Text>
+            <Text className="text-sm text-muted">
+              {c.connected ? t('Connected') : t('Not connected')}
+            </Text>
+          </View>
+          <Toggle
+            value={c.marked}
+            accessibilityLabel={t('{name} is my car', { name: c.name })}
+            onValueChange={(v) => setMarkedCar(c, v)}
+          />
+        </View>
+      ))}
     </View>
   );
 }
@@ -782,6 +817,7 @@ export default function SettingsScreen() {
                 onValueChange={(v) => void updateDevices('carModeOffer', v)}
               />
             </Row>
+            {settings.carModeOffer && <MarkedCars />}
           </>
         )}
 

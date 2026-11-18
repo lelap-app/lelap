@@ -14,4 +14,8 @@ headphone battery banner and to offer car mode.
 - `AudioDevices` holds the rules (audio devices only, car classes, valid levels) and is tested on
   the JVM: `cd apps/app/android && ./gradlew :lelap-bluetooth:testDebugUnitTest`.
 
+The app adds two things on top, kept on the phone in `apps/app/src/devices.tsx` (M74): cars the
+listener marked in Settings, for cars that report as headphones, and each headphones' measured
+drain, so the battery estimate learns from real use (`packages/core/src/headphones.ts`).
+
 The web has nothing like it; `apps/app/src/platform/bluetooth.web.ts` reports no devices.

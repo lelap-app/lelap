@@ -1,9 +1,16 @@
 import {
   type BatterySample,
   chapterAt,
+  deviceValue,
   getBook,
   getSettings,
   headphoneWarning,
+  isCar,
+  learnDrain,
+  markCar,
+  type MarkedCar,
+  parseMarkedCars,
+  setDeviceValue,
   type Settings,
   toBookPosition,
 } from '@lelap/core';
@@ -20,20 +27,47 @@ import { useLibrary, usePlayerState } from './player';
 import { profileId } from './profile';
 
 // Connected Bluetooth audio devices (M33), followed only while the headphone battery warning or
-// the car mode offer is on. Levels are kept per device while it stays connected, to measure drain.
+// the car mode offer is on. Levels are kept per device while it stays connected, to measure drain;
+// the drain measured is kept on this device per headphones (M74), and so are the marked cars.
 
-type Snapshot = { devices: bluetooth.AudioDevice[]; samples: Map<string, BatterySample[]> };
+type Snapshot = {
+  /** With `car` true for a marked car too. */
+  devices: bluetooth.AudioDevice[];
+  samples: Map<string, BatterySample[]>;
+  /** Percent per hour each device drained in earlier sessions; null when never measured. */
+  learned: Map<string, number | null>;
+};
 
-let snapshot: Snapshot = { devices: [], samples: new Map() };
+const CARS_KEY = 'bluetoothCars';
+const drainKey = (id: string) => `headphoneDrain:${id}`;
+
+function storedDrain(id: string): number | null {
+  const value = Number(deviceValue(db, drainKey(id)));
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+let snapshot: Snapshot = { devices: [], samples: new Map(), learned: new Map() };
+// What the module last reported, before marked cars count as cars.
+let reported: bluetooth.AudioDevice[] = [];
+let cars: MarkedCar[] | null = null;
+
+/** Read from the database once, when first needed. */
+function markedCars(): MarkedCar[] {
+  cars ??= parseMarkedCars(deviceValue(db, CARS_KEY));
+  return cars;
+}
 const listeners = new Set<() => void>();
 const carListeners = new Set<(car: bluetooth.AudioDevice) => void>();
 let subscription: { remove: () => void } | null = null;
 
 function update(found: bluetooth.AudioDevice[]) {
   // Android names some devices nothing; native code leaves the name empty for the app to fill.
-  const devices = found.map((d) => (d.name ? d : { ...d, name: t('Bluetooth device') }));
+  reported = found.map((d) => (d.name ? d : { ...d, name: t('Bluetooth device') }));
   const now = Date.now();
+  const marked = markedCars();
+  const devices = reported.map((d) => (isCar(d, marked) ? { ...d, car: true } : d));
   const samples = new Map<string, BatterySample[]>();
+  const learned = new Map<string, number | null>();
   for (const d of devices) {
     const before = snapshot.samples.get(d.id) ?? [];
     const last = before.at(-1);
@@ -41,11 +75,23 @@ function update(found: bluetooth.AudioDevice[]) {
       d.battery !== null && last?.level !== d.battery
         ? [...before, { at: now, level: d.battery }]
         : before;
-    samples.set(d.id, next.slice(-20));
+    // Up to 20 h of steps of ten, so a whole session's drain can be measured.
+    samples.set(d.id, next.slice(-40));
+    const earlier = snapshot.learned.has(d.id)
+      ? (snapshot.learned.get(d.id) ?? null)
+      : storedDrain(d.id);
+    learned.set(d.id, earlier);
+    if (next !== before && !d.car) {
+      // Each new level updates what this session teaches, on top of earlier sessions.
+      const taught = learnDrain(earlier, next);
+      if (taught !== null && taught !== earlier) {
+        setDeviceValue(db, drainKey(d.id), String(taught), now);
+      }
+    }
   }
   const known = new Set(snapshot.devices.map((d) => d.id));
   const arrived = devices.filter((d) => d.car && !known.has(d.id));
-  snapshot = { devices, samples };
+  snapshot = { devices, samples, learned };
   for (const listener of listeners) listener();
   for (const car of arrived) for (const listener of carListeners) listener(car);
 }
@@ -85,6 +131,38 @@ const subscribe = (listener: () => void) => {
 
 const useDevices = () => useSyncExternalStore(subscribe, () => snapshot);
 
+/** Marks a Bluetooth device as the listener's car, or not, on this device. */
+export function setMarkedCar(device: MarkedCar, car: boolean): void {
+  cars = markCar(markedCars(), device, car);
+  setDeviceValue(db, CARS_KEY, JSON.stringify(cars), Date.now());
+  update(reported);
+}
+
+/**
+ * For Settings: the marked cars and the audio devices connected now that Bluetooth does not
+ * already call a car, each with whether it is marked and connected.
+ */
+export function useCarChoices(): {
+  id: string;
+  name: string;
+  marked: boolean;
+  connected: boolean;
+}[] {
+  // Re-renders whenever the devices or the marks change.
+  useDevices();
+  const choices = new Map<
+    string,
+    { id: string; name: string; marked: boolean; connected: boolean }
+  >();
+  for (const c of markedCars()) choices.set(c.id, { ...c, marked: true, connected: false });
+  for (const d of reported) {
+    if (d.car) continue;
+    const marked = choices.has(d.id);
+    choices.set(d.id, { id: d.id, name: d.name, marked, connected: true });
+  }
+  return [...choices.values()];
+}
+
 /**
  * Follows devices while the app runs and offers car mode when a car connects. Re-reads the
  * settings when the library changes, which includes a profile switch.
@@ -120,7 +198,7 @@ export function DeviceRunner() {
  * timer, else the rest of the chapter (or file).
  */
 export function useHeadphoneWarning(): { name: string; level: number; what: string } | null {
-  const { devices, samples } = useDevices();
+  const { devices, samples, learned } = useDevices();
   const state = usePlayerState();
   const { version } = useLibrary();
   const detail = useMemo(
@@ -143,7 +221,7 @@ export function useHeadphoneWarning(): { name: string; level: number; what: stri
   }
   for (const d of devices) {
     if (d.car || d.battery === null) continue;
-    if (headphoneWarning(d.battery, samples.get(d.id) ?? [], needMs)) {
+    if (headphoneWarning(d.battery, samples.get(d.id) ?? [], needMs, learned.get(d.id) ?? null)) {
       return { name: d.name, level: d.battery, what: needMs === null ? '' : what };
     }
   }

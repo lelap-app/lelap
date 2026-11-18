@@ -58,6 +58,17 @@ class CarLibraryTest {
     assertEquals("https://img/b.jpg", CarLibrary.item("phone/b", snapshot, null)?.artworkUri)
   }
 
+  @Test fun `covers on the phone go through the cover provider`() {
+    val cover = "file:///data/user/0/app.lelap/files/covers/x.jpg"
+    val local = CarSnapshot(onPhone = listOf(load("x", cover = cover)))
+    val node = CarLibrary.children(CarLibrary.ON_PHONE, local, null, coverAuthority = "app.lelap.covers")!![0]
+    assertEquals("content://app.lelap.covers/${CarCovers.key(cover)}", node.artworkUri)
+    assertEquals(
+      "https://img/b.jpg",
+      CarLibrary.item("phone/b", snapshot, null, coverAuthority = "app.lelap.covers")?.artworkUri,
+    )
+  }
+
   @Test fun `items are found by id`() {
     assertEquals("podcasts", CarLibrary.item("podcasts", snapshot, null)?.id)
     assertEquals("upnext/c", CarLibrary.item("upnext/c", snapshot, null)?.id)

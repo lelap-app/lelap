@@ -1286,6 +1286,7 @@ class PlaybackService : MediaLibraryService() {
         .add(SessionCommand(Commands.START_CAST, Bundle.EMPTY))
         .add(SessionCommand(Commands.STOP_CAST, Bundle.EMPTY))
         .add(SessionCommand(Commands.SETTLE_ACCOUNTING, Bundle.EMPTY))
+        .add(SessionCommand(Commands.SKIP, Bundle.EMPTY))
         .build()
       return MediaSession.ConnectionResult.accept(
         commands,
@@ -1349,6 +1350,12 @@ class PlaybackService : MediaLibraryService() {
         }
         Commands.START_CAST -> return startRemote()
         Commands.SETTLE_ACCOUNTING -> account()
+        Commands.SKIP -> {
+          // A player with nothing loaded can't seek; Play would start the book, so load it paused.
+          if (player.mediaItemCount == 0) journalLoad()?.let { loadBook(it, autoplay = false) }
+          val forward = args.getBoolean(Commands.KEY_FORWARD, true)
+          skipBy(if (forward) skipIntervalMs else -skipIntervalMs)
+        }
         Commands.STOP_CAST ->
           endRemote(resume = if (args.containsKey(Commands.KEY_RESUME)) args.getBoolean(Commands.KEY_RESUME) else null)
         Commands.LOAD_BOOK -> {
@@ -1420,7 +1427,13 @@ class PlaybackService : MediaLibraryService() {
       pageSize: Int,
       params: LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-      val nodes = CarLibrary.children(parentId, carSnapshot(), journalLoad(), NativeText.get(this@PlaybackService))
+      val nodes = CarLibrary.children(
+        parentId,
+        carSnapshot(),
+        journalLoad(),
+        NativeText.get(this@PlaybackService),
+        CarCovers.authority(packageName),
+      )
         ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
       val from = (page.toLong() * pageSize).coerceAtMost(nodes.size.toLong()).toInt()
       val to = (from.toLong() + pageSize).coerceAtMost(nodes.size.toLong()).toInt()
@@ -1434,7 +1447,13 @@ class PlaybackService : MediaLibraryService() {
       browser: MediaSession.ControllerInfo,
       mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> {
-      val node = CarLibrary.item(mediaId, carSnapshot(), journalLoad(), NativeText.get(this@PlaybackService))
+      val node = CarLibrary.item(
+        mediaId,
+        carSnapshot(),
+        journalLoad(),
+        NativeText.get(this@PlaybackService),
+        CarCovers.authority(packageName),
+      )
         ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
       return Futures.immediateFuture(LibraryResult.ofItem(carItem(node), null))
     }

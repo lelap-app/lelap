@@ -21,6 +21,13 @@ object Commands {
   const val STOP_CAST = "app.lelap.audio.STOP_CAST"
   /** M51: count what was heard up to now, so the app can merge it for the right profile. */
   const val SETTLE_ACCOUNTING = "app.lelap.audio.SETTLE_ACCOUNTING"
+  /**
+   * M74: the widget's Back and Forward. With nothing loaded (the app was closed), the last book is
+   * loaded paused at its place first. Named by its value in `modules/widget`'s PlayerRemote.
+   */
+  const val SKIP = "app.lelap.audio.SKIP"
+  /** With [SKIP]: true for forward, false for back. */
+  const val KEY_FORWARD = "forward"
   /** With [STOP_CAST]: play on here after the hand-back; missing means as the receiver was. */
   const val KEY_RESUME = "resume"
   const val KEY_QUEUE_JSON = "queue"
