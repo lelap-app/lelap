@@ -3,6 +3,7 @@ package app.lelap.cast
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.PowerManager
+import android.util.Log
 import java.util.concurrent.Callable
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.ExecutionException
@@ -24,6 +25,8 @@ data class CastRequest(
   val mimeType: String? = null,
   /** The address carries a login (a Subsonic token): the receiver gets it through the phone. */
   val viaPhone: Boolean = false,
+  /** The file's own name, whose extension tells the type when the address has none (Subsonic). */
+  val fileName: String? = null,
 ) {
   /** Whether the receiver fetches this file from the phone, which adds the login on the way. */
   val throughPhone: Boolean
@@ -178,6 +181,12 @@ class CastLink private constructor(
   }
 
   private fun open() {
+    // Report only (M69): read with `adb logcat -s LelapCast`.
+    if (device.kind == "cast") {
+      Thread({ Log.i(TAG, "cast device auth: ${CastAuthProbe.describe(CastAuthProbe.run(device))}") }, "lelap-cast-auth")
+        .apply { isDaemon = true }
+        .start()
+    }
     renderer = when (device.kind) {
       "upnp" -> UpnpRenderer(device)
       "cast" -> GoogleCastRenderer(device, ::lost)
@@ -210,7 +219,7 @@ class CastLink private constructor(
   private fun media(request: CastRequest): CastMedia {
     val uri = request.uri
     val local = uri.startsWith("file://") || uri.startsWith("content://")
-    val name = if (local) server().displayName(uri) else uri
+    val name = Mime.nameFor(if (local) server().displayName(uri) else uri, request.fileName)
     val mimeType = Mime.audioOr(request.mimeType, name)
     val url = when {
       local -> server().publish(MediaServer.Source.Local(uri), mimeType, name)
@@ -242,6 +251,7 @@ class CastLink private constructor(
 
   companion object {
     private const val NOT_CASTING = "Not casting"
+    private const val TAG = "LelapCast"
 
     /** The session running now, if any. */
     @Volatile

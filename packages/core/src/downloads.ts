@@ -52,9 +52,12 @@ function extensionOf(url: string, fallback: string): string {
   return match?.[1] ? `.${match[1].toLowerCase()}` : fallback;
 }
 
-/** `001.mp3`: numbered, so the folder lists in play order and names never collide. */
-export const partFileName = (idx: number, url: string) =>
-  `${String(idx + 1).padStart(3, '0')}${extensionOf(url, '.audio')}`;
+/**
+ * `001.mp3`: numbered, so the folder lists in play order and names never collide. The extension
+ * comes from the address, else from the file's own name (a Subsonic stream address has none).
+ */
+export const partFileName = (idx: number, url: string, name?: string) =>
+  `${String(idx + 1).padStart(3, '0')}${extensionOf(url, name ? extensionOf(name, '.audio') : '.audio')}`;
 
 export const coverFileName = (url: string) => `cover${extensionOf(url, '.jpg')}`;
 
@@ -79,6 +82,7 @@ export function planDownload(db: Db, bookId: string): DownloadPlan {
       idx: bookFiles.idx,
       uri: bookFiles.uri,
       downloadUri: bookFiles.downloadUri,
+      name: bookFiles.name,
       size: bookFiles.size,
       rootId: bookFiles.rootId,
     })
@@ -90,7 +94,7 @@ export function planDownload(db: Db, bookId: string): DownloadPlan {
   const files = parts.map((p) => ({
     url: p.downloadUri ?? p.uri,
     // A server file's name comes from its path, not from a signed link.
-    name: partFileName(p.idx, p.uri.split('?')[0] ?? p.uri),
+    name: partFileName(p.idx, p.uri.split('?')[0] ?? p.uri, p.name),
     size: p.size,
     rootId: p.rootId,
   }));

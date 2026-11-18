@@ -68,6 +68,11 @@ describe('file names', () => {
   it('numbers parts and keeps the extension of the URL path', () => {
     expect(partFileName(0, 'https://a.example/x/Part One.MP3?token=1')).toBe('001.mp3');
     expect(partFileName(41, 'https://a.example/stream')).toBe('042.audio');
+    // A Subsonic stream address has no extension; the file's own name has.
+    expect(partFileName(2, 'https://music.example/rest/stream', 'Book/03 Part.FLAC')).toBe(
+      '003.flac',
+    );
+    expect(partFileName(2, 'https://music.example/rest/stream', 'notes')).toBe('003.audio');
     expect(partFileName(2, 'not a url.m4b')).toBe('003.m4b');
     expect(coverFileName('https://img.example/c.png')).toBe('cover.png');
     expect(coverFileName('https://archive.org/services/img/garden')).toBe('cover.jpg');

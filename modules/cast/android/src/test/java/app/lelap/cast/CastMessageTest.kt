@@ -56,11 +56,25 @@ class CastMessageTest {
   }
 
   @Test
-  fun refusesTruncatedOrBinaryMessages() {
+  fun refusesTruncatedMessages() {
     val bytes = CastMessage.encode(connect)
     assertNull(CastMessage.decode(bytes.copyOf(bytes.size - 3)))
-    // payload_binary only: no utf8 payload.
-    assertNull(CastMessage.decode(byteArrayOf(0x12, 0x01, 0x73, 0x1a, 0x01, 0x72, 0x22, 0x01, 0x6e, 0x3a, 0x01, 0x00)))
+    // No payload of either kind.
+    assertNull(CastMessage.decode(byteArrayOf(0x12, 0x01, 0x73, 0x1a, 0x01, 0x72, 0x22, 0x01, 0x6e)))
+  }
+
+  @Test
+  fun binaryPayloadsRoundTripWithPayloadTypeBinary() {
+    val auth = CastMessage("sender-0", "receiver-0", CastAuth.NAMESPACE, "", byteArrayOf(0x0a, 0x00))
+    val bytes = CastMessage.encode(auth)
+    // payload_type = BINARY, then payload_binary.
+    assertArrayEquals(byteArrayOf(0x28, 0x01, 0x3a, 0x02, 0x0a, 0x00), bytes.copyOfRange(bytes.size - 6, bytes.size))
+    val decoded = CastMessage.decode(bytes)!!
+    assertEquals("", decoded.payload)
+    assertArrayEquals(byteArrayOf(0x0a, 0x00), decoded.binary)
+    // payload_binary only, as a receiver sends it.
+    val bare = CastMessage.decode(byteArrayOf(0x12, 0x01, 0x73, 0x1a, 0x01, 0x72, 0x22, 0x01, 0x6e, 0x3a, 0x01, 0x00))!!
+    assertArrayEquals(byteArrayOf(0x00), bare.binary)
   }
 
   @Test

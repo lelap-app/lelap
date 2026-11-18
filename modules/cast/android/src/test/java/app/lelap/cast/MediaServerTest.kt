@@ -20,6 +20,18 @@ class MediaServerTest {
   }
 
   @Test
+  fun takesTheTypeFromTheFilesOwnNameWhenTheAddressHasNone() {
+    // A Subsonic stream address, and a part downloaded before its name kept the extension.
+    assertEquals("Book/03 Part.flac", Mime.nameFor("https://music.example/rest/stream?id=3&t=x", "Book/03 Part.flac"))
+    assertEquals("Part.m4b", Mime.nameFor("042.audio", "Part.m4b"))
+    // The address's own extension wins; an unknown file name changes nothing.
+    assertEquals("https://a.example/p.mp3", Mime.nameFor("https://a.example/p.mp3", "p.flac"))
+    assertEquals("https://a.example/stream", Mime.nameFor("https://a.example/stream", "notes.txt"))
+    assertEquals("https://a.example/stream", Mime.nameFor("https://a.example/stream", null))
+    assertEquals("audio/flac", Mime.audioOr(null, Mime.nameFor("https://music.example/rest/stream", "x.flac")))
+  }
+
+  @Test
   fun mapsM4bToATypeReceiversAccept() {
     assertEquals("audio/mp4", Mime.audio("/storage/emulated/0/Books/Dune.m4b"))
     assertEquals("audio/mp4", Mime.audio("Part.M4A"))

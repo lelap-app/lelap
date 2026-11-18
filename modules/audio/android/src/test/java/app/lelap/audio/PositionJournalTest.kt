@@ -121,6 +121,21 @@ class PositionJournalTest {
   }
 
   @Test
+  fun keepsAFilesOwnNameForCasting() {
+    val json = """
+      {"bookId":"b","title":"T","author":null,"coverUri":null,"speed":1,
+       "files":[{"uri":"http://nas:4533/rest/stream?id=a","location":"loc","title":"x","durationMs":5,"name":"03 Part.flac"},
+                {"uri":"https://a.example/p.mp3","location":"loc2","title":"y","durationMs":5}],
+       "chapters":[],"startIndex":0,"startPositionMs":0}
+    """.trimIndent()
+    val load = PositionJournal.decodeLoad(json)!!
+    assertEquals("03 Part.flac", load.playlist.files[0].name)
+    // Journals from before M69 have no name.
+    assertNull(load.playlist.files[1].name)
+    assertEquals(load, PositionJournal.decodeLoad(PositionJournal.encodeLoad(load)))
+  }
+
+  @Test
   fun returnsNullForCorruptJson() {
     assertNull(PositionJournal.decode("{not json", null))
     assertNull(PositionJournal.decode("""{"entry":{}}""", null))

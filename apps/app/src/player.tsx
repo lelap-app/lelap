@@ -233,6 +233,7 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
       location: f.location,
       title: f.title ?? stripExtension(f.name),
       durationMs: f.durationMs,
+      name: f.name,
     })),
     chapters: detail.chapters,
     startIndex: start.index,

@@ -10,7 +10,14 @@ import java.io.IOException
  * 5 payload_type (enum, 0 = STRING), 6 payload_utf8, 7 payload_binary. On the socket each
  * message follows its length as a 4-byte big-endian integer.
  */
-data class CastMessage(val sourceId: String, val destinationId: String, val namespace: String, val payload: String) {
+data class CastMessage(
+  val sourceId: String,
+  val destinationId: String,
+  val namespace: String,
+  val payload: String,
+  /** A binary payload (device authentication); [payload] is empty then. */
+  val binary: ByteArray? = null,
+) {
   companion object {
     /** Receivers refuse larger messages; so do we. */
     const val MAX_SIZE = 64 * 1024
@@ -22,18 +29,26 @@ data class CastMessage(val sourceId: String, val destinationId: String, val name
       out.string(2, message.sourceId)
       out.string(3, message.destinationId)
       out.string(4, message.namespace)
-      out.tag(5, 0)
-      out.varint(0)
-      out.string(6, message.payload)
+      val binary = message.binary
+      if (binary == null) {
+        out.tag(5, 0)
+        out.varint(0)
+        out.string(6, message.payload)
+      } else {
+        out.tag(5, 0)
+        out.varint(1)
+        out.bytes(7, binary)
+      }
       return out.toByteArray()
     }
 
-    /** Null for binary payloads and messages missing a field we need. */
+    /** Null for messages missing a field we need. */
     fun decode(bytes: ByteArray): CastMessage? {
       var source: String? = null
       var destination: String? = null
       var namespace: String? = null
       var payload: String? = null
+      var binary: ByteArray? = null
       var i = 0
       fun varint(): Long {
         var result = 0L
@@ -55,8 +70,10 @@ data class CastMessage(val sourceId: String, val destinationId: String, val name
             1 -> i += 8
             5 -> i += 4
             2 -> {
-              val length = varint().toInt()
-              if (length < 0 || i + length > bytes.size) return null
+              val wide = varint()
+              if (wide < 0 || wide > bytes.size - i) return null
+              val length = wide.toInt()
+              if (field == 7) binary = bytes.copyOfRange(i, i + length)
               val text = String(bytes, i, length, Charsets.UTF_8)
               i += length
               when (field) {
@@ -72,7 +89,8 @@ data class CastMessage(val sourceId: String, val destinationId: String, val name
       } catch (e: IOException) {
         return null
       }
-      return CastMessage(source ?: return null, destination ?: return null, namespace ?: return null, payload ?: return null)
+      if (payload == null && binary == null) return null
+      return CastMessage(source ?: return null, destination ?: return null, namespace ?: return null, payload ?: "", binary)
     }
 
     fun frame(message: CastMessage): ByteArray {
@@ -106,11 +124,12 @@ data class CastMessage(val sourceId: String, val destinationId: String, val name
 
     private fun ByteArrayOutputStream.tag(field: Int, wireType: Int) = varint(((field shl 3) or wireType).toLong())
 
-    private fun ByteArrayOutputStream.string(field: Int, value: String) {
-      val bytes = value.toByteArray(Charsets.UTF_8)
+    private fun ByteArrayOutputStream.string(field: Int, value: String) = bytes(field, value.toByteArray(Charsets.UTF_8))
+
+    private fun ByteArrayOutputStream.bytes(field: Int, value: ByteArray) {
       tag(field, 2)
-      varint(bytes.size.toLong())
-      write(bytes)
+      varint(value.size.toLong())
+      write(value)
     }
   }
 }
