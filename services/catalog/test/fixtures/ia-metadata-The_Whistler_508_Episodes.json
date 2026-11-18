@@ -1,0 +1,61 @@
+{
+  "created": 1794956745,
+  "metadata": {
+    "identifier": "The_Whistler_508_Episodes",
+    "title": "The Whistler - 508 Episodes",
+    "mediatype": "audio",
+    "collection": ["oldtimeradio", "radioprograms"],
+    "description": "Actually there are about 450 OTR episodes of The Whistler (archive.org didn't accept about 50 of them)",
+    "publicdate": "2009-11-12 09:36:02",
+    "addeddate": "2009-11-12 09:27:12",
+    "external_metadata_update": "2019-04-09T22:02:36Z"
+  },
+  "files": [
+    {
+      "name": "The_Whistler_420516_001_30m14s_Retribution_.mp3",
+      "source": "original",
+      "format": "32Kbps MP3",
+      "title": "Retribution",
+      "creator": "FreeOTRShows.com - Whistler,The",
+      "mtime": "1258013597",
+      "size": "7257984",
+      "length": "3645.37"
+    },
+    {
+      "name": "The_Whistler_420516_001_30m14s_Retribution_.png",
+      "source": "derivative",
+      "format": "PNG",
+      "original": "The_Whistler_420516_001_30m14s_Retribution_.mp3",
+      "mtime": "1416564206",
+      "size": "12283"
+    },
+    {
+      "name": "The_Whistler_508_Episodes_archive.torrent",
+      "source": "metadata",
+      "mtime": "1668538037",
+      "size": "271312",
+      "format": "Archive BitTorrent"
+    },
+    {
+      "name": "The_Whistler_508_Episodes_meta.xml",
+      "source": "metadata",
+      "format": "Metadata",
+      "mtime": "1668538023",
+      "size": "767"
+    }
+  ],
+  "reviews": [
+    {
+      "stars": "5"
+    },
+    {
+      "stars": "4"
+    },
+    {
+      "stars": "4"
+    },
+    {
+      "stars": "5"
+    }
+  ]
+}

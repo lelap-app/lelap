@@ -118,6 +118,10 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M51] Up Next hands over with the app closed: both episodes get their time in Stats. ([m51](m51-follow-ups.md#checks-on-a-phone))
 - [ ] [M51] `adb shell am kill app.lelap` while playing in the background, Play again: Stats loses at most a few seconds. ([m51](m51-follow-ups.md#checks-on-a-phone))
 - [ ] [M51] Change the phone's clock by an hour while playing: Stats does not jump. ([m51](m51-follow-ups.md#checks-on-a-phone))
+- [ ] [M60] Add the Internet Archive add-on by its manifest URL: it shows as Working and Home gets “Old-time radio”, “Lectures and talks” and “Readings and poetry”. ([m60](m60-follow-ups.md#add))
+- [ ] [M60] Search “dragnet”, open “Dragnet the 50's radio show”, Subscribe: 298 episodes in Podcasts; one plays with the screen off from archive.org. ([m60](m60-follow-ups.md#radio))
+- [ ] [M60] Download an episode of the radio series on Wi-Fi; it plays in flight mode. ([m60](m60-follow-ups.md#download))
+- [ ] [M60] A lecture with several parts from “Lectures and talks” plays from the first part into the second; the chapters list the parts. ([m60](m60-follow-ups.md#lecture))
 
 ### A5. Sync and data on one device
 
@@ -332,6 +336,7 @@ offline, the background engine, sync on one device, and UI features.
 
 ### Releases, updates and infrastructure
 
+- [ ] [M60] After the services deploy, the catalog answers `/internet-archive/manifest.json` and a feed as `application/rss+xml`; the Docker image does too. ([m60](m60-follow-ups.md#deploy))
 - [ ] [M8] Tag `v0.1.0-beta.1` (or the next beta): the workflow publishes the APK, `beta.json`, the GitHub release and the images. ([m8](m8-follow-ups.md#2-checks))
 - [ ] [M8] An older build finds the beta, asks for the install permission and installs it. ([m8](m8-follow-ups.md#2-checks))
 - [ ] [M8] Install from `lelap.app` and receive an update without help. ([m8](m8-follow-ups.md#2-checks))

@@ -1,0 +1,100 @@
+{
+  "created": 1794933846,
+  "metadata": {
+    "identifier": "Dragnet_OTR",
+    "title": "Dragnet the 50's radio show",
+    "mediatype": "audio",
+    "description": "Old Time Radio Programs. Detective series. 298 episodes of Dragnet.",
+    "subject": "Old Time Radio; Detective series; Dragnet; Jack Webb; Crime Drama",
+    "licenseurl": "http://creativecommons.org/licenses/publicdomain/",
+    "publicdate": "2007-03-11 13:15:50",
+    "addeddate": "2007-03-11 13:12:59",
+    "collection": ["oldtimeradio", "lumedwards", "radioprograms"],
+    "external_metadata_update": "2019-03-26T21:30:47Z"
+  },
+  "files": [
+    {
+      "name": "Dragnet_49-06-10_ep002_Homicide.mp3",
+      "source": "original",
+      "format": "32Kbps MP3",
+      "creator": "Dragnet",
+      "mtime": "1173557139",
+      "size": "6890545",
+      "length": "1722.23"
+    },
+    {
+      "name": "Dragnet_49-06-10_ep002_Homicide.png",
+      "source": "derivative",
+      "format": "PNG",
+      "original": "Dragnet_49-06-10_ep002_Homicide.mp3",
+      "mtime": "1416768480",
+      "size": "10325"
+    },
+    {
+      "name": "Dragnet_49-06-17_ep003_The_Werewolf.mp3",
+      "source": "original",
+      "format": "32Kbps MP3",
+      "creator": "Dragnet",
+      "mtime": "1173557198",
+      "size": "7055761",
+      "length": "1763.54"
+    },
+    {
+      "name": "Dragnet_49-06-17_ep003_The_Werewolf.png",
+      "source": "derivative",
+      "format": "PNG",
+      "original": "Dragnet_49-06-17_ep003_The_Werewolf.mp3",
+      "mtime": "1416762232",
+      "size": "10749"
+    },
+    {
+      "name": "Dragnet_51-06-28_ep107_Big_Cliff.mp3",
+      "source": "original",
+      "format": "24Kbps MP3",
+      "creator": "Dragnet",
+      "mtime": "1173567412",
+      "size": "4777809",
+      "length": "1592.6"
+    },
+    {
+      "name": "Dragnet_OTR_archive.torrent",
+      "source": "metadata",
+      "mtime": "1728073967",
+      "size": "152933",
+      "format": "Archive BitTorrent"
+    },
+    {
+      "name": "Dragnet_OTR_files.xml",
+      "source": "metadata",
+      "format": "Metadata"
+    },
+    {
+      "name": "Dragnet_OTR_meta.xml",
+      "source": "metadata",
+      "format": "Metadata",
+      "mtime": "1668807187",
+      "size": "1017"
+    },
+    {
+      "name": "Dragnet_OTR_reviews.xml",
+      "source": "metadata",
+      "format": "Metadata",
+      "mtime": "1784324778",
+      "size": "38232"
+    }
+  ],
+  "reviews": [
+    {
+      "stars": "5"
+    },
+    {
+      "stars": "5"
+    },
+    {
+      "stars": "4"
+    },
+    {
+      "stars": "0"
+    }
+  ]
+}

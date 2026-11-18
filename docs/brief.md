@@ -130,9 +130,10 @@ GET  /configure           (the add-on's own settings page)
 - **Configuration** lives on the add-on's `/configure` page; the app stores only the URL.
 - **Scrobble events** carry an `eventId`, the real timestamp and never the source URL.
 
-First-party add-ons: Catalog (Open Library, Audnexus, Podcast Index), LibriVox, and the Hardcover
-and gPodder scrobblers. RSS, local files and the user's own storage (WebDAV, S3, Jellyfin,
-Audiobookshelf) are built into the app; see Decisions.
+First-party add-ons: Catalog (Open Library, Audnexus, Podcast Index), LibriVox, Internet Archive
+(old-time radio, lectures and readings that are public domain or Creative Commons; added by its
+manifest URL, not by default), and the Hardcover and gPodder scrobblers. RSS, local files and the
+user's own storage (WebDAV, S3, Jellyfin, Audiobookshelf) are built into the app; see Decisions.
 
 ## Infrastructure
 

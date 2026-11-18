@@ -163,7 +163,14 @@ export const metadataUrl = (identifier: string) =>
 export const coverUrl = (identifier: string) =>
   `${ARCHIVE}/services/img/${encodeURIComponent(identifier)}`;
 
-const durationOf = (value: string | number | undefined) =>
+/** A file inside an item, straight from archive.org. */
+export const downloadUrl = (identifier: string, name: string) =>
+  `${ARCHIVE}/download/${encodeURIComponent(identifier)}/${name
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')}`;
+
+export const durationOf = (value: string | number | undefined) =>
   parseDuration(typeof value === 'number' ? String(value) : value);
 
 export function toPreview(doc: SearchDoc): MetaPreview | null {
@@ -213,7 +220,7 @@ const FORMATS = [
   { format: '128Kbps MP3', key: '128kb' },
 ] as const;
 
-const trackNumber = (value: string | number | undefined): number | undefined => {
+export const trackNumber = (value: string | number | undefined): number | undefined => {
   const track = typeof value === 'number' ? value : parseInt(value ?? '', 10);
   return Number.isFinite(track) ? track : undefined;
 };
@@ -243,10 +250,7 @@ export function chooseParts(item: Item): { key: string; parts: StreamPart[] } | 
 
     const parts = ordered.map((file): StreamPart => {
       const part: StreamPart = {
-        url: `${ARCHIVE}/download/${encodeURIComponent(identifier)}/${file.name
-          .split('/')
-          .map(encodeURIComponent)
-          .join('/')}`,
+        url: downloadUrl(identifier, file.name),
         durationMs: durationOf(file.length) ?? 0,
         title: file.title?.trim() || file.name.replace(/\.[^.]+$/, ''),
       };
