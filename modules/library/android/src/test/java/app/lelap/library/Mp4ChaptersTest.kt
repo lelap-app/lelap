@@ -34,10 +34,23 @@ class Mp4ChaptersTest {
     )
   }
 
+  private fun sample(text: ByteArray) = concat(u16(text.size), text)
+
   @Test
   fun readsAQuickTimeChapterTrack() {
-    fun sample(title: String) = title.toByteArray(Charsets.UTF_8).let { concat(u16(it.size), it) }
-    val samples = listOf(sample("One"), sample("Two"))
+    val samples = listOf(sample("One".toByteArray()), sample("Two".toByteArray()))
+    assertEquals(listOf(Chapter("One", 0), Chapter("Two", 30_000)), parse(quickTime(samples)))
+  }
+
+  @Test
+  fun readsUtf16ChapterTitlesWithAByteOrderMark() {
+    val bom = byteArrayOf(0xfe.toByte(), 0xff.toByte())
+    val samples = listOf(sample(concat(bom, "Første".toByteArray(Charsets.UTF_16BE))), sample("Two".toByteArray()))
+    assertEquals(listOf(Chapter("Første", 0), Chapter("Two", 30_000)), parse(quickTime(samples)))
+  }
+
+  /** A file whose QuickTime text track holds two chapter samples, at 0 and 30 s. */
+  private fun quickTime(samples: List<ByteArray>): ByteArray {
     val mdat = atom("mdat", *samples.toTypedArray())
     val ftyp = atom("ftyp", "M4B ".toByteArray())
     val firstSample = ftyp.size + 8L
@@ -68,8 +81,7 @@ class Mp4ChaptersTest {
       atom("tref", atom("chap", u32(2))),
       atom("mdia", fullBox("hdlr", u32(0), "soun".toByteArray(), ByteArray(12), byteArrayOf(0))),
     )
-    val file = concat(ftyp, mdat, atom("moov", atom("mvhd", ByteArray(100)), audioTrack, textTrack))
-    assertEquals(listOf(Chapter("One", 0), Chapter("Two", 30_000)), parse(file))
+    return concat(ftyp, mdat, atom("moov", atom("mvhd", ByteArray(100)), audioTrack, textTrack))
   }
 
   @Test

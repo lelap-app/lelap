@@ -19,7 +19,7 @@ data class ListedEntry(
 )
 
 object TreeWalk {
-  /** Every file below [rootId], depth first, with its path relative to the root. */
+  /** Every file below [rootId], breadth first, with its path relative to the root. */
   fun walk(rootId: String, children: (String) -> List<TreeEntry>): List<ListedEntry> {
     val files = mutableListOf<ListedEntry>()
     val pending = ArrayDeque(listOf(rootId to ""))

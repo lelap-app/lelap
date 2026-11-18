@@ -13,7 +13,7 @@ object Id3Chapters {
   fun tagSize(header: ByteArray): Int {
     if (header.size < 10 || String(header, 0, 3, Charsets.ISO_8859_1) != "ID3") return 0
     val footer = if (header[5].toInt() and 0x10 != 0) 10 else 0
-    return 10 + synchsafe(header, 6) + footer
+    return 10 + Id3Frames.synchsafe(header, 6) + footer
   }
 
   fun parse(tag: ByteArray): List<Chapter> = parse(
@@ -21,98 +21,48 @@ object Id3Chapters {
     tag.size.toLong(),
   )
 
-  /**
-   * Walks the tag's frame headers with small reads and reads only `CHAP` bodies, so a multi-MB
-   * cover picture or a bogus tag size never costs memory.
-   */
+  /** Reads only `CHAP` bodies; [Id3Frames] skips the rest, covers included, without reading them. */
   fun parse(read: (offset: Long, length: Int) -> ByteArray, size: Long): List<Chapter> = try {
     parseUnsafe(read, size)
-  } catch (e: IndexOutOfBoundsException) {
-    emptyList()
-  } catch (e: IllegalArgumentException) {
+  } catch (e: RuntimeException) {
+    // A truncated or odd tag has no chapters rather than failing a scan.
     emptyList()
   }
 
   private fun parseUnsafe(read: (Long, Int) -> ByteArray, size: Long): List<Chapter> {
-    fun exactly(offset: Long, length: Int): ByteArray {
-      require(offset >= 0 && length in 0..MAX_FRAME_BYTES && offset + length <= size)
-      return read(offset, length).also { require(it.size == length) }
-    }
-    if (size < 10) return emptyList()
-    val header = exactly(0, 10)
-    if (tagSize(header) == 0) return emptyList()
-    val version = header[3].toInt()
-    if (version != 3 && version != 4) return emptyList()
-    val end = minOf(size, 10L + synchsafe(header, 6))
-    var pos = 10L
-    if (header[5].toInt() and 0x40 != 0) {
-      val ext = exactly(pos, 4)
-      pos += if (version == 4) synchsafe(ext, 0).toLong() else 4L + u32(ext, 0)
-    }
     val found = mutableListOf<Pair<Long, String?>>()
-    while (pos + 10 <= end) {
-      val frame = exactly(pos, 10)
-      if (frame[0] == 0.toByte()) break
-      val id = String(frame, 0, 4, Charsets.ISO_8859_1)
-      val frameSize = (if (version == 4) synchsafe(frame, 4) else u32(frame, 4)).toLong() and 0xffffffffL
-      if (pos + 10 + frameSize > end) break
-      if (id == "CHAP" && frameSize <= MAX_FRAME_BYTES) {
-        val body = exactly(pos + 10, frameSize.toInt())
-        found += chapter(body, 0, body.size, version)
-        if (found.size > MAX_CHAPTERS) return emptyList()
-      }
-      pos += 10 + frameSize
+    var tooMany = false
+    Id3Frames.walk(read, size, { id, frameSize -> id == "CHAP" && frameSize <= MAX_FRAME_BYTES }) { frame ->
+      found += chapter(frame.body, frame.version)
+      tooMany = found.size > MAX_CHAPTERS
+      !tooMany
     }
+    if (tooMany) return emptyList()
     return found.sortedBy { it.first }.mapIndexed { i, (start, title) ->
       Chapter(title?.takeIf { it.isNotBlank() } ?: "Chapter ${i + 1}", start)
     }
   }
 
-  private fun chapter(tag: ByteArray, start: Int, end: Int, version: Int): Pair<Long, String?> {
-    var pos = start
-    while (tag[pos] != 0.toByte()) pos++
+  private fun chapter(body: ByteArray, version: Int): Pair<Long, String?> {
+    var pos = 0
+    while (body[pos] != 0.toByte()) pos++
     pos++ // element ID and its terminator
-    val startMs = u32(tag, pos).toLong() and 0xffffffffL
+    val startMs = Id3Frames.u32(body, pos)
     var title: String? = null
-    forEachFrame(tag, pos + 16, end, version) { id, bodyStart, bodyEnd ->
-      if (id == "TIT2") title = text(tag, bodyStart, bodyEnd)
+    Id3Frames.subFrames(body, pos + 16, version) { frame ->
+      if (frame.id == "TIT2") title = text(frame.body)
     }
     return startMs to title
   }
 
-  private inline fun forEachFrame(
-    tag: ByteArray,
-    from: Int,
-    end: Int,
-    version: Int,
-    block: (id: String, bodyStart: Int, bodyEnd: Int) -> Unit,
-  ) {
-    var pos = from
-    while (pos + 10 <= end && tag[pos] != 0.toByte()) {
-      val id = String(tag, pos, 4, Charsets.ISO_8859_1)
-      val size = if (version == 4) synchsafe(tag, pos + 4) else u32(tag, pos + 4)
-      if (size < 0 || pos + 10 + size > end) return
-      block(id, pos + 10, pos + 10 + size)
-      pos += 10 + size
-    }
-  }
-
-  private fun text(tag: ByteArray, start: Int, end: Int): String {
-    if (end <= start) return ""
-    val charset: Charset = when (tag[start].toInt()) {
+  private fun text(body: ByteArray): String {
+    if (body.isEmpty()) return ""
+    val charset: Charset = when (body[0].toInt()) {
       1 -> Charsets.UTF_16
       2 -> Charsets.UTF_16BE
       3 -> Charsets.UTF_8
       else -> Charsets.ISO_8859_1
     }
-    return String(tag, start + 1, end - start - 1, charset).trimEnd('\u0000').trim()
+    return String(body, 1, body.size - 1, charset).trimEnd('\u0000').trim()
   }
-
-  private fun synchsafe(b: ByteArray, at: Int) =
-    ((b[at].toInt() and 0x7f) shl 21) or ((b[at + 1].toInt() and 0x7f) shl 14) or
-      ((b[at + 2].toInt() and 0x7f) shl 7) or (b[at + 3].toInt() and 0x7f)
-
-  private fun u32(b: ByteArray, at: Int) =
-    ((b[at].toInt() and 0xff) shl 24) or ((b[at + 1].toInt() and 0xff) shl 16) or
-      ((b[at + 2].toInt() and 0xff) shl 8) or (b[at + 3].toInt() and 0xff)
 }

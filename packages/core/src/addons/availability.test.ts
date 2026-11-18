@@ -5,6 +5,7 @@ import { createTestDb } from '../../test/db';
 import type { Db } from '../db';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { books, downloads } from '../schema';
+import { hideBooks } from '../library/hidden';
 import { getSettings } from '../settings';
 import {
   type Availability,
@@ -88,6 +89,10 @@ describe('localLookup', () => {
     expect(isLocal(work('ol:OL1W', 'Walden'))).toBe(true);
     expect(isLocal(work('ol:OL2W', 'Dune', 'Herbert, Frank'))).toBe(true);
     expect(isLocal(work('ol:OL3W', 'Emma'))).toBe(false);
+
+    // A hidden book no longer counts, so a wanted book asks the add-ons for a source.
+    hideBooks(db, ME, ['b2'], 2);
+    expect(localLookup(db, ME)(work('ol:OL2W', 'Dune', 'Herbert, Frank'))).toBe(false);
   });
 
   it('does not count a streamed book that is not downloaded', () => {

@@ -49,7 +49,7 @@ data class KindTags(
 }
 
 private fun kindTags(tag: (Int) -> String?, file: FileTags) = KindTags(
-  genre = tag(MediaMetadataRetriever.METADATA_KEY_GENRE),
+  genre = tag(MediaMetadataRetriever.METADATA_KEY_GENRE) ?: file.genre,
   isrc = file.isrc,
   track = tag(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER),
   year = tag(MediaMetadataRetriever.METADATA_KEY_YEAR),
@@ -68,7 +68,7 @@ class TagReader(private val context: Context) {
       fun tag(key: Int) = retriever.extractMetadata(key)?.trim()?.takeIf { it.isNotEmpty() }
       // Pre-signed links change on every scan; the cover is named after the path without them.
       val coverKey = Uri.parse(url.substringBefore('?'))
-      val cover = retriever.embeddedPicture?.let { saveCover(it, coverKey, coverDir) }
+      val cover = embeddedCover(retriever, coverKey, coverDir)
       val bytes = RemoteBytes(url, headers)
       val chapters = runCatching { parseChapters(name, bytes::read, bytes.size) }.getOrDefault(emptyList())
       val fileTags = runCatching { IdTags.parseAll(name, bytes::read, bytes.size) }.getOrDefault(FileTags())
@@ -110,7 +110,7 @@ class TagReader(private val context: Context) {
           override fun close() = Unit
         })
         fun tag(key: Int) = retriever.extractMetadata(key)?.trim()?.takeIf { it.isNotEmpty() }
-        val cover = retriever.embeddedPicture?.let { saveCover(it, Uri.parse(url), coverDir) }
+        val cover = embeddedCover(retriever, Uri.parse(url), coverDir)
         val fileTags = runCatching { IdTags.parseAll(name, bytes::read, bytes.size) }.getOrDefault(FileTags())
         Tags(
           durationMs = tag(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L,
@@ -133,8 +133,8 @@ class TagReader(private val context: Context) {
     try {
       retriever.setDataSource(context, uri)
       fun tag(key: Int) = retriever.extractMetadata(key)?.trim()?.takeIf { it.isNotEmpty() }
-      val cover = retriever.embeddedPicture?.let { saveCover(it, uri, coverDir) }
-      val (chapters, fileTags) = fromFile(uri, name)
+      val cover = embeddedCover(retriever, uri, coverDir)
+      val (chapters, fileTags) = runCatching { fromFile(uri, name) }.getOrDefault(emptyList<Chapter>() to FileTags())
       return Tags(
         durationMs = tag(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L,
         title = tag(MediaMetadataRetriever.METADATA_KEY_TITLE),
@@ -151,11 +151,28 @@ class TagReader(private val context: Context) {
     }
   }
 
-  /** Saves a `cover.jpg`-style image as a small cover file. */
-  fun readImage(uri: Uri, coverDir: File): String? {
+  /**
+   * Saves an image file beside the audio (`cover.jpg`, `Book A.png`) as a small cover file, under
+   * [fileName] when given, so the app can keep it between scans.
+   */
+  fun readImage(uri: Uri, coverDir: File, fileName: String? = null): String? {
     val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
-    return saveCover(bytes, uri, coverDir)
+    return saveCover(bytes, uri, coverDir, fileName)
   }
+
+  /**
+   * An image's width and height from its header alone, for choosing among several images in a
+   * folder; the pixels are never decoded. Null when Android can't tell.
+   */
+  fun imageSize(uri: Uri): Pair<Int, Int>? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
+    return if (bounds.outWidth > 0 && bounds.outHeight > 0) bounds.outWidth to bounds.outHeight else null
+  }
+
+  /** An odd picture or a full disk costs the cover only, never the book's title and duration. */
+  private fun embeddedCover(retriever: MediaMetadataRetriever, uri: Uri, coverDir: File): String? =
+    runCatching { retriever.embeddedPicture?.let { saveCover(it, uri, coverDir) } }.getOrNull()
 
   /** Chapters and the tags Android doesn't give, read from the file with our own parsers. */
   private fun fromFile(uri: Uri, name: String): Pair<List<Chapter>, FileTags> {
@@ -182,7 +199,7 @@ class TagReader(private val context: Context) {
       else -> emptyList()
     }
 
-  private fun saveCover(bytes: ByteArray, uri: Uri, coverDir: File): String? {
+  private fun saveCover(bytes: ByteArray, uri: Uri, coverDir: File, fileName: String? = null): String? {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
@@ -197,7 +214,7 @@ class TagReader(private val context: Context) {
       decoded
     }
     coverDir.mkdirs()
-    val file = File(coverDir, "${sha1(uri.toString())}.jpg")
+    val file = File(coverDir, fileName ?: "${sha1(uri.toString())}.jpg")
     file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 85, it) }
     return file.absolutePath
   }

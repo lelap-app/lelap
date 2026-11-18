@@ -170,14 +170,17 @@ export type ApplyScanArgs = {
   listed: ListedFile[];
   /** Tags for files that were read in this scan; others keep their stored tags. */
   tags: Map<string, FileTags>;
+  /** Covers from image files, by folder location (`folderCoverFiles`'s `byFolder`). */
   folderCovers: Map<string, string>;
+  /** Covers from images named after an audio file, by the audio file's location (`byFile`). */
+  fileCovers?: Map<string, string>;
   now: number;
   newId: IdGenerator;
 };
 
 /** Brings the library in line with a listing of its folder. */
 export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing: number } {
-  const { rootId, rootLocation, listed, tags, folderCovers, now, newId } = args;
+  const { rootId, rootLocation, listed, tags, folderCovers, fileCovers, now, newId } = args;
 
   return db.transaction((tx) => {
     const storedFiles = new Map(
@@ -199,6 +202,13 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
     }
     for (const list of filesOfBook.values()) list.sort((a, b) => a.idx - b.idx);
     const changedFiles = new Set<string>();
+
+    // A big folder's first scan adds thousands of rows; they go in together after step 2, which
+    // takes about half the time of one insert each.
+    const newFiles = new Map<string, typeof bookFiles.$inferInsert>();
+    const newBooks: (typeof books.$inferInsert)[] = [];
+    const newChapters: (typeof chapters.$inferInsert)[] = [];
+    const moves: { location: string; bookId: string; idx: number }[] = [];
 
     // 1. Files: upsert what is listed, mark the rest of this root missing.
     const scanned: ScannedFile[] = [];
@@ -248,9 +258,13 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
       if (stored) {
         tx.update(bookFiles).set(row).where(eq(bookFiles.id, stored.id)).run();
       } else {
-        tx.insert(bookFiles)
-          .values({ id: newId(), location: file.location, bookId: null, idx: 0, ...row })
-          .run();
+        newFiles.set(file.location, {
+          id: newId(),
+          location: file.location,
+          bookId: null,
+          idx: 0,
+          ...row,
+        });
       }
     }
     for (const stored of storedFiles.values()) {
@@ -273,7 +287,7 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
     // Books whose files, their order or their tags changed: their chapters and places are redone.
     const changedBooks = new Set<string>();
     let added = 0;
-    for (const draft of groupIntoBooks(rootLocation, scanned, folderCovers)) {
+    for (const draft of groupIntoBooks(rootLocation, scanned, folderCovers, fileCovers)) {
       const values = {
         rootId,
         kind: draft.kind,
@@ -292,13 +306,13 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
         }
       } else {
         bookId = newId();
-        tx.insert(books)
-          .values({ id: bookId, location: draft.location, addedAt: now, ...values })
-          .run();
+        newBooks.push({ id: bookId, location: draft.location, addedAt: now, ...values });
         added++;
       }
       keptBookIds.add(bookId);
-      const before = filesOfBook.get(bookId) ?? [];
+      // Files missing since an earlier scan are no longer part of it; one that went missing in
+      // this scan still counts, so the book is rebuilt once and then left alone.
+      const before = (filesOfBook.get(bookId) ?? []).filter((f) => f.missingSince === null);
       const unchanged =
         before.length === draft.files.length &&
         draft.files.every(
@@ -309,19 +323,22 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
       if (unchanged) continue;
       changedBooks.add(bookId);
       for (const [idx, file] of draft.files.entries()) {
-        tx.update(bookFiles)
-          .set({ bookId, idx })
-          .where(eq(bookFiles.location, file.location))
-          .run();
+        const pending = newFiles.get(file.location);
+        if (pending) Object.assign(pending, { bookId, idx });
+        else moves.push({ location: file.location, bookId, idx });
       }
-      tx.delete(chapters).where(eq(chapters.bookId, bookId)).run();
-      const built = buildChapters(draft.files);
-      if (built.length > 0) {
-        tx.insert(chapters)
-          .values(built.map((c, idx) => ({ id: newId(), bookId, idx, ...c, updatedAt: now })))
-          .run();
+      if (stored) tx.delete(chapters).where(eq(chapters.bookId, bookId)).run();
+      for (const [idx, c] of buildChapters(draft.files).entries()) {
+        newChapters.push({ id: newId(), bookId, idx, ...c, updatedAt: now });
       }
     }
+    // Books first: files and chapters point at them.
+    for (const chunk of chunks(newBooks)) tx.insert(books).values(chunk).run();
+    for (const chunk of chunks([...newFiles.values()])) tx.insert(bookFiles).values(chunk).run();
+    for (const { location, bookId, idx } of moves) {
+      tx.update(bookFiles).set({ bookId, idx }).where(eq(bookFiles.location, location)).run();
+    }
+    for (const chunk of chunks(newChapters)) tx.insert(chapters).values(chunk).run();
 
     // 3. Places follow their file into whichever book now holds it.
     const fileBook = new Map(
@@ -420,6 +437,11 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
       .run();
     return { added, missing };
   });
+}
+
+// 200 file rows are about 5,000 bound values, well below SQLite's limit of 32,766.
+function* chunks<T>(rows: T[], size = 200): Generator<T[]> {
+  for (let i = 0; i < rows.length; i += size) yield rows.slice(i, i + size);
 }
 
 type StoredFile = typeof bookFiles.$inferSelect;

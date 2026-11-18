@@ -16,6 +16,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import app.lelap.text.NativeText
 import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -41,6 +42,16 @@ object Silences {
 
   fun readProgress(dir: File) = SilenceProgress.decode(File(dir, PROGRESS).takeIf { it.isFile }?.readText())
 
+  /** Held while `job.json` is replaced and while a worker checks it before writing. */
+  private val lock = Any()
+
+  /** Runs [write] only while [dir] still holds scan [run]; false when it holds another or none. */
+  fun writeFor(dir: File, run: String?, write: () -> Unit): Boolean = synchronized(lock) {
+    if (readJob(dir)?.sameRun(run) != true) return false
+    write()
+    true
+  }
+
   fun writeProgress(dir: File, progress: SilenceProgress) = writeAtomically(File(dir, PROGRESS), progress.encode())
 
   fun writeResult(dir: File, progress: SilenceProgress) =
@@ -56,15 +67,18 @@ object Silences {
 
   fun enqueue(context: Context, job: SilenceJob) {
     val dir = dir(context, job.bookId)
-    dir.deleteRecursively()
-    dir.mkdirs()
-    writeAtomically(File(dir, JOB), job.encode())
+    val run = UUID.randomUUID().toString()
+    synchronized(lock) {
+      dir.deleteRecursively()
+      dir.mkdirs()
+      writeAtomically(File(dir, JOB), job.copy(run = run).encode())
+    }
     // Decoding a long book takes a while and a good part of a battery; it waits for enough charge
     // and stops when the battery runs low, then goes on from its last checkpoint.
     val constraints = Constraints.Builder().setRequiresBatteryNotLow(true).build()
     val request = OneTimeWorkRequestBuilder<SilenceWorker>()
       .setConstraints(constraints)
-      .setInputData(workDataOf(SilenceWorker.KEY_BOOK_ID to job.bookId))
+      .setInputData(workDataOf(SilenceWorker.KEY_BOOK_ID to job.bookId, SilenceWorker.KEY_RUN to run))
       .addTag(TAG)
       .build()
     WorkManager.getInstance(context).enqueueUniqueWork(workName(job.bookId), ExistingWorkPolicy.REPLACE, request)
@@ -104,19 +118,22 @@ object Silences {
 class SilenceWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
   companion object {
     const val KEY_BOOK_ID = "bookId"
+    const val KEY_RUN = "run"
     private const val CHANNEL_ID = "chapters"
   }
 
   override suspend fun doWork(): Result {
     val bookId = inputData.getString(KEY_BOOK_ID) ?: return Result.failure()
     val dir = Silences.dir(applicationContext, bookId)
-    val job = Silences.readJob(dir) ?: return Result.failure()
+    val run = inputData.getString(KEY_RUN)
+    val job = Silences.readJob(dir)?.takeIf { it.sameRun(run) } ?: return Result.failure()
     // A long book can take more than the ten minutes a plain job gets.
     runCatching { setForeground(foregroundInfo(bookId)) }
 
     return withContext(Dispatchers.IO) {
       try {
         var progress = Silences.readProgress(dir)
+        var replaced = false
         val decoder = SilenceDecoder(applicationContext)
         while (progress.fileIndex < job.files.size) {
           val earlier = progress.current
@@ -130,21 +147,21 @@ class SilenceWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             stopped = { isStopped },
           ) { s ->
             val settled = s.settledMs
-            Silences.writeProgress(
-              dir,
-              progress.copy(current = earlier + s.silences.filter { it.endMs <= settled }, positionMs = settled),
-            )
-            !isStopped
-          } ?: return@withContext Result.retry()
+            val current = progress.copy(current = earlier + s.silences.filter { it.endMs <= settled }, positionMs = settled)
+            replaced = !Silences.writeFor(dir, run) { Silences.writeProgress(dir, current) }
+            !isStopped && !replaced
+          } ?: return@withContext if (replaced) Result.failure() else Result.retry()
           progress = SilenceProgress(progress.done + listOf(file.silences), progress.durations + file.durationMs)
-          Silences.writeProgress(dir, progress)
+          val next = progress
+          if (!Silences.writeFor(dir, run) { Silences.writeProgress(dir, next) }) return@withContext Result.failure()
         }
-        Silences.writeResult(dir, progress)
+        val done = progress
+        Silences.writeFor(dir, run) { Silences.writeResult(dir, done) }
         Result.success()
       } catch (e: CancellationException) {
         throw e
       } catch (e: Exception) {
-        Silences.writeError(dir, e.message ?: "The audio could not be read.")
+        Silences.writeFor(dir, run) { Silences.writeError(dir, e.message ?: "The audio could not be read.") }
         Result.failure()
       }
     }

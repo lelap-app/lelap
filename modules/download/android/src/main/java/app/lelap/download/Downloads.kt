@@ -107,6 +107,18 @@ object Downloads {
   }
 
   private const val OLD_FILE = "old.json"
+  private const val MOVING_FILE = "moving.txt"
+
+  /**
+   * Where a book's files are being copied to, kept while the copy runs: a crash mid-copy leaves
+   * half copies there, which [Mover.resume] clears. An empty file is private storage.
+   */
+  fun markMoving(dir: File, target: String?) = File(dir, MOVING_FILE).writeText(target ?: "")
+
+  /** The target of a copy that never finished: a tree URI, empty for private storage; null for none. */
+  fun moving(dir: File): String? = File(dir, MOVING_FILE).takeIf { it.isFile }?.readText()?.trim()
+
+  fun clearMoving(dir: File) = File(dir, MOVING_FILE).delete()
 
   fun readOld(dir: File): List<OldCopy> = OldCopies.decode(File(dir, OLD_FILE).takeIf { it.isFile }?.readText())
 

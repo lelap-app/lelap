@@ -147,6 +147,41 @@ describe('applyScan', () => {
     ]);
   });
 
+  it('rebuilds a book once when a file goes missing, not on every scan after', () => {
+    const files = [
+      scanned('Novel/01.mp3', { durationMs: 1000 }),
+      scanned('Novel/02.mp3', { durationMs: 1000 }),
+      scanned('Novel/03.mp3', { durationMs: 1000 }),
+    ];
+    scan(db, files);
+    const chapterIds = () =>
+      db
+        .select({ id: chapters.id })
+        .from(chapters)
+        .all()
+        .map((c) => c.id);
+    const withoutSecond = [files[0], files[2]].flatMap((f) => (f ? [f] : []));
+    scan(db, withoutSecond, ROOT, 200);
+    const rebuilt = chapterIds();
+    expect(rebuilt).toHaveLength(2);
+    scan(db, withoutSecond, ROOT, 300);
+    expect(chapterIds()).toEqual(rebuilt);
+    // When the file comes back, the book is whole again.
+    scan(db, files, ROOT, 400);
+    expect(chapterIds()).toHaveLength(3);
+  });
+
+  it('adds a big first scan in one go, with every file in its book', () => {
+    const files = Array.from({ length: 450 }, (_, i) =>
+      scanned(`Book ${Math.floor(i / 3)}/${(i % 3) + 1}.mp3`, { durationMs: 1000 }),
+    );
+    expect(scan(db, files)).toEqual({ added: 150, missing: 0 });
+    const rows = db.select().from(bookFiles).all();
+    expect(rows).toHaveLength(450);
+    expect(rows.every((f) => f.bookId !== null)).toBe(true);
+    expect(db.select().from(chapters).all()).toHaveLength(450);
+  });
+
   it('marks a removed book missing and keeps its progress and bookmarks', () => {
     scan(db, twoBooks());
     const novel = bookByLocation(db, `${ROOT}/Novel`);

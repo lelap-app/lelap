@@ -234,9 +234,22 @@ export function applyDownloadStatuses(
         changed.push(status.bookId);
       }
     }
+    // A queued download whose job folder is gone would wait for ever. A minute's grace covers a
+    // download asked for while the worker was still writing its job.
+    const seen = new Set(statuses.map((s) => s.bookId));
+    for (const row of tx.select().from(downloads).where(eq(downloads.state, 'queued')).all()) {
+      if (seen.has(row.bookId) || now - row.updatedAt < LOST_JOB_GRACE_MS) continue;
+      tx.update(downloads)
+        .set({ state: 'failed', error: 'The download stopped.', updatedAt: now })
+        .where(eq(downloads.bookId, row.bookId))
+        .run();
+      changed.push(row.bookId);
+    }
   });
   return { changed, orphans };
 }
+
+const LOST_JOB_GRACE_MS = 60_000;
 
 /** Forgets a download: parts stream again and the add-on's cover comes back. */
 export function removeDownload(db: Db, bookId: string, now: number): void {

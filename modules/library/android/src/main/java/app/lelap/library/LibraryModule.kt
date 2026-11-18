@@ -93,8 +93,15 @@ class LibraryModule : Module() {
       }
     }
 
-    AsyncFunction("readImage") Coroutine { uri: String, coverDir: String ->
-      withContext(Dispatchers.IO) { TagReader(context).readImage(Uri.parse(uri), File(coverDir)) }
+    AsyncFunction("readImage") Coroutine { uri: String, coverDir: String, fileName: String? ->
+      withContext(Dispatchers.IO) { TagReader(context).readImage(Uri.parse(uri), File(coverDir), fileName) }
+    }
+
+    AsyncFunction("imageSize") Coroutine { uri: String ->
+      withContext(Dispatchers.IO) {
+        runCatching { TagReader(context).imageSize(Uri.parse(uri)) }.getOrNull()
+          ?.let { (width, height) -> mapOf("width" to width, "height" to height) }
+      }
     }
 
     // Chapters from silences (M45): decoded in a background worker, never on this thread.

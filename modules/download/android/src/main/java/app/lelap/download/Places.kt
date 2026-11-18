@@ -35,7 +35,7 @@ interface Place {
 }
 
 /** Files Lelap keeps next to a privately stored book that are not the book itself. */
-val BOOKKEEPING = setOf("job.json", "job.json.tmp", "error.txt", "old.json", "old.json.tmp")
+val BOOKKEEPING = setOf("job.json", "job.json.tmp", "error.txt", "old.json", "old.json.tmp", "moving.txt")
 
 /** The app's private storage: each book's files sit next to its `job.json`. */
 class PrivatePlace(private val root: File) : Place {

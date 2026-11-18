@@ -150,8 +150,16 @@ object Mp4Chapters {
         val sample = bytes(offsets[i], minOf(sizes[i], MAX_SAMPLE))
         val length = sample.short.toInt() and 0xffff
         val title = ByteArray(minOf(length, sample.remaining())).also { sample.get(it) }
-        Chapter(String(title, Charsets.UTF_8), start * 1000 / timescale)
+        Chapter(sampleText(title), start * 1000 / timescale)
       }
+    }
+
+    /** A text sample is UTF-8, or UTF-16 when it starts with a byte order mark. */
+    fun sampleText(bytes: ByteArray): String {
+      val bom = bytes.size >= 2 && (
+        (bytes[0] == 0xfe.toByte() && bytes[1] == 0xff.toByte()) || (bytes[0] == 0xff.toByte() && bytes[1] == 0xfe.toByte())
+        )
+      return String(bytes, if (bom) Charsets.UTF_16 else Charsets.UTF_8)
     }
   }
 }

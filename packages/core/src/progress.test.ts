@@ -87,6 +87,12 @@ describe('progress', () => {
     expect(resumePoint(db, ME, bookId)).toEqual({ index: 0, location: 'a', positionMs: 0 });
   });
 
+  it('has no place to start a book with no files on disk', () => {
+    saveProgress(db, ME, { bookId, fileLocation: 'b', filePositionMs: 500, savedAt: 10 });
+    db.update(bookFiles).set({ missingSince: 11 }).run();
+    expect(resumePoint(db, ME, bookId)).toBeNull();
+  });
+
   it('ignores a journal entry for an unknown book', () => {
     expect(() =>
       saveProgress(db, ME, {

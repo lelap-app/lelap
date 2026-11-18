@@ -32,6 +32,8 @@ export const hasPermission = (): Promise<boolean> => Promise.resolve(false);
 export const listTree = (): Promise<ListedFile[]> => unsupported();
 export const readTags = (): Promise<FileTags> => unsupported();
 export const readImage = (): Promise<string | null> => Promise.resolve(null);
+export const imageSize = (): Promise<{ width: number; height: number } | null> =>
+  Promise.resolve(null);
 
 /**
  * In the browser only the duration, from the audio element: enough for the book's timeline. Tags

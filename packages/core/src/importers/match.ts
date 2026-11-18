@@ -1,5 +1,5 @@
 import type { Db } from '../db';
-import { type LibraryBook, listAllBooks } from '../library/queries';
+import { type HiddenFilter, type LibraryBook, listAllBooks } from '../library/queries';
 
 // Other apps name books by title and author; Lelap's library has only what the files' tags
 // say. Matching ignores case, accents, punctuation, subtitles and series notes.
@@ -36,11 +36,17 @@ export function sameAuthor(a: string, b: string): boolean {
   return [...left].some((w) => right.has(w));
 }
 
-/** Books (not podcast episodes) on this device, indexed by title key. */
-export function bookIndex(db: Db, profileId: string): Map<string, LibraryBook[]> {
+/**
+ * Books (not podcast episodes) on this device, indexed by title key. Hidden books too unless
+ * `show` says otherwise: an import still finds a book the listener hid.
+ */
+export function bookIndex(
+  db: Db,
+  profileId: string,
+  show: HiddenFilter = 'all',
+): Map<string, LibraryBook[]> {
   const index = new Map<string, LibraryBook[]>();
-  // Hidden books too: an import still finds a book the listener hid.
-  for (const book of listAllBooks(db, profileId, 'all')) {
+  for (const book of listAllBooks(db, profileId, show)) {
     if (book.source === 'feed' || book.missing) continue;
     const key = titleKey(book.title);
     index.set(key, [...(index.get(key) ?? []), book]);

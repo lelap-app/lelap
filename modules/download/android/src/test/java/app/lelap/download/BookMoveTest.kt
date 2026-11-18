@@ -73,6 +73,25 @@ class BookMoveTest {
     assertEquals(parts, to.list())
   }
 
+  @Test fun `clears the half copies a crash left and says when the folder is then empty`() {
+    val folder = FileFolder(dir())
+    File(folder.dir, "001.mp3").writeBytes(ByteArray(10))
+    File(folder.dir, "002.mp3.move").writeBytes(ByteArray(42))
+    assertFalse(BookMove.clearLeftovers(folder))
+    assertEquals(mapOf("001.mp3" to 10L), folder.list())
+
+    val onlyHalf = FileFolder(dir())
+    File(onlyHalf.dir, "001.mp3.move").writeBytes(ByteArray(42))
+    assertTrue(BookMove.clearLeftovers(onlyHalf))
+    assertEquals(emptyMap<String, Long>(), onlyHalf.list())
+  }
+
+  @Test fun `keeps the move note out of the book's files`() {
+    val from = book()
+    File(from.dir, "moving.txt").writeText("content://tree/sd")
+    assertEquals(parts, from.list())
+  }
+
   @Test fun `a copy that comes out short is never given the file's name`() {
     val from = book()
     val to = object : BookFolder by FileFolder(dir()) {

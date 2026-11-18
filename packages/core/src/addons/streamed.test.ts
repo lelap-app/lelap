@@ -7,7 +7,7 @@ import { ROOT, scanned } from '../../test/files';
 import { addBookmark, listBookmarks } from '../bookmarks';
 import type { Db } from '../db';
 import { applyScan, splitScanned, upsertRoot } from '../library/scan';
-import { getBook, listBooks } from '../library/queries';
+import { getBook, listBooks, saveFoundChapters } from '../library/queries';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { resumePoint, saveProgress } from '../progress';
 import { bookFiles, books, progress } from '../schema';
@@ -167,6 +167,24 @@ describe('addStreamedBook', () => {
     const files = getBook(db, ME, bookId)?.files ?? [];
     expect(files.every((f) => f.location.startsWith('stream:other-recording:'))).toBe(true);
     expect(resumePoint(db, ME, bookId)).toMatchObject({ index: 1, positionMs: 5_000 });
+  });
+
+  it('keeps chapters found from silences only while the parts stay the same', () => {
+    const single = (url: string, durationMs = 3_600_000): Stream => ({
+      sourceKey: 'librivox:garden:single',
+      name: 'LibriVox',
+      parts: [{ url, title: 'Whole book', durationMs }],
+    });
+    const bookId = add(db, single('https://audio.example/garden.mp3'));
+    const found = [
+      { title: 'Part 1', startMs: 0 },
+      { title: 'Part 2', startMs: 600_000 },
+    ];
+    expect(saveFoundChapters(db, bookId, found, 150, newId)).toBe(true);
+    add(db, single('https://audio.example/garden.mp3'), meta, 200);
+    expect(getBook(db, ME, bookId)?.chapters).toEqual(found);
+    add(db, single('https://audio.example/garden-new.mp3', 3_500_000), meta, 300);
+    expect(getBook(db, ME, bookId)?.chapters).toEqual([]);
   });
 
   it('finds the same book when another item plays the same recording', () => {

@@ -25,8 +25,10 @@ const BRACKETED_SERIES =
 // The same at the end: “Harry Potter, Book 2”, “Dune - Book 1”, “… #4”.
 const TRAILING_SERIES =
   /[\s,;:-]+(?:#\s*|\b(?:book|bk|vol|volume|part|tome|band|bog)\.?\s*)(\d{1,3})\s*$/i;
-// A leading number before a separator, as folder names have it: “03 - The Dragon Reborn”.
-const LEADING_NUMBER = /^\s*(\d{1,3})\s*[-–—._)]\s+/;
+// A leading number before a separator, as folder names have it: “03 - The Dragon Reborn”, also
+// with a word before it: “Book 2 - The Two Towers”.
+const LEADING_NUMBER =
+  /^\s*(?:(?:#\s*|\b(?:book|bk|vol|volume|part|tome|band|bog)\.?\s*))?(\d{1,3})\s*[-–—._):]\s+/i;
 
 export type TitleKey = {
   /** The whole title, folded, without edition notes, series number or leading article. */
@@ -199,7 +201,13 @@ export function normalizeIds(ids: Iterable<string>): string[] {
   const out = new Set<string>();
   for (const id of ids) {
     const normal = normalizeId(id);
-    if (normal) out.add(normal);
+    if (!normal) continue;
+    out.add(normal);
+    // A print book's ASIN is its ISBN-10, so it also meets the same book's `isbn:978…`.
+    if (normal.startsWith('asin:') && /^\d{9}[\dX]$/.test(normal.slice(5))) {
+      const isbn = normalizeId(`isbn:${normal.slice(5)}`);
+      if (isbn) out.add(isbn);
+    }
   }
   return [...out];
 }

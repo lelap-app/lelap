@@ -88,9 +88,13 @@ export function saveProgress(
   });
 }
 
-/** Where to start a book: the saved file if it is still part of it, else the saved book offset. */
-export function resumePoint(db: Db, profileId: string, bookId: string): FilePosition {
+/**
+ * Where to start a book: the saved file if it is still part of it, else the saved book offset.
+ * Null when none of the book's files is on disk.
+ */
+export function resumePoint(db: Db, profileId: string, bookId: string): FilePosition | null {
   const files = presentFiles(db, bookId);
+  if (files.length === 0) return null;
   const stored = db
     .select()
     .from(progress)

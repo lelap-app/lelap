@@ -5,6 +5,7 @@ export * from './schema';
 export * from './library/chapters';
 export * from './library/silence';
 export * from './library/files';
+export * from './library/imageSize';
 export * from './library/group';
 export * from './library/timeline';
 export * from './progress';

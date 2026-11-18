@@ -126,6 +126,6 @@ describe('Smart AudioBook Player', () => {
       'app',
     );
     applySmartAudiobook(db, ME, found(), 5_000);
-    expect(resumePoint(db, ME, started).location).toBe('primary:Audiobooks/Series/Part 02.mp3');
+    expect(resumePoint(db, ME, started)?.location).toBe('primary:Audiobooks/Series/Part 02.mp3');
   });
 });

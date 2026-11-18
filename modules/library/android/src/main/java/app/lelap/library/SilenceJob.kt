@@ -11,13 +11,21 @@ data class SilenceJob(
   val files: List<String>,
   val thresholdDb: Double,
   val minSilenceMs: Long,
+  /**
+   * Set by [Silences.enqueue] for each new scan. A stopped worker still finishing finds another
+   * run in `job.json` and writes nothing into the new scan's folder.
+   */
+  val run: String? = null,
 ) {
   fun encode(): String = JSONObject()
     .put("bookId", bookId)
     .put("files", JSONArray(files))
     .put("thresholdDb", thresholdDb)
     .put("minSilenceMs", minSilenceMs)
+    .put("run", run)
     .toString()
+
+  fun sameRun(token: String?): Boolean = run == token
 
   companion object {
     private val SAFE_ID = Regex("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
@@ -34,6 +42,8 @@ data class SilenceJob(
         files = List(array.length()) { array.getString(it) },
         thresholdDb = o.getDouble("thresholdDb"),
         minSilenceMs = o.getLong("minSilenceMs"),
+        // JavaScript's job has none; enqueue gives it one.
+        run = if (o.isNull("run")) null else o.getString("run"),
       )
       job.takeIf {
         isSafeId(it.bookId) && it.files.isNotEmpty() &&

@@ -78,7 +78,8 @@ function selectBooks(
     .leftJoin(downloads, eq(downloads.bookId, books.id))
     .where(and(where, hiddenWhere(profileId, show)))
     .all();
-  const linked = linkedMetaByKey(db);
+  // A few books (one book's page, Continue listening) read only their own links.
+  const linked = linkedMetaByKey(db, rows.length <= 50 ? rows.map((r) => r.location) : undefined);
   return rows.map(({ missingSince, downloadState, bookPositionMs, location, ...book }) => {
     // Matched with a catalog by hand: the work's title, author and cover replace the tags'.
     const meta = linked.get(location);

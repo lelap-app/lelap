@@ -3,6 +3,7 @@ export {
   FOLDER_UNAVAILABLE,
   findSilences,
   hasPermission,
+  imageSize,
   listTree,
   pickFolder,
   readImage,
