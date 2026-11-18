@@ -48,7 +48,7 @@ Android the first scan reads single-file books once more for their tags.
 
 - Casting found no speakers or TVs on Android 17. Lelap never asked for Android 17’s new local
   network permission, so the search saw nothing. The Play on sheet now asks on every Android 17
-  phone, and the search starts once you allow it, without a restart. (#145)
+  phone, and the search starts once you allow it. (#145)
 - Resuming from headphones plays at the speed you last chose, also when you changed it from the
   notification, a watch or the car. Smart rewind counts from when you paused. (#142)
 - Removing a download while its book plays switches to the stream at the same place. A finished
