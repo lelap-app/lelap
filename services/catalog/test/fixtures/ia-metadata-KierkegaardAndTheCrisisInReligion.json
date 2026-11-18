@@ -1,0 +1,167 @@
+{
+  "created": 1794969807,
+  "metadata": {
+    "identifier": "KierkegaardAndTheCrisisInReligion",
+    "title": "Kierkegaard and the Crisis in Religion",
+    "creator": "Walter Kaufmann",
+    "mediatype": "audio",
+    "collection": ["opensource_audio", "community"],
+    "description": "Part 1 of 3 Lectures:\n\nKierkegaard and the Crisis in Religion\nNietzsche and the Crisis in Philosophy\nSartre and the Crisis in Morality\n\nDr. Walter Kaufmann begins this series by explaining that existentialists share as many differences as other schools of philosophy. First coined to refer to the theories of Jaspers and Heidegger, existentialism became well-known only after the work of Kierkegaard, Sartre, and Nietzsche all radical individualists who found previous philosophical systems lacking. He explains their writings as an answer to the modern crisis in religious philosophy and morality. 1960",
+    "subject": "philosophy; lecture; existentialism; religion; morality; Kierkegaard",
+    "licenseurl": "http://creativecommons.org/licenses/publicdomain/",
+    "publicdate": "2008-11-29 17:13:05",
+    "addeddate": "2008-11-29 17:01:37",
+    "external_metadata_update": "2019-03-29T05:40:08Z"
+  },
+  "files": [
+    {
+      "name": "KierkegaardAndTheCrisisInReligion_64kb.m3u",
+      "source": "derivative",
+      "format": "64Kbps M3U",
+      "original": "KierkegaardPartTwo_64kb.mp3",
+      "mtime": "1227978775",
+      "size": "188"
+    },
+    {
+      "name": "KierkegaardAndTheCrisisInReligion_64kb_mp3.zip",
+      "source": "derivative",
+      "format": "64Kbps MP3 ZIP",
+      "original": "KierkegaardPartTwo_64kb.mp3",
+      "mtime": "1227978771",
+      "size": "38978432",
+      "length": "4872.3"
+    },
+    {
+      "name": "KierkegaardAndTheCrisisInReligion_archive.torrent",
+      "source": "metadata",
+      "mtime": "1613442601",
+      "size": "9527",
+      "format": "Archive BitTorrent"
+    },
+    {
+      "name": "KierkegaardAndTheCrisisInReligion_files.xml",
+      "source": "metadata",
+      "format": "Metadata"
+    },
+    {
+      "name": "KierkegaardAndTheCrisisInReligion_meta.xml",
+      "source": "metadata",
+      "format": "Metadata",
+      "mtime": "1613442600",
+      "size": "1684"
+    },
+    {
+      "name": "KierkegaardAndTheCrisisInReligion_reviews.xml",
+      "source": "original",
+      "mtime": "1542136110",
+      "size": "1200",
+      "format": "Metadata"
+    },
+    {
+      "name": "KierkegaardAndTheCrisisInReligion_vbr.m3u",
+      "source": "derivative",
+      "format": "VBR M3U",
+      "original": "KierkegaardPartTwo.mp3",
+      "mtime": "1227978754",
+      "size": "178"
+    },
+    {
+      "name": "KierkegaardAndTheCrisisInReligion_vbr_mp3.zip",
+      "source": "derivative",
+      "format": "VBR ZIP",
+      "original": "KierkegaardPartTwo.mp3",
+      "mtime": "1227978756",
+      "size": "77954511",
+      "length": "4872.16"
+    },
+    {
+      "name": "KierkegaardPartOne.mp3",
+      "source": "original",
+      "title": "Kierkegaard Part One",
+      "format": "VBR MP3",
+      "creator": "Walter Kaufmann",
+      "mtime": "1227977456",
+      "size": "39371435",
+      "length": "2460.71"
+    },
+    {
+      "name": "KierkegaardPartOne.ogg",
+      "source": "derivative",
+      "format": "Ogg Vorbis",
+      "original": "KierkegaardPartOne.mp3",
+      "mtime": "1227978752",
+      "size": "21514993",
+      "length": "2460.68"
+    },
+    {
+      "name": "KierkegaardPartOne.png",
+      "source": "derivative",
+      "format": "PNG",
+      "original": "KierkegaardPartOne.mp3",
+      "mtime": "1415037038",
+      "size": "1885"
+    },
+    {
+      "name": "KierkegaardPartOne_64kb.mp3",
+      "source": "derivative",
+      "title": "Kierkegaard Part One",
+      "length": "41:00",
+      "format": "64Kbps MP3",
+      "original": "KierkegaardPartOne.mp3",
+      "mtime": "1227978264",
+      "size": "19686213"
+    },
+    {
+      "name": "KierkegaardPartTwo.mp3",
+      "source": "original",
+      "title": "Kierkegaard Part Two",
+      "format": "VBR MP3",
+      "creator": "Walter Kaufmann",
+      "mtime": "1227978093",
+      "size": "38582746",
+      "length": "2411.42"
+    },
+    {
+      "name": "KierkegaardPartTwo.ogg",
+      "source": "derivative",
+      "format": "Ogg Vorbis",
+      "original": "KierkegaardPartTwo.mp3",
+      "mtime": "1227978581",
+      "size": "21658479",
+      "length": "2411.39"
+    },
+    {
+      "name": "KierkegaardPartTwo.png",
+      "source": "derivative",
+      "format": "PNG",
+      "original": "KierkegaardPartTwo.mp3",
+      "mtime": "1415037157",
+      "size": "2732"
+    },
+    {
+      "name": "KierkegaardPartTwo_64kb.mp3",
+      "source": "derivative",
+      "title": "Kierkegaard Part Two",
+      "length": "40:11",
+      "format": "64Kbps MP3",
+      "original": "KierkegaardPartTwo.mp3",
+      "mtime": "1227978403",
+      "size": "19291869"
+    },
+    {
+      "name": "__ia_thumb.jpg",
+      "source": "original",
+      "mtime": "1613442600",
+      "size": "1031",
+      "format": "Item Tile"
+    }
+  ],
+  "reviews": [
+    {
+      "stars": "5"
+    },
+    {
+      "stars": "5"
+    }
+  ]
+}

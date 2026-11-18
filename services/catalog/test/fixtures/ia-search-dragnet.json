@@ -1,0 +1,55 @@
+{
+  "responseHeader": {
+    "status": 0,
+    "QTime": 83,
+    "params": {
+      "query": "mediatype:audio AND collection:oldtimeradio AND NOT collection:librivoxaudio AND (licenseurl:*creativecommons.org* OR possible-copyright-status:NOT_IN_COPYRIGHT) AND (title:dragnet OR creator:dragnet OR subject:dragnet)",
+      "qin": "mediatype:audio AND (collection:oldtimeradio) AND NOT collection:librivoxaudio AND (licenseurl:*creativecommons.org* OR possible-copyright-status:NOT_IN_COPYRIGHT) AND ((title:dragnet OR creator:dragnet OR subject:dragnet))",
+      "fields": "identifier,title,creator,date,avg_rating,num_reviews,licenseurl,possible-copyright-status",
+      "wt": "json",
+      "rows": 10,
+      "start": 0
+    }
+  },
+  "response": {
+    "numFound": 5,
+    "start": 0,
+    "docs": [
+      {
+        "identifier": "Dragnet-OTR",
+        "licenseurl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "title": "Dragnet"
+      },
+      {
+        "avg_rating": 4.63,
+        "creator": "Old Time Radio Researchers Group",
+        "date": "2015-09-15T00:00:00Z",
+        "identifier": "OTRR_Dragnet_Singles",
+        "licenseurl": "http://creativecommons.org/licenses/by-nc-sa/3.0/us/",
+        "num_reviews": 17,
+        "title": "Dragnet - Single Episodes"
+      },
+      {
+        "avg_rating": 4.68,
+        "identifier": "Dragnet_OTR",
+        "licenseurl": "http://creativecommons.org/licenses/publicdomain/",
+        "num_reviews": 50,
+        "title": "Dragnet the 50's radio show"
+      },
+      {
+        "avg_rating": 4.5,
+        "creator": "Old Time Radio Researchers Group",
+        "date": "2015-09-15T00:00:00Z",
+        "identifier": "OTRR_Certified_Dragnet",
+        "licenseurl": "http://creativecommons.org/licenses/by-nc-nd/3.0/",
+        "num_reviews": 12,
+        "title": "Dragnet"
+      },
+      {
+        "identifier": "Dragnet55-05-24301TheBigSiege",
+        "licenseurl": "http://creativecommons.org/licenses/publicdomain/",
+        "title": "Dragnet 55-05-24 (301) The Big Siege"
+      }
+    ]
+  }
+}

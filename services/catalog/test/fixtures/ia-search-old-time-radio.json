@@ -1,0 +1,109 @@
+{
+  "responseHeader": {
+    "status": 0,
+    "QTime": 208,
+    "params": {
+      "query": "mediatype:audio AND collection:oldtimeradio AND NOT collection:librivoxaudio AND (licenseurl:*creativecommons.org* OR possible-copyright-status:NOT_IN_COPYRIGHT)",
+      "qin": "mediatype:audio AND (collection:oldtimeradio) AND NOT collection:librivoxaudio AND (licenseurl:*creativecommons.org* OR possible-copyright-status:NOT_IN_COPYRIGHT)",
+      "fields": "identifier,title,creator,date,avg_rating,num_reviews,licenseurl,possible-copyright-status",
+      "wt": "json",
+      "sort": "downloads desc",
+      "rows": 10,
+      "start": 0
+    }
+  },
+  "response": {
+    "numFound": 2312,
+    "start": 0,
+    "docs": [
+      {
+        "avg_rating": 4.81,
+        "creator": "Old Time Radio Researchers Group",
+        "date": "2020-01-05T00:00:00Z",
+        "identifier": "OTRR_Gunsmoke_Singles",
+        "licenseurl": "http://creativecommons.org/licenses/by-nc-nd/2.5/",
+        "num_reviews": 66,
+        "title": "Gunsmoke - Single Episodes"
+      },
+      {
+        "avg_rating": 4.76,
+        "creator": "Old Time Radio Researchers Group",
+        "date": "2020-01-08T00:00:00Z",
+        "identifier": "OTRR_YoursTrulyJohnnyDollar_Singles",
+        "licenseurl": "http://creativecommons.org/licenses/by-nc-nd/2.5/",
+        "num_reviews": 41,
+        "title": "Yours Truly, Johnny Dollar - Single Episodes"
+      },
+      {
+        "avg_rating": 4.68,
+        "identifier": "Dragnet_OTR",
+        "licenseurl": "http://creativecommons.org/licenses/publicdomain/",
+        "num_reviews": 50,
+        "title": "Dragnet the 50's radio show"
+      },
+      {
+        "avg_rating": 4.63,
+        "creator": "Old Time Radio Researchers Group",
+        "date": "2015-09-15T00:00:00Z",
+        "identifier": "OTRR_Dragnet_Singles",
+        "licenseurl": "http://creativecommons.org/licenses/by-nc-sa/3.0/us/",
+        "num_reviews": 17,
+        "title": "Dragnet - Single Episodes"
+      },
+      {
+        "avg_rating": 4.75,
+        "creator": "Old Time Radio Researchers Group",
+        "date": "2020-01-01T00:00:00Z",
+        "identifier": "OTRR_Richard_Diamond_Private_Detective_Singles",
+        "licenseurl": "http://creativecommons.org/licenses/by-nc-nd/2.5/",
+        "num_reviews": 21,
+        "title": "Richard Diamond, Private Detective - Single Episodes"
+      },
+      {
+        "avg_rating": 4.67,
+        "creator": "Old Time Radio Researchers Group",
+        "date": "2020-01-11T00:00:00Z",
+        "identifier": "OTRR_Suspense_Singles",
+        "licenseurl": "http://creativecommons.org/licenses/by-nc-nd/3.0/",
+        "num_reviews": 37,
+        "title": "Suspense - Single Episodes"
+      },
+      {
+        "avg_rating": 4.58,
+        "creator": "Old Time Radio Researchers Group",
+        "date": "2007-09-02T00:00:00Z",
+        "identifier": "OTRR_Philip_Marlowe_Singles",
+        "licenseurl": "http://creativecommons.org/licenses/by-nc-sa/3.0/",
+        "num_reviews": 19,
+        "title": "Adventures of Philip Marlowe - Single Episodes"
+      },
+      {
+        "avg_rating": 4.77,
+        "creator": "Old Time Radio Researchers Group",
+        "date": "2011-05-14T00:00:00Z",
+        "identifier": "OTRR_X_Minus_One_Singles",
+        "licenseurl": "http://creativecommons.org/licenses/by-nc-nd/3.0/us/",
+        "num_reviews": 35,
+        "title": "X Minus One - Single Episodes"
+      },
+      {
+        "avg_rating": 5,
+        "creator": "Old Time Radio Researchers Group",
+        "date": "2012-05-01T00:00:00Z",
+        "identifier": "OTRR_Whistler_Singles",
+        "licenseurl": "http://creativecommons.org/licenses/by-nc-nd/3.0/",
+        "num_reviews": 10,
+        "title": "The Whistler - Single Episodes"
+      },
+      {
+        "avg_rating": 5,
+        "creator": "Old Time Radio Researchers Group",
+        "date": "2020-01-09T00:00:00Z",
+        "identifier": "OTRR_YoursTrulyJohnnyDollar_Singles_Bob_Bailey_2",
+        "licenseurl": "http://creativecommons.org/licenses/by-nc-nd/4.0/",
+        "num_reviews": 10,
+        "title": "Yours Truly, Johnny Dollar - Single Episodes - Bob Bailey 30 Minute Episodes"
+      }
+    ]
+  }
+}

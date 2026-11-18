@@ -38,8 +38,8 @@ apps/app        Expo app for Android and web; M1 test screen for now
 packages/core   domain model, library logic, Drizzle schema, add-on client, sync; bundled in-app
                 add-ons in src/addons/bundled (`pnpm --filter @lelap/core bundle-addons`)
 packages/sdk    add-on SDK: protocol v1 as zod schemas, createAddon(), the work matcher; MIT
-services/       Hono services on Cloudflare Workers: catalog (Catalog + LibriVox add-ons), proxy (feeds
-                and covers for the web app), sync (encrypted oplog, D1), updates (signed
+services/       Hono services on Cloudflare Workers: catalog (Catalog, LibriVox and Internet Archive
+                add-ons), proxy (feeds and covers for the web app), sync (encrypted oplog, D1), updates (signed
                 over-the-air bundles from R2), template
 modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer
 modules/library Kotlin Expo module: folder access, tags and chapters for the local library; chapters

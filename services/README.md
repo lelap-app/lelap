@@ -50,18 +50,44 @@ the free plan's rate limiting rule for the proxy's hostname in the Cloudflare da
 
 The first-party add-ons, on one Worker (`lelap-catalog`):
 
-| Path                      | Add-on                          | Sources                                     |
-| ------------------------- | ------------------------------- | ------------------------------------------- |
-| `/manifest.json`          | Catalog (`app.lelap.catalog`)   | Open Library; Podcast Index when configured |
-| `/librivox/manifest.json` | LibriVox (`app.lelap.librivox`) | archive.org's `librivoxaudio` collection    |
-| `/`                       | JSON listing both manifests     |                                             |
+| Path                              | Add-on                                          | Sources                                                         |
+| --------------------------------- | ----------------------------------------------- | --------------------------------------------------------------- |
+| `/manifest.json`                  | Catalog (`app.lelap.catalog`)                   | Open Library; Podcast Index when configured                     |
+| `/librivox/manifest.json`         | LibriVox (`app.lelap.librivox`)                 | archive.org's `librivoxaudio` collection                        |
+| `/internet-archive/manifest.json` | Internet Archive (`app.lelap.internet-archive`) | archive.org beyond LibriVox: old-time radio, lectures, readings |
+| `/`                               | JSON listing the manifests                      |                                                                 |
 
 - **LibriVox**: "New on LibriVox" and "Most listened" (with `genre` and `skip`), search, meta and
   streams for `librivox:` IDs, and streams for Open Library works (`ol:` IDs) found by title and
   author. Audio URLs point straight at archive.org; the Worker never touches audio.
+- **Internet Archive**: “Old-time radio” (podcasts), “Lectures and talks” and “Readings and
+  poetry” (audiobooks), each most downloaded first with `skip`, and a search for each type. Meta
+  for `ia:` IDs; streams for audiobooks, one MP3 per recording (archive.org's 64 kb copy when
+  there is one). A radio series is a podcast: its meta points at
+  `/internet-archive/feed/{identifier}.xml`, an RSS feed of the item's files that the app
+  subscribes to. Episodes are dated by the broadcast date in their file names (`49-06-10`) when
+  every file has one. Not installed by default; listeners add it by its manifest URL.
 - **Catalog**: Open Library search and meta for `ol:` IDs. With both Podcast Index secrets set it
   also lists trending podcasts, podcast search and meta for `podcast:` IDs with episodes; without
   them those catalogs are left out of the manifest.
+
+### What the Internet Archive add-on serves
+
+Only items that are free to share, checked on every search result, meta, stream and feed
+([`rights.ts`](catalog/src/internet-archive/rights.ts), tested in `internet-archive.test.ts`):
+
+1. `licenseurl` is a Creative Commons public-domain tool (Public Domain Mark, CC0, the old Public
+   Domain Dedication) or one of the six Creative Commons licences, any version or port; or
+2. `possible-copyright-status` is `NOT_IN_COPYRIGHT`; or
+3. the item is in a collection that only holds public-domain recordings by its own rules
+   (`librivoxaudio`).
+
+Everything else is skipped: no licence, another licence, sampling licences, lending-library items
+(`access-restricted-item`). Searches also ask archive.org for the same rule, so pages aren't mostly
+thrown away. LibriVox recordings are left out of its catalogs, since the LibriVox add-on has them.
+Files archive.org keeps private are left out too. Audio, covers and downloads link straight to
+archive.org. The rule trusts archive.org's rights fields as the uploader or archive.org set them;
+it does not judge whether a recording really is out of copyright.
 
 Upstream JSON goes through the Cache API (6 h for catalogs, 1 day for meta and streams). Requests
 upstream carry `User-Agent: Lelap/1 (+<SOURCE_URL>)`, with `SOURCE_URL` set in `wrangler.toml`.

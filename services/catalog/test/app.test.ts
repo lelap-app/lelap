@@ -37,7 +37,11 @@ describe('the worker app', () => {
     expect(response.headers.get('Content-Security-Policy')).toContain("default-src 'none'");
     expect(await response.json()).toEqual({
       name: 'Lelap add-ons',
-      addons: ['https://addons.test/manifest.json', 'https://addons.test/librivox/manifest.json'],
+      addons: [
+        'https://addons.test/manifest.json',
+        'https://addons.test/librivox/manifest.json',
+        'https://addons.test/internet-archive/manifest.json',
+      ],
       configure: [
         'https://addons.test/hardcover/configure',
         'https://addons.test/gpodder/configure',
