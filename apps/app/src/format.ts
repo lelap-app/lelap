@@ -1,4 +1,15 @@
-import { dateText, localeTag, numberText, timeText, weekdayText } from '@lelap/core';
+import {
+  dateText,
+  dayMonthText,
+  firstDayOfWeek,
+  localeTag,
+  longDateText,
+  monthText,
+  numberText,
+  spokenDayText,
+  timeText,
+  weekdayText,
+} from '@lelap/core';
 
 import { currentLanguage, t } from './i18n';
 
@@ -60,3 +71,22 @@ export const formatTime = (ms: number): string => timeText(ms, locale());
 
 /** `Wed`, or `Rab` in Malay. */
 export const formatWeekday = (date: Date): string => weekdayText(date, locale());
+
+/** `1,234` with the language's separators. */
+export const formatNumber = (n: number): string => numberText(n, locale());
+
+/** `9 Nov`, or `Nov 9` where the region writes the month first. */
+export const formatDayMonth = (date: Date): string => dayMonthText(date, locale());
+
+/** `9 November 2026`, for screen readers and the year overview. */
+export const formatLongDate = (date: Date): string => longDateText(date, locale());
+
+/** `Wednesday 18 November`, a day as a screen reader should say it. */
+export const formatSpokenDay = (date: Date): string => spokenDayText(date, locale());
+
+/** A month's name from 0 (January): `Nov`, or `November` with `long`. */
+export const formatMonth = (month: number, width: 'short' | 'long' = 'short'): string =>
+  monthText(month, locale(), width);
+
+/** The first day of the week in the phone's region: 0 Sunday, 1 Monday … 6 Saturday. */
+export const weekStartsOn = (): number => firstDayOfWeek(locale());
