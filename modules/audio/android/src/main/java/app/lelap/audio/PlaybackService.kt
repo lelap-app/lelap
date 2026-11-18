@@ -200,12 +200,19 @@ class PlaybackService : MediaLibraryService() {
       session.notifyChildrenChanged(CarLibrary.ROOT, Int.MAX_VALUE, null)
     }
   }
-  // The bedtime window opens now (BedtimeAlarm): a book already playing gets the routine.
+  // The bedtime window opens now (BedtimeAlarm): a book already playing gets the routine. A new
+  // clock time or time zone moves the window's next start.
   private val bedtimeReceiver = object : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
       BedtimeAlarm.schedule(context)
+      if (intent.action != Commands.BEDTIME_NOW) return
       if (::session.isInitialized && active.playWhenReady) startBedtimeTimer()
     }
+  }
+  // The routine changed while its volume applies (turned off, a new volume, another profile's).
+  private val bedtimeListener = SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
+    if (key != Commands.PREF_BEDTIME || !::mixer.isInitialized || mixer.bedtime >= 1f) return@OnSharedPreferenceChangeListener
+    mixer.bedtime = Bedtime.decode(p.getString(Commands.PREF_BEDTIME, null))?.gain ?: 1f
   }
 
   // The listener's last touch of the player (M86): the last moment they surely were awake, offered
@@ -416,9 +423,13 @@ class PlaybackService : MediaLibraryService() {
     ContextCompat.registerReceiver(
       this,
       bedtimeReceiver,
-      IntentFilter(Commands.BEDTIME_NOW),
+      IntentFilter(Commands.BEDTIME_NOW).apply {
+        addAction(Intent.ACTION_TIME_CHANGED)
+        addAction(Intent.ACTION_TIMEZONE_CHANGED)
+      },
       ContextCompat.RECEIVER_NOT_EXPORTED,
     )
+    prefs.registerOnSharedPreferenceChangeListener(bedtimeListener)
     // After a reboot the alarm is gone until the service or the app starts again.
     BedtimeAlarm.schedule(this)
     publishExtras()
@@ -451,6 +462,7 @@ class PlaybackService : MediaLibraryService() {
     prefs.unregisterOnSharedPreferenceChangeListener(carListener)
     unregisterReceiver(languageReceiver)
     unregisterReceiver(bedtimeReceiver)
+    prefs.unregisterOnSharedPreferenceChangeListener(bedtimeListener)
     focus.abandon()
     session.release()
     player.release()
@@ -1501,6 +1513,8 @@ class PlaybackService : MediaLibraryService() {
         Commands.START_SLEEP_TIMER -> {
           val mode = SleepMode.fromWire(args.getString(Commands.KEY_SLEEP_MODE)) ?: SleepMode.MINUTES
           sleepPressed = null
+          // The listener's own timer replaces the routine's, and its volume with it.
+          mixer.bedtime = 1f
           startSleepTimer(mode, args.getLong(Commands.KEY_DURATION_MS))
           noteInteraction()
         }
@@ -1509,6 +1523,7 @@ class PlaybackService : MediaLibraryService() {
           noteInteraction()
         }
         Commands.CYCLE_SLEEP_TIMER -> {
+          mixer.bedtime = 1f
           cycleSleepTimer()
           noteInteraction()
         }
@@ -1524,6 +1539,7 @@ class PlaybackService : MediaLibraryService() {
           player.clearMediaItems()
           current = null
           forgetJournaledBook()
+          lastInteraction = null
         }
         Commands.SET_QUEUE -> {
           val json = args.getString(Commands.KEY_QUEUE_JSON).orEmpty()
@@ -1547,7 +1563,12 @@ class PlaybackService : MediaLibraryService() {
             ?: return Futures.immediateFuture(
               SessionResult(SessionError(SessionError.ERROR_BAD_VALUE, "The player could not read this book")),
             )
-          loadBook(load, args.getBoolean(Commands.KEY_AUTOPLAY, false))
+          val autoplay = args.getBoolean(Commands.KEY_AUTOPLAY, false)
+          // A touch in another book says nothing about this one.
+          if (lastInteraction?.bookId != load.playlist.bookId) lastInteraction = null
+          loadBook(load, autoplay)
+          // The listener's Play from the library: it plays through ExoPlayer, not the session.
+          if (autoplay) noteInteraction()
         }
         else -> return Futures.immediateFuture(
           SessionResult(SessionError(SessionError.ERROR_NOT_SUPPORTED, "Unknown command ${customCommand.customAction}")),

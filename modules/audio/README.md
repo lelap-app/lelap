@@ -33,6 +33,7 @@ Kotlin Expo module for Android playback.
   chapter and plays at the routine's volume (`VolumeMixer`) until the timer ends, once per night.
   `BedtimeAlarm` is an inexact `setAndAllowWhileIdle` alarm: no permission, a few minutes late at
   most. It broadcasts to the running service only; with nothing playing there is nothing to do.
+  A cast receiver keeps its own volume for now ([M78](../../docs/milestones/m78.md)).
 - Intro and outro (M45): a podcast's `BookLoad` carries the seconds to skip. `SeekRules` starts
   an episode past its intro and keeps smart rewind out of it; a player message at the outro's
   start seeks to the end, so the episode is logged as played and Up Next goes on.

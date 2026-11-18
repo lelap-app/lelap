@@ -628,7 +628,8 @@ export async function setBedtime(bedtime: Bedtime | null): Promise<void> {
   void bedtime;
 }
 
-// “Where did I fall asleep?” is Android only, like the bedtime routine.
+// Back to where you last used the player after the timer stopped (M86): Android only, like the
+// bedtime routine.
 export async function getSleepPlace(): Promise<SleepPlace | null> {
   return null;
 }
