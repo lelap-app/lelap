@@ -278,7 +278,10 @@ class RemoteSession(
 
   private fun crossedOutro(before: Long, place: Long): Boolean {
     val at = outroAtMs ?: return false
-    return index == durations.lastIndex && before < at && place >= at
+    // Playing across it moves a poll's worth; a bigger step is a seek the receiver was slow to
+    // report, which a listener who skips past the outro must not have ended.
+    val step = (CROSS_STEP_MS * speed.coerceAtLeast(1f)).toLong()
+    return index == durations.lastIndex && before < at && place >= at && place - before <= step
   }
 
   // Like the end of the last part: the receiver pauses, the place goes to the end, and the owner
@@ -360,6 +363,9 @@ class RemoteSession(
 
     /** Polls come every second; a receiver silent for longer than this may be gone. */
     const val SILENCE_GRACE_MS = 3_000L
+
+    /** The most playback moves between two statuses: polls a second apart, some late. */
+    const val CROSS_STEP_MS = 5_000L
 
     /** A seek counts as done once the receiver reports a place this close to it. */
     const val SEEK_MATCH_MS = 2_000L

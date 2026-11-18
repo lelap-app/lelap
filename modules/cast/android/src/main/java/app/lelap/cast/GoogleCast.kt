@@ -138,6 +138,11 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
   private var heardAt = System.currentTimeMillis()
   private var lostReported = false
 
+  // The same on a clock that stops while the phone sleeps (paused casting lets it), so waking
+  // up never looks like a silent receiver; [polledAt] spots a poll that came late for any reason.
+  private var aliveAt = monotonicMs()
+  private var polledAt = monotonicMs()
+
   private var current: CastMedia? = null
 
   init {
@@ -174,7 +179,10 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
     try {
       while (true) {
         val message = CastMessage.read(input)
-        synchronized(lock) { heardAt = System.currentTimeMillis() }
+        synchronized(lock) {
+          heardAt = System.currentTimeMillis()
+          aliveAt = monotonicMs()
+        }
         handle(message)
       }
     } catch (e: IOException) {
@@ -283,11 +291,17 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
   }
 
   override fun status(): RendererStatus {
+    val silent = synchronized(lock) {
+      val tick = monotonicMs()
+      // A late poll (the phone slept, the thread stalled) gives the receiver a fresh chance.
+      if (tick - polledAt > POLL_GAP_MS) aliveAt = tick
+      polledAt = tick
+      (tick - aliveAt > LIVENESS_MS && !closed && !lostReported).also { if (it) lostReported = true }
+    }
+    if (silent) onLost("Lost the connection to ${device.name}")
     val app = synchronized(lock) { app }
     if (app != null) runCatching { sendRequest(app.transportId, CastJson.MEDIA, JSONObject().put("type", "GET_STATUS")) }
     val now = System.currentTimeMillis()
-    val silent = synchronized(lock) { (now - heardAt > LIVENESS_MS && !closed && !lostReported).also { if (it) lostReported = true } }
-    if (silent) onLost("Lost the connection to ${device.name}")
     synchronized(lock) {
       val m = media
       val state = CastJson.playState(m)
@@ -322,6 +336,11 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
     /** Chromium gives up on a Cast channel after 10 s without a message; we wait a little longer. */
     const val LIVENESS_MS = 15_000L
     const val SILENCE_GRACE_MS = 3_000L
+
+    /** Polls come every second; one this late means the poller, not the receiver, was away. */
+    const val POLL_GAP_MS = 5_000L
+
+    fun monotonicMs(): Long = System.nanoTime() / 1_000_000L
     const val PING = "{\"type\":\"PING\"}"
     const val PONG = "{\"type\":\"PONG\"}"
   }

@@ -70,8 +70,9 @@ data class CastMessage(
             1 -> i += 8
             5 -> i += 4
             2 -> {
-              val length = varint().toInt()
-              if (length < 0 || i + length > bytes.size) return null
+              val wide = varint()
+              if (wide < 0 || wide > bytes.size - i) return null
+              val length = wide.toInt()
               if (field == 7) binary = bytes.copyOfRange(i, i + length)
               val text = String(bytes, i, length, Charsets.UTF_8)
               i += length

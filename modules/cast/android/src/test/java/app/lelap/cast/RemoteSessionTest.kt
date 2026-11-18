@@ -291,6 +291,20 @@ class RemoteSessionTest {
   }
 
   @Test
+  fun aSeekPastTheOutroThatTheReceiverReportsLateStillPlaysIt() {
+    val load = session.start(parts, 2, 40_000L, play = true, speed = 1f, outroAtMs = 50_000L)
+    session.onLoaded(seqOf(load), null)
+    settle()
+    session.onStatus(status(PlayState.PLAYING, 41_000L))
+    session.seek(2, 55_000L)
+    settle()
+    // A slow renderer still reports the old place after the hold, then the new one.
+    session.onStatus(status(PlayState.PLAYING, 42_000L))
+    assertEquals(emptyList<Command>(), session.onStatus(status(PlayState.PLAYING, 55_500L)))
+    assertEquals(Phase.READY, session.phase)
+  }
+
+  @Test
   fun anOutroSetWhilePlayingApplies() {
     started(index = 2, positionMs = 40_000L)
     session.onStatus(status(PlayState.PLAYING, 45_000L))
