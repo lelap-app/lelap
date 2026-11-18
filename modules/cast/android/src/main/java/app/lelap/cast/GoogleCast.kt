@@ -101,6 +101,18 @@ object CastJson {
 }
 
 /**
+ * Cast devices present a self-signed TLS certificate; who they are is shown by device
+ * authentication ([CastAuth]) instead, which only reports for now. Only control messages and LAN
+ * URLs go over this socket.
+ */
+@SuppressLint("CustomX509TrustManager", "TrustAllX509TrustManager")
+internal object TrustDevice : X509TrustManager {
+  override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
+  override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
+  override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+}
+
+/**
  * Our own sender for the open Cast v2 protocol, as VLC has: TLS to port 8009, the Default Media
  * Receiver, and the media namespace. No Google Cast SDK, so no Play services.
  */
@@ -120,6 +132,11 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
   private var mediaAt = 0L
   private var loadError: String? = null
   private var loadedRequest = -1
+
+  // When the receiver last sent anything. It answers a status request every second and a ping
+  // every 5 s, so a long silence means it is gone without closing the connection.
+  private var heardAt = System.currentTimeMillis()
+  private var lostReported = false
 
   private var current: CastMedia? = null
 
@@ -155,7 +172,11 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
 
   private fun readLoop(input: DataInputStream) {
     try {
-      while (true) handle(CastMessage.read(input))
+      while (true) {
+        val message = CastMessage.read(input)
+        synchronized(lock) { heardAt = System.currentTimeMillis() }
+        handle(message)
+      }
     } catch (e: IOException) {
       val wasClosed = synchronized(lock) { closed.also { closed = true; lock.notifyAll() } }
       if (!wasClosed) onLost("Lost the connection to ${device.name}")
@@ -163,6 +184,8 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
   }
 
   private fun handle(message: CastMessage) {
+    // Binary payloads only come from device authentication, which runs on its own connection.
+    if (message.binary != null) return
     when (message.namespace) {
       CastJson.HEARTBEAT -> if (CastJson.type(message.payload) == "PING") {
         runCatching { send(message.sourceId, CastJson.HEARTBEAT, PONG) }
@@ -262,11 +285,16 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
   override fun status(): RendererStatus {
     val app = synchronized(lock) { app }
     if (app != null) runCatching { sendRequest(app.transportId, CastJson.MEDIA, JSONObject().put("type", "GET_STATUS")) }
+    val now = System.currentTimeMillis()
+    val silent = synchronized(lock) { (now - heardAt > LIVENESS_MS && !closed && !lostReported).also { if (it) lostReported = true } }
+    if (silent) onLost("Lost the connection to ${device.name}")
     synchronized(lock) {
       val m = media
       val state = CastJson.playState(m)
-      // Statuses come when something changes; between them the place moves on at the play rate.
-      val elapsed = if (state == PlayState.PLAYING) ((System.currentTimeMillis() - mediaAt) * (m?.playbackRate ?: 1f)).toLong() else 0L
+      // Statuses come when something changes; between them the place moves on at the play rate,
+      // but not for long past the receiver's last word.
+      val until = minOf(now, heardAt + SILENCE_GRACE_MS)
+      val elapsed = if (state == PlayState.PLAYING) ((until - mediaAt).coerceAtLeast(0L) * (m?.playbackRate ?: 1f)).toLong() else 0L
       return RendererStatus(
         state = state,
         positionMs = (m?.currentTimeMs ?: 0L) + elapsed,
@@ -288,19 +316,12 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
     runCatching { socket.close() }
   }
 
-  /**
-   * Cast devices present a certificate from Google's device CA, which no public root signs. Like
-   * VLC we skip device authentication: only control messages and LAN URLs go over this socket.
-   */
-  @SuppressLint("CustomX509TrustManager", "TrustAllX509TrustManager")
-  private object TrustDevice : X509TrustManager {
-    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
-    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
-    override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
-  }
-
   private companion object {
     const val RECEIVER_ID = "receiver-0"
+
+    /** Chromium gives up on a Cast channel after 10 s without a message; we wait a little longer. */
+    const val LIVENESS_MS = 15_000L
+    const val SILENCE_GRACE_MS = 3_000L
     const val PING = "{\"type\":\"PING\"}"
     const val PONG = "{\"type\":\"PONG\"}"
   }

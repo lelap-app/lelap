@@ -3,6 +3,7 @@ package app.lelap.audio
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.DeviceInfo
@@ -36,9 +37,11 @@ class RemotePlayer(
   private val onItemsPicked: (List<MediaItem>, Int, Long) -> Unit,
   /** A file loaded on the receiver (null), or why it did not; the service hands back on a failure. */
   private val onLoaded: (String?) -> Unit,
+  /** On Play: where smart rewind resumes the part at [index] from [positionMs], or null to play on. */
+  private val resumePlace: (index: Int, positionMs: Long) -> Long?,
 ) : SimpleBasePlayer(looper) {
   private val handler = Handler(looper)
-  private val session = RemoteSession(SystemClock::elapsedRealtime, link::canPlayAt)
+  private val session = RemoteSession(SystemClock::elapsedRealtime, link::canPlayAt, ::logTiming)
   private val fade = ReceiverFade()
   private var items: List<MediaItem> = emptyList()
   private var released = false
@@ -59,10 +62,29 @@ class RemotePlayer(
   val requestedSpeed: Float
     get() = session.requestedSpeed
 
-  /** A book (or the next in Up Next) on the receiver, from [index] at [positionMs]. */
-  fun setBook(bookItems: List<MediaItem>, durations: List<Long>, index: Int, positionMs: Long, speed: Float, play: Boolean) {
+  /**
+   * A book (or the next in Up Next) on the receiver, from [index] at [positionMs]. Playback that
+   * reaches [outroAtMs] in the last part ends it there, as the phone's player does.
+   */
+  fun setBook(
+    bookItems: List<MediaItem>,
+    durations: List<Long>,
+    index: Int,
+    positionMs: Long,
+    speed: Float,
+    play: Boolean,
+    outroAtMs: Long?,
+  ) {
     items = bookItems
-    run(session.start(durations, index, positionMs, play, speed))
+    run(session.start(durations, index, positionMs, play, speed, outroAtMs))
+  }
+
+  /** The show's outro changed while its episode plays on the receiver. */
+  fun setOutro(atMs: Long?) = session.setOutro(atMs)
+
+  // Read with `adb logcat -s LelapCast`: the protocol and numbers only, no names or addresses.
+  private fun logTiming(timing: RemoteSession.Timing) {
+    Log.i(TAG, "${link.device.kind} ${timing.what} ${timing.ms} ms")
   }
 
   /** The sleep timer's fade, 1 for none; lowers the receiver's own volume where it says it. */
@@ -151,7 +173,7 @@ class RemotePlayer(
   }
 
   override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
-    run(if (playWhenReady) session.play() else session.pause())
+    run(if (playWhenReady) session.play(resumePlace(session.index, session.position())) else session.pause())
     return Futures.immediateVoidFuture()
   }
 
@@ -224,6 +246,7 @@ class RemotePlayer(
   }
 
   private companion object {
+    const val TAG = "LelapCast"
     const val VOLUME_STEP = 0.05f
     const val MISSING = "This part of the book is missing"
 

@@ -6,8 +6,11 @@ export type BookLoad = {
   title: string;
   author: string | null;
   coverUri: string | null;
-  /** In play order. `location` identifies the file in the library. */
-  files: { uri: string; location: string; title: string; durationMs: number }[];
+  /**
+   * In play order. `location` identifies the file in the library. `name` is the file's own name,
+   * whose extension tells a cast receiver the type when the address has none (Subsonic).
+   */
+  files: { uri: string; location: string; title: string; durationMs: number; name?: string }[];
   /** On the whole-book timeline. */
   chapters: { title: string; startMs: number }[];
   startIndex: number;

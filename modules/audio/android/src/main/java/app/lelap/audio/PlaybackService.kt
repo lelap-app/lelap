@@ -449,6 +449,7 @@ class PlaybackService : MediaLibraryService() {
       if (loaded.introMs != playlist.introMs || loaded.outroMs != playlist.outroMs || loaded.chapters != playlist.chapters) {
         current = loaded.copy(introMs = playlist.introMs, outroMs = playlist.outroMs, chapters = playlist.chapters)
         placeOutro()
+        remote?.setOutro(remoteOutroAt())
         updateChapterTitle()
         // A chapter timer moves to the end of the chapter playing now.
         if (sleepBoundaryMs != null) placeBoundary()
@@ -480,7 +481,7 @@ class PlaybackService : MediaLibraryService() {
     // keeps it for the hand-back, so it fetches nothing meanwhile.
     val r = remote
     if (r == null) player.prepare()
-    r?.setBook(items, timelineDurations(), index, position, playlist.speed.coerceIn(0.5f, 3f), autoplay)
+    r?.setBook(items, timelineDurations(), index, position, playlist.speed.coerceIn(0.5f, 3f), autoplay, remoteOutroAt())
     // A chapter timer carries over to the new book's chapter.
     placeBoundary()
     if (autoplay && r == null) player.play()
@@ -507,7 +508,7 @@ class PlaybackService : MediaLibraryService() {
       player.prepare()
       if (play) player.play()
     } else {
-      r.setBook(items, timelineDurations(), index, position, playlist.speed, play)
+      r.setBook(items, timelineDurations(), index, position, playlist.speed, play, remoteOutroAt())
     }
     placeBoundary()
     writeJournal(PositionJournal.Event.ITEM_CHANGE)
@@ -617,18 +618,35 @@ class PlaybackService : MediaLibraryService() {
   }
 
   private fun rewindAfterPause() {
-    val since = pausedAt ?: return
-    pausedAt = null
-    if (!smartRewind || player.mediaItemCount == 0) return
-    val rewind = SeekRules.rewindOnResume(System.currentTimeMillis() - since)
-    if (rewind <= 0) return
+    if (player.mediaItemCount == 0) return
     val p = active
     val index = p.currentMediaItemIndex
-    val position = p.currentPosition
+    rewoundPlace(index, p.currentPosition)?.let { p.seekTo(index, it) }
+  }
+
+  /**
+   * Where Play resumes the file at [index] after a pause, with smart rewind; null to play on. Uses
+   * up the pause, so it rewinds once.
+   */
+  private fun rewoundPlace(index: Int, position: Long): Long? {
+    val since = pausedAt ?: return null
+    pausedAt = null
+    if (!smartRewind) return null
+    val rewind = SeekRules.rewindOnResume(System.currentTimeMillis() - since)
+    if (rewind <= 0) return null
     // Never across a file start, and not back into a skipped intro once past it; a listener who
     // went back into the intro on purpose stays there.
     val intro = current?.introMs?.takeIf { position >= it } ?: 0L
-    p.seekTo(index, SeekRules.trimmedStart(index, position, rewind, intro))
+    return SeekRules.trimmedStart(index, position, rewind, intro)
+  }
+
+  /** Where the outro starts in the last file, for a receiver, which has no player messages. */
+  private fun remoteOutroAt(): Long? {
+    val playlist = current ?: return null
+    val durations = timelineDurations()
+    val last = durations.lastIndex
+    if (last < 0 || playlist.outroMs <= 0) return null
+    return SeekRules.outroStart(durations[last], playlist.outroMs, playlist.introMs, last == 0)
   }
 
   /** Ends the episode where its outro starts, by a message at that place in the last file. */
@@ -1022,7 +1040,8 @@ class PlaybackService : MediaLibraryService() {
       account()
       remoteLink?.keepAwake(playWhenReady)
       if (playWhenReady) {
-        rewindAfterPause()
+        // Smart rewind already went into the receiver's Play (see [rewoundPlace]).
+        pausedAt = null
         port.resumeSleepTimer()
         startBedtimeTimer()
       } else {
@@ -1078,18 +1097,14 @@ class PlaybackService : MediaLibraryService() {
     val index = player.currentMediaItemIndex
     val speed = player.playbackParameters.speed
     // Smart rewind goes into the start place, so the receiver loads once.
-    val since = pausedAt
-    pausedAt = null
-    val rewind = if (smartRewind && since != null) SeekRules.rewindOnResume(System.currentTimeMillis() - since) else 0L
-    val intro = current?.introMs?.takeIf { player.currentPosition >= it } ?: 0L
-    val position = if (rewind > 0) SeekRules.trimmedStart(index, player.currentPosition, rewind, intro) else player.currentPosition
+    val position = rewoundPlace(index, player.currentPosition) ?: player.currentPosition
     handingOver = true
     player.pause()
     // Stopped, not only paused: ExoPlayer keeps the book and place but fetches nothing meanwhile.
     player.stop()
     handingOver = false
     val items = List(player.mediaItemCount) { player.getMediaItemAt(it) }
-    val r = RemotePlayer(Looper.getMainLooper(), link, ::castRequest, ::onRemoteItemsPicked, ::onRemoteLoaded)
+    val r = RemotePlayer(Looper.getMainLooper(), link, ::castRequest, ::onRemoteItemsPicked, ::onRemoteLoaded, ::rewoundPlace)
     remote = r
     remoteLink = link
     link.addListener(linkWatcher)
@@ -1097,7 +1112,7 @@ class PlaybackService : MediaLibraryService() {
     val started = SettableFuture.create<SessionResult>()
     castStart = started
     // Loaded before the swap, so the session never shows an empty player in between.
-    r.setBook(items, timelineDurations(), index, position, speed, play = true)
+    r.setBook(items, timelineDurations(), index, position, speed, play = true, outroAtMs = remoteOutroAt())
     session.player = SkippingPlayer(r)
     publishExtras()
     return started
@@ -1165,7 +1180,7 @@ class PlaybackService : MediaLibraryService() {
   private fun onRemoteItemsPicked(items: List<MediaItem>, index: Int, positionMs: Long) {
     val r = remote ?: return
     player.setMediaItems(items, index, positionMs)
-    r.setBook(items, timelineDurations(), index, positionMs, current?.speed?.coerceIn(0.5f, 3f) ?: 1f, r.playWhenReady)
+    r.setBook(items, timelineDurations(), index, positionMs, current?.speed?.coerceIn(0.5f, 3f) ?: 1f, r.playWhenReady, remoteOutroAt())
     writeJournal(PositionJournal.Event.ITEM_CHANGE)
   }
 
@@ -1180,6 +1195,7 @@ class PlaybackService : MediaLibraryService() {
       album = book.title,
       coverUri = book.coverUri,
       durationMs = file.durationMs,
+      fileName = file.name,
       headers = book.headers,
       viaPhone = book.privateUris,
     )

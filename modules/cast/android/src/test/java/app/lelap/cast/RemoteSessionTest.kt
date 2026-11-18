@@ -10,7 +10,8 @@ import org.junit.Test
 class RemoteSessionTest {
   private var now = 0L
   private var speeds = setOf(1f, 1.5f)
-  private val session = RemoteSession({ now }, { it in speeds })
+  private val timings = mutableListOf<RemoteSession.Timing>()
+  private val session = RemoteSession({ now }, { it in speeds }, { timings += it })
   private val parts = listOf(60_000L, 60_000L, 60_000L)
 
   private fun status(state: PlayState, positionMs: Long = 0L, volume: Float? = null) =
@@ -218,5 +219,129 @@ class RemoteSessionTest {
     session.onStatus(status(PlayState.PLAYING, 0L, volume = 0.4f))
     session.onStatus(status(PlayState.PLAYING, 1_000L, volume = null))
     assertEquals(0.4f, session.volume)
+  }
+
+  // Smart rewind on a receiver (M69): one seek before Play, so it buffers once and never plays a
+  // moment at the old place first.
+  @Test
+  fun playFromARewoundPlaceSeeksFirstThenPlays() {
+    started()
+    session.onStatus(status(PlayState.PLAYING, 30_000L))
+    session.pause()
+    settle()
+    session.onStatus(status(PlayState.PAUSED, 30_000L))
+    assertEquals(listOf(Command.Seek(25_000L), Command.Play), session.play(resumeAtMs = 25_000L))
+    assertEquals(25_000L, session.position())
+    assertEquals(listOf(Command.Play), session.play())
+  }
+
+  @Test
+  fun aStoppedReceiverLoadsTheRewoundPlaceOnce() {
+    started()
+    session.onStatus(status(PlayState.PLAYING, 30_000L))
+    settle()
+    // Stopped on the speaker: Play loads the file again.
+    session.onStatus(status(PlayState.IDLE, 0L))
+    val commands = session.play(resumeAtMs = 25_000L)
+    assertEquals(25_000L, (commands.single() as Command.Load).positionMs)
+  }
+
+  // A podcast's outro on a receiver (M45, M69).
+  @Test
+  fun reachingTheOutroInTheLastPartEndsTheEpisode() {
+    val load = session.start(parts, 2, 40_000L, play = true, speed = 1f, outroAtMs = 50_000L)
+    session.onLoaded(seqOf(load), null)
+    settle()
+    session.onStatus(status(PlayState.PLAYING, 49_000L))
+    assertEquals(Phase.READY, session.phase)
+    assertEquals(listOf(Command.Pause), session.onStatus(status(PlayState.PLAYING, 50_200L)))
+    assertEquals(Phase.ENDED, session.phase)
+    assertFalse(session.playWhenReady)
+    assertEquals(60_000L, session.position())
+    // The receiver's pause, coming in after, doesn't bring the episode back.
+    assertEquals(emptyList<Command>(), session.onStatus(status(PlayState.PAUSED, 50_300L)))
+    assertEquals(Phase.ENDED, session.phase)
+  }
+
+  @Test
+  fun theOutroOnlyCountsInTheLastPart() {
+    val load = session.start(parts, 1, 40_000L, play = true, speed = 1f, outroAtMs = 50_000L)
+    session.onLoaded(seqOf(load), null)
+    settle()
+    session.onStatus(status(PlayState.PLAYING, 49_000L))
+    assertEquals(emptyList<Command>(), session.onStatus(status(PlayState.PLAYING, 51_000L)))
+    assertEquals(Phase.READY, session.phase)
+  }
+
+  @Test
+  fun aListenerWhoSeeksPastTheOutroHearsIt() {
+    val load = session.start(parts, 2, 40_000L, play = true, speed = 1f, outroAtMs = 50_000L)
+    session.onLoaded(seqOf(load), null)
+    settle()
+    session.onStatus(status(PlayState.PLAYING, 41_000L))
+    session.seek(2, 55_000L)
+    settle()
+    assertEquals(emptyList<Command>(), session.onStatus(status(PlayState.PLAYING, 56_000L)))
+    assertEquals(Phase.READY, session.phase)
+    // Back before it, and playing on: skipped again.
+    session.seek(2, 45_000L)
+    settle()
+    session.onStatus(status(PlayState.PLAYING, 49_500L))
+    assertEquals(listOf(Command.Pause), session.onStatus(status(PlayState.PLAYING, 50_500L)))
+  }
+
+  @Test
+  fun anOutroSetWhilePlayingApplies() {
+    started(index = 2, positionMs = 40_000L)
+    session.onStatus(status(PlayState.PLAYING, 45_000L))
+    session.setOutro(50_000L)
+    assertEquals(listOf(Command.Pause), session.onStatus(status(PlayState.PLAYING, 50_000L)))
+    session.setOutro(null)
+  }
+
+  // M51: a receiver that drops off without a word doesn't keep adding listening time.
+  @Test
+  fun thePlaceStopsMovingSoonAfterTheReceiverFallsSilent() {
+    started()
+    session.onStatus(status(PlayState.PLAYING, 10_000L))
+    now += 1_000L
+    assertEquals(11_000L, session.position())
+    now += 60_000L
+    assertEquals(13_000L, session.position())
+    // It speaks again: the place goes on from its word, not from the silence.
+    session.onStatus(status(PlayState.PLAYING, 13_500L))
+    now += 1_000L
+    assertEquals(14_500L, session.position())
+  }
+
+  // M69: how long receivers take, measured so the waits can be tuned on real ones.
+  @Test
+  fun measuresHowLongTheReceiverTakesToAgree() {
+    started()
+    session.onStatus(status(PlayState.PLAYING, 10_000L))
+    timings.clear()
+    session.pause()
+    now += 800L
+    session.onStatus(status(PlayState.PLAYING, 10_800L))
+    now += 900L
+    session.onStatus(status(PlayState.PAUSED, 10_900L))
+    assertEquals(listOf(RemoteSession.Timing("pause", 1_700L)), timings)
+    timings.clear()
+    session.seek(0, 40_000L)
+    now += 1_000L
+    session.onStatus(status(PlayState.PAUSED, 10_900L))
+    now += 1_500L
+    session.onStatus(status(PlayState.PAUSED, 40_100L))
+    assertEquals(listOf(RemoteSession.Timing("seek", 2_500L)), timings)
+  }
+
+  @Test
+  fun measuresHowFarBeforeThePartsEndTheReceiverStops() {
+    started()
+    session.onStatus(status(PlayState.PLAYING, 58_000L))
+    timings.clear()
+    now += 500L
+    session.onStatus(status(PlayState.ENDED))
+    assertEquals(listOf(RemoteSession.Timing("part-end", 1_500L)), timings)
   }
 }

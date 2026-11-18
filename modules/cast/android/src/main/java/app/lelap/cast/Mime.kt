@@ -24,6 +24,17 @@ object Mime {
     return if (dot < 0) "" else path.substring(dot + 1).lowercase()
   }
 
+  /**
+   * The name to take a file's type and extension from: its address or local name when that has
+   * an audio extension, else [fileName] when that has one (a Subsonic stream address has none, a
+   * downloaded part may be `.audio`).
+   */
+  fun nameFor(addressName: String, fileName: String?): String = when {
+    AUDIO.containsKey(extension(addressName)) -> addressName
+    fileName != null && AUDIO.containsKey(extension(fileName)) -> fileName
+    else -> addressName
+  }
+
   fun audio(name: String): String = AUDIO[extension(name)] ?: "audio/mpeg"
 
   fun image(name: String): String = IMAGE[extension(name)] ?: "image/jpeg"
