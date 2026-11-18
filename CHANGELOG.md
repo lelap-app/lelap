@@ -2,6 +2,113 @@
 
 What changed in each Lelap release, newest first.
 
+## 0.1.0-beta.7 (2026-11-18)
+
+This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t
+bring it. The app offers it as usual. The app’s database doesn’t change. In the web app, a library
+saved by an earlier version is moved to the new storage once, the first time it opens.
+
+### New
+
+- The Library opens in three groups: In progress, by when you last played; Not started, by when
+  you added it; and Finished, by when you finished it. Finished starts closed, and the Library
+  remembers whether you opened it. The first pill is now Progress, which replaces Recent; Title
+  and Author still show one list. (#153)
+- Covers come from image files next to the audio, in your folders and on your servers. For each
+  book the first that fits wins: a picture in the tags; an image with the audio file’s name
+  (`s01e01.mp3` → `s01e01.jpg`); an image called cover, folder, front, poster or albumart; an image
+  named after the folder; the only image. Among several others, Lelap picks the most nearly
+  square, then the largest. A better match added later replaces that guess at the next scan.
+  (#150)
+- A rescan button in the Library’s header, when you have a folder or a server. (#155)
+- Soundbites: a podcast page says how many an episode has. Hold the episode to list them, and tap
+  one to play the episode from there. (#148)
+- A show that names its place shows “Place: …” under its author. (#148)
+
+### Improved
+
+- The web app saves much faster: it writes only the part of the library that changed. In a library
+  of 10,000 books, one change writes 256 KB instead of 49 MB. (#151)
+- The web app shows covers from your WebDAV, S3, Subsonic and Plex servers. It fetches them once
+  with your login, straight from your server, and keeps them in the browser. (#151)
+- In the web app, media keys and the browser’s media controls show the chapter that’s playing,
+  and dragging there seeks within it. The Delete key hides a Library row or deletes a bookmark.
+  The scrubber moves with the arrow keys, Page Up, Page Down, Home and End. Screen readers get the
+  same hints as TalkBack. (#151)
+- Casting skips a podcast’s outro on the speaker too: the episode counts as played and Up Next
+  goes on, as on the phone. (#149)
+- Smart rewind on a speaker is one jump before it plays, so you no longer hear a moment at the old
+  place first. A stopped speaker loads the file once instead of twice. (#149)
+- When a speaker drops off, the place stops moving after 3 s. A Google Cast speaker that stays
+  silent for 15 s counts as lost, and the phone takes over. (#149)
+- Lelap now checks a Google Cast speaker’s identity on a connection of its own. For now it only
+  writes the result to the Android log; casting goes on whatever it says. (#149)
+- The skip buttons in the Player and car mode show your skip interval (10 to 60 s), not always 30.
+  (#155)
+- The Continue card names the chapter. (#155)
+- Places saved while the app was closed show as soon as it opens. (#155)
+- During a scan, books show one folder or server at a time instead of all at the end. The spinner
+  shows only for scans that read files. (#155)
+- A big first scan is about twice as fast: 10,000 books in 1.7 s instead of 3.5 s. Covers from
+  the phone’s folder aren’t decoded again on every rescan. (#150)
+- More tags are read: more kinds of ID3 tags, UTF-16 chapter titles in m4b files, and genre,
+  narrator and ISBN from Ogg Vorbis and Opus files. (#150)
+- An episode of a video show that also lists an audio file now plays the audio. Atom feeds with
+  formatted descriptions show them. (#148)
+- The diagnostics log, when it’s on, records how background podcast refreshes went: counts and
+  error codes, never titles or addresses. (#148)
+- An add-on whose settings can’t be opened on this device says so on its row. (#155)
+
+### Fixed
+
+- On Android 17, library servers on your home network (WebDAV, SMB, SFTP, S3, Jellyfin,
+  Audiobookshelf, Plex, Emby, Subsonic and others) now ask for local network access. Before,
+  their scans, streams and downloads failed. Lelap asks when you add or test a server, play from
+  it or download from it. A background scan never asks: it skips the server, and Settings shows
+  “Needs local network access…” on its row, with Allow. A download without access stops at once
+  and says why, instead of retrying. (#154)
+- After a rescan regroups the book that’s playing, the Player keeps it at the same place instead
+  of showing “Nothing is playing”. (#155)
+- In the web app, the first chapter of a Subsonic or Plex book shows its title, not “001 …”. (#151)
+- A book’s tags and length are kept when reading its chapters or saving its cover fails. (#150)
+- A book with a file that stays missing is rebuilt once, not at every scan. (#150)
+- A queued download whose folder is gone says “The download stopped.” after a minute. (#150)
+- Stop, then Find chapters, no longer mixes two chapter scans. (#150)
+- A failed download move no longer fails the move queued behind it, and leftovers of a move cut
+  short are cleared. (#150)
+- Hidden books no longer count as on the device for a wanted book’s alert. (#150)
+- A book matched by title and author shows the same ✓ or percentage on its page as on its tile.
+  (#155)
+- Discover keeps its place when the player pane opens or the window changes size. (#155)
+- No unexplained errors at start-up, from Rescan or from the folder picker: they show a message
+  or go to the diagnostics log. (#155)
+- The web app’s media controls show covers kept in the browser. (#155)
+- Pressed chips show their colour again, and the diagnostics text wraps at large text sizes.
+  (#155)
+
+### Self-hosting and add-on developers
+
+- Sync: no D1 migration, and the sync service hasn’t changed.
+- Protocol: when a library file comes without `durationMs`, its `title`, `album`, `artist`,
+  `albumArtist` and `ids` now fill in what the file itself lacks, since a browser reads only the
+  length. The bundled Subsonic and Plex add-ons send that file’s tags this way. The protocol
+  version is unchanged. (#151)
+- `@lelap/sdk`: a patch is waiting as a changeset. The work matcher reads a leading “Book 2 -
+  Title” or “Vol. 3: Title” as a series number, and a print book’s ASIN, which is its ISBN-10,
+  meets the same book’s `isbn:978…`. npm still has 0.4.0 until the SDK is released. (#150)
+
+### Known issues
+
+- Casting to real speakers hasn’t been tried with this beta: the outro, smart rewind, dropped
+  speakers and the identity check are tested only in code. (#149)
+- The Android 17 local network asks for library servers haven’t been tried on a phone with access
+  turned off. (#154)
+- The Library’s groups, the cover rules and the app fixes haven’t been tried on a phone yet.
+  (#150, #153, #155)
+- Covers from real servers in the web app, and the web app with a screen reader, haven’t been
+  tried yet. (#151)
+- Some new Bahasa Melayu lines haven’t been checked by a native speaker.
+
 ## 0.1.0-beta.6 (2026-11-18)
 
 This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t
