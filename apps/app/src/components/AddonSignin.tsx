@@ -63,6 +63,8 @@ export function AddonSignin({
   // The form's values at the time of each check, without starting the checks again.
   const latest = useRef({ ...known, ...values });
   latest.current = { ...known, ...values };
+  // The form when the sign-in started: a field the listener changed since keeps their value.
+  const started = useRef<Settings>({});
   // Only the add-on's declared hosts: the sign-in needs no address from the form.
   const hosts = manifest.sandbox?.hosts ?? [];
   const done = useRef(onDone);
@@ -84,6 +86,7 @@ export function AddonSignin({
 
   const start = async () => {
     setBusy(true);
+    started.current = { ...latest.current };
     try {
       const parsed = SigninStartSchema.safeParse(await call('start'));
       // The page to open is on one of the add-on's declared hosts, never anywhere it likes.
@@ -122,7 +125,12 @@ export function AddonSignin({
         if (!parsed.success) throw new Error(t('The add-on’s sign-in is not valid.'));
         if (parsed.data.settings) {
           setPending(null);
-          done.current(parsed.data);
+          const form = latest.current;
+          const before = started.current;
+          const untouched = Object.entries(parsed.data.settings).filter(
+            ([key]) => (form[key] ?? '') === (before[key] ?? ''),
+          );
+          done.current({ settings: Object.fromEntries(untouched) });
           return;
         }
         failures = 0;

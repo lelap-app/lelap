@@ -29,8 +29,10 @@ import { sandboxPage } from './page';
 // server's hosts, and its settings only in that sandbox's `library` and `place` calls.
 
 const CALL_TIMEOUT_MS = 20_000;
-// A library listing may take many requests, such as one per album on a Subsonic server.
-const LIBRARY_TIMEOUT_MS = 120_000;
+// A library listing may take many requests, such as one per album on a Subsonic server: thousands
+// of albums at six at a time. Each request still gives up after 20 s, so a server that stops
+// answering ends the listing long before this.
+const LIBRARY_TIMEOUT_MS = 10 * 60_000;
 // A place report may first have to find the server, at home or away, or list it again.
 const PLACE_TIMEOUT_MS = 60_000;
 const FETCH_TIMEOUT_MS = 20_000;

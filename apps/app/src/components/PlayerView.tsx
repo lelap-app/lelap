@@ -374,6 +374,17 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           ) : (
             detail.book.author !== null && <Text className="text-soft">{detail.book.author}</Text>
           )}
+          {/* A server's series and narrator (M65), or a narrator tag. */}
+          {(detail.series !== null || detail.narrator !== null) && (
+            <Text numberOfLines={1} className="text-sm text-muted">
+              {[
+                detail.series,
+                detail.narrator ? t('Read by {names}', { names: detail.narrator }) : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          )}
         </View>
         <Pressable
           onPress={bookmark}

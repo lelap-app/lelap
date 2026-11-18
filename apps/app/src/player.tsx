@@ -40,17 +40,13 @@ import { db, newId } from './db';
 import { logCaught } from './diagnostics';
 import * as audio from './platform/audio';
 import { profileId, setProfileId } from './profile';
-import { addonPlacesFinished, trackAddonPlaces } from './addonPlaces';
-import { jellyfinFinished, trackJellyfin } from './jellyfin';
-import {
-  audiobookshelfFinished,
-  prepareAudiobookshelfBook,
-  trackAudiobookshelf,
-} from './audiobookshelf';
+import { prepareAudiobookshelfBook } from './audiobookshelf';
 import { askLocalNetwork } from './localNetwork';
 import { fileAccess } from './remote';
 import { onRootScanned } from './scan';
 import { flushScrobbles, foldServiceAccounting, trackFinished, trackPlayerState } from './scrobble';
+import { checkServerAfterError } from './serverCheck';
+import { flushServerPlaces, serverPlacesFinished, trackServerPlaces } from './serverPlaces';
 
 export const IDLE: audio.PlayerState = {
   connected: false,
@@ -334,9 +330,7 @@ async function foldFinished(): Promise<boolean> {
   for (const item of done) {
     finishFromPlayer(db, playerProfile(), item.bookId, item.at);
     trackFinished(item.bookId, item.at, playerProfile());
-    jellyfinFinished(item.bookId, item.at, playerProfile());
-    audiobookshelfFinished(item.bookId, item.at, playerProfile());
-    addonPlacesFinished(item.bookId, item.at, playerProfile());
+    serverPlacesFinished(item.bookId, item.at, playerProfile());
   }
   return done.length > 0;
 }
@@ -415,6 +409,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         refresh();
       });
     void flushScrobbles();
+    // Places for servers that waited while the app was closed or offline go out now.
+    void flushServerPlaces(true);
     const appState = AppState.addEventListener('change', (status) => {
       if (status !== 'active') return;
       void foldJournal()
@@ -423,6 +419,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         .catch(logCaught)
         .finally(refresh);
       void flushScrobbles();
+      void flushServerPlaces(true);
     });
     return () => {
       subscription.remove();
@@ -463,9 +460,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     trackPlayerState(state, playerProfile());
-    trackJellyfin(state, playerProfile());
-    trackAudiobookshelf(state, playerProfile());
-    trackAddonPlaces(state, playerProfile());
+    trackServerPlaces(state, playerProfile());
+    checkServerAfterError(state, refresh);
   }, [state]);
 
   useEffect(() => {

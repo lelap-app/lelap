@@ -88,6 +88,8 @@ describe('library queries', () => {
       chapters: [],
       foundChapters: false,
       speed: 1.25,
+      narrator: null,
+      series: null,
     });
     expect(getBook(db, OTHER, alpha)?.speed).toBe(1);
     expect(getBook(db, ME, 'nope')).toBeNull();

@@ -91,6 +91,15 @@ object Downloads {
     Unit
   }
 
+  /**
+   * Takes the login out of a finished book's `job.json`, unless the book was started again since
+   * ([revision] changed): that run still needs it. A later start writes a new job with a login.
+   */
+  fun dropLogin(dir: File, revision: String?) = synchronized(lock) {
+    val job = readJob(dir) ?: return@synchronized
+    if (job.revision == revision && job.headers.isNotEmpty()) writeJob(dir, job.copy(headers = emptyMap()))
+  }
+
   fun remove(context: Context, bookId: String) {
     WorkManager.getInstance(context).cancelUniqueWork(workName(bookId)).result.get()
     if (!DownloadJob.isSafeName(bookId)) return

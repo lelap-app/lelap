@@ -31,6 +31,7 @@ export const SHARED_TABLES = [
   'tombstones',
   'diagnostics',
   'work_links',
+  'place_outbox',
 ] as const;
 
 export type StoredChapter = { title: string; startMs: number };
@@ -49,6 +50,8 @@ export type KindTags = {
   narrator: string | null;
   /** MP4 `stik` (`audiobook`, `music`, `podcast`, `other`), or what a server says the item is. */
   mediaKind: string | null;
+  /** The book's series as a server names it, such as `Dune #1` (M65); absent from file tags. */
+  series?: string | null;
 };
 
 export const profiles = sqliteTable('profiles', {
@@ -620,6 +623,29 @@ export const scrobbleOutbox = sqliteTable(
   (t) => [
     primaryKey({ columns: [t.eventId, t.addonUrl] }),
     index('scrobble_outbox_due').on(t.nextAttemptAt),
+  ],
+);
+
+/**
+ * The latest place of a book on a server that keeps places (Jellyfin, Audiobookshelf, an add-on
+ * with `place`), still to be sent, so a place reported offline goes out later (M65). Sent for the
+ * server's owner profile. Kept on this device; never synced.
+ */
+export const placeOutbox = sqliteTable(
+  'place_outbox',
+  {
+    rootId: text('root_id').notNull(),
+    bookId: text('book_id').notNull(),
+    event: text('event', { enum: ['start', 'progress', 'pause', 'finish'] }).notNull(),
+    /** On the whole-book timeline. */
+    positionMs: integer('position_ms').notNull(),
+    at: integer('at').notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: integer('next_attempt_at').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.rootId, t.bookId] }),
+    index('place_outbox_due').on(t.nextAttemptAt),
   ],
 );
 

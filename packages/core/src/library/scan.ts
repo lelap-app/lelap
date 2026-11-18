@@ -11,6 +11,7 @@ import {
   chapters,
   libraryEntries,
   libraryRoots,
+  placeOutbox,
   progress,
   type StoredChapter,
 } from '../schema';
@@ -731,6 +732,7 @@ export function removeRemoteRoot(db: Db, rootId: string): void {
       .map((b) => b.id);
     for (const id of ids) tx.delete(books).where(eq(books.id, id)).run();
     tx.delete(bookFiles).where(eq(bookFiles.rootId, rootId)).run();
+    tx.delete(placeOutbox).where(eq(placeOutbox.rootId, rootId)).run();
     tx.delete(libraryRoots)
       .where(and(eq(libraryRoots.id, rootId)))
       .run();

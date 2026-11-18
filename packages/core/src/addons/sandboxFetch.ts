@@ -76,12 +76,15 @@ export async function sandboxFetch(
     // A login's cookie, for an add-on that signs in with one (M61). Only on Android: a browser
     // never shows it to a page.
     const cookie = response.headers.get('set-cookie');
+    // The server's clock, for an add-on that compares its times with the phone's (M65).
+    const date = response.headers.get('date');
     return {
       status: response.status,
       text,
       headers: {
         ...(type ? { 'content-type': type } : {}),
         ...(cookie ? { 'set-cookie': cookie } : {}),
+        ...(date ? { date } : {}),
       },
     };
   } catch (error) {

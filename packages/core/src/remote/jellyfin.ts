@@ -219,7 +219,8 @@ export function jellyfinItemId(location: string): string | null {
   return location.slice(location.lastIndexOf('/') + 1) || null;
 }
 
-const lastSegment = (path: string | null | undefined, from = 1): string | null => {
+/** A path's last folder or file name (`from` 2: the one above), with `/` or `\` between. */
+export const lastSegment = (path: string | null | undefined, from = 1): string | null => {
   const parts = (path ?? '').split(/[\\/]/).filter(Boolean);
   return parts[parts.length - from] ?? null;
 };

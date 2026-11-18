@@ -7,16 +7,11 @@ import {
   getBook,
   isKeyRefused,
   listRoots,
-  reportAudiobookshelfProgress,
-  ScrobbleTracker,
+  placeOwner,
   setAudiobookshelfKeyRefused,
-  type TimelineFile,
-  toBookPosition,
-  type TrackedEvent,
 } from '@lelap/core';
 
 import { db } from './db';
-import type { PlayerState } from './platform/audio';
 
 const send = (url: string, init?: RequestInit) => fetch(url, init);
 
@@ -49,73 +44,17 @@ export async function withKey<T>(rootId: string, request: Promise<T>): Promise<T
 
 /**
  * Before a book plays: takes the place from Audiobookshelf when it is newer, so a book left in
- * Audiobookshelf's own player continues there without a rescan. Gives up after 5 s.
+ * Audiobookshelf's own player continues there without a rescan. Gives up after 5 s. Places are
+ * sent back by `serverPlaces`.
  */
 export async function prepareAudiobookshelfBook(bookId: string, profile: string): Promise<void> {
   const files = getBook(db, profile, bookId)?.files ?? [];
   const server = serverById(files[0]?.rootId);
   const itemId = audiobookshelfItemId(files[0]?.location ?? '');
-  if (!server || !itemId || server.profileId !== profile) return;
+  if (!server || !itemId || placeOwner(db, server.profileId) !== profile) return;
   const progress = await withKey(
     server.rootId,
     audiobookshelfItemProgress(send, server.url, server.token, itemId),
   ).catch(() => null);
   if (progress) applyRemotePlaces(db, profile, audiobookshelfPlaces(progress, files), Date.now());
-}
-
-// Tells Audiobookshelf servers where the listener is, at the moments the app saves its own place:
-// on start and pause, about every five minutes while playing, and at the end of a book. Only for
-// the profile that added the server. Best effort: a report that fails is not retried, and the
-// next scan settles any difference (the newest place wins).
-
-const tracker = new ScrobbleTracker();
-
-type Part = TimelineFile & { rootId: string | null };
-let timeline: { key: string; files: Part[] } | null = null;
-function partsOf(bookId: string, profile: string): Part[] {
-  const key = `${profile}/${bookId}`;
-  if (timeline?.key !== key) timeline = { key, files: getBook(db, profile, bookId)?.files ?? [] };
-  return timeline.files;
-}
-
-/** Forgets the cached parts of the playing book; a scan may have changed them. */
-export function forgetAudiobookshelfParts(): void {
-  timeline = null;
-}
-
-async function report(event: TrackedEvent, profile: string): Promise<void> {
-  const parts = partsOf(event.bookId, profile);
-  const server = serverById(parts[0]?.rootId);
-  const itemId = audiobookshelfItemId(parts[0]?.location ?? '');
-  if (!server || server.profileId !== profile || !itemId) return;
-  await withKey(
-    server.rootId,
-    reportAudiobookshelfProgress(send, server.url, server.token, itemId, {
-      positionMs: event.positionMs,
-      durationMs: parts.reduce((sum, p) => sum + Math.max(0, p.durationMs), 0),
-      finished: event.event === 'finish',
-    }),
-  );
-}
-
-function reportAll(events: TrackedEvent[], profile: string): void {
-  for (const event of events) void report(event, profile).catch(() => {});
-}
-
-/** Feeds a player state; called on every state the player reports. */
-export function trackAudiobookshelf(state: PlayerState, profile: string): void {
-  const bookId = state.connected ? state.bookId : null;
-  const positionMs =
-    bookId && state.fileLocation
-      ? toBookPosition(partsOf(bookId, profile), state.fileLocation, state.positionMs)
-      : 0;
-  reportAll(
-    tracker.update({ playing: state.playing && !state.ended, bookId, positionMs }, Date.now()),
-    profile,
-  );
-}
-
-/** The player finished a book: it is finished on the server too. */
-export function audiobookshelfFinished(bookId: string, at: number, profile: string): void {
-  reportAll([tracker.finished(bookId, at, 0)], profile);
 }

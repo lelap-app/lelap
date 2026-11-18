@@ -11,11 +11,11 @@ import {
   audiobookshelfMe,
   audiobookshelfScan,
   listAudiobookshelfItems,
-  DEFAULT_PROFILE_ID,
-  getProfile,
   jellyfinScan,
   listJellyfinItems,
+  placeOwner,
   setRemoteCovers,
+  setServerChapters,
   coverGuesses,
   type FileTags,
   filesNeedingTags,
@@ -41,8 +41,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
 import { codeFingerprint, listAddonLibrary, sourceManifest } from './addonSources';
-import { forgetAddonPlaceParts } from './addonPlaces';
-import { forgetAudiobookshelfParts, withKey } from './audiobookshelf';
+import { withKey } from './audiobookshelf';
 import { db, newId } from './db';
 import { chapterName } from './format';
 import { logDiagnostic } from './diagnostics';
@@ -59,6 +58,7 @@ import { currentLocalNetworkAccess, isLocalServer, markNeedsLocalNetwork } from 
 import { listNetServer } from './netServers';
 import { copyTo, NETFS_ERRORS } from './platform/netfs';
 import { fileAccess } from './remote';
+import { forgetServerPlaceParts } from './serverPlaces';
 import { saveWebCover } from './webCovers';
 
 export type ScanResult = { added: number; missing: number } | { error: 'permission' | 'no-folder' };
@@ -338,12 +338,8 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
       setRemoteCovers(db, root.id, fromAddon.covers, Date.now());
       // A server's places (revision 6), for the profile that added it; the newest place wins.
       const remote = root.remote?.type === 'addon' ? root.remote : null;
-      const profile =
-        remote?.profileId && getProfile(db, remote.profileId)
-          ? remote.profileId
-          : DEFAULT_PROFILE_ID;
-      applyRemotePlaces(db, profile, fromAddon.places, Date.now());
-      forgetAddonPlaceParts();
+      applyRemotePlaces(db, placeOwner(db, remote?.profileId), fromAddon.places, Date.now());
+      forgetServerPlaceParts();
     }
     added += result.added;
     missing += result.missing;
@@ -376,8 +372,8 @@ async function scanJellyfin(
   });
   setRemoteCovers(db, root.id, scan.covers, now);
   // The profile that added the server; the first one if it has since been deleted.
-  const profile = getProfile(db, remote.profileId) ? remote.profileId : DEFAULT_PROFILE_ID;
-  applyRemotePlaces(db, profile, scan.places, now);
+  applyRemotePlaces(db, placeOwner(db, remote.profileId), scan.places, now);
+  forgetServerPlaceParts();
   return result;
 }
 
@@ -410,9 +406,9 @@ async function scanAudiobookshelf(
     newId,
   });
   setRemoteCovers(db, root.id, scan.covers, now);
-  const profile = getProfile(db, remote.profileId) ? remote.profileId : DEFAULT_PROFILE_ID;
-  applyRemotePlaces(db, profile, scan.places, now);
-  forgetAudiobookshelfParts();
+  setServerChapters(db, root.id, scan.chapters, now, newId);
+  applyRemotePlaces(db, placeOwner(db, remote.profileId), scan.places, now);
+  forgetServerPlaceParts();
   return result;
 }
 

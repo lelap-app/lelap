@@ -197,6 +197,13 @@ class SessionPoolTest {
     assertEquals(1, server.closed.get())
   }
 
+  @Test fun keepsNoHandshakeGateOnceNobodyWaits() {
+    pool.lease(address, login).close()
+    pool.lease(address, login.copy(password = "other")).close()
+    runCatching { pool.use(address, login) { throw java.io.IOException("reset") } }
+    assertEquals(0, pool.gates)
+  }
+
   @Test fun anotherLoginGetsItsOwnConnection() {
     pool.lease(address, login).close()
     pool.lease(address, login.copy(password = "other")).close()

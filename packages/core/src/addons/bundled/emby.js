@@ -173,8 +173,10 @@ async function librariesOf(s, login, names) {
 const FIELDS =
   'Path,Chapters,People,DateCreated,ParentId,ProviderIds,Size,Container,UserDataLastPlayedDate';
 
-async function itemsOf(s, login, library) {
+/** One listing of a library in pages, in the given order; and how many items Emby counted. */
+async function pagesOf(s, login, library, sortBy) {
   const items = [];
+  let total = 0;
   for (let page = 0; page < MAX_PAGES && items.length < MAX_FILES; page++) {
     const reply = await call(s, login.token, `/Users/${enc(login.userId)}/Items`, {
       query: {
@@ -183,17 +185,33 @@ async function itemsOf(s, login, library) {
         IncludeItemTypes: 'Audio,AudioBook',
         Fields: FIELDS,
         EnableUserData: 'true',
-        SortBy: 'SortName',
+        SortBy: sortBy,
         StartIndex: String(page * PAGE),
         Limit: String(PAGE),
       },
     });
     const found = list(reply && reply.Items);
     items.push(...found);
-    const total = Number(reply && reply.TotalRecordCount) || 0;
+    total = Number(reply && reply.TotalRecordCount) || 0;
     if (found.length < PAGE || items.length >= total) break;
   }
-  return items;
+  return { items, total };
+}
+
+const uniqueCount = (items) => new Set(items.map((i) => i && i.Id)).size;
+
+/**
+ * Every item of a library. Items with the same name may swap places between pages, so one can
+ * show twice and another not at all; when fewer items came than Emby counted, a second listing in
+ * the order they were added fills the gaps. Repeats are dropped later.
+ */
+async function itemsOf(s, login, library) {
+  const first = await pagesOf(s, login, library, 'SortName');
+  if (uniqueCount(first.items) >= first.total || first.items.length >= MAX_FILES) {
+    return first.items;
+  }
+  const second = await pagesOf(s, login, library, 'DateCreated,SortName');
+  return [...first.items, ...second.items];
 }
 
 /** Which of these folders have a picture of their own: a cover.jpg in an audiobook folder. */

@@ -327,7 +327,8 @@ async function sectionsOf(s, names) {
   });
 }
 
-async function tracksOf(s, section) {
+/** A section's tracks, page by page; `until` stops early once a page has what it looks for. */
+async function tracksOf(s, section, until) {
   const found = [];
   for (let page = 0; page < MAX_PAGES && found.length < MAX_FILES; page++) {
     const reply = await pms(s, `/library/sections/${enc(section.key)}/all`, {
@@ -338,6 +339,7 @@ async function tracksOf(s, section) {
     const container = (reply && reply.MediaContainer) || {};
     const metadata = list(container.Metadata);
     found.push(...metadata);
+    if (until && metadata.some(until)) break;
     const total = Number(container.totalSize);
     if (metadata.length < PAGE || (Number.isFinite(total) && found.length >= total)) break;
   }
@@ -502,11 +504,20 @@ async function place(settings, report) {
   const key = JSON.stringify([settings.account, settings.url, settings.remote, settings.server]);
   const s = connected && connected.key === key ? connected.s : await connect(settings, url.origin);
   const address = url.pathname;
-  // A sandbox started after the last listing, such as after the app restarted, lists again.
+  // A sandbox started after the last listing, such as after the app restarted, looks for the
+  // track again, page by page, and stops at the page that has it: a whole large library may take
+  // longer than a place report may.
   if (!tracks.has(address)) {
     const sections = await sectionsOf(s, settings.libraries);
+    const isIt = (track) => {
+      const part = partOf(track);
+      return part !== null && String(part.key) === address;
+    };
     const found = [];
-    for (const section of sections) found.push(...(await tracksOf(s, section)));
+    for (const section of sections) {
+      found.push(...(await tracksOf(s, section, isIt)));
+      if (found.some(isIt)) break;
+    }
     filesOf(s, found);
   }
   // Only a track this add-on listed; saved through whichever of the server's addresses answers.

@@ -50,7 +50,9 @@ class SessionPool(
 
   private val slots = HashMap<String, Slot>()
   private val refusals = HashMap<String, Pair<Long, NetFailure>>()
-  private val opening = HashMap<String, Any>()
+  /** A handshake gate and how many callers hold or wait for it; it goes when none do. */
+  private class Gate { var users = 0 }
+  private val opening = HashMap<String, Gate>()
   private val sweeper: ScheduledExecutorService? = sweepEveryMs?.let { every ->
     Executors.newSingleThreadScheduledExecutor { Thread(it, "lelap-netfs-sweep").apply { isDaemon = true } }.also {
       it.scheduleWithFixedDelay({ runCatching { sweep() } }, every, every, TimeUnit.MILLISECONDS)
@@ -67,7 +69,17 @@ class SessionPool(
   fun lease(address: NetAddress, login: NetLogin): Lease {
     val key = keyOf(address, login)
     // One handshake per server at a time; other servers are not held up by a slow one.
-    val gate = synchronized(this) { opening.getOrPut(key) { Any() } }
+    val gate = synchronized(this) { opening.getOrPut(key) { Gate() }.also { it.users++ } }
+    try {
+      return openThrough(gate, key, address, login)
+    } finally {
+      synchronized(this) {
+        if (--gate.users == 0 && opening[key] === gate) opening.remove(key)
+      }
+    }
+  }
+
+  private fun openThrough(gate: Gate, key: String, address: NetAddress, login: NetLogin): Lease {
     synchronized(gate) {
       synchronized(this) {
         val slot = slots[key]
@@ -125,6 +137,9 @@ class SessionPool(
 
   /** How many connections are open; for tests. */
   val open: Int get() = synchronized(this) { slots.size }
+
+  /** How many handshake gates are kept; for tests. */
+  internal val gates: Int get() = synchronized(this) { opening.size }
 
   fun closeAll() {
     val all = synchronized(this) { slots.values.toList().also { slots.clear() } }

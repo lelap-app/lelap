@@ -28,7 +28,7 @@ import {
   listAudiobookshelfLibraries,
   reportAudiobookshelfProgress,
 } from './audiobookshelf';
-import { applyRemotePlaces, setRemoteCovers } from './places';
+import { applyRemotePlaces, setRemoteCovers, setServerChapters } from './places';
 
 const fixture = (name: string): unknown =>
   JSON.parse(
@@ -408,5 +408,87 @@ describe('ISBN and ASIN from Audiobookshelf', () => {
       ['isbn:9780441013593', 'asin:B002V1OF70'],
       [],
     ]);
+  });
+});
+
+describe('Audiobookshelf books in full (M65)', () => {
+  let n = 0;
+  const newId = () => `m65-${++n}`;
+  const items = [
+    {
+      id: 'li_dune',
+      path: '/audiobooks/Frank Herbert/Dune',
+      media: {
+        metadata: {
+          title: 'Dune',
+          authorName: 'Frank Herbert',
+          narratorName: 'Scott Brick, Orlagh Cassidy',
+          seriesName: 'Dune #1',
+        },
+        chapters: [
+          { start: 0, title: 'Book One' },
+          { start: 600, title: 'Chapter 2' },
+          { start: 1000, title: 'Chapter 3' },
+          { start: 1700, title: 'Chapter 4' },
+        ],
+        tracks: [
+          { ino: '1', duration: 1000, metadata: { filename: 'Dune 1.mp3' } },
+          { ino: '2', duration: 1000, metadata: { filename: 'Dune 2.wma', ext: '.wma' } },
+        ],
+      },
+    },
+    {
+      id: 'li_untitled',
+      path: '/audiobooks/Unknown/The Lost Tapes',
+      media: {
+        metadata: {},
+        tracks: [{ ino: '3', duration: 10, metadata: { filename: '01.mp3' } }],
+      },
+    },
+  ];
+
+  function scanned() {
+    const db = createTestDb();
+    const remote: RemoteSource = { type: 'audiobookshelf', ...source };
+    const rootId = addRemoteRoot(db, remote, 1, newId);
+    const scan = audiobookshelfScan(source, items);
+    applyScan(db, {
+      rootId,
+      rootLocation: ROOT,
+      listed: scan.listed,
+      tags: scan.tags,
+      folderCovers: new Map(),
+      now: 2,
+      newId,
+    });
+    return { db, rootId, scan };
+  }
+
+  it('shows narrators and series, and keeps a track with an extension Lelap does not know', () => {
+    const { db } = scanned();
+    const dune = listBooks(db, ME, 'title').find((b) => b.title === 'Dune');
+    const detail = getBook(db, ME, dune?.id ?? '');
+    expect(detail?.files.map((f) => f.name)).toEqual(['Dune 1.mp3', 'Dune 2.wma.mp3']);
+    expect(detail?.narrator).toBe('Scott Brick, Orlagh Cassidy');
+    expect(detail?.series).toBe('Dune #1');
+  });
+
+  it('names a book without a title after its folder, not its item ID', () => {
+    const { db } = scanned();
+    expect(listBooks(db, ME, 'title').map((b) => b.title)).toContain('The Lost Tapes');
+  });
+
+  it('gives a book of several files the chapters inside them, once', () => {
+    const { db, rootId, scan } = scanned();
+    const dune = listBooks(db, ME, 'title').find((b) => b.title === 'Dune');
+    expect(getBook(db, ME, dune?.id ?? '')?.chapters).toHaveLength(2);
+    expect(setServerChapters(db, rootId, scan.chapters, 3, newId)).toBe(1);
+    expect(getBook(db, ME, dune?.id ?? '')?.chapters).toEqual([
+      { title: 'Book One', startMs: 0 },
+      { title: 'Chapter 2', startMs: 600_000 },
+      { title: 'Chapter 3', startMs: 1_000_000 },
+      { title: 'Chapter 4', startMs: 1_700_000 },
+    ]);
+    expect(setServerChapters(db, rootId, scan.chapters, 4, newId)).toBe(0);
   });
 });

@@ -96,6 +96,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
           }
         }
         Downloads.clearError(dir)
+        // Every file is in: the login (an SFTP private key, too) has no more use on disk.
+        Downloads.dropLogin(dir, job.revision)
         // The listener chose another folder while this book was downloading: move it there now.
         if (job.location != Downloads.location(applicationContext)) Mover.start(applicationContext, delaySeconds = 5)
         Result.success()
