@@ -463,6 +463,39 @@ export default function SettingsScreen() {
           accessibilityRole="header"
           className="pt-6 text-xs uppercase tracking-wider text-muted"
         >
+          {t('Catalogs')}
+        </Text>
+        <Row label={t('Add-ons')} detail={t('Where Home, Discover and Search look for books.')}>
+          <TextButton text={t('Manage')} onPress={() => router.push('/addons')} />
+        </Row>
+        <Row
+          label={t('Suggestions on Home')}
+          detail={
+            Platform.OS === 'web'
+              ? t('“Because you finished …” rows, worked out on this device from what you finish.')
+              : t('“Because you finished …” rows, worked out on this phone from what you finish.')
+          }
+        >
+          <Toggle
+            value={settings.homeSuggestions}
+            onValueChange={(v) => update('homeSuggestions', v)}
+          />
+        </Row>
+        <Row
+          label={t('Badges on covers')}
+          detail={t(
+            'A rating and new episodes from add-ons, and what you finished or started, drawn on covers.',
+          )}
+        >
+          <Toggle
+            value={settings.badgesOnCovers}
+            onValueChange={(v) => update('badgesOnCovers', v)}
+          />
+        </Row>
+        <Text
+          accessibilityRole="header"
+          className="pt-6 text-xs uppercase tracking-wider text-muted"
+        >
           {t('Downloads')}
         </Text>
         {LOCAL_FOLDERS && (
@@ -579,40 +612,6 @@ export default function SettingsScreen() {
             />
           </>
         )}
-        <Text
-          accessibilityRole="header"
-          className="pt-6 text-xs uppercase tracking-wider text-muted"
-        >
-          {t('Catalogs')}
-        </Text>
-        <Row label={t('Add-ons')} detail={t('Where Home, Discover and Search look for books.')}>
-          <TextButton text={t('Manage')} onPress={() => router.push('/addons')} />
-        </Row>
-        <Row
-          label={t('Suggestions on Home')}
-          detail={
-            Platform.OS === 'web'
-              ? t('“Because you finished …” rows, worked out on this device from what you finish.')
-              : t('“Because you finished …” rows, worked out on this phone from what you finish.')
-          }
-        >
-          <Toggle
-            value={settings.homeSuggestions}
-            onValueChange={(v) => update('homeSuggestions', v)}
-          />
-        </Row>
-        <Row
-          label={t('Badges on covers')}
-          detail={t(
-            'A rating and new episodes from add-ons, and what you finished or started, drawn on covers.',
-          )}
-        >
-          <Toggle
-            value={settings.badgesOnCovers}
-            onValueChange={(v) => update('badgesOnCovers', v)}
-          />
-        </Row>
-
         <Text
           accessibilityRole="header"
           className="pt-6 text-xs uppercase tracking-wider text-muted"
