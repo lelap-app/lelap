@@ -7,9 +7,11 @@ export {
   newPairingCode,
   normalizeCode,
   open,
+  PAIRING_COST,
   pairingKeys,
   type Random,
   seal,
+  setPairingCostForTests,
   toBase64Url,
 } from './crypto';
 export * from './engine';

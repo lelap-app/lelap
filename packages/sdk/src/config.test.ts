@@ -18,6 +18,9 @@ const fields: ConfigField[] = [
   { key: 'explicit', label: 'Explicit', type: 'checkbox' },
 ];
 
+// Long, so the encrypted bytes cannot contain it by chance.
+const PLAIN = 'a plain token 3b07';
+
 const form = (values: Record<string, string>) => ({
   get: (name: string) => values[name] ?? null,
 });
@@ -34,10 +37,10 @@ describe('config tokens', () => {
   });
 
   it('encrypts with a secret and hides the values', async () => {
-    const token = await encodeConfig({ token: 'hunter2' }, 'add-on secret');
+    const token = await encodeConfig({ token: PLAIN }, 'add-on secret');
     expect(token.startsWith('e1.')).toBe(true);
-    expect(atob(token.slice(3).replace(/-/g, '+').replace(/_/g, '/'))).not.toContain('hunter2');
-    expect(await decodeConfig(token, 'add-on secret')).toEqual({ token: 'hunter2' });
+    expect(atob(token.slice(3).replace(/-/g, '+').replace(/_/g, '/'))).not.toContain(PLAIN);
+    expect(await decodeConfig(token, 'add-on secret')).toEqual({ token: PLAIN });
   });
 
   it('uses a fresh IV each time', async () => {

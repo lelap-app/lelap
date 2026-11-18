@@ -10,6 +10,9 @@ import { createSealer } from '../src/scrobble/sealed';
 import type { FetchLike } from '../src/upstream';
 
 const SECRET = 'test-secret-that-is-long-enough-1234567890';
+// Long and with spaces, so random base64url output can never contain it by chance.
+const TOKEN_VALUE = 'a plain hardcover token 7f3e';
+const PASSWORD = 'gpodder password 51d8';
 const FEED = readFileSync(`${import.meta.dirname}/fixtures/feed-example.xml`, 'utf8');
 
 type Call = {
@@ -80,10 +83,10 @@ function sealerFor(secret: string, addon: string) {
 describe('sealed settings', () => {
   it('round-trips, and refuses tampering, other keys and other add-ons', async () => {
     const sealer = sealerFor(SECRET, 'hardcover');
-    const sealed = await sealer.seal({ token: 'abc' });
+    const sealed = await sealer.seal({ token: TOKEN_VALUE });
     expect(sealed).toMatch(/^v1\.[A-Za-z0-9_-]+$/);
-    expect(sealed).not.toContain('abc');
-    expect(await sealer.open(sealed)).toEqual({ token: 'abc' });
+    expect(sealed).not.toContain(TOKEN_VALUE);
+    expect(await sealer.open(sealed)).toEqual({ token: TOKEN_VALUE });
     // A character in the middle: the last one can carry bits base64url decoders ignore, so
     // changing it sometimes leaves the bytes as they were.
     const at = Math.floor(sealed.length / 2);
@@ -334,7 +337,7 @@ describe('gPodder', () => {
           ? 'https://cloud.example.org/index.php/apps/gpoddersync/episode_action/create'
           : 'https://gpodder.example.org/api/2/episodes/me%40home.json';
       if (call.url !== expected) return undefined;
-      if (call.headers.Authorization !== `Basic ${btoa('me@home:s3cret')}`)
+      if (call.headers.Authorization !== `Basic ${btoa(`me@home:${PASSWORD}`)}`)
         return new Response('no', { status: 401 });
       uploads.push(call);
       return json({ timestamp: 1, update_urls: [] });
@@ -391,9 +394,9 @@ describe('gPodder', () => {
         server:
           flavor === 'nextcloud' ? 'https://cloud.example.org/' : 'https://gpodder.example.org',
         username: 'me@home',
-        password: 's3cret',
+        password: PASSWORD,
       });
-      expect(html).not.toContain('s3cret');
+      expect(html).not.toContain(PASSWORD);
       expect(url).not.toBe('');
       // The empty check upload while configuring.
       expect(uploads).toHaveLength(1);

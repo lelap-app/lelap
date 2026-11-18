@@ -102,13 +102,26 @@ export function normalizeCode(text: string): string | null {
   return `${chars.slice(0, 4)}-${chars.slice(4, 8)}-${chars.slice(8)}`;
 }
 
+/** scrypt's cost for pairing codes. Changing it breaks pairing between app versions. */
+export const PAIRING_COST = 2 ** 15;
+
+let pairingCost = PAIRING_COST;
+
+/**
+ * Lowers scrypt's cost for tests only, which would otherwise spend most of their time here. Only
+ * the test setup files call it; one known-answer test keeps the real cost covered.
+ */
+export function setPairingCostForTests(cost: number): void {
+  pairingCost = cost;
+}
+
 /**
  * The server's lookup ID and the key that seals the group secret, both from the code through
  * scrypt, so neither the lookup ID nor the stored blob is cheap to search.
  */
 export async function pairingKeys(code: string): Promise<{ lookup: string; key: Uint8Array }> {
   const out = await scryptAsync(encoder.encode(code), encoder.encode('lelap pairing v1'), {
-    N: 2 ** 15,
+    N: pairingCost,
     r: 8,
     p: 1,
     dkLen: 64,

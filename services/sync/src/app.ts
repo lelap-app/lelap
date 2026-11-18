@@ -18,10 +18,9 @@ export const LIMITS = {
   partsPerUpload: 50,
   /** Parts per page when a device reads a snapshot. */
   partsPerPage: 20,
-} as const;
+};
 
-/** A snapshot never has more parts than the group cap holds. */
-const MAX_PARTS = Math.ceil(LIMITS.groupBytes / LIMITS.messageBytes);
+export type Limits = typeof LIMITS;
 
 const HEX32 = /^[0-9a-f]{32}$/;
 const HEX64 = /^[0-9a-f]{64}$/;
@@ -35,9 +34,6 @@ async function sha256Hex(text: string): Promise<string> {
 const whole = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 
-const sealedText = (m: unknown): m is string =>
-  typeof m === 'string' && m.length > 0 && m.length <= LIMITS.messageBytes && BASE64URL.test(m);
-
 function sameText(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -45,8 +41,20 @@ function sameText(a: string, b: string): boolean {
   return diff === 0;
 }
 
-export function createApp(store: SyncStore, now: () => number = Date.now): Hono {
+/**
+ * `limits` is for tests only, which fill a group with far less data; the Worker and the Docker
+ * server always use `LIMITS`.
+ */
+export function createApp(
+  store: SyncStore,
+  now: () => number = Date.now,
+  limits: Limits = LIMITS,
+): Hono {
   const app = new Hono();
+  /** A snapshot never has more parts than the group cap holds. */
+  const MAX_PARTS = Math.ceil(limits.groupBytes / limits.messageBytes);
+  const sealedText = (m: unknown): m is string =>
+    typeof m === 'string' && m.length > 0 && m.length <= limits.messageBytes && BASE64URL.test(m);
 
   // Bearer tokens, never cookies, so any origin may call it.
   app.use('*', async (c, next) => {
@@ -60,13 +68,13 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
   });
   // Bodies are refused while they arrive, before JSON parsing holds them in memory (Node build).
   const tooLarge = { onError: (c: Context) => c.json({ error: 'Too large.' }, 413) };
-  app.post('/v1/groups/:id/messages', bodyLimit({ maxSize: LIMITS.pushBodyBytes, ...tooLarge }));
+  app.post('/v1/groups/:id/messages', bodyLimit({ maxSize: limits.pushBodyBytes, ...tooLarge }));
   app.post(
     '/v1/groups/:id/snapshot/parts',
-    bodyLimit({ maxSize: LIMITS.pushBodyBytes, ...tooLarge }),
+    bodyLimit({ maxSize: limits.pushBodyBytes, ...tooLarge }),
   );
-  app.post('/v1/groups/:id/snapshot', bodyLimit({ maxSize: LIMITS.smallBodyBytes, ...tooLarge }));
-  app.put('*', bodyLimit({ maxSize: LIMITS.smallBodyBytes, ...tooLarge }));
+  app.post('/v1/groups/:id/snapshot', bodyLimit({ maxSize: limits.smallBodyBytes, ...tooLarge }));
+  app.put('*', bodyLimit({ maxSize: limits.smallBodyBytes, ...tooLarge }));
   app.options('*', (c) =>
     c.body(null, 204, {
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
@@ -114,13 +122,13 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
       typeof device !== 'string' ||
       !HEX32.test(device) ||
       !Array.isArray(messages) ||
-      messages.length > LIMITS.messagesPerPush ||
+      messages.length > limits.messagesPerPush ||
       !messages.every(sealedText)
     ) {
       return c.json({ error: 'Send a device ID and up to 50 sealed messages.' }, 400);
     }
     const size = messages.reduce((sum, m) => sum + m.length, 0);
-    if (group.bytes + size > LIMITS.groupBytes)
+    if (group.bytes + size > limits.groupBytes)
       return c.json({ error: 'This group is full.' }, 413);
     await store.append(id, device, messages, now());
     return c.body(null, 204);
@@ -146,7 +154,7 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
         410,
       );
     }
-    const messages = await store.read(id, after, Math.min(LIMITS.pullMax, limit));
+    const messages = await store.read(id, after, Math.min(limits.pullMax, limit));
     return c.json({ messages, last: messages.at(-1)?.seq ?? after });
   });
 
@@ -176,11 +184,11 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
     if (!group) return c.json({ error: 'Not allowed.' }, 403);
     if (!group.snapshotSeq) return c.json({ error: 'This group has no snapshot.' }, 404);
     const from = Number(c.req.query('from') ?? 0);
-    const limit = Number(c.req.query('limit') ?? LIMITS.partsPerPage);
+    const limit = Number(c.req.query('limit') ?? limits.partsPerPage);
     if (!whole(from) || !whole(limit) || limit < 1) {
       return c.json({ error: 'from and limit are whole numbers.' }, 400);
     }
-    const to = Math.min(group.snapshotParts, from + Math.min(limit, LIMITS.partsPerPage));
+    const to = Math.min(group.snapshotParts, from + Math.min(limit, limits.partsPerPage));
     const data = from < to ? await store.readParts(id, group.snapshotUpload, from, to) : [];
     // A newer snapshot replaced this one while it was read.
     if (data.length !== Math.max(0, to - from)) {
@@ -209,7 +217,7 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
       !whole(from) ||
       !Array.isArray(parts) ||
       parts.length === 0 ||
-      parts.length > LIMITS.partsPerUpload ||
+      parts.length > limits.partsPerUpload ||
       from + parts.length > MAX_PARTS ||
       !parts.every(sealedText)
     ) {
@@ -220,7 +228,7 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
     }
     // Uploads don't count towards the group's bytes until committed, so a full group can still
     // be compacted; on its own an upload may be as large as the cap.
-    const stored = await store.stageParts(id, upload, covers, from, parts, LIMITS.groupBytes);
+    const stored = await store.stageParts(id, upload, covers, from, parts, limits.groupBytes);
     return stored ? c.body(null, 204) : c.json({ error: 'This snapshot is too large.' }, 413);
   });
 
@@ -256,12 +264,12 @@ export function createApp(store: SyncStore, now: () => number = Date.now): Hono 
     if (
       !HEX64.test(lookup) ||
       typeof blob !== 'string' ||
-      blob.length > LIMITS.pairingBytes ||
+      blob.length > limits.pairingBytes ||
       !BASE64URL.test(blob)
     ) {
       return c.json({ error: 'A pairing needs a lookup ID and a sealed blob.' }, 400);
     }
-    const stored = await store.putPairing(lookup, blob, now() + LIMITS.pairingMs, now());
+    const stored = await store.putPairing(lookup, blob, now() + limits.pairingMs, now());
     return stored ? c.body(null, 201) : c.json({ error: 'That pairing exists.' }, 409);
   });
 

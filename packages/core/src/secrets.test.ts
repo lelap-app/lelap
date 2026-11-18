@@ -14,6 +14,8 @@ import { getMembership, removedFromSync, startSync } from './sync/engine';
 const random = (n: number) => new Uint8Array(randomBytes(n));
 let n = 0;
 const newId = () => `id-${++n}`;
+// Long and with spaces, so random base64url output can never contain it by chance.
+const PLAIN = 'a plain password 9c41';
 
 const server = {
   createGroup: async () => {},
@@ -36,10 +38,10 @@ afterEach(() => setSecretBox(plainBox));
 describe('secret box', () => {
   it('seals and opens; plain values written before sealing pass through', () => {
     const box = createSecretBox(random(32), random);
-    const sealed = box.seal('hunter2');
+    const sealed = box.seal(PLAIN);
     expect(isSealed(sealed)).toBe(true);
-    expect(sealed).not.toContain('hunter2');
-    expect(box.open(sealed)).toBe('hunter2');
+    expect(sealed).not.toContain(PLAIN);
+    expect(box.open(sealed)).toBe(PLAIN);
     expect(box.open('written in plain')).toBe('written in plain');
     expect(createSecretBox(random(32), random).open(sealed)).toBeNull();
     expect(plainBox.open(sealed)).toBeNull();

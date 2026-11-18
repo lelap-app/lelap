@@ -15,7 +15,7 @@ import {
 } from '@lelap/core';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { createApp, LIMITS } from '../src/app';
+import { createApp, type Limits, LIMITS } from '../src/app';
 import { d1Store } from '../src/d1';
 import worker from '../src/index';
 import { localD1 } from './d1';
@@ -57,8 +57,8 @@ type Info = {
 };
 
 /** A group with token `t` on a Worker backed by local D1, and its routes. */
-async function withGroup(clock = { now: 1_000 }) {
-  const app = createApp(d1Store(d1.db), () => clock.now);
+async function withGroup(clock = { now: 1_000 }, limits: Limits = LIMITS) {
+  const app = createApp(d1Store(d1.db), () => clock.now, limits);
   const call = (path: string, init: RequestInit = {}) =>
     app.request(`https://sync.example${path}`, init);
   await call(`/v1/groups/${GROUP}`, json('PUT', { authHash: await hash('t') }));
@@ -177,15 +177,17 @@ describe('snapshots', () => {
   });
 
   it('keep the group cap: a full group refuses pushes until a snapshot frees it', async () => {
-    const g = await withGroup();
-    const big = 'a'.repeat(LIMITS.messageBytes);
-    const full = Array.from({ length: LIMITS.messagesPerPush }, () => big);
+    // The real cap is 50 MB; the same rules at a small size keep the test well inside its timeout.
+    const limits = { ...LIMITS, messagesPerPush: 5, messageBytes: 2048, groupBytes: 4 * 5 * 2048 };
+    const g = await withGroup(undefined, limits);
+    const big = 'a'.repeat(limits.messageBytes);
+    const full = Array.from({ length: limits.messagesPerPush }, () => big);
     for (let i = 0; i < 4; i++) expect(await g.push(full)).toBe(204);
     expect(await g.push([big])).toBe(413);
 
     // The upload goes in although the group is full; alone it may be as large as the cap.
     const seqs = await g.seqs();
-    expect(seqs).toHaveLength(200);
+    expect(seqs).toHaveLength(20);
     const covers = must(seqs.at(-1));
     expect(await g.stage(covers, 0, ['s'.repeat(1000)])).toBe(204);
     expect(await g.commit(covers, 1)).toBe(204);
@@ -194,7 +196,7 @@ describe('snapshots', () => {
 
     // A snapshot never has more parts than the cap holds, nor parts larger than a message.
     const next = must((await g.seqs(covers))[0]);
-    expect(await g.stage(next, 200, ['x'])).toBe(400);
+    expect(await g.stage(next, 20, ['x'])).toBe(400);
     expect(await g.stage(next, 0, [`${big}x`])).toBe(400);
   });
 
