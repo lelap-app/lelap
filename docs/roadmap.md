@@ -93,7 +93,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M80 App polish 2](milestones/m80.md)                | In progress |           7 | A zoomed scrubber, matched covers kept offline, faster web saves, player tools at 320 dp                 |
 | [M81 Test round 2](milestones/m81.md)                | Planned     |             | A full phone round over adb and the fixes it finds, the gate for v0.1.0                                  |
 | [M82 First start](milestones/m82.md)                 | Done        |          10 | A first start that helps: choose a folder or a server, suggested add-ons, helpful empty states           |
-| [M83 Accessibility 2](milestones/m83.md)             | In progress |          10 | One pass over every screen with TalkBack, large text and contrast                                        |
+| [M83 Accessibility 2](milestones/m83.md)             | Done        |          10 | One pass over every screen with TalkBack, large text and contrast                                        |
 | [M84 Better sound](milestones/m84.md)                | Done        |          12 | Voice boost, skip silence and even loudness between books                                                |
 | [M85 Chapters and bookmarks 2](milestones/m85.md)    | Done        |          10 | Edit chapter names and times, notes on bookmarks, share a short clip                                     |
 | [M86 Sleep 2](milestones/m86.md)                     | Done        |          14 | Shake for more time as a setting, a bedtime routine with its volume, back to when you last used it       |
