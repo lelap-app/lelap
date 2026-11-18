@@ -18,10 +18,10 @@ import {
   placeUrl,
   type SharedPlace,
 } from './placeLink';
-import { episodeBook, listEpisodes, saveFeed } from './podcasts/repository';
+import { episodeBook, listEpisodes, saveFeed, subscribe } from './podcasts/repository';
 import { parseFeed } from './podcasts/rss';
 import { createProfile, DEFAULT_PROFILE_ID as ME } from './profiles';
-import { books, workLinks } from './schema';
+import { books, episodes, workLinks } from './schema';
 
 let n = 0;
 const newId = () => `id-${String(++n).padStart(6, '0')}`;
@@ -217,7 +217,26 @@ describe('a shared place in a podcast episode', () => {
     expect(placeOfBook(db, bookId, 0)).toBeNull();
     expect(isShareableFeed('https://rosa:pw@example.org/feed.xml')).toBe(false);
     expect(isShareableFeed('ftp://example.org/feed.xml')).toBe(false);
+    // Tokens in the path, as some private feeds have them.
+    expect(isShareableFeed('https://example.org/feeds/k3J9xQ2mP8vL5nR7tY4wZ1aB')).toBe(false);
+    expect(
+      isShareableFeed('https://example.org/private/5f0e2d6a-7c1b-5e1a-9d3e-000000000075.rss'),
+    ).toBe(false);
     expect(isShareableFeed(FEED)).toBe(true);
+    expect(isShareableFeed('https://feeds.example.org/GLT1412515089')).toBe(true);
+    expect(isShareableFeed('https://example.org/shows/garden-hour-weekly-questions/feed')).toBe(
+      true,
+    );
+  });
+
+  it('is not shared when the episode has no guid, so its audio address would travel', () => {
+    const db = createTestDb();
+    const { bookId, episodeId } = follow(db);
+    db.update(episodes)
+      .set({ guid: 'https://cdn.example.org/gh42.mp3' })
+      .where(eq(episodes.id, episodeId))
+      .run();
+    expect(placeOfBook(db, bookId, 0)).toBeNull();
   });
 
   it('ignores a feed or guid a link should not carry', () => {
@@ -230,7 +249,7 @@ describe('a shared place in a podcast episode', () => {
     });
   });
 
-  it('finds the episode here, a show that dropped it, or a show to follow', () => {
+  it('finds the episode here, a show whose stored feed lacks it, or a show to subscribe to', () => {
     const db = createTestDb();
     const { podcastId, bookId, episodeId } = follow(db);
     expect(findPlaceEpisode(db, ME, { feed: FEED, guid: 'garden-hour-42' })).toEqual({
@@ -239,8 +258,15 @@ describe('a shared place in a podcast episode', () => {
       bookId,
     });
     expect(findPlaceEpisode(db, ME, { feed: FEED, guid: 'garden-hour-1' })).toEqual({
-      kind: 'gone',
+      kind: 'missing',
       podcastId,
+      subscribed: false,
+    });
+    subscribe(db, ME, podcastId, 3);
+    expect(findPlaceEpisode(db, ME, { feed: FEED, guid: 'garden-hour-1' })).toEqual({
+      kind: 'missing',
+      podcastId,
+      subscribed: true,
     });
     expect(findPlaceEpisode(db, ME, { feed: 'https://example.org/other.xml', guid: 'x' })).toEqual({
       kind: 'unknown',

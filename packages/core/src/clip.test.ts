@@ -24,6 +24,12 @@ describe('a clip', () => {
 
   it('ignores the old place while its own seek is on the way', () => {
     expect(clipStep(soundbite, 'garden-hour-12', 10_000, 1, false)).toEqual({ kind: 'hold' });
-    expect(clipStep(soundbite, 'other', 10_000, 1, false)).toEqual({ kind: 'leave' });
+    expect(clipStep(soundbite, 'other', 10_000, 1, false)).toEqual({ kind: 'hold' });
+    // The old place sat at the clip's end: it must not stop the clip before it starts.
+    expect(clipStep(soundbite, 'garden-hour-12', 90_000, 1, false)).toEqual({ kind: 'hold' });
+    expect(clipStep(soundbite, 'garden-hour-12', 60_500, 1, false)).toEqual({
+      kind: 'wait',
+      ms: 29_500,
+    });
   });
 });

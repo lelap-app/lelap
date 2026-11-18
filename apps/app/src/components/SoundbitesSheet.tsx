@@ -22,7 +22,7 @@ export function SoundbitesSheet({
     <Sheet visible={visible} title={t('Soundbites')} onClose={onClose}>
       <FlatList
         data={soundbites}
-        keyExtractor={(s) => String(s.startMs)}
+        keyExtractor={(s, i) => `${s.startMs}-${i}`}
         ListHeaderComponent={
           <Text className="pb-2 text-sm text-muted">
             {t('Picked by the show. Each plays to its end, then pauses.')}

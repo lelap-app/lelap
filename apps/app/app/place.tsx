@@ -146,20 +146,12 @@ export default function PlaceScreen() {
             <View className="gap-2">
               {episode?.kind === 'here' ? (
                 playButton(t('Play from {time}', { time: formatClock(place.atMs) }))
-              ) : episode?.kind === 'unknown' ? (
+              ) : episode?.kind === 'missing' && episode.subscribed ? (
                 <>
                   <Text className="text-soft">
-                    {t(
-                      'You are not subscribed to this show. Lelap can subscribe from its feed and play the episode; the audio comes from the show, not from the link.',
-                    )}
+                    {t('This episode is not in your copy of the show’s feed yet.')}
                   </Text>
-                  {playButton(t('Subscribe and play'))}
-                </>
-              ) : episode?.kind === 'gone' ? (
-                <>
-                  <Text className="text-soft">
-                    {t('The show’s feed no longer lists this episode.')}
-                  </Text>
+                  {playButton(t('Refresh and play'))}
                   <TextButton
                     className="self-start"
                     text={t('Open the show')}
@@ -167,6 +159,15 @@ export default function PlaceScreen() {
                       router.push({ pathname: '/podcast', params: { id: episode.podcastId } })
                     }
                   />
+                </>
+              ) : episode ? (
+                <>
+                  <Text className="text-soft">
+                    {t(
+                      'You are not subscribed to this show. Lelap can subscribe from its feed and play the episode; the audio comes from the show, not from the link.',
+                    )}
+                  </Text>
+                  {playButton(t('Subscribe and play'))}
                 </>
               ) : (
                 <Text className="text-soft">{t('This episode is not on your shelf.')}</Text>

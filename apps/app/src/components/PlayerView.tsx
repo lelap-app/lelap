@@ -237,6 +237,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
   const chapterImage = useChapterImage(
     bookId,
     detail ? toBookPosition(detail.files, state.fileLocation ?? '', state.positionMs) : 0,
+    version,
   );
 
   if (!bookId || !detail) {

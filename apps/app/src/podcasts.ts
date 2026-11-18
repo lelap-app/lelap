@@ -161,13 +161,17 @@ export async function playSoundbite(episodeId: string, soundbite: FeedSoundbite)
 }
 
 /**
- * Plays a shared place in an episode (M88), following its show first when it is not on this
- * device. Returns false when the show's feed no longer lists the episode.
+ * Plays a shared place in an episode (M88). When this device's copy of the show's feed lacks the
+ * episode, the feed is read again first, subscribing this profile if it isn't yet. Returns false
+ * when the feed no longer lists the episode.
  */
 export async function playSharedEpisode(place: SharedPlace): Promise<boolean> {
   if (!place.episode) return false;
   let found = findPlaceEpisode(db, profileId, place.episode);
-  if (found?.kind === 'unknown') {
+  if (found?.kind === 'missing' && found.subscribed) {
+    await fetchFeed(place.episode.feed);
+    found = findPlaceEpisode(db, profileId, place.episode);
+  } else if (found?.kind === 'missing' || found?.kind === 'unknown') {
     await subscribeToFeed(place.episode.feed);
     found = findPlaceEpisode(db, profileId, place.episode);
   }

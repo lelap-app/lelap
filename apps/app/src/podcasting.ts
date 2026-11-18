@@ -102,10 +102,15 @@ export async function loadChapterImages(bookId: string): Promise<ChapterImage[]>
 }
 
 /** The chapters file's picture at a position of the playing book, or null for its own cover. */
-export function useChapterImage(bookId: string | null, positionMs: number): string | null {
+export function useChapterImage(
+  bookId: string | null,
+  positionMs: number,
+  // `version` is the signal to re-read the database: a refresh may bring a chapters file.
+  version: number,
+): string | null {
   const chaptersUrl = useMemo(
     () => (bookId ? (episodeDetail(db, bookId)?.extras?.chaptersUrl ?? null) : null),
-    [bookId],
+    [bookId, version],
   );
   const images = useQuery({
     queryKey: ['chapter-images', chaptersUrl],

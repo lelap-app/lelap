@@ -995,5 +995,7 @@
   "You are not subscribed to this show. Lelap can subscribe from its feed and play the episode; the audio comes from the show, not from the link.": "Anda belum melanggan rancangan ini. Lelap boleh melanggan daripada suapannya dan memainkan episod ini; audio datang daripada rancangan, bukan daripada pautan.",
   "Subscribe and play": "Langgan dan main",
   "Open the show": "Buka rancangan",
-  "This episode is not on your shelf.": "Episod ini tiada di rak anda."
+  "This episode is not on your shelf.": "Episod ini tiada di rak anda.",
+  "This episode is not in your copy of the show’s feed yet.": "Episod ini belum ada dalam salinan suapan rancangan anda.",
+  "Refresh and play": "Muat semula dan main"
 }

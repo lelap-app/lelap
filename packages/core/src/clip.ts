@@ -30,9 +30,12 @@ export function clipStep(
   speed: number,
   settled = true,
 ): ClipStep {
+  // Until the seek shows, only a place at the clip's start is surely the clip's own.
+  const atStart = bookId === clip.bookId && Math.abs(positionMs - clip.startMs) <= BEFORE_MS;
+  if (!settled && !atStart) return { kind: 'hold' };
   if (bookId !== clip.bookId) return { kind: 'leave' };
   const outside = positionMs < clip.startMs - BEFORE_MS || positionMs > clip.endMs + PAST_MS;
-  if (outside) return settled ? { kind: 'leave' } : { kind: 'hold' };
+  if (outside) return { kind: 'leave' };
   if (positionMs >= clip.endMs - NEAR_MS) return { kind: 'stop' };
   const rate = speed > 0 ? speed : 1;
   return { kind: 'wait', ms: Math.ceil((clip.endMs - positionMs) / rate) };

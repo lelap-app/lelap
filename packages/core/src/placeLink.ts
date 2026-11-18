@@ -3,7 +3,7 @@ import { and, desc, eq, isNotNull, isNull, ne } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { isKidsProfile, shelfBookIds } from './kids';
-import { bookFiles, books, episodes, podcasts, workLinks } from './schema';
+import { bookFiles, books, episodes, podcasts, subscriptions, workLinks } from './schema';
 import { bookIdForKey } from './sync/keys';
 
 // A shared place (M85): a link that says which book and where in it, never the audio. It names
@@ -37,15 +37,31 @@ const CATALOG_ID = /^[a-z][a-z0-9_-]{0,31}:[A-Za-z0-9._-]{1,128}$/;
 const FEED_MAX = 2048;
 const GUID_MAX = 512;
 
+// A path segment that looks like a subscriber's token: a UUID, or 20 or more letters and digits
+// mixed. Public feeds name shows with short IDs or words.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const looksLikeToken = (segment: string) => {
+  const name = segment.replace(/\.(xml|rss|atom)$/i, '');
+  return (
+    UUID.test(name) ||
+    (/^[A-Za-z0-9_-]{20,}$/.test(name) && /\d/.test(name) && /[A-Za-z]/.test(name))
+  );
+};
+
 /**
- * A feed address that may travel in a link: https or http, no login and no query. A private
- * feed's token usually sits in its query; such a show's episodes are not shared.
+ * A feed address that may travel in a link: https or http, no login, no query and no path segment
+ * that looks like a token, where private feeds keep their subscriber's key.
  */
 export function isShareableFeed(url: string): boolean {
   if (url.length > FEED_MAX || !/^https?:\/\//i.test(url)) return false;
   try {
     const parsed = new URL(url);
-    return parsed.username === '' && parsed.password === '' && parsed.search === '';
+    return (
+      parsed.username === '' &&
+      parsed.password === '' &&
+      parsed.search === '' &&
+      !parsed.pathname.split('/').some(looksLikeToken)
+    );
   } catch {
     return false;
   }
@@ -117,7 +133,10 @@ export function parsePlace(
 const clipEndOf = (atMs: number, toMs: number | null) =>
   toMs !== null && toMs > atMs ? Math.min(toMs, atMs + CLIP_MAX_MS) : null;
 
-/** What a link says about an episode: its show's feed and its guid. Null for a private feed. */
+/**
+ * What a link says about an episode: its show's feed and its guid. Null for a feed that looks
+ * private, or an episode without a guid of its own.
+ */
 function placeOfEpisode(
   db: Db,
   bookId: string,
@@ -128,6 +147,7 @@ function placeOfEpisode(
     .select({
       title: episodes.title,
       guid: episodes.guid,
+      url: episodes.url,
       show: podcasts.title,
       feed: podcasts.feedUrl,
     })
@@ -136,6 +156,8 @@ function placeOfEpisode(
     .where(eq(episodes.bookId, bookId))
     .get();
   if (!row || !isShareableFeed(row.feed) || row.guid.length > GUID_MAX) return null;
+  // An item without a guid is kept by its audio's address, which must never travel in a link.
+  if (row.guid === row.url) return null;
   return {
     title: row.title,
     author: row.show,
@@ -284,9 +306,12 @@ export function findPlaceBook(db: Db, profileId: string, place: SharedPlace): st
 export type PlaceEpisode =
   /** The episode is here: `bookId` is null until it was first played or downloaded. */
   | { kind: 'here'; episodeId: string; bookId: string | null }
-  /** The show is here, but its feed no longer lists the episode. */
-  | { kind: 'gone'; podcastId: string }
-  /** The show is not on this device: it can be followed from the link's feed. */
+  /**
+   * The show is here, but this device's copy of its feed doesn't list the episode: it may be new
+   * since the last refresh, or gone from the feed. `subscribed` is this profile's subscription.
+   */
+  | { kind: 'missing'; podcastId: string; subscribed: boolean }
+  /** The show is not on this device: it can be subscribed to from the link's feed. */
   | { kind: 'unknown' };
 
 /**
@@ -316,6 +341,13 @@ export function findPlaceEpisode(
       ? { kind: 'here', episodeId: found.id, bookId: found.bookId }
       : null;
   }
-  if (!found) return { kind: 'gone', podcastId: podcast.id };
+  if (!found) {
+    const subscribed = db
+      .select({ id: subscriptions.podcastId })
+      .from(subscriptions)
+      .where(and(eq(subscriptions.profileId, profileId), eq(subscriptions.podcastId, podcast.id)))
+      .get();
+    return { kind: 'missing', podcastId: podcast.id, subscribed: subscribed !== undefined };
+  }
   return { kind: 'here', episodeId: found.id, bookId: found.bookId };
 }
