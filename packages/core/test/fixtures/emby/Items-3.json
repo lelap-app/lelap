@@ -1,0 +1,146 @@
+{
+  "Items": [
+    {
+      "Name": "Chapter 1",
+      "ServerId": "800c8c1537bd47928ad120d90ae0daf2",
+      "Id": "11",
+      "DateCreated": "2026-11-18T02:09:30.0000000Z",
+      "Container": "mp3",
+      "Path": "/media/books/Frances Hodgson Burnett/The Secret Garden/01 Chapter 1.mp3",
+      "RunTimeTicks": 24032650,
+      "Size": 9993,
+      "IndexNumber": 1,
+      "ProviderIds": {},
+      "IsFolder": false,
+      "ParentId": "9",
+      "Type": "Audio",
+      "UserData": {
+        "PlaybackPositionTicks": 0,
+        "PlayCount": 0,
+        "IsFavorite": false,
+        "Played": false
+      },
+      "Artists": ["Frances Hodgson Burnett"],
+      "ArtistItems": [
+        {
+          "Name": "Frances Hodgson Burnett",
+          "Id": "14"
+        }
+      ],
+      "Composers": [],
+      "Album": "The Secret Garden",
+      "AlbumId": "15",
+      "AlbumArtist": "Frances Hodgson Burnett",
+      "AlbumArtists": [
+        {
+          "Name": "Frances Hodgson Burnett",
+          "Id": "14"
+        }
+      ],
+      "ImageTags": {},
+      "BackdropImageTags": [],
+      "Chapters": [],
+      "MediaType": "Audio"
+    },
+    {
+      "Name": "Chapter 2",
+      "ServerId": "800c8c1537bd47928ad120d90ae0daf2",
+      "Id": "10",
+      "DateCreated": "2026-11-18T02:09:30.0000000Z",
+      "Container": "mp3",
+      "Path": "/media/books/Frances Hodgson Burnett/The Secret Garden/02 Chapter 2.mp3",
+      "RunTimeTicks": 50155100,
+      "Size": 20442,
+      "IndexNumber": 2,
+      "ProviderIds": {},
+      "IsFolder": false,
+      "ParentId": "9",
+      "Type": "Audio",
+      "UserData": {
+        "PlayedPercentage": 29.907227779428215,
+        "PlaybackPositionTicks": 15000000,
+        "PlayCount": 0,
+        "IsFavorite": false,
+        "LastPlayedDate": "2026-11-18T02:30:00.0000000Z",
+        "Played": false
+      },
+      "Artists": ["Frances Hodgson Burnett"],
+      "ArtistItems": [
+        {
+          "Name": "Frances Hodgson Burnett",
+          "Id": "14"
+        }
+      ],
+      "Composers": [],
+      "Album": "The Secret Garden",
+      "AlbumId": "15",
+      "AlbumArtist": "Frances Hodgson Burnett",
+      "AlbumArtists": [
+        {
+          "Name": "Frances Hodgson Burnett",
+          "Id": "14"
+        }
+      ],
+      "ImageTags": {},
+      "BackdropImageTags": [],
+      "Chapters": [],
+      "MediaType": "Audio"
+    },
+    {
+      "Name": "The Wind in the Willows",
+      "ServerId": "800c8c1537bd47928ad120d90ae0daf2",
+      "Id": "8",
+      "DateCreated": "2026-11-18T02:09:31.0000000Z",
+      "Container": "mp4",
+      "Path": "/media/books/Kenneth Grahame/The Wind in the Willows/The Wind in the Willows.m4b",
+      "RunTimeTicks": 58279820,
+      "Size": 57919,
+      "ProviderIds": {},
+      "IsFolder": false,
+      "ParentId": "7",
+      "Type": "Audio",
+      "UserData": {
+        "PlaybackPositionTicks": 0,
+        "PlayCount": 0,
+        "IsFavorite": false,
+        "LastPlayedDate": "2026-11-17T21:00:00.0000000Z",
+        "Played": true
+      },
+      "Artists": ["Kenneth Grahame"],
+      "ArtistItems": [
+        {
+          "Name": "Kenneth Grahame",
+          "Id": "12"
+        }
+      ],
+      "Composers": [],
+      "Album": "The Wind in the Willows",
+      "AlbumId": "13",
+      "AlbumArtist": "Kenneth Grahame",
+      "AlbumArtists": [
+        {
+          "Name": "Kenneth Grahame",
+          "Id": "12"
+        }
+      ],
+      "ImageTags": {},
+      "BackdropImageTags": [],
+      "Chapters": [
+        {
+          "StartPositionTicks": 0,
+          "Name": "The River Bank",
+          "MarkerType": "Chapter",
+          "ChapterIndex": 0
+        },
+        {
+          "StartPositionTicks": 25000000,
+          "Name": "The Open Road",
+          "MarkerType": "Chapter",
+          "ChapterIndex": 1
+        }
+      ],
+      "MediaType": "Audio"
+    }
+  ],
+  "TotalRecordCount": 3
+}

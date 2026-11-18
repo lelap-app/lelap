@@ -47,6 +47,7 @@ export {
   type AddonSource,
   addonLibraryScan,
   addonPlaceReport,
+  addonFileAccess,
   addonLogin,
   addonRootLocation,
   addonSettings,

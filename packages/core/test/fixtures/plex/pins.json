@@ -1,0 +1,21 @@
+{
+  "id": 2034967251,
+  "code": "K7QX",
+  "product": "Lelap",
+  "trusted": false,
+  "qr": "https://plex.tv/api/v2/pins/qr/K7QX",
+  "clientIdentifier": "CLIENT",
+  "location": {
+    "code": "NO",
+    "european_union_member": false,
+    "continent_code": "EU",
+    "country": "Norway",
+    "city": "Oslo",
+    "time_zone": "Europe/Oslo"
+  },
+  "expiresIn": 900,
+  "createdAt": "2026-11-18T03:00:00Z",
+  "expiresAt": "2026-11-18T03:15:00Z",
+  "authToken": null,
+  "newRegistration": null
+}

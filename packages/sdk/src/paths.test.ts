@@ -7,6 +7,7 @@ import {
   metaPath,
   parseExtra,
   parseRoute,
+  signinPath,
   streamPath,
 } from './paths';
 
@@ -25,6 +26,12 @@ describe('paths', () => {
       type: 'audiobook',
       id: 'all',
     });
+  });
+
+  it('names the sign-in calls, which have no HTTP route', () => {
+    expect(signinPath('start')).toBe('signin/audiobook/start.json');
+    expect(signinPath('check')).toBe('signin/audiobook/check.json');
+    expect(parseRoute(signinPath('check'))).toBeNull();
   });
 
   it('drops empty extras and sorts keys', () => {

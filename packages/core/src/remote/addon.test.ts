@@ -18,6 +18,7 @@ import { SettingsSchema } from '../settings';
 import { collectOps } from '../sync/ops';
 import {
   type AddonSource,
+  addonFileAccess,
   addonLibraryScan,
   addonLogin,
   addonPlaceReport,
@@ -215,6 +216,7 @@ describe('an add-on as a library source', () => {
       passwords: {},
       headers: {},
       query: {},
+      webQuery: {},
     });
   });
 
@@ -373,5 +375,86 @@ describe('revision 6: a login in the address, downloads and places', () => {
     const elsewhere = [...files, { location: 'webdav:nas/x.mp3', uri: 'http://nas/x.mp3' }];
     expect(addonPlaceReport(root, elsewhere, at)).toBeNull();
     expect(addonPlaceReport(root, files, { ...at, location: 'other' })).toBeNull();
+  });
+});
+
+describe('revision 7: a sign-in, and the token in the address only in the browser', () => {
+  const TOKEN = 'plex-server-token-0123';
+  const ACCOUNT = JSON.stringify({ client: 'c1', token: 'plex-account-token-4567' });
+  const plex: Manifest = {
+    ...manifest,
+    protocolVersion: 7,
+    resources: ['library', 'place', 'signin'],
+    sandbox: { hosts: ['plex.tv:443'] },
+    settings: [
+      { key: 'account', label: 'Plex account', type: 'signin', required: true },
+      { key: 'url', label: 'Address at home', type: 'url', host: true },
+      { key: 'remote', label: 'Address away', type: 'url', host: true },
+    ],
+  };
+  const HOME = 'https://192-168-1-20.abc.plex.direct:32400';
+  const settings = { account: ACCOUNT, url: HOME, remote: '' };
+  const hosts = addonSourceHosts(plex, settings);
+  const part = `${HOME}/library/parts/313/1763434800/file.mp3`;
+  const login = {
+    headers: { 'X-Plex-Token': TOKEN },
+    query: {},
+    webQuery: { 'X-Plex-Token': TOKEN },
+  };
+
+  it('seals the sign-in like a password, and keeps it out of the plain settings', () => {
+    setSecretBox(createSecretBox(random(32), random));
+    const remote = addonSource({
+      addonUrl: 'lelap-local://app.lelap.plex/manifest.json',
+      manifest: plex,
+      key: 'k7',
+      settings,
+      ...login,
+    });
+    expect(remote.settings).toEqual({ url: HOME, remote: '' });
+    expect(addonSettings(remote).account).toBe(ACCOUNT);
+    expect(addonLogin(remote).webQuery).toEqual({ 'X-Plex-Token': TOKEN });
+    const db = createTestDb();
+    const rootId = addRemoteRoot(db, remote, 1, newId);
+    const stored = JSON.stringify(db.select().from(libraryRoots).all());
+    for (const secret of ['plex-account-token-4567', TOKEN]) expect(stored).not.toContain(secret);
+    const text = [JSON.stringify(collectOps(db, -1)), JSON.stringify(exportLibrary(db, 5))].join();
+    for (const secret of ['plex-account-token-4567', TOKEN]) expect(text).not.toContain(secret);
+    expect(listRoots(db).find((r) => r.id === rootId)?.needsLogin).toBe(false);
+  });
+
+  it('reaches plex.tv and the server addresses in the form, nothing else', () => {
+    expect(hosts).toEqual(['plex.tv:443', '192-168-1-20.abc.plex.direct:32400']);
+  });
+
+  it('sends the token as a header on the phone, and in the address only in the browser', () => {
+    expect(addonFileAccess(part, login, hosts, true)).toEqual({
+      uri: part,
+      headers: { 'X-Plex-Token': TOKEN },
+    });
+    expect(addonFileAccess(part, login, hosts, false)).toEqual({
+      uri: `${part}?X-Plex-Token=${TOKEN}`,
+      headers: {},
+      private: true,
+    });
+    // Without a query for the browser, the headers stay as they were.
+    expect(addonFileAccess(part, { ...login, webQuery: {} }, hosts, false).headers).toEqual({
+      'X-Plex-Token': TOKEN,
+    });
+  });
+
+  it('never adds the token to an address on another host, on the phone or in the browser', () => {
+    for (const elsewhere of [
+      'https://198-51-100-9.abc.plex.direct:8443/library/parts/313/file.mp3',
+      'https://192-168-1-20.abc.plex.direct:32401/x.mp3',
+      'http://evil.example/x.mp3',
+    ]) {
+      for (const phone of [true, false]) {
+        expect(addonFileAccess(elsewhere, login, hosts, phone), elsewhere).toEqual({
+          uri: elsewhere,
+          headers: {},
+        });
+      }
+    }
   });
 });

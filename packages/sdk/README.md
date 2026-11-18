@@ -2,7 +2,7 @@
 
 Types, zod schemas and a request handler for [Lelap](https://github.com/lelap-app/lelap) add-ons.
 An add-on is a stateless HTTP service that answers with JSON: catalogs, metadata and audio sources
-for the Lelap player. The SDK speaks protocol v1, revision 6, so your code is a manifest and a
+for the Lelap player. The SDK speaks protocol v1, revision 7, so your code is a manifest and a
 handler for each resource.
 
 ```sh

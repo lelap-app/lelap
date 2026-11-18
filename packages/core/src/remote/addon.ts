@@ -21,12 +21,18 @@ import type { RemotePlace } from './jellyfin';
 export type AddonSource = Extract<RemoteSource, { type: 'addon' }>;
 
 /**
- * What is sealed: the password fields, and the headers and query parameters the library last asked
- * for (a Subsonic server's token is in the address).
+ * What is sealed: the password and sign-in fields, and the headers and query parameters the library
+ * last asked for (a Subsonic server's token is in the address; `webQuery` stands in for the headers
+ * where the app can't send any).
  */
-export type AddonLogin = { passwords: Settings; headers: RequestHeaders; query: QueryParams };
+export type AddonLogin = {
+  passwords: Settings;
+  headers: RequestHeaders;
+  query: QueryParams;
+  webQuery: QueryParams;
+};
 
-const EMPTY_LOGIN: AddonLogin = { passwords: {}, headers: {}, query: {} };
+const EMPTY_LOGIN: AddonLogin = { passwords: {}, headers: {}, query: {}, webQuery: {} };
 
 export const addonRootLocation = (key: string) => `addon-source:${key}`;
 
@@ -45,11 +51,13 @@ export function addonLogin(remote: AddonSource): AddonLogin {
       passwords?: unknown;
       headers?: unknown;
       query?: unknown;
+      webQuery?: unknown;
     };
     return {
       passwords: strings(parsed.passwords),
       headers: strings(parsed.headers),
       query: strings(parsed.query),
+      webQuery: strings(parsed.webQuery),
     };
   } catch {
     return EMPTY_LOGIN;
@@ -68,8 +76,8 @@ export const addonSettings = (remote: AddonSource): Settings => ({
 });
 
 /**
- * A new or changed add-on server from the listener's form, with password fields kept apart so
- * they are sealed.
+ * A new or changed add-on server from the listener's form, with password and sign-in fields kept
+ * apart so they are sealed.
  */
 export function addonSource(args: {
   addonUrl: string;
@@ -78,13 +86,16 @@ export function addonSource(args: {
   settings: Settings;
   headers?: RequestHeaders;
   query?: QueryParams;
+  webQuery?: QueryParams;
   /** The installed file's fingerprint; leave it out for a bundled add-on. */
   codeSha?: string;
   /** The profile whose places are kept with the server, for an add-on that keeps them. */
   profileId?: string;
 }): AddonSource {
   const fields = args.manifest.settings ?? [];
-  const secret = new Set(fields.filter((f) => f.type === 'password').map((f) => f.key));
+  const secret = new Set(
+    fields.filter((f) => f.type === 'password' || f.type === 'signin').map((f) => f.key),
+  );
   const plain: Settings = {};
   const passwords: Settings = {};
   for (const field of fields) {
@@ -99,7 +110,12 @@ export function addonSource(args: {
     key: args.key,
     name: host ? `${args.manifest.name} · ${host}` : args.manifest.name,
     settings: plain,
-    secret: JSON.stringify({ passwords, headers: args.headers ?? {}, query: args.query ?? {} }),
+    secret: JSON.stringify({
+      passwords,
+      headers: args.headers ?? {},
+      query: args.query ?? {},
+      webQuery: args.webQuery ?? {},
+    }),
     ...(args.codeSha ? { codeSha: args.codeSha } : {}),
     ...(args.profileId ? { profileId: args.profileId } : {}),
   };
@@ -140,6 +156,28 @@ export function withQuery(url: string, query: Record<string, string>, hosts: str
   const parsed = new URL(url);
   for (const [name, value] of Object.entries(query)) parsed.searchParams.set(name, value);
   return parsed.href;
+}
+
+/**
+ * How the app fetches one of an add-on server's files: the stored address with the login's query
+ * added, and its headers, both only on the add-on's own hosts. Where the app can't send headers
+ * (`canSendHeaders` false: a browser's audio element), the library's `webQuery` (revision 7) goes
+ * into the address instead. `private`: the address carries a login, so it goes nowhere else.
+ */
+export function addonFileAccess(
+  uri: string,
+  login: Pick<AddonLogin, 'headers' | 'query' | 'webQuery'>,
+  hosts: string[],
+  canSendHeaders: boolean,
+): { uri: string; headers: Record<string, string>; private?: true } {
+  const instead = !canSendHeaders && Object.keys(login.webQuery).length > 0;
+  const query = instead ? { ...login.query, ...login.webQuery } : login.query;
+  const address = withQuery(uri, query, hosts);
+  return {
+    uri: address,
+    headers: instead ? {} : headersFor(uri, login.headers, hosts),
+    ...(address !== uri ? { private: true as const } : {}),
+  };
 }
 
 /**
