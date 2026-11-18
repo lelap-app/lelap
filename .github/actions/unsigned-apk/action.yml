@@ -1,0 +1,102 @@
+name: Unsigned APK
+description: >-
+  Builds one unsigned release APK with scripts/unsigned-apk.sh, reading the pnpm and Gradle
+  caches that runs on main saved (the apk job in ci.yml). It never writes them.
+  Used by the release workflow's build job and by CI on main, so both use the same cache keys.
+
+inputs:
+  distribution:
+    description: direct or fdroid
+    required: true
+  abi:
+    description: arm64-v8a or armeabi-v7a
+    required: true
+  tag:
+    description: The release tag the APK is stamped with
+    required: true
+  domain:
+    description: The domain the app is built for
+    required: true
+
+outputs:
+  name:
+    description: The APK's file name in out/
+    value: ${{ steps.build.outputs.name }}
+  sha256:
+    description: The APK's SHA-256
+    value: ${{ steps.build.outputs.sha256 }}
+  runtime:
+    description: The native fingerprint, for the direct build
+    value: ${{ steps.build.outputs.runtime }}
+  pnpm-store:
+    description: Where pnpm keeps packages, for a later cache save
+    value: ${{ steps.store.outputs.path }}
+  pnpm-key:
+    description: The pnpm cache key
+    value: ${{ steps.keys.outputs.pnpm }}
+  pnpm-hit:
+    description: Whether the pnpm cache had this exact key
+    value: ${{ steps.pnpm-cache.outputs.cache-hit }}
+  gradle-key:
+    description: The Gradle cache key
+    value: ${{ steps.keys.outputs.gradle }}
+  gradle-hit:
+    description: Whether the Gradle cache had this exact key
+    value: ${{ steps.gradle-cache.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version-file: .nvmrc
+        # The caches below are restored explicitly so that nothing here saves one.
+        package-manager-cache: false
+    - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+      with:
+        distribution: temurin
+        java-version: '21'
+    - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      with:
+        cache-disabled: true
+    - id: keys
+      shell: bash
+      env:
+        LOCK: ${{ hashFiles('pnpm-lock.yaml') }}
+      run: |
+        echo "pnpm=apk-pnpm-$RUNNER_OS-$LOCK" >> "$GITHUB_OUTPUT"
+        echo "gradle=apk-gradle-$RUNNER_OS-$LOCK" >> "$GITHUB_OUTPUT"
+    - id: store
+      shell: bash
+      run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+    - id: pnpm-cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.store.outputs.path }}
+        key: ${{ steps.keys.outputs.pnpm }}
+        restore-keys: apk-pnpm-${{ runner.os }}-
+    # Downloaded dependencies and the Gradle distribution only, no build outputs. The same paths
+    # as the save step in ci.yml, or the keys would not match.
+    - id: gradle-cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.gradle/caches/modules-2
+          !~/.gradle/caches/modules-2/*.lock
+          !~/.gradle/caches/modules-2/gc.properties
+          ~/.gradle/wrapper/dists
+        key: ${{ steps.keys.outputs.gradle }}
+        restore-keys: apk-gradle-${{ runner.os }}-
+    - shell: bash
+      run: pnpm install --frozen-lockfile
+    - shell: bash
+      run: bash scripts/android-sdk.sh
+    - id: build
+      shell: bash
+      env:
+        EXPO_PUBLIC_LELAP_DOMAIN: ${{ inputs.domain }}
+        DISTRIBUTION: ${{ inputs.distribution }}
+        ABI: ${{ inputs.abi }}
+        TAG: ${{ inputs.tag }}
+      run: bash scripts/unsigned-apk.sh "$DISTRIBUTION" "$ABI" "$TAG" out

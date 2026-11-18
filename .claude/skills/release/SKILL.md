@@ -17,14 +17,15 @@ or a previous description.
 
 ## What you need to know first
 
-| Fact                 | Where it comes from                                                                                                                                                                                                                                |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Version rules        | `packages/core/src/release.ts`: `vMAJOR.MINOR.PATCH` or `-beta.N`; minor and patch at most 99, beta 1–98. Beta versionCode sits below its stable.                                                                                                  |
-| What the tag deploys | APK, OTA, images, and sync to production (beta and stable tags alike: beta apps use it). The web app, catalog, proxy and updates deploy on every merge to `main` already (`web.yml`, `services.yml`), so they are live before the tag.             |
-| Site state           | Repository variables `LELAP_BETA` and `LELAP_RELEASED` (read by `site.yml`). `apps/site/src/site.ts` turns them into `site.beta` and `site.released`.                                                                                              |
-| SDK                  | Released on its own through Changesets and `sdk.yml`, not by the app tag. See `packages/sdk/README.md`.                                                                                                                                            |
-| F-Droid              | Every tag builds an F-Droid APK, but F-Droid itself only picks up stable tags, and only after the recipe in `docs/fdroid/app.lelap.yml` is submitted to fdroiddata. Release notes: `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`. |
-| Who may do what      | You prepare files and a pull request. The user merges, approves the `release` environment, pushes tags and changes repository variables, or tells you in chat to do one of those specific things.                                                  |
+| Fact                 | Where it comes from                                                                                                                                                                                                                                                |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Version rules        | `packages/core/src/release.ts`: `vMAJOR.MINOR.PATCH` or `-beta.N`; minor and patch at most 99, beta 1–98. Beta versionCode sits below its stable.                                                                                                                  |
+| What the tag deploys | APK, OTA, images, and sync to production (beta and stable tags alike: beta apps use it). The web app, catalog, proxy and updates deploy on every merge to `main` already (`web.yml`, `services.yml`), so they are live before the tag.                             |
+| Site state           | Repository variables `LELAP_BETA` and `LELAP_RELEASED` (read by `site.yml`). `apps/site/src/site.ts` turns them into `site.beta` and `site.released`.                                                                                                              |
+| SDK                  | Released on its own through Changesets and `sdk.yml`, not by the app tag. See `packages/sdk/README.md`.                                                                                                                                                            |
+| F-Droid              | Every tag builds F-Droid APKs, but F-Droid itself only picks up stable tags, and only after the recipe in `docs/fdroid/app.lelap.yml` is submitted to fdroiddata. Release notes: `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`, one per CPU type. |
+| APKs                 | One per CPU type: `lelap-<version>.apk` (arm64) and `lelap-<version>-armv7.apk`, the same for F-Droid with `-fdroid`. versionCode is `versionCode()` times ten plus 2 (arm64) or 1 (32-bit); `node scripts/release.mts apk vX.Y.Z arm64-v8a` prints it.            |
+| Who may do what      | You prepare files and a pull request. The user merges, approves the `release` environment, pushes tags and changes repository variables, or tells you in chat to do one of those specific things.                                                                  |
 
 ## Steps
 
@@ -98,8 +99,8 @@ Newest version on top:
   names (module names, milestone numbers, function names). Link the PR number.
 - A stable entry summarises all its betas; keep the beta entries below it.
 - Stable only: `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`, plain text, at most
-  500 characters, the highlights of the same entry. `versionCode` from `release.ts` (0.2.0 →
-  `20099`).
+  500 characters, the highlights of the same entry. One file per CPU type with the same text:
+  `abiVersionCode` from `release.ts` (0.2.0 → `200991` and `200992`).
 - Never name piracy-related services, torrent indexes or file hosters, even when describing a
   fix or a refusal (see the hard rules in `AGENTS.md`).
 
@@ -122,8 +123,9 @@ add shipped features that a reader would look for.
   on npm, not only the workspace (see the SDK check in step 2).
 - **Store text:** `fastlane/metadata/android/en-US/full_description.txt` and
   `short_description.txt`, same check as the landing page.
-- **F-Droid recipe** (`docs/fdroid/app.lelap.yml`), stable only: `versionName`, `versionCode`
-  and `commit` in `Builds`, and `CurrentVersion`, `CurrentVersionCode`. Before the first
+- **F-Droid recipe** (`docs/fdroid/app.lelap.yml`), stable only: two `Builds` entries (one per
+  CPU type) with `versionName`, `versionCode` and `commit`, and `CurrentVersion`,
+  `CurrentVersionCode` (the arm64 code). Before the first
   submission, `AllowedAPKSigningKeys` needs the certificate hash; ask the user whether this
   release is the one to submit, and make the landing page's F-Droid card say the same.
 - **Project docs:** the status line of the release milestone (`docs/milestones/m40.md` for
@@ -150,7 +152,8 @@ add shipped features that a reader would look for.
 4. Check what went out:
    - `curl -s https://dl.<domain>/beta.json` (and `latest.json` for stable) shows the new
      version, and its `url` downloads.
-   - `gh release view vX.Y.Z` lists both APKs, `SHA256SUMS` and `release.json`.
+   - `gh release view vX.Y.Z` lists four APKs (direct and F-Droid, arm64 and `-armv7`),
+     `SHA256SUMS` and `release.json`.
    - The images exist: `docker manifest inspect ghcr.io/lelap-app/web:X.Y.Z`.
 5. Site state: the first beta needs `LELAP_BETA=true`; the first stable needs
    `LELAP_RELEASED=true`. Then rerun the site deploy (`gh workflow run site.yml`). Changing a

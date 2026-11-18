@@ -41,15 +41,68 @@ jobs:
       - run: pnpm check
       - run: pnpm test
 
+  # Unsigned APKs, one per distribution and CPU type, in parallel. No environment and no
+  # secrets, so this job may read the pnpm and Gradle caches that runs on `main` wrote (it never
+  # writes them). The signing jobs below check every APK against the SHA-256 reported here.
+  build:
+    name: Unsigned APK (${{ matrix.distribution }}, ${{ matrix.abi }})
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        distribution: [direct, fdroid]
+        abi: [arm64-v8a, armeabi-v7a]
+    # Outputs of all four legs are combined; each leg sets only its own name.
+    outputs:
+      runtime: ${{ steps.report.outputs.runtime }}
+      direct-arm64-v8a: ${{ steps.report.outputs.direct-arm64-v8a }}
+      direct-armeabi-v7a: ${{ steps.report.outputs.direct-armeabi-v7a }}
+      fdroid-arm64-v8a: ${{ steps.report.outputs.fdroid-arm64-v8a }}
+      fdroid-armeabi-v7a: ${{ steps.report.outputs.fdroid-armeabi-v7a }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: apk
+        uses: ./.github/actions/unsigned-apk
+        with:
+          distribution: ${{ matrix.distribution }}
+          abi: ${{ matrix.abi }}
+          tag: ${{ github.ref_name }}
+          domain: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
+      - id: report
+        name: Report the SHA-256
+        env:
+          LEG: ${{ matrix.distribution }}-${{ matrix.abi }}
+          DISTRIBUTION: ${{ matrix.distribution }}
+          SHA256: ${{ steps.apk.outputs.sha256 }}
+          NAME: ${{ steps.apk.outputs.name }}
+          RUNTIME: ${{ steps.apk.outputs.runtime }}
+        run: |
+          echo "$LEG=$SHA256  $NAME" >> "$GITHUB_OUTPUT"
+          if [ "$DISTRIBUTION" = direct ]; then echo "runtime=$RUNTIME" >> "$GITHUB_OUTPUT"; fi
+          echo "$SHA256  $NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned-${{ matrix.distribution }}-${{ matrix.abi }}
+          path: out/*.apk
+          if-no-files-found: error
+          # As long as the signed ones: the approval may come days after the tag.
+          retention-days: 7
+
+  # Signs the two direct APKs. Holds the keystore, so it uses no cache and installs no packages:
+  # it only checks the SHA-256 the build job reported, checks alignment and signs.
   apk:
     name: Signed APK
-    needs: verify
+    needs: [verify, build]
     runs-on: ubuntu-latest
     environment:
       name: release
     outputs:
-      runtime: ${{ steps.runtime.outputs.runtime }}
-      ota: ${{ steps.runtime.outputs.ota }}
+      runtime: ${{ needs.build.outputs.runtime }}
+      ota: ${{ steps.ota.outputs.ota }}
     permissions:
       contents: read
       id-token: write
@@ -58,56 +111,31 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .nvmrc
-          # No shared caches in jobs that hold release secrets.
-          package-manager-cache: false
-      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
-        with:
-          distribution: temurin
-          java-version: '21'
-      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
-        with:
-          cache-disabled: true
-      - run: pnpm install --frozen-lockfile
-      - run: bash scripts/android-sdk.sh
-      - run: node scripts/release.mts stamp "$GITHUB_REF_NAME"
-      - run: pnpm --filter @lelap/app exec expo prebuild --platform android --no-install
-        env:
-          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
-      # The native fingerprint this APK is built with; the `ota` job publishes bundles for it.
-      - id: runtime
-        name: Runtime version
-        env:
-          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
+      - id: ota
+        name: Over-the-air updates
         run: |
-          runtime="$(pnpm --silent --filter @lelap/app exec expo-updates runtimeversion:resolve --platform android | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).runtimeVersion))')"
-          echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
           # Without a committed certificate the app has updates turned off; nothing to publish.
           if [ -f apps/app/certs/certificate.pem ]; then echo "ota=true" >> "$GITHUB_OUTPUT"; fi
-          echo "Runtime version: $runtime"
-      - name: Build and sign
-        working-directory: apps/app/android
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: unsigned-direct-*
+          merge-multiple: true
+          path: unsigned
+      - name: Check and sign
         env:
-          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
+          ARM64: ${{ needs.build.outputs['direct-arm64-v8a'] }}
+          ARMV7: ${{ needs.build.outputs['direct-armeabi-v7a'] }}
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           LELAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           LELAP_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           LELAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          printf '%s\n' "$ARM64" "$ARMV7" > "$RUNNER_TEMP/expected.sha256"
           export LELAP_KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
-          # Removed however the build ends, not only when it succeeds.
+          # Removed however the job ends, not only when it succeeds.
           trap 'rm -f "$LELAP_KEYSTORE_PATH"' EXIT
           (umask 077 && printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$LELAP_KEYSTORE_PATH")
-          ./gradlew :app:assembleRelease
-      - name: Name the APK
-        env:
-          VERSION: ${{ needs.verify.outputs.version }}
-        run: |
-          mkdir -p out
-          cp apps/app/android/app/build/outputs/apk/release/app-release.apk "out/lelap-$VERSION.apk"
+          bash scripts/sign-apks.sh "$RUNNER_TEMP/expected.sha256" unsigned out
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: out/*.apk
@@ -115,14 +143,15 @@ jobs:
         with:
           name: apk-direct
           path: out/*.apk
+          if-no-files-found: error
           retention-days: 7
 
-  # The same commit without self-updates, for F-Droid: its build server rebuilds this APK from
-  # source and, when the bytes match, ships it with our signature (docs/milestones/m28.md). Its own
-  # job, so it builds next to the direct APK instead of after it.
+  # The same commit without self-updates, for F-Droid: its build server rebuilds each of these
+  # APKs from source and, when the bytes match, ships it with our signature
+  # (docs/milestones/m28.md, docs/milestones/m54.md).
   apk-fdroid:
     name: Signed APK for F-Droid
-    needs: verify
+    needs: [verify, build]
     runs-on: ubuntu-latest
     environment:
       name: release
@@ -134,44 +163,25 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          node-version-file: .nvmrc
-          # No shared caches in jobs that hold release secrets.
-          package-manager-cache: false
-      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
-        with:
-          distribution: temurin
-          java-version: '21'
-      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
-        with:
-          cache-disabled: true
-      - run: pnpm install --frozen-lockfile
-      - run: bash scripts/android-sdk.sh
-      - run: node scripts/release.mts stamp "$GITHUB_REF_NAME"
-      - name: Prebuild for F-Droid
+          pattern: unsigned-fdroid-*
+          merge-multiple: true
+          path: unsigned
+      - name: Check and sign
         env:
-          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
-          EXPO_PUBLIC_LELAP_DISTRIBUTION: fdroid
-        run: pnpm --filter @lelap/app exec expo prebuild --platform android --no-install
-      - name: Build and sign for F-Droid
-        working-directory: apps/app/android
-        env:
-          EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
-          EXPO_PUBLIC_LELAP_DISTRIBUTION: fdroid
+          ARM64: ${{ needs.build.outputs['fdroid-arm64-v8a'] }}
+          ARMV7: ${{ needs.build.outputs['fdroid-armeabi-v7a'] }}
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           LELAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           LELAP_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           LELAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          VERSION: ${{ needs.verify.outputs.version }}
         run: |
+          printf '%s\n' "$ARM64" "$ARMV7" > "$RUNNER_TEMP/expected.sha256"
           export LELAP_KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
           trap 'rm -f "$LELAP_KEYSTORE_PATH"' EXIT
           (umask 077 && printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$LELAP_KEYSTORE_PATH")
-          ./gradlew :app:assembleRelease
-          mkdir -p ../../../out
-          cp app/build/outputs/apk/release/app-release.apk "../../../out/lelap-$VERSION-fdroid.apk"
+          bash scripts/sign-apks.sh "$RUNNER_TEMP/expected.sha256" unsigned out
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: out/*.apk
@@ -179,6 +189,7 @@ jobs:
         with:
           name: apk-fdroid
           path: out/*.apk
+          if-no-files-found: error
           retention-days: 7
 
   publish:
@@ -210,12 +221,10 @@ jobs:
         run: sha256sum -- *.apk | tee SHA256SUMS
       - name: Write the release file
         env:
-          VERSION: ${{ needs.verify.outputs.version }}
           CHANNEL: ${{ needs.verify.outputs.channel }}
           DOWNLOADS: ${{ vars.DOWNLOADS_BASE }}
         run: |
-          apk="out/lelap-$VERSION.apk"
-          node scripts/release.mts info "$GITHUB_REF_NAME" "$apk" "$DOWNLOADS/apk/lelap-$VERSION.apk" > out/release.json
+          node scripts/release.mts info "$GITHUB_REF_NAME" out "$DOWNLOADS" > out/release.json
           if [ "$CHANNEL" = stable ]; then echo latest > out/name; else echo beta > out/name; fi
           cat out/release.json
       - name: Upload to R2
@@ -225,16 +234,21 @@ jobs:
           VERSION: ${{ needs.verify.outputs.version }}
         working-directory: services/sync
         run: |
-          pnpm exec wrangler r2 object put "lelap-downloads/apk/lelap-$VERSION.apk" --remote \
-            --file "../../out/lelap-$VERSION.apk" --content-type application/vnd.android.package-archive
+          # The direct APKs: arm64 under the plain name, 32-bit ARM with `-armv7`.
+          for suffix in "" -armv7; do
+            pnpm exec wrangler r2 object put "lelap-downloads/apk/lelap-$VERSION$suffix.apk" --remote \
+              --file "../../out/lelap-$VERSION$suffix.apk" --content-type application/vnd.android.package-archive
+          done
           # Fixed names for the landing page's download buttons: beta.apk always (a stable release
-          # is the newest beta too), latest.apk for stable releases.
+          # is the newest beta too), latest.apk for stable releases, each with an -armv7 sibling.
           names=(beta)
           if [ "$(cat ../../out/name)" = latest ]; then names=(latest beta); fi
           for name in "${names[@]}"; do
-            pnpm exec wrangler r2 object put "lelap-downloads/$name.apk" --remote \
-              --file "../../out/lelap-$VERSION.apk" --content-type application/vnd.android.package-archive \
-              --content-disposition "attachment; filename=\"lelap-$VERSION.apk\"" --cache-control no-cache
+            for suffix in "" -armv7; do
+              pnpm exec wrangler r2 object put "lelap-downloads/$name$suffix.apk" --remote \
+                --file "../../out/lelap-$VERSION$suffix.apk" --content-type application/vnd.android.package-archive \
+                --content-disposition "attachment; filename=\"lelap-$VERSION$suffix.apk\"" --cache-control no-cache
+            done
           done
           # The release file goes last, so it never points at an APK that is not there yet.
           pnpm exec wrangler r2 object put "lelap-downloads/$(cat ../../out/name).json" --remote \
@@ -247,8 +261,8 @@ jobs:
         run: |
           flags=()
           if [ "$CHANNEL" = beta ]; then flags+=(--prerelease); fi
-          gh release create "$GITHUB_REF_NAME" "out/lelap-$VERSION.apk" \
-            "out/lelap-$VERSION-fdroid.apk" out/SHA256SUMS out/release.json \
+          gh release create "$GITHUB_REF_NAME" "out/lelap-$VERSION.apk" "out/lelap-$VERSION-armv7.apk" \
+            "out/lelap-$VERSION-fdroid.apk" "out/lelap-$VERSION-fdroid-armv7.apk" out/SHA256SUMS out/release.json \
             --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --title "Lelap $VERSION" "${flags[@]}"
 
   ota:

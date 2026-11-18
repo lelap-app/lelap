@@ -1,6 +1,13 @@
 # Draft of the recipe for F-Droid's fdroiddata repository (metadata/app.lelap.yml), to submit as a
 # merge request there once the first stable version is tagged. Kept here so it changes with the
-# build. Each release adds a Builds entry; versionCode comes from `scripts/release.mts stamp`.
+# build. Each release adds two Builds entries, one per CPU type (M54), each with its own
+# versionCode and signed APK:
+#   armeabi-v7a  10 * base + 1   lelap-<version>-fdroid-armv7.apk
+#   arm64-v8a    10 * base + 2   lelap-<version>-fdroid.apk
+# base is versionCode() in packages/core/src/release.ts (0.1.0 -> 10099), what
+# `scripts/release.mts stamp` writes into app.json; the Gradle build multiplies it
+# (apps/app/plugins/withArchitectures.js). `node scripts/release.mts apk v0.1.0 arm64-v8a fdroid`
+# prints the name and code. 64-bit has the higher code, so phones that run both get it.
 Categories:
   - Multimedia
 License: AGPL-3.0-only
@@ -14,12 +21,12 @@ AutoName: Lelap
 
 RepoType: git
 Repo: https://github.com/lelap-app/lelap.git
-# F-Droid builds the unsigned APK below and, when it matches, publishes our signed one from here.
-Binaries: https://github.com/lelap-app/lelap/releases/download/v%v/lelap-%v-fdroid.apk
+# F-Droid builds each unsigned APK below and, when it matches, publishes our signed one from the
+# entry's `binary:` URL.
 
 Builds:
   - versionName: 0.1.0
-    versionCode: 10099
+    versionCode: 100991
     commit: v0.1.0
     subdir: apps/app
     sudo:
@@ -33,6 +40,7 @@ Builds:
       - curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt | grep linux-x64.tar.xz | sha256sum -c -
       - tar xf node-v${NODE_VERSION}-linux-x64.tar.xz
     output: android/app/build/outputs/apk/release/app-release-unsigned.apk
+    binary: https://github.com/lelap-app/lelap/releases/download/v%v/lelap-%v-fdroid-armv7.apk
     prebuild:
       - export PATH=$PWD/node-v$(cat ../../.nvmrc)-linux-x64/bin:$PATH
       - corepack enable
@@ -43,7 +51,36 @@ Builds:
     build:
       - export PATH=$PWD/node-v$(cat ../../.nvmrc)-linux-x64/bin:$PATH
       - cd android
-      - EXPO_PUBLIC_LELAP_DISTRIBUTION=fdroid LELAP_UNSIGNED=1 ./gradlew --no-daemon :app:assembleRelease
+      - EXPO_PUBLIC_LELAP_DISTRIBUTION=fdroid LELAP_UNSIGNED=1 ./gradlew --no-daemon :app:assembleRelease -PreactNativeArchitectures=armeabi-v7a
+    ndk: 27.1.12297006
+
+  - versionName: 0.1.0
+    versionCode: 100992
+    commit: v0.1.0
+    subdir: apps/app
+    sudo:
+      - apt-get update
+      - apt-get install -y openjdk-21-jdk-headless
+      - update-java-alternatives -a
+    init:
+      - NODE_VERSION=$(cat ../../.nvmrc)
+      # Node from nodejs.org with its published checksum, then pnpm through corepack.
+      - curl -fsSLO https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz
+      - curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt | grep linux-x64.tar.xz | sha256sum -c -
+      - tar xf node-v${NODE_VERSION}-linux-x64.tar.xz
+    output: android/app/build/outputs/apk/release/app-release-unsigned.apk
+    binary: https://github.com/lelap-app/lelap/releases/download/v%v/lelap-%v-fdroid.apk
+    prebuild:
+      - export PATH=$PWD/node-v$(cat ../../.nvmrc)-linux-x64/bin:$PATH
+      - corepack enable
+      - (cd ../.. && pnpm install --frozen-lockfile && node scripts/release.mts stamp v$$VERSION$$)
+      - EXPO_PUBLIC_LELAP_DISTRIBUTION=fdroid pnpm exec expo prebuild --platform android --no-install
+    scanignore:
+      - node_modules
+    build:
+      - export PATH=$PWD/node-v$(cat ../../.nvmrc)-linux-x64/bin:$PATH
+      - cd android
+      - EXPO_PUBLIC_LELAP_DISTRIBUTION=fdroid LELAP_UNSIGNED=1 ./gradlew --no-daemon :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
     ndk: 27.1.12297006
 
 # The SHA-256 of our signing certificate (CN=Lelap), from `apksigner verify --print-certs` on a
@@ -52,5 +89,9 @@ AllowedAPKSigningKeys: 104bfde7bfcbcc898031493164e3e76b9fcc3bcb98c85110ccb8667b7
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
+# One build per CPU type from the base versionCode (%c), in the order of the Builds entries.
+VercodeOperation:
+  - 10 * %c + 1
+  - 10 * %c + 2
 CurrentVersion: 0.1.0
-CurrentVersionCode: 10099
+CurrentVersionCode: 100992

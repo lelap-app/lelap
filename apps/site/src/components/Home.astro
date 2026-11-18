@@ -140,7 +140,7 @@ const channels: {
     icon: 'tag',
     title: 'GitHub Releases',
     where: bare(site.releasesUrl),
-    text: t(lang, 'Every version with its release notes, the same APK and a build attestation.'),
+    text: t(lang, 'Every version with its release notes, the same APKs and build attestations.'),
     link: { href: site.releasesUrl, label: t(lang, 'All releases') },
   },
   {
@@ -434,6 +434,11 @@ const compose = `services:
                   <strong>{c.title}</strong>
                   {c.where && <code class="channel-where">{c.where}</code>}
                   <p>{c.text}</p>
+                  {c.link?.primary && (site.released || site.beta) && (
+                    <a class="channel-alt" href={site.beta ? site.betaApk32Url : site.apk32Url}>
+                      {t(lang, 'Older phone with a 32-bit processor? Get the 32-bit .apk')}
+                    </a>
+                  )}
                 </div>
                 {c.later ? (
                   <span class="badge channel-end">{t(lang, 'Later')}</span>
@@ -461,7 +466,7 @@ const compose = `services:
               <p
                 set:html={t(
                   lang,
-                  '<b>Checking the file?</b> <a href="{info}">latest.json</a> lists the version, size and SHA-256 of the current APK, and each GitHub release carries the same file with a build attestation and a <code>SHA256SUMS</code> list. Compare with <code>sha256sum</code>, or run <code>gh attestation verify</code> against the repository.',
+                  '<b>Checking the file?</b> <a href="{info}">latest.json</a> lists the version, size and SHA-256 of the current APKs, 64-bit and 32-bit, and each GitHub release carries the same files with a build attestation and a <code>SHA256SUMS</code> list. Compare with <code>sha256sum</code>, or run <code>gh attestation verify</code> against the repository.',
                   { info: site.releaseInfoUrl },
                 )}
               />
@@ -469,7 +474,7 @@ const compose = `services:
               <p
                 set:html={t(
                   lang,
-                  '<b>Checking the file?</b> <a href="{info}">beta.json</a> lists the version, size and SHA-256 of the current beta, and each GitHub pre-release carries the same file with a build attestation.',
+                  '<b>Checking the file?</b> <a href="{info}">beta.json</a> lists the version, size and SHA-256 of the current beta APKs, 64-bit and 32-bit, and each GitHub pre-release carries the same files with a build attestation.',
                   { info: site.betaInfoUrl },
                 )}
               />
@@ -985,6 +990,11 @@ const compose = `services:
 
   .channel-copy p {
     margin-top: 4px;
+  }
+
+  .channel-alt {
+    margin-top: 4px;
+    font-size: 13px;
   }
 
   .channel-end {

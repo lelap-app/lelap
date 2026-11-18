@@ -10,8 +10,10 @@ export const site = {
   appHost: `listen.${domain}`,
   appUrl: `https://listen.${domain}`,
   downloadsHost: `dl.${domain}`,
-  // The release workflow copies each stable APK to latest.apk next to latest.json.
+  // The release workflow copies each stable APK to latest.apk next to latest.json: the 64-bit
+  // ARM build, with the 32-bit one as latest-armv7.apk.
   apkUrl: `https://dl.${domain}/latest.apk`,
+  apk32Url: `https://dl.${domain}/latest-armv7.apk`,
   releaseInfoUrl: `https://dl.${domain}/latest.json`,
   repoUrl,
   releasesUrl: `${repoUrl}/releases`,
@@ -26,5 +28,6 @@ export const site = {
     import.meta.env.PUBLIC_LELAP_BETA === 'true' &&
     import.meta.env.PUBLIC_LELAP_RELEASED !== 'true',
   betaApkUrl: `https://dl.${domain}/beta.apk`,
+  betaApk32Url: `https://dl.${domain}/beta-armv7.apk`,
   betaInfoUrl: `https://dl.${domain}/beta.json`,
 } as const;

@@ -26,7 +26,13 @@ export async function checkForUpdate(): Promise<ReleaseInfo | null> {
     fetchRelease('latest'),
     beta ? fetchRelease('beta') : Promise.resolve(null),
   ]);
-  return pickUpdate(updater.versionCode(), beta ? 'beta' : 'stable', stable, betaRelease);
+  return pickUpdate(
+    updater.versionCode(),
+    beta ? 'beta' : 'stable',
+    stable,
+    betaRelease,
+    updater.pickAbi,
+  );
 }
 
 /** Installs a release, first sending the user to Android's permission if needed. */

@@ -6,10 +6,10 @@ export const ms: Record<string, string> = {
   '1 · Add-ons answer': '1 · Alat tambah menjawab',
   '2 · Your device keeps it': '2 · Peranti anda menyimpannya',
   '3 · Install by URL': '3 · Pasang melalui URL',
-  '<b>Checking the file?</b> <a href="{info}">beta.json</a> lists the version, size and SHA-256 of the current beta, and each GitHub pre-release carries the same file with a build attestation.':
-    '<b>Menyemak fail?</b> <a href="{info}">beta.json</a> menyenaraikan versi, saiz dan SHA-256 beta semasa, dan setiap prakeluaran GitHub membawa fail yang sama dengan pengesahan binaan.',
-  '<b>Checking the file?</b> <a href="{info}">latest.json</a> lists the version, size and SHA-256 of the current APK, and each GitHub release carries the same file with a build attestation and a <code>SHA256SUMS</code> list. Compare with <code>sha256sum</code>, or run <code>gh attestation verify</code> against the repository.':
-    '<b>Menyemak fail?</b> <a href="{info}">latest.json</a> menyenaraikan versi, saiz dan SHA-256 APK semasa, dan setiap keluaran GitHub membawa fail yang sama dengan pengesahan binaan dan senarai <code>SHA256SUMS</code>. Bandingkan dengan <code>sha256sum</code>, atau jalankan <code>gh attestation verify</code> pada repositori.',
+  '<b>Checking the file?</b> <a href="{info}">beta.json</a> lists the version, size and SHA-256 of the current beta APKs, 64-bit and 32-bit, and each GitHub pre-release carries the same files with a build attestation.':
+    '<b>Menyemak fail?</b> <a href="{info}">beta.json</a> menyenaraikan versi, saiz dan SHA-256 APK beta semasa, 64-bit dan 32-bit, dan setiap prakeluaran GitHub membawa fail yang sama dengan pengesahan binaan.',
+  '<b>Checking the file?</b> <a href="{info}">latest.json</a> lists the version, size and SHA-256 of the current APKs, 64-bit and 32-bit, and each GitHub release carries the same files with a build attestation and a <code>SHA256SUMS</code> list. Compare with <code>sha256sum</code>, or run <code>gh attestation verify</code> against the repository.':
+    '<b>Menyemak fail?</b> <a href="{info}">latest.json</a> menyenaraikan versi, saiz dan SHA-256 APK semasa, 64-bit dan 32-bit, dan setiap keluaran GitHub membawa fail yang sama dengan pengesahan binaan dan senarai <code>SHA256SUMS</code>. Bandingkan dengan <code>sha256sum</code>, atau jalankan <code>gh attestation verify</code> pada repositori.',
   '<b>For people who verify:</b> each release will publish the APK’s SHA-256 in <code>latest.json</code> on {host} and on GitHub, with a build attestation, so you can check the file before you install it.':
     '<b>Bagi yang suka menyemak:</b> setiap keluaran akan menerbitkan SHA-256 APK dalam <code>latest.json</code> di {host} dan di GitHub, dengan pengesahan binaan, supaya anda boleh menyemak fail sebelum memasangnya.',
   'A beta for Android is out now. The first stable version follows after a round of testing on phones; the roadmap is in the open on GitHub.':
@@ -56,6 +56,8 @@ export const ms: Record<string, string> = {
   Download: 'Muat turun',
   'Download .apk': 'Muat turun .apk',
   'Download beta .apk': 'Muat turun .apk beta',
+  'Older phone with a 32-bit processor? Get the 32-bit .apk':
+    'Telefon lama dengan pemproses 32-bit? Dapatkan .apk 32-bit',
   'Download books and episodes over Wi-Fi with the screen off. Airplane mode is a normal day, not an error state.':
     'Muat turun buku dan episod melalui Wi-Fi dengan skrin dimatikan. Mod pesawat ialah hari biasa, bukan keadaan ralat.',
   'Download for Android': 'Muat turun untuk Android',
@@ -64,8 +66,8 @@ export const ms: Record<string, string> = {
   'Encrypted sync': 'Segerak bersulit',
   'Every control has a name for TalkBack, buttons are large enough to hit, and screens hold up at the largest text size.':
     'Setiap kawalan mempunyai nama untuk TalkBack, butang cukup besar untuk ditekan, dan skrin kekal kemas pada saiz teks terbesar.',
-  'Every version with its release notes, the same APK and a build attestation.':
-    'Setiap versi dengan nota keluarannya, APK yang sama dan pengesahan binaan.',
+  'Every version with its release notes, the same APKs and build attestations.':
+    'Setiap versi dengan nota keluarannya, APK yang sama dan pengesahan binaannya.',
   'Everything behind {host} is in the repository. Four small containers; sync keeps one SQLite file, so there is no database server to run.':
     'Semua yang menjalankan {host} ada dalam repositori. Empat bekas kecil; segerak menyimpan satu fail SQLite, jadi tiada pelayan pangkalan data untuk dijalankan.',
   FAQ: 'Soalan lazim',

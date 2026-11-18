@@ -13,8 +13,9 @@ Left to do:
   direct one (and back) without uninstalling.
 - **Reproducibility across machines.** Run `scripts/verify-fdroid-apk.sh v<version>` on a Linux
   machine (F-Droid's build server is Debian) against the release's F-Droid APK. Native code built
-  for the app maps its source paths to fixed prefixes (`plugins/withReproducibleBuild.js`); native
-  code that comes prebuilt (React Native, Hermes, Expo modules from Maven) is the same bytes
+  for the app and by library modules maps its source paths to fixed prefixes
+  (`plugins/withReproducibleBuild.js`; library modules since M54, which found their build IDs
+  differing between folders); native code that comes prebuilt (React Native, Hermes, Expo modules from Maven) is the same bytes
   everywhere. If the check fails, `apksigcopier compare` names the differing files; `diffoscope`
   shows why.
 - **Submit to F-Droid** after 1.0: fill `AllowedAPKSigningKeys` in

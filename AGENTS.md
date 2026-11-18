@@ -122,8 +122,11 @@ GitHub Actions in a public repository:
   filter when a new native module or test location appears.
 - Deploy jobs use GitHub environments (`web` for the site and services, `release` for signed
   builds) so secrets never reach pull requests from forks.
-- `release.yml` runs on `v*` tags: signed APK with provenance, R2 and GitHub Releases,
-  `latest.json` or `beta.json`, multi-arch images on `ghcr.io`, sync to production.
+- `release.yml` runs on `v*` tags: unsigned APKs per distribution and CPU type built with caches
+  and no secrets, signed afterwards in the `release` environment with provenance, R2 and GitHub
+  Releases, `latest.json` or `beta.json`, multi-arch images on `ghcr.io`, sync to production.
+  Only runs on `main` save the caches it reads (the `apk` job in `ci.yml`); never let a job that
+  holds secrets restore a cache.
 - Release builds bundle JavaScript, which debug builds never do: Babel presets and plugins named
   in `apps/app/babel.config.js` (and by NativeWind's preset) must be the app's own dependencies,
   or pnpm's strict layout hides them.
