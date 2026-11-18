@@ -3,7 +3,8 @@
 import Base from '../layouts/Base.astro';
 import Icon, { type IconName } from './Icon.astro';
 import Lori from './Lori.astro';
-import AppScreen from './AppScreen.astro';
+import CatalogMockup from './CatalogMockup.astro';
+import PhoneMockup from './PhoneMockup.astro';
 import { site } from '../site';
 import { html, t, type Lang } from '../i18n';
 
@@ -300,7 +301,7 @@ const compose = `services:
       </ul>
     </div>
     <div class="hero-visual">
-      <AppScreen lang={lang} screen="player" eager />
+      <PhoneMockup lang={lang} />
     </div>
   </section>
 
@@ -341,7 +342,7 @@ const compose = `services:
           </div>
         </div>
         <div class="how-visual" data-reveal style="--i: 1">
-          <AppScreen lang={lang} screen="home" />
+          <CatalogMockup lang={lang} />
         </div>
       </div>
       <div class="grid">
@@ -807,7 +808,7 @@ const compose = `services:
     gap: 24px;
   }
 
-  /* min-width: 0 lets the screenshot shrink below its 340 px on a 320 px screen; the same for .how-visual. */
+  /* min-width: 0 lets the drawing shrink below its 340 px on a 320 px screen; the same for .how-visual. */
   .hero-visual {
     flex: 0 1 340px;
     min-width: 0;

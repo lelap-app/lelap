@@ -55,6 +55,12 @@ const pairs: [string, string[], number][] = [
   ['accent-ink', ['accent-fill', 'accent-fill-hover'], 4.5],
   // Control borders are not text: WCAG 1.4.11 asks 3:1 against what is around them.
   ['field-line', page, 3],
+  // The drawn phone screens, in the app's own colours.
+  ['app-paper', ['app-night', 'app-raised'], 4.5],
+  ['app-soft', ['app-night', 'app-raised'], 4.5],
+  ['app-muted', ['app-night', 'app-raised'], 4.5],
+  ['app-amber', ['app-night', 'app-raised'], 4.5],
+  ['app-ink', ['app-amber'], 4.5],
 ];
 
 const files = (dir: string): string[] =>

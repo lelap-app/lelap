@@ -1,0 +1,128 @@
+---
+// A drawn phone: a Pixel 10 Pro XL in portrait, 448 × 997 dp. Inside, every size is a multiple of
+// --dp, a 448th of the screen's width, so a drawing keeps the app's proportions and stays sharp at
+// any size. Screen readers get the label as one picture, not the drawn text.
+interface Props {
+  label: string;
+  /** The gesture bar sits on the tab bar's raised colour rather than the night. */
+  raisedBar?: boolean;
+}
+
+const { label, raisedBar = false } = Astro.props;
+---
+
+<div class="phone-frame" role="img" aria-label={label}>
+  <div class="screen">
+    <div class="status">
+      <span>22:47</span>
+      <span class="camera"></span>
+      <svg class="status-icons" viewBox="0 0 40 16">
+        <path d="M2 7.5a11 11 0 0 1 14 0L9 15z"></path>
+        <rect x="22" y="3" width="15" height="10" rx="2.5"></rect>
+        <rect x="24" y="5" width="8" height="6" rx="1"></rect>
+        <rect x="37.5" y="6" width="1.8" height="4" rx="0.9"></rect>
+      </svg>
+    </div>
+    <slot />
+    <div class:list={['gesture', { raised: raisedBar }]}>
+      <span></span>
+    </div>
+  </div>
+</div>
+
+<style>
+  .phone-frame {
+    position: relative;
+    width: min(300px, 100%);
+    padding: 5px;
+    border: 2px solid var(--line-strong);
+    border-radius: 44px;
+    background: var(--code-bg);
+    box-shadow: 0 24px 60px var(--shadow);
+    container-type: inline-size;
+  }
+
+  /* The power key and the volume rocker, on the right edge as on a Pixel. */
+  .phone-frame::before,
+  .phone-frame::after {
+    content: '';
+    position: absolute;
+    right: -5px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: var(--line-strong);
+  }
+
+  .phone-frame::before {
+    top: 19%;
+    height: 7%;
+  }
+
+  .phone-frame::after {
+    top: 30%;
+    height: 13%;
+  }
+
+  .screen {
+    --dp: calc(100cqw / 448);
+    aspect-ratio: 448 / 997;
+    border-radius: 38px;
+    background: var(--app-night);
+    color: var(--app-paper);
+    font-family: var(--font-body);
+    font-size: calc(16 * var(--dp));
+    line-height: 1.5;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .status {
+    flex: none;
+    height: calc(44 * var(--dp));
+    padding: 0 calc(28 * var(--dp));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: calc(14 * var(--dp));
+    font-weight: 500;
+    color: var(--app-paper);
+  }
+
+  .camera {
+    width: calc(22 * var(--dp));
+    height: calc(22 * var(--dp));
+    border-radius: 50%;
+    background: var(--code-bg);
+  }
+
+  .status-icons {
+    width: calc(40 * var(--dp));
+    fill: var(--app-paper);
+  }
+
+  .status-icons rect:first-of-type {
+    fill: none;
+    stroke: var(--app-paper);
+    stroke-width: 1.4;
+  }
+
+  .gesture {
+    flex: none;
+    height: calc(20 * var(--dp));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .gesture.raised {
+    background: var(--app-raised);
+  }
+
+  .gesture span {
+    width: calc(108 * var(--dp));
+    height: calc(4 * var(--dp));
+    border-radius: 999px;
+    background: var(--app-soft);
+  }
+</style>

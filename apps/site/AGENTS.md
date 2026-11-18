@@ -24,10 +24,13 @@ The landing page for lelap.app. Astro, static output, no client-side framework.
   (`.night`) keep the night theme. Amber is the only accent: `--accent` for text and icons (darker
   by day), `--accent-fill` for amber surfaces. `test/contrast.test.ts` checks every text pair
   against WCAG AA; add a new token or pair there.
-- **Pictures of the app** are screenshots of the real app with a demo library (a made-up book
-  with audio, shelves of real titles as metadata only, drawn covers), in `src/assets/screens/` and shown by `src/components/AppScreen.astro`. Make them with the
-  `site-screenshots` skill (`.claude/skills/site-screenshots/`), never by hand from a real library.
-  Rerun it after a UI change to the screens they show.
+- **Pictures of the app** are drawn in markup and CSS, not screenshots: `PhoneMockup.astro` (the
+  player) and `CatalogMockup.astro` (Home), in a Pixel-sized phone from `PhoneScreen.astro` where
+  every size is the app's own dp (`--dp`), with the app's icons (`AppIcon.astro`) and colours
+  (`--app-*`). The content is a demo library: a made-up book, shelves of real titles as metadata
+  only, drawn covers. After a UI change to those screens, run the `site-screenshots` skill
+  (`.claude/skills/site-screenshots/`) for reference shots of the real app and bring the drawings
+  in line; the shots never go into the site.
 - **Languages:** the home page exists in English (`/`) and Bahasa Melayu (`/ms/`), both rendered
   by `src/components/Home.astro`. Text goes through `t(lang, 'English text')` from `src/i18n`, with
   the Malay line in `src/i18n/ms.ts`; `test/i18n.test.ts` fails on a missing or unused line. Docs,
