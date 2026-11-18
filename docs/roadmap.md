@@ -81,7 +81,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M68 Sync fixes](milestones/m68.md)                  | Done        |           5 | Quieter scans, the source choice synced, and sturdier snapshots and expiry                               |
 | [M69 Casting 3](milestones/m69.md)                   | Done        |           9 | Outro skipping, smart rewind and measured timings on receivers, Cast device authentication               |
 | [M70 Release upkeep](milestones/m70.md)              | Done        |           6 | Smaller OTA updates, a pinned signing toolchain, F-Droid update checks and other pipeline fixes          |
-| [M71 App polish](milestones/m71.md)                  | Planned     |             | Small fixes on Home, the Library, the Player and Settings, left from earlier reviews                     |
+| [M71 App polish](milestones/m71.md)                  | Done        |          13 | Small fixes on Home, the Library, the Player and Settings, left from earlier reviews                     |
 | [M72 Languages 2](milestones/m72.md)                 | Planned     |             | Native errors, made-up chapter titles, dates and numbers in the profile’s language                       |
 | [M73 Landing page polish](milestones/m73.md)         | Done        |           2 | Theme switch announcements, one shared hidden class, narrow screens and escaped holes                    |
 | [M74 Car and widget 2](milestones/m74.md)            | Planned     |             | Covers from servers in the widget and the car, a list of your cars, a better battery estimate            |
@@ -90,6 +90,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M77 Hide from library](milestones/m77.md)           | Done        |          15 | Hide items from the library and bring them back; suggestions to hide what looks like music               |
 | [M78 Casting 4](milestones/m78.md)                   | Planned     |             | Speaker groups across protocols, and Cast device authentication enforced                                 |
 | [M79 Library by progress](milestones/m79.md)         | Done        |           4 | The Library in three groups, In progress, Not started and Finished, each in its own order                |
+| [M80 App polish 2](milestones/m80.md)                | Planned     |             | The bigger items left from M71: a zoomed scrubber, saved catalog covers, faster web saves                |
 
 <!-- milestones:end -->
 

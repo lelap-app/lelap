@@ -28,7 +28,7 @@ export function ActionSheet({
               a.onPress();
             }}
             accessibilityRole="button"
-            className="flex-row items-center gap-3 rounded-lg px-2 py-3 active:bg-line"
+            className="min-h-12 flex-row items-center gap-3 rounded-lg px-2 py-3 active:bg-line"
           >
             <Icon name={a.icon} size={22} color={a.danger ? COLORS.danger : COLORS.soft} />
             <Text className={a.danger ? 'text-danger' : 'text-paper'}>{a.label}</Text>

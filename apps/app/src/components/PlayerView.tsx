@@ -58,7 +58,17 @@ const SLEEP_MINUTES = [5, 15, 30, 45, 60];
 // ⏮ goes to the start of the chapter, or to the previous one when pressed within this time.
 const RESTART_WINDOW_MS = 3_000;
 
-function Control({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+function Control({
+  icon,
+  label,
+  onPress,
+  value,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  value?: string;
+}) {
   return (
     <Pressable
       onPress={onPress}
@@ -67,7 +77,11 @@ function Control({ icon, label, onPress }: { icon: IconName; label: string; onPr
       accessibilityLabel={label}
       className="h-14 w-14 items-center justify-center rounded-full active:bg-raised"
     >
-      <Icon name={icon} size={icon === 'back30' || icon === 'forward30' ? 34 : 26} />
+      <Icon
+        name={icon}
+        size={icon === 'skipBack' || icon === 'skipForward' ? 34 : 26}
+        {...(value === undefined ? {} : { value })}
+      />
     </Pressable>
   );
 }
@@ -390,7 +404,8 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
 
       <View className={`flex-row items-center justify-between ${landscape ? 'py-1' : 'py-4'}`}>
         <Control
-          icon="back30"
+          icon="skipBack"
+          value={String(skipSeconds)}
           label={t('Back {n} seconds', { n: skipSeconds })}
           onPress={() => void audio.skip(false)}
         />
@@ -420,7 +435,8 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           <View className="w-14" />
         )}
         <Control
-          icon="forward30"
+          icon="skipForward"
+          value={String(skipSeconds)}
           label={t('Forward {n} seconds', { n: skipSeconds })}
           onPress={() => void audio.skip(true)}
         />

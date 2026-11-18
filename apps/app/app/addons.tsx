@@ -43,7 +43,7 @@ import { db } from '../src/db';
 import { useLibrary } from '../src/player';
 import { activeProfile } from '../src/profile';
 import { TextButton } from '../src/components/TextButton';
-import { bundledScrobblers, scrobblersWork } from '../src/scrobblers';
+import { bundledScrobblers, scrobblerForm, scrobblersWork } from '../src/scrobblers';
 import { hostedAddons } from '../src/config';
 
 const openScrobbler = (router: ReturnType<typeof useRouter>, url: string) =>
@@ -94,6 +94,9 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
   const health = useAddonHealth(addon.url);
   const state = healthState(health);
   const newer = protocolVersionOf(addon.manifest) > LATEST_PROTOCOL_VERSION;
+  // Settings sealed on another phone or for other code can't be opened here; events wait for them.
+  const settingsAgain =
+    scrobblersWork && scrobblesWithSettings(addon.manifest) && scrobblerForm(addon.url).again;
   return (
     <View className="gap-1 border-b border-line py-4">
       <View className="flex-row items-center gap-3">
@@ -142,6 +145,13 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
       ))}
       {needsConfiguration(addon.manifest) && (
         <Text className="text-xs text-amber">{t('Needs settings before it can be used.')}</Text>
+      )}
+      {settingsAgain && (
+        <Text className="text-xs text-amber">
+          {t(
+            'Enter its settings again on this device. Until then, what you listen to waits here for up to 30 days.',
+          )}
+        </Text>
       )}
       {newer && (
         <Text className="text-xs text-muted">

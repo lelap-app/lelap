@@ -1,4 +1,5 @@
-import type { LibraryBook } from '@lelap/core';
+import { chapterTitleAt, type LibraryBook } from '@lelap/core';
+import { useMemo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { hint } from '../a11y';
@@ -6,8 +7,16 @@ import { t } from '../i18n';
 import { COLORS, Icon } from './Icon';
 import { formatLeft } from '../format';
 import { BookCover, coverUri } from './BookCover';
+import { db } from '../db';
+import { useLibrary } from '../player';
 
 export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: () => void }) {
+  const { version } = useLibrary();
+  // `version` is the signal to re-read the database: chapters found from silences arrive later.
+  const chapter = useMemo(
+    () => chapterTitleAt(db, book.id, book.bookPositionMs),
+    [book.id, book.bookPositionMs, version],
+  );
   return (
     <Pressable
       onPress={onPress}
@@ -23,6 +32,11 @@ export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: ()
         <Text numberOfLines={2} className="text-base font-semibold text-paper">
           {book.title}
         </Text>
+        {chapter !== null && (
+          <Text numberOfLines={1} className="text-sm text-soft">
+            {chapter}
+          </Text>
+        )}
         {book.durationMs > 0 && (
           <Text className="text-sm text-soft">
             {formatLeft(book.durationMs - book.bookPositionMs)}

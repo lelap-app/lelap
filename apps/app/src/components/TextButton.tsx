@@ -36,6 +36,7 @@ export function TextButton({
   tone = 'amber',
   accessibilityLabel,
   className = '',
+  strong = false,
 }: {
   text: string;
   onPress: () => void;
@@ -43,6 +44,8 @@ export function TextButton({
   tone?: keyof typeof TONE;
   accessibilityLabel?: string;
   className?: string;
+  /** Semibold, for the button that answers yes beside a “Not now”. */
+  strong?: boolean;
 }) {
   const row = useContext(RowLabel);
   return (
@@ -54,7 +57,9 @@ export function TextButton({
       {...hint(row)}
       className={`min-h-12 min-w-12 items-center justify-center ${className}`}
     >
-      <Text className={disabled ? 'text-muted' : TONE[tone]}>{text}</Text>
+      <Text className={`${disabled ? 'text-muted' : TONE[tone]}${strong ? ' font-semibold' : ''}`}>
+        {text}
+      </Text>
     </Pressable>
   );
 }

@@ -18,6 +18,7 @@ import {
 } from '../schema';
 import type { ScannedFile } from './files';
 import { collectOps } from '../sync/ops';
+import { chapterTitleAt, regroupedBook } from './bookFiles';
 import { applyScan, filesNeedingTags, type ListedFile, splitScanned, upsertRoot } from './scan';
 
 let n = 0;
@@ -348,6 +349,32 @@ describe('applyScan', () => {
       location: `${ROOT}/Set/b.m4b`,
       positionMs: 30,
     });
+  });
+
+  it('names the book a regrouped book’s file went to, and nothing while the book stays (M71)', () => {
+    scan(db, [scanned('Set/a.m4b'), scanned('Set/b.m4b')]);
+    const old = bookByLocation(db, `${ROOT}/Set`)?.id ?? '';
+    expect(regroupedBook(db, old, `${ROOT}/Set/b.m4b`)).toBeNull();
+    const chaptered = { chapters: [{ title: 'One', startMs: 0 }], modifiedAt: 2 };
+    scan(db, [scanned('Set/a.m4b', chaptered), scanned('Set/b.m4b', chaptered)], ROOT, 200);
+    const b = bookByLocation(db, `${ROOT}/Set/b.m4b`)?.id;
+    expect(regroupedBook(db, old, `${ROOT}/Set/b.m4b`)).toBe(b);
+    expect(regroupedBook(db, old, `${ROOT}/Set/gone.m4b`)).toBeNull();
+  });
+
+  it('names the chapter at a place, for books with more than one (M71)', () => {
+    scan(db, twoBooks());
+    const novel = bookByLocation(db, `${ROOT}/Novel`)?.id ?? '';
+    const memoir = bookByLocation(db, `${ROOT}/Memoir`)?.id ?? '';
+    const titles = db
+      .select({ title: chapters.title })
+      .from(chapters)
+      .where(eq(chapters.bookId, novel))
+      .all()
+      .map((c) => c.title);
+    expect(chapterTitleAt(db, novel, 0)).toBe(titles[0]);
+    expect(chapterTitleAt(db, novel, 1500)).toBe(titles[1]);
+    expect(chapterTitleAt(db, memoir, 100)).toBeNull();
   });
 
   it('asks again for tags of files whose duration is unknown', () => {

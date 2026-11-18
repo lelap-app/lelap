@@ -45,7 +45,7 @@ export function HandoffBanner() {
         </Text>
       </View>
       <TextButton text={t('Not now')} tone="muted" onPress={dismiss} />
-      <TextButton text={t('Continue')} onPress={() => void accept()} />
+      <TextButton strong text={t('Continue')} onPress={() => void accept()} />
     </View>
   );
 }

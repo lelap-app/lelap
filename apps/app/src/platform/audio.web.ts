@@ -22,6 +22,7 @@ import {
   trimmedStart,
 } from '@lelap/core';
 
+import { OPFS_SCHEME, opfsImageUrl } from '../webCovers';
 import * as opfs from './opfs';
 import * as sound from './webaudio';
 
@@ -686,13 +687,22 @@ function updateMediaSession(now: PlayerState): void {
   const key = `${book.bookId} ${now.partTitle ?? ''}`;
   if (key !== shownMeta) {
     shownMeta = key;
-    const cover = book.coverUri && !book.coverUri.startsWith('file://') ? book.coverUri : null;
-    navigator.mediaSession.metadata = new MediaMetadata({
+    const given = book.coverUri && !book.coverUri.startsWith('file://') ? book.coverUri : null;
+    // A cover kept in OPFS needs a blob URL first; it is added once that is ready.
+    const kept = given?.startsWith(OPFS_SCHEME) ? given.slice(OPFS_SCHEME.length) : null;
+    const cover = kept ? null : given;
+    const metadata = new MediaMetadata({
       title: now.partTitle ?? book.title,
       artist: book.author ?? '',
       album: book.title,
       artwork: cover ? [{ src: cover }] : [],
     });
+    navigator.mediaSession.metadata = metadata;
+    if (kept) {
+      void opfsImageUrl(kept).then((url) => {
+        if (url && navigator.mediaSession.metadata === metadata) metadata.artwork = [{ src: url }];
+      });
+    }
   }
   navigator.mediaSession.playbackState = now.playing ? 'playing' : 'paused';
   // The chapter, as the Player's bar shows it; the file when the book's durations are unknown.

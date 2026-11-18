@@ -5,7 +5,8 @@ import Svg, { Circle, Path, Rect, Text as SvgText } from 'react-native-svg';
 // One icon set for the whole app, drawn on a 24-unit grid in the design sketch's style: 1.8
 // strokes with round caps, filled shapes only for play and pause.
 
-type Draw = (color: string) => ReactNode;
+// `value` is the number some icons carry, such as the skip interval in seconds.
+type Draw = (color: string, value?: string) => ReactNode;
 
 const stroke = (color: string) => ({
   stroke: color,
@@ -15,7 +16,7 @@ const stroke = (color: string) => ({
   fill: 'none',
 });
 
-const skip = (color: string, forward: boolean) => (
+const skip = (color: string, forward: boolean, seconds = '30') => (
   <>
     <Path
       d={forward ? 'M20 12a8 8 0 1 1-2.5-5.8' : 'M4 12a8 8 0 1 0 2.5-5.8'}
@@ -24,7 +25,7 @@ const skip = (color: string, forward: boolean) => (
     />
     <Path d={forward ? 'M20 3v4h-4' : 'M4 3v4h4'} {...stroke(color)} strokeWidth={1.6} />
     <SvgText x={12} y={15} textAnchor="middle" fontSize={7} fontWeight="600" fill={color}>
-      30
+      {seconds}
     </SvgText>
   </>
 );
@@ -37,8 +38,8 @@ const ICONS = {
       <Rect x={14} y={5} width={4} height={14} rx={1} fill={c} />
     </>
   ),
-  back30: (c) => skip(c, false),
-  forward30: (c) => skip(c, true),
+  skipBack: (c, v) => skip(c, false, v),
+  skipForward: (c, v) => skip(c, true, v),
   previous: (c) => (
     <>
       <Path d="M6 5v14" {...stroke(c)} />
@@ -164,6 +165,12 @@ const ICONS = {
     />
   ),
   plus: (c) => <Path d="M12 5v14M5 12h14" {...stroke(c)} />,
+  rescan: (c) => (
+    <>
+      <Path d="M19 12a7 7 0 0 1-12.2 4.7M5 12a7 7 0 0 1 12.2-4.7" {...stroke(c)} />
+      <Path d="M17.5 3.5v4h-4M6.5 20.5v-4h4" {...stroke(c)} />
+    </>
+  ),
   stats: (c) => <Path d="M5 20V11M12 20V5M19 20v-6M3 20h18" {...stroke(c)} />,
   more: (c) => (
     <>
@@ -247,11 +254,13 @@ export function Icon({
   size = 24,
   color = '#f4f1ea',
   label,
+  value,
 }: {
   name: IconName;
   size?: number;
   color?: string;
   label?: string;
+  value?: string;
 }) {
   return (
     <Svg
@@ -264,7 +273,7 @@ export function Icon({
       {...(label === undefined ? {} : { accessibilityLabel: label })}
       {...(label === undefined ? HIDDEN : {})}
     >
-      {ICONS[name](color)}
+      {ICONS[name](color, value)}
     </Svg>
   );
 }

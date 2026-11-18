@@ -63,20 +63,27 @@ const inStyleSheet = (node) => {
   return false;
 };
 
-const hasText = (element) => {
-  let found = false;
+// Text elements inside, not counting text nested in another Text.
+const textCount = (element) => {
+  let count = 0;
   const visit = (node) => {
-    if (found) return;
     if (
       (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
       /^(Text|Trans)$/.test(node.tagName.getText())
-    )
-      found = true;
-    else ts.forEachChild(node, visit);
+    ) {
+      count++;
+      return;
+    }
+    if (ts.isJsxElement(node) && /^(Text|Trans)$/.test(node.openingElement.tagName.getText())) {
+      count++;
+      return;
+    }
+    ts.forEachChild(node, visit);
   };
   ts.forEachChild(element, visit);
-  return found;
+  return count;
 };
+const hasText = (element) => textCount(element) > 0;
 
 for (const file of [...files(join(root, 'app')), ...files(join(root, 'src'))]) {
   const source = readFileSync(file, 'utf8');
@@ -112,11 +119,14 @@ for (const file of [...files(join(root, 'app')), ...files(join(root, 'src'))]) {
         const sized =
           /(?:^|[\s'"`])(min-h|h)-(1[2-9]|[2-9]\d|\[)|\bflex-1\b|\bpy-(3\.5|[4-9])\b/.test(cls) ||
           covers.some((m) => Number(m[1]) >= 48);
+        // 12 points above and below one line of text (20) make 44, short of 48; two lines are enough.
         const thin =
           !a.has('...') &&
           (cls === ''
             ? !a.has('style')
-            : /\bp[y]?-(0|px|0\.5|1|1\.5|2|2\.5)\b/.test(cls) || covers.length > 0);
+            : /\bp[y]?-(0|px|0\.5|1|1\.5|2|2\.5)\b/.test(cls) ||
+              (/\bp[y]?-3(?![.\d])/.test(cls) && textCount(element) < 2) ||
+              covers.length > 0);
         if (thin && !sized) problems.push(`${at}: ${tag} smaller than 48 points; add min-h-12`);
       }
       if (NEEDS_LABEL.has(tag) && !named) problems.push(`${at}: ${tag} without accessibilityLabel`);

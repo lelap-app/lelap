@@ -283,6 +283,8 @@ export default function SettingsScreen() {
     try {
       const result = await scanLibrary();
       if ('error' in result) showAlert(t('Cannot read the folder'), t('Choose the folder again.'));
+    } catch (error) {
+      showAlert(t('Scan failed'), error instanceof Error ? error.message : String(error));
     } finally {
       setScanning(false);
       refresh();
@@ -354,9 +356,16 @@ export default function SettingsScreen() {
               <TextButton
                 text={t('Change')}
                 onPress={() =>
-                  void chooseFolder().then(async (ok) => {
-                    if (ok) await rescan();
-                  })
+                  void chooseFolder().then(
+                    async (ok) => {
+                      if (ok) await rescan();
+                    },
+                    (error: unknown) =>
+                      showAlert(
+                        t('Cannot open the folder'),
+                        error instanceof Error ? error.message : String(error),
+                      ),
+                  )
                 }
               />
             </Row>

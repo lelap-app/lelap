@@ -12,6 +12,7 @@ import {
   listPlaylistsWithCounts,
   listTags,
   localRoot,
+  listRoots,
   markNotMusic,
   musicSuggestions,
   setSetting,
@@ -114,12 +115,17 @@ export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
   const [view, setView] = useState<LibraryView>('progress');
   const [scanning, setScanning] = useState<{ done: number; total: number } | null>(null);
+  // The spinner shows for a pull, or while a scan reads files; a scan that finds nothing new
+  // (each start) stays out of sight.
+  const [pulled, setPulled] = useState(false);
   const [lostFolder, setLostFolder] = useState(false);
   // The Hidden view (M77): only the books this profile hid, to bring back.
   const [showHidden, setShowHidden] = useState(false);
 
   // `version` is the signal to re-read the database.
   const root = useMemo(() => localRoot(db), [version]);
+  // The phone's folder or any server: a rescan reads them all.
+  const hasRoots = useMemo(() => listRoots(db).length > 0, [version]);
   const grouped = view === 'progress' && !showHidden;
   // The Hidden view stays one flat list; in the grouped view each group sorts itself.
   const books = useMemo(
@@ -189,6 +195,7 @@ export default function LibraryScreen() {
       showAlert(t('Scan failed'), error instanceof Error ? error.message : String(error));
     } finally {
       setScanning(null);
+      setPulled(false);
       refresh();
     }
   }, [refresh]);
@@ -200,7 +207,16 @@ export default function LibraryScreen() {
 
   // Re-picking the same folder keeps its URI, so scan here rather than wait for it to change.
   const pick = async () => {
-    if (await chooseFolder()) await rescan();
+    try {
+      if (!(await chooseFolder())) return;
+    } catch (error) {
+      showAlert(
+        t('Cannot open the folder'),
+        error instanceof Error ? error.message : String(error),
+      );
+      return;
+    }
+    await rescan();
   };
 
   const open = useCallback(
@@ -361,12 +377,26 @@ export default function LibraryScreen() {
         <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
           {t('Library')}
         </Text>
-        <IconButton
-          name="settings"
-          label={t('Settings')}
-          color={COLORS.soft}
-          onPress={() => router.push('/settings')}
-        />
+        <View className="flex-row">
+          {hasRoots && (
+            <IconButton
+              name="rescan"
+              label={scanning ? t('Scanning…') : t('Rescan')}
+              color={scanning ? COLORS.muted : COLORS.soft}
+              onPress={() => {
+                if (scanning) return;
+                setPulled(true);
+                void rescan();
+              }}
+            />
+          )}
+          <IconButton
+            name="settings"
+            label={t('Settings')}
+            color={COLORS.soft}
+            onPress={() => router.push('/settings')}
+          />
+        </View>
       </View>
       {network.isConnected === false && (
         <View className="mx-4 flex-row items-center gap-3 rounded-xl bg-[#2b2414] px-4 py-3">
@@ -389,8 +419,11 @@ export default function LibraryScreen() {
         removeClippedSubviews={Platform.OS === 'android'}
         refreshControl={
           <RefreshControl
-            refreshing={scanning !== null}
-            onRefresh={() => void rescan()}
+            refreshing={scanning !== null && (pulled || scanning.total > 0)}
+            onRefresh={() => {
+              setPulled(true);
+              void rescan();
+            }}
             tintColor="#f5b041"
           />
         }

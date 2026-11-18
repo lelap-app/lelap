@@ -2,7 +2,7 @@ import { diagnosticsReport, DIAGNOSTICS_LIMIT, getSettings } from '@lelap/core';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Platform, ScrollView, Text, View } from 'react-native';
+import { Platform, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { addonHealth } from '../src/addons';
@@ -36,6 +36,8 @@ export default function DiagnosticsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const wide = useWide();
+  // At large font sizes the lines wrap, so nothing has to be read by scrolling sideways.
+  const wrap = useWindowDimensions().fontScale >= 1.3;
   const [on, setOn] = useState(isDiagnosticsOn);
   const [report, setReport] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -134,12 +136,12 @@ export default function DiagnosticsScreen() {
             {t('What the file contains')}
           </Text>
           <ScrollView
-            horizontal
+            horizontal={!wrap}
             accessibilityLabel={t('What the file contains')}
             className="rounded-lg border border-line"
             contentContainerStyle={{ padding: 12 }}
           >
-            <Text selectable className="font-mono text-xs text-soft">
+            <Text selectable className={`font-mono text-soft ${wrap ? 'text-sm' : 'text-xs'}`}>
               {report}
             </Text>
           </ScrollView>

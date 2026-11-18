@@ -79,13 +79,20 @@ export function useAvailability(): (meta: MetaPreview) => Availability | undefin
 
 const VIEWABILITY = { itemVisiblePercentThreshold: 30, minimumViewTime: 150 };
 
-/** Props for a FlatList or SectionList that asks for sources of the items that come into view. */
+/**
+ * Props for a FlatList or SectionList that asks for sources of the items that come into view. An
+ * item may be one row of a grid, an array of items.
+ */
 export function useAskWhenVisible() {
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: { item?: unknown }[] }) => {
       const works = viewableItems.flatMap((token) => {
-        const item = token.item as MetaPreview | undefined;
-        return item && typeof item.id === 'string' && badged(item) ? [workOf(item)] : [];
+        const items = (Array.isArray(token.item) ? token.item : [token.item]) as (
+          MetaPreview | undefined
+        )[];
+        return items.flatMap((item) =>
+          item && typeof item.id === 'string' && badged(item) ? [workOf(item)] : [],
+        );
       });
       sourceCache.request(works);
     },
