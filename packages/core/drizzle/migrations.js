@@ -21,6 +21,7 @@ import m0016 from './0016_work_links.sql';
 import m0017 from './0017_chemical_madrox.sql';
 import m0018 from './0018_thin_nocturne.sql';
 import m0019 from './0019_chubby_scourge.sql';
+import m0020 from './0020_premium_phalanx.sql';
 
 export default {
   journal,
@@ -45,5 +46,6 @@ export default {
     m0017,
     m0018,
     m0019,
+    m0020,
   },
 };

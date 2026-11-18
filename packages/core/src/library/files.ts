@@ -1,4 +1,4 @@
-import type { StoredChapter } from '../schema';
+import type { KindTags, StoredChapter } from '../schema';
 
 const AUDIO_EXTENSIONS = new Set(['mp3', 'm4a', 'm4b', 'aac', 'ogg', 'oga', 'opus', 'flac', 'wav']);
 
@@ -23,6 +23,8 @@ export type ScannedFile = {
   chapters: StoredChapter[];
   /** ISBNs and ASINs from the tags (`isbn:…`, `asin:…`); absent when the reader can't tell. */
   ids?: string[] | null;
+  /** Genre, ISRC and the like (M77); absent when the reader can't tell. */
+  kindTags?: KindTags | null;
 };
 
 export function isAudioFile(name: string): boolean {

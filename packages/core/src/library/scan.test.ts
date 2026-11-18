@@ -83,6 +83,29 @@ describe('applyScan', () => {
     expect(db.select({ id: books.id, location: books.location }).from(books).all()).toEqual(before);
   });
 
+  it('reads single files once more for genre and ISRC (M77), not the parts of a book', () => {
+    scan(db, [...twoBooks(), scanned('Song.flac', { durationMs: 1000 })]);
+    const { listed } = splitScanned([...twoBooks(), scanned('Song.flac', { durationMs: 1000 })]);
+    expect(filesNeedingTags(db, listed)).toEqual([]);
+    expect(filesNeedingTags(db, listed, { readsKinds: true }).map((f) => f.relPath)).toEqual([
+      'Memoir/memoir.mp3',
+      'Song.flac',
+    ]);
+    const kindTags = {
+      genre: null,
+      isrc: null,
+      track: null,
+      year: null,
+      narrator: null,
+      mediaKind: null,
+    };
+    scan(db, [
+      ...twoBooks().map((f) => ({ ...f, kindTags })),
+      scanned('Song.flac', { durationMs: 1000, kindTags }),
+    ]);
+    expect(filesNeedingTags(db, listed, { readsKinds: true })).toEqual([]);
+  });
+
   it('asks for tags of new and changed audio files only', () => {
     scan(db, twoBooks());
     const { listed } = splitScanned([

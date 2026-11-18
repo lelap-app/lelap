@@ -13,6 +13,7 @@ import { presentFiles } from './bookFiles';
 import { compareNatural } from './files';
 import { kidFilter } from '../kids';
 import { linkedMetaByKey } from './links';
+import { notHidden, onlyHidden } from './hidden';
 
 export type LibraryBook = {
   id: string;
@@ -35,8 +36,22 @@ export type LibraryBook = {
 
 export type LibrarySort = 'recent' | 'title' | 'author';
 
+/**
+ * Which books a list reads (M77): every list leaves out the books the profile hid, except the
+ * Library's Hidden view and lookups of one book (the player, a book's page).
+ */
+export type HiddenFilter = 'visible' | 'hidden' | 'all';
+
+const hiddenWhere = (profileId: string, show: HiddenFilter): SQL | undefined =>
+  show === 'visible' ? notHidden(profileId) : show === 'hidden' ? onlyHidden(profileId) : undefined;
+
 // Only the columns a list shows: whole rows would parse every book's add-on JSON as well.
-function selectBooks(db: Db, profileId: string, where?: SQL): LibraryBook[] {
+function selectBooks(
+  db: Db,
+  profileId: string,
+  where?: SQL,
+  show: HiddenFilter = 'visible',
+): LibraryBook[] {
   const rows = db
     .select({
       id: books.id,
@@ -61,7 +76,7 @@ function selectBooks(db: Db, profileId: string, where?: SQL): LibraryBook[] {
       and(eq(libraryEntries.bookId, books.id), eq(libraryEntries.profileId, profileId)),
     )
     .leftJoin(downloads, eq(downloads.bookId, books.id))
-    .where(where)
+    .where(and(where, hiddenWhere(profileId, show)))
     .all();
   const linked = linkedMetaByKey(db);
   return rows.map(({ missingSince, downloadState, bookPositionMs, location, ...book }) => {
@@ -90,15 +105,30 @@ const SORTS: Record<LibrarySort, (a: LibraryBook, b: LibraryBook) => number> = {
     compareNatural(a.author ?? '￿', b.author ?? '￿') || compareNatural(a.title, b.title),
 };
 
-/** Every book and episode with this profile's progress, in no particular order. */
-export function listAllBooks(db: Db, profileId: string): LibraryBook[] {
-  return selectBooks(db, profileId);
+/**
+ * Every book and episode with this profile's progress, in no particular order; hidden books only
+ * with `show: 'all'`.
+ */
+export function listAllBooks(
+  db: Db,
+  profileId: string,
+  show: HiddenFilter = 'visible',
+): LibraryBook[] {
+  return selectBooks(db, profileId, undefined, show);
 }
 
-/** Books in the Library; podcast episodes are listed under their podcast instead. */
-export function listBooks(db: Db, profileId: string, sort: LibrarySort): LibraryBook[] {
+/**
+ * Books in the Library; podcast episodes are listed under their podcast instead. `show: 'hidden'`
+ * is the Hidden view.
+ */
+export function listBooks(
+  db: Db,
+  profileId: string,
+  sort: LibrarySort,
+  show: Exclude<HiddenFilter, 'all'> = 'visible',
+): LibraryBook[] {
   const kid = kidFilter<LibraryBook>(db, profileId);
-  const shown = selectBooks(db, profileId, ne(books.source, 'feed'));
+  const shown = selectBooks(db, profileId, ne(books.source, 'feed'), show);
   return (kid === null ? shown : shown.filter(kid)).sort(SORTS[sort]);
 }
 
@@ -116,6 +146,7 @@ export function continueListening(db: Db, profileId: string): LibraryBook | null
         isNotNull(libraryEntries.lastPlayedAt),
         isNull(libraryEntries.finishedAt),
         isNull(books.missingSince),
+        notHidden(profileId),
       ),
     )
     .orderBy(desc(libraryEntries.lastPlayedAt), desc(books.addedAt))
@@ -140,7 +171,8 @@ export type BookDetail = {
 };
 
 export function getBook(db: Db, profileId: string, bookId: string): BookDetail | null {
-  const [book] = selectBooks(db, profileId, eq(books.id, bookId));
+  // A hidden book still opens and plays.
+  const [book] = selectBooks(db, profileId, eq(books.id, bookId), 'all');
   if (!book) return null;
   const entry = db
     .select({ speed: libraryEntries.speed })

@@ -35,6 +35,22 @@ export const SHARED_TABLES = [
 
 export type StoredChapter = { title: string; startMs: number };
 
+/**
+ * Tags that tell a song from a book (M77), for the “looks like music” suggestions. Fields the
+ * reader can't give are null; a file read before M77 has none at all.
+ */
+export type KindTags = {
+  genre: string | null;
+  /** From `TSRC`, an `ISRC` comment or the MP4 `----:com.apple.iTunes:ISRC` item. */
+  isrc: string | null;
+  track: string | null;
+  year: string | null;
+  /** A narrator tag, or a composer, which audiobooks often use for the narrator. */
+  narrator: string | null;
+  /** MP4 `stik` (`audiobook`, `music`, `podcast`, `other`), or what a server says the item is. */
+  mediaKind: string | null;
+};
+
 export const profiles = sqliteTable('profiles', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -219,6 +235,8 @@ export const bookFiles = sqliteTable(
      * Null for files last read before M56.
      */
     ids: text('ids', { mode: 'json' }).$type<string[]>(),
+    /** Genre, ISRC and the like (M77). Null for files last read before M77, or on the web. */
+    kindTags: text('kind_tags', { mode: 'json' }).$type<KindTags>(),
     missingSince: integer('missing_since'),
     /** Absolute path of a streamed part's downloaded copy. */
     downloadPath: text('download_path'),
@@ -510,6 +528,25 @@ export const bookTags = sqliteTable(
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [primaryKey({ columns: [t.profileId, t.bookId] })],
+);
+
+/**
+ * Books a listener hid from the library, or said are not music (M77). Keyed on the book's synced
+ * name (its location), not its row ID, so it outlives a rescan and syncs like tags.
+ */
+export const hiddenBooks = sqliteTable(
+  'hidden_books',
+  {
+    profileId: text('profile_id')
+      .notNull()
+      .references(() => profiles.id),
+    bookKey: text('book_key').notNull(),
+    hidden: integer('hidden', { mode: 'boolean' }).notNull().default(false),
+    /** The listener said it isn't music, or brought it back: never suggested for hiding again. */
+    notMusic: integer('not_music', { mode: 'boolean' }).notNull().default(false),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.bookKey] })],
 );
 
 /** What a smart list shows; every set field must match. */

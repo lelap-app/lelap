@@ -1,14 +1,20 @@
 import {
   continueListening,
   createPlaylist,
+  hiddenCount,
+  hideBooks,
   type LibraryBook,
   type LibrarySort,
   listBooks,
   listPlaylistsWithCounts,
   listTags,
   localRoot,
+  markNotMusic,
+  musicSuggestions,
+  showInLibrary,
   SMART_PRESETS,
   type SmartRule,
+  unhideBooks,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useNetworkState } from 'expo-network';
@@ -29,7 +35,9 @@ import { openPlayer } from '../../src/navigation';
 import { showAlert } from '../../src/dialog';
 import { COLORS, Icon, IconButton } from '../../src/components/Icon';
 import { BookActions } from '../../src/components/BookActions';
-import { BookRow } from '../../src/components/BookRow';
+import { BookRow, type RowSwipe } from '../../src/components/BookRow';
+import { MusicCard, MusicReview } from '../../src/components/MusicSuggestions';
+import { type UndoNotice, UndoBar } from '../../src/components/UndoBar';
 import { ContinueCard } from '../../src/components/ContinueCard';
 import { EmptyState, Lori } from '../../src/components/Lori';
 import { Sheet } from '../../src/components/Sheet';
@@ -57,10 +65,22 @@ export default function LibraryScreen() {
   const [sort, setSort] = useState<LibrarySort>('recent');
   const [scanning, setScanning] = useState<{ done: number; total: number } | null>(null);
   const [lostFolder, setLostFolder] = useState(false);
+  // The Hidden view (M77): only the books this profile hid, to bring back.
+  const [showHidden, setShowHidden] = useState(false);
 
   // `version` is the signal to re-read the database.
   const root = useMemo(() => localRoot(db), [version]);
-  const books = useMemo(() => listBooks(db, profileId, sort), [sort, version]);
+  const books = useMemo(
+    () => listBooks(db, profileId, sort, showHidden ? 'hidden' : 'visible'),
+    [sort, version, showHidden],
+  );
+  const hiddenTotal = useMemo(() => hiddenCount(db, profileId), [version]);
+  const musicIds = useMemo(
+    () => new Set(showHidden ? [] : musicSuggestions(db, profileId)),
+    [version, showHidden],
+  );
+  // Only what this profile sees in its Library (a kids profile sees its shelf).
+  const music = useMemo(() => books.filter((b) => musicIds.has(b.id)), [books, musicIds]);
   const next = useMemo(() => continueListening(db, profileId), [version]);
   const lists = useMemo(() => listPlaylistsWithCounts(db, profileId), [version]);
   const tags = useMemo(() => listTags(db, profileId), [version]);
@@ -119,6 +139,79 @@ export default function LibraryScreen() {
   const [actionBook, setActionBook] = useState<LibraryBook | null>(null);
   const showActions = useCallback((book: LibraryBook) => setActionBook(book), []);
 
+  const [notice, setNotice] = useState<UndoNotice | null>(null);
+  const clearNotice = useCallback(() => setNotice(null), []);
+  const [reviewing, setReviewing] = useState<LibraryBook[] | null>(null);
+  // Hiding never stops playback: a hidden book that plays now goes on playing.
+  const hidden = useCallback(
+    (list: LibraryBook[]) => {
+      const ids = list.map((b) => b.id);
+      setNotice({
+        text:
+          list.length === 1
+            ? t('Hidden: {title}', { title: list[0]?.title ?? '' })
+            : t('{n} items hidden.', { n: list.length }),
+        undo: () => {
+          unhideBooks(db, profileId, ids, Date.now());
+          refresh();
+        },
+      });
+    },
+    [refresh],
+  );
+  const hide = useCallback(
+    (book: LibraryBook) => {
+      hideBooks(db, profileId, [book.id], Date.now());
+      hidden([book]);
+      refresh();
+    },
+    [hidden, refresh],
+  );
+  const restore = useCallback(
+    (book: LibraryBook) => {
+      showInLibrary(db, profileId, [book.id], Date.now());
+      setNotice({ text: t('Back in the library: {title}', { title: book.title }) });
+      refresh();
+    },
+    [refresh],
+  );
+  const hideSwipe = useMemo<RowSwipe>(
+    () => ({ label: t('Hide'), icon: 'hide', onSwipe: hide }),
+    [hide],
+  );
+  const showSwipe = useMemo<RowSwipe>(
+    () => ({ label: t('Show in library'), icon: 'show', onSwipe: restore }),
+    [restore],
+  );
+  const hideReviewed = (hide: LibraryBook[], keep: LibraryBook[]) => {
+    setReviewing(null);
+    const now = Date.now();
+    hideBooks(
+      db,
+      profileId,
+      hide.map((b) => b.id),
+      now,
+    );
+    // What the listener left unticked is not music to them; it isn't suggested again.
+    markNotMusic(
+      db,
+      profileId,
+      keep.map((b) => b.id),
+      now,
+    );
+    if (hide.length > 0) hidden(hide);
+    refresh();
+  };
+  const dismissMusic = () => {
+    markNotMusic(
+      db,
+      profileId,
+      music.map((b) => b.id),
+      Date.now(),
+    );
+    refresh();
+  };
+
   // Stable, so a refresh redraws only the rows whose book changed (BookRow is memoised).
   const offline = network.isConnected === false;
   const renderBook = useCallback(
@@ -127,13 +220,14 @@ export default function LibraryScreen() {
         book={item}
         onOpen={openRow}
         onLongPress={showActions}
+        swipe={showHidden ? showSwipe : hideSwipe}
         unavailable={offline && item.source !== 'local' && !item.downloaded}
       />
     ),
-    [openRow, showActions, offline],
+    [openRow, showActions, offline, showHidden, showSwipe, hideSwipe],
   );
 
-  if (!root && books.length === 0) {
+  if (!root && books.length === 0 && hiddenTotal === 0 && !showHidden) {
     return (
       <View
         style={{ paddingTop: insets.top }}
@@ -242,49 +336,58 @@ export default function LibraryScreen() {
                 {t('Scanning… {done} of {total}', { done: scanning.done, total: scanning.total })}
               </Text>
             )}
-            {next && <ContinueCard book={next} onPress={() => void open(next)} />}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, paddingHorizontal: 16 }}
-            >
-              {lists.map(({ list, count }) => (
-                <Pressable
-                  key={list.id}
-                  onPress={() => router.push({ pathname: '/list', params: { id: list.id } })}
-                  accessibilityRole="button"
-                  className="min-h-12 w-40 flex-row items-center gap-2.5 rounded-xl bg-raised p-2.5 active:opacity-80"
-                >
-                  <View
-                    className={`h-10 w-10 items-center justify-center rounded-lg ${list.rule ? 'bg-[#2d3a63]' : 'bg-amber'}`}
-                  >
-                    <Icon
-                      name={list.rule ? 'moon' : 'chapters'}
-                      size={20}
-                      color={list.rule ? '#dce3f5' : COLORS.ink}
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text numberOfLines={1} className="text-sm font-semibold text-paper">
-                      {list.name}
-                    </Text>
-                    <Text className="text-xs text-muted">
-                      {count} · {list.rule ? t('smart list') : t('list')}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
-              <Pressable
-                onPress={() => setChoosingList(true)}
-                accessibilityRole="button"
-                accessibilityLabel={t('New list')}
-                className="min-h-12 w-28 flex-row items-center justify-center gap-1 rounded-xl border border-dashed border-line p-2.5 active:bg-raised"
+            {!showHidden && music.length > 0 && (
+              <MusicCard
+                count={music.length}
+                onReview={() => setReviewing(music)}
+                onDismiss={dismissMusic}
+              />
+            )}
+            {!showHidden && next && <ContinueCard book={next} onPress={() => void open(next)} />}
+            {!showHidden && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 10, paddingHorizontal: 16 }}
               >
-                <Icon name="plus" size={16} color={COLORS.muted} />
-                <Text className="text-sm text-muted">{t('List')}</Text>
-              </Pressable>
-            </ScrollView>
-            {tags.length > 0 && (
+                {lists.map(({ list, count }) => (
+                  <Pressable
+                    key={list.id}
+                    onPress={() => router.push({ pathname: '/list', params: { id: list.id } })}
+                    accessibilityRole="button"
+                    className="min-h-12 w-40 flex-row items-center gap-2.5 rounded-xl bg-raised p-2.5 active:opacity-80"
+                  >
+                    <View
+                      className={`h-10 w-10 items-center justify-center rounded-lg ${list.rule ? 'bg-[#2d3a63]' : 'bg-amber'}`}
+                    >
+                      <Icon
+                        name={list.rule ? 'moon' : 'chapters'}
+                        size={20}
+                        color={list.rule ? '#dce3f5' : COLORS.ink}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text numberOfLines={1} className="text-sm font-semibold text-paper">
+                        {list.name}
+                      </Text>
+                      <Text className="text-xs text-muted">
+                        {count} · {list.rule ? t('smart list') : t('list')}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+                <Pressable
+                  onPress={() => setChoosingList(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('New list')}
+                  className="min-h-12 w-28 flex-row items-center justify-center gap-1 rounded-xl border border-dashed border-line p-2.5 active:bg-raised"
+                >
+                  <Icon name="plus" size={16} color={COLORS.muted} />
+                  <Text className="text-sm text-muted">{t('List')}</Text>
+                </Pressable>
+              </ScrollView>
+            )}
+            {!showHidden && tags.length > 0 && (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -304,7 +407,7 @@ export default function LibraryScreen() {
                 ))}
               </ScrollView>
             )}
-            <View className="flex-row gap-2 px-4">
+            <View className="flex-row flex-wrap gap-2 px-4">
               {sorts().map((s) => (
                 <Pill
                   key={s.key}
@@ -316,11 +419,29 @@ export default function LibraryScreen() {
                   <Text className={sort === s.key ? 'text-ink' : 'text-soft'}>{s.label}</Text>
                 </Pill>
               ))}
+              {(hiddenTotal > 0 || showHidden) && (
+                <Pill
+                  onPress={() => setShowHidden(!showHidden)}
+                  accessibilityState={{ selected: showHidden }}
+                  aria-selected={showHidden}
+                  className={`flex-row items-center gap-1 rounded-full border px-3 py-1 ${showHidden ? 'border-amber bg-amber' : 'border-line'}`}
+                >
+                  <Icon name="hide" size={16} color={showHidden ? COLORS.ink : COLORS.soft} />
+                  <Text className={showHidden ? 'text-ink' : 'text-soft'}>
+                    {t('Hidden ({n})', { n: hiddenTotal })}
+                  </Text>
+                </Pill>
+              )}
             </View>
           </View>
         }
         ListEmptyComponent={
-          scanning === null ? (
+          showHidden ? (
+            <EmptyState
+              title={t('Nothing hidden')}
+              hint={t('Swipe a book to the left, or press and hold it, to hide it here.')}
+            />
+          ) : scanning === null ? (
             <EmptyState
               title={
                 root ? t('No audio files in {name}.', { name: root.name }) : t('Nothing here yet.')
@@ -359,7 +480,14 @@ export default function LibraryScreen() {
           ))}
         </ScrollView>
       </Sheet>
-      <BookActions book={actionBook} onClose={() => setActionBook(null)} onChanged={refresh} />
+      <BookActions
+        book={actionBook}
+        onClose={() => setActionBook(null)}
+        onChanged={refresh}
+        onHidden={(book) => hidden([book])}
+      />
+      <MusicReview books={reviewing} onClose={() => setReviewing(null)} onHide={hideReviewed} />
+      <UndoBar notice={notice} onDone={clearNotice} />
     </View>
   );
 }

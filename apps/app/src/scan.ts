@@ -184,8 +184,10 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
       continue;
     }
 
-    // Android's reader gives ISBN and ASIN tags; the browser's reads only the duration.
-    const need = filesNeedingTags(db, listed, { readsIds: Platform.OS !== 'web' }).filter(
+    // Android's reader gives ISBN and ASIN tags, genre and ISRC; the browser's reads only the
+    // duration.
+    const native = Platform.OS !== 'web';
+    const need = filesNeedingTags(db, listed, { readsIds: native, readsKinds: native }).filter(
       (f) => !fromAddon?.tags.has(f.location),
     );
     const tags = new Map<string, FileTags>(fromAddon?.tags ?? []);

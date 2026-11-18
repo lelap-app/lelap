@@ -5,6 +5,8 @@ import {
   bookLinks,
   createPlaylist,
   getTags,
+  hideBooks,
+  isHidden,
   type LibraryBook,
   listPlaylists,
   listProfiles,
@@ -16,6 +18,7 @@ import {
   setFinished,
   setTags,
   shelfBookIds,
+  showInLibrary,
   unlinkBook,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
@@ -57,19 +60,22 @@ function Row({
 }
 
 /**
- * What can be done with a book from a list: finished, Up Next, download, tags, lists, removal.
- * `listId` adds “Remove from this list” for a hand-made list.
+ * What can be done with a book from a list: finished, Up Next, download, tags, lists, hiding,
+ * removal. `listId` adds “Remove from this list” for a hand-made list. `onHidden` hears of a
+ * book just hidden, so the screen can offer Undo.
  */
 export function BookActions({
   book,
   listId,
   onClose,
   onChanged,
+  onHidden,
 }: {
   book: LibraryBook | null;
   listId?: string;
   onClose: () => void;
   onChanged: () => void;
+  onHidden?: (book: LibraryBook) => void;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('menu');
@@ -101,6 +107,7 @@ export function BookActions({
     [book],
   );
   const linked = useMemo(() => (book ? bookLinks(db, book.id).length > 0 : false), [book]);
+  const hidden = useMemo(() => (book ? isHidden(db, profileId, book.id) : false), [book]);
 
   if (!book) return null;
   const done = () => {
@@ -168,6 +175,27 @@ export function BookActions({
               }}
             />
           )}
+          {book.source !== 'feed' &&
+            (hidden ? (
+              <Row
+                icon="show"
+                label={t('Show in library')}
+                onPress={() => {
+                  showInLibrary(db, profileId, [book.id], now());
+                  done();
+                }}
+              />
+            ) : (
+              <Row
+                icon="hide"
+                label={t('Hide')}
+                onPress={() => {
+                  hideBooks(db, profileId, [book.id], now());
+                  onHidden?.(book);
+                  done();
+                }}
+              />
+            ))}
           {book.source === 'local' && (
             <Row
               icon="search"

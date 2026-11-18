@@ -159,6 +159,8 @@ export const JellyfinItem = z.object({
   Chapters: z.array(z.object({ Name: s, StartPositionTicks: n })).nullish(),
   MediaSources: z.array(z.object({ Size: n, Container: s })).nullish(),
   ProviderIds: z.record(z.string(), z.string().nullish()).nullish(),
+  Genres: z.array(z.string()).nullish(),
+  ProductionYear: n,
   UserData: z
     .object({ PlaybackPositionTicks: n, Played: z.boolean().nullish(), LastPlayedDate: s })
     .nullish(),
@@ -167,7 +169,8 @@ export type JellyfinItem = z.infer<typeof JellyfinItem>;
 
 const ItemPage = z.object({ Items: z.array(JellyfinItem), TotalRecordCount: n });
 
-const ITEM_FIELDS = 'Path,Chapters,People,MediaSources,DateCreated,ParentId,ProviderIds';
+const ITEM_FIELDS =
+  'Path,Chapters,People,MediaSources,DateCreated,ParentId,ProviderIds,Genres,ProductionYear';
 
 /** Every audio item in the picked libraries, with chapters, people and the user's place. */
 export async function listJellyfinItems(
@@ -305,7 +308,7 @@ export function jellyfinScan(
       modifiedAt: Number.isFinite(created) ? created : 0,
       uri: `${base}/Audio/${encodeURIComponent(item.Id)}/stream?static=true`,
     });
-    const { authors } = jellyfinPeople(item);
+    const { authors, narrators } = jellyfinPeople(item);
     const chapters: StoredChapter[] = (item.Chapters ?? []).map((c, i) => ({
       title: c.Name?.trim() || `Chapter ${i + 1}`,
       startMs: msOf(c.StartPositionTicks),
@@ -320,6 +323,15 @@ export function jellyfinScan(
       coverPath: null,
       chapters,
       ids: providerIds(item.ProviderIds),
+      // For the “looks like music” suggestions (M77); an AudioBook item is never suggested.
+      kindTags: {
+        genre: item.Genres?.join(', ') || null,
+        isrc: null,
+        track: item.IndexNumber != null ? String(item.IndexNumber) : null,
+        year: item.ProductionYear != null ? String(item.ProductionYear) : null,
+        narrator: narrators.join(', ') || null,
+        mediaKind: item.Type === 'AudioBook' ? 'audiobook' : null,
+      },
     });
     const cover = item.ImageTags?.Primary
       ? item.Id

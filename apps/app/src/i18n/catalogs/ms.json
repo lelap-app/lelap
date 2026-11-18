@@ -779,5 +779,20 @@
   "Set up {name}": "Sediakan {name}",
   "Settings for {name}": "Tetapan untuk {name}",
   "This works in the Android app only: it signs in with a cookie, which a browser keeps from the page.": "Ini hanya berfungsi dalam aplikasi Android: ia log masuk dengan kuki, yang disembunyikan oleh pelayar daripada halaman.",
-  "This phone’s key store isn’t working, so Lelap can’t keep the keys safe and didn’t save them. Restart the phone and try again.": "Stor kunci telefon ini tidak berfungsi, jadi Lelap tidak dapat menyimpan kunci dengan selamat dan tidak menyimpannya. Mulakan semula telefon dan cuba lagi."
+  "This phone’s key store isn’t working, so Lelap can’t keep the keys safe and didn’t save them. Restart the phone and try again.": "Stor kunci telefon ini tidak berfungsi, jadi Lelap tidak dapat menyimpan kunci dengan selamat dan tidak menyimpannya. Mulakan semula telefon dan cuba lagi.",
+  "1 item looks like music.": "1 item kelihatan seperti muzik.",
+  "{n} items look like music.": "{n} item kelihatan seperti muzik.",
+  "Back in the library: {title}": "Kembali dalam pustaka: {title}",
+  "Hidden ({n})": "Tersembunyi ({n})",
+  "Hidden: {title}": "Disembunyikan: {title}",
+  "{n} items hidden.": "{n} item disembunyikan.",
+  "Hide selected": "Sembunyikan yang dipilih",
+  "Looks like music": "Kelihatan seperti muzik",
+  "Not music": "Bukan muzik",
+  "Nothing hidden": "Tiada yang disembunyikan",
+  "Nothing is deleted. Find hidden items under Hidden in the Library.": "Tiada apa yang dipadam. Cari item tersembunyi di bawah Tersembunyi dalam Pustaka.",
+  "Review": "Semak",
+  "Show in library": "Tunjukkan dalam pustaka",
+  "Swipe a book to the left, or press and hold it, to hide it here.": "Leret buku ke kiri, atau tekan lama padanya, untuk menyembunyikannya di sini.",
+  "Undo": "Buat asal"
 }

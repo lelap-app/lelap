@@ -87,6 +87,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M74 Car and widget 2](milestones/m74.md)            | Planned     |             | Covers from servers in the widget and the car, a list of your cars, a better battery estimate           |
 | [M75 Podcasts 3](milestones/m75.md)                  | Planned     |             | More Podcasting 2.0 tags, Atom content and logging from the background refresh                          |
 | [M76 Hardcover catalogs](milestones/m76.md)          | Done        |           8 | Trending books, featured lists and your own Hardcover lists as catalogs, on your own token              |
+| [M77 Hide from library](milestones/m77.md)           | In progress |          15 | Hide items from the library and bring them back; suggestions to hide what looks like music              |
 
 <!-- milestones:end -->
 

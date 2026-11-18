@@ -10,6 +10,7 @@ import {
 import type { Db } from './db';
 import { sameAuthor, titleKey } from './importers/match';
 import { kidFilter } from './kids';
+import { notHidden } from './library/hidden';
 import { books, downloads, libraryEntries, listeningLog, progress } from './schema';
 
 // “Because you finished …” rows on Home (M46). Everything here runs on the device: the catalogs
@@ -247,6 +248,8 @@ export function recommendationSeeds(db: Db, profileId: string): Seed[] {
         eq(libraryEntries.profileId, profileId),
         isNotNull(libraryEntries.finishedAt),
         ne(books.source, 'feed'),
+        // A hidden book (a song in the audiobooks folder) is no reason to suggest anything.
+        notHidden(profileId),
       ),
     )
     .orderBy(desc(libraryEntries.finishedAt))

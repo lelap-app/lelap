@@ -20,7 +20,10 @@ export type Backup = {
   changes: Op[];
 };
 
-/** Everything on this device: profiles, places, bookmarks, lists, tags, subscriptions, add-ons. */
+/**
+ * Everything on this device: profiles, places, bookmarks, lists, tags, hidden books,
+ * subscriptions, add-ons.
+ */
 export function exportLibrary(db: Db, now: number): Backup {
   return {
     format: BACKUP_FORMAT,

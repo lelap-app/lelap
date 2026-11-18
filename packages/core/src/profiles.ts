@@ -15,6 +15,7 @@ import {
   tombstones,
   upNext,
   bookTags,
+  hiddenBooks,
   playlists,
   listeningLog,
   scrobbleOutbox,
@@ -106,6 +107,7 @@ export function deleteProfile(db: Db, id: string, now: number): boolean {
     tx.delete(subscriptions).where(eq(subscriptions.profileId, id)).run();
     tx.delete(upNext).where(eq(upNext.profileId, id)).run();
     tx.delete(bookTags).where(eq(bookTags.profileId, id)).run();
+    tx.delete(hiddenBooks).where(eq(hiddenBooks.profileId, id)).run();
     tx.delete(playlists).where(eq(playlists.profileId, id)).run();
     tx.delete(listeningLog).where(eq(listeningLog.profileId, id)).run();
     tx.delete(scrobbleOutbox).where(eq(scrobbleOutbox.profileId, id)).run();

@@ -26,7 +26,15 @@ import { groupIntoBooks, withoutDownloads } from './group';
 import { toBookPosition } from './timeline';
 
 type TagKey =
-  'durationMs' | 'title' | 'album' | 'artist' | 'albumArtist' | 'coverPath' | 'chapters' | 'ids';
+  | 'durationMs'
+  | 'title'
+  | 'album'
+  | 'artist'
+  | 'albumArtist'
+  | 'coverPath'
+  | 'chapters'
+  | 'ids'
+  | 'kindTags';
 
 /** A file as listed from the folder, before its tags are read. */
 export type ListedFile = Omit<ScannedFile, TagKey>;
@@ -58,6 +66,7 @@ export function splitScanned(files: ScannedFile[]): {
     coverPath,
     chapters: c,
     ids,
+    kindTags,
     ...rest
   } of files) {
     listed.push(rest);
@@ -70,6 +79,7 @@ export function splitScanned(files: ScannedFile[]): {
       coverPath,
       chapters: c,
       ...(ids !== undefined ? { ids } : {}),
+      ...(kindTags !== undefined ? { kindTags } : {}),
     });
   }
   return { listed, tags };
@@ -108,12 +118,13 @@ export function upsertRoot(
 /**
  * Audio files that are new or changed since they were last read, so their tags need reading.
  * `readsIds`: the reader gives ISBN and ASIN tags, so files read before it did (M56) are read once
- * more.
+ * more. `readsKinds`: the reader gives genre and ISRC (M77), so single-file books read before it
+ * did are read once more; only they can look like music.
  */
 export function filesNeedingTags(
   db: Db,
   listed: ListedFile[],
-  { readsIds = false }: { readsIds?: boolean } = {},
+  { readsIds = false, readsKinds = false }: { readsIds?: boolean; readsKinds?: boolean } = {},
 ): ListedFile[] {
   const audio = withoutDownloads(listed).filter((f) => isAudioFile(f.name));
   if (audio.length === 0) return [];
@@ -125,11 +136,19 @@ export function filesNeedingTags(
         modifiedAt: bookFiles.modifiedAt,
         durationMs: bookFiles.durationMs,
         ids: bookFiles.ids,
+        kindTags: bookFiles.kindTags,
+        bookId: bookFiles.bookId,
       })
       .from(bookFiles)
       .all()
       .map((f) => [f.location, f]),
   );
+  const partsOf = new Map<string, number>();
+  if (readsKinds) {
+    for (const f of stored.values()) {
+      if (f.bookId !== null) partsOf.set(f.bookId, (partsOf.get(f.bookId) ?? 0) + 1);
+    }
+  }
   return audio.filter((f) => {
     const s = stored.get(f.location);
     // Duration 0 means the last read failed or found nothing; try again.
@@ -138,7 +157,8 @@ export function filesNeedingTags(
       s.size !== f.size ||
       s.modifiedAt !== f.modifiedAt ||
       s.durationMs === 0 ||
-      (readsIds && s.ids === null)
+      (readsIds && s.ids === null) ||
+      (readsKinds && s.kindTags === null && s.bookId !== null && partsOf.get(s.bookId) === 1)
     );
   });
 }
@@ -199,6 +219,7 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
               coverPath: stored.coverPath,
               chapters: stored.chaptersJson,
               ids: stored.ids,
+              kindTags: stored.kindTags,
             }
           : NO_TAGS);
       scanned.push({ ...file, ...fileTags });
@@ -218,6 +239,7 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
         coverPath: fileTags.coverPath,
         chaptersJson: fileTags.chapters,
         ids: fileTags.ids == null ? null : normalizeIds(fileTags.ids),
+        kindTags: fileTags.kindTags ?? null,
         missingSince: null,
         updatedAt: now,
       };
@@ -427,6 +449,7 @@ function sameFile(
     stored.albumArtist === row.albumArtist &&
     stored.coverPath === row.coverPath &&
     JSON.stringify(stored.ids) === JSON.stringify(row.ids) &&
+    JSON.stringify(stored.kindTags) === JSON.stringify(row.kindTags) &&
     sameChapters(stored.chaptersJson, row.chaptersJson)
   );
 }

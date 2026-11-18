@@ -71,6 +71,7 @@ class LibraryModule : Module() {
           "coverPath" to tags.coverPath,
           "chapters" to tags.chapters.map { mapOf("title" to it.title, "startMs" to it.startMs.toDouble()) },
           "idTags" to tags.idTags,
+          "kindTags" to tags.kind.toMap(),
         )
       }
     }
@@ -87,6 +88,7 @@ class LibraryModule : Module() {
           "coverPath" to tags.coverPath,
           "chapters" to tags.chapters.map { mapOf("title" to it.title, "startMs" to it.startMs.toDouble()) },
           "idTags" to tags.idTags,
+          "kindTags" to tags.kind.toMap(),
         )
       }
     }
