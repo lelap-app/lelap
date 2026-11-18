@@ -91,8 +91,15 @@ class SmbSession private constructor(
   companion object {
     private const val TIMEOUT_S = 30L
 
+    /** Guests and anonymous sessions have no key to sign with; everyone else must sign. */
+    fun signs(login: NetLogin): Boolean =
+      login.user.isNotEmpty() && !(login.user.equals("guest", ignoreCase = true) && login.password.isNullOrEmpty())
+
     fun connect(address: NetAddress, login: NetLogin): SmbSession {
       val config = SmbConfig.builder()
+        // Signed messages, even when the server doesn't ask: someone in the middle on the LAN
+        // can't change listings or files of a logged-in session.
+        .withSigningRequired(signs(login))
         // Each request, not a whole listing, has this long; like WebDAV's 30 s.
         .withTimeout(TIMEOUT_S, TimeUnit.SECONDS)
         .withSoTimeout(TIMEOUT_S, TimeUnit.SECONDS)
@@ -106,7 +113,7 @@ class SmbSession private constructor(
         connection = guard { client.connect(address.host, address.port) }
         val auth = when {
           login.user.isEmpty() -> AuthenticationContext.anonymous()
-          login.user.equals("guest", ignoreCase = true) && login.password.isNullOrEmpty() -> AuthenticationContext.guest()
+          !signs(login) -> AuthenticationContext.guest()
           else -> AuthenticationContext(login.user, login.password.orEmpty().toCharArray(), login.domain)
         }
         session = guard { connection.authenticate(auth) }

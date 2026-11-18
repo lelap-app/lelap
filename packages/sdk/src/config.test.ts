@@ -43,6 +43,19 @@ describe('config tokens', () => {
     expect(await decodeConfig(token, 'add-on secret')).toEqual({ token: PLAIN });
   });
 
+  it('binds a token to the add-on that sealed it, and still reads e1 tokens', async () => {
+    const token = await encodeConfig({ a: 'b' }, 'shared', 'org.example.one');
+    expect(token.startsWith('e2.')).toBe(true);
+    expect(isConfigToken(token)).toBe(true);
+    expect(await decodeConfig(token, 'shared', 'org.example.one')).toEqual({ a: 'b' });
+    // Another add-on with the same secret can't open it, nor can a reader that names no add-on.
+    expect(await decodeConfig(token, 'shared', 'org.example.two')).toBeNull();
+    expect(await decodeConfig(token, 'shared')).toBeNull();
+    // A token sealed before IDs keeps working.
+    const old = await encodeConfig({ a: 'b' }, 'shared');
+    expect(await decodeConfig(old, 'shared', 'org.example.one')).toEqual({ a: 'b' });
+  });
+
   it('uses a fresh IV each time', async () => {
     const a = await encodeConfig({ a: 'b' }, 's');
     const b = await encodeConfig({ a: 'b' }, 's');

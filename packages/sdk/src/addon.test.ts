@@ -322,7 +322,7 @@ describe('createAddon with configure', () => {
     expect(location.startsWith('lelap://addon?manifest=')).toBe(true);
     const manifestUrl = decodeURIComponent(location.split('manifest=')[1] ?? '');
     expect(manifestUrl).toMatch(
-      /^https:\/\/addon\.example\/sub\/e1\.[A-Za-z0-9_-]+\/manifest\.json$/,
+      /^https:\/\/addon\.example\/sub\/e2\.[A-Za-z0-9_-]+\/manifest\.json$/,
     );
     expect(manifestUrl).not.toContain(PASSWORD);
 
@@ -339,7 +339,7 @@ describe('createAddon with configure', () => {
     expect(first.status).toBe(200);
     const text = await first.text();
     const manifestUrl =
-      /(https:\/\/addon\.example\/sub\/e1\.[A-Za-z0-9_-]+\/manifest\.json)/.exec(text)?.[1] ?? '';
+      /(https:\/\/addon\.example\/sub\/e2\.[A-Za-z0-9_-]+\/manifest\.json)/.exec(text)?.[1] ?? '';
     expect(manifestUrl).not.toBe('');
     const token = manifestUrl.split('/')[4] ?? '';
     const form = await (

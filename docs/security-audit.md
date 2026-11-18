@@ -371,18 +371,18 @@ as round 1. Open checks are in [M96](milestones/m96.md#open-checks); what is pla
 | 28  | Low      | Self-hosting    | No limit on wrong admin tokens from one address                             | Fixed    |
 | 29  | Low      | Self-hosting    | Service ports on every address, even behind the bundled Caddy               | Fixed    |
 | 30  | Low      | Self-hosting    | A restore took a backup from a newer schema than the image knows            | Fixed    |
-| 31  | Low      | In-app add-ons  | A declared host can point at the home network; `Host` was passed through    | Partly   |
+| 31  | Low      | In-app add-ons  | A declared host can point at the home network; `Host` was passed through    | Fixed    |
 | 32  | Low      | In-app add-ons  | A web add-on that claims `sandbox` was shown as having no network           | Fixed    |
 | 33  | Low      | In-app add-ons  | Sandbox fetches read the whole answer before the size check                 | Fixed    |
-| 34  | Low      | Add-on SDK      | SDK-sealed settings are not bound to the add-on that sealed them            | Planned  |
+| 34  | Low      | Add-on SDK      | SDK-sealed settings are not bound to the add-on that sealed them            | Fixed    |
 | 35  | Low      | Share links     | A matched work's ID went into links without the add-on ID check             | Fixed    |
 | 36  | Low      | Add-on links    | `lelap://addon` fetches the manifest before asking                          | Decision |
 | 37  | Low      | Casting         | Media server and UPnP reader: no header limit; no deadline for the server   | Fixed    |
 | 38  | Low      | Casting         | The DTD refusal in the UPnP parser may do nothing on Android                | Fixed    |
-| 39  | Low      | Casting         | Discovery fetches the `LOCATION` of any answer, from any host               | Planned  |
-| 40  | Low      | Casting         | The media server listens on whatever network is active                      | Planned  |
-| 41  | Low      | SMB             | Signing is not required for logged-in sessions                              | Planned  |
-| 42  | Low      | Sync            | Synced part addresses are stored without a scheme check                     | Planned  |
+| 39  | Low      | Casting         | Discovery fetches the `LOCATION` of any answer, from any host               | Fixed    |
+| 40  | Low      | Casting         | The media server listens on whatever network is active                      | Fixed    |
+| 41  | Low      | SMB             | Signing is not required for logged-in sessions                              | Fixed    |
+| 42  | Low      | Sync            | Synced part addresses are stored without a scheme check                     | Fixed    |
 | 43  | Low      | Releases        | No software bill of materials                                               | Fixed    |
 | 44  | Info     | Google Cast     | Device authentication report-only, TLS unchecked                            | Planned  |
 | 45  | Info     | Hardcover       | Token sealed in the path, cache keyed per token                             | Checked  |
@@ -414,9 +414,17 @@ messages still arrive after `ready`.
 **What:** Host rules check names. An add-on that declares `api.example` can make that name resolve
 to `192.168.1.1`; the app's fetch has no CORS, so the add-on could read a router or NAS page. It
 could also set `Host` and reach another site on an allowed address.
-**Fix:** `Host` and the other connection headers are dropped (tested). **Planned
-([M104](milestones/m104.md)):** refuse private, loopback and link-local addresses after DNS for
-declared hosts, in the native fetch, while keeping them for addresses the listener typed.
+**Fix:** `Host` and the other connection headers are dropped (tested). Since
+[M104](milestones/m104.md) the Android app fetches for add-ons through its own OkHttp client in
+the netfs module (`AddonFetch.kt`): a declared host whose name resolves to a loopback, private,
+link-local, CGNAT, multicast or reserved address is refused in OkHttp's DNS step, so the name
+can't answer differently between a check and the connection; an IP address written out is checked
+the same way. NAT64 and 6to4 addresses are judged by the IPv4 address inside. Addresses the
+listener typed (`url` settings with `host: true`) still reach the home network, on their own
+connection pool. JVM tests with a server on loopback. The web app keeps the browser's fetch,
+which can't see where a name resolves.
+`expo/fetch`, used until then, did not share the app's cookies: with `credentials: 'omit'` it
+gives each request OkHttp's `NO_COOKIES` jar (checked in Expo 58's `NativeRequest.kt`).
 
 ### 32. A web add-on claiming a sandbox (Low, fixed)
 
@@ -430,8 +438,9 @@ No settings leaked: only bundled and file add-ons get code.
 
 **Where:** `packages/core/src/addons/sandboxFetch.ts`.
 **What:** The 5 M character cap ran after `response.text()`.
-**Fix:** An answer whose `Content-Length` is over the cap is refused before it is read. A cap on
-parallel fetches per add-on is planned in [M104](milestones/m104.md).
+**Fix:** An answer whose `Content-Length` is over the cap is refused before it is read; on Android
+the native fetch stops reading one byte past the cap, length or not. Since M104 an add-on has at
+most six fetches in flight across its sandboxes; the rest wait their turn (`fetchLimit`, tested).
 
 ### Checked and fine
 
@@ -462,19 +471,22 @@ new URL, without the review sheet. Any manifest can claim any ID, a bundled scro
 website could send listening history and stream lookups to its own server after one tap.
 **Fix:** The update path is taken only when both URLs are web addresses on the same origin, as a
 configure page's are. Otherwise Lelap says the add-on is added already and where it comes from,
-and changes nothing. A self-hosted add-on whose address changes host, port or scheme now has to
-be removed and added again, losing its books. **Planned ([M104](milestones/m104.md)):** a move
-the listener asks for in the app, and the review sheet in the update path when the new manifest
-asks for more.
+and changes nothing. Since [M104](milestones/m104.md), an update that asks for more than the
+installed add-on (a permission it lacked, such as `scrobble` or plain http, or a new host) shows
+the review sheet (`asksForMore`, tested), and an address the listener enters under Settings →
+Add-ons may move a web add-on to another host, port or scheme, keeping its books, after the same
+sheet. A link still can't.
 
-### 34. SDK-sealed settings not bound to the add-on (Low, planned)
+### 34. SDK-sealed settings not bound to the add-on (Low, fixed)
 
 **Where:** `packages/sdk/src/config.ts`.
 **What:** `encodeConfig` seals with AES-GCM under a key from `configure.secret` but no associated
 data, so two add-ons sharing one secret accept each other's tokens. The catalog's own sealing
 (`services/catalog/src/scrobble/sealed.ts`) binds the add-on name already.
-**Planned:** an `e2.` format with the manifest ID as associated data, reading `e1.` as before
-([M104](milestones/m104.md)). It is the SDK's public format, so it gets its own release note.
+**Fix ([M104](milestones/m104.md)):** `createAddon` seals new settings as `e2.` tokens with the
+manifest ID as AES-GCM associated data, and still opens `e1.` tokens, so configured URLs keep
+working. `encodeConfig` and `decodeConfig` take the ID as a third argument. A changeset for the
+next SDK release and the SDK docs say so. Tested.
 
 ### 35. A matched work's ID in share links (Low, fixed)
 
@@ -542,25 +554,31 @@ many headers is skipped rather than ending the search. JVM tests added.
 **Fix:** A description with `<!DOCTYPE` or `<!ENTITY` is refused before parsing, so the JVM test
 means the same on a phone.
 
-### 39, 40, 41. Discovery, the media server's network, SMB signing (Low, planned)
+### 39, 40, 41. Discovery, the media server's network, SMB signing (Low, fixed)
 
-- **39:** any device answering the SSDP search makes the phone GET its `LOCATION`, on any host,
-  `127.0.0.1` included (`Ssdp.kt`, `Discovery.kt`). Only the answer's sender should be fetched.
-- **40:** the media server takes the first address of the active network, which on mobile data
-  or a VPN is not the home network (`MediaServer.kt`). Each file still needs its 128-bit token.
-- **41:** smbj requires signing only when the server does (`SmbSession.kt`); someone in the
-  middle on the LAN could change listings and files. Required signing for logged-in sessions
-  (guests have no key) needs testing against real NAS boxes first.
+- **39:** any device answering the SSDP search made the phone GET its `LOCATION`, on any host,
+  `127.0.0.1` included (`Ssdp.kt`, `Discovery.kt`). **Fix:** only a `LOCATION` whose IP address
+  is the answer's sender is fetched, never a name, and a description whose control addresses
+  (`URLBase` included) point at another host is skipped. JVM tests.
+- **40:** the media server took the first address of the active network, which on mobile data
+  or a VPN is not the home network (`MediaServer.kt`). **Fix:** it serves only on a Wi-Fi or
+  Ethernet network's IPv4 address, looking past a VPN to the Wi-Fi under it, and otherwise asks
+  for the speaker's Wi-Fi as before. The decision is in the brief (Casting network). JVM tests.
+- **41:** smbj required signing only when the server did (`SmbSession.kt`); someone in the
+  middle on the LAN could change listings and files. **Fix:** logged-in sessions require
+  signing; guests and anonymous sessions, which have no key, don't. JVM test of the rule.
 
-All three are in [M104](milestones/m104.md), where they can be tested on a phone with real devices.
+All three changed in [M104](milestones/m104.md); its open checks try them with real speakers, TVs
+and NAS boxes.
 
-### 42. Synced part addresses (Low, planned)
+### 42. Synced part addresses (Low, fixed)
 
 **Where:** `packages/core/src/sync/ops.ts` (`applyBook`).
 **What:** Finding 25 checks covers; a streamed book's part addresses from another device are
 stored as they come. They are only played, and a `file:` part would reach a cast receiver only
-behind its token, so the harm is small. Planned in [M104](milestones/m104.md) with a check of
-which schemes streamed parts may use.
+behind its token, so the harm is small. **Fix ([M104](milestones/m104.md)):** a streamed book's
+parts are add-on stream addresses, which the protocol keeps to http(s); a book from another
+device with any other part address is not added. Tested.
 
 ### 44. Google Cast device authentication (Info, planned)
 
@@ -644,8 +662,9 @@ backup guide say where each token is.
 **What:** Each wrong token waited 500 ms, but nothing stopped many parallel guesses.
 **Fix:** After 10 wrong tokens in 15 minutes an address gets 429 until the window ends, even with
 the right token; asking without a token doesn't count. Memory is bounded at 10,000 addresses,
-the oldest dropped first. With `ADMIN_ALLOW_REMOTE`, someone with many IPv6 addresses gets 10
-tries per address; the 500 ms wait and the token's length remain.
+the oldest dropped first. With `ADMIN_ALLOW_REMOTE`, IPv6 callers are counted per /64 since
+[M104](milestones/m104.md), so a machine that picks a new address for every guess still gets 10;
+the 500 ms wait and the token's length remain. Tested.
 Where every caller looks like one address (Docker Desktop, rootless Docker), a stranger can lock
 the page for 15 minutes; that is the price of the limit. Tested.
 
@@ -676,9 +695,11 @@ that has applied one the image doesn't know, and say to use that version. Tested
 npm packages from the lockfile, about 700 of them. It refuses an empty file; `publish` attaches it
 to the GitHub release and lists it in `SHA256SUMS`. The Docker images get BuildKit's SBOM
 attestation (`sbom: true`), covering their Alpine and Node packages. CI writes the same SBOM on
-every pull request, so a tag doesn't find it broken. The Gradle libraries inside the APK are not
-in it yet: planned in [M104](milestones/m104.md). Only a real tag proves the job; it is an open
-check in M96.
+every pull request, so a tag doesn't find it broken. Since [M104](milestones/m104.md) the
+release also lists the Gradle libraries inside the APK: one build leg writes Gradle's
+`releaseRuntimeClasspath` tree, and `scripts/gradle-sbom.mts` adds each resolved library as a
+`pkg:maven` component (tested), refusing an empty list. Only a real tag proves the job; it is an
+open check in M96 and M104.
 
 ### 49. Dependencies (Info, checked)
 

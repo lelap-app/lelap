@@ -540,6 +540,37 @@ describe('sync between two devices', () => {
     });
   });
 
+  it('keeps a streamed book from another device only with web parts', () => {
+    const book = (key: string, uri: string): Op => ({
+      type: 'book',
+      key,
+      at: 5,
+      data: {
+        title: 'Parts',
+        author: null,
+        kind: 'file',
+        coverUrl: null,
+        addonItem: null,
+        durationMs: 1000,
+        parts: [{ location: `${key}#0`, uri, title: null, durationMs: 1000, size: 0 }],
+        chapters: [],
+      },
+    });
+    applyOps(
+      laptop,
+      [
+        book('m104:a', 'file:///data/user/0/app.lelap/databases/lelap.db'),
+        book('m104:b', 'content://media/external/audio/1'),
+        book('m104:c', 'https://media.example/a.mp3'),
+      ],
+      10,
+      newId,
+    );
+    expect(laptop.select({ location: books.location }).from(books).all()).toEqual([
+      { location: 'm104:c' },
+    ]);
+  });
+
   it('fills intro and outro only from the newest change that carries them', () => {
     const feedUrl = 'https://feeds.example/garden.xml';
     const { podcastId } = saveFeed(

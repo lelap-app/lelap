@@ -1018,5 +1018,8 @@
   "Refresh and play": "Muat semula dan main",
   "{name} is added already": "{name} sudah ditambah",
   "It comes from {host}. Remove it first to add the one from {other}.": "Ia datang dari {host}. Buang dahulu untuk menambah yang dari {other}.",
-  "It runs on this device. Remove it first to add the one from {other}.": "Ia berjalan pada peranti ini. Buang dahulu untuk menambah yang dari {other}."
+  "It runs on this device. Remove it first to add the one from {other}.": "Ia berjalan pada peranti ini. Buang dahulu untuk menambah yang dari {other}.",
+  "Move {name}?": "Pindahkan {name}?",
+  "Move": "Pindahkan",
+  "It comes from {host}. Lelap will use {other} instead; books you play from it stay in your library.": "Ia datang dari {host}. Lelap akan menggunakan {other} sebagai gantinya; buku yang anda mainkan daripadanya kekal dalam pustaka anda."
 }

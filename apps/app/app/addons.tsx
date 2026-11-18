@@ -216,7 +216,7 @@ function AddonsManager() {
     }
     setAdding(true);
     try {
-      if ((await confirmAddon(manifestUrl)) === 'added') {
+      if ((await confirmAddon(manifestUrl, true)) === 'added') {
         setUrl('');
         changed();
       }

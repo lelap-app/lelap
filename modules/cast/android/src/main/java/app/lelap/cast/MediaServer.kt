@@ -2,6 +2,7 @@ package app.lelap.cast
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.provider.OpenableColumns
 import app.lelap.netfs.Netfs
@@ -48,6 +49,22 @@ object Ranges {
     if (end < start) return Result.Unsatisfiable
     return Result.Partial(start, end)
   }
+}
+
+/**
+ * Where the media server listens: the IPv4 address of a Wi-Fi or Ethernet network, never mobile
+ * data's or a VPN's. With a VPN on, receivers on the home network still reach the phone's Wi-Fi
+ * address directly, so casting keeps working and nothing is served through the tunnel.
+ */
+object ServerNetwork {
+  data class Candidate(val transports: Set<Int>, val addresses: List<InetAddress>)
+
+  private val LAN = setOf(NetworkCapabilities.TRANSPORT_WIFI, NetworkCapabilities.TRANSPORT_ETHERNET)
+
+  fun pick(networks: List<Candidate>): InetAddress? = networks
+    .filter { n -> n.transports.any { it in LAN } && NetworkCapabilities.TRANSPORT_VPN !in n.transports }
+    .flatMap { it.addresses }
+    .firstOrNull { it is Inet4Address && !it.isLoopbackAddress && !it.isLinkLocalAddress }
 }
 
 /**
@@ -117,10 +134,19 @@ class MediaServer(private val context: Context) {
 
   private fun lanAddress(): InetAddress? {
     val connectivity = context.getSystemService(ConnectivityManager::class.java)
-    val network = connectivity.activeNetwork ?: return null
-    return connectivity.getLinkProperties(network)?.linkAddresses
-      ?.map { it.address }
-      ?.firstOrNull { it is Inet4Address && !it.isLoopbackAddress }
+    // Every network, not just the active one: with a VPN on, the active network is the tunnel.
+    @Suppress("DEPRECATION")
+    val candidates = connectivity.allNetworks.map { network ->
+      val caps = connectivity.getNetworkCapabilities(network)
+      val transports = listOf(
+        NetworkCapabilities.TRANSPORT_WIFI,
+        NetworkCapabilities.TRANSPORT_ETHERNET,
+        NetworkCapabilities.TRANSPORT_CELLULAR,
+        NetworkCapabilities.TRANSPORT_VPN,
+      ).filter { caps?.hasTransport(it) == true }.toSet()
+      ServerNetwork.Candidate(transports, connectivity.getLinkProperties(network)?.linkAddresses?.map { it.address } ?: emptyList())
+    }
+    return ServerNetwork.pick(candidates)
   }
 
   private fun accept(socket: ServerSocket) {

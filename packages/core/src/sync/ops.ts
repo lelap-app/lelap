@@ -622,9 +622,14 @@ function ensurePodcast(
   return id;
 }
 
+// A streamed book's parts are add-on stream addresses, which the protocol keeps to http(s). Any
+// other address from another device would make this phone open a file or app of its own.
+const webPart = (part: Part): boolean => /^https?:\/\//i.test(part.uri);
+
 function applyBook(db: Db, op: Extract<Op, { type: 'book' }>, newId: IdGenerator): void {
   if (bookIdForKey(db, op.key)) return;
   const { data } = op;
+  if (!data.parts.every(webPart)) return;
   const bookId = newId();
   db.insert(books)
     .values({

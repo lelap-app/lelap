@@ -25,6 +25,11 @@ export type ManualFetch = (
     signal: AbortSignal;
     credentials: 'omit';
     redirect: 'manual';
+    /**
+     * The address is one the listener typed, so it may be on the home network. Otherwise the
+     * native fetch refuses a name that resolves to a private, loopback or link-local address.
+     */
+    localNetwork: boolean;
   },
 ) => Promise<{
   status: number;
@@ -58,7 +63,13 @@ export async function sandboxFetch(
   url: string,
   init: SandboxFetchInit | undefined,
   hosts: string[],
-  options: { timeoutMs: number; maxChars: number; tooLarge: string },
+  options: {
+    timeoutMs: number;
+    maxChars: number;
+    tooLarge: string;
+    /** The hosts the listener typed (`url` settings with `host: true`), part of `hosts`. */
+    typed?: string[];
+  },
 ): Promise<SandboxFetchReply> {
   if (!hostAllowed(url, hosts)) {
     return { error: `Not allowed: this add-on may only reach ${hosts.join(', ') || 'nothing'}.` };
@@ -74,6 +85,7 @@ export async function sandboxFetch(
       // Never the app's own cookies or credentials.
       credentials: 'omit',
       redirect: 'manual',
+      localNetwork: hostAllowed(url, options.typed ?? []),
     });
     // A browser hides a redirect it didn't follow as status 0 (`opaqueredirect`).
     if (
@@ -117,4 +129,24 @@ export async function sandboxFetch(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Runs at most `max` tasks at a time and queues the rest in order, so one add-on can't open
+ * hundreds of connections at once. A finished task hands its slot straight to the next.
+ */
+export function fetchLimit(max: number): <T>(task: () => Promise<T>) => Promise<T> {
+  let running = 0;
+  const waiting: (() => void)[] = [];
+  return async (task) => {
+    if (running < max) running++;
+    else await new Promise<void>((go) => waiting.push(go));
+    try {
+      return await task();
+    } finally {
+      const next = waiting.shift();
+      if (next) next();
+      else running--;
+    }
+  };
 }

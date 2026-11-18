@@ -2,7 +2,7 @@ import type { Manifest } from '@lelap/sdk';
 import { describe, expect, it } from 'vitest';
 
 import { bestCover } from './client';
-import { addonPermissions } from './permissions';
+import { addonPermissions, asksForMore } from './permissions';
 
 const manifest = (resources: Manifest['resources']): Manifest => ({
   id: 'org.example.a',
@@ -16,6 +16,35 @@ const manifest = (resources: Manifest['resources']): Manifest => ({
     { type: 'audiobook', id: 'new', name: 'New' },
     { type: 'audiobook', id: 'top', name: 'Top' },
   ],
+});
+
+describe('asksForMore', () => {
+  const url = 'https://addon.example/e2.abc/manifest.json';
+  it('is true for a new resource, plain http or a new host, not for new settings', () => {
+    const installed = { manifest: manifest(['catalog', 'stream']), url };
+    expect(asksForMore(installed, { manifest: manifest(['catalog', 'stream']), url })).toBe(false);
+    expect(
+      asksForMore(installed, {
+        manifest: manifest(['catalog', 'stream']),
+        url: 'https://addon.example/e2.def/manifest.json',
+      }),
+    ).toBe(false);
+    expect(
+      asksForMore(installed, { manifest: manifest(['catalog', 'stream', 'scrobble']), url }),
+    ).toBe(true);
+    expect(
+      asksForMore(installed, {
+        manifest: manifest(['catalog', 'stream']),
+        url: 'http://addon.example:8080/manifest.json',
+      }),
+    ).toBe(true);
+    expect(
+      asksForMore(
+        { manifest: { ...manifest(['catalog']), sandbox: { hosts: ['a.example'] } }, url },
+        { manifest: { ...manifest(['catalog']), sandbox: { hosts: ['b.example'] } }, url },
+      ),
+    ).toBe(true);
+  });
 });
 
 describe('addonPermissions', () => {

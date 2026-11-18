@@ -8,6 +8,7 @@ import {
   adminHandler,
   answers,
   FAILURE_WINDOW_MS,
+  failureKey,
   isAllowedHost,
   isLocalAddress,
   MAX_FAILURES,
@@ -104,6 +105,29 @@ describe('admin page', () => {
     expect((await limited(get('/'), '10.0.0.8')).status).toBe(401);
     clock += FAILURE_WINDOW_MS;
     expect((await limited(get('/', `Bearer ${TOKEN}`), '10.0.0.9')).status).toBe(200);
+  });
+
+  it('counts IPv6 callers per /64 when the page answers remote addresses', async () => {
+    expect(failureKey('2001:db8:1:2:aaaa::1', true)).toBe('2001:db8:1:2::/64');
+    expect(failureKey('2001:DB8:1:2:ffff:1:2:3%eth0', true)).toBe('2001:db8:1:2::/64');
+    expect(failureKey('2001:db8::1', true)).toBe('2001:db8:0:0::/64');
+    expect(failureKey('::ffff:10.0.0.9', true)).toBe('10.0.0.9');
+    expect(failureKey('10.0.0.9', true)).toBe('10.0.0.9');
+    expect(failureKey('2001:db8:1:2:aaaa::1', false)).toBe('2001:db8:1:2:aaaa::1');
+
+    const limited = adminHandler({
+      service: 'sync',
+      token: TOKEN,
+      health,
+      status,
+      failDelayMs: 0,
+      allowRemote: true,
+    });
+    for (let i = 0; i < MAX_FAILURES; i++) {
+      await limited(get('/', 'Bearer wrong-token-of-twenty'), `2001:db8:1:2::${i + 1}`);
+    }
+    expect((await limited(get('/', `Bearer ${TOKEN}`), '2001:db8:1:2::ff')).status).toBe(429);
+    expect((await limited(get('/', `Bearer ${TOKEN}`), '2001:db8:1:3::1')).status).toBe(200);
   });
 
   it('is off without a token or with a short one, except for /health', async () => {

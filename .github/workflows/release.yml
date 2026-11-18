@@ -95,13 +95,29 @@ jobs:
           if-no-files-found: error
           # As long as the signed ones: the approval may come days after the tag.
           retention-days: 7
+      # The Gradle libraries inside the APK, for the SBOM. One leg is enough: every APK has the
+      # same libraries, only the native code's CPU type differs.
+      - name: Gradle libraries
+        if: matrix.distribution == 'direct' && matrix.abi == 'arm64-v8a'
+        working-directory: apps/app/android
+        run: |
+          ./gradlew --no-daemon -q :app:dependencies --configuration releaseRuntimeClasspath \
+            > "$RUNNER_TEMP/gradle-dependencies.txt"
+      - if: matrix.distribution == 'direct' && matrix.abi == 'arm64-v8a'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gradle-dependencies
+          path: ${{ runner.temp }}/gradle-dependencies.txt
+          if-no-files-found: error
+          retention-days: 7
 
-  # A software bill of materials: the app's npm packages (APK and web app) from the lockfile, in
-  # CycloneDX. No environment and no secrets; `publish` attaches it to the GitHub release. The
-  # Docker images carry their own, made by BuildKit (`sbom: true` below).
+  # A software bill of materials: the app's npm packages (APK and web app) from the lockfile and
+  # the Gradle libraries in the APK, in CycloneDX. No environment and no secrets; `publish`
+  # attaches it to the GitHub release. The Docker images carry their own, made by BuildKit
+  # (`sbom: true` below).
   sbom:
     name: Software bill of materials
-    needs: verify
+    needs: [verify, build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -124,6 +140,15 @@ jobs:
             --sbom-type application --out "sbom/lelap-$VERSION-sbom.cdx.json"
           # Refuse an empty or foreign file rather than attach it.
           jq -e '.bomFormat == "CycloneDX" and (.components | length > 0)' "sbom/lelap-$VERSION-sbom.cdx.json" > /dev/null
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: gradle-dependencies
+          path: ${{ runner.temp }}
+      - name: Add the Gradle libraries
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          node scripts/gradle-sbom.mts "$RUNNER_TEMP/gradle-dependencies.txt" "sbom/lelap-$VERSION-sbom.cdx.json"
           jq '.components | length' "sbom/lelap-$VERSION-sbom.cdx.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

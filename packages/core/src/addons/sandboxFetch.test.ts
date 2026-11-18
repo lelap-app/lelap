@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type ManualFetch, sandboxFetch } from './sandboxFetch';
+import { fetchLimit, type ManualFetch, sandboxFetch } from './sandboxFetch';
 
 type Sent = { url: string; method: string; headers: Record<string, string>; body?: string };
 type Answer = { status: number; type?: string; url?: string; headers?: Record<string, string> };
@@ -202,5 +202,48 @@ describe('the sandbox’s fetch', () => {
         options,
       ),
     ).toEqual({ error: 'Too large' });
+  });
+
+  it('lets only addresses the listener typed reach the home network', async () => {
+    const seen: boolean[] = [];
+    const fetch: ManualFetch = async (_url, init) => {
+      seen.push(init.localNetwork);
+      return { status: 200, headers: { get: () => null }, text: async () => '' };
+    };
+    const hosts = ['api.example', 'nas.local:8080'];
+    const typed = ['nas.local:8080'];
+    await sandboxFetch(fetch, 'https://api.example/', undefined, hosts, { ...options, typed });
+    await sandboxFetch(fetch, 'http://nas.local:8080/', undefined, hosts, { ...options, typed });
+    await sandboxFetch(fetch, 'http://nas.local:8080/', undefined, hosts, options);
+    expect(seen).toEqual([false, true, false]);
+  });
+});
+
+describe('the limit on parallel fetches', () => {
+  it('runs a few at a time, in order', async () => {
+    const limit = fetchLimit(2);
+    let running = 0;
+    let most = 0;
+    const order: number[] = [];
+    const task = (n: number) => async () => {
+      running++;
+      most = Math.max(most, running);
+      await new Promise((r) => setTimeout(r, 5));
+      running--;
+      order.push(n);
+      if (n === 1) throw new Error('fails');
+      return n;
+    };
+    const results = await Promise.allSettled([1, 2, 3, 4, 5].map((n) => limit(task(n))));
+    expect(most).toBe(2);
+    expect(order).toEqual([1, 2, 3, 4, 5]);
+    // A failed task still frees its slot.
+    expect(results.map((r) => r.status)).toEqual([
+      'rejected',
+      'fulfilled',
+      'fulfilled',
+      'fulfilled',
+      'fulfilled',
+    ]);
   });
 });

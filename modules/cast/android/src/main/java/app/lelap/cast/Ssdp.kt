@@ -41,6 +41,27 @@ object Ssdp {
     return Response(location, headers["usn"], headers["st"] ?: headers["nt"], headers["server"])
   }
 
+  /**
+   * Whether an answer's LOCATION names the device that sent it, by address. Anyone on the network
+   * can answer a search; without this the phone would fetch whatever host an answer names,
+   * `127.0.0.1` or a router's admin page included. Renderers give their own IP address here.
+   */
+  fun fromSender(location: String, sender: InetAddress): Boolean {
+    val host = runCatching { java.net.URI(location).host }.getOrNull()?.removeSurrounding("[", "]") ?: return false
+    val literal = host.contains(':') || host.matches(Regex("\\d{1,3}(\\.\\d{1,3}){3}"))
+    // A name would need a DNS lookup, which could answer with any address.
+    if (!literal) return false
+    return runCatching { InetAddress.getByName(host) }.getOrNull() == sender
+  }
+
+  /** Whether every address a description gives is on the host its LOCATION named. */
+  fun sameHost(location: String, urls: List<String?>): Boolean {
+    val host = runCatching { java.net.URI(location).host }.getOrNull() ?: return false
+    return urls.filterNotNull().all { url ->
+      runCatching { java.net.URI(url).host }.getOrNull().equals(host, ignoreCase = true)
+    }
+  }
+
   /** `uuid:abc::urn:...` to `uuid:abc`, the device's own identity. */
   fun uuidOf(usn: String?): String? = usn?.substringBefore("::")?.takeIf { it.startsWith("uuid:") }
 
@@ -62,7 +83,9 @@ object Ssdp {
         } catch (e: SocketTimeoutException) {
           break
         }
-        parseResponse(String(packet.data, 0, packet.length, Charsets.UTF_8))?.let(onAnswer)
+        parseResponse(String(packet.data, 0, packet.length, Charsets.UTF_8))
+          ?.takeIf { fromSender(it.location, packet.address) }
+          ?.let(onAnswer)
       }
     }
   }

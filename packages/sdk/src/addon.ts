@@ -205,7 +205,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
       if (!configure) return json({ error: 'Not found' }, 404);
       token = first;
       path = path.slice(first.length + 1);
-      config = await decodeConfig(first, configure.secret);
+      config = await decodeConfig(first, configure.secret, declared.id);
       if (!config)
         return json({ error: 'These settings cannot be read. Configure the add-on again.' }, 403);
     }
@@ -338,7 +338,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
     if ('error' in read) return again(read.error, previous ?? {});
     const problem = await configure.check?.(read.config, request);
     if (problem) return again(problem, read.config);
-    const newToken = await encodeConfig(read.config, configure.secret);
+    const newToken = await encodeConfig(read.config, configure.secret, declared.id);
     const manifestUrl = `${url.origin}${base}/${newToken}/manifest.json`;
     if (returnTo)
       return new Response(null, {

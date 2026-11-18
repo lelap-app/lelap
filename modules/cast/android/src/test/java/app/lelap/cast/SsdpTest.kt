@@ -1,6 +1,8 @@
 package app.lelap.cast
 
+import java.net.InetAddress
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -59,5 +61,25 @@ class SsdpTest {
     val flood = "HTTP/1.1 200 OK\r\n" + (1..200).joinToString("") { "a:b\r\n" } +
       "LOCATION: http://192.168.1.20:1400/d.xml\r\n\r\n"
     assertNull(Ssdp.parseResponse(flood))
+  }
+
+  @Test
+  fun fetchesOnlyTheSendersOwnLocation() {
+    val sonos = InetAddress.getByName("192.168.1.20")
+    assertTrue(Ssdp.fromSender("http://192.168.1.20:1400/xml/device_description.xml", sonos))
+    // Another device's answer naming the phone itself, the router, or a name to resolve.
+    assertFalse(Ssdp.fromSender("http://127.0.0.1:8080/", sonos))
+    assertFalse(Ssdp.fromSender("http://192.168.1.1/admin", sonos))
+    assertFalse(Ssdp.fromSender("http://router.lan:1400/desc.xml", sonos))
+    assertFalse(Ssdp.fromSender("not a url", sonos))
+    val tv = InetAddress.getByName("fe80::1")
+    assertTrue(Ssdp.fromSender("http://[fe80::1]:49152/desc.xml", tv))
+  }
+
+  @Test
+  fun keepsADescriptionsAddressesOnItsOwnHost() {
+    val location = "http://192.168.1.20:1400/xml/device_description.xml"
+    assertTrue(Ssdp.sameHost(location, listOf("http://192.168.1.20:1400/MediaRenderer/AVTransport/Control", null)))
+    assertFalse(Ssdp.sameHost(location, listOf("http://192.168.1.20:1400/a", "http://10.0.0.1/control")))
   }
 }
