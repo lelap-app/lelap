@@ -12,6 +12,7 @@
     "check": "tsc --noEmit",
     "test": "vitest run",
     "bench": "vitest run --config vitest.bench.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "bundle-addons": "node scripts/bundle-addons.mjs"
   },
   "devDependencies": {
