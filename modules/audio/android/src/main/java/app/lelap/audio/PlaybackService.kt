@@ -27,6 +27,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
@@ -41,6 +42,10 @@ import app.lelap.netfs.NetFailure
 import app.lelap.netfs.Netfs
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import androidx.media3.container.MdtaMetadataEntry
+import androidx.media3.extractor.metadata.id3.InternalFrame
+import androidx.media3.extractor.metadata.id3.TextInformationFrame
+import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
@@ -116,6 +121,12 @@ class PlaybackService : MediaLibraryService() {
 
   private val handler = Handler(Looper.getMainLooper())
   private val sound = SoundChain()
+  private val silence = SilenceRules.processor()
+  private val soundProcessor = SoundProcessor(sound, silence)
+  // The listener's voice boost, skip silence and even loudness (M84); a book may set its own.
+  private var soundDefaults = SoundChoice()
+  private val silencePrefs by lazy { getSharedPreferences(Commands.SILENCE_PREFS, MODE_PRIVATE) }
+  private val savings by lazy { SilenceSavings.decode(silencePrefs.getString(Commands.SILENCE_KEY, null)) }
   private val prefs by lazy { getSharedPreferences(Commands.AUDIO_PREFS, MODE_PRIVATE) }
   private val journalPrefs by lazy { getSharedPreferences(Commands.JOURNAL_PREFS, MODE_PRIVATE) }
   // The playlist last written beside the journal's place; ticks write the place alone.
@@ -125,7 +136,14 @@ class PlaybackService : MediaLibraryService() {
   private var current: BookPlaylist? = null
     set(value) {
       val sameFiles = value != null && field?.files == value.files && field?.headers == value.headers
+      if (field?.bookId != value?.bookId) {
+        // Silence skipped so far belongs to the book that played; the next one is measured afresh.
+        bankSilence(field?.bookId)
+        sound.restartLoudness()
+        sound.replayGainDb = Float.NaN
+      }
       field = value
+      applySound()
       // A new speed, chapters or intro keep the files' resolved addresses.
       if (sameFiles) return
       // Only this book's own files get its server's login, never another host.
@@ -213,6 +231,7 @@ class PlaybackService : MediaLibraryService() {
     override fun run() {
       placeChangedAt = System.currentTimeMillis()
       account()
+      bankSilence(current?.bookId)
       writeJournal(PositionJournal.Event.TICK)
     }
   }
@@ -232,7 +251,7 @@ class PlaybackService : MediaLibraryService() {
       .setUserAgent("Lelap")
       // archive.org redirects downloads to mirror hosts, sometimes across protocols.
       .setAllowCrossProtocolRedirects(true)
-    player = ExoPlayer.Builder(this, SoundRenderersFactory(this, SoundProcessor(sound)))
+    player = ExoPlayer.Builder(this, SoundRenderersFactory(this, soundProcessor, silence))
       .setMediaSourceFactory(
         DefaultMediaSourceFactory(withBookHeaders(NetDataSource.Factory(DefaultDataSource.Factory(this, http))))
           .setLoadErrorHandlingPolicy(
@@ -277,8 +296,13 @@ class PlaybackService : MediaLibraryService() {
     skipIntervalMs = prefs.getLong(Commands.KEY_SKIP_INTERVAL_MS, 30_000L)
     smartRewind = prefs.getBoolean(Commands.KEY_SMART_REWIND, true)
     sound.mono = prefs.getBoolean(Commands.KEY_MONO, false)
-    sound.voiceEq = prefs.getBoolean(Commands.KEY_VOICE_EQ, false)
     sound.boost = prefs.getBoolean(Commands.KEY_VOLUME_BOOST, false)
+    soundDefaults = SoundChoice(
+      voiceEq = prefs.getBoolean(Commands.KEY_VOICE_EQ, false),
+      skipSilence = prefs.getBoolean(Commands.KEY_SKIP_SILENCE, false),
+      evenLoudness = prefs.getBoolean(Commands.KEY_EVEN_LOUDNESS, false),
+    )
+    applySound()
     focus.duckOnInterruption = rules.duckOnInterruption
     queue = UpNext.decodeQueue(prefs.getString(Commands.PREF_QUEUE, null))
     Accounting.edit(this) { tally.recover(it) }
@@ -310,6 +334,10 @@ class PlaybackService : MediaLibraryService() {
 
       // New items, or their real durations once known: the outro is found from the last one.
       override fun onTimelineChanged(timeline: Timeline, reason: Int) = placeOutro()
+
+      override fun onTracksChanged(tracks: Tracks) {
+        sound.replayGainDb = replayGainOf(tracks) ?: Float.NaN
+      }
 
       override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         if (remote == null) onItemTransition(reason)
@@ -376,6 +404,7 @@ class PlaybackService : MediaLibraryService() {
 
   override fun onDestroy() {
     account()
+    bankSilence(current?.bookId)
     writeJournal(PositionJournal.Event.DESTROY)
     endRemote(resume = false)
     // Nothing plays after this: the scrobble session ends here rather than at the next start.
@@ -394,6 +423,50 @@ class PlaybackService : MediaLibraryService() {
     session.release()
     player.release()
     super.onDestroy()
+  }
+
+  /**
+   * Voice boost, skip silence and even loudness for the loaded book: its own choices over the
+   * listener's defaults (M84). They act on ExoPlayer only; a cast receiver plays without them.
+   */
+  private fun applySound() {
+    if (!::player.isInitialized) return
+    val choice = soundDefaults.with(current?.sound)
+    sound.voiceEq = choice.voiceEq
+    sound.evenLoudness = choice.evenLoudness
+    if (player.skipSilenceEnabled != choice.skipSilence) player.skipSilenceEnabled = choice.skipSilence
+  }
+
+  /** Adds what skip silence left out since the last call to [bookId]'s time saved. */
+  private fun bankSilence(bookId: String?) {
+    if (!::player.isInitialized) return
+    val skippedUs = soundProcessor.takeSkippedUs()
+    if (bookId == null || skippedUs <= 0L) return
+    savings.add(bookId, skippedUs, player.playbackParameters.speed)
+    silencePrefs.edit().putString(Commands.SILENCE_KEY, savings.encode()).apply()
+  }
+
+  /** ReplayGain from the tags of the audio track playing, whatever the container. */
+  private fun replayGainOf(tracks: Tracks): Float? {
+    val group = tracks.groups.firstOrNull { it.type == C.TRACK_TYPE_AUDIO && it.isSelected } ?: return null
+    val metadata = (0 until group.length).firstNotNullOfOrNull { i ->
+      group.getTrackFormat(i).metadata.takeIf { group.isTrackSelected(i) }
+    } ?: return null
+    val tags = (0 until metadata.length()).mapNotNull { i ->
+      when (val entry = metadata.get(i)) {
+        is TextInformationFrame -> entry.description?.let { it to entry.values.firstOrNull().orEmpty() }
+        is VorbisComment -> entry.key to entry.value
+        is InternalFrame -> entry.description to entry.text
+        is MdtaMetadataEntry ->
+          if (entry.typeIndicator == MdtaMetadataEntry.TYPE_INDICATOR_STRING) {
+            entry.key.substringAfterLast(':') to String(entry.value, Charsets.UTF_8)
+          } else {
+            null
+          }
+        else -> null
+      }
+    }
+    return ReplayGain.gainDb(tags)
   }
 
   /** The book played to its end: log it, then hand over to Up Next if it is an episode. */
@@ -446,8 +519,10 @@ class PlaybackService : MediaLibraryService() {
       }
       // A changed intro or outro for the show, or chapters found from silences, apply to the
       // book that is loaded, at its live place.
+      // The book's or show's own sound changed: it applies at once, at the live place.
+      if (loaded.sound != playlist.sound) current = loaded.copy(sound = playlist.sound)
       if (loaded.introMs != playlist.introMs || loaded.outroMs != playlist.outroMs || loaded.chapters != playlist.chapters) {
-        current = loaded.copy(introMs = playlist.introMs, outroMs = playlist.outroMs, chapters = playlist.chapters)
+        current = (current ?: loaded).copy(introMs = playlist.introMs, outroMs = playlist.outroMs, chapters = playlist.chapters)
         placeOutro()
         remote?.setOutro(remoteOutroAt())
         updateChapterTitle()
@@ -991,6 +1066,7 @@ class PlaybackService : MediaLibraryService() {
 
   private fun onPlayingChanged(isPlaying: Boolean) {
     account()
+    bankSilence(current?.bookId)
     handler.removeCallbacks(journalTicker)
     handler.removeCallbacks(chapterTicker)
     handler.removeCallbacks(pauseSettled)
@@ -1312,14 +1388,21 @@ class PlaybackService : MediaLibraryService() {
           }
           smartRewind = args.getBoolean(Commands.KEY_SMART_REWIND, true)
           sound.mono = args.getBoolean(Commands.KEY_MONO, false)
-          sound.voiceEq = args.getBoolean(Commands.KEY_VOICE_EQ, false)
           sound.boost = args.getBoolean(Commands.KEY_VOLUME_BOOST, false)
+          soundDefaults = SoundChoice(
+            voiceEq = args.getBoolean(Commands.KEY_VOICE_EQ, false),
+            skipSilence = args.getBoolean(Commands.KEY_SKIP_SILENCE, false),
+            evenLoudness = args.getBoolean(Commands.KEY_EVEN_LOUDNESS, false),
+          )
+          applySound()
           prefs.edit()
             .putBoolean(Commands.EXTRA_DUCK, duck)
             .putLong(Commands.KEY_SKIP_INTERVAL_MS, skipIntervalMs)
             .putBoolean(Commands.KEY_SMART_REWIND, smartRewind)
             .putBoolean(Commands.KEY_MONO, sound.mono)
-            .putBoolean(Commands.KEY_VOICE_EQ, sound.voiceEq)
+            .putBoolean(Commands.KEY_VOICE_EQ, soundDefaults.voiceEq)
+            .putBoolean(Commands.KEY_SKIP_SILENCE, soundDefaults.skipSilence)
+            .putBoolean(Commands.KEY_EVEN_LOUDNESS, soundDefaults.evenLoudness)
             .putBoolean(Commands.KEY_VOLUME_BOOST, sound.boost)
             .apply()
         }

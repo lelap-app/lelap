@@ -57,6 +57,8 @@ const SETTINGS: (keyof Settings)[] = [
   'smartRewind',
   'mono',
   'voiceEq',
+  'skipSilence',
+  'evenLoudness',
   'volumeBoost',
   'downloadOnWifiOnly',
   'downloadWhileChargingOnly',

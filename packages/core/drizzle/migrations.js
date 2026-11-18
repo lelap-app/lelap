@@ -23,6 +23,7 @@ import m0018 from './0018_thin_nocturne.sql';
 import m0019 from './0019_chubby_scourge.sql';
 import m0020 from './0020_premium_phalanx.sql';
 import m0021 from './0021_flaky_garia.sql';
+import m0022 from './0022_opposite_infant_terrible.sql';
 
 export default {
   journal,
@@ -49,5 +50,6 @@ export default {
     m0019,
     m0020,
     m0021,
+    m0022,
   },
 };

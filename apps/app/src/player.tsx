@@ -1,4 +1,5 @@
 import {
+  bookSound,
   carShelves,
   continueListening,
   episodeBook,
@@ -21,6 +22,7 @@ import {
   sharedHeaders,
   isLocalAddress,
   regroupedBook,
+  setOverrides,
 } from '@lelap/core';
 import {
   createContext,
@@ -204,6 +206,18 @@ export function updateChapters(bookId: string): Promise<void> {
 }
 
 /**
+ * Hands the loaded book its own sound (M84) after it changed, at its live place. Up Next and the
+ * car's books follow with the next library refresh.
+ */
+export function updateSound(bookId: string): Promise<void> {
+  return enqueue(async () => {
+    if (playerProfile() !== profileId) return;
+    const book = bookLoad(bookId);
+    if (book) await audio.updateBook(book);
+  });
+}
+
+/**
  * Sends Up Next and the car's books to the service again, after their files moved or went, so
  * nothing it starts by itself reads deleted files.
  */
@@ -280,6 +294,8 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
     ...(access.some((a) => a.private) ? { privateUris: true } : {}),
     // The player skips them, also for episodes Up Next or the car starts with the app closed.
     ...trim,
+    // The book's or show's own sound (M84), for the same reason.
+    sound: setOverrides(bookSound(db, profileId, bookId).overrides),
   };
 }
 

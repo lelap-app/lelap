@@ -67,6 +67,13 @@ class AudioModule : Module() {
     }.runOnQueue(Queues.MAIN)
 
     // Same process as the service, so the journal is read straight from its preferences.
+    // Written by the service every few seconds while it plays, in this same process.
+    AsyncFunction("silenceSavedMs") { bookId: String ->
+      val json = context.getSharedPreferences(Commands.SILENCE_PREFS, Context.MODE_PRIVATE)
+        .getString(Commands.SILENCE_KEY, null)
+      SilenceSavings.decode(json).savedMs(bookId).toDouble()
+    }
+
     AsyncFunction("takeJournal") {
       val json = context.getSharedPreferences(Commands.JOURNAL_PREFS, Context.MODE_PRIVATE)
         .getString(Commands.JOURNAL_KEY, null)
@@ -110,14 +117,18 @@ class AudioModule : Module() {
 
     AsyncFunction("setSettings") {
         duck: Boolean, skipIntervalMs: Double, smartRewind: Boolean,
-        mono: Boolean, voiceEq: Boolean, volumeBoost: Boolean, promise: Promise ->
+        sound: Map<String, Boolean>, promise: Promise ->
       val args = Bundle().apply {
         putBoolean(Commands.EXTRA_DUCK, duck)
         putLong(Commands.KEY_SKIP_INTERVAL_MS, skipIntervalMs.toLong())
         putBoolean(Commands.KEY_SMART_REWIND, smartRewind)
-        putBoolean(Commands.KEY_MONO, mono)
-        putBoolean(Commands.KEY_VOICE_EQ, voiceEq)
-        putBoolean(Commands.KEY_VOLUME_BOOST, volumeBoost)
+        // The sound switches come as one map: Expo functions take at most eight arguments.
+        for (key in listOf(
+          Commands.KEY_MONO, Commands.KEY_VOICE_EQ, Commands.KEY_VOLUME_BOOST,
+          Commands.KEY_SKIP_SILENCE, Commands.KEY_EVEN_LOUDNESS,
+        )) {
+          putBoolean(key, sound[key] == true)
+        }
       }
       sendCommand(promise, Commands.SET_SETTINGS, args)
     }.runOnQueue(Queues.MAIN)

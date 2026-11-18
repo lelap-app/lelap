@@ -68,12 +68,9 @@ describe('0002_addons', () => {
       values ('book', 'root', 'primary:A/Novel', 'folder', 'Novel', 'Someone', null, 2000, null, 0, 0)`);
     db.run(sql`insert into book_files (id, location, root_id, book_id, idx, uri, rel_path, name, size, modified_at, duration_ms, chapters_json, updated_at)
       values ('f1', 'primary:A/Novel/01.mp3', 'root', 'book', 0, 'content://1', 'Novel/01.mp3', '01.mp3', 1, 1, 1000, '[]', 0)`);
-    saveProgress(db, ME, {
-      bookId: 'book',
-      fileLocation: 'primary:A/Novel/01.mp3',
-      filePositionMs: 500,
-      savedAt: 1,
-    });
+    // As M2's saveProgress wrote them; today's code knows columns M2 didn't have.
+    db.run(sql`insert into progress values (${ME}, 'book', 'primary:A/Novel/01.mp3', 500, 500, 1)`);
+    db.run(sql`insert into library_entries values (${ME}, 'book', 1, 1, null, 1)`);
     db.run(
       sql`insert into bookmarks values ('bm', ${ME}, 'book', 'primary:A/Novel/01.mp3', 400, 400, 'note', 1, 1)`,
     );

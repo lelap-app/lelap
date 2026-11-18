@@ -28,6 +28,8 @@ data class BookPlaylist(
    * the phone's file server, never the address itself.
    */
   val privateUris: Boolean = false,
+  /** The book's or show's own sound (M84), laid over the listener's defaults. */
+  val sound: SoundOverrides = SoundOverrides(),
 )
 
 /**
@@ -202,6 +204,7 @@ object PositionJournal {
     .put("skipIntroMs", p.introMs)
     .put("skipOutroMs", p.outroMs)
     .put("privateUris", p.privateUris)
+    .put("sound", p.sound.toJson())
 
   private fun decodePlaylist(o: JSONObject): BookPlaylist {
     val files = o.getJSONArray("files")
@@ -225,6 +228,7 @@ object PositionJournal {
       introMs = o.optLong("skipIntroMs", 0L).coerceAtLeast(0L),
       outroMs = o.optLong("skipOutroMs", 0L).coerceAtLeast(0L),
       privateUris = o.optBoolean("privateUris", false),
+      sound = SoundOverrides.fromJson(o.optJSONObject("sound")),
     )
   }
 

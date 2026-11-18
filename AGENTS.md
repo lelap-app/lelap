@@ -42,7 +42,7 @@ packages/sdk    add-on SDK: protocol v1 as zod schemas, createAddon(), the work 
 services/       Hono services on Cloudflare Workers: catalog (Catalog, LibriVox and Internet Archive
                 add-ons), proxy (feeds and covers for the web app), sync (encrypted oplog, D1), updates (signed
                 over-the-air bundles from R2), template
-modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer
+modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer, sound effects
 modules/library Kotlin Expo module: folder access, tags and chapters for the local library; chapters
                 from silences
 modules/download Kotlin Expo module: WorkManager downloads with Wi-Fi and charging rules, into a chosen folder

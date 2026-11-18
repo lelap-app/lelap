@@ -36,7 +36,7 @@ import { COLORS, Icon, IconButton, type IconName } from './Icon';
 import { Scrubber, type ScrubMark } from './Scrubber';
 import { Sheet } from './Sheet';
 import { TextButton } from './TextButton';
-import { soundActive, SoundSheet, useSoundSettings } from './SoundSheet';
+import { SoundSheet, useSound } from './SoundSheet';
 import { CASTING_SUPPORTED, useCasting } from '../casting';
 import { db, newId } from '../db';
 import { HeadphoneBanner } from '../devices';
@@ -185,7 +185,6 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
   const [sheet, setSheet] = useState<
     'chapters' | 'bookmarks' | 'speed' | 'sleep' | 'sound' | 'note' | 'cast' | 'jump' | null
   >(null);
-  const sound = useSoundSettings();
   const casting = useCasting();
   const [note, setNote] = useState('');
   const [lastBookmark, setLastBookmark] = useState<string | null>(null);
@@ -198,6 +197,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
   const skipSeconds = useMemo(() => getSettings(db, profileId).skipIntervalMs / 1000, [version]);
 
   const bookId = state.bookId;
+  const sound = useSound(bookId);
   // Android 17: a stream from a server at home fails without local network access; say so.
   const localNetworkCause = useLocalNetworkCause(
     state.error !== null && bookId !== null && streamsFromLocalNetwork(bookId),
@@ -485,7 +485,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
         <Tool
           icon="sound"
           label={t('Sound')}
-          active={soundActive(sound.settings)}
+          active={sound.active}
           onPress={() => setSheet('sound')}
         />
         <Tool
@@ -692,8 +692,8 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
       </Sheet>
       <SoundSheet
         visible={sheet === 'sound'}
-        settings={sound.settings}
-        onChange={sound.set}
+        bookId={bookId}
+        sound={sound}
         onClose={() => setSheet(null)}
       />
       <Sheet visible={sheet === 'note'} title={t('Bookmark saved')} onClose={saveNote}>

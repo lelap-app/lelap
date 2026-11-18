@@ -94,7 +94,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M81 Test round 2](milestones/m81.md)                | Planned     |             | A full phone round over adb and the fixes it finds, the gate for v0.1.0                                  |
 | [M82 First start](milestones/m82.md)                 | Planned     |             | A first start that helps: choose a folder or a server, suggested add-ons, helpful empty states           |
 | [M83 Accessibility 2](milestones/m83.md)             | Planned     |             | One pass over every screen with TalkBack, large text and contrast                                        |
-| [M84 Better sound](milestones/m84.md)                | Planned     |             | Voice boost, skip silence and even loudness between books                                                |
+| [M84 Better sound](milestones/m84.md)                | In progress |          12 | Voice boost, skip silence and even loudness between books                                                |
 | [M85 Chapters and bookmarks 2](milestones/m85.md)    | Planned     |             | Edit chapter names and times, notes on bookmarks, share a short clip                                     |
 | [M86 Sleep 2](milestones/m86.md)                     | Planned     |             | Shake to extend the timer, a bedtime routine and back to where you fell asleep                           |
 | [M87 Stats and year in sound](milestones/m87.md)     | Done        |           7 | Listening time, finished books and a year overview, worked out on the phone                              |
@@ -111,6 +111,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M98 Developer verification](milestones/m98.md)      | Planned     |             | Google's developer verification for sideloaded apps                                                      |
 | [M99 Languages 3](milestones/m99.md)                 | Planned     |             | Media3's own notification texts, saved English chapter names, raw native error details                   |
 | [M100 Server sources 3](milestones/m100.md)          | Planned     |             | Places sent while the app is closed, and Plex addresses that follow the server                           |
+| [M101 Better sound 2](milestones/m101.md)            | Planned     |             | Skip silence and even loudness on the web, and silence found before the gain                             |
 
 <!-- milestones:end -->
 

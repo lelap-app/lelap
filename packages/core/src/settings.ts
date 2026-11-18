@@ -10,7 +10,13 @@ export const SettingsSchema = z.object({
   smartRewind: z.boolean().default(true),
   /** Sound (M22), for every book: mono and voice EQ suit the listener's ears and follow them. */
   mono: z.boolean().default(false),
+  /**
+   * Voice boost, skip silence and even loudness (M84) are defaults: a book or show may set its
+   * own (`chooseSound`). Voice boost kept its M22 key, so the listener's choice carries over.
+   */
   voiceEq: z.boolean().default(false),
+  skipSilence: z.boolean().default(false),
+  evenLoudness: z.boolean().default(false),
   /** Suits a quiet speaker or recording, so it stays with this device. */
   volumeBoost: z.boolean().default(false),
   downloadOnWifiOnly: z.boolean().default(true),

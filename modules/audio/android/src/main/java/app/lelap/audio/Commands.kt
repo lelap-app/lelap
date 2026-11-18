@@ -49,6 +49,9 @@ object Commands {
   const val KEY_MONO = "mono"
   const val KEY_VOICE_EQ = "voiceEq"
   const val KEY_VOLUME_BOOST = "volumeBoost"
+  /** The listener's defaults for skip silence and even loudness (M84); a book may set its own. */
+  const val KEY_SKIP_SILENCE = "skipSilence"
+  const val KEY_EVEN_LOUDNESS = "evenLoudness"
   const val KEY_DURATION_MS = "durationMs"
   /** A [SleepMode]'s wire name; minutes when missing. */
   const val KEY_SLEEP_MODE = "sleepMode"
@@ -73,6 +76,10 @@ object Commands {
   const val NOW_PLAYING_PREFS = "lelap_now_playing"
   const val NOW_PLAYING_KEY = "nowPlaying"
   const val NOW_PLAYING_CHANGED = "app.lelap.audio.NOW_PLAYING_CHANGED"
+
+  /** SharedPreferences file and key of [SilenceSavings], the time skip silence saved per book. */
+  const val SILENCE_PREFS = "lelap_silence"
+  const val SILENCE_KEY = "saved"
 
   const val EXTRA_DUCK = "duckOnInterruption"
   const val EXTRA_WAITING_FOR_FOCUS = "waitingForFocus"
