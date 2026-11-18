@@ -62,7 +62,9 @@ const escape = (text: string) =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
   );
 
-function page(title: string, body: string, status = 200): Response {
+/** A page; `script` runs inline under a nonce, the only script the page policy lets through. */
+function page(title: string, body: string, status = 200, script?: string): Response {
+  const nonce = script ? crypto.randomUUID().replace(/-/g, '') : null;
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer"><title>${escape(title)}</title>
@@ -83,12 +85,17 @@ legend{font-weight:600;padding:0}
 ol{padding-left:1.25rem}li{margin:.35rem 0}
 code{word-break:break-all;background:#1e1b26;padding:.15rem .3rem;border-radius:.25rem}
 .error{color:#ff8a80}
-</style></head><body><main>${body}</main></body></html>`;
+.copy{display:block;width:100%;text-align:left;margin:0;padding:.5rem;border:1px solid #3a3644;border-radius:.5rem;background:#1e1b26;color:inherit;font:inherit;cursor:pointer}
+.copy code{background:none;padding:0;user-select:all}
+.copy-note{font-size:.875rem;color:#a59fb0;margin-top:.25rem}
+</style></head><body><main>${body}</main>${
+    nonce ? `<script nonce="${nonce}">${script}</script>` : ''
+  }</body></html>`;
   return new Response(html, {
     status,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Content-Security-Policy': PAGE_CSP,
+      'Content-Security-Policy': nonce ? `${PAGE_CSP}; script-src 'nonce-${nonce}'` : PAGE_CSP,
       'Cache-Control': 'no-store',
     },
   });
@@ -164,13 +171,28 @@ async function pickPage<C>(
   );
 }
 
+// Tap to copy; without a clipboard the link stays selectable to copy by hand.
+const COPY_LINK = `const link = document.getElementById('link');
+const note = document.getElementById('note');
+link.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(link.textContent.trim());
+    note.textContent = 'Copied.';
+  } catch {
+    getSelection().selectAllChildren(link);
+    note.textContent = 'Selected: copy it with your browser.';
+  }
+});`;
+
 function installed(manifestUrl: string, name: string): Response {
   return page(
     `${name} is ready`,
     `<h1>Your ${escape(name)} add-on</h1>
 <p><a class="button" href="${escape(`lelap://addon?manifest=${encodeURIComponent(manifestUrl)}`)}">Open in Lelap</a></p>
-<p>On the phone with Lelap, that adds it in one tap. Anywhere else, such as the web app, copy this link and paste it in Lelap under Settings → Add-ons:</p><p><code>${escape(manifestUrl)}</code></p>
+<p>On the phone with Lelap, that adds it in one tap. Anywhere else, such as the web app, copy this link and paste it in Lelap under Settings → Add-ons:</p><button type="button" class="copy" id="link"><code>${escape(manifestUrl)}</code></button><p class="copy-note" id="note" aria-live="polite">Tap the link to copy it.</p>
 <p class="muted">Keep the link to yourself: whoever has it can report listening to your account. To stop that, revoke the token or password at the service.</p>`,
+    200,
+    COPY_LINK,
   );
 }
 
