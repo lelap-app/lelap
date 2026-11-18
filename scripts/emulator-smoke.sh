@@ -52,10 +52,12 @@ fi
 # The same device for every later call, even if a phone is plugged in meanwhile.
 ANDROID_SERIAL="${ANDROID_SERIAL:-$(adb get-serialno)}"
 export ANDROID_SERIAL
-# The APK is arm64 only; an x86_64 image runs it only with Android's ARM translation.
-abis="$(adb shell getprop ro.product.cpu.abilist)"
-if ! grep -q arm64-v8a <<< "$abis"; then
-  echo "::error::This emulator image cannot run arm64 code (it runs $abis)." >&2
+# Built for the emulator's own CPU type (emulator-apk.sh): ARM translation can't load native
+# libraries that stay inside the APK.
+abi="$(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
+native="$("$tools/aapt2" dump badging "$apk" | sed -n 's/^native-code: //p')"
+if ! grep -q "'$abi'" <<< "$native"; then
+  echo "::error::The APK has native code for $native, the emulator runs $abi." >&2
   exit 1
 fi
 # Until the package manager answers, an install fails at random on a fresh emulator.
