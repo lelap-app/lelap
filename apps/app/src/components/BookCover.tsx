@@ -64,7 +64,9 @@ function PlainCover({
   title: string;
   size: number;
 }) {
-  if (uri) return <CoverImage uri={webSafe(uri) ?? uri} size={size} />;
+  const shown = useShownUri(uri ? (webSafe(uri) ?? uri) : null);
+  // The image, or the bare tile while a cover is read from OPFS, as while an image loads.
+  if (shown !== null) return <CoverImage uri={shown} size={size} />;
   return (
     <View
       aria-hidden
@@ -78,9 +80,12 @@ function PlainCover({
   );
 }
 
-/** An address an <Image> can show: a cover kept in OPFS becomes a blob URL once it is read. */
-function useShownUri(uri: string): string | null {
-  const opfsPath = uri.startsWith(OPFS_SCHEME) ? uri.slice(OPFS_SCHEME.length) : null;
+/**
+ * An address an <Image> can show: a cover kept in OPFS becomes a blob URL once it is read.
+ * Undefined while it is read; null for no cover, or one gone from OPFS (the letter shows then).
+ */
+function useShownUri(uri: string | null): string | null | undefined {
+  const opfsPath = uri?.startsWith(OPFS_SCHEME) ? uri.slice(OPFS_SCHEME.length) : null;
   const [blob, setBlob] = useState<{ path: string; url: string | null } | null>(null);
   useEffect(() => {
     if (!opfsPath) return;
@@ -93,12 +98,11 @@ function useShownUri(uri: string): string | null {
     };
   }, [opfsPath]);
   if (!opfsPath) return uri;
-  return blob?.path === opfsPath ? blob.url : null;
+  return blob?.path === opfsPath ? blob.url : undefined;
 }
 
 /** The cover fades in once loaded, over the same raised tile the letter cover uses. */
-function CoverImage({ uri: given, size }: { uri: string; size: number }) {
-  const uri = useShownUri(given);
+function CoverImage({ uri, size }: { uri: string | undefined; size: number }) {
   const [loaded, setLoaded] = useState(false);
   return (
     <View

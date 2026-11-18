@@ -126,7 +126,15 @@ export function Scrubber({
     Platform.OS === 'web'
       ? {
           tabIndex: 0,
-          onKeyDown: (event: { key: string; preventDefault: () => void }) => {
+          onKeyDown: (event: {
+            key: string;
+            ctrlKey: boolean;
+            metaKey: boolean;
+            altKey: boolean;
+            preventDefault: () => void;
+          }) => {
+            // Alt+← and ⌘← stay the browser's.
+            if (event.ctrlKey || event.metaKey || event.altKey) return;
             const next = sliderKey(event.key, ratio, STEP);
             if (next === null) return;
             event.preventDefault();

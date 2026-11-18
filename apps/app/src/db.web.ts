@@ -168,7 +168,8 @@ function open(): Promise<void> {
     // Not through save(), which swallows errors: the old file goes only once the chunks are in.
     savedChanges = 0;
     await saveNow(chunks === null);
-    if (old && root) await root.removeEntry(OLD_FILE).catch(() => {});
+    // Also when an earlier start saved the chunks but closed before removing it.
+    if (root) await root.removeEntry(OLD_FILE).catch(() => {});
     setInterval(() => void save(), SAVE_EVERY_MS);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') void save();

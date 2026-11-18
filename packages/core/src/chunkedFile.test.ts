@@ -91,6 +91,13 @@ describe('ChunkedFile', () => {
     expect(await new ChunkedFile(store, digest, 32).load()).toEqual(bytes);
   });
 
+  it('says so when the manifest is broken, rather than starting empty', async () => {
+    const { store, files } = memoryStore();
+    await new ChunkedFile(store, digest, 16).save(filled(64, 1));
+    files.set(MANIFEST, new Uint8Array([123, 34]));
+    await expect(new ChunkedFile(store, digest, 16).load()).rejects.toThrow('list of parts');
+  });
+
   it('says so when a chunk is missing', async () => {
     const { store, files } = memoryStore();
     await new ChunkedFile(store, digest, 16).save(filled(64, 1));

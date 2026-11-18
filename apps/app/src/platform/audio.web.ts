@@ -645,7 +645,10 @@ function setUpMediaSession(): void {
       'seekto',
       (details) => {
         if (details.seekTime !== undefined) {
-          void seekToBook(shownSpanStart + Math.max(0, details.seekTime) * 1000);
+          const ms = Math.max(0, details.seekTime) * 1000;
+          // Without the book's durations the bar is the file, and so is the seek.
+          if (offsetOf(book?.files.length ?? 0) > 0) void seekToBook(shownSpanStart + ms);
+          else void seekTo(index, ms);
         }
       },
     ],

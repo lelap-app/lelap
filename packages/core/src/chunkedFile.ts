@@ -76,11 +76,15 @@ export class ChunkedFile {
     private readonly chunkBytes = CHUNK_BYTES,
   ) {}
 
-  /** The saved bytes, or null when nothing was saved yet. Throws when a chunk is missing. */
+  /**
+   * The saved bytes, or null when nothing was saved yet. Throws when the manifest can't be read or
+   * a chunk is missing: starting empty would save over what is left.
+   */
   async load(): Promise<Uint8Array | null> {
     const raw = await this.store.read(MANIFEST);
-    const manifest = raw ? parseManifest(raw) : null;
-    if (!manifest) return null;
+    if (!raw) return null;
+    const manifest = parseManifest(raw);
+    if (!manifest) throw new Error('The saved library’s list of parts can’t be read.');
     this.generation = manifest.generation;
     const bytes = new Uint8Array(manifest.size);
     const digests: string[] = [];
