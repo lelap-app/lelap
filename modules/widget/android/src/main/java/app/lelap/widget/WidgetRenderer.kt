@@ -59,6 +59,10 @@ object WidgetRenderer {
     views.setContentDescription(R.id.lelap_widget_back, model.backLabel)
     views.setContentDescription(R.id.lelap_widget_forward, model.forwardLabel)
     views.setContentDescription(R.id.lelap_widget_root, model.openLabel)
+    // With no book at all there is nothing to skip in; Play stays, to resume one if it can.
+    val skips = if (model.hasBook) View.VISIBLE else View.INVISIBLE
+    views.setViewVisibility(R.id.lelap_widget_back, skips)
+    views.setViewVisibility(R.id.lelap_widget_forward, skips)
     views.setTextViewText(R.id.lelap_widget_back_seconds, model.skipSeconds.toString())
     views.setTextViewText(R.id.lelap_widget_forward_seconds, model.skipSeconds.toString())
 

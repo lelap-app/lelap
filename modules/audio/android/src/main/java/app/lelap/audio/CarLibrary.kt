@@ -48,15 +48,19 @@ object CarLibrary {
 
   fun root(): CarNode = CarNode(ROOT, "Lelap", browsable = true, playable = false)
 
-  /** The children of [parentId], or null when there is no such node. Shelf names are in [text]'s language. */
+  /**
+   * The children of [parentId], or null when there is no such node. Shelf names are in [text]'s
+   * language; covers on the phone go through [CoverProvider] at [coverAuthority], else are left out.
+   */
   fun children(
     parentId: String,
     snapshot: CarSnapshot,
     journal: BookLoad?,
     text: NativeCatalog = NativeCatalog.ENGLISH,
+    coverAuthority: String? = null,
   ): List<CarNode>? = when (parentId) {
     ROOT -> SHELVES.map { shelfNode(it, text) }
-    else -> shelf(parentId, snapshot, journal)?.map { bookNode(parentId, it.playlist) }
+    else -> shelf(parentId, snapshot, journal)?.map { bookNode(parentId, it.playlist, coverAuthority) }
   }
 
   /** The node for [mediaId], for controllers that ask for one item. */
@@ -65,12 +69,13 @@ object CarLibrary {
     snapshot: CarSnapshot,
     journal: BookLoad?,
     text: NativeCatalog = NativeCatalog.ENGLISH,
+    coverAuthority: String? = null,
   ): CarNode? {
     if (mediaId == ROOT) return root()
     if (mediaId in SHELVES) return shelfNode(mediaId, text)
     val (shelfId, bookId) = split(mediaId) ?: return null
     return shelf(shelfId, snapshot, journal)?.firstOrNull { it.playlist.bookId == bookId }
-      ?.let { bookNode(shelfId, it.playlist) }
+      ?.let { bookNode(shelfId, it.playlist, coverAuthority) }
   }
 
   /**
@@ -127,12 +132,11 @@ object CarLibrary {
     else -> null
   }
 
-  private fun bookNode(shelfId: String, playlist: BookPlaylist) = CarNode(
+  private fun bookNode(shelfId: String, playlist: BookPlaylist, coverAuthority: String?) = CarNode(
     id = "$shelfId/${playlist.bookId}",
     title = playlist.title,
     subtitle = playlist.author,
-    // Android Auto runs in another process and cannot open the app's private files.
-    artworkUri = playlist.coverUri?.takeIf { it.startsWith("https://") || it.startsWith("http://") },
+    artworkUri = CarCovers.artworkUri(playlist.coverUri, coverAuthority),
     browsable = false,
     playable = true,
   )

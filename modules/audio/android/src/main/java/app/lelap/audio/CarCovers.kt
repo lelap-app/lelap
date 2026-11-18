@@ -1,0 +1,50 @@
+package app.lelap.audio
+
+import java.security.MessageDigest
+
+/**
+ * Covers saved on the phone, for Android Auto (M74). Auto runs in another process and can't open
+ * the app's files, so the browse tree names them as `content://<package>.covers/<key>` and
+ * [CoverProvider] serves them. The key is a hash of the cover's own address: the provider only
+ * opens covers the car lists, and the address never leaves the app. Any app may browse those
+ * lists (the service is exported for Auto and System UI), so the covers show nothing new.
+ */
+object CarCovers {
+  const val AUTHORITY_SUFFIX = ".covers"
+
+  fun authority(packageName: String): String = packageName + AUTHORITY_SUFFIX
+
+  /** Whether a cover is on the phone, so the car needs it through the provider. */
+  fun isLocal(coverUri: String): Boolean = coverUri.startsWith("file://") || coverUri.startsWith("content://")
+
+  /** What the car gets for [coverUri]: web covers as they are, local ones through the provider. */
+  fun artworkUri(coverUri: String?, authority: String?): String? = when {
+    coverUri.isNullOrBlank() -> null
+    coverUri.startsWith("https://") || coverUri.startsWith("http://") -> coverUri
+    authority != null && isLocal(coverUri) -> "content://$authority/${key(coverUri)}"
+    else -> null
+  }
+
+  /** By the file's extension; JPEG, the usual cover, when there is none. */
+  fun mimeType(coverUri: String?): String {
+    val name = coverUri?.substringBefore('?')?.lowercase().orEmpty()
+    return when {
+      name.endsWith(".png") -> "image/png"
+      name.endsWith(".webp") -> "image/webp"
+      name.endsWith(".gif") -> "image/gif"
+      else -> "image/jpeg"
+    }
+  }
+
+  fun key(coverUri: String): String =
+    MessageDigest.getInstance("SHA-256").digest(coverUri.toByteArray()).joinToString("") { "%02x".format(it) }
+
+  /** The local cover behind [key], among the books the car can list now; null for any other. */
+  fun find(key: String, snapshot: CarSnapshot, journal: BookPlaylist?): String? =
+    sequenceOf(snapshot.continueListening, snapshot.onPhone, snapshot.podcasts, snapshot.upNext)
+      .flatten()
+      .map { it.playlist.coverUri }
+      .plus(journal?.coverUri)
+      .filterNotNull()
+      .firstOrNull { isLocal(it) && key(it) == key }
+}

@@ -132,7 +132,6 @@
   "Folder address": "Alamat folder",
   "Folder in the bucket (optional)": "Folder dalam baldi (pilihan)",
   "For the skip buttons, the lock screen and headphones.": "Untuk butang langkau, skrin kunci dan fon kepala.",
-  "Forward": "Maju",
   "From": "Dari",
   "Get a notification when a book you want to read can be played?": "Terima pemberitahuan apabila buku yang anda mahu baca boleh dimainkan?",
   "Go": "Pergi",
@@ -865,5 +864,10 @@
   "{n} h": "{n} j",
   "{percent} % of {size}": "{percent} % daripada {size}",
   "{time} left": "{time} lagi",
-  "{names} did not answer.": "{names} tidak menjawab."
+  "{names} did not answer.": "{names} tidak menjawab.",
+  "Your cars": "Kereta anda",
+  "Some cars connect as headphones. Mark yours while it is connected, and Lelap offers car mode when it connects.": "Sesetengah kereta bersambung sebagai fon kepala. Tandakan kereta anda semasa ia bersambung, dan Lelap akan menawarkan mod kereta apabila ia bersambung.",
+  "Connect to your car’s Bluetooth to mark it here.": "Sambung ke Bluetooth kereta anda untuk menandakannya di sini.",
+  "Not connected": "Tidak bersambung",
+  "{name} is my car": "{name} ialah kereta saya"
 }
