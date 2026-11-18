@@ -72,3 +72,31 @@ class NetInputStream(private val file: NetFile, start: Long) : InputStream() {
 
   override fun available(): Int = minOf(Int.MAX_VALUE.toLong(), maxOf(0L, file.length - position)).toInt()
 }
+
+/**
+ * Reads ahead in 256 KB chunks for the player: Media3's extractors ask for a few hundred bytes at
+ * a time, and each read on SMB or SFTP is a round trip, so small reads come from the buffer.
+ */
+class ReadAhead(private val file: NetFile, private val bufferSize: Int = BUFFER) {
+  private val buffer = ByteArray(bufferSize)
+  private var start = 0L
+  private var filled = 0
+
+  fun read(position: Long, out: ByteArray, offset: Int, length: Int): Int {
+    if (position >= file.length) return -1
+    if (position < start || position >= start + filled) {
+      val n = file.read(position, buffer, 0, minOf(bufferSize.toLong(), file.length - position).toInt())
+      if (n <= 0) return -1
+      start = position
+      filled = n
+    }
+    val from = (position - start).toInt()
+    val n = minOf(length, filled - from)
+    System.arraycopy(buffer, from, out, offset, n)
+    return n
+  }
+
+  companion object {
+    const val BUFFER = 256 * 1024
+  }
+}

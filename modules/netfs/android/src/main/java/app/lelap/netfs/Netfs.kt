@@ -34,7 +34,7 @@ object Netfs {
   /** An open file and the connection it came from; closing it gives the connection back. */
   class Opened internal constructor(val file: NetFile, private val lease: SessionPool.Lease) : Closeable {
     override fun close() {
-      runCatching { file.close() }.onFailure { lease.broken() }
+      runCatching { file.close() }.onFailure { if (breaksConnection(it)) lease.broken() }
       lease.close()
     }
 
@@ -47,7 +47,7 @@ object Netfs {
     try {
       return Opened(lease.session.open(address.path), lease)
     } catch (e: Exception) {
-      if (!(e is NetFailure && e.kind == NetFailure.Kind.NOT_FOUND)) lease.broken()
+      if (breaksConnection(e)) lease.broken()
       lease.close()
       throw e
     }
@@ -77,7 +77,7 @@ object Netfs {
   fun copyTo(uri: String, headers: Map<String, String>, target: File, maxBytes: Long = 20L shl 20) {
     open(uri, headers).use { opened ->
       if (opened.file.length > maxBytes) throw NetFailure(NetFailure.Kind.NOT_FOUND, "The file is too large.")
-      target.outputStream().use { out -> NetInputStream(opened.file, 0).copyTo(out) }
+      target.outputStream().use { out -> NetInputStream(opened.file, 0).copyTo(out, 64 * 1024) }
     }
   }
 

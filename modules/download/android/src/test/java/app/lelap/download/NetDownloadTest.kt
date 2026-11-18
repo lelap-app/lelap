@@ -54,7 +54,7 @@ class NetDownloadTest {
 
   @Test fun continuesAPartFileFromWhereItStopped() = runBlocking {
     folder.output("01.mp3.part", append = false).use { it.write(data, 0, 150_000) }
-    NetDownload.fetch(url, folder, "01.mp3", headers, { it.message.orEmpty() }) {}
+    NetDownload.fetch(url, folder, "01.mp3", data.size.toLong(), headers, { it.message.orEmpty() }) {}
     assertEquals(150_000L, reads.first())
     assertArrayEquals(data, folder.input("01.mp3").readBytes())
     assertNull(folder.length("01.mp3.part"))
@@ -62,7 +62,14 @@ class NetDownloadTest {
 
   @Test fun aPartFileLongerThanTheFileStartsAgain() = runBlocking {
     folder.output("01.mp3.part", append = false).use { it.write(ByteArray(300_000)) }
-    NetDownload.fetch(url, folder, "01.mp3", headers, { it.message.orEmpty() }) {}
+    NetDownload.fetch(url, folder, "01.mp3", data.size.toLong(), headers, { it.message.orEmpty() }) {}
+    assertEquals(0L, reads.first())
+    assertArrayEquals(data, folder.input("01.mp3").readBytes())
+  }
+
+  @Test fun aFileOfAnotherSizeStartsAgain() = runBlocking {
+    folder.output("01.mp3.part", append = false).use { it.write(ByteArray(1_000)) }
+    NetDownload.fetch(url, folder, "01.mp3", 150_000, headers, { it.message.orEmpty() }) {}
     assertEquals(0L, reads.first())
     assertArrayEquals(data, folder.input("01.mp3").readBytes())
   }
@@ -70,7 +77,7 @@ class NetDownloadTest {
   @Test fun aRefusedLoginIsNotTriedAgain() = runBlocking {
     refuse = true
     try {
-      NetDownload.fetch(url, folder, "01.mp3", headers, { "Log in again." }) {}
+      NetDownload.fetch(url, folder, "01.mp3", data.size.toLong(), headers, { "Log in again." }) {}
       fail()
     } catch (e: PermanentFailure) {
       assertEquals("Log in again.", e.message)

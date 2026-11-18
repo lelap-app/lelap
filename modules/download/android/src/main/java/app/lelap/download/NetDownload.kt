@@ -18,6 +18,7 @@ object NetDownload {
     url: String,
     folder: BookFolder,
     name: String,
+    expectedSize: Long,
     headers: Map<String, String>,
     describe: (NetFailure) -> String,
     onBytes: suspend (Long) -> Unit,
@@ -27,8 +28,10 @@ object NetDownload {
       Netfs.open(url, headers).use { opened ->
         val length = opened.file.length
         val existing = folder.length(part) ?: 0L
-        // A part file longer than the file is from an older version of it.
-        val start = if (existing in 0..length) existing else 0L
+        // A part file longer than the file, or a file of another size than the scan saw, is from
+        // another version of it.
+        val sameVersion = expectedSize <= 0 || expectedSize == length
+        val start = if (sameVersion && existing in 0..length) existing else 0L
         if (start < length) {
           folder.output(part, append = start > 0).use { out ->
             val buffer = ByteArray(BUFFER_BYTES)
@@ -36,7 +39,7 @@ object NetDownload {
             while (position < length) {
               coroutineContext.ensureActive()
               val n = opened.file.read(position, buffer, 0, minOf(BUFFER_BYTES.toLong(), length - position).toInt())
-              if (n < 0) throw IOException("The file ended early.")
+              if (n <= 0) throw IOException("The file ended early.")
               out.write(buffer, 0, n)
               position += n
               onBytes(position)

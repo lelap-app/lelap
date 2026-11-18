@@ -49,11 +49,16 @@ class SessionPool(
   }
 
   private val slots = HashMap<String, Slot>()
+  private val refusals = HashMap<String, Pair<Long, NetFailure>>()
   private val opening = HashMap<String, Any>()
   private val sweeper: ScheduledExecutorService? = sweepEveryMs?.let { every ->
     Executors.newSingleThreadScheduledExecutor { Thread(it, "lelap-netfs-sweep").apply { isDaemon = true } }.also {
       it.scheduleWithFixedDelay({ runCatching { sweep() } }, every, every, TimeUnit.MILLISECONDS)
     }
+  }
+
+  private companion object {
+    const val REFUSAL_MS = 5 * 60_000L
   }
 
   private fun keyOf(address: NetAddress, login: NetLogin) = address.server + "|" + login.fingerprint
@@ -71,14 +76,26 @@ class SessionPool(
           return Lease(key, slot)
         }
       }
-      val session = connect(address, login)
+      // A refused login is not tried again for a while: each try counts against the account,
+      // and servers block a phone that keeps failing.
       synchronized(this) {
+        refusals[key]?.let { (at, failure) -> if (clock() - at < REFUSAL_MS) throw failure else refusals.remove(key) }
+      }
+      val session = try {
+        connect(address, login)
+      } catch (e: NetFailure) {
+        if (e.kind == NetFailure.Kind.LOGIN) synchronized(this) { refusals[key] = clock() to e }
+        throw e
+      }
+      val (lease, stale) = synchronized(this) {
         val stale = slots[key]
         val slot = Slot(session).apply { users = 1 }
         slots[key] = slot
-        if (stale != null && stale.users == 0) runCatching { stale.session.close() }
-        return Lease(key, slot)
+        Lease(key, slot) to stale?.takeIf { it.users == 0 }
       }
+      // Closed outside the lock: a logoff can take as long as the server's timeout.
+      stale?.let { runCatching { it.session.close() } }
+      return lease
     }
   }
 
@@ -88,8 +105,7 @@ class SessionPool(
     try {
       return block(lease.session)
     } catch (e: Exception) {
-      // A missing file says nothing about the connection; anything else may have broken it.
-      if (!(e is NetFailure && e.kind == NetFailure.Kind.NOT_FOUND)) lease.broken()
+      if (breaksConnection(e)) lease.broken()
       throw e
     } finally {
       lease.close()

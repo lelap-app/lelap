@@ -1,5 +1,6 @@
 package app.lelap.netfs
 
+import java.io.InterruptedIOException
 import java.net.ConnectException
 import java.net.NoRouteToHostException
 import java.net.SocketTimeoutException
@@ -105,7 +106,11 @@ class SftpSession private constructor(private val ssh: SSHClient, private val sf
 
     private fun client(verifier: HostKeyVerifier): SSHClient {
       useBouncyCastle()
-      return SSHClient(DefaultConfig()).apply {
+      val config = DefaultConfig().apply {
+        // Host certificates would be fingerprinted instead of the key, and change on renewal.
+        keyAlgorithms = keyAlgorithms.filterNot { it.name.contains("-cert-") }
+      }
+      return SSHClient(config).apply {
         connectTimeout = TIMEOUT_MS
         timeout = TIMEOUT_MS
         addHostKeyVerifier(verifier)
@@ -139,24 +144,35 @@ class SftpSession private constructor(private val ssh: SSHClient, private val sf
       val ssh = client(verifier)
       try {
         ssh.connect(address.host, address.port)
-        val methods = buildList {
-          login.privateKey?.let { key ->
-            val provider = try {
-              ssh.loadKeys(key, null, login.passphrase?.let { PasswordUtils.createOneOff(it.toCharArray()) })
-                .also { it.private } // Decrypts now, so a wrong passphrase is told apart from a refusal.
-            } catch (e: Exception) {
-              throw NetFailure(NetFailure.Kind.PRIVATE_KEY, "The private key can’t be read. Check its passphrase.", e)
-            }
-            add(AuthPublickey(provider))
+        // The whole username: `DOMAIN\name` is how Windows OpenSSH names a domain account.
+        val user = login.username
+        var refused: UserAuthException? = null
+        login.privateKey?.let { key ->
+          val provider = try {
+            ssh.loadKeys(key, null, login.passphrase?.let { PasswordUtils.createOneOff(it.toCharArray()) })
+              .also { it.private } // Decrypts now, so a wrong passphrase is told apart from a refusal.
+          } catch (e: Exception) {
+            throw NetFailure(NetFailure.Kind.PRIVATE_KEY, "The private key can’t be read. Check its passphrase.", e)
           }
-          login.password?.let { password ->
-            add(AuthPassword(PasswordUtils.createOneOff(password.toCharArray())))
-            // Servers that turn passwords off often take the same one as keyboard-interactive.
-            add(AuthKeyboardInteractive(PasswordResponseProvider(PasswordUtils.createOneOff(password.toCharArray()))))
+          try {
+            ssh.auth(user, AuthPublickey(provider))
+          } catch (e: UserAuthException) {
+            refused = e
           }
         }
-        if (methods.isEmpty()) throw NetFailure(NetFailure.Kind.LOGIN, "Enter a password or a private key.")
-        ssh.auth(login.user, methods)
+        val password = login.password
+        if (!ssh.isAuthenticated && password != null) {
+          try {
+            ssh.auth(user, AuthPassword(PasswordUtils.createOneOff(password.toCharArray())))
+          } catch (e: UserAuthException) {
+            // Only a server that turned passwords off gets the same one as keyboard-interactive,
+            // so a wrong password costs one attempt, not two.
+            val allowed = ssh.userAuth.allowedMethods
+            if ("password" in allowed || "keyboard-interactive" !in allowed) throw e
+            ssh.auth(user, AuthKeyboardInteractive(PasswordResponseProvider(PasswordUtils.createOneOff(password.toCharArray()))))
+          }
+        }
+        if (!ssh.isAuthenticated) throw refused ?: NetFailure(NetFailure.Kind.LOGIN, "Enter a password or a private key.")
         val sftp = ssh.newSFTPClient()
         sftp.sftpEngine.timeoutMs = TIMEOUT_MS
         return SftpSession(ssh, sftp)
@@ -172,6 +188,8 @@ class SftpSession private constructor(private val ssh: SSHClient, private val sf
     } catch (e: NetFailure) {
       throw e
     } catch (e: Exception) {
+      // A seek stopped this read; the connection is fine.
+      if (interrupted(e)) throw InterruptedIOException().apply { initCause(e) }
       throw classify(e, null)
     }
 
@@ -192,7 +210,7 @@ class SftpSession private constructor(private val ssh: SSHClient, private val sf
           is SFTPException -> return when (cause.statusCode) {
             Response.StatusCode.NO_SUCH_FILE, Response.StatusCode.NO_SUCH_PATH ->
               NetFailure(NetFailure.Kind.NOT_FOUND, "The folder or file is not on the server.", e)
-            Response.StatusCode.PERMISSION_DENIED -> NetFailure(NetFailure.Kind.LOGIN, "The server refused the login.", e)
+            Response.StatusCode.PERMISSION_DENIED -> NetFailure(NetFailure.Kind.DENIED, "This login may not read it.", e)
             else -> NetFailure(NetFailure.Kind.UNREACHABLE, cause.message ?: "The server refused.", e)
           }
           is SocketTimeoutException, is TimeoutException -> return NetFailure(NetFailure.Kind.TIMEOUT, "The server did not answer within 30 s.", e)

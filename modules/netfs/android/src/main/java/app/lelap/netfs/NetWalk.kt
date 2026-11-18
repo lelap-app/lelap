@@ -13,7 +13,9 @@ object NetWalk {
   const val MAX_DEPTH = 32
 
   // Folders a NAS keeps for itself: thumbnails, the recycle bin, snapshots.
-  private val SKIPPED = setOf("@eadir", "#recycle", "#snapshot", "\$recycle.bin", "system volume information")
+  private val SKIPPED = setOf(
+    "@eadir", "#recycle", "#snapshot", "@recycle", "@recently-snapshot", "\$recycle.bin", "system volume information",
+  )
 
   fun skipped(name: String) = name.startsWith(".") || name.lowercase() in SKIPPED
 
@@ -26,7 +28,15 @@ object NetWalk {
       val (path, rel) = queue.removeFirst()
       if (!seen.add(path)) continue
       if (seen.size > maxFolders) break
-      for (listed in session.list(path)) {
+      val entries = try {
+        session.list(path)
+      } catch (e: NetFailure) {
+        // A folder below this login's reach, or gone since it was listed, is left out; the folder
+        // entered must be readable.
+        if (path != root && (e.kind == NetFailure.Kind.DENIED || e.kind == NetFailure.Kind.NOT_FOUND)) continue
+        throw e
+      }
+      for (listed in entries) {
         if (listed.name == "." || listed.name == ".." || skipped(listed.name)) continue
         val childPath = NetAddress.child(path, listed.name)
         val childRel = if (rel.isEmpty()) listed.name else "$rel/${listed.name}"

@@ -109,6 +109,17 @@ class NetWalkTest {
     assertTrue("Dune/01.mp3" in shallow)
   }
 
+  @Test fun leavesOutAFolderThisLoginCannotRead() {
+    val locked = FakeServer(mapOf("Open/a.mp3" to ByteArray(1), "Private/b.mp3" to ByteArray(1)), denied = setOf("Private"))
+    assertEquals(listOf("Open/a.mp3"), NetWalk.list(locked.session(), "").map { it.path })
+    try {
+      NetWalk.list(locked.session(), "Private")
+      fail()
+    } catch (e: NetFailure) {
+      assertEquals(NetFailure.Kind.DENIED, e.kind)
+    }
+  }
+
   @Test fun startsBelowAFolderAndFailsForAMissingOne() {
     assertEquals(listOf("Book 1/a.m4b"), NetWalk.list(server.session(), "Series").map { it.path })
     try {
@@ -134,6 +145,22 @@ class NetBytesTest {
     val before = server.reads.size
     repeat(100) { bytes.read(70_000L + it, 1) }
     assertEquals(before, server.reads.size)
+  }
+
+  @Test fun readsAheadSoSmallReadsCostOneRequest() {
+    val data = ByteArray(600_000) { (it % 249).toByte() }
+    val server = FakeServer(mapOf("a.mp3" to data))
+    val ahead = ReadAhead(server.session().open("a.mp3"), bufferSize = 40_000)
+    val out = ByteArray(400)
+    var position = 10_000L
+    repeat(90) {
+      val n = ahead.read(position, out, 0, 400)
+      assertArrayEquals(data.copyOfRange(position.toInt(), position.toInt() + n), out.copyOf(n))
+      position += n
+    }
+    // 36 KB in 400-byte reads: one request for the first 40 KB.
+    assertEquals(1, server.reads.size)
+    assertEquals(-1, ahead.read(600_000, out, 0, 400))
   }
 
   @Test fun streamsFromAnOffset() {
@@ -187,6 +214,21 @@ class SessionPoolTest {
     assertEquals(1, server.closed.get())
     // A missing file says nothing about the connection.
     runCatching { pool.use(address, login) { it.open("gone.mp3") } }
+    assertEquals(1, pool.open)
+  }
+
+  @Test fun aRefusedLoginIsNotTriedAgainForAWhile() {
+    var tries = 0
+    val refusing = SessionPool({ _, _ -> tries++; throw NetFailure(NetFailure.Kind.LOGIN, "no") }, clock = { now }, sweepEveryMs = null)
+    repeat(3) { runCatching { refusing.lease(address, login) } }
+    assertEquals(1, tries)
+    now = 6 * 60_000
+    runCatching { refusing.lease(address, login) }
+    assertEquals(2, tries)
+  }
+
+  @Test fun aSeekThatInterruptsAReadKeepsTheConnection() {
+    runCatching { pool.use(address, login) { throw java.io.InterruptedIOException() } }
     assertEquals(1, pool.open)
   }
 

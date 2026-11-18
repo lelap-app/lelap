@@ -13,6 +13,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import app.lelap.netfs.Messages
+import app.lelap.netfs.NetLogin
 import app.lelap.netfs.Netfs
 import app.lelap.text.NativeText
 import java.io.IOException
@@ -68,7 +69,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
             }
           }
           if (Netfs.handles(file.url)) {
-            NetDownload.fetch(file.url, folder, file.name, job.headers, { Messages.describe(applicationContext, it) }, progress)
+            NetDownload.fetch(file.url, folder, file.name, file.size, job.headers, { Messages.describe(applicationContext, it) }, progress)
           } else {
             Http.fetch(file.url, folder, file.name, file.size, job.headers, progress)
           }
@@ -79,9 +80,10 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
           if (folder.length(cover.name) == null) {
             runCatching {
               if (Netfs.handles(cover.url)) {
-                NetDownload.fetch(cover.url, folder, cover.name, job.headers, { it.message.orEmpty() }) {}
+                NetDownload.fetch(cover.url, folder, cover.name, cover.size, job.headers, { it.message.orEmpty() }) {}
               } else {
-                Http.fetch(cover.url, folder, cover.name, cover.size, job.headers) {}
+                // An SMB or SFTP login never goes to a web host.
+                Http.fetch(cover.url, folder, cover.name, cover.size, job.headers.filterKeys { !it.equals(NetLogin.HEADER, ignoreCase = true) }) {}
               }
             }
           }

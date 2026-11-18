@@ -18,6 +18,7 @@ import androidx.media3.datasource.TransferListener
 @OptIn(UnstableApi::class)
 class NetDataSource : BaseDataSource(/* isNetwork= */ true) {
   private var opened: Netfs.Opened? = null
+  private var ahead: ReadAhead? = null
   private var uri: Uri? = null
   private var position = 0L
   private var remaining = 0L
@@ -27,6 +28,7 @@ class NetDataSource : BaseDataSource(/* isNetwork= */ true) {
     uri = dataSpec.uri
     transferInitializing(dataSpec)
     val file = Netfs.open(dataSpec.uri.toString(), dataSpec.httpRequestHeaders).also { opened = it }.file
+    ahead = ReadAhead(file)
     if (dataSpec.position > file.length) {
       throw DataSourceException(PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE)
     }
@@ -41,11 +43,11 @@ class NetDataSource : BaseDataSource(/* isNetwork= */ true) {
   override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
     if (length == 0) return 0
     if (remaining == 0L) return C.RESULT_END_OF_INPUT
-    val file = opened?.file ?: return C.RESULT_END_OF_INPUT
+    val reader = ahead ?: return C.RESULT_END_OF_INPUT
     val n = try {
-      file.read(position, buffer, offset, minOf(length.toLong(), remaining).toInt())
+      reader.read(position, buffer, offset, minOf(length.toLong(), remaining).toInt())
     } catch (e: NetFailure) {
-      opened?.broken()
+      if (breaksConnection(e)) opened?.broken()
       throw e
     }
     if (n < 0) return C.RESULT_END_OF_INPUT
@@ -63,6 +65,7 @@ class NetDataSource : BaseDataSource(/* isNetwork= */ true) {
       opened?.close()
     } finally {
       opened = null
+      ahead = null
       if (started) {
         started = false
         transferEnded()

@@ -37,6 +37,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.PlayerMessage
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import app.lelap.netfs.NetDataSource
+import app.lelap.netfs.NetFailure
 import app.lelap.netfs.Netfs
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
@@ -1350,6 +1351,11 @@ private class ExpiringLinkPolicy(
   private val onRefresh: (Int) -> Unit,
 ) : DefaultLoadErrorHandlingPolicy() {
   override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
+    // A refused SMB or SFTP login or a changed host key stays so; each retry is another login
+    // attempt, which can get the phone blocked by the server.
+    val refused = generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }
+      .filterIsInstance<NetFailure>().firstOrNull()?.kind?.permanent == true
+    if (refused) return C.TIME_UNSET
     val code = generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }
       .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
       .firstOrNull()?.responseCode

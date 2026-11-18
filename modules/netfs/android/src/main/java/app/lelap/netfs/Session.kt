@@ -2,6 +2,7 @@ package app.lelap.netfs
 
 import java.io.Closeable
 import java.io.IOException
+import java.io.InterruptedIOException
 
 /** One entry of a folder on the server. [modifiedAt] is in milliseconds since 1970. */
 data class NetEntry(
@@ -42,8 +43,19 @@ class NetFailure(val kind: Kind, message: String, cause: Throwable? = null) : IO
     HOST_KEY_UNKNOWN("ERR_NETFS_HOST_KEY_UNKNOWN", true),
     PRIVATE_KEY("ERR_NETFS_PRIVATE_KEY", true),
     NOT_FOUND("ERR_NETFS_NOT_FOUND", true),
+    /** Logged in, but this folder or file may not be read. */
+    DENIED("ERR_NETFS_DENIED", true),
     ADDRESS("ERR_NETFS_ADDRESS", true),
     TIMEOUT("ERR_NETFS_TIMEOUT", false),
     UNREACHABLE("ERR_NETFS_UNREACHABLE", false),
   }
 }
+
+/** A missing or forbidden file, or a seek that interrupted the read, leaves the connection as it was. */
+internal fun breaksConnection(e: Throwable): Boolean {
+  if (e is NetFailure && (e.kind == NetFailure.Kind.NOT_FOUND || e.kind == NetFailure.Kind.DENIED)) return false
+  return !interrupted(e)
+}
+
+internal fun interrupted(e: Throwable): Boolean =
+  generateSequence(e) { it.cause }.any { it is InterruptedException || it is InterruptedIOException }

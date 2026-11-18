@@ -521,6 +521,8 @@
   "The file’s manifest is not valid.": "Manifest fail ini tidak sah.",
   "The server answered HTTP {status}.": "Pelayan menjawab HTTP {status}.",
   "The server did not answer within 30 s.": "Pelayan tidak menjawab dalam masa 30 s.",
+  "The server does not let this login read that folder.": "Pelayan tidak membenarkan log masuk ini membaca folder itu.",
+  "The server does not let this login read the file.": "Pelayan tidak membenarkan log masuk ini membaca fail itu.",
   "The server refused the login. Check the username and password.": "Pelayan menolak log masuk. Semak nama pengguna dan kata laluan.",
   "The server refused the login. Log in again in Settings.": "Pelayan menolak log masuk. Log masuk semula dalam Tetapan.",
   "The server, its port if it is not 22, and the folder’s full path.": "Pelayan, portnya jika bukan 22, dan laluan penuh folder.",

@@ -13,6 +13,7 @@ import com.hierynomus.smbj.auth.AuthenticationContext
 import com.hierynomus.smbj.connection.Connection
 import com.hierynomus.smbj.session.Session
 import com.hierynomus.smbj.share.DiskShare
+import java.io.InterruptedIOException
 import java.net.ConnectException
 import java.net.NoRouteToHostException
 import java.net.SocketTimeoutException
@@ -127,15 +128,17 @@ class SmbSession private constructor(
       throw e
     } catch (e: SMBApiException) {
       throw when (e.status) {
-        NtStatus.STATUS_LOGON_FAILURE, NtStatus.STATUS_ACCESS_DENIED, NtStatus.STATUS_ACCOUNT_DISABLED,
-        NtStatus.STATUS_PASSWORD_EXPIRED,
+        NtStatus.STATUS_LOGON_FAILURE, NtStatus.STATUS_ACCOUNT_DISABLED, NtStatus.STATUS_PASSWORD_EXPIRED,
         -> NetFailure(NetFailure.Kind.LOGIN, "The server refused the login.", e)
+        NtStatus.STATUS_ACCESS_DENIED -> NetFailure(NetFailure.Kind.DENIED, "This login may not read it.", e)
         NtStatus.STATUS_OBJECT_NAME_NOT_FOUND, NtStatus.STATUS_OBJECT_PATH_NOT_FOUND, NtStatus.STATUS_BAD_NETWORK_NAME,
         NtStatus.STATUS_NOT_FOUND, NtStatus.STATUS_NO_SUCH_FILE,
         -> NetFailure(NetFailure.Kind.NOT_FOUND, "The share or folder is not on the server.", e)
         else -> NetFailure(NetFailure.Kind.UNREACHABLE, "The server answered ${e.status}.", e)
       }
     } catch (e: Exception) {
+      // A seek stopped this read; the connection is fine.
+      if (interrupted(e)) throw InterruptedIOException().apply { initCause(e) }
       throw classify(e)
     }
 

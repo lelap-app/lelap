@@ -3,7 +3,11 @@ package app.lelap.netfs
 import java.util.concurrent.atomic.AtomicInteger
 
 /** A server folder tree in memory: paths without a leading slash, folders end in `/`. */
-class FakeServer(files: Map<String, ByteArray>, private val links: Map<String, String> = emptyMap()) {
+class FakeServer(
+  files: Map<String, ByteArray>,
+  private val links: Map<String, String> = emptyMap(),
+  private val denied: Set<String> = emptySet(),
+) {
   private val files = files.toMutableMap()
   val opened = AtomicInteger()
   val closed = AtomicInteger()
@@ -33,6 +37,7 @@ class FakeServer(files: Map<String, ByteArray>, private val links: Map<String, S
       override fun list(path: String): List<NetEntry> {
         val dir = resolve(path)
         listed += dir
+        if (dir in denied) throw NetFailure(NetFailure.Kind.DENIED, "No access to $dir")
         if (dir.isNotEmpty() && dir !in folders()) throw NetFailure(NetFailure.Kind.NOT_FOUND, "No $dir")
         val prefix = if (dir.isEmpty()) "" else "$dir/"
         val names = (files.keys + links.keys + folders()).filter { it.startsWith(prefix) && it != dir }

@@ -43,3 +43,25 @@ Open on a phone:
   `DOMAIN\name` on a domain.
 - <a id="qnap"></a>QNAP and Samba on a Raspberry Pi.
 - <a id="web"></a>The web app: Add a server → SMB or SFTP says it is in the Android app only.
+
+## From the review
+
+Fixed before merging: a read-ahead buffer for the player (Media3 reads a few hundred bytes at a
+time, each a round trip); a folder the login can't read is left out of the scan instead of failing
+it as a refused login; refused logins are not retried by the player and not tried again for five
+minutes, and a wrong SFTP password costs one attempt, not two; a seek that interrupts a read keeps
+the shared connection; the whole `DOMAIN\name` for SFTP; host certificates left out so the
+fingerprint is the key's; a part file of another version starts again; no SMB or SFTP login on a
+web cover's request.
+
+Left for later:
+
+- A download's `job.json` keeps the login headers (now also an SFTP private key) in app-private,
+  never-backed-up storage until the download is removed, as WebDAV's did; it could drop them once
+  every file is done. The playback journal keeps them while the book is loaded.
+- The first SFTP connection replaces Android's cut-down "BC" security provider with the full Bouncy
+  Castle for the whole process (added last, so TLS keeps Conscrypt). Nothing else in the app asks
+  for "BC" by name today.
+- The pool's per-server handshake gates are never removed; one small object per server and login.
+- A book that can't play because of a refused login or a changed key shows the player's usual
+  error; the reason is in Settings after the next scan, and in a download's error.

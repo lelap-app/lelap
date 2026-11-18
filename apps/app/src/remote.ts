@@ -26,7 +26,11 @@ export type FileAccess = { uri: string; headers: Record<string, string>; private
 
 function remoteOf(rootId: string | null): RemoteSource | null {
   if (!rootId) return null;
-  return listRoots(db).find((r) => r.id === rootId)?.remote ?? null;
+  const root = listRoots(db).find((r) => r.id === rootId);
+  // SMB and SFTP without their password would only make failed logins, which servers count.
+  if (root?.needsLogin && (root.remote?.type === 'smb' || root.remote?.type === 'sftp'))
+    return null;
+  return root?.remote ?? null;
 }
 
 /**

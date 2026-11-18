@@ -17,6 +17,7 @@ object Messages {
     NetFailure.Kind.HOST_KEY_UNKNOWN -> NativeText.t(context, "The server’s host key is not trusted yet. Add the server again.")
     NetFailure.Kind.PRIVATE_KEY -> NativeText.t(context, "The private key can’t be read. Check its passphrase.")
     NetFailure.Kind.NOT_FOUND -> NativeText.t(context, "The file is no longer on the server.")
+    NetFailure.Kind.DENIED -> NativeText.t(context, "The server does not let this login read the file.")
     NetFailure.Kind.ADDRESS -> NativeText.t(context, "The server address is not valid.")
     NetFailure.Kind.TIMEOUT -> NativeText.t(context, "The server did not answer within 30 s.")
     NetFailure.Kind.UNREACHABLE -> NativeText.t(context, "No answer from the server.")

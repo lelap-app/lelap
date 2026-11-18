@@ -56,6 +56,9 @@ const nativeLines = (): Record<string, string> => ({
     'The private key can’t be read. Check its passphrase.',
   ),
   'The file is no longer on the server.': t('The file is no longer on the server.'),
+  'The server does not let this login read the file.': t(
+    'The server does not let this login read the file.',
+  ),
   'The server address is not valid.': t('The server address is not valid.'),
   'The server did not answer within 30 s.': t('The server did not answer within 30 s.'),
   'No answer from the server.': t('No answer from the server.'),

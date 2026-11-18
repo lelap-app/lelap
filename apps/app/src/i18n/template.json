@@ -611,6 +611,8 @@
   "The server address is not valid.": "",
   "The server answered HTTP {status}.": "",
   "The server did not answer within 30 s.": "",
+  "The server does not let this login read that folder.": "",
+  "The server does not let this login read the file.": "",
   "The server refused the login. Check the username and password.": "",
   "The server refused the login. Log in again in Settings.": "",
   "The server, its port if it is not 22, and the folder’s full path.": "",

@@ -32,6 +32,8 @@ export function netServerReason(error: unknown): string {
       return t('The private key can’t be read. Check its passphrase.');
     case NETFS_ERRORS.notFound:
       return t('That share or folder is not on the server.');
+    case NETFS_ERRORS.denied:
+      return t('The server does not let this login read that folder.');
     case NETFS_ERRORS.address:
       return t('The server address is not valid.');
     case NETFS_ERRORS.timeout:

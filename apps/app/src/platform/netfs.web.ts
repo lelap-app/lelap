@@ -11,6 +11,7 @@ export const NETFS_ERRORS = {
   hostKeyUnknown: 'ERR_NETFS_HOST_KEY_UNKNOWN',
   privateKey: 'ERR_NETFS_PRIVATE_KEY',
   notFound: 'ERR_NETFS_NOT_FOUND',
+  denied: 'ERR_NETFS_DENIED',
   address: 'ERR_NETFS_ADDRESS',
   timeout: 'ERR_NETFS_TIMEOUT',
   unreachable: 'ERR_NETFS_UNREACHABLE',
