@@ -24,6 +24,15 @@ export const defaultAddons: string[] = configured
   .filter((url: string) => url !== '');
 
 /**
+ * Our own add-ons that need the listener's account, so they are never installed by default: the
+ * Add-ons screen offers them, and "Set up" opens their configure page on the catalog host.
+ */
+export const hostedAddons: { id: 'hardcover' | 'gpodder'; base: string }[] = [
+  { id: 'hardcover', base: `https://catalog.${domain}/hardcover` },
+  { id: 'gpodder', base: `https://catalog.${domain}/gpodder` },
+];
+
+/**
  * The feed and cover proxy for the web app (never audio). Browsers can't read most RSS feeds
  * across origins; the Android app fetches them directly.
  */

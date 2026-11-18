@@ -45,7 +45,7 @@ export function catalogManifest(podcasts: boolean): Manifest {
     id: 'app.lelap.catalog',
     version: '1.0.0',
     protocol: 1,
-    name: 'Catalog',
+    name: 'Open Library catalog',
     description: podcasts
       ? 'Books from Open Library with narrators, series and chapters from Audnexus, and podcasts from Podcast Index.'
       : 'Books from Open Library with narrators, series and chapters from Audnexus.',
