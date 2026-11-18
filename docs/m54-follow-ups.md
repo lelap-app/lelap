@@ -55,7 +55,10 @@ the same version twice, nothing for a CPU the release lacks (core, Vitest); the 
   (`-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g -DNDEBUG -fno-lto`: CMake's defaults plus
   `-fno-lto`, which comes after Reanimated's flag on the command line). Cost: `libreanimated.so`
   grows from 1.67 to 2.08 MB on arm64 (about 0.4 MB more per APK, uncompressed). Animation speed
-  is not measured; a check on a phone is below.
+  is not measured; a check on a phone is below. The direct APK also differed in
+  `assets/app.manifest`, which expo-updates stamps with a random ID and the build time; the fixed
+  manifest the F-Droid build already had now goes into every build. The `ota` job dates a tag's
+  bundle with the same commit time, so an APK still skips the bundle it carries.
 - **F-Droid:** two `Builds` entries per version, each with its versionCode, `-PreactNativeArchitectures`
   and `binary:` URL; `VercodeOperation` makes both from the base code.
 
