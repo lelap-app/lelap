@@ -36,7 +36,7 @@ Then look at all four files before committing: Read each WebP and check the list
 | Drive  | `shootLanguage`, `chrome.mjs` | A fresh browser context per language (empty OPFS, so no real data). Clicks go by the app's own labels from `apps/app/src/i18n/catalogs/<lang>.json`, so a renamed button fails loudly instead of shooting the wrong screen.                                                                                            |
 | Save   | `save`                        | `{home,player}-{en,ms}.webp`, 780 × 1688 (390 × 844 at 2×), quality 88. Astro's `<Picture>` makes the 300 and 600 px AVIF and WebP sizes.                                                                                                                                                                              |
 
-The flow: Home loads the add-on's rows; for Malay, Settings → language; open the Laksa book and
+The flow: Skip on the welcome; Home loads the add-on's rows; for Malay, Settings → language; open the Laksa book and
 Play; jump (tap the elapsed time) to 53:56, which is chapter 3 at 12:04; load `/` again, which
 starts the app afresh; shoot Home with
 Continue listening; tap it; speed 1.25×, sleep 30 minutes, jump again; shoot the Player.

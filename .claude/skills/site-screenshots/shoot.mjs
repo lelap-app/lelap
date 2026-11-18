@@ -293,6 +293,9 @@ async function shootLanguage(browser, lang) {
   };
 
   await page.goto(`${ORIGIN}/`);
+  // An empty device starts with the welcome (M82); skip it to reach Home.
+  const opened = await page.find(new RegExp(`^(Skip|${lib.rows[1].name})$`), 40_000);
+  if (opened && (await page.has('Skip'))) await page.click('Skip');
   await page.find(lib.rows[1].name, 40_000);
   if (lang !== 'en') {
     await page.goto(`${ORIGIN}/settings`);
