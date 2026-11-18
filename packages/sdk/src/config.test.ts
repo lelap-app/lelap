@@ -53,7 +53,9 @@ describe('config tokens', () => {
     const token = await encodeConfig({ a: 'b' }, 'right');
     expect(await decodeConfig(token, 'wrong')).toBeNull();
     expect(await decodeConfig(token)).toBeNull();
-    expect(await decodeConfig(`${token.slice(0, -2)}AA`, 'right')).toBeNull();
+    // Change the last two characters to something they weren't, so the damage is always real.
+    const damaged = `${token.slice(0, -2)}${token.endsWith('AA') ? 'BB' : 'AA'}`;
+    expect(await decodeConfig(damaged, 'right')).toBeNull();
     expect(await decodeConfig(await encodeConfig({ a: 'b' }), 'right')).toBeNull();
     expect(await decodeConfig('p1.!!!')).toBeNull();
     expect(await decodeConfig('catalog')).toBeNull();
