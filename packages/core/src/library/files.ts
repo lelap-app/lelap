@@ -12,6 +12,8 @@ export type ScannedFile = {
   size: number;
   modifiedAt: number;
   uri: string;
+  /** Where the file downloads from, when not from `uri`. */
+  downloadUri?: string | null;
   durationMs: number;
   title: string | null;
   album: string | null;

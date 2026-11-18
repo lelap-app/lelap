@@ -204,6 +204,7 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
       const row = {
         rootId,
         uri: file.uri,
+        downloadUri: file.downloadUri ?? null,
         relPath: file.relPath,
         name: file.name,
         size: file.size,
@@ -413,6 +414,7 @@ function sameFile(
     stored.missingSince === null &&
     stored.rootId === row.rootId &&
     stored.uri === row.uri &&
+    stored.downloadUri === row.downloadUri &&
     stored.relPath === row.relPath &&
     stored.name === row.name &&
     stored.size === row.size &&

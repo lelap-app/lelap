@@ -57,6 +57,14 @@ export function libraryPath(type: ContentType = 'audiobook'): string {
   return `library/${type}/all.json`;
 }
 
+/**
+ * Since revision 6: the call that hands an add-on inside the app a `PlaceReport`. Only the sandbox
+ * makes it; there is no such route over HTTP.
+ */
+export function placePath(type: ContentType = 'audiobook'): string {
+  return `place/${type}/all.json`;
+}
+
 export type Route =
   | { resource: 'manifest' }
   | { resource: 'catalog'; type: ContentType; id: string; extra: Extra }

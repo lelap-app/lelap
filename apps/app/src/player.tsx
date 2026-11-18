@@ -36,6 +36,7 @@ import { applyBedtime } from './bedtime';
 import { db, newId } from './db';
 import * as audio from './platform/audio';
 import { profileId, setProfileId } from './profile';
+import { addonPlacesFinished, trackAddonPlaces } from './addonPlaces';
 import { jellyfinFinished, trackJellyfin } from './jellyfin';
 import {
   audiobookshelfFinished,
@@ -213,6 +214,7 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
     // A book's files all come from one place, so one login covers them; files that would get
     // different headers get none.
     headers: sharedHeaders(access),
+    ...(access.some((a) => a.private) ? { privateUris: true } : {}),
     // The player skips them, also for episodes Up Next or the car starts with the app closed.
     ...trim,
   };
@@ -267,6 +269,7 @@ async function foldFinished(): Promise<boolean> {
     trackFinished(item.bookId, item.at, playerProfile());
     jellyfinFinished(item.bookId, item.at, playerProfile());
     audiobookshelfFinished(item.bookId, item.at, playerProfile());
+    addonPlacesFinished(item.bookId, item.at, playerProfile());
   }
   return done.length > 0;
 }
@@ -365,6 +368,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     trackPlayerState(state, playerProfile());
     trackJellyfin(state, playerProfile());
     trackAudiobookshelf(state, playerProfile());
+    trackAddonPlaces(state, playerProfile());
   }, [state]);
 
   useEffect(() => {

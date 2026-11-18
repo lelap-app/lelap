@@ -22,6 +22,11 @@ data class BookPlaylist(
   /** A podcast's intro and outro to skip (M45), at the first file's start and the last's end. */
   val introMs: Long = 0L,
   val outroMs: Long = 0L,
+  /**
+   * The files' addresses carry a login (a Subsonic token, M58): a cast receiver gets them through
+   * the phone's file server, never the address itself.
+   */
+  val privateUris: Boolean = false,
 )
 
 /** The last known place. Mirrors `JournalEntry` in `@lelap/core`. */
@@ -149,6 +154,7 @@ object PositionJournal {
     .put("headers", JSONObject(p.headers))
     .put("skipIntroMs", p.introMs)
     .put("skipOutroMs", p.outroMs)
+    .put("privateUris", p.privateUris)
 
   private fun decodePlaylist(o: JSONObject): BookPlaylist {
     val files = o.getJSONArray("files")
@@ -171,6 +177,7 @@ object PositionJournal {
         ?: emptyMap(),
       introMs = o.optLong("skipIntroMs", 0L).coerceAtLeast(0L),
       outroMs = o.optLong("skipOutroMs", 0L).coerceAtLeast(0L),
+      privateUris = o.optBoolean("privateUris", false),
     )
   }
 

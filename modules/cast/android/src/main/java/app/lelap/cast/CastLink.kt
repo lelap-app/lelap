@@ -22,7 +22,13 @@ data class CastRequest(
   val durationMs: Long,
   val headers: Map<String, String> = emptyMap(),
   val mimeType: String? = null,
-)
+  /** The address carries a login (a Subsonic token): the receiver gets it through the phone. */
+  val viaPhone: Boolean = false,
+) {
+  /** Whether the receiver fetches this file from the phone, which adds the login on the way. */
+  val throughPhone: Boolean
+    get() = headers.isNotEmpty() || viaPhone
+}
 
 /**
  * One cast session: the receiver's protocol client, the phone's file server and the locks that
@@ -208,7 +214,7 @@ class CastLink private constructor(
     val mimeType = Mime.audioOr(request.mimeType, name)
     val url = when {
       local -> server().publish(MediaServer.Source.Local(uri), mimeType, name)
-      request.headers.isNotEmpty() -> server().publish(MediaServer.Source.Remote(uri, request.headers), mimeType, name)
+      request.throughPhone -> server().publish(MediaServer.Source.Remote(uri, request.headers), mimeType, name)
       else -> uri
     }
     val cover = request.coverUri?.let { c ->

@@ -1,0 +1,183 @@
+{
+  "subsonic-response": {
+    "status": "ok",
+    "version": "1.16.1",
+    "type": "navidrome",
+    "serverVersion": "0.64.2 (10114574)",
+    "openSubsonic": true,
+    "songsByGenre": {
+      "song": [
+        {
+          "id": "4u80kfxwui4N7DyyzPd2G1",
+          "parent": "3AZzjKPpcyIel8Cr3m8u2R",
+          "isDir": false,
+          "title": "Chapter 2",
+          "album": "The Quiet Town",
+          "artist": "Ada Writer",
+          "track": 2,
+          "genre": "Audiobook",
+          "coverArt": "al-3AZzjKPpcyIel8Cr3m8u2R_bd2eb69e6468af6c",
+          "size": 24468,
+          "contentType": "audio/mpeg",
+          "suffix": "mp3",
+          "duration": 3,
+          "bitRate": 65,
+          "path": "Ada Writer/The Quiet Town/02 - Chapter 2.mp3",
+          "created": "2026-11-18T01:30:48.764962128Z",
+          "albumId": "3AZzjKPpcyIel8Cr3m8u2R",
+          "artistId": "5OBk9TlJPzbVSb9v1hNLv6",
+          "type": "music",
+          "bookmarkPosition": 1500,
+          "bpm": 0,
+          "comment": "",
+          "sortName": "chapter 2",
+          "mediaType": "song",
+          "musicBrainzId": "",
+          "isrc": [],
+          "genres": [
+            {
+              "name": "Audiobook"
+            }
+          ],
+          "replayGain": {},
+          "channelCount": 1,
+          "samplingRate": 22050,
+          "bitDepth": 0,
+          "moods": [],
+          "artists": [
+            {
+              "id": "5OBk9TlJPzbVSb9v1hNLv6",
+              "name": "Ada Writer"
+            }
+          ],
+          "displayArtist": "Ada Writer",
+          "albumArtists": [
+            {
+              "id": "5OBk9TlJPzbVSb9v1hNLv6",
+              "name": "Ada Writer"
+            }
+          ],
+          "displayAlbumArtist": "Ada Writer",
+          "contributors": [],
+          "displayComposer": "",
+          "explicitStatus": "",
+          "groupings": [],
+          "works": [],
+          "movements": []
+        },
+        {
+          "id": "6OBZNgINrkxkmI2U4zOkfC",
+          "parent": "3AZzjKPpcyIel8Cr3m8u2R",
+          "isDir": false,
+          "title": "Chapter 1",
+          "album": "The Quiet Town",
+          "artist": "Ada Writer",
+          "track": 1,
+          "genre": "Audiobook",
+          "coverArt": "al-3AZzjKPpcyIel8Cr3m8u2R_bd2eb69e6468af6c",
+          "size": 24259,
+          "contentType": "audio/mpeg",
+          "suffix": "mp3",
+          "duration": 2,
+          "bitRate": 65,
+          "path": "Ada Writer/The Quiet Town/01 - Chapter 1.mp3",
+          "created": "2026-11-18T01:30:48.765599545Z",
+          "albumId": "3AZzjKPpcyIel8Cr3m8u2R",
+          "artistId": "5OBk9TlJPzbVSb9v1hNLv6",
+          "type": "music",
+          "bpm": 0,
+          "comment": "",
+          "sortName": "chapter 1",
+          "mediaType": "song",
+          "musicBrainzId": "",
+          "isrc": [],
+          "genres": [
+            {
+              "name": "Audiobook"
+            }
+          ],
+          "replayGain": {},
+          "channelCount": 1,
+          "samplingRate": 22050,
+          "bitDepth": 0,
+          "moods": [],
+          "artists": [
+            {
+              "id": "5OBk9TlJPzbVSb9v1hNLv6",
+              "name": "Ada Writer"
+            }
+          ],
+          "displayArtist": "Ada Writer",
+          "albumArtists": [
+            {
+              "id": "5OBk9TlJPzbVSb9v1hNLv6",
+              "name": "Ada Writer"
+            }
+          ],
+          "displayAlbumArtist": "Ada Writer",
+          "contributors": [],
+          "displayComposer": "",
+          "explicitStatus": "",
+          "groupings": [],
+          "works": [],
+          "movements": []
+        },
+        {
+          "id": "4LtUmXd7JkuNIBSg1IBlHr",
+          "parent": "4QgTZm8pZ1DNtLEqjbiLvE",
+          "isDir": false,
+          "title": "The Secret Garden",
+          "album": "The Secret Garden",
+          "artist": "Frances Hodgson Burnett",
+          "genre": "Audiobook",
+          "size": 29415,
+          "contentType": "audio/mp4",
+          "suffix": "m4b",
+          "duration": 4,
+          "bitRate": 49,
+          "path": "Frances Hodgson Burnett/The Secret Garden/The Secret Garden.m4b",
+          "created": "2026-11-18T01:30:45.590460043Z",
+          "albumId": "4QgTZm8pZ1DNtLEqjbiLvE",
+          "artistId": "2OPOd2a8JJHri9khK6jEqn",
+          "type": "music",
+          "bpm": 0,
+          "comment": "",
+          "sortName": "the secret garden",
+          "mediaType": "song",
+          "musicBrainzId": "",
+          "isrc": [],
+          "genres": [
+            {
+              "name": "Audiobook"
+            }
+          ],
+          "replayGain": {},
+          "channelCount": 1,
+          "samplingRate": 22050,
+          "bitDepth": 16,
+          "moods": [],
+          "artists": [
+            {
+              "id": "2OPOd2a8JJHri9khK6jEqn",
+              "name": "Frances Hodgson Burnett"
+            }
+          ],
+          "displayArtist": "Frances Hodgson Burnett",
+          "albumArtists": [
+            {
+              "id": "2OPOd2a8JJHri9khK6jEqn",
+              "name": "Frances Hodgson Burnett"
+            }
+          ],
+          "displayAlbumArtist": "Frances Hodgson Burnett",
+          "contributors": [],
+          "displayComposer": "",
+          "explicitStatus": "",
+          "groupings": [],
+          "works": [],
+          "movements": []
+        }
+      ]
+    }
+  }
+}

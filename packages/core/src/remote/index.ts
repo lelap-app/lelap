@@ -46,6 +46,7 @@ export {
   type AddonScan,
   type AddonSource,
   addonLibraryScan,
+  addonPlaceReport,
   addonLogin,
   addonRootLocation,
   addonSettings,
@@ -55,4 +56,5 @@ export {
   sameAddonCode,
   sharedHeaders,
   withAddonLogin,
+  withQuery,
 } from './addon';

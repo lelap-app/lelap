@@ -8,10 +8,11 @@ import { HealthTracker } from '../addons/health';
 import { exportLibrary } from '../backup';
 import { scanFailureEvent } from '../diagnostics/build';
 import { diagnosticsReport } from '../diagnostics/report';
+import { planDownload } from '../downloads';
 import { listBooks } from '../library/queries';
 import { addRemoteRoot, applyScan, listRoots, updateRemoteRoot } from '../library/scan';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
-import { libraryRoots } from '../schema';
+import { bookFiles, libraryRoots } from '../schema';
 import { createSecretBox, plainBox, setSecretBox } from '../secrets';
 import { SettingsSchema } from '../settings';
 import { collectOps } from '../sync/ops';
@@ -19,6 +20,7 @@ import {
   type AddonSource,
   addonLibraryScan,
   addonLogin,
+  addonPlaceReport,
   addonRootLocation,
   addonSettings,
   addonSource,
@@ -27,6 +29,7 @@ import {
   sameAddonCode,
   sharedHeaders,
   withAddonLogin,
+  withQuery,
 } from './addon';
 
 const random = (n: number) => new Uint8Array(randomBytes(n));
@@ -208,7 +211,11 @@ describe('an add-on as a library source', () => {
     setSecretBox(createSecretBox(random(32), random));
     const elsewhere = listRoots(db).find((r) => r.id === rootId);
     expect(elsewhere?.needsLogin).toBe(true);
-    expect(addonLogin(elsewhere?.remote as AddonSource)).toEqual({ passwords: {}, headers: {} });
+    expect(addonLogin(elsewhere?.remote as AddonSource)).toEqual({
+      passwords: {},
+      headers: {},
+      query: {},
+    });
   });
 
   it('keeps settings and headers out of sync, exports, diagnostics and the scan log', () => {
@@ -228,5 +235,143 @@ describe('an add-on as a library source', () => {
       ),
     ].join('\n');
     for (const secret of [PASSWORD, HEADER, 'nas.local']) expect(text).not.toContain(secret);
+  });
+});
+
+describe('revision 6: a login in the address, downloads and places', () => {
+  const TOKEN = '26719a1196d2a940705a59634eb18eab';
+  const query = { u: 'me', t: TOKEN, s: 'c19b2d' };
+  const hosts = addonSourceHosts(manifest, { url: 'http://nas.local:8080/' });
+  const stream = (id: string) => `http://nas.local:8080/rest/stream?id=${id}&format=raw`;
+  const subsonic = (): AddonSource =>
+    addonSource({
+      addonUrl: 'lelap-local://app.lelap.test-source/manifest.json',
+      manifest,
+      key: 'k6',
+      settings: { url: 'http://nas.local:8080/', user: 'me', password: PASSWORD },
+      query,
+      profileId: ME,
+    });
+
+  it('adds the query on the add-on’s own hosts only, over what the address had', () => {
+    expect(withQuery(`${stream('a')}&t=old`, query, hosts)).toBe(
+      `http://nas.local:8080/rest/stream?id=a&format=raw&t=${TOKEN}&u=me&s=c19b2d`,
+    );
+    expect(withQuery('http://evil.example/x.mp3', query, hosts)).toBe('http://evil.example/x.mp3');
+    expect(withQuery(stream('a'), {}, hosts)).toBe(stream('a'));
+  });
+
+  it('keeps download addresses on its own hosts and takes the server’s places', () => {
+    const response = LibraryResponse.parse({
+      files: [
+        {
+          path: 'Writer/Town/001 One.mp3',
+          url: stream('a'),
+          downloadUrl: 'http://nas.local:8080/rest/download?id=a',
+          place: { positionMs: 1500, at: 1000 },
+        },
+        {
+          path: 'Writer/Town/002 Two.mp3',
+          url: stream('b'),
+          downloadUrl: 'http://evil.example/download?id=b',
+        },
+      ],
+      query,
+    });
+    const location = addonRootLocation('k6');
+    const scan = addonLibraryScan(location, response, hosts);
+    expect(scan.listed.map((f) => f.downloadUri ?? null)).toEqual([
+      'http://nas.local:8080/rest/download?id=a',
+      null,
+    ]);
+    expect(scan.refused).toBe(1);
+    expect(scan.places).toEqual([
+      {
+        fileLocation: `${location}/Writer/Town/001 One.mp3`,
+        positionMs: 1500,
+        played: false,
+        at: 1000,
+      },
+    ]);
+  });
+
+  it('stores addresses without the token, and downloads from the download address', () => {
+    setSecretBox(createSecretBox(random(32), random));
+    const db = createTestDb();
+    const rootId = addRemoteRoot(db, subsonic(), 1, newId);
+    const location = addonRootLocation('k6');
+    const response = LibraryResponse.parse({
+      files: [
+        {
+          path: 'Writer/Town/001 One.mp3',
+          url: stream('a'),
+          downloadUrl: 'http://nas.local:8080/rest/download?id=a',
+          size: 100,
+          durationMs: 1000,
+          album: 'Town',
+        },
+      ],
+      query,
+    });
+    const scan = addonLibraryScan(location, response, hosts);
+    applyScan(db, {
+      rootId,
+      rootLocation: location,
+      listed: scan.listed,
+      tags: scan.tags,
+      folderCovers: new Map(),
+      now: 2,
+      newId,
+    });
+    const [file] = db.select().from(bookFiles).all();
+    expect(file?.uri).toBe(stream('a'));
+    const book = listBooks(db, ME, 'title')[0];
+    expect(planDownload(db, book?.id ?? '').files[0]?.url).toBe(
+      'http://nas.local:8080/rest/download?id=a',
+    );
+
+    const text = [
+      JSON.stringify(db.select().from(libraryRoots).all()),
+      JSON.stringify(db.select().from(bookFiles).all()),
+      JSON.stringify(collectOps(db, -1)),
+      JSON.stringify(exportLibrary(db, 5)),
+      diagnosticsReport(db, {
+        app: { version: '1.0.0', platform: 'android', androidApi: 34 },
+        settings: SettingsSchema.parse({}),
+        health: (url) => new HealthTracker().get(url),
+        now: 10,
+      }),
+    ].join('\n');
+    for (const secret of [PASSWORD, TOKEN, 'c19b2d']) expect(text).not.toContain(secret);
+    const opened = listRoots(db).find((r) => r.id === rootId)?.remote as AddonSource;
+    expect(addonLogin(opened).query).toEqual(query);
+    expect(opened.profileId).toBe(ME);
+  });
+
+  it('reports a place by the listed path and the address without the login', () => {
+    const root = addonRootLocation('k6');
+    const files = [
+      { location: `${root}/W/T/001 One.mp3`, uri: stream('a') },
+      { location: `${root}/W/T/002 Two.mp3`, uri: stream('b') },
+    ];
+    const at = {
+      location: files[1]?.location ?? '',
+      positionMs: 1234.6,
+      when: 99,
+      finished: false,
+    };
+    expect(addonPlaceReport(root, files, at)).toEqual({
+      file: { path: 'W/T/002 Two.mp3', url: stream('b') },
+      files: [
+        { path: 'W/T/001 One.mp3', url: stream('a') },
+        { path: 'W/T/002 Two.mp3', url: stream('b') },
+      ],
+      positionMs: 1235,
+      at: 99,
+      finished: false,
+    });
+    const elsewhere = [...files, { location: 'webdav:nas/x.mp3', uri: 'http://nas/x.mp3' }];
+    expect(addonPlaceReport(root, elsewhere, at)).toBeNull();
+    expect(addonPlaceReport(root, files, { ...at, location: 'other' })).toBeNull();
   });
 });

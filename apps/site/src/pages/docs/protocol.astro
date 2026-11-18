@@ -6,12 +6,14 @@ import {
   LibraryResponse,
   Manifest,
   MetaResponse,
+  PlaceReport,
   PROTOCOL_VERSION,
   ScrobbleRequest,
   StreamResponse,
   catalogPath,
   libraryPath,
   metaPath,
+  placePath,
   streamPath,
 } from '@lelap/sdk';
 import type { ZodType } from 'zod';
@@ -180,6 +182,7 @@ POST /scrobble                              ← { "events": ScrobbleEvent[] }
 GET /health                                 → HealthResponse      (revision 2)
 GET /artwork/{type}/{id}.json               → { "artwork": ArtworkImage[] }  (revision 3)
 GET /library/audiobook/all.json             → { "files": LibraryFile[] }  (revision 5, inside the app)
+place/audiobook/all.json                    ← PlaceReport          (revision 6, inside the app only)
 GET /configure                              → your settings page  (HTML)
 `;
 
@@ -217,6 +220,41 @@ const library = example(LibraryResponse, {
     },
   ],
   headers: { Authorization: 'Basic bWU6c2VjcmV0' },
+});
+
+const subsonicLibrary = example(LibraryResponse, {
+  files: [
+    {
+      path: 'Ada Writer/The Quiet Town/002 Chapter 2.mp3',
+      url: 'http://192.168.1.20:4533/rest/stream?id=4u80kf&format=raw&v=1.16.1&c=lelap',
+      downloadUrl: 'http://192.168.1.20:4533/rest/download?id=4u80kf&v=1.16.1&c=lelap',
+      durationMs: 3_000,
+      album: 'The Quiet Town',
+      albumArtist: 'Ada Writer',
+      place: { positionMs: 1_500, at: 1_795_000_000_000 },
+    },
+  ],
+  query: { u: 'me', t: '26719a1196d2a940705a59634eb18eab', s: 'c19b2d01' },
+});
+
+const placeReport = example(PlaceReport, {
+  file: {
+    path: 'Ada Writer/The Quiet Town/002 Chapter 2.mp3',
+    url: 'http://192.168.1.20:4533/rest/stream?id=4u80kf&format=raw&v=1.16.1&c=lelap',
+  },
+  files: [
+    {
+      path: 'Ada Writer/The Quiet Town/001 Chapter 1.mp3',
+      url: 'http://192.168.1.20:4533/rest/stream?id=6obznG&format=raw&v=1.16.1&c=lelap',
+    },
+    {
+      path: 'Ada Writer/The Quiet Town/002 Chapter 2.mp3',
+      url: 'http://192.168.1.20:4533/rest/stream?id=4u80kf&format=raw&v=1.16.1&c=lelap',
+    },
+  ],
+  positionMs: 1_500,
+  at: 1_795_000_000_000,
+  finished: false,
 });
 
 const configuredManifest = example(Manifest, {
@@ -465,7 +503,21 @@ const libraryFields: Field[] = [
     type: 'URL',
     required: false,
     meaning:
-      'A cover for the file’s book, on one of the add-on’s hosts. A `cover.jpg` in the folder works too, fetched with the headers.',
+      'A cover for the file’s book, on one of the add-on’s hosts, shown as it is. A `cover.jpg` in the folder works too, fetched with the headers and `query`.',
+  },
+  {
+    name: 'downloadUrl',
+    type: 'URL',
+    required: false,
+    meaning:
+      'Revision 6: where the app downloads the file from, when not from `url`, on one of the add-on’s hosts.',
+  },
+  {
+    name: 'place',
+    type: 'object',
+    required: false,
+    meaning:
+      'Revision 6: the listener’s place in this file as the server keeps it: `positionMs`, `at` (Unix time in milliseconds) and `played`. The newest place of a book wins, Lelap’s own or the server’s.',
   },
 ];
 
@@ -1209,8 +1261,10 @@ const toc: [string, string][] = [
     <a href="#in-app">add-ons inside the app</a>; revision 4 adds <a href="#badges">badges</a>;
     revision 5 adds <a href="#library">library sources</a>: settings, a library listing and stream
     headers, for add-ons inside the app. An app before revision 5 refuses a manifest that lists{' '}
-    <code>library</code>. When an add-on declares a newer revision than the app knows, Settings →
-    Add-ons says so.
+    <code>library</code>. Revision 6 adds a library’s <code>query</code>, a file’s{' '}
+    <code>downloadUrl</code> and <code>place</code>, and <a href="#places">places</a>; an app before
+    revision 6 refuses a manifest that lists <code>place</code>. When an add-on declares a newer
+    revision than the app knows, Settings → Add-ons says so.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />
@@ -1352,8 +1406,9 @@ const toc: [string, string][] = [
     to WebDAV and S3: it lists the books and files on a server, and the app scans them into the
     library with places, downloads and offline play. The listener adds it in Settings → Servers →
     Add a server, where it shows as a kind of its own and asks for what <code>settings</code>{' '}
-    describes. Lelap ships one with the app, HTTP folder, which reads the folder listings of servers
-    such as nginx, Apache and Caddy.
+    describes. Lelap ships two with the app: HTTP folder, which reads the folder listings of servers
+    such as nginx, Apache and Caddy, and Subsonic, for Navidrome, Airsonic-Advanced, Gonic and other
+    servers that speak the Subsonic API.
   </p>
   <ul>
     <li>
@@ -1394,6 +1449,31 @@ const toc: [string, string][] = [
     is a list of <a href="#chapter">Chapter</a>. The SDK’s <code>readSettings</code> checks a form
     the same way the app does, and <code>settingHosts</code> gives the hosts it grants.
   </p>
+
+  <h3 id="query">A login in the address</h3>
+  <p>
+    Since revision 6, a listing can carry <code>query</code> instead of <code>headers</code>, for
+    servers that only take a login in the address, such as the Subsonic API. The app keeps it sealed
+    with the settings and adds it to a file’s address only at the moment it plays, downloads or
+    reads the file, and only on the add-on’s hosts. The addresses it stores, syncs, exports or logs
+    never have it. A browser can play these books too, since the login is in the address. A file’s{' '}
+    <code>cover</code> is shown as it is, without <code>query</code>; put the cover in the listing
+    as the folder’s <code>cover.jpg</code> instead when it needs the login.
+  </p>
+  <CodeBlock code={subsonicLibrary} label={`GET /${libraryPath()}, from a Subsonic server`} />
+
+  <h3 id="places">Places</h3>
+  <p>
+    Since revision 6, a library source can keep the listener’s places on its server, both ways. A
+    file’s <code>place</code> brings the server’s place into the library on each scan; an add-on
+    with the <code>place</code> resource also gets a <code>PlaceReport</code> in its{' '}
+    <code>place</code> handler, as <code>args.place</code> next to <code>args.settings</code>, when
+    the listener starts, pauses, plays on for about five minutes or finishes a book. The newest
+    place wins. Only the profile that added the server sends places, and a report that fails is not
+    sent again: the next scan settles it. There is no HTTP route for <code>{placePath()}</code>;
+    only the sandbox calls it.
+  </p>
+  <CodeBlock code={placeReport} label="PlaceReport" />
 
   <h2 id="speed">Making it fast</h2>
   <p>

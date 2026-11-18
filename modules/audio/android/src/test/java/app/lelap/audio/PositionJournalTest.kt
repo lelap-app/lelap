@@ -54,6 +54,19 @@ class PositionJournalTest {
   }
 
   @Test
+  fun keepsAddressesWithALoginPrivateThroughTheJournal() {
+    val json = """
+      {"bookId":"b","title":"T","author":null,"coverUri":null,"speed":1,
+       "files":[{"uri":"http://nas:4533/rest/stream?id=a&t=x&s=y","location":"loc","title":"x","durationMs":5}],
+       "chapters":[],"startIndex":0,"startPositionMs":0,"privateUris":true}
+    """.trimIndent()
+    val load = PositionJournal.decodeLoad(json)!!
+    assertTrue(load.playlist.privateUris)
+    assertEquals(load, PositionJournal.decodeLoad(PositionJournal.encodeLoad(load)))
+    assertFalse(PositionJournal.decodeLoad(json.replace(",\"privateUris\":true", ""))!!.playlist.privateUris)
+  }
+
+  @Test
   fun returnsNullForCorruptJson() {
     assertNull(PositionJournal.decode("{not json"))
     assertNull(PositionJournal.decode("""{"entry":{}}"""))

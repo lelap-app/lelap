@@ -14,7 +14,7 @@ import {
   signInJellyfin,
   updateRemoteRoot,
 } from '@lelap/core';
-import { readSettings, type Settings } from '@lelap/sdk';
+import { offersPlaces, readSettings, type Settings } from '@lelap/sdk';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -305,8 +305,11 @@ export default function ServerScreen() {
         key,
         settings: read.settings,
         ...(listing.headers ? { headers: listing.headers } : {}),
+        ...(listing.query ? { query: listing.query } : {}),
         // The login is for this file; another one under the same ID has to ask again.
         ...(code ? { codeSha: code } : {}),
+        // Places on the server belong to the profile that adds it, as with Jellyfin.
+        profileId: addonRoot?.profileId ?? profileId,
       });
       if (existing && rootId) updateRemoteRoot(db, rootId, remote, Date.now());
       else addRemoteRoot(db, remote, Date.now(), newId);
@@ -455,6 +458,11 @@ export default function ServerScreen() {
               {...(field.help === undefined ? {} : { hint: field.help })}
             />
           ))}
+          {offersPlaces(chosenSource.manifest) && (
+            <Text className="text-xs text-muted">
+              {t('Places sync both ways with this server, for the profile adding it.')}
+            </Text>
+          )}
           <Text className="text-xs text-muted">
             {t(
               'Runs on this device, in a sandbox. It can reach only the address you enter, and the login stays on this device.',
@@ -463,7 +471,7 @@ export default function ServerScreen() {
           {Platform.OS === 'web' && (
             <Text className="text-sm text-muted">
               {t(
-                "In the browser the server must allow this site (CORS), and books that need a login play in the Android app only: a browser can't send the login with audio.",
+                "In the browser the server must allow this site (CORS), and some servers' books play in the Android app only: a browser can't send a login with audio.",
               )}
             </Text>
           )}

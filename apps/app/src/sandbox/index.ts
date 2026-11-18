@@ -1,6 +1,6 @@
 import { t } from '../i18n';
 import { bundledAddon, getLocalAddonCode, hostAllowed, listAddons } from '@lelap/core';
-import { libraryPath, type Settings } from '@lelap/sdk';
+import { libraryPath, type PlaceReport, placePath, type Settings } from '@lelap/sdk';
 
 import { db } from '../db';
 import { sandboxPage } from './page';
@@ -9,9 +9,11 @@ import { sandboxPage } from './page';
 // on Android, an iframe on the web), started when first needed. Calls go in as messages; the
 // sandbox asks the app to fetch, and the app fetches only from the add-on's declared hosts.
 // An add-on used as a library source (M57) gets a sandbox of its own per server, with that
-// server's hosts, and its settings only in that sandbox's `library` calls.
+// server's hosts, and its settings only in that sandbox's `library` and `place` calls.
 
 const CALL_TIMEOUT_MS = 20_000;
+// A library listing may take many requests, such as one per album on a Subsonic server.
+const LIBRARY_TIMEOUT_MS = 120_000;
 const FETCH_TIMEOUT_MS = 20_000;
 const MAX_RESPONSE_CHARS = 5_000_000;
 
@@ -178,6 +180,7 @@ async function call(
   box: Box,
   path: string,
   settings?: Settings,
+  extra: { place?: PlaceReport; timeoutMs?: number } = {},
 ): Promise<{ status: number; body: unknown }> {
   if (!box.ready || !box.post) {
     await new Promise<void>((resolve, reject) => {
@@ -200,9 +203,17 @@ async function call(
     const timer = setTimeout(() => {
       box.calls.delete(id);
       reject(new Error(t('The add-on did not answer in time.')));
-    }, CALL_TIMEOUT_MS);
+    }, extra.timeoutMs ?? CALL_TIMEOUT_MS);
     box.calls.set(id, { resolve, reject, timer });
-    box.post?.(JSON.stringify({ t: 'call', id, path, ...(settings ? { settings } : {}) }));
+    box.post?.(
+      JSON.stringify({
+        t: 'call',
+        id,
+        path,
+        ...(settings ? { settings } : {}),
+        ...(extra.place ? { place: extra.place } : {}),
+      }),
+    );
   });
 }
 
@@ -227,6 +238,11 @@ export async function callAddonLibrary(args: {
   hosts: string[];
   settings: Settings;
 }): Promise<{ status: number; body: unknown }> {
+  return call(serverBox(args), libraryPath(), args.settings, { timeoutMs: LIBRARY_TIMEOUT_MS });
+}
+
+/** One server's sandbox, started again when its hosts changed. */
+function serverBox(args: { addonUrl: string; sandboxId: string; hosts: string[] }): Box {
   const found = codeOf(args.addonUrl);
   if (!found) throw new Error(t('This add-on is not on this device.'));
   const id = `${args.addonUrl}#${args.sandboxId}`;
@@ -235,8 +251,21 @@ export async function callAddonLibrary(args: {
     closeSandbox(id);
     box = undefined;
   }
-  box ??= open(id, found.code, args.hosts);
-  return call(box, libraryPath(), args.settings);
+  return box ?? open(id, found.code, args.hosts);
+}
+
+/**
+ * Tells an add-on where the listener is in one of its server's books (revision 6), in that
+ * server's own sandbox and with its settings, so it can save the place on the server.
+ */
+export async function callAddonPlace(args: {
+  addonUrl: string;
+  sandboxId: string;
+  hosts: string[];
+  settings: Settings;
+  place: PlaceReport;
+}): Promise<{ status: number; body: unknown }> {
+  return call(serverBox(args), placePath(), args.settings, { place: args.place });
 }
 
 /** Runs code that isn't installed yet, with no network, to read its manifest. */

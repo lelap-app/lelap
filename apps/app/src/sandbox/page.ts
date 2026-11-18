@@ -4,9 +4,9 @@
 // only from the hosts the add-on declared. The bootstrap answers the same routes as a web add-on.
 //
 // Since M57 the add-on's code runs in a worker inside the page. A worker can't navigate, open a
-// window or add an element, so a server's settings, which reach `library` calls as `settings`,
-// can't leave in an address either. Where a worker can't start, the code runs in the page as
-// before and the app never hands it settings (`isolated: false`).
+// window or add an element, so a server's settings, which reach `library` and `place` calls as
+// `settings`, can't leave in an address either. Where a worker can't start, the code runs in the
+// page as before and the app never hands it settings (`isolated: false`).
 
 const ADDON_SIDE = `
 (function (post) {
@@ -47,7 +47,7 @@ const ADDON_SIDE = `
     }
     return p.length === 3 ? r : null;
   };
-  var handle = function (id, path, settings) {
+  var handle = function (id, path, settings, place) {
     Promise.resolve().then(function () {
       if (!def) throw new Error('The file never called addon({...}).');
       var r = route(path);
@@ -55,7 +55,10 @@ const ADDON_SIDE = `
       if (r.resource === 'manifest') return { status: 200, body: def.manifest };
       var h = def[r.resource];
       if (typeof h !== 'function') return { status: 404, body: { error: 'Not found' } };
-      if (r.resource === 'library') r.settings = Object.freeze(settings || {});
+      if (r.resource === 'library' || r.resource === 'place') {
+        r.settings = Object.freeze(settings || {});
+      }
+      if (r.resource === 'place') r.place = place || null;
       return Promise.resolve(h(r)).then(function (b) {
         return b == null ? { status: 404, body: { error: 'Not found' } } : { status: 200, body: b };
       });
@@ -82,7 +85,7 @@ const ADDON_SIDE = `
         json: function () { return Promise.resolve(JSON.parse(m.text)); }
       });
     } else if (m.t === 'call') {
-      handle(m.id, m.path, m.settings);
+      handle(m.id, m.path, m.settings, m.place);
     }
   };
   self.onerror = function (msg) { post({ t: 'log', message: String(msg) }); };

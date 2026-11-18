@@ -1,0 +1,100 @@
+{
+  "subsonic-response": {
+    "status": "ok",
+    "version": "1.16.1",
+    "type": "navidrome",
+    "serverVersion": "0.64.2 (10114574)",
+    "openSubsonic": true,
+    "album": {
+      "id": "4QgTZm8pZ1DNtLEqjbiLvE",
+      "name": "The Secret Garden",
+      "artist": "Frances Hodgson Burnett",
+      "artistId": "2OPOd2a8JJHri9khK6jEqn",
+      "songCount": 1,
+      "duration": 4,
+      "created": "2026-11-18T01:28:01.877312352Z",
+      "genre": "Audiobook",
+      "userRating": 0,
+      "genres": [
+        {
+          "name": "Audiobook"
+        }
+      ],
+      "musicBrainzId": "",
+      "isCompilation": false,
+      "sortName": "secret garden",
+      "discTitles": [],
+      "originalReleaseDate": {},
+      "releaseDate": {},
+      "releaseTypes": [],
+      "recordLabels": [],
+      "moods": [],
+      "artists": [
+        {
+          "id": "2OPOd2a8JJHri9khK6jEqn",
+          "name": "Frances Hodgson Burnett"
+        }
+      ],
+      "displayArtist": "Frances Hodgson Burnett",
+      "explicitStatus": "",
+      "version": "",
+      "song": [
+        {
+          "id": "4LtUmXd7JkuNIBSg1IBlHr",
+          "parent": "4QgTZm8pZ1DNtLEqjbiLvE",
+          "isDir": false,
+          "title": "The Secret Garden",
+          "album": "The Secret Garden",
+          "artist": "Frances Hodgson Burnett",
+          "genre": "Audiobook",
+          "size": 29415,
+          "contentType": "audio/mp4",
+          "suffix": "m4b",
+          "duration": 4,
+          "bitRate": 49,
+          "path": "Frances Hodgson Burnett/The Secret Garden/The Secret Garden.m4b",
+          "created": "2026-11-18T01:30:45.590460043Z",
+          "albumId": "4QgTZm8pZ1DNtLEqjbiLvE",
+          "artistId": "2OPOd2a8JJHri9khK6jEqn",
+          "type": "music",
+          "bpm": 0,
+          "comment": "",
+          "sortName": "the secret garden",
+          "mediaType": "song",
+          "musicBrainzId": "",
+          "isrc": [],
+          "genres": [
+            {
+              "name": "Audiobook"
+            }
+          ],
+          "replayGain": {},
+          "channelCount": 1,
+          "samplingRate": 22050,
+          "bitDepth": 16,
+          "moods": [],
+          "artists": [
+            {
+              "id": "2OPOd2a8JJHri9khK6jEqn",
+              "name": "Frances Hodgson Burnett"
+            }
+          ],
+          "displayArtist": "Frances Hodgson Burnett",
+          "albumArtists": [
+            {
+              "id": "2OPOd2a8JJHri9khK6jEqn",
+              "name": "Frances Hodgson Burnett"
+            }
+          ],
+          "displayAlbumArtist": "Frances Hodgson Burnett",
+          "contributors": [],
+          "displayComposer": "",
+          "explicitStatus": "",
+          "groupings": [],
+          "works": [],
+          "movements": []
+        }
+      ]
+    }
+  }
+}

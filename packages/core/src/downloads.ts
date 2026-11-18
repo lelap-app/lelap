@@ -78,6 +78,7 @@ export function planDownload(db: Db, bookId: string): DownloadPlan {
     .select({
       idx: bookFiles.idx,
       uri: bookFiles.uri,
+      downloadUri: bookFiles.downloadUri,
       size: bookFiles.size,
       rootId: bookFiles.rootId,
     })
@@ -87,7 +88,7 @@ export function planDownload(db: Db, bookId: string): DownloadPlan {
     .all();
   if (parts.length === 0) throw new DownloadError('This book has no files to download.');
   const files = parts.map((p) => ({
-    url: p.uri,
+    url: p.downloadUri ?? p.uri,
     // A server file's name comes from its path, not from a signed link.
     name: partFileName(p.idx, p.uri.split('?')[0] ?? p.uri),
     size: p.size,
