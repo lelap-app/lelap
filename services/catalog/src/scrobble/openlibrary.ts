@@ -64,6 +64,25 @@ export function shelvesFor(events: ScrobbleEvent[]): Map<string, Shelf> {
 const REJECTED =
   'Open Library did not accept these S3 keys. Copy them again from archive.org/account/s3.php.';
 
+/** Login errors the listener has to fix on archive.org or Open Library; others are retried. */
+const ACCOUNT_ERRORS: Record<string, string> = {
+  invalid_s3keys: REJECTED,
+  account_blocked: 'Open Library says this account is blocked.',
+  account_locked: 'Open Library says this account is locked.',
+  account_not_found: 'Open Library found no account for these keys. Sign in there once first.',
+  account_not_verified: 'Open Library asks you to verify your account first.',
+  ia_account_not_verified: 'archive.org asks you to verify your account first.',
+};
+
+/** A 400 from the login: a 401 for the listener to act on, or a 502 to try again later. */
+export function loginRefused(body: unknown): AddonError {
+  const code = (body as { error?: unknown } | null)?.error;
+  const message = typeof code === 'string' ? ACCOUNT_ERRORS[code] : undefined;
+  return message
+    ? new AddonError(401, message)
+    : new AddonError(502, 'Open Library could not sign in. Try again later.');
+}
+
 function cookiesOf(response: Response): string[] {
   const headers = response.headers as Headers & { getSetCookie?: () => string[] };
   if (typeof headers.getSetCookie === 'function') return headers.getSetCookie();
@@ -84,8 +103,11 @@ export function sessionCookie(response: Response): string | null {
 export type OpenLibraryLog = {
   /** Signs in with the keys; throws an `AddonError` (401) when Open Library refuses them. */
   login: () => Promise<string>;
-  /** Puts a work on a shelf, leaving it there when it already is. */
-  shelve: (session: string, work: string, shelf: Shelf) => Promise<void>;
+  /**
+   * Puts a work on a shelf, leaving it there when it already is. Resolves false when Open Library
+   * refuses that work, which trying again would not change.
+   */
+  shelve: (session: string, work: string, shelf: Shelf) => Promise<boolean>;
 };
 
 export function openLibraryLog(
@@ -109,9 +131,10 @@ export function openLibraryLog(
         redirect: 'manual',
         signal: AbortSignal.timeout(10_000),
       });
-      if (response.status === 400 || response.status === 401 || response.status === 403)
-        throw new AddonError(401, REJECTED);
-      if (response.status >= 400) throw failed(response);
+      if (response.status === 400) throw loginRefused(await response.json().catch(() => null));
+      if (response.status === 401 || response.status === 403) throw new AddonError(401, REJECTED);
+      // A redirect or any other surprise is Open Library changing, not the keys being wrong.
+      if (response.status < 200 || response.status >= 300) throw failed(response);
       const session = sessionCookie(response);
       if (!session) throw new AddonError(401, REJECTED);
       return session;
@@ -132,8 +155,7 @@ export function openLibraryLog(
       if (!response.ok) throw failed(response);
       // A refused write answers 200 with an `error` key.
       const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
-      if (body && typeof body === 'object' && body.error)
-        throw new AddonError(502, `Open Library: ${String(body.error)}`);
+      return !(body && typeof body === 'object' && body.error);
     },
   };
 }
@@ -154,14 +176,14 @@ export function openLibraryLogAddon(
     basePath: BASE_PATH,
     manifest: openLibraryLogManifest,
     intro:
-      'Open Library signs you in with your archive.org S3 keys rather than your password. Make them at archive.org/account/s3.php while signed in with the account you use on Open Library, and paste both here. Lelap then puts books you start on Currently reading and books you finish on Already read. Only the book and the shelf are sent.',
+      'Open Library signs you in with your archive.org S3 keys rather than your password. Make them at archive.org/account/s3.php while signed in with the account you use on Open Library, and paste both here. Lelap then puts books you start on Currently reading and books you finish on Already read. Only the book and the shelf are sent. The keys also work for the rest of archive.org, such as uploads, so keep the add-on link to yourself.',
     fields: [
       { name: 'access', label: 'S3 access key', type: 'text' },
       {
         name: 'secret',
         label: 'S3 secret key',
         type: 'password',
-        hint: 'To stop the add-on, make new keys on the same page: the old ones stop working.',
+        hint: 'To stop the add-on, make new keys on the same page.',
       },
     ],
     parse: (form) => {
@@ -194,6 +216,7 @@ export function openLibraryLogAddon(
         for (const [work, shelf] of shelves) {
           if (!first) await wait(REQUEST_GAP_MS);
           first = false;
+          // A work Open Library refuses is skipped, so it can't hold up the books after it.
           await log.shelve(session, work, shelf);
         }
       },

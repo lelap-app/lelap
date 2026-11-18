@@ -35,6 +35,25 @@ export function userAgent(env: Env): string {
   return env.SOURCE_URL ? `Lelap/1 (+${env.SOURCE_URL})` : 'Lelap/1';
 }
 
+/**
+ * `OPEN_LIBRARY_URL` when it is https, or http on this machine; listeners' keys go there, so
+ * anything else is ignored.
+ */
+export function openLibraryBase(env: Env): string | undefined {
+  const value = env.OPEN_LIBRARY_URL?.trim();
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if (url.protocol === 'https:' || (url.protocol === 'http:' && local))
+      return url.href.replace(/\/+$/, '');
+  } catch {
+    // Falls through to the warning.
+  }
+  console.error('OPEN_LIBRARY_URL is not an https address; using openlibrary.org');
+  return undefined;
+}
+
 export function podcastIndexCredentials(env: Env): PodcastIndexCredentials | null {
   const key = env.PODCASTINDEX_KEY?.trim();
   const secret = env.PODCASTINDEX_SECRET?.trim();
@@ -63,10 +82,11 @@ export function createApp(platform: Platform, env: Env): Hono {
     { ...gpodderAddon(platform.userFetch ?? platform.fetch, agent), onError },
     createSealer(env.CONFIG_SECRET, 'gpodder'),
   );
+  const openLibrary = openLibraryBase(env);
   const openLibraryLog = mountConfigurable(
     {
       ...openLibraryLogAddon(platform.fetch, agent, {
-        ...(env.OPEN_LIBRARY_URL ? { base: env.OPEN_LIBRARY_URL.replace(/\/+$/, '') } : {}),
+        ...(openLibrary ? { base: openLibrary } : {}),
       }),
       onError,
     },

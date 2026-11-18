@@ -1,12 +1,14 @@
 import type { ScrobbleEvent } from '@lelap/sdk';
 import { describe, expect, it } from 'vitest';
 
-import { createApp } from '../src/app';
+import { createApp, openLibraryBase } from '../src/app';
 import { mountConfigurable } from '../src/scrobble/mount';
 import {
   openLibraryLogAddon,
   REQUEST_GAP_MS,
   SHELF,
+  loginRefused,
+  openLibraryLog,
   sessionCookie,
   shelvesFor,
   workOf,
@@ -309,16 +311,60 @@ describe('Open Library reading log', () => {
     expect(response.status).toBe(401);
   });
 
-  it('retries later when Open Library is busy or refuses a write', async () => {
+  it('retries later when Open Library is busy', async () => {
     const busy = openLibrary({ shelf: () => new Response('slow down', { status: 429 }) });
     const serve = quickMount(busy.fetch);
     const { url } = await configure(serve);
     expect((await post(serve, url, [event({ event: 'start' })])).status).toBe(503);
+  });
 
-    const refused = quickMount(
-      openLibrary({ shelf: () => Response.json({ error: 'Invalid bookshelf' }) }).fetch,
+  it('skips a work Open Library refuses and shelves the others', async () => {
+    const { fetch, calls } = openLibrary({
+      shelf: (call) =>
+        call.url.includes('/OL1W/')
+          ? Response.json({ error: 'Invalid bookshelf' })
+          : Response.json({ bookshelves_affected: 1 }),
+    });
+    const serve = quickMount(fetch);
+    const { url } = await configure(serve);
+    calls.length = 0;
+    const response = await post(
+      serve,
+      url,
+      [1, 2].map((n) =>
+        event({ event: 'start', item: { type: 'audiobook', id: `ol:OL${n}W`, name: `Book ${n}` } }),
+      ),
     );
-    expect((await post(refused, url, [event({ event: 'start' })])).status).toBe(502);
+    expect(response.status).toBe(200);
+    expect(shelfCalls(calls).map((c) => new URL(c.url).pathname)).toEqual([
+      '/works/OL1W/bookshelves.json',
+      '/works/OL2W/bookshelves.json',
+    ]);
+  });
+
+  it('tells account problems from passing failures at sign-in', async () => {
+    const at = (response: Response) => {
+      const fetch: FetchLike = async () => response;
+      return openLibraryLog(fetch, KEYS, 'Lelap/1').login();
+    };
+    const status = (promise: Promise<unknown>) =>
+      promise.then(
+        () => 200,
+        (error: { status?: number }) => error.status,
+      );
+    const answer = (error: string) => Response.json({ error }, { status: 400 });
+    expect(await status(at(answer('invalid_s3keys')))).toBe(401);
+    expect(await status(at(answer('account_blocked')))).toBe(401);
+    expect(await status(at(answer('request_timeout')))).toBe(502);
+    expect(await status(at(new Response('oops', { status: 400 })))).toBe(502);
+    expect(await status(at(new Response('busy', { status: 429 })))).toBe(503);
+    expect(await status(at(new Response('down', { status: 503 })))).toBe(502);
+    expect(
+      await status(at(new Response(null, { status: 302, headers: { Location: '/login' } }))),
+    ).toBe(502);
+    // Signed in without a session is the keys not being taken.
+    expect(await status(at(new Response('null', { status: 200 })))).toBe(401);
+    expect(loginRefused({ error: 'account_locked' }).message).toContain('locked');
   });
 
   it('reads the session cookie from one or several Set-Cookie headers', () => {
@@ -329,6 +375,14 @@ describe('Open Library reading log', () => {
     const logout = new Headers({ 'Set-Cookie': 'session=""; expires=Thu, 01 Jan 1970' });
     expect(sessionCookie(new Response(null, { headers: logout }))).toBe(null);
     expect(sessionCookie(new Response(null))).toBe(null);
+    // Without getSetCookie, the cookies come joined with commas, dates included.
+    const joined = {
+      headers: {
+        get: () =>
+          `pd=; expires=Thu, 01 Jan 1970 00:00:01 GMT; Path=/, session=${SESSION}; Path=/, s3=x`,
+      },
+    } as unknown as Response;
+    expect(sessionCookie(joined)).toBe(SESSION);
   });
 
   it('signs in at another Open Library when OPEN_LIBRARY_URL names one', async () => {
@@ -337,8 +391,20 @@ describe('Open Library reading log', () => {
       { fetch, now: () => 0 },
       { CONFIG_SECRET: SECRET, OPEN_LIBRARY_URL: 'http://localhost:8080/' },
     );
-    await configure((r) => app.fetch(r));
+    const { url } = await configure((r) => app.fetch(r));
     expect(calls[0]?.url).toBe('http://localhost:8080/account/login');
+    await post((r) => app.fetch(r), url, [event({ event: 'start' })]);
+    expect(shelfCalls(calls)[0]?.url).toBe('http://localhost:8080/works/OL69612W/bookshelves.json');
+  });
+
+  it('only takes an https OPEN_LIBRARY_URL, or http on this machine', () => {
+    expect(openLibraryBase({ OPEN_LIBRARY_URL: 'https://ol.example/' })).toBe('https://ol.example');
+    expect(openLibraryBase({ OPEN_LIBRARY_URL: 'http://127.0.0.1:8080' })).toBe(
+      'http://127.0.0.1:8080',
+    );
+    expect(openLibraryBase({ OPEN_LIBRARY_URL: 'http://ol.example' })).toBe(undefined);
+    expect(openLibraryBase({ OPEN_LIBRARY_URL: 'not a url' })).toBe(undefined);
+    expect(openLibraryBase({})).toBe(undefined);
   });
 
   it('does not open a link sealed for another add-on', async () => {
