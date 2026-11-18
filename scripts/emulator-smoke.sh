@@ -234,7 +234,7 @@ choose_folder() {
       sleep 1
       xml="$(screen || true)"
       # The phone's own storage, named after the device; Download is a folder there.
-      tap_in "$xml" text 'Downloads?' || tap_in "$xml" text '(sdk_gphone|Android SDK|Internal storage)[^"]*' || true
+      tap_in "$xml" text '(sdk_gphone|Android SDK|Internal storage)[^"]*' || tap_in "$xml" text 'Downloads?' || true
     fi
     sleep 2
   done

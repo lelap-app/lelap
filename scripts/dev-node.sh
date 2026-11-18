@@ -12,11 +12,11 @@ if [ "$(major)" != "${want%%.*}" ]; then
     # nvm's script fails under `set -u`.
     set +u
     . "${NVM_DIR:-$HOME/.nvm}/nvm.sh"
-    nvm use "$want" > /dev/null
+    nvm use "$want" > /dev/null || true
     set -u
   elif command -v fnm > /dev/null; then
     eval "$(fnm env)"
-    fnm use "$want" > /dev/null
+    fnm use "$want" > /dev/null || true
   fi
 fi
 if [ "$(major)" != "${want%%.*}" ]; then
