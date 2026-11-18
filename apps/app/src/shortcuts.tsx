@@ -15,6 +15,7 @@ import { Sheet } from './components/Sheet';
 import { db } from './db';
 import { t } from './i18n';
 import * as audio from './platform/audio';
+import { useLibrary } from './player';
 import { profileId } from './profile';
 
 // Keyboard shortcuts for the web app. Android has its media keys through the media session.
@@ -119,6 +120,8 @@ async function playPause(): Promise<void> {
 export function ShortcutsHost() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // Renders again on the library's signal, so a new skip interval shows while the list is open.
+  useLibrary();
 
   useEffect(() => {
     if (!SHORTCUTS_SUPPORTED) return;

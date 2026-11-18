@@ -67,6 +67,25 @@ const KEYS: Record<string, Shortcut> = {
   '?': 'help',
 };
 
+/**
+ * Where a key moves a focused slider, as a share of its range from 0 to 1, or null when the key
+ * doesn't move it: arrows by a step, Page Up and Page Down by four, Home and End to either end.
+ */
+export function sliderKey(key: string, ratio: number, step: number): number | null {
+  const steps: Record<string, number> = {
+    ArrowRight: 1,
+    ArrowUp: 1,
+    ArrowLeft: -1,
+    ArrowDown: -1,
+    PageUp: 4,
+    PageDown: -4,
+  };
+  if (key === 'Home') return 0;
+  if (key === 'End') return 1;
+  const by = steps[key];
+  return by === undefined ? null : Math.min(1, Math.max(0, ratio + by * step));
+}
+
 /** The shortcut a key press asks for, or null when the key belongs to the page or the browser. */
 export function shortcutFor(press: KeyPress): Shortcut | null {
   if (press.ctrlKey || press.metaKey || press.altKey || press.target === 'text') return null;

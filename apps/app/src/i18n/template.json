@@ -146,6 +146,7 @@
   "DOMAIN\\name for a Windows domain. Leave it empty for a guest share.": "",
   "Delete": "",
   "Delete bookmark?": "",
+  "Delete key: {action}": "",
   "Delete list": "",
   "Delete this profile": "",
   "Delete {name}?": "",

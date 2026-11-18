@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { sourceManifest } from '../src/addonSources';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { TextButton } from '../src/components/TextButton';
+import { hint } from '../src/a11y';
 import { t } from '../src/i18n';
 import { activeProfile } from '../src/profile';
 import { scrobblerForm, scrobblersWork, setUpScrobbler } from '../src/scrobblers';
@@ -103,7 +104,7 @@ export default function ScrobblerScreen() {
                     value={values[field.key] ?? ''}
                     onChangeText={(v) => setValues((current) => ({ ...current, [field.key]: v }))}
                     accessibilityLabel={field.label}
-                    {...(field.help === undefined ? {} : { accessibilityHint: field.help })}
+                    {...hint(field.help)}
                     {...(field.placeholder === undefined ? {} : { placeholder: field.placeholder })}
                     placeholderTextColor="#8d8a83"
                     autoCapitalize="none"

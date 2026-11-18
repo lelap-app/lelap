@@ -264,8 +264,10 @@ export default function SettingsScreen() {
     if (key.startsWith('bedtime')) void applyBedtime(next);
     if (key === 'headphoneBattery' || key === 'carModeOffer') void followDevices(next);
     if (key === 'language') setLanguage(next.language);
-    // Home reads it again on the library's signal.
-    if (key === 'homeSuggestions' || key === 'badgesOnCovers') refresh();
+    // Home, the Player and the list of shortcuts read these again on the library's signal.
+    if (key === 'homeSuggestions' || key === 'badgesOnCovers' || key === 'skipIntervalMs') {
+      refresh();
+    }
   };
 
   // Both need “nearby devices”, asked for only when one is turned on.

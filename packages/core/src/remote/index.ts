@@ -65,6 +65,8 @@ export {
   type AddonScan,
   type AddonSource,
   addonLibraryScan,
+  fillTags,
+  type TagHints,
   addonPlaceReport,
   addonFileAccess,
   addonLogin,

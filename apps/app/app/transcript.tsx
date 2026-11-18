@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { hint } from '../src/a11y';
 import { t } from '../src/i18n';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { useReducedMotion } from '../src/components/Motion';
@@ -128,7 +129,7 @@ export default function TranscriptScreen() {
                 accessibilityLabel={
                   speakerChanged ? `${item.speaker ?? ''}: ${item.text}` : item.text
                 }
-                accessibilityHint={t('Plays from {time}', { time: formatClock(start) })}
+                {...hint(t('Plays from {time}', { time: formatClock(start) }))}
                 onPress={() => {
                   setHeldUntil(0);
                   void seekToBookPosition(bookId, start);

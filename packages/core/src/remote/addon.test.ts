@@ -26,6 +26,7 @@ import {
   addonSettings,
   addonSource,
   addonSourceHosts,
+  fillTags,
   headersFor,
   sameAddonCode,
   sharedHeaders,
@@ -70,6 +71,49 @@ const source = (headers = { Authorization: HEADER }): AddonSource =>
 afterEach(() => setSecretBox(plainBox));
 
 describe('an add-on as a library source', () => {
+  it('keeps the tags of a file it reads anyway as hints, for what the file lacks', () => {
+    const location = addonRootLocation('k1');
+    const scan = addonLibraryScan(
+      location,
+      LibraryResponse.parse({
+        files: [
+          {
+            path: 'Herbert/Dune/001 Prologue.mp3',
+            url: 'http://nas.local:8080/books/1.mp3',
+            title: 'Prologue',
+            album: 'Dune',
+            albumArtist: 'Frank Herbert',
+          },
+          { path: 'Herbert/Dune/002.mp3', url: 'http://nas.local:8080/books/2.mp3' },
+        ],
+      }),
+      ['nas.local:8080'],
+    );
+    const first = `${location}/Herbert/Dune/001 Prologue.mp3`;
+    expect(scan.tags.has(first)).toBe(false);
+    expect([...scan.hints.keys()]).toEqual([first]);
+
+    // A browser reads only the length.
+    const read = {
+      durationMs: 5_000,
+      title: null,
+      album: null,
+      artist: null,
+      albumArtist: null,
+      coverPath: null,
+      chapters: [],
+    };
+    expect(fillTags(read, scan.hints.get(first))).toMatchObject({
+      durationMs: 5_000,
+      title: 'Prologue',
+      album: 'Dune',
+      albumArtist: 'Frank Herbert',
+    });
+    // The file's own tags win.
+    expect(fillTags({ ...read, title: 'Part One' }, scan.hints.get(first)).title).toBe('Part One');
+    expect(fillTags(read, undefined)).toBe(read);
+  });
+
   it('keeps passwords apart from the plain fields and names the server by its host', () => {
     const remote = source();
     expect(remote.settings).toEqual({ url: 'http://nas.local:8080/books/', user: 'me' });

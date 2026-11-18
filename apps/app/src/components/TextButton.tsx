@@ -8,6 +8,8 @@ import {
   Text,
 } from 'react-native';
 
+import { hint } from '../a11y';
+
 /**
  * The role of a row that holds buttons of its own, such as the mini player with Play. Android
  * announces it as a button; the web leaves the role out, since a <button> can't hold another.
@@ -49,7 +51,7 @@ export function TextButton({
       disabled={disabled}
       accessibilityRole="button"
       {...(accessibilityLabel === undefined ? {} : { accessibilityLabel })}
-      {...(row === undefined ? {} : { accessibilityHint: row })}
+      {...hint(row)}
       className={`min-h-12 min-w-12 items-center justify-center ${className}`}
     >
       <Text className={disabled ? 'text-muted' : TONE[tone]}>{text}</Text>

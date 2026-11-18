@@ -1,5 +1,15 @@
 import { t } from './i18n';
-import { createIdGenerator, type Db, migrateSafely, schema } from '@lelap/core';
+import {
+  ChunkedFile,
+  type ChunkStore,
+  createIdGenerator,
+  type Db,
+  type Digest,
+  migrateSafely,
+  type SaveResult,
+  schema,
+  sha256Digest,
+} from '@lelap/core';
 import migrations from '@lelap/core/migrations';
 import type { ExpoSQLiteDatabase } from 'drizzle-orm/expo-sqlite';
 import { migrate } from 'drizzle-orm/expo-sqlite/migrator';
@@ -8,10 +18,13 @@ import { getRandomBytes } from 'expo-crypto';
 import { useEffect, useState } from 'react';
 import initSqlJs, { type Database } from 'sql.js';
 
-// The web keeps SQLite in memory (sql.js) and writes the whole file to the origin private file
-// system (OPFS) shortly after each change. expo-sqlite's web build needs cross-origin isolation,
-// which would block covers and audio from other sites and does not work in Safari.
-const FILE = 'lelap.db';
+// The web keeps SQLite in memory (sql.js) and saves it to the origin private file system (OPFS)
+// shortly after each change, as chunk files of which only the changed ones are written (M67).
+// expo-sqlite's web build needs cross-origin isolation, which would block covers and audio from
+// other sites and does not work in Safari.
+const FOLDER = 'library';
+// The whole file, as saved before M67: read once, and removed after the first chunked save.
+const OLD_FILE = 'lelap.db';
 const SAVE_EVERY_MS = 1_000;
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -19,6 +32,7 @@ const wasmUrl = require('sql.js/dist/sql-wasm.wasm') as string | { uri: string }
 
 let real: Db | null = null;
 let sqlite: Database | null = null;
+let saved: ChunkedFile | null = null;
 let savedChanges = 0;
 
 // No setSecretBox here: browsers have no key store a page's own scripts can't read, so secrets
@@ -43,29 +57,69 @@ async function opfsRoot(): Promise<FileSystemDirectoryHandle | null> {
   }
 }
 
-async function readSaved(): Promise<Uint8Array | null> {
-  const root = await opfsRoot();
-  if (!root) return null;
+async function readOldFile(root: FileSystemDirectoryHandle): Promise<Uint8Array | null> {
   try {
-    const file = await (await root.getFileHandle(FILE)).getFile();
+    const file = await (await root.getFileHandle(OLD_FILE)).getFile();
     return new Uint8Array(await file.arrayBuffer());
   } catch {
     return null;
   }
 }
 
-async function save(): Promise<void> {
-  if (!sqlite) return;
+function chunkStore(dir: FileSystemDirectoryHandle): ChunkStore {
+  return {
+    read: async (name) => {
+      try {
+        const file = await (await dir.getFileHandle(name)).getFile();
+        return new Uint8Array(await file.arrayBuffer());
+      } catch {
+        return null;
+      }
+    },
+    write: async (name, bytes) => {
+      // createWritable writes aside and swaps the file in on close, so it is never half new.
+      const writable = await (await dir.getFileHandle(name, { create: true })).createWritable();
+      await writable.write(bytes as Uint8Array<ArrayBuffer>);
+      await writable.close();
+    },
+    remove: (name) => dir.removeEntry(name).catch(() => {}),
+    list: async () => {
+      const names: string[] = [];
+      // `keys()` is in every browser with OPFS, but not yet in TypeScript's DOM types.
+      for await (const name of (dir as unknown as { keys(): AsyncIterable<string> }).keys()) {
+        names.push(name);
+      }
+      return names;
+    },
+  };
+}
+
+// crypto.subtle is only there on https and localhost; on plain http the hash runs in JavaScript.
+const digest: Digest = globalThis.crypto?.subtle
+  ? async (bytes) => {
+      const hash = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>);
+      return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, '0')).join('');
+    }
+  : sha256Digest;
+
+let saving: Promise<unknown> = Promise.resolve();
+
+/** Saves the changed chunks, one save at a time: the timer and a hidden tab can both ask. */
+function save(force = false): Promise<unknown> {
+  saving = saving.then(() => saveNow(force)).catch(() => {});
+  return saving;
+}
+
+async function saveNow(force: boolean): Promise<SaveResult | null> {
+  if (!sqlite || !saved) return null;
   const changes = sqlite.exec('select total_changes()')[0]?.values[0]?.[0];
-  if (typeof changes !== 'number' || changes === savedChanges) return;
-  const root = await opfsRoot();
-  if (!root) return;
-  const bytes = sqlite.export();
-  // export() resets total_changes, so count from zero again.
-  savedChanges = 0;
-  const writable = await (await root.getFileHandle(FILE, { create: true })).createWritable();
-  await writable.write(new Blob([bytes as Uint8Array<ArrayBuffer>]));
-  await writable.close();
+  if (typeof changes !== 'number' || (!force && changes === savedChanges)) return null;
+  const result = await saved.save(sqlite.export());
+  // Counted after the write, so a failed save is tried again on the next tick.
+  savedChanges = changes;
+  // For checking from the browser console how much a save wrote.
+  if (__DEV__) Object.assign(globalThis, { lelapLastSave: result });
+  return result;
 }
 
 /**
@@ -94,7 +148,14 @@ function open(): Promise<void> {
     const SQL = await initSqlJs({
       locateFile: () => (typeof wasmUrl === 'string' ? wasmUrl : wasmUrl.uri),
     });
-    sqlite = new SQL.Database((await readSaved()) ?? undefined);
+    const root = await opfsRoot();
+    saved = root
+      ? new ChunkedFile(chunkStore(await root.getDirectoryHandle(FOLDER, { create: true })), digest)
+      : null;
+    // A missing chunk throws here: starting empty would save over the rest of the library.
+    const chunks = saved ? await saved.load() : null;
+    const old = !chunks && root ? await readOldFile(root) : null;
+    sqlite = new SQL.Database(chunks ?? old ?? undefined);
     const database = drizzle(sqlite, { schema });
     real = database;
     // For poking at the library from the browser console while developing.
@@ -103,10 +164,12 @@ function open(): Promise<void> {
     await migrateSafely(database, () =>
       migrate(database as unknown as ExpoSQLiteDatabase<typeof schema>, migrations),
     );
-    // Written only when the migrations changed something (on a new device they always do): a big
-    // library is tens of megabytes, too much to export and write again on every start.
+    // In full when there are no chunks yet; otherwise only what the migrations changed.
+    // Not through save(), which swallows errors: the old file goes only once the chunks are in.
     savedChanges = 0;
-    await save();
+    await saveNow(chunks === null);
+    // Also when an earlier start saved the chunks but closed before removing it.
+    if (root) await root.removeEntry(OLD_FILE).catch(() => {});
     setInterval(() => void save(), SAVE_EVERY_MS);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') void save();

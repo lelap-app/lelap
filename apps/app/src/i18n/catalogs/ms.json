@@ -94,6 +94,7 @@
   "DOMAIN\\name for a Windows domain. Leave it empty for a guest share.": "DOMAIN\\nama untuk domain Windows. Biarkan kosong untuk perkongsian tetamu.",
   "Delete": "Padam",
   "Delete bookmark?": "Padam penanda?",
+  "Delete key: {action}": "Kekunci Delete: {action}",
   "Delete list": "Padam senarai",
   "Delete this profile": "Padam profil ini",
   "Delete {name}?": "Padam {name}?",

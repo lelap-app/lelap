@@ -42,3 +42,4 @@ export * from './library/links';
 export * from './library/hidden';
 export * from './library/music';
 export * from './library/musicSuggestions';
+export * from './chunkedFile';

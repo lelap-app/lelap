@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { hint } from '../a11y';
 import { t } from '../i18n';
 import { PressScale } from './Motion';
 import { BookCover, coverUri } from './BookCover';
@@ -337,7 +338,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
             <Pressable
               onPress={() => setSheet('chapters')}
               accessibilityRole="button"
-              accessibilityHint={t('Opens the chapters')}
+              {...hint(t('Opens the chapters'))}
               className="min-h-12 justify-center"
             >
               <Text numberOfLines={2} className="text-soft">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { chapterAt, toBookPosition, toFilePosition } from './timeline';
+import { chapterAt, mediaSpan, toBookPosition, toFilePosition } from './timeline';
 
 const files = [
   { location: 'a', durationMs: 1000 },
@@ -65,5 +65,27 @@ describe('chapterAt', () => {
 
   it('is -1 without chapters', () => {
     expect(chapterAt([], 50)).toBe(-1);
+  });
+});
+
+describe('mediaSpan', () => {
+  const chapters = [{ startMs: 0 }, { startMs: 60_000 }, { startMs: 150_000 }];
+
+  it('is the chapter playing', () => {
+    expect(mediaSpan(chapters, 200_000, 0)).toEqual({ startMs: 0, lengthMs: 60_000 });
+    expect(mediaSpan(chapters, 200_000, 90_000)).toEqual({ startMs: 60_000, lengthMs: 90_000 });
+    expect(mediaSpan(chapters, 200_000, 199_000)).toEqual({ startMs: 150_000, lengthMs: 50_000 });
+  });
+
+  it('is the whole book without chapters', () => {
+    expect(mediaSpan([], 200_000, 90_000)).toEqual({ startMs: 0, lengthMs: 200_000 });
+  });
+
+  it('runs up to the first chapter before it starts', () => {
+    expect(mediaSpan([{ startMs: 5_000 }], 20_000, 1_000)).toEqual({ startMs: 0, lengthMs: 5_000 });
+  });
+
+  it('is the whole book when the chapters run past the files', () => {
+    expect(mediaSpan(chapters, 100_000, 160_000)).toEqual({ startMs: 0, lengthMs: 100_000 });
   });
 });

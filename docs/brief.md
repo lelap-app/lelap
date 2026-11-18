@@ -70,12 +70,18 @@ The repository layout is in [`AGENTS.md`](../AGENTS.md#repository-map).
 
 ### Web
 
-- **Database:** sql.js in memory, with the whole file written to OPFS about a second after each
-  change and when the tab hides. expo-sqlite's web build needs cross-origin isolation, which blocks
-  covers and audio from other sites and does not work in Safari.
+- **Database:** sql.js in memory, saved to OPFS about a second after each change and when the tab
+  hides. expo-sqlite's web build needs cross-origin isolation, which blocks covers and audio from
+  other sites and does not work in Safari. The file is kept as 256 KB chunk files and a manifest
+  (`packages/core/src/chunkedFile.ts`): a save writes only the chunks whose SHA-256 changed, each
+  to a new name, then the manifest, so a save cut short leaves the last one whole. A change in a
+  10,000-book library (49 MB) writes 256 KB instead of the whole file. sql.js has no VFS hook, and
+  OPFS's in-place writes (`createSyncAccessHandle`) work only in a worker.
+- **Covers from servers** (WebDAV, S3, Subsonic, Plex folder covers) need the server's login, which
+  an `<img>` can't send: they are fetched once into OPFS and shown as blob URLs.
 - **Audio:** one `<audio>` element and Media Session. The sleep timer fades the element's volume;
   a Web Audio gain node would need CORS on every audio host. Media keys reach it through Media
-  Session; the app's own shortcuts (Space or K, ← and →, < and >, / and ?) are listed under ?.
+  Session, whose progress bar is the chapter (the whole book without chapters); the app's own shortcuts (Space or K, ← and →, < and >, / and ?) are listed under ?.
 - **Downloads:** fetch into OPFS while the tab is open, when the audio host allows CORS. No Wi-Fi
   or charging rules. Local library folders are Android only.
 - **Feeds** go through `proxy.lelap.app` (XML only, 10 MB, never audio); plain-http covers too, and

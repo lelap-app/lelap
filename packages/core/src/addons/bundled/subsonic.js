@@ -319,8 +319,9 @@ const fileAddress = (s, method, params) =>
 
 /**
  * Each album is a book, in a folder named after its author and title. The first file of a book
- * has no tags here, so the app reads that one itself: Subsonic servers don't give chapters or
- * ISBN and ASIN tags, and a single-file book often carries both.
+ * has no length here, so the app reads that one itself: Subsonic servers don't give chapters or
+ * ISBN and ASIN tags, and a single-file book often carries both. Its tags here fill in what the
+ * read lacks, such as in a browser, which reads only the length.
  */
 function filesOf(s, songs, marks) {
   const albums = new Map();
@@ -369,16 +370,15 @@ function filesOf(s, songs, marks) {
         downloadUrl: fileAddress(s, 'download', { id: song.id }),
         ...(Number.isSafeInteger(song.size) && song.size >= 0 ? { size: song.size } : {}),
         ...(Number.isFinite(modified) && modified >= 0 ? { modifiedAt: modified } : {}),
+        // Without a length the app reads the file, and these fill in the tags it lacks there.
         ...(i > 0 && Number.isFinite(seconds) && seconds >= 0
-          ? {
-              durationMs: Math.round(seconds * 1000),
-              title: song.title || undefined,
-              album: song.album || undefined,
-              artist: song.artist || undefined,
-              albumArtist: author || undefined,
-              ...(ids.length > 0 ? { ids } : {}),
-            }
+          ? { durationMs: Math.round(seconds * 1000) }
           : {}),
+        title: song.title || undefined,
+        album: song.album || undefined,
+        artist: song.artist || undefined,
+        albumArtist: author || undefined,
+        ...(ids.length > 0 ? { ids } : {}),
         ...(place ? { place } : {}),
       });
     });

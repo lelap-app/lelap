@@ -1,6 +1,7 @@
 import type { Bookmark } from '@lelap/core';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
+import { deleteKeyAction } from '../a11y';
 import { t } from '../i18n';
 import { showAlert } from '../dialog';
 import { formatClock } from '../format';
@@ -43,6 +44,7 @@ export function BookmarksSheet({
               // TalkBack lists this under its actions, so nobody has to find the long press.
               accessibilityActions={[{ name: 'delete', label: t('Delete') }]}
               onAccessibilityAction={() => confirmDelete(item)}
+              {...deleteKeyAction(t('Delete'), () => confirmDelete(item))}
               className="flex-row items-center gap-3 py-3 active:opacity-60"
             >
               <Text className="w-20 text-amber">{formatClock(item.bookPositionMs)}</Text>

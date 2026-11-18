@@ -403,9 +403,10 @@ const partAddress = (s, part) => {
 
 /**
  * Each album is a book, in a folder named after its author (the album artist) and title, its
- * tracks in disc and track order. The first track of a book has no tags here, so the app reads
+ * tracks in disc and track order. The first track of a book has no length here, so the app reads
  * that one itself: Plex gives no chapters or ISBN and ASIN tags for music, and a single-file book
- * often carries both.
+ * often carries both. Its tags here fill in what the read lacks, such as in a browser, which
+ * reads only the length.
  */
 function filesOf(s, found) {
   const albums = new Map();
@@ -454,15 +455,14 @@ function filesOf(s, found) {
         downloadUrl: `${url}?download=1`,
         ...(Number.isSafeInteger(part.size) && part.size >= 0 ? { size: part.size } : {}),
         ...(Number.isFinite(added) && added > 0 ? { modifiedAt: added } : {}),
+        // Without a length the app reads the file, and these fill in the tags it lacks there.
         ...(i > 0 && Number.isFinite(duration) && duration >= 0
-          ? {
-              durationMs: Math.round(duration),
-              title: track.title || undefined,
-              album: title || undefined,
-              artist: track.originalTitle || author || undefined,
-              albumArtist: author || undefined,
-            }
+          ? { durationMs: Math.round(duration) }
           : {}),
+        title: track.title || undefined,
+        album: title || undefined,
+        artist: track.originalTitle || author || undefined,
+        albumArtist: author || undefined,
         ...(place ? { place } : {}),
       });
     });

@@ -1,10 +1,11 @@
 import { type CoverBadge, localFileUri } from '@lelap/core';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, Platform, Text, View } from 'react-native';
 
 import { CoverBadgeRow } from './CoverBadges';
 import { FadeIn } from './Motion';
 import { proxyBase } from '../config';
+import { OPFS_SCHEME, opfsImageUrl } from '../webCovers';
 
 /** On the web, plain-http covers go through the proxy so an https page can show them. */
 export function webSafe(url: string | null | undefined): string | null {
@@ -20,9 +21,12 @@ export function coverUri(book: {
   coverPath: string | null;
   coverUrl?: string | null;
 }): string | null {
-  // Web downloads live in OPFS, which an <img> can't read; the cover URL works there.
   if (book.coverPath && Platform.OS !== 'web') return localFileUri(book.coverPath);
-  return webSafe(book.coverUrl);
+  // The web keeps its saved covers in OPFS, which an <img> can't read: the cover URL first, and
+  // a server folder's cover through a blob URL (see CoverImage).
+  const url = webSafe(book.coverUrl);
+  if (url || !book.coverPath) return url;
+  return `${OPFS_SCHEME}${book.coverPath}`;
 }
 
 /**
@@ -60,7 +64,9 @@ function PlainCover({
   title: string;
   size: number;
 }) {
-  if (uri) return <CoverImage uri={webSafe(uri) ?? uri} size={size} />;
+  const shown = useShownUri(uri ? (webSafe(uri) ?? uri) : null);
+  // The image, or the bare tile while a cover is read from OPFS, as while an image loads.
+  if (shown !== null) return <CoverImage uri={shown} size={size} />;
   return (
     <View
       aria-hidden
@@ -74,8 +80,29 @@ function PlainCover({
   );
 }
 
+/**
+ * An address an <Image> can show: a cover kept in OPFS becomes a blob URL once it is read.
+ * Undefined while it is read; null for no cover, or one gone from OPFS (the letter shows then).
+ */
+function useShownUri(uri: string | null): string | null | undefined {
+  const opfsPath = uri?.startsWith(OPFS_SCHEME) ? uri.slice(OPFS_SCHEME.length) : null;
+  const [blob, setBlob] = useState<{ path: string; url: string | null } | null>(null);
+  useEffect(() => {
+    if (!opfsPath) return;
+    let live = true;
+    void opfsImageUrl(opfsPath).then((url) => {
+      if (live) setBlob({ path: opfsPath, url });
+    });
+    return () => {
+      live = false;
+    };
+  }, [opfsPath]);
+  if (!opfsPath) return uri;
+  return blob?.path === opfsPath ? blob.url : undefined;
+}
+
 /** The cover fades in once loaded, over the same raised tile the letter cover uses. */
-function CoverImage({ uri, size }: { uri: string; size: number }) {
+function CoverImage({ uri, size }: { uri: string | undefined; size: number }) {
   const [loaded, setLoaded] = useState(false);
   return (
     <View
@@ -83,15 +110,17 @@ function CoverImage({ uri, size }: { uri: string; size: number }) {
       style={{ width: size, height: size }}
       className="overflow-hidden rounded-md bg-raised"
     >
-      <FadeIn show={loaded} lift={0} duration={180}>
-        <Image
-          source={{ uri }}
-          accessibilityIgnoresInvertColors
-          onLoad={() => setLoaded(true)}
-          onError={() => setLoaded(true)}
-          style={{ width: size, height: size }}
-        />
-      </FadeIn>
+      {uri && (
+        <FadeIn show={loaded} lift={0} duration={180}>
+          <Image
+            source={{ uri }}
+            accessibilityIgnoresInvertColors
+            onLoad={() => setLoaded(true)}
+            onError={() => setLoaded(true)}
+            style={{ width: size, height: size }}
+          />
+        </FadeIn>
+      )}
     </View>
   );
 }

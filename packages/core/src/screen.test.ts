@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { isWide, type KeyPress, playerPaneWidth, shortcutFor, stepSpeed } from './screen';
+import {
+  isWide,
+  type KeyPress,
+  playerPaneWidth,
+  shortcutFor,
+  sliderKey,
+  stepSpeed,
+} from './screen';
 
 const press = (key: string, extra: Partial<KeyPress> = {}): KeyPress => ({
   key,
@@ -89,5 +96,28 @@ describe('shortcutFor', () => {
     expect(shortcutFor(press('ArrowRight', { target: 'slider' }))).toBeNull();
     expect(shortcutFor(press(' ', { target: 'slider' }))).toBeNull();
     expect(shortcutFor(press('l', { target: 'slider' }))).toBe('forward');
+  });
+});
+
+describe('sliderKey', () => {
+  it('moves a step with the arrows and four with Page Up and Page Down', () => {
+    expect(sliderKey('ArrowRight', 0.5, 0.05)).toBeCloseTo(0.55);
+    expect(sliderKey('ArrowUp', 0.5, 0.05)).toBeCloseTo(0.55);
+    expect(sliderKey('ArrowLeft', 0.5, 0.05)).toBeCloseTo(0.45);
+    expect(sliderKey('ArrowDown', 0.5, 0.05)).toBeCloseTo(0.45);
+    expect(sliderKey('PageUp', 0.5, 0.05)).toBeCloseTo(0.7);
+    expect(sliderKey('PageDown', 0.5, 0.05)).toBeCloseTo(0.3);
+  });
+
+  it('goes to either end with Home and End, and stays within them', () => {
+    expect(sliderKey('Home', 0.5, 0.05)).toBe(0);
+    expect(sliderKey('End', 0.5, 0.05)).toBe(1);
+    expect(sliderKey('ArrowRight', 0.98, 0.05)).toBe(1);
+    expect(sliderKey('PageDown', 0.1, 0.05)).toBe(0);
+  });
+
+  it('leaves other keys alone', () => {
+    expect(sliderKey(' ', 0.5, 0.05)).toBeNull();
+    expect(sliderKey('k', 0.5, 0.05)).toBeNull();
   });
 });

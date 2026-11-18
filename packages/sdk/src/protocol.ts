@@ -443,7 +443,8 @@ export const LibraryFile = z.object({
   modifiedAt: z.number().int().nonnegative().optional(),
   /**
    * The file's length. With it, the app takes the tags below as they are and doesn't read the
-   * file; without it, the app reads the tags from the file itself.
+   * file; without it, the app reads the tags from the file itself, and the tags below fill in
+   * what the file lacks (a browser reads only the length).
    */
   durationMs: Duration.optional(),
   title: z.string().optional(),
