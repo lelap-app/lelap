@@ -62,7 +62,8 @@ function useSwipe(book: LibraryBook, swipe: RowSwipe | undefined) {
           useNativeDriver: DRIVER,
         }).start(() => {
           swipe.onSwipe(book);
-          x.setValue(0);
+          // The row is gone by then; should it stay (nothing was hidden), it comes back.
+          setTimeout(() => x.setValue(0), 400);
         });
       },
       onPanResponderTerminate: back,

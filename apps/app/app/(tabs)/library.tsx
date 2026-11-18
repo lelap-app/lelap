@@ -3,6 +3,7 @@ import {
   createPlaylist,
   hiddenCount,
   hideBooks,
+  isKidsProfile,
   type LibraryBook,
   type LibrarySort,
   listBooks,
@@ -74,7 +75,14 @@ export default function LibraryScreen() {
     () => listBooks(db, profileId, sort, showHidden ? 'hidden' : 'visible'),
     [sort, version, showHidden],
   );
-  const hiddenTotal = useMemo(() => hiddenCount(db, profileId), [version]);
+  // A kids profile counts only what its Hidden view can show.
+  const hiddenTotal = useMemo(
+    () =>
+      isKidsProfile(db, profileId)
+        ? listBooks(db, profileId, 'title', 'hidden').length
+        : hiddenCount(db, profileId),
+    [version],
+  );
   const musicIds = useMemo(
     () => new Set(showHidden ? [] : musicSuggestions(db, profileId)),
     [version, showHidden],
