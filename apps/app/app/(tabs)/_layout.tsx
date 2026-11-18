@@ -1,9 +1,14 @@
+import { needsFirstStart } from '@lelap/core';
+import { Redirect } from 'expo-router';
 import { BottomTabBar, Tabs } from 'expo-router/js-tabs';
+import { useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../../src/i18n';
 import { useAddons } from '../../src/addons';
+import { db } from '../../src/db';
+import { profileId } from '../../src/profile';
 import { useSourceCacheAddons } from '../../src/availability';
 import { Icon, type IconName } from '../../src/components/Icon';
 import { MiniPlayer } from '../../src/components/MiniPlayer';
@@ -28,10 +33,13 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   // On a tablet or a laptop the tabs become a rail along the start edge.
   const wide = useWide();
+  // Asked once as the tabs open: a device with nothing in it starts with the welcome (M82).
+  const [firstStart] = useState(() => needsFirstStart(db, profileId));
   const tall =
     fontScale > 1 && !wide
       ? { height: Math.round(TAB_BAR + LABEL_GROWTH * (fontScale - 1)) + insets.bottom }
       : {};
+  if (firstStart) return <Redirect href="/welcome" />;
   return (
     <Tabs
       tabBar={(props) =>

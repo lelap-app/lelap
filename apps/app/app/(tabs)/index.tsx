@@ -3,6 +3,7 @@ import {
   continueListening,
   getProfile,
   getSettings,
+  libraryIsEmpty,
   listDownloads,
   listProfiles,
   setSetting,
@@ -78,6 +79,12 @@ export default function HomeScreen() {
 
   // `version` is the signal to re-read the database.
   const next = useMemo(() => continueListening(db, profileId), [version]);
+  // Nothing played and nothing of their own yet: say where books come from (M82).
+  const empty = useMemo(
+    () => !next && !me?.kids && libraryIsEmpty(db),
+    // `version` is the signal to re-read the database.
+    [next, me, version],
+  );
   const offline = useMemo(() => {
     const done = listDownloads(db).filter((d) => d.state === 'done');
     return { count: done.length, bytes: done.reduce((sum, d) => sum + d.bytesTotal, 0) };
@@ -180,6 +187,21 @@ export default function HomeScreen() {
         </View>
       </View>
       {next && <ContinueCard book={next} onPress={() => void resume()} />}
+      {empty && (
+        <View className="mx-4 gap-1 rounded-xl border border-line px-4 py-3">
+          <Text className="text-base text-paper">{t('Nothing to continue yet')}</Text>
+          <Text className="text-sm text-muted">
+            {allRows.length > 0
+              ? t('Pick a free book in the rows below, or add your own audiobooks in Library.')
+              : t('Add your own audiobooks in Library.')}
+          </Text>
+          <TextButton
+            className="self-start"
+            text={t('Go to Library')}
+            onPress={() => router.navigate('/library')}
+          />
+        </View>
+      )}
       {offline.count > 0 && (
         <Pressable
           onPress={() => router.push('/downloads')}
