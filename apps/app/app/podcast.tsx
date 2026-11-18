@@ -4,16 +4,20 @@ import {
   type EpisodeItem,
   episodeBook,
   episodeOfBook,
+  type FeedLocation,
   type FeedPerson,
+  type FeedValue,
   groupBySeason,
   getSubscription,
   listEpisodes,
+  mapLink,
   schema,
   setAutoDownload,
   setFinished,
   setTrim,
   TRIM_STEPS_S,
   unsubscribe,
+  valueInfoOf,
 } from '@lelap/core';
 import { useQuery } from '@tanstack/react-query';
 import { eq } from 'drizzle-orm';
@@ -65,6 +69,76 @@ const roleLabel = (role: string) => role.charAt(0).toUpperCase() + role.slice(1)
 
 function openLink(url: string) {
   Linking.openURL(url).catch(() => showAlert(t('Podcast'), t('This link could not be opened.')));
+}
+
+/**
+ * A `podcast:location` in the phone's map app, or on OpenStreetMap in a browser or when the
+ * phone has no map app. No map is drawn in Lelap, so no tiles come from our servers.
+ */
+function openPlace(location: FeedLocation) {
+  if (Platform.OS === 'web') return openLink(mapLink(location, 'web'));
+  Linking.openURL(mapLink(location, 'app')).catch(() => openLink(mapLink(location, 'web')));
+}
+
+/** The place of a show or an episode; a tap opens it in maps. */
+function PlaceLink({ location, compact }: { location: FeedLocation; compact?: boolean }) {
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={t('Open {name} in maps', { name: location.name })}
+      onPress={() => openPlace(location)}
+      hitSlop={compact ? 10 : 0}
+      className={`${compact ? 'min-h-7' : 'min-h-12'} flex-row items-center gap-1 self-start active:opacity-70`}
+    >
+      <Icon name="place" size={16} color={COLORS.amber} />
+      <Text numberOfLines={1} className="shrink text-sm text-amber">
+        {t('Place: {name}', { name: location.name })}
+      </Text>
+    </Pressable>
+  );
+}
+
+// Names of the value types in the namespace; anything else is shown as the feed writes it.
+const VALUE_TYPES: Record<string, string> = {
+  lightning: 'Lightning',
+  hive: 'Hive',
+  webmonetization: 'Web Monetization',
+};
+
+/**
+ * `podcast:value`, as information only: that the show takes value-for-value payments, through
+ * what and for whom. Lelap sends no payments; that needs a decision first (M111).
+ */
+function ValueCard({ values }: { values: FeedValue[] }) {
+  const info = valueInfoOf(values);
+  const through = [...new Set(info.map((v) => VALUE_TYPES[v.type] ?? v.type))].join(', ');
+  const shares = info[0]?.shares ?? [];
+  return (
+    <View className="flex-row gap-3 rounded-xl border border-line px-3 py-2">
+      <Icon name="info" size={20} color={COLORS.muted} />
+      <View className="flex-1 gap-1">
+        <Text className="text-paper">{t('Value for value')}</Text>
+        <Text className="text-sm text-muted">
+          {t('This show takes small payments as you listen, through {through}.', { through })}{' '}
+          {t('Lelap does not send them.')}
+        </Text>
+        {shares.length === 1 && shares[0]?.name && (
+          <Text className="text-sm text-muted">
+            {t('Payments go to {name}.', { name: shares[0].name })}
+          </Text>
+        )}
+        {shares.length > 1 && (
+          <Text className="text-sm text-muted">
+            {t('Shared between {names}.', {
+              names: shares
+                .map((s) => `${s.name ?? t('Unnamed')} ${s.percent.toLocaleString()}%`)
+                .join(', '),
+            })}
+          </Text>
+        )}
+      </View>
+    </View>
+  );
 }
 
 /** Hosts, guests and crew from `podcast:person`; a tap opens the person's page if there is one. */
@@ -230,6 +304,14 @@ export default function PodcastScreen() {
   }, [list]);
   const people = useMemo(() => castOf(podcast?.extras?.persons ?? []), [podcast]);
   const funding = podcast?.extras?.funding ?? [];
+  // Some feeds name recipients per episode only; the newest such episode stands for the show.
+  const value = useMemo(
+    () =>
+      podcast?.extras?.value?.length
+        ? podcast.extras.value
+        : (list.find((e) => e.extras?.value?.length)?.extras?.value ?? []),
+    [podcast, list],
+  );
 
   const run = async (task: () => Promise<void>) => {
     setBusy(true);
@@ -341,11 +423,7 @@ export default function PodcastScreen() {
                   <View className="flex-1 justify-center gap-1">
                     <Text className="text-xl font-semibold text-paper">{podcast.title}</Text>
                     {podcast.author && <Text className="text-soft">{podcast.author}</Text>}
-                    {podcast.extras?.location && (
-                      <Text numberOfLines={1} className="text-sm text-muted">
-                        {t('Place: {name}', { name: podcast.extras.location.name })}
-                      </Text>
-                    )}
+                    {podcast.extras?.location && <PlaceLink location={podcast.extras.location} />}
                   </View>
                 </View>
                 {podcast.description && (
@@ -372,6 +450,7 @@ export default function PodcastScreen() {
                     </View>
                   </Pressable>
                 ))}
+                {value.length > 0 && <ValueCard values={value} />}
                 {sub ? (
                   <View className="gap-3 rounded-xl border border-line p-3">
                     <View className="flex-row items-center gap-3">
@@ -489,6 +568,10 @@ export default function PodcastScreen() {
                 <Text numberOfLines={1} className="text-sm text-muted">
                   {episodeStatus(e)}
                 </Text>
+                {e.extras?.location &&
+                  e.extras.location.name !== podcast?.extras?.location?.name && (
+                    <PlaceLink location={e.extras.location} compact />
+                  )}
               </View>
               {e.downloadState === null && (
                 <Pressable

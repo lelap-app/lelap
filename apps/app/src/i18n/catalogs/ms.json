@@ -1049,5 +1049,12 @@
   "Series": "Siri",
   "{n} finished": "{n} selesai didengar",
   "Move {title} up": "Alih {title} ke atas",
-  "Move {title} down": "Alih {title} ke bawah"
+  "Move {title} down": "Alih {title} ke bawah",
+  "Open {name} in maps": "Buka {name} dalam peta",
+  "Value for value": "Nilai untuk nilai",
+  "This show takes small payments as you listen, through {through}.": "Rancangan ini menerima bayaran kecil semasa anda mendengar, melalui {through}.",
+  "Lelap does not send them.": "Lelap tidak menghantarnya.",
+  "Shared between {names}.": "Dikongsi antara {names}.",
+  "Unnamed": "Tanpa nama",
+  "Payments go to {name}.": "Bayaran pergi kepada {name}."
 }

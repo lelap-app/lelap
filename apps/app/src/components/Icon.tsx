@@ -202,6 +202,12 @@ const ICONS = {
       {...stroke(c)}
     />
   ),
+  place: (c) => (
+    <>
+      <Path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z" {...stroke(c)} />
+      <Circle cx={12} cy={10} r={2.5} {...stroke(c)} />
+    </>
+  ),
   person: (c) => (
     <>
       <Circle cx={12} cy={8} r={4} {...stroke(c)} />

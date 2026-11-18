@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { createTestDb } from '../../test/db';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { refreshFeeds } from './refresh';
+import { geoPoint, mapLink, valueInfoOf } from './podcasting';
 import { listEpisodes, saveFeed, subscribe } from './repository';
 import { parseFeed } from './rss';
 import { FeedError } from './xml';
@@ -92,6 +93,72 @@ describe('soundbites, location, value and alternate enclosures', () => {
     );
     const stored = listEpisodes(db, ME, podcastId).find((e) => e.title === 'Why tomatoes split');
     expect(stored?.extras?.soundbites).toHaveLength(2);
+  });
+});
+
+describe('place links', () => {
+  const kew = { name: 'Kew, London', geo: 'geo:51.4769,-0.2950', osm: 'R2589212' };
+
+  it('reads geo URIs with an altitude or parameters and refuses ones off the globe', () => {
+    expect(geoPoint('geo:51.4769,-0.2950')).toEqual({ lat: 51.4769, lon: -0.295 });
+    expect(geoPoint('geo:-33.86,151.2,40;u=35')).toEqual({ lat: -33.86, lon: 151.2 });
+    expect(geoPoint('geo:91,0')).toBeNull();
+    expect(geoPoint('geo:abc')).toBeNull();
+    expect(geoPoint(null)).toBeNull();
+  });
+
+  it('opens the map app at the point, labelled with the name', () => {
+    expect(mapLink(kew, 'app')).toBe('geo:51.4769,-0.295?q=51.4769,-0.295(Kew%2C%20London)');
+    expect(mapLink({ name: 'Liverpool', geo: null, osm: null }, 'app')).toBe('geo:0,0?q=Liverpool');
+  });
+
+  it('opens OpenStreetMap on the web: the object, else the point, else a search', () => {
+    expect(mapLink(kew, 'web')).toBe('https://www.openstreetmap.org/relation/2589212');
+    expect(mapLink({ ...kew, osm: 'W5013364#2' }, 'web')).toBe(
+      'https://www.openstreetmap.org/way/5013364',
+    );
+    expect(mapLink({ ...kew, osm: 'X1' }, 'web')).toBe(
+      'https://www.openstreetmap.org/?mlat=51.4769&mlon=-0.295#map=14/51.4769/-0.295',
+    );
+    expect(mapLink({ name: 'Kew & Richmond', geo: null, osm: null }, 'web')).toBe(
+      'https://www.openstreetmap.org/search?query=Kew%20%26%20Richmond',
+    );
+  });
+});
+
+describe('value information', () => {
+  it('takes the fee off the top and shares the rest by split', () => {
+    const feed = parseFeed(fixture('garden-hour.xml'));
+    expect(valueInfoOf(feed.extras.value ?? [])).toEqual([
+      {
+        type: 'lightning',
+        method: 'keysend',
+        shares: [
+          { name: 'Rosa Fern', percent: 95 },
+          { name: 'Hosting', percent: 5 },
+        ],
+      },
+    ]);
+  });
+
+  it('shares by proportion when splits do not add up to 100, and reads old rows without fee', () => {
+    const shares = valueInfoOf([
+      {
+        type: 'lightning',
+        method: 'keysend',
+        suggested: null,
+        recipients: [
+          { name: 'Host', type: 'node', address: 'a', split: 3 },
+          { name: 'Producer', type: 'node', address: 'b', split: 1 },
+          { name: 'App', type: 'node', address: 'c', split: 2, fee: true },
+        ],
+      },
+    ])[0]?.shares;
+    expect(shares).toEqual([
+      { name: 'Host', percent: 73.5 },
+      { name: 'Producer', percent: 24.5 },
+      { name: 'App', percent: 2 },
+    ]);
   });
 });
 

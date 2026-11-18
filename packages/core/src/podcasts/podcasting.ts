@@ -41,6 +41,8 @@ export type FeedValueRecipient = {
   type: string;
   address: string;
   split: number;
+  /** `fee="true"`: `split` is a percentage taken off the top. Missing in rows stored before M111. */
+  fee?: boolean;
 };
 
 /** `podcast:value`: how listeners can pay as they listen. Kept only: Lelap sends no money. */
@@ -150,6 +152,7 @@ export function valueOf(parent: XmlNode): FeedValue[] {
             type: attr(r, 'type').toLowerCase(),
             address: attr(r, 'address'),
             split: Number(attr(r, 'split')),
+            fee: attr(r, 'fee').toLowerCase() === 'true',
           }))
           .filter((r) => r.address !== '' && Number.isFinite(r.split) && r.split > 0),
       };
@@ -185,6 +188,76 @@ export function episodeExtrasOf(item: XmlNode): EpisodeExtras {
     location: locationOf(item),
     value: valueOf(item),
   };
+}
+
+/** A point from a `geo:` URI (RFC 5870), such as `geo:51.48,-0.29,12;u=35`. */
+export type GeoPoint = { lat: number; lon: number };
+
+export function geoPoint(geo: string | null): GeoPoint | null {
+  const match = /^geo:(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)(?:,[^;?]*)?(?:[;?].*)?$/i.exec(
+    geo?.trim() ?? '',
+  );
+  if (!match) return null;
+  const lat = Number(match[1]);
+  const lon = Number(match[2]);
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  return { lat, lon };
+}
+
+const OSM_TYPES: Record<string, string> = { N: 'node', W: 'way', R: 'relation' };
+
+/**
+ * Where to open a show's or an episode's place. `app` is a `geo:` URI, which Android hands to
+ * the phone's map app; `web` is a page on openstreetmap.org, for browsers and phones without one.
+ * Either way the listener's own app or browser loads the map, never a Lelap server.
+ */
+export function mapLink(location: FeedLocation, target: 'app' | 'web'): string {
+  const point = geoPoint(location.geo);
+  const name = encodeURIComponent(location.name);
+  if (target === 'app') {
+    return point
+      ? `geo:${point.lat},${point.lon}?q=${point.lat},${point.lon}(${name})`
+      : `geo:0,0?q=${name}`;
+  }
+  const osm = /^([NWR])(\d+)(?:#\d+)?$/i.exec(location.osm?.trim() ?? '');
+  const type = osm ? OSM_TYPES[(osm[1] ?? '').toUpperCase()] : undefined;
+  if (osm && type) return `https://www.openstreetmap.org/${type}/${osm[2]}`;
+  if (point) {
+    return `https://www.openstreetmap.org/?mlat=${point.lat}&mlon=${point.lon}#map=14/${point.lat}/${point.lon}`;
+  }
+  return `https://www.openstreetmap.org/search?query=${name}`;
+}
+
+/** One recipient of a value block and the share of each payment that goes to them. */
+export type ValueShare = { name: string | null; percent: number };
+
+/** What a `podcast:value` block says, for showing; nothing here can send a payment. */
+export type ValueInfo = { type: string; method: string; shares: ValueShare[] };
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/**
+ * Each value block with the share of a payment per recipient: fee recipients take their split
+ * as a percentage first, the rest is shared in proportion to the other splits.
+ */
+export function valueInfoOf(values: FeedValue[]): ValueInfo[] {
+  return values.map((v) => {
+    const fees = v.recipients.filter((r) => r.fee);
+    const rest = v.recipients.filter((r) => !r.fee);
+    const feePercent = Math.min(
+      100,
+      fees.reduce((sum, r) => sum + r.split, 0),
+    );
+    const restTotal = rest.reduce((sum, r) => sum + r.split, 0);
+    const shares = [
+      ...rest.map((r) => ({
+        name: r.name,
+        percent: restTotal > 0 ? round1(((100 - feePercent) * r.split) / restTotal) : 0,
+      })),
+      ...fees.map((r) => ({ name: r.name, percent: round1(Math.min(100, r.split)) })),
+    ];
+    return { type: v.type, method: v.method, shares: shares.filter((s) => s.percent > 0) };
+  });
 }
 
 // Timed formats first: they can follow along with the position.
