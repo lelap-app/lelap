@@ -85,7 +85,9 @@ Only items that are free to share, checked on every search result, meta, stream 
 Everything else is skipped: no licence, another licence, sampling licences, lending-library items
 (`access-restricted-item`). Searches also ask archive.org for the same rule, so pages aren't mostly
 thrown away. LibriVox recordings are left out of its catalogs, since the LibriVox add-on has them.
-Audio, covers and downloads link straight to archive.org.
+Files archive.org keeps private are left out too. Audio, covers and downloads link straight to
+archive.org. The rule trusts archive.org's rights fields as the uploader or archive.org set them;
+it does not judge whether a recording really is out of copyright.
 
 Upstream JSON goes through the Cache API (6 h for catalogs, 1 day for meta and streams). Requests
 upstream carry `User-Agent: Lelap/1 (+<SOURCE_URL>)`, with `SOURCE_URL` set in `wrangler.toml`.

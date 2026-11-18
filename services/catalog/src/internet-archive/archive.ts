@@ -24,10 +24,13 @@ export const PODCAST_COLLECTIONS: readonly string[] = ['oldtimeradio'];
 
 export const OLD_TIME_RADIO = 'collection:oldtimeradio';
 /** Spoken word beyond LibriVox: readings, poetry, Project Gutenberg's recordings, lectures. */
+// Radio items tagged as lectures would be listed as audiobooks but open as podcasts.
 export const SPOKEN_WORD =
-  'collection:(audio_bookspoetry OR gutenberg OR ucberkeleylectures) OR subject:(lecture OR lectures)';
-export const LECTURES = 'collection:ucberkeleylectures OR subject:(lecture OR lectures)';
-export const READINGS = 'collection:(audio_bookspoetry OR gutenberg)';
+  '(collection:(audio_bookspoetry OR gutenberg OR ucberkeleylectures) OR subject:(lecture OR lectures)) AND NOT collection:oldtimeradio';
+export const LECTURES =
+  '(collection:ucberkeleylectures OR subject:(lecture OR lectures)) AND NOT collection:oldtimeradio';
+export const READINGS =
+  'collection:(audio_bookspoetry OR gutenberg) AND NOT collection:oldtimeradio';
 
 const lenient = <T extends z.ZodType>(schema: T) => schema.optional().catch(undefined);
 const Text = lenient(z.union([z.string(), z.array(z.string())]));
@@ -42,6 +45,7 @@ const SearchDoc = z.object({
   num_reviews: Scalar,
   licenseurl: Text,
   'possible-copyright-status': Text,
+  'access-restricted-item': lenient(z.unknown()),
 });
 export type SearchDoc = z.infer<typeof SearchDoc>;
 
@@ -56,6 +60,7 @@ const ArchiveFile = z.object({
   length: Scalar,
   size: Scalar,
   original: lenient(z.string()),
+  private: lenient(z.unknown()),
 });
 type ArchiveFile = z.infer<typeof ArchiveFile>;
 
@@ -74,7 +79,7 @@ const ItemSchema = z.object({
     collection: Text,
     licenseurl: Text,
     'possible-copyright-status': Text,
-    'access-restricted-item': lenient(z.union([z.string(), z.boolean()])),
+    'access-restricted-item': lenient(z.unknown()),
   }),
   files: z.array(z.unknown()).catch([]),
   reviews: z.array(z.unknown()).catch([]),
@@ -97,6 +102,7 @@ export const SEARCH_FIELDS = [
   'num_reviews',
   'licenseurl',
   'possible-copyright-status',
+  'access-restricted-item',
 ];
 
 export type SearchQuery = {
@@ -111,7 +117,13 @@ export type SearchQuery = {
 
 export function searchUrl({ scope, words, sort, rows, page }: SearchQuery): string {
   // LibriVox has its own add-on; its recordings would only crowd these results.
-  const parts = ['mediatype:audio', `(${scope})`, 'NOT collection:librivoxaudio', RIGHTS_QUERY];
+  const parts = [
+    'mediatype:audio',
+    `(${scope})`,
+    'NOT collection:librivoxaudio',
+    'NOT access-restricted-item:true',
+    RIGHTS_QUERY,
+  ];
   if (words) parts.push(`(${words})`);
   const params = new URLSearchParams();
   params.set('q', parts.join(' AND '));
@@ -138,6 +150,7 @@ export function parseSearch(data: unknown): SearchDoc[] {
     const free = isFreeToShare({
       licenseurl: first(result.data.licenseurl),
       possibleCopyrightStatus: first(result.data['possible-copyright-status']),
+      accessRestricted: restricted(result.data['access-restricted-item']),
     });
     return free ? [result.data] : [];
   });
@@ -161,7 +174,14 @@ export function toPreview(doc: SearchDoc, type: ContentType): MetaPreview | null
   return preview;
 }
 
-const isTrue = (value: string | boolean | undefined) =>
+/** Fails closed: any value other than absent, `false` or `"false"` counts as restricted. */
+export function restricted(value: unknown): boolean {
+  if (value === undefined || value === null || value === false) return false;
+  const values = Array.isArray(value) ? value : [value];
+  return !values.every((v) => v === false || (typeof v === 'string' && /^\s*false\s*$/i.test(v)));
+}
+
+const isPrivate = (value: unknown) =>
   value === true || (typeof value === 'string' && value.trim().toLowerCase() === 'true');
 
 /** An audio item that is free to share, or null for anything else, `{}` for unknown ones too. */
@@ -175,12 +195,13 @@ export function parseItem(data: unknown): Item | null {
     licenseurl: first(metadata.licenseurl),
     possibleCopyrightStatus: first(metadata['possible-copyright-status']),
     collections,
-    accessRestricted: isTrue(metadata['access-restricted-item']),
+    accessRestricted: restricted(metadata['access-restricted-item']),
   });
   if (!free) return null;
   const files = parsed.data.files.flatMap((file) => {
     const result = ArchiveFile.safeParse(file);
-    return result.success ? [result.data] : [];
+    // Files archive.org keeps private answer 403.
+    return result.success && !isPrivate(result.data.private) ? [result.data] : [];
   });
   const reviews = parsed.data.reviews.flatMap((review) => {
     const stars = Number.parseFloat(String(Review.safeParse(review).data?.stars));
@@ -324,7 +345,7 @@ export function toMeta(item: Item, feed: string): Meta | null {
 
   const files = audioFiles(item);
   if (item.type === 'podcast') {
-    meta.feed = feed;
+    if (files.length > 0) meta.feed = feed;
   } else if (files.length > 0) {
     let startMs = 0;
     meta.chapters = files.map((file): Chapter => {
@@ -397,7 +418,8 @@ export function toFeed(item: Item, self: string): string | null {
   const files = audioFiles(item);
   const airDates = files.map((file) => airDateOf(file.name));
   const dated = airDates.every((date) => date !== undefined);
-  const base = uploadedAt(item);
+  // Without an upload date, the start of 2000 keeps the order without dating episodes to 1970.
+  const base = uploadedAt(item) || Date.UTC(2000, 0, 1);
 
   const author = first(item.metadata.creator);
   const description = cleanDescription(first(item.metadata.description) ?? '');

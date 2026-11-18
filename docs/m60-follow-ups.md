@@ -39,4 +39,12 @@ Elsewhere:
 
 ## Review findings left for later
 
-None yet.
+- <a id="labels"></a>The licence rule trusts archive.org's rights fields. Old-time radio uploaders
+  often mark broadcasts as public domain that may not be: in the US, sound recordings from 1947 to
+  1956 stay protected until about 2067 under the Music Modernization Act. To decide: keep the rule
+  as it is, narrow old-time radio to curated sources, or serve only Creative Commons BY and BY-SA
+  and public-domain marks set by archive.org (`ACCEPTED` in `rights.ts`).
+- Copies of one recording uploaded separately (a 128 kb and a 64 kb MP3, both originals) show as
+  two recordings; a name-stem match would merge them.
+- Broadcast dates in file names are read as 19yy; a recreation from the 2000s with dates in its
+  file names would be dated a century early.

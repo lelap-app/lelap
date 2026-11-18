@@ -84,10 +84,12 @@ export function feedUrl(request: Request, identifier: string): string {
  * feed of a podcast item's files that the app subscribes to. Audio links go to archive.org.
  */
 export function createInternetArchiveAddon(upstream: Upstream): Addon {
-  const item = async (identifier: string): Promise<Item | null> =>
-    IDENTIFIER.test(identifier)
-      ? parseItem(await upstream.json(metadataUrl(identifier), { ttl: TTL.item }))
-      : null;
+  const item = async (identifier: string): Promise<Item | null> => {
+    if (!IDENTIFIER.test(identifier)) return null;
+    const found = parseItem(await upstream.json(metadataUrl(identifier), { ttl: TTL.item }));
+    // The meta's ID and the feed's address must name the same item.
+    return found?.metadata.identifier === identifier ? found : null;
+  };
 
   const addon = createAddon(
     {

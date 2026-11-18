@@ -5,23 +5,26 @@
  * An item is served only when at least one of these says it is free to share:
  * 1. its `licenseurl` is a Creative Commons public-domain tool (Public Domain Mark, CC0, the old
  *    Public Domain Dedication) or one of the six Creative Commons licences, any version or port;
- * 2. its `possible-copyright-status` is `NOT_IN_COPYRIGHT` (or says “public domain”);
+ * 2. its `possible-copyright-status` is `NOT_IN_COPYRIGHT`;
  * 3. it is in a collection whose every item is public domain by that collection's own policy.
  *
  * Anything else is skipped: no licence, another licence, a sampling licence, a broken URL.
  * Lending-library items (`access-restricted-item`) are skipped whatever they say.
  */
 
-export type RightsKind = 'public-domain' | 'open' | 'non-commercial';
+// The rule trusts archive.org's own rights fields, as the uploader or archive.org set them; it
+// does not judge whether a recording really is out of copyright.
+
+export type RightsKind = 'public-domain' | 'open' | 'restricted';
 
 /**
- * Every Creative Commons licence lets anyone share the unchanged work for free, which is all a
- * listener does. Remove `non-commercial` to serve only public-domain and BY or BY-SA items.
+ * `restricted` is NC or ND. Every Creative Commons licence lets anyone share the unchanged work for free, which is all a
+ * listener does. Remove `restricted` to serve only public-domain and BY or BY-SA items.
  */
 export const ACCEPTED: ReadonlySet<RightsKind> = new Set<RightsKind>([
   'public-domain',
   'open',
-  'non-commercial',
+  'restricted',
 ]);
 
 /** Collections that only hold public-domain recordings, by their own rules. */
@@ -32,12 +35,12 @@ const CC_HOSTS = new Set(['creativecommons.org', 'www.creativecommons.org']);
 const LICENCES: Record<string, RightsKind> = {
   by: 'open',
   'by-sa': 'open',
-  'by-nc': 'non-commercial',
-  'by-nc-sa': 'non-commercial',
-  'by-nd': 'non-commercial',
-  'by-nc-nd': 'non-commercial',
+  'by-nc': 'restricted',
+  'by-nc-sa': 'restricted',
+  'by-nd': 'restricted',
+  'by-nc-nd': 'restricted',
   // Version 1.0 spelled it the other way round.
-  'by-nd-nc': 'non-commercial',
+  'by-nd-nc': 'restricted',
 };
 
 /** What a `licenseurl` allows, or null for anything that is not a Creative Commons licence. */
@@ -60,7 +63,7 @@ export function licenceKind(licenseurl: string | undefined): RightsKind | null {
 
 export function notInCopyright(status: string | undefined): boolean {
   const value = status?.trim().toLowerCase() ?? '';
-  return value === 'not_in_copyright' || value === 'public domain' || value === 'public-domain';
+  return value === 'not_in_copyright';
 }
 
 export type Rights = {

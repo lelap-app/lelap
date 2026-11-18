@@ -30,6 +30,7 @@ function setup(extra: Parameters<typeof fakeFetch>[0] = []) {
     ],
     [path('/advancedsearch.php'), fixture('ia-search-old-time-radio.json')],
     [path('/metadata/Dragnet_OTR'), DRAGNET],
+    [path('/metadata/dragnet_otr'), DRAGNET],
     [path('/metadata/KierkegaardAndTheCrisisInReligion'), KIERKEGAARD],
     [path('/metadata/The_Whistler_508_Episodes'), WHISTLER],
     [path('/metadata/unknown_item'), {}],
@@ -50,11 +51,9 @@ describe('which items are free to share', () => {
     expect(licenceKind('https://creativecommons.org/publicdomain/zero/1.0/')).toBe('public-domain');
     expect(licenceKind('http://creativecommons.org/licenses/by/3.0/')).toBe('open');
     expect(licenceKind('https://creativecommons.org/licenses/by-sa/4.0/deed.en')).toBe('open');
-    expect(licenceKind('http://creativecommons.org/licenses/by-nc-nd/2.5/')).toBe('non-commercial');
-    expect(licenceKind('http://creativecommons.org/licenses/by-nc-sa/3.0/us/')).toBe(
-      'non-commercial',
-    );
-    expect(licenceKind('http://creativecommons.org/licenses/by-nd-nc/1.0/')).toBe('non-commercial');
+    expect(licenceKind('http://creativecommons.org/licenses/by-nc-nd/2.5/')).toBe('restricted');
+    expect(licenceKind('http://creativecommons.org/licenses/by-nc-sa/3.0/us/')).toBe('restricted');
+    expect(licenceKind('http://creativecommons.org/licenses/by-nd-nc/1.0/')).toBe('restricted');
     expect(licenceKind(' http://www.creativecommons.org/licenses/by/2.0/ ')).toBe('open');
   });
 
@@ -79,7 +78,8 @@ describe('which items are free to share', () => {
 
   it('serves public domain, Creative Commons and known public-domain collections only', () => {
     expect(rightsOf({ possibleCopyrightStatus: 'NOT_IN_COPYRIGHT' })).toBe('public-domain');
-    expect(rightsOf({ possibleCopyrightStatus: 'Public Domain' })).toBe('public-domain');
+    // Only archive.org's own value; free text is not enough.
+    expect(rightsOf({ possibleCopyrightStatus: 'Public Domain' })).toBeNull();
     expect(rightsOf({ collections: ['oldtimeradio', 'librivoxaudio'] })).toBe('public-domain');
     expect(rightsOf({ licenseurl: 'http://creativecommons.org/licenses/by-sa/3.0/' })).toBe('open');
 
@@ -105,6 +105,10 @@ describe('which items are free to share', () => {
       parseItem(withMetadata(DRAGNET, { 'possible-copyright-status': 'NOT_IN_COPYRIGHT' })),
     ).not.toBeNull();
     expect(parseItem(withMetadata(DRAGNET, { 'access-restricted-item': 'true' }))).toBeNull();
+    expect(parseItem(withMetadata(DRAGNET, { 'access-restricted-item': ['true'] }))).toBeNull();
+    // Anything unexpected counts as restricted.
+    expect(parseItem(withMetadata(DRAGNET, { 'access-restricted-item': { x: 1 } }))).toBeNull();
+    expect(parseItem(withMetadata(DRAGNET, { 'access-restricted-item': 'false' }))).not.toBeNull();
     expect(parseItem(withMetadata(KIERKEGAARD, { mediatype: 'texts' }))).toBeNull();
     expect(parseItem({})).toBeNull();
   });
@@ -121,6 +125,12 @@ describe('which items are free to share', () => {
           { identifier: 'b', title: 'B', licenseurl: 'http://creativecommons.org/licenses/x/' },
           { identifier: 'c', title: 'C' },
           { identifier: 'd', title: 'D', 'possible-copyright-status': 'NOT_IN_COPYRIGHT' },
+          {
+            identifier: 'e',
+            title: 'E',
+            licenseurl: 'http://creativecommons.org/licenses/by/3.0/',
+            'access-restricted-item': ['true'],
+          },
         ],
       },
     });
@@ -158,7 +168,7 @@ describe('Internet Archive catalogs', () => {
     expect(metas.every((meta) => meta.type === 'podcast')).toBe(true);
     const params = fetch.calls[0]?.url.searchParams;
     expect(params?.get('q')).toBe(
-      'mediatype:audio AND (collection:oldtimeradio) AND NOT collection:librivoxaudio AND (licenseurl:*creativecommons.org* OR possible-copyright-status:NOT_IN_COPYRIGHT)',
+      'mediatype:audio AND (collection:oldtimeradio) AND NOT collection:librivoxaudio AND NOT access-restricted-item:true AND (licenseurl:*creativecommons.org* OR possible-copyright-status:NOT_IN_COPYRIGHT)',
     );
     expect(params?.get('sort[]')).toBe('downloads desc');
     expect(params?.get('page')).toBe('2');
@@ -182,7 +192,7 @@ describe('Internet Archive catalogs', () => {
     const { get, fetch } = setup();
     await get('catalog/audiobook/lectures.json');
     expect(fetch.calls[0]?.url.searchParams.get('q')).toContain(
-      'AND (collection:ucberkeleylectures OR subject:(lecture OR lectures)) AND NOT collection:librivoxaudio',
+      'AND ((collection:ucberkeleylectures OR subject:(lecture OR lectures)) AND NOT collection:oldtimeradio) AND NOT collection:librivoxaudio',
     );
     await get(`catalog/audiobook/search/search=${encodeURIComponent('x) OR (*:*')}.json`);
     expect(fetch.calls[1]?.url.searchParams.get('q')).toMatch(
@@ -235,6 +245,8 @@ describe('Internet Archive meta', () => {
     const { get, fetch } = setup();
     expect((await get('meta/podcast/ia%3AThe_Whistler_508_Episodes.json')).status).toBe(404);
     expect((await get('meta/podcast/ia%3Aunknown_item.json')).status).toBe(404);
+    // archive.org answering for another identifier than the one asked for.
+    expect((await get('meta/podcast/ia%3Adragnet_otr.json')).status).toBe(404);
     const calls = fetch.calls.length;
     expect((await get('meta/podcast/ia%3A..%2Fsecret.json')).status).toBe(404);
     expect(fetch.calls).toHaveLength(calls);
@@ -277,6 +289,18 @@ describe('Internet Archive streams', () => {
       (await get('stream/audiobook/ia%3AThe_Whistler_508_Episodes.json')).body.streams,
     ).toEqual([]);
     expect((await get('stream/audiobook/ia%3ADragnet_OTR.json')).body.streams).toEqual([]);
+  });
+
+  it('leaves out files archive.org keeps private', () => {
+    const data = KIERKEGAARD as unknown as { files: { name: string }[] };
+    const item = parseItem({
+      ...data,
+      files: data.files.map((file) =>
+        file.name.startsWith('KierkegaardPartTwo') ? { ...file, private: 'true' } : file,
+      ),
+    });
+    if (!item) throw new Error('fixture did not parse');
+    expect(audioFiles(item).map((file) => file.name)).toEqual(['KierkegaardPartOne_64kb.mp3']);
   });
 
   it('keeps every recording of a series with mixed bitrates', () => {
