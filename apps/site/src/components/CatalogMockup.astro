@@ -54,33 +54,26 @@ const wreath = Array.from({ length: 9 }, (_, i) => {
   return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="3.4" ry="1.5" transform="rotate(${r} ${x.toFixed(1)} ${y.toFixed(1)})"/><ellipse cx="${(60 - x).toFixed(1)}" cy="${y.toFixed(1)}" rx="3.4" ry="1.5" transform="rotate(${-r} ${(60 - x).toFixed(1)} ${y.toFixed(1)})"/>`;
 }).join('');
 
+const batSpots: [number, number, number][] = [
+  [14, 14, 1],
+  [24, 9, 0.8],
+  [44, 22, 0.9],
+  [35, 15, 0.7],
+];
+const bats = batSpots
+  .map(
+    ([x, y, k]) =>
+      `<path transform="translate(${x} ${y}) scale(${k})" d="M0 0q-3-3-7-1 2 0 2 2-2 0-3 2 3-1 5 0 1-2 3-1 2-1 3 1 2-1 5 0-1-2-3-2 0-2 2-2-4-2-7 1z"/>`,
+  )
+  .join('');
+
+const garland = Array.from({ length: 7 }, (_, i) => {
+  const x = 6 + i * 8;
+  const y = 12 + Math.sin((i / 6) * Math.PI) * 9;
+  return `<circle cx="${x}" cy="${y.toFixed(1)}" r="3" fill="${i % 2 ? c('broth') : amber}"/>`;
+}).join('');
+
 const art = {
-  pride: `<rect width="60" height="60" fill="${c('rose')}"/>
-    <circle cx="46" cy="14" r="6" fill="${c('sand')}" opacity="0.45"/>
-    <path d="M6 41V31h10v-5l14-7 14 7v5h10v10z" fill="${c('plum')}"/>
-    <path d="M9 33h2.4v4H9zM20 30h2.4v4H20zM26 30h2.4v4H26zM32 30h2.4v4H32zM38 30h2.4v4H38zM49 33h2.4v4H49z" fill="${amber}"/>
-    <rect y="41" width="60" height="19" fill="${c('wine')}"/>
-    <path d="M21.5 56l3-8.5 3 8.5z" fill="${c('paper')}"/><circle cx="24.5" cy="45.6" r="1.7" fill="${c('paper')}"/>
-    <path d="M33 47.5h3.4V56H33z" fill="${c('ink-dark')}"/><circle cx="34.7" cy="45.8" r="1.5" fill="${c('ink-dark')}"/>
-    <path d="M33.6 41.6h2.2v2.6h-2.2zM32.8 44.1h3.8" stroke="${c('ink-dark')}" stroke-width="0.8" fill="${c('ink-dark')}"/>`,
-  moby: `<rect width="60" height="60" fill="${c('navy')}"/>
-    <path d="M27 43c0-8 1-12 2-15-4 0-11-2-16-8 7 2 13 1 17 4 4-3 10-2 17-4-5 6-12 8-16 8 1 3 2 7 2 15z" fill="${c('paper')}"/>
-    <path d="M0 42c5-3 10-3 15 0s10 3 15 0 10-3 15 0 10 3 15 0V60H0z" fill="${c('ocean')}"/>
-    <path d="M18 47c4-2 8-2 12 0s8 2 12 0" stroke="${c('paper')}" stroke-width="1.2" fill="none" opacity="0.5"/>
-    <path d="M5 37h11l-2 3H7z" fill="${c('ink-dark')}"/><path d="M10 37v-8" stroke="${c('ink-dark')}" stroke-width="1"/>`,
-  jane: `<rect width="60" height="60" fill="${c('navy')}"/>
-    <circle cx="47" cy="12" r="5" fill="${c('paper')}" opacity="0.8"/>
-    <path d="M6 52V32l10-7 10 7v-6h22v26z" fill="${c('ink-dark')}"/>
-    <path d="M11 37h3v4h-3zM19 37h3v4h-3zM30 36h3v4h-3zM41 36h3v4h-3z" fill="${c('slate')}"/>
-    <path d="M35 29h5v-4h-5z" fill="${amber}"/>
-    <path d="M37.5 18c-3 3-1 5-2.5 7h5c-1-2 1-3-1-5 0 1.5-.8 2-1.5 1 .8-1 .5-2 0-3z" fill="${amber}"/>
-    <rect y="52" width="60" height="8" fill="${c('plum')}"/>
-    <path d="M17 58l1.6-5h1.8l1.6 5z" fill="${c('rose')}"/><circle cx="19.5" cy="51.5" r="1.3" fill="${c('rose')}"/>`,
-  frankenstein: `<rect width="60" height="60" fill="${c('slate')}"/>
-    <path d="M37 3l-9 19h7l-6 16 15-22h-7l6-13z" fill="${amber}"/>
-    <path d="M0 50l12-8 10 5 12-9 12 7 14-6V60H0z" fill="${c('paper')}" opacity="0.25"/>
-    <path d="M9 60V30h4v-4h3v4h4v-4h3v4h4v30z" fill="${c('ink-dark')}"/>
-    <path d="M16 38h3v4h-3z" fill="${amber}"/>`,
   atomic: `<rect width="60" height="60" fill="${c('paper')}"/>${habits}
     <path d="M10 51h40" stroke="${c('navy')}" stroke-width="1"/>`,
   weeks: `<rect width="60" height="60" fill="${c('ocean')}"/>${weeks}`,
@@ -93,52 +86,56 @@ const art = {
   meditations: `<rect width="60" height="60" fill="${c('slate')}"/>
     <g fill="${c('sand')}">${wreath}</g>
     <circle cx="30" cy="30" r="5" fill="${amber}"/>`,
+  apple: `<rect width="60" height="60" fill="${c('ink-dark')}"/>
+    <path d="M30 22c-8-5-18 0-17 11 1 10 8 17 13 16 2 0 3-1 4-1s2 1 4 1c5 1 12-6 13-16 1-11-9-16-17-11z" fill="${c('wine')}"/>
+    <path d="M30 22c0-4 2-7 5-8" stroke="${c('olive')}" stroke-width="1.6" fill="none"/>
+    <path d="M42 6L24 40l2 1L44 7z" fill="${c('paper')}"/><path d="M24 40l-3 6 4-4z" fill="${c('ink-dark')}"/>
+    <path d="M27 36c0 4-1 8-1 12M28.5 37c.5 3 .5 6 0 8" stroke="${c('broth')}" stroke-width="1.2" fill="none"/>`,
+  wound: `<rect width="60" height="60" fill="${c('forest')}"/>
+    <circle cx="30" cy="18" r="9" fill="${c('sand')}" opacity="0.9"/>
+    <path d="M0 60V36c6-4 10-2 14-6 2 6 6 6 8 2 3 5 8 5 11 0 3 4 7 4 9-1 4 4 8 3 12 1 3 2 4 3 6 4v24z" fill="${c('ink-dark')}"/>
+    <path d="M26 52c0-8 2-14 4-16 2 2 4 8 4 16z" fill="${c('paper')}" opacity="0.85"/>
+    <circle cx="30" cy="34" r="2.4" fill="${c('paper')}" opacity="0.85"/>
+    <path d="M44 42h2v10h-2zM46 44l4-2" stroke="${c('rose')}" stroke-width="1" fill="${c('rose')}"/>`,
+  gothic: `<rect width="60" height="60" fill="${c('plum')}"/>
+    <path d="M14 52V24l16-12 16 12v28z" fill="${c('ink-dark')}"/>
+    <path d="M22 30h4v6h-4zM34 30h4v6h-4z" fill="${amber}" opacity="0.85"/><path d="M27 52V42a3 3 0 0 1 6 0v10z" fill="${c('slate')}"/>
+    <g fill="${c('sand')}" opacity="0.8"><circle cx="8" cy="50" r="3"/><circle cx="11" cy="46" r="2"/><circle cx="50" cy="48" r="3"/><circle cx="53" cy="52" r="2.2"/><circle cx="47" cy="53" r="1.8"/></g>
+    <path d="M0 54h60v6H0z" fill="${c('forest')}"/>`,
   strange: `<rect width="60" height="60" fill="${c('paper')}"/>
     <g fill="none" stroke="${c('navy')}" stroke-width="1.6" stroke-linecap="square">
       <rect x="9" y="11" width="42" height="38"/>
       <path d="M9 29h12M25 29h2M27 11v12M27 27v22M40 34h11M27 34h7M37 11v23M40 34v15"/>
     </g>
     <path d="M37 22h3v12h-3z" fill="${c('rose')}"/>`,
-  coffee: `<rect width="60" height="60" fill="${c('teal')}"/>
-    <circle cx="46" cy="14" r="7" fill="none" stroke="${c('sand')}" stroke-width="1.4"/>
-    <path d="M46 14v-4.5M46 14l3 2" stroke="${amber}" stroke-width="1.4" stroke-linecap="round"/>
-    <path d="M23 21c-2 3 2 4 0 7M29 19c-2 3 2 4 0 7M35 21c-2 3 2 4 0 7" stroke="${c('paper')}" stroke-width="1.3" fill="none" opacity="0.6"/>
-    <rect y="50" width="60" height="10" fill="${c('ink-dark')}" opacity="0.45"/>
-    <ellipse cx="29" cy="50" rx="15" ry="2.6" fill="${c('sand')}"/>
-    <path d="M19 34h20v7a7 7 0 0 1-7 7h-6a7 7 0 0 1-7-7z" fill="${c('paper')}"/>
-    <path d="M39 36h2a3 3 0 0 1 0 6h-2" stroke="${c('paper')}" stroke-width="2" fill="none"/>
-    <ellipse cx="29" cy="34" rx="10" ry="1.8" fill="${c('ink-dark')}"/>`,
-  piranesi: `<rect width="60" height="60" fill="${c('teal')}"/>
-    <path d="M0 10h60" stroke="${c('sand')}" stroke-width="2" opacity="0.5"/>
-    <path d="M6 44V26a6 6 0 0 1 12 0v18zM24 44V26a6 6 0 0 1 12 0v18zM42 44V26a6 6 0 0 1 12 0v18z" fill="${c('ink-dark')}" opacity="0.55"/>
-    <circle cx="30" cy="27" r="2" fill="${c('paper')}"/><path d="M27.5 42l1-12h3l1 12z" fill="${c('paper')}"/>
-    <path d="M0 45c5-2 10-2 15 0s10 2 15 0 10-2 15 0 10 2 15 0V60H0z" fill="${c('ocean')}"/>
-    <path d="M44 17q1.5-2 3 0q1.5-2 3 0" stroke="${c('paper')}" stroke-width="1.2" fill="none"/>`,
-  morisaki: `<rect width="60" height="60" fill="${c('navy')}"/>
-    <rect x="9" y="14" width="42" height="40" fill="${c('plum')}"/>
-    <rect x="18" y="17" width="24" height="5" fill="${c('paper')}" opacity="0.85"/>
-    <path d="M7 24h46l-3 4H10z" fill="${c('rose')}"/>
-    <rect x="14" y="30" width="32" height="20" fill="${amber}"/>
-    <path d="M17 33h2v15h-2zM20 35h2.5v13H20zM23.5 32h2v16h-2zM27 34h3v14h-3zM31 33h2v15h-2zM34 36h2.5v12H34zM38 32h2v16h-2zM41 34h2.5v14H41z" fill="${c('navy')}" opacity="0.7"/>
-    <rect y="54" width="60" height="6" fill="${c('ink-dark')}"/>`,
+  batEater: `<rect width="60" height="60" fill="${c('ink-dark')}"/>
+    <circle cx="44" cy="13" r="7" fill="${c('sand')}" opacity="0.85"/>
+    <g fill="${c('plum')}">${bats}</g>
+    <path d="M0 60V38h8v-6h6v10h6V30h8v12h5v-8h9v10h6v-6h8v6h4v16z" fill="${c('plum')}"/>
+    <path d="M23 34h2v3h-2zM38 38h2v3h-2zM10 36h2v3h-2z" fill="${amber}" opacity="0.8"/>
+    <rect x="28" y="44" width="4" height="6" rx="2" fill="${c('broth')}"/>
+    <path d="M30 42v2" stroke="${c('broth')}" stroke-width="0.8"/>`,
+  inherit: `<rect width="60" height="60" fill="${c('sand')}"/>
+    <path d="M0 4q30 18 60 0" stroke="${c('olive')}" stroke-width="1" fill="none"/>${garland}
+    <path d="M18 60V40a12 12 0 0 1 24 0v20z" fill="${c('wine')}"/>
+    <path d="M22 60V41a8 8 0 0 1 16 0v19z" fill="${c('ink-dark')}" opacity="0.55"/>
+    <path d="M27 54c0-3 6-3 6 0z" fill="${amber}"/><path d="M30 51c-1 1-1 2 0 3 1-1 1-2 0-3z" fill="${c('broth')}"/>`,
+  flies: `<rect width="60" height="60" fill="${c('ocean')}"/>
+    <circle cx="14" cy="13" r="6" fill="${amber}" opacity="0.9"/>
+    <path d="M4 40c6-9 16-12 26-12s20 3 26 12z" fill="${c('forest')}"/>
+    <path d="M36 30c1-6 4-9 8-10M44 20c-3 0-6 1-8 3M44 20c-1 3-1 5 0 7" stroke="${c('olive')}" stroke-width="1.6" fill="none"/>
+    <path d="M0 40h60v20H0z" fill="${c('sand')}" opacity="0.9"/>
+    <path d="M18 50c0-5 6-8 13-6 4 1 6 4 4 6z" fill="${c('paper')}"/>
+    <path d="M21 49c2-3 6-4 10-3M24 50c2-2 5-2 8-1" stroke="${c('rose')}" stroke-width="0.9" fill="none"/>
+    <path d="M45 42c-2 3 1 4 0 6 2-1 3-3 1-6zM42 47h7" stroke="${c('broth')}" stroke-width="1.2" fill="${amber}"/>`,
 } as const;
 
-// Real titles, our own drawings: never the publishers' cover art. In-copyright rows sit
-// under the user's own Audiobookshelf so the mockup doesn't suggest Lelap supplies them.
+// Real titles, our own drawings: never the publishers' cover art. A list shows metadata only; the
+// audio comes from a source the listener has, such as their own library.
 const rows: { name: string; source: string; books: Book[] }[] = [
   {
-    name: t(lang, 'Classics'),
-    source: 'LibriVox',
-    books: [
-      { title: 'Pride and Prejudice', art: art.pride },
-      { title: 'Moby Dick', art: art.moby },
-      { title: 'Jane Eyre', art: art.jane },
-      { title: 'Frankenstein', art: art.frankenstein },
-    ],
-  },
-  {
     name: t(lang, 'Self-improvement'),
-    source: 'Audiobookshelf',
+    source: t(lang, 'Hardcover list'),
     books: [
       { title: 'Atomic Habits', art: art.atomic },
       { title: 'Four Thousand Weeks', art: art.weeks },
@@ -147,13 +144,22 @@ const rows: { name: string; source: string; books: Book[] }[] = [
     ],
   },
   {
-    name: t(lang, 'Cozy and uncanny'),
-    source: 'Audiobookshelf',
+    name: t(lang, 'Growing up'),
+    source: t(lang, 'Hardcover list'),
+    books: [
+      { title: 'Bat Eater and Other Names for Cora Zeng', art: art.batEater },
+      { title: 'What We Inherit: Growing Up Indian', art: art.inherit },
+      { title: 'Lord of the Flies', art: art.flies, progress: 65 },
+    ],
+  },
+  {
+    name: t(lang, 'Horror and uncanny'),
+    source: t(lang, 'Your library'),
     books: [
       { title: 'Strange Houses', art: art.strange },
-      { title: 'Before the Coffee Gets Cold', art: art.coffee },
-      { title: 'Piranesi', art: art.piranesi, progress: 40 },
-      { title: 'Days at the Morisaki Bookshop', art: art.morisaki },
+      { title: 'Apple and Knife', art: art.apple },
+      { title: 'Mexican Gothic', art: art.gothic, progress: 40 },
+      { title: 'Beauty Is a Wound', art: art.wound },
     ],
   },
 ];

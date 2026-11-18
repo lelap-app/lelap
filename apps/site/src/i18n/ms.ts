@@ -36,7 +36,6 @@ export const ms: Record<string, string> = {
   'Chapter {n}': 'Bab {n}',
 
   'Chapters where there were none': 'Bab untuk buku tanpa bab',
-  Classics: 'Klasik',
   'Coming after the first stable release. F-Droid builds Lelap from source and, when the result matches ours, ships the same signed APK, so you can switch between F-Droid and the direct download without reinstalling.':
     'Akan tiba selepas keluaran stabil pertama. F-Droid membina Lelap daripada kod sumber dan, apabila hasilnya sepadan dengan binaan kami, mengedarkan APK bertandatangan yang sama, jadi anda boleh bertukar antara F-Droid dan muat turun terus tanpa memasang semula.',
   'Coming soon': 'Akan datang',
@@ -45,7 +44,6 @@ export const ms: Record<string, string> = {
   Contribute: 'Menyumbang',
   Copyright: 'Hak cipta',
   'Covers, narrators, chapters': 'Kulit buku, pembaca, bab',
-  'Cozy and uncanny': 'Damai dan aneh',
   'Devices pair with a code. The sync server only ever sees ciphertext. Lost a phone? Reset sync from another device and its key opens nothing new.':
     'Peranti digandingkan dengan kod. Pelayan segerak hanya melihat teks sifer. Telefon hilang? Tetapkan semula segerak dari peranti lain, dan kunci telefon itu tidak lagi membuka apa-apa yang baharu.',
   'Direct download': 'Muat turun terus',
@@ -170,6 +168,9 @@ export const ms: Record<string, string> = {
   'Self-host with Docker →': 'Hos sendiri dengan Docker →',
   'Self-hosted': 'Hos sendiri',
   'Self-hosting': 'Hos sendiri',
+  'Growing up': 'Membesar',
+  'Hardcover list': 'Senarai Hardcover',
+  'Horror and uncanny': 'Seram dan ganjil',
   'Self-improvement': 'Pembangunan diri',
   'Share progress elsewhere': 'Kongsi kemajuan di tempat lain',
   'Ships with open sources:': 'Disertakan dengan sumber terbuka:',
@@ -218,6 +219,7 @@ export const ms: Record<string, string> = {
     'Ya. Alat tambah ialah perkhidmatan HTTP kecil yang memulangkan JSON. <a href="/docs/"{docs}>Dokumentasi alat tambah</a> (dalam bahasa Inggeris) merangkumi protokol dan SDK, yang ada di npm sebagai <code>@lelap/sdk</code>.',
   'Yes. The code is open source, and the hosted web app at {host} is free to use.':
     'Ya. Kodnya sumber terbuka, dan aplikasi web yang dihoskan di {host} percuma untuk digunakan.',
+  'Your library': 'Pustaka anda',
   'Your library lives on your device. There is no profile to sign up for.':
     'Pustaka anda disimpan dalam peranti anda. Tiada profil untuk didaftarkan.',
   'Your own files': 'Fail anda sendiri',
