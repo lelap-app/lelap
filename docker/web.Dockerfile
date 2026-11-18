@@ -1,7 +1,7 @@
 # The web app (listen.<domain>) as static files behind Caddy. Built from the repository root:
 #   docker build -f docker/web.Dockerfile --build-arg LELAP_DOMAIN=example.org .
 # Built once on the runner's own CPU: the output is static files, the same for every platform.
-FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS build
+FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS build
 ARG LELAP_DOMAIN=lelap.app
 # The APK signing certificates' SHA-256 fingerprints, comma-separated: shared place links then
 # open the Android app. Empty for none.
