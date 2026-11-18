@@ -73,11 +73,19 @@ if (command === 'committed') {
   }
 } else if (command === 'stamp') {
   // The base code; the Gradle build turns it into one per CPU type (plugins/withArchitectures.js).
+  // Replaced in place, so the file keeps Prettier's layout: release pull requests commit it.
   const path = 'apps/app/app.json';
-  const config = JSON.parse(readFileSync(path, 'utf8'));
-  config.expo.version = formatVersion(version);
-  config.expo.android.versionCode = versionCode(version);
-  writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
+  const text = readFileSync(path, 'utf8')
+    .replace(/("version":\s*)"[^"]*"/, `$1"${formatVersion(version)}"`)
+    .replace(/("versionCode":\s*)\d+/, `$1${versionCode(version)}`);
+  const config = JSON.parse(text);
+  if (
+    config.expo.version !== formatVersion(version) ||
+    config.expo.android.versionCode !== versionCode(version)
+  ) {
+    throw new Error(`Could not stamp ${path}: expo.version or expo.android.versionCode not found`);
+  }
+  writeFileSync(path, text);
   output({
     version: formatVersion(version),
     code: String(versionCode(version)),

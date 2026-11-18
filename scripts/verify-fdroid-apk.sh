@@ -25,7 +25,12 @@ if [ ${#signed[@]} -eq 0 ]; then
   # GitHub Releases need a repository on GitHub; a local checkout as SOURCE downloads from its
   # origin.
   releases="$source"
-  if [ -d "$source" ]; then releases="$(git -C "$source" config --get remote.origin.url)"; fi
+  if [ -d "$source" ]; then
+    releases="$(git -C "$source" config --get remote.origin.url)" || {
+      echo "$source has no origin to download the APKs from; pass them as arguments." >&2
+      exit 1
+    }
+  fi
   for name in "lelap-$version-fdroid.apk" "lelap-$version-fdroid-armv7.apk"; do
     gh release download "$tag" --repo "$releases" --pattern "$name" --output "$work/$name"
     signed+=("$work/$name")
