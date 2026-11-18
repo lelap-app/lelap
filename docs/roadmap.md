@@ -89,7 +89,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M76 Hardcover catalogs](milestones/m76.md)          | Done        |           8 | Trending books, featured lists and your own Hardcover lists as catalogs, on your own token               |
 | [M77 Hide from library](milestones/m77.md)           | Done        |          15 | Hide items from the library and bring them back; suggestions to hide what looks like music               |
 | [M78 Casting 4](milestones/m78.md)                   | Planned     |             | Speaker groups across protocols, and Cast device authentication enforced                                 |
-| [M79 Library by progress](milestones/m79.md)         | In progress |           4 | The Library in three groups, In progress, Not started and Finished, each in its own order                |
+| [M79 Library by progress](milestones/m79.md)         | Done        |           4 | The Library in three groups, In progress, Not started and Finished, each in its own order                |
 
 <!-- milestones:end -->
 
