@@ -284,7 +284,7 @@ describe('revision 6: a login in the address, downloads and places', () => {
       'http://nas.local:8080/rest/download?id=a',
       null,
     ]);
-    expect(scan.refused).toBe(1);
+    expect(scan.refused).toBe(0);
     expect(scan.places).toEqual([
       {
         fileLocation: `${location}/Writer/Town/001 One.mp3`,

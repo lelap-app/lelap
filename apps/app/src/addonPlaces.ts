@@ -61,7 +61,8 @@ function report(events: TrackedEvent[], profile: string): void {
   for (const event of events) {
     const parts = partsOf(event.bookId, profile);
     const server = serverOf(parts, profile);
-    if (!server) continue;
+    // A file of unknown length would put the place in the wrong file.
+    if (!server || parts.slice(0, -1).some((p) => p.durationMs <= 0)) continue;
     const finished = event.event === 'finish';
     const last = parts.at(-1);
     const at = finished

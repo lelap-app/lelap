@@ -343,7 +343,8 @@ describe('revision 6: places and logins in the address', () => {
   });
 
   it('takes query parameters with sane names and values only', () => {
-    for (const bad of [{ 'a b': 'x' }, { a: 'x\ny' }, { a: 'ø' }]) {
+    expect(QueryParams.safeParse({ u: 'jürgen' }).success).toBe(true);
+    for (const bad of [{ 'a b': 'x' }, { a: 'x\ny' }, { a: 'x\u007f' }]) {
       expect(QueryParams.safeParse(bad).success).toBe(false);
     }
     const many = Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`p${i}`, 'v']));

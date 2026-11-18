@@ -25,6 +25,15 @@ object DownloadRules {
   private val CONTENT_RANGE = Regex("""^bytes\s+(\d+)-(\d+)/(\d+|\*)$""")
   private val UNSATISFIED_RANGE = Regex("""^bytes\s+\*/(\d+)$""")
 
+  /**
+   * A JSON or XML answer is a server's message, not the file: Subsonic servers send their errors
+   * (downloads turned off, no permission) with HTTP 200.
+   */
+  fun isMessage(contentType: String?): Boolean {
+    val type = contentType?.substringBefore(';')?.trim()?.lowercase() ?: return false
+    return type == "application/json" || type == "application/xml" || type == "text/xml"
+  }
+
   fun contentRangeStart(header: String?): Long? =
     header?.trim()?.let { CONTENT_RANGE.matchEntire(it) }?.groupValues?.get(1)?.toLongOrNull()
 

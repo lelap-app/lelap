@@ -41,7 +41,13 @@ export function readRemoteTags(url: string): Promise<FileTags> {
   return new Promise((resolve, reject) => {
     const audio = new Audio();
     audio.preload = 'metadata';
-    audio.onloadedmetadata = () =>
+    // A server that never answers would hold the whole scan.
+    const timer = setTimeout(() => {
+      audio.removeAttribute('src');
+      reject(new Error('The browser could not read this file in time.'));
+    }, 30_000);
+    audio.onloadedmetadata = () => {
+      clearTimeout(timer);
       resolve({
         durationMs: Number.isFinite(audio.duration) ? Math.round(audio.duration * 1000) : 0,
         title: null,
@@ -51,7 +57,11 @@ export function readRemoteTags(url: string): Promise<FileTags> {
         coverPath: null,
         chapters: [],
       });
-    audio.onerror = () => reject(new Error('The browser could not read this file.'));
+    };
+    audio.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error('The browser could not read this file.'));
+    };
     audio.src = url;
   });
 }

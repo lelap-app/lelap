@@ -1,7 +1,10 @@
 // Android backups (cloud and device-to-device) keep the library, places and settings, but never
 // the key that opens the sealed secrets (expo-secure-store's preferences) or WorkManager's
 // database, which holds the WebDAV login of queued downloads (WorkManager already keeps it in
-// no_backup; the rule covers older layouts). Restored on a new phone, Lelap asks
+// no_backup; the rule covers older layouts), or the playback service's own state (journal, queue,
+// car library), whose file addresses can carry a login: a WebDAV header or a Subsonic token in the
+// address (M58). The app hands the service all of it again when it starts. Restored on a new phone,
+// Lelap asks
 // to pair sync and enter server passwords again. expo-secure-store's own rules are off: they back
 // up only shared preferences and would leave the database out.
 const fs = require('node:fs');
@@ -15,6 +18,8 @@ const EXCLUDES = [
   '<exclude domain="database" path="androidx.work.workdb"/>',
   '<exclude domain="database" path="androidx.work.workdb-wal"/>',
   '<exclude domain="database" path="androidx.work.workdb-shm"/>',
+  '<exclude domain="sharedpref" path="lelap_journal.xml"/>',
+  '<exclude domain="sharedpref" path="lelap_audio.xml"/>',
 ];
 
 const lines = (indent) => EXCLUDES.map((line) => `${indent}${line}`).join('\n');

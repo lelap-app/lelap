@@ -113,7 +113,13 @@ async function fetchFor(box: Box, id: string, url: string, init: RequestInit | u
       signal: controller.signal,
       // Never the app's own cookies or credentials.
       credentials: 'omit',
+      // A redirect would carry a posted body, such as a login, to wherever it points.
+      ...(init?.method && init.method !== 'GET' ? { redirect: 'error' as const } : {}),
     });
+    // An answer from another host, after a redirect, is not handed to the add-on.
+    if (response.url && !hostAllowed(response.url, box.hosts)) {
+      throw new Error('Not allowed: the server sent this add-on to another host.');
+    }
     const text = await response.text();
     if (text.length > MAX_RESPONSE_CHARS) throw new Error(t('The answer was too large.'));
     const type = response.headers.get('content-type');

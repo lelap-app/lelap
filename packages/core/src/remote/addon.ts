@@ -192,7 +192,6 @@ export function addonLibraryScan(
     // A download address elsewhere would get the login too; the file then downloads from `url`.
     const downloadUri =
       file.downloadUrl && hostAllowed(file.downloadUrl, hosts) ? file.downloadUrl : null;
-    if (file.downloadUrl && !downloadUri) refused++;
     const location = `${rootLocation}/${file.path}`;
     if (seen.has(location)) continue;
     seen.add(location);

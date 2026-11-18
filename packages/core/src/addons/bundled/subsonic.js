@@ -245,7 +245,7 @@ async function songsInFolder(s, folder) {
   return songs;
 }
 
-/** Bookmarks by song ID; none when the server keeps none or doesn't have them. */
+/** Bookmarks by song ID; null when the server doesn't have them or couldn't say. */
 async function bookmarks(s) {
   try {
     const reply = await api(s, 'getBookmarks');
@@ -259,7 +259,7 @@ async function bookmarks(s) {
     }
     return marks;
   } catch {
-    return new Map();
+    return null;
   }
 }
 
@@ -403,8 +403,9 @@ async function library(settings) {
   const genre = (settings.genre || '').trim() || (folder ? '' : 'Audiobook');
   const songs = genre ? await songsByGenre(s, genre, folder) : await songsInFolder(s, folder);
   const marks = await bookmarks(s);
-  known = new Set(marks.keys());
-  return { files: filesOf(s, songs, marks), query: login(s) };
+  // Without an answer, the bookmarks known from before stay known.
+  if (marks) known = new Set(marks.keys());
+  return { files: filesOf(s, songs, marks || new Map()), query: login(s) };
 }
 
 const songId = (address) => {
@@ -426,7 +427,8 @@ async function place(settings, report) {
     formPost.set(s.base, s.formPost);
   }
   if (report.finished) {
-    await api(s, 'deleteBookmark', { id });
+    // Some servers answer an error when there was no bookmark; the others are tidied anyway.
+    await api(s, 'deleteBookmark', { id }).catch(() => {});
     known.delete(id);
   } else {
     await api(s, 'createBookmark', {

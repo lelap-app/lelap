@@ -33,6 +33,9 @@ object Http {
       val connection = open(url, existing, headers)
       try {
         val code = connection.responseCode
+        if (code in 200..299 && DownloadRules.isMessage(connection.contentType)) {
+          throw PermanentFailure("The server sent a message instead of the file.")
+        }
         when (DownloadRules.decide(code, existing, connection.getHeaderField("Content-Range"), expectedSize, refreshed)) {
           Resume.APPEND -> copy(connection, folder, part, append = true, start = existing, onBytes)
           Resume.RESTART -> copy(connection, folder, part, append = false, start = 0L, onBytes)

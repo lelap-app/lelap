@@ -136,7 +136,10 @@ export const QueryParams = z
     z
       .string()
       .max(1024)
-      .regex(/^[\x20-\x7e]*$/, 'Query values are visible ASCII'),
+      .refine(
+        (value) => [...value].every((c) => c.charCodeAt(0) >= 0x20 && c.charCodeAt(0) !== 0x7f),
+        'Query values have no control characters',
+      ),
   )
   .refine((query) => Object.keys(query).length <= 16, 'At most 16 query parameters');
 export type QueryParams = z.infer<typeof QueryParams>;
