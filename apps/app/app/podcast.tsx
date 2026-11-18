@@ -87,8 +87,7 @@ function PlaceLink({ location, compact }: { location: FeedLocation; compact?: bo
       accessibilityRole="link"
       accessibilityLabel={t('Open {name} in maps', { name: location.name })}
       onPress={() => openPlace(location)}
-      hitSlop={compact ? 10 : 0}
-      className={`${compact ? 'min-h-7' : 'min-h-12'} flex-row items-center gap-1 self-start active:opacity-70`}
+      className={`${compact ? 'min-h-10' : 'min-h-12'} flex-row items-center gap-1 self-start active:opacity-70`}
     >
       <Icon name="place" size={16} color={COLORS.amber} />
       <Text numberOfLines={1} className="shrink text-sm text-amber">
@@ -112,7 +111,8 @@ const VALUE_TYPES: Record<string, string> = {
 function ValueCard({ values }: { values: FeedValue[] }) {
   const info = valueInfoOf(values);
   const through = [...new Set(info.map((v) => VALUE_TYPES[v.type] ?? v.type))].join(', ');
-  const shares = info[0]?.shares ?? [];
+  // With blocks of several types the recipients may differ per type; only one block's are shown.
+  const shares = info.length === 1 ? (info[0]?.shares ?? []) : [];
   return (
     <View className="flex-row gap-3 rounded-xl border border-line px-3 py-2">
       <Icon name="info" size={20} color={COLORS.muted} />

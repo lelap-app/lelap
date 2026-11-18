@@ -108,7 +108,7 @@ describe('place links', () => {
   });
 
   it('opens the map app at the point, labelled with the name', () => {
-    expect(mapLink(kew, 'app')).toBe('geo:51.4769,-0.295?q=51.4769,-0.295(Kew%2C%20London)');
+    expect(mapLink(kew, 'app')).toBe('geo:51.4769,-0.2950?q=51.4769,-0.2950(Kew%2C%20London)');
     expect(mapLink({ name: 'Liverpool', geo: null, osm: null }, 'app')).toBe('geo:0,0?q=Liverpool');
   });
 
@@ -118,7 +118,7 @@ describe('place links', () => {
       'https://www.openstreetmap.org/way/5013364',
     );
     expect(mapLink({ ...kew, osm: 'X1' }, 'web')).toBe(
-      'https://www.openstreetmap.org/?mlat=51.4769&mlon=-0.295#map=14/51.4769/-0.295',
+      'https://www.openstreetmap.org/?mlat=51.4769&mlon=-0.2950#map=14/51.4769/-0.2950',
     );
     expect(mapLink({ name: 'Kew & Richmond', geo: null, osm: null }, 'web')).toBe(
       'https://www.openstreetmap.org/search?query=Kew%20%26%20Richmond',
@@ -158,6 +158,28 @@ describe('value information', () => {
       { name: 'Host', percent: 73.5 },
       { name: 'Producer', percent: 24.5 },
       { name: 'App', percent: 2 },
+    ]);
+  });
+
+  it('scales fees that add up to more than the whole payment', () => {
+    const recipient = (name: string, split: number) => ({
+      name,
+      type: 'node',
+      address: name,
+      split,
+      fee: true,
+    });
+    const shares = valueInfoOf([
+      {
+        type: 'lightning',
+        method: 'keysend',
+        suggested: null,
+        recipients: [recipient('A', 60), recipient('B', 60)],
+      },
+    ])[0]?.shares;
+    expect(shares).toEqual([
+      { name: 'A', percent: 50 },
+      { name: 'B', percent: 50 },
     ]);
   });
 });

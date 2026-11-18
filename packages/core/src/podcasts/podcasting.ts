@@ -193,15 +193,19 @@ export function episodeExtrasOf(item: XmlNode): EpisodeExtras {
 /** A point from a `geo:` URI (RFC 5870), such as `geo:51.48,-0.29,12;u=35`. */
 export type GeoPoint = { lat: number; lon: number };
 
-export function geoPoint(geo: string | null): GeoPoint | null {
+/** The coordinates as the feed writes them, so `1e-7` never reaches a URL. */
+function geoText(geo: string | null): { lat: string; lon: string } | null {
   const match = /^geo:(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)(?:,[^;?]*)?(?:[;?].*)?$/i.exec(
     geo?.trim() ?? '',
   );
-  if (!match) return null;
-  const lat = Number(match[1]);
-  const lon = Number(match[2]);
-  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
-  return { lat, lon };
+  if (!match?.[1] || !match[2]) return null;
+  if (Math.abs(Number(match[1])) > 90 || Math.abs(Number(match[2])) > 180) return null;
+  return { lat: match[1], lon: match[2] };
+}
+
+export function geoPoint(geo: string | null): GeoPoint | null {
+  const text = geoText(geo);
+  return text ? { lat: Number(text.lat), lon: Number(text.lon) } : null;
 }
 
 const OSM_TYPES: Record<string, string> = { N: 'node', W: 'way', R: 'relation' };
@@ -212,8 +216,9 @@ const OSM_TYPES: Record<string, string> = { N: 'node', W: 'way', R: 'relation' }
  * Either way the listener's own app or browser loads the map, never a Lelap server.
  */
 export function mapLink(location: FeedLocation, target: 'app' | 'web'): string {
-  const point = geoPoint(location.geo);
-  const name = encodeURIComponent(location.name);
+  const point = geoText(location.geo);
+  // Android's label ends at the first `)`, so brackets in the name are encoded too.
+  const name = encodeURIComponent(location.name).replace(/\(/g, '%28').replace(/\)/g, '%29');
   if (target === 'app') {
     return point
       ? `geo:${point.lat},${point.lon}?q=${point.lat},${point.lon}(${name})`
@@ -244,17 +249,17 @@ export function valueInfoOf(values: FeedValue[]): ValueInfo[] {
   return values.map((v) => {
     const fees = v.recipients.filter((r) => r.fee);
     const rest = v.recipients.filter((r) => !r.fee);
-    const feePercent = Math.min(
-      100,
-      fees.reduce((sum, r) => sum + r.split, 0),
-    );
+    const feeTotal = fees.reduce((sum, r) => sum + r.split, 0);
+    const feePercent = Math.min(100, feeTotal);
+
     const restTotal = rest.reduce((sum, r) => sum + r.split, 0);
     const shares = [
       ...rest.map((r) => ({
         name: r.name,
         percent: restTotal > 0 ? round1(((100 - feePercent) * r.split) / restTotal) : 0,
       })),
-      ...fees.map((r) => ({ name: r.name, percent: round1(Math.min(100, r.split)) })),
+      // Fees adding up to more than 100 share the whole payment by their splits.
+      ...fees.map((r) => ({ name: r.name, percent: round1((feePercent * r.split) / feeTotal) })),
     ];
     return { type: v.type, method: v.method, shares: shares.filter((s) => s.percent > 0) };
   });
