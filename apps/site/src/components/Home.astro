@@ -118,10 +118,15 @@ const features: { icon: IconName; title: string; text: string }[] = [
 
 const bare = (url: string) => url.replace(/^https?:\/\//, '');
 
+// Before the first beta nothing links to an APK, not even through GitHub or Obtainium.
+const shipped = site.released || site.beta;
+
 const channels: {
   icon: IconName;
   title: string;
   where?: string;
+  /** Where tapping the address goes. */
+  whereHref?: string | undefined;
   text: string;
   link?: { href: string; label: string; primary?: boolean };
   later?: boolean;
@@ -140,17 +145,24 @@ const channels: {
     icon: 'tag',
     title: 'GitHub Releases',
     where: bare(site.releasesUrl),
+    whereHref: shipped ? site.releasesUrl : undefined,
     text: t(lang, 'Every version with its release notes, the same APKs and build attestations.'),
-    link: { href: site.releasesUrl, label: t(lang, 'All releases') },
   },
   {
     icon: 'sync',
     title: 'Obtainium',
     where: bare(site.repoUrl),
-    text: t(
-      lang,
-      'Add the repository URL in Obtainium and it installs new versions from GitHub Releases.',
-    ),
+    // Obtainium opens `obtainium://add/<url>` with the repository filled in.
+    whereHref: shipped ? `obtainium://add/${site.repoUrl}` : undefined,
+    text: site.beta
+      ? t(
+          lang,
+          'Add the repository URL in Obtainium and it installs new versions from GitHub Releases. While Lelap is in beta, turn on “Include prereleases” for it.',
+        )
+      : t(
+          lang,
+          'Add the repository URL in Obtainium and it installs new versions from GitHub Releases.',
+        ),
   },
   {
     icon: 'grid',
@@ -433,7 +445,14 @@ const compose = `services:
                 </span>
                 <div class="channel-copy">
                   <strong>{c.title}</strong>
-                  {c.where && <code class="channel-where">{c.where}</code>}
+                  {c.where &&
+                    (c.whereHref ? (
+                      <a class="channel-where" href={c.whereHref}>
+                        <code>{c.where}</code>
+                      </a>
+                    ) : (
+                      <code class="channel-where">{c.where}</code>
+                    ))}
                   <p>{c.text}</p>
                   {c.link?.primary && (site.released || site.beta) && (
                     <a class="channel-alt" href={site.beta ? site.betaApk32Url : site.apk32Url}>
@@ -984,9 +1003,18 @@ const compose = `services:
   }
 
   .channel-where {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 13px;
     color: var(--accent);
     overflow-wrap: anywhere;
+    text-decoration: none;
+  }
+
+  a.channel-where:hover code,
+  a.channel-where:focus-visible code {
+    text-decoration: underline;
   }
 
   .channel-copy p {
