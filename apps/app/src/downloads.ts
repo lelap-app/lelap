@@ -5,6 +5,7 @@ import {
   downloadFailureEvent,
   getDownload,
   getSettings,
+  isLocalAddress,
   listDownloads,
   planDownload,
   removeDownload,
@@ -26,6 +27,7 @@ import * as audio from './platform/audio';
 import * as native from './platform/downloads';
 import { reloadBook, resendQueue, useLibrary } from './player';
 import { profileId } from './profile';
+import { askLocalNetwork } from './localNetwork';
 import { fileAccess } from './remote';
 
 export type { DownloadLocation, DownloadStatus } from './platform/downloads';
@@ -61,12 +63,21 @@ async function askForBackgroundWork(): Promise<void> {
 }
 
 /** Starts downloading a streamed book in the library. `meta` is kept for offline use. */
-export async function startDownload(bookId: string, meta: Meta | null): Promise<void> {
+export async function startDownload(
+  bookId: string,
+  meta: Meta | null,
+  /** False for downloads nobody just asked for, such as auto-download: they never show a dialog. */
+  ask = true,
+): Promise<void> {
   const first = listDownloads(db).length === 0;
   const plan = planDownload(db, bookId);
-  requestDownload(db, plan, meta, Date.now());
   // Files on a server: S3 links signed now, WebDAV with its login (sent to that host only).
   const access = plan.files.map((f) => fileAccess({ uri: f.url, rootId: f.rootId, bookId }));
+  // Android 17: a server at home needs local network access, asked for now; without it the
+  // download would only fail. The worker checks again, in case access is taken away later.
+  const localNetwork = access.some((a) => isLocalAddress(a.uri));
+  if (localNetwork && ask && !(await askLocalNetwork(true))) return;
+  requestDownload(db, plan, meta, Date.now());
   await native.enqueue(
     {
       ...plan,
@@ -76,6 +87,7 @@ export async function startDownload(bookId: string, meta: Meta | null): Promise<
         size: f.size,
       })),
       headers: sharedHeaders(access),
+      ...(localNetwork ? { localNetwork: true } : {}),
     },
     currentRules(),
   );

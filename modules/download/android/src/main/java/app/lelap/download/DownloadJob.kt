@@ -24,6 +24,8 @@ data class DownloadJob(
   val location: String? = null,
   /** New on every start, so a move can tell that the book was started again while it copied. */
   val revision: String? = null,
+  /** The files are on the local network, which Android 17 lets Lelap reach only with permission. */
+  val localNetwork: Boolean = false,
 ) {
   fun encode(): String = JSONObject()
     .put("bookId", bookId)
@@ -34,6 +36,7 @@ data class DownloadJob(
     .put("headers", JSONObject(headers))
     .put("location", location ?: JSONObject.NULL)
     .put("revision", revision ?: JSONObject.NULL)
+    .put("localNetwork", localNetwork)
     .toString()
 
   companion object {
@@ -59,6 +62,7 @@ data class DownloadJob(
           ?: emptyMap(),
         location = if (o.isNull("location")) null else o.optString("location").ifEmpty { null },
         revision = if (o.isNull("revision")) null else o.optString("revision"),
+        localNetwork = o.optBoolean("localNetwork", false),
       )
       val names = files.map { it.name } + listOfNotNull(cover?.name, job.bookId)
       job.takeIf { files.isNotEmpty() && names.all(::isSafeName) && names.toSet().size == names.size }

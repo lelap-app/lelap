@@ -1,6 +1,7 @@
 import {
   addonSettings,
   addonSource,
+  addonSourceHosts,
   addRemoteRoot,
   type AudiobookshelfLibrary,
   audiobookshelfMe,
@@ -9,6 +10,7 @@ import {
   listAudiobookshelfLibraries,
   listJellyfinLibraries,
   listRoots,
+  isLocalAddress,
   listS3,
   netfsHeaders,
   netRootUri,
@@ -54,6 +56,7 @@ import {
 import { closeSandbox } from '../src/sandbox';
 import { AddonSignin } from '../src/components/AddonSignin';
 import { TextButton } from '../src/components/TextButton';
+import { askLocalNetwork, withLocalNetworkCause } from '../src/localNetwork';
 import { netServerReason } from '../src/netServers';
 import {
   check as checkNetServer,
@@ -253,6 +256,17 @@ export default function ServerScreen() {
   const [secretAccessKey, setSecret] = useState('');
   const locked = existing !== null;
 
+  // Whether the address in the form is on the local network (Android 17 asks for access first).
+  const formIsLocal = (): boolean => {
+    if (chosenSource) {
+      return addonSourceHosts(chosenSource.manifest, values).some(isLocalAddress);
+    }
+    return isLocalAddress(kind === 's3' ? endpoint : url);
+  };
+  // A failed connection, with missing local network access named when it may be the cause.
+  const couldNotConnect = async (message: string) =>
+    showAlert(t('Could not connect'), await withLocalNetworkCause(message, formIsLocal()));
+
   const testJellyfin = async () => {
     setBusy(true);
     try {
@@ -267,7 +281,7 @@ export default function ServerScreen() {
       // Book libraries are picked to begin with; music libraries only when the user says so.
       if (!jf) setPicked(new Set(libraries.filter((l) => l.kind === 'books').map((l) => l.id)));
     } catch (error) {
-      showAlert(t('Could not connect'), reason(error, 'Jellyfin'));
+      await couldNotConnect(reason(error, 'Jellyfin'));
     } finally {
       setBusy(false);
     }
@@ -285,7 +299,7 @@ export default function ServerScreen() {
       setAbsSignedIn({ userId: me.id, username: me.username ?? '', libraries });
       if (!abs) setPicked(new Set(libraries.map((l) => l.id)));
     } catch (error) {
-      showAlert(t('Could not connect'), reason(error, 'Audiobookshelf'));
+      await couldNotConnect(reason(error, 'Audiobookshelf'));
     } finally {
       setBusy(false);
     }
@@ -304,7 +318,7 @@ export default function ServerScreen() {
       });
       setHostKey(await askHostKey(uri));
     } catch (error) {
-      showAlert(t('Could not connect'), netServerReason(error));
+      await couldNotConnect(netServerReason(error));
     } finally {
       setBusy(false);
     }
@@ -419,7 +433,7 @@ export default function ServerScreen() {
       );
       router.back();
     } catch (error) {
-      showAlert(t('Could not connect'), reason(error, chosen.manifest.name));
+      await couldNotConnect(reason(error, chosen.manifest.name));
     } finally {
       closeSandbox(`${chosen.url}#${sandboxId}`);
       setBusy(false);
@@ -457,7 +471,7 @@ export default function ServerScreen() {
       );
       router.back();
     } catch (error) {
-      showAlert(t('Could not connect'), reason(error, labelOf(kind)));
+      await couldNotConnect(reason(error, labelOf(kind)));
     } finally {
       setBusy(false);
     }
@@ -870,13 +884,16 @@ export default function ServerScreen() {
       <Pressable
         disabled={(testing ? !ready : !canConnect) || busy}
         onPress={() =>
-          void (testing
-            ? kind === 'audiobookshelf'
-              ? testAudiobookshelf()
-              : kind === 'sftp'
-                ? testSftp()
-                : testJellyfin()
-            : connect())
+          void askLocalNetwork(formIsLocal()).then((allowed) => {
+            if (!allowed) return;
+            return testing
+              ? kind === 'audiobookshelf'
+                ? testAudiobookshelf()
+                : kind === 'sftp'
+                  ? testSftp()
+                  : testJellyfin()
+              : connect();
+          })
         }
         accessibilityRole="button"
         {...(busy ? { accessibilityLabel: testing ? t('Test connection') : t('Connect') } : {})}

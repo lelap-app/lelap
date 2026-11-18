@@ -98,7 +98,7 @@ export async function subscribeToFeed(feedUrl: string): Promise<string> {
 export async function runAutoDownload(): Promise<void> {
   const work = autoDownloadWork(db, profileId);
   for (const episodeId of work.download) {
-    await startDownload(episodeBook(db, episodeId, Date.now(), newId), null).catch(() => {});
+    await startDownload(episodeBook(db, episodeId, Date.now(), newId), null, false).catch(() => {});
   }
   for (const bookId of work.remove) await deleteDownload(bookId).catch(() => {});
 }

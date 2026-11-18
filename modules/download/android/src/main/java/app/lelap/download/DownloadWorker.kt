@@ -12,6 +12,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import app.lelap.netfs.LocalNetwork
 import app.lelap.netfs.Messages
 import app.lelap.netfs.NetLogin
 import app.lelap.netfs.Netfs
@@ -38,6 +39,12 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     val job = Downloads.readJob(dir) ?: return Result.failure()
     val total = job.files.sumOf { it.size }
     val place = Downloads.place(applicationContext, job.location)
+    // Android 17 without local network access: every request to a LAN server fails, so retrying
+    // would only fail 12 times. The app asks for access when the download starts.
+    if (noLocalNetwork(job)) {
+      Downloads.writeError(dir, noLocalNetworkText())
+      return Result.failure()
+    }
     if (!withContext(Dispatchers.IO) { place.available() }) {
       Downloads.writeError(dir, NativeText.t(applicationContext, "The download folder can’t be reached. Put the SD card back, or choose another folder in Settings."))
       return Result.failure()
@@ -107,7 +114,11 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
           Result.retry()
         }
       } catch (e: IOException) {
-        if (runAttemptCount + 1 >= MAX_ATTEMPTS) {
+        // Access was taken away while the download ran.
+        if (noLocalNetwork(job)) {
+          Downloads.writeError(dir, noLocalNetworkText())
+          Result.failure()
+        } else if (runAttemptCount + 1 >= MAX_ATTEMPTS) {
           Downloads.writeError(dir, "The download kept failing: ${e.message ?: "network error"}")
           Result.failure()
         } else {
@@ -116,6 +127,14 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
       }
     }
   }
+
+  private fun noLocalNetwork(job: DownloadJob): Boolean =
+    LocalNetwork.blocks(Build.VERSION.SDK_INT, job.localNetwork, LocalNetwork.granted(applicationContext))
+
+  private fun noLocalNetworkText(): String = NativeText.t(
+    applicationContext,
+    "Lelap can’t reach this server on your home network: “nearby devices” is off. Download again to allow it.",
+  )
 
   private suspend fun report(job: DownloadJob, done: Long, total: Long) {
     setProgress(workDataOf("bytesDone" to done))

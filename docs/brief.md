@@ -199,6 +199,11 @@ Protection: tag ruleset for `v*`, required reviewer on `release`, branch protect
 - Foreground service types `mediaPlayback` and `dataSync`; `POST_NOTIFICATIONS`,
   `REQUEST_INSTALL_PACKAGES`.
 - Ask for a battery optimisation exemption on first download.
+- Android 17 enforces `ACCESS_LOCAL_NETWORK` at target 36 too. Casting asks in its sheet; library
+  servers at a LAN address (private and link-local IPs, `.local`, bare names) ask before they are
+  added, tested, played or downloaded from. A background scan never asks: it skips the server and
+  Settings offers “Allow”. The rule is `packages/core/src/remote/localNetwork.ts`, the check
+  `LocalNetwork.kt` in `modules/netfs`.
 - Sideloaded apps need “Unknown sources” enabled in Android Auto's developer settings.
 - Signing certificate uses `CN=Lelap`. Losing the keystore means users must reinstall.
 

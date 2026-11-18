@@ -19,6 +19,7 @@ import {
   trimOfBook,
   trimmedStart,
   sharedHeaders,
+  isLocalAddress,
 } from '@lelap/core';
 import {
   createContext,
@@ -43,6 +44,7 @@ import {
   prepareAudiobookshelfBook,
   trackAudiobookshelf,
 } from './audiobookshelf';
+import { askLocalNetwork } from './localNetwork';
 import { fileAccess } from './remote';
 import { flushScrobbles, foldServiceAccounting, trackFinished, trackPlayerState } from './scrobble';
 
@@ -132,9 +134,17 @@ function savePlace(state: audio.PlayerState): boolean {
 }
 
 /** Loads a book at its saved place, or resumes it when it is already loaded. */
-export function playBook(bookId: string, autoplay = true): Promise<void> {
+export async function playBook(bookId: string, autoplay = true): Promise<void> {
   userLoaded = true;
+  // Android 17: a book streamed from a server at home asks for local network access first. It
+  // loads either way; without access the player's error says why.
+  if (streamsFromLocalNetwork(bookId)) await askLocalNetwork(true);
   return enqueue(() => load(bookId, autoplay));
+}
+
+/** Whether any part of a book that is not downloaded streams from the local network. */
+export function streamsFromLocalNetwork(bookId: string): boolean {
+  return bookLoad(bookId)?.files.some((f) => isLocalAddress(f.uri)) ?? false;
 }
 
 /** Startup: the last book, paused, unless the user has already chosen one. */

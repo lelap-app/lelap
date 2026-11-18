@@ -1,9 +1,9 @@
 package app.lelap.cast
 
 import android.content.Context
-import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import app.lelap.netfs.LocalNetwork
 import expo.modules.interfaces.permissions.PermissionsResponseListener
 import expo.modules.interfaces.permissions.PermissionsStatus
 import expo.modules.kotlin.Promise
@@ -49,9 +49,7 @@ class CastModule : Module() {
     onChange = { list -> sendEvent(DEVICES_EVENT, mapOf("devices" to list.map { it.toMap() })) },
   ).also { discovery = it }
 
-  private fun hasLocalNetwork(): Boolean =
-    !LocalNetwork.needed(Build.VERSION.SDK_INT) ||
-      context.checkSelfPermission(LocalNetwork.PERMISSION) == PackageManager.PERMISSION_GRANTED
+  private fun hasLocalNetwork(): Boolean = LocalNetwork.granted(context)
 
   private fun watch(link: CastLink?) {
     if (watched === link) return

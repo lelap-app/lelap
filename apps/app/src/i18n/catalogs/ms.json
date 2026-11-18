@@ -813,5 +813,12 @@
   "Progress": "Kemajuan",
   "In progress ({n})": "Sedang didengar ({n})",
   "Not started ({n})": "Belum dimulakan ({n})",
-  "Finished ({n})": "Selesai didengar ({n})"
+  "Finished ({n})": "Selesai didengar ({n})",
+  "Allow local network access": "Benarkan akses rangkaian setempat",
+  "This server is on your home network. To reach it, Lelap needs Android’s “nearby devices” permission. Lelap only connects to the servers you add.": "Pelayan ini berada pada rangkaian rumah anda. Untuk mencapainya, Lelap memerlukan kebenaran “peranti berdekatan” Android. Lelap hanya bersambung ke pelayan yang anda tambah.",
+  "Local network access is off": "Akses rangkaian setempat dimatikan",
+  "“Nearby devices” is off for Lelap, so it can’t reach servers on your home network. Turn it on in Android’s settings.": "“Peranti berdekatan” dimatikan untuk Lelap, jadi ia tidak dapat mencapai pelayan pada rangkaian rumah anda. Hidupkannya dalam tetapan Android.",
+  "If this server is on your home network, Lelap needs Android’s “nearby devices” permission to reach it.": "Jika pelayan ini berada pada rangkaian rumah anda, Lelap memerlukan kebenaran “peranti berdekatan” Android untuk mencapainya.",
+  "Needs local network access to reach this server at home. Android calls it “nearby devices”.": "Memerlukan akses rangkaian setempat untuk mencapai pelayan ini di rumah. Android menamakannya “peranti berdekatan”.",
+  "Lelap can’t reach this server on your home network: “nearby devices” is off. Download again to allow it.": "Lelap tidak dapat mencapai pelayan ini pada rangkaian rumah anda: “peranti berdekatan” dimatikan. Muat turun sekali lagi untuk membenarkannya."
 }
