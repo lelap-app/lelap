@@ -1,6 +1,6 @@
 {
   "name": "@lelap/sdk",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Types, schemas and a request handler for Lelap add-ons.",
   "license": "MIT",
   "type": "module",

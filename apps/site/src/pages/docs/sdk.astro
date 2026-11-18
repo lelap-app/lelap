@@ -129,7 +129,7 @@ catalog: async ({ extra }) => {
   if (!extra.search?.trim()) throw new AddonError(400, 'Type something to search for');
   const response = await fetch(upstreamSearchUrl(extra.search));
   if (response.status === 429)
-    // Sent as Retry-After, so the app waits at least that long (SDK 0.5.0, not on npm yet).
+    // Sent as Retry-After, so the app waits at least that long (SDK 0.5.0 and later).
     throw new AddonError(503, 'The source is busy, try again soon', { retryAfter: 60 });
   // …
 },
@@ -356,8 +356,7 @@ const toc: [string, string][] = [
       The form and the page after it say who runs them: “This page is run by {'{host}'}, not by
       Lelap.” Lelap never appears as the sender, since the page asks for tokens and passwords. The
       pages use <code>PAGE_STYLE</code>, the stylesheet Lelap’s own configure pages use too, so
-      listeners see one style; use it for pages of your own. Both come with SDK 0.5.0, which isn’t
-      on npm yet.
+      listeners see one style; use it for pages of your own. Both come with SDK 0.5.0.
     </li>
     <li>
       On Workers the secret arrives in <code>env</code> with each request, so build the add-on on
@@ -374,8 +373,8 @@ const toc: [string, string][] = [
     Every SDK add-on answers <code>GET /health</code> with <code>{'{ "status": "ok" }'}</code> and
     declares <code>behaviorHints.health</code>; the SDK also sets <code>protocolVersion</code> to
     the newest revision it knows: <code>{LATEST_PROTOCOL_VERSION}</code> from SDK 0.5.0, and 8 in
-    0.4.0, the version on npm now. Pass a <code>health</code> handler to check what your add-on
-    relies on. Keep it quick: the app asks when Settings → Add-ons opens.
+    0.4.0. Pass a <code>health</code> handler to check what your add-on relies on. Keep it quick:
+    the app asks when Settings → Add-ons opens.
   </p>
   <CodeBlock code={health} />
 
@@ -401,12 +400,12 @@ const toc: [string, string][] = [
     off. These helpers, revisions 5 to 8, need SDK 0.4.0 or later, like badges.
   </p>
   <p>
-    Revision 9 comes with SDK 0.5.0, which isn’t on npm yet; npm has 0.4.0, which stops at revision
-    8. Revision 9 adds <code>Edition</code> for a meta’s <code>editions</code>, <code>resumed</code>{' '}
-    on a <code>ScrobbleEvent</code>, <code>next</code> on a <code>LibraryResponse</code> for a
-    library in pages, and <code>setUpWithSettings(manifest)</code>, which tells whether an add-on
-    inside the app is set up with its settings under Settings → Add-ons, its settings reaching every
-    call. See <a href="/docs/protocol/#versions">Versions</a>.
+    Revision 9 comes with SDK 0.5.0; 0.4.0 stops at revision 8. Revision 9 adds <code>Edition</code>{' '}
+    for a meta’s <code>editions</code>, <code>resumed</code> on a <code>ScrobbleEvent</code>,{' '}
+    <code>next</code> on a <code>LibraryResponse</code> for a library in pages, and{' '}
+    <code>setUpWithSettings(manifest)</code>, which tells whether an add-on inside the app is set up
+    with its settings under Settings → Add-ons, its settings reaching every call. See{' '}
+    <a href="/docs/protocol/#versions">Versions</a>.
   </p>
 
   <h2 id="errors">Errors</h2>
