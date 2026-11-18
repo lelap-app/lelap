@@ -334,7 +334,7 @@ export default function LibraryScreen() {
     [openRow, showActions, offline, showHidden, showSwipe, hideSwipe, finishedOpen, toggleFinished],
   );
 
-  if (!root && books.length === 0 && hiddenTotal === 0 && !showHidden) {
+  if (!hasRoots && books.length === 0 && hiddenTotal === 0 && !showHidden) {
     const kids = activeProfile()?.kids === true;
     return (
       <ScrollView

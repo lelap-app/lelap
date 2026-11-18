@@ -92,7 +92,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M79 Library by progress](milestones/m79.md)         | Done        |           4 | The Library in three groups, In progress, Not started and Finished, each in its own order                |
 | [M80 App polish 2](milestones/m80.md)                | Planned     |             | The bigger items left from M71: a zoomed scrubber, saved catalog covers, faster web saves                |
 | [M81 Test round 2](milestones/m81.md)                | Planned     |             | A full phone round over adb and the fixes it finds, the gate for v0.1.0                                  |
-| [M82 First start](milestones/m82.md)                 | In progress |           9 | A first start that helps: choose a folder or a server, suggested add-ons, helpful empty states           |
+| [M82 First start](milestones/m82.md)                 | In progress |          10 | A first start that helps: choose a folder or a server, suggested add-ons, helpful empty states           |
 | [M83 Accessibility 2](milestones/m83.md)             | Planned     |             | One pass over every screen with TalkBack, large text and contrast                                        |
 | [M84 Better sound](milestones/m84.md)                | Done        |          12 | Voice boost, skip silence and even loudness between books                                                |
 | [M85 Chapters and bookmarks 2](milestones/m85.md)    | Planned     |             | Edit chapter names and times, notes on bookmarks, share a short clip                                     |
@@ -127,6 +127,10 @@ when it is planned.
   and maybe play downloads on it. Was M89; set aside on 2026-11-18 until there is a watch to test
   on.
 
+- **First start, small things (left from M82):** the “Free books” choice names LibriVox even in a
+  build whose default add-ons leave it out; it could name the installed ones instead. An install
+  with only add-ons, sync or listening history and no books sees the welcome once after updating;
+  `needsFirstStart` could count those too.
 - **Scan and play on the emulator (left from M94):** the emulator smoke test stops at the empty
   Library. Scanning a pushed folder and playing a file needs the folder picker driven, or a
   debug-only way to add a folder, and a check in logcat that playback started.

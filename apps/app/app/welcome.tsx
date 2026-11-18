@@ -1,8 +1,9 @@
-import { listRoots, setFirstStartDone } from '@lelap/core';
+import { isKidsProfile, listRoots, setFirstStartDone } from '@lelap/core';
 import { type Href, useFocusEffect, useRouter } from 'expo-router';
 import { type ComponentRef, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
+  BackHandler,
   findNodeHandle,
   Platform,
   Pressable,
@@ -22,16 +23,21 @@ import { TextButton } from '../src/components/TextButton';
 import { db } from '../src/db';
 import { LOCAL_FOLDERS } from '../src/platform/library';
 import { profileId } from '../src/profile';
-import { chooseFolder } from '../src/scan';
+import { useLibrary } from '../src/player';
+import { chooseFolder, scanLibrary } from '../src/scan';
 import { membership } from '../src/sync';
 
 type Step = 'welcome' | 'source' | 'addons';
 /** Where the listener lands when the first start ends: their own books, or the free catalogs. */
 type Landing = '/library' | '/';
 
-/** Moves TalkBack (or the browser's focus) to a new step's title, so the step is read first. */
+/**
+ * A new step starts at the top, and TalkBack (or the browser's focus) moves to its title, so the
+ * step is read first.
+ */
 function useFocusOnStep(step: Step) {
   const title = useRef<ComponentRef<typeof Text>>(null);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const first = useRef(true);
   useEffect(() => {
     // The first step is read from the top anyway.
@@ -39,18 +45,23 @@ function useFocusOnStep(step: Step) {
       first.current = false;
       return;
     }
-    const node = title.current;
-    if (!node) return;
-    if (Platform.OS === 'web') {
-      const element = node as unknown as HTMLElement;
-      element.setAttribute('tabindex', '-1');
-      element.focus();
-      return;
-    }
-    const handle = findNodeHandle(node);
-    if (handle != null) AccessibilityInfo.setAccessibilityFocus(handle);
+    scroll.current?.scrollTo({ y: 0, animated: false });
+    // TalkBack ignores focus on a view that is not in its tree yet.
+    const timer = setTimeout(() => {
+      const node = title.current;
+      if (!node) return;
+      if (Platform.OS === 'web') {
+        const element = node as unknown as HTMLElement;
+        element.setAttribute('tabindex', '-1');
+        element.focus();
+        return;
+      }
+      const handle = findNodeHandle(node);
+      if (handle != null) AccessibilityInfo.setAccessibilityFocus(handle);
+    }, 100);
+    return () => clearTimeout(timer);
   }, [step]);
-  return title;
+  return { title, scroll };
 }
 
 function Choice({
@@ -106,7 +117,18 @@ export default function WelcomeScreen() {
   // Set when “A server” or “Another device” opened their screen, to move on once one is added.
   // A ref, so setting it doesn't re-run the focus check before the other screen opens.
   const waitingFor = useRef<'server' | 'sync' | null>(null);
-  const title = useFocusOnStep(step);
+  const { title, scroll } = useFocusOnStep(step);
+  const { refresh, version } = useLibrary();
+
+  // Back goes to the step before; on the first step it leaves as usual.
+  useEffect(() => {
+    if (step === 'welcome') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setStep(step === 'addons' ? 'source' : 'welcome');
+      return true;
+    });
+    return () => sub.remove();
+  }, [step]);
 
   // Back from the server or sync screen: once one was added, on to the add-ons.
   useFocusEffect(
@@ -120,6 +142,12 @@ export default function WelcomeScreen() {
       setStep('addons');
     }, [step]),
   );
+
+  // The profile picker at launch may switch to a kids profile, which never sees this.
+  useEffect(() => {
+    if (isKidsProfile(db, profileId)) router.replace('/');
+    // `version` is the signal to re-read the database.
+  }, [version, router]);
 
   const finish = (to: Landing) => {
     setFirstStartDone(db, profileId, Date.now());
@@ -136,6 +164,8 @@ export default function WelcomeScreen() {
       );
       return;
     }
+    // Scanning starts now, so the books are there even if the app closes during the add-ons.
+    void scanLibrary().finally(refresh);
     setLanding('/library');
     setStep('addons');
   };
@@ -256,6 +286,7 @@ export default function WelcomeScreen() {
 
   return (
     <ScrollView
+      ref={scroll}
       className="flex-1 bg-night"
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
