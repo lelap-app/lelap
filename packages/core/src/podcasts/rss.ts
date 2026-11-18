@@ -99,7 +99,7 @@ function enclosureOf(item: XmlNode): Enclosure | null {
     .filter((e) => isHttp(textOf(e['@_url'])));
   const pick = (e: XmlNode) =>
     enclosure(textOf(e['@_url']), textOf(e['@_type']), textOf(e['@_length']));
-  const audio = enclosures.find((e) => textOf(e['@_type']).startsWith('audio/'));
+  const audio = enclosures.find((e) => textOf(e['@_type']).toLowerCase().startsWith('audio/'));
   if (audio) return pick(audio);
   const alternate = alternateAudioOf(item);
   if (alternate) return alternate;
@@ -175,7 +175,7 @@ function atomEnclosureOf(entry: XmlNode): Enclosure | null {
   const links = atomLinks(entry, 'enclosure').filter((l) => isHttp(textOf(l['@_href'])));
   const pick = (l: XmlNode) =>
     enclosure(textOf(l['@_href']), textOf(l['@_type']), textOf(l['@_length']));
-  const audio = links.find((l) => textOf(l['@_type']).startsWith('audio/'));
+  const audio = links.find((l) => textOf(l['@_type']).toLowerCase().startsWith('audio/'));
   if (audio) return pick(audio);
   const alternate = alternateAudioOf(entry);
   if (alternate) return alternate;

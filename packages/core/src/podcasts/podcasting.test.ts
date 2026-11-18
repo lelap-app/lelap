@@ -193,6 +193,12 @@ describe('storing Podcasting 2.0 fields', () => {
     expect(feedCache(db, FEED_URL)).toEqual({ etag: '"v1"', lastModified: null });
     db.update(podcasts).set({ extras: null }).where(eq(podcasts.id, podcastId)).run();
     expect(feedCache(db, FEED_URL)).toEqual({ etag: null, lastModified: null });
+    // Stored by M23 to M74, without M75's fields.
+    db.update(podcasts)
+      .set({ extras: { persons: [], funding: [] } })
+      .where(eq(podcasts.id, podcastId))
+      .run();
+    expect(feedCache(db, FEED_URL)).toEqual({ etag: null, lastModified: null });
   });
 
   it('gives an episode without chapters the chapters file, once', () => {
