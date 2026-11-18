@@ -92,7 +92,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M79 Library by progress](milestones/m79.md)         | Done        |           4 | The Library in three groups, In progress, Not started and Finished, each in its own order                |
 | [M80 App polish 2](milestones/m80.md)                | Planned     |             | The bigger items left from M71: a zoomed scrubber, saved catalog covers, faster web saves                |
 | [M81 Test round 2](milestones/m81.md)                | Planned     |             | A full phone round over adb and the fixes it finds, the gate for v0.1.0                                  |
-| [M82 First start](milestones/m82.md)                 | Planned     |             | A first start that helps: choose a folder or a server, suggested add-ons, helpful empty states           |
+| [M82 First start](milestones/m82.md)                 | In progress |           9 | A first start that helps: choose a folder or a server, suggested add-ons, helpful empty states           |
 | [M83 Accessibility 2](milestones/m83.md)             | Planned     |             | One pass over every screen with TalkBack, large text and contrast                                        |
 | [M84 Better sound](milestones/m84.md)                | Done        |          12 | Voice boost, skip silence and even loudness between books                                                |
 | [M85 Chapters and bookmarks 2](milestones/m85.md)    | Planned     |             | Edit chapter names and times, notes on bookmarks, share a short clip                                     |

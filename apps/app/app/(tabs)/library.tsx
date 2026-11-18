@@ -53,6 +53,7 @@ import { activeProfile, profileId } from '../../src/profile';
 import { LOCAL_FOLDERS } from '../../src/platform/library';
 import { chooseFolder, scanLibrary } from '../../src/scan';
 import { Pill } from '../../src/components/Pill';
+import { TextButton } from '../../src/components/TextButton';
 
 /** `progress` is the grouped view (M79); Title and Author are flat lists. */
 type LibraryView = 'progress' | 'title' | 'author';
@@ -334,38 +335,60 @@ export default function LibraryScreen() {
   );
 
   if (!root && books.length === 0 && hiddenTotal === 0 && !showHidden) {
+    const kids = activeProfile()?.kids === true;
     return (
-      <View
-        style={{ paddingTop: insets.top }}
-        className="flex-1 items-center justify-center gap-6 bg-night p-8"
+      <ScrollView
+        className="flex-1 bg-night"
+        contentContainerStyle={{
+          flexGrow: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 24,
+          padding: 32,
+          paddingTop: insets.top + 32,
+        }}
       >
         <Lori size={150} />
         <Text accessibilityRole="header" className="text-center text-2xl font-semibold text-paper">
           {t('Your audiobooks')}
         </Text>
-        {LOCAL_FOLDERS ? (
+        {kids ? (
+          <Text className="max-w-xl text-center text-soft">
+            {t('Ask a grown-up to put books on your shelf.')}
+          </Text>
+        ) : (
           <>
-            <Text className="text-center text-soft">
-              {t(
-                'Choose the folder on this phone that holds your audiobooks. Lelap plays them where they are. Books you play from Discover and Search appear here too.',
-              )}
+            <Text className="max-w-xl text-center text-soft">
+              {LOCAL_FOLDERS
+                ? t(
+                    'Choose the folder on this phone that holds your audiobooks, or add a server. Lelap plays them where they are. Books you play from Home, Discover and Search appear here too.',
+                  )
+                : t(
+                    'Add a server with your audiobooks. Books you play from Home, Discover and Search appear here too. Local folders are in the Android app.',
+                  )}
             </Text>
+            {LOCAL_FOLDERS && (
+              <Pressable
+                onPress={() => void pick()}
+                accessibilityRole="button"
+                className="min-h-12 justify-center rounded-full bg-amber px-6 py-3 active:opacity-80"
+              >
+                <Text className="font-semibold text-ink">{t('Choose your audiobooks folder')}</Text>
+              </Pressable>
+            )}
             <Pressable
-              onPress={() => void pick()}
+              onPress={() => router.push('/server')}
               accessibilityRole="button"
-              className="min-h-12 justify-center rounded-full bg-amber px-6 py-3 active:opacity-80"
+              className={`min-h-12 justify-center rounded-full px-6 py-3 ${LOCAL_FOLDERS ? 'border border-line active:bg-raised' : 'bg-amber active:opacity-80'}`}
             >
-              <Text className="font-semibold text-ink">{t('Choose your audiobooks folder')}</Text>
+              <Text className={LOCAL_FOLDERS ? 'text-amber' : 'font-semibold text-ink'}>
+                {t('Add a server')}
+              </Text>
             </Pressable>
           </>
-        ) : (
-          <Text className="text-center text-soft">
-            {t(
-              'Books you play from Home, Discover and Search appear here. Local folders are in the Android app.',
-            )}
-          </Text>
         )}
-      </View>
+        <TextButton text={t('Free books on Home')} onPress={() => router.navigate('/')} />
+      </ScrollView>
     );
   }
 

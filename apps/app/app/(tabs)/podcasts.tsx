@@ -157,6 +157,7 @@ export default function PodcastsScreen() {
                   'Find podcasts in Search, paste a feed address, or import an OPML file from another app. A podcast folder in your Library can become a subscription too: long-press it there.',
                 )
           }
+          actions={[{ label: t('Search for podcasts'), onPress: () => router.navigate('/search') }]}
         />
       }
       renderItem={({ item: sub }) => (

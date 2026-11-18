@@ -23,6 +23,7 @@ export * from './downloads';
 export * from './podcasts';
 export * from './backup';
 export * from './kids';
+export * from './firstStart';
 export * from './organise';
 export * from './seek';
 export * from './stats';
