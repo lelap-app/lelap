@@ -121,6 +121,9 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M109 Series and reading order](milestones/m109.md)  | Planned     |             | Reading order within a series, "Next in the series" when a book ends, missing volumes shown              |
 | [M110 Upkeep](milestones/m110.md)                    | Planned     |             | First start leftovers, scan and play in the emulator test, developer setup fixes                         |
 | [M111 Podcasts 6](milestones/m111.md)                | Planned     |             | A show's place on a map and podcast:value shown as information                                           |
+| [M112 Lists 2](milestones/m112.md)                   | Planned     |             | Play a list from start to end, books and episodes mixed, building on M16's lists                         |
+| [M113 Big screens 2](milestones/m113.md)             | Planned     |             | What M44 left: foldables, wider desktop layouts, resizable panes, drag to lists                          |
+| [M114 Add-on test kit](milestones/m114.md)           | Planned     |             | A command in the SDK that checks an add-on against protocol v1 and says what's wrong                     |
 
 <!-- milestones:end -->
 
