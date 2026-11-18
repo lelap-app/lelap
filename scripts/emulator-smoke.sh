@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke test of a release APK on a running emulator (M94): signs it with a throwaway key, installs
-# it, starts the app and checks that it opens Home and the Library without a crash. Logs and the
-# last screen go to OUT_DIR either way.
+# it, starts the app, skips the first-start welcome and checks that it opens Home and the Library
+# without a crash. Logs and the last screen go to OUT_DIR either way.
 #   scripts/emulator-smoke.sh APK OUT_DIR
 # Needs adb on PATH, and apksigner and keytool (Android build-tools and a JDK).
 set -euo pipefail
@@ -127,9 +127,25 @@ crashed() {
   return 1
 }
 
+# Taps the first element whose text is exactly [text].
+tap_text() {
+  local text="$1" xml bounds
+  xml="$(screen || true)"
+  bounds="$(grep -o "text=\"$text\"[^>]*bounds=\"[^\"]*\"" <<< "$xml" | head -1 | grep -o '\[[0-9,]*\]\[[0-9,]*\]' || true)"
+  [ -n "$bounds" ] || return 1
+  read -r x1 y1 x2 y2 <<< "$(tr '[],' '   ' <<< "$bounds")"
+  adb shell input tap $(((x1 + x2) / 2)) $(((y1 + y2) / 2))
+}
+
 adb shell am start -W -n "$package/.MainActivity"
+# A fresh install opens on the first-start welcome (M82); skipping it leads to the tabs.
+wait_for_text 'text="Welcome to Lelap"' 120
+tap_text 'Skip' || {
+  echo "::error::No Skip on the welcome screen" >&2
+  exit 1
+}
 # The tab bar's labels: Home is up once the first screen has drawn.
-wait_for_text 'text="Home"' 120
+wait_for_text 'text="Home"' 60
 wait_for_text 'text="Library"' 10
 
 adb shell am start -W -a android.intent.action.VIEW -d 'lelap://library' "$package"
