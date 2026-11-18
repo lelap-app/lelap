@@ -111,6 +111,40 @@ class KindTagsTest {
   }
 
   @Test
+  fun readsTheSeriesFromId3() {
+    val tags = IdTags.parseAll("book.mp3", id3(4, txxx("SERIES", "Dune"), txxx("SERIES-PART", "2")))
+    assertEquals("Dune #2", tags.series)
+    // The movement name and number, as tagging apps write them for audiobooks.
+    val movement = IdTags.parseAll("book.mp3", id3(4, text("MVNM", "The Expanse"), text("MVIN", "3/9")))
+    assertEquals("The Expanse #3", movement.series)
+    assertNull(IdTags.parseAll("book.mp3", id3(4, text("MVIN", "3"))).series)
+  }
+
+  @Test
+  fun readsTheSeriesFromMp4AndFlac() {
+    val book = IdTags.parseAll(
+      "book.m4b",
+      mp4(
+        atom("©mvn", atom("data", u32(1), u32(0), "Discworld".toByteArray())),
+        atom("©mvi", atom("data", u32(21), u32(0), byteArrayOf(0, 12))),
+      ),
+    )
+    assertEquals("Discworld #12", book.series)
+    val freeform = IdTags.parseAll("book.m4b", mp4(freeform("SERIES", "Dune"), freeform("SERIES-PART", "1.5")))
+    assertEquals("Dune #1.5", freeform.series)
+    assertEquals("Dune", IdTags.parseAll("book.flac", flac("SERIES=Dune")).series)
+    assertEquals("Dune #4", IdTags.parseAll("book.flac", flac("series=Dune", "SERIESPART=4")).series)
+  }
+
+  @Test
+  fun writesTheSeriesAsServersDo() {
+    assertEquals("Dune #1", IdTags.seriesText(" Dune ", "1/6"))
+    assertEquals("Dune", IdTags.seriesText("Dune", "0"))
+    assertEquals("Dune #2", IdTags.seriesText("Dune #", "#2"))
+    assertNull(IdTags.seriesText(" ", "2"))
+  }
+
+  @Test
   fun mapsStikValues() {
     assertEquals("music", IdTags.mediaKind(1))
     assertEquals("audiobook", IdTags.mediaKind(2))

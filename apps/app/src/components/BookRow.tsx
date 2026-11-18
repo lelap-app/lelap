@@ -80,8 +80,11 @@ export const BookRow = memo(function BookRow({
   onLongPress,
   swipe,
   unavailable = false,
+  note,
 }: {
   book: LibraryBook;
+  /** Said first on the second line, such as the book's number in a series. */
+  note?: string;
   /** Offline and not on this phone: shown dimmed. */
   unavailable?: boolean;
   onOpen: (book: LibraryBook) => void;
@@ -142,9 +145,10 @@ export const BookRow = memo(function BookRow({
             <Text numberOfLines={2} className={`text-base ${dim ? 'text-muted' : 'text-paper'}`}>
               {book.title}
             </Text>
-            {(book.author !== null || book.source === 'addon') && (
+            {(book.author !== null || book.source === 'addon' || note) && (
               <Text numberOfLines={1} className="text-sm text-muted">
                 {[
+                  note,
                   book.author,
                   book.source === 'addon'
                     ? book.downloaded

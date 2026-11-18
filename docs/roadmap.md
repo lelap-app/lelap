@@ -118,7 +118,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M106 Speed and battery](milestones/m106.md)         | Planned     |             | Budgets for cold start, the Library's first draw, memory and battery, kept by the benchmark              |
 | [M107 Car and Bluetooth 3](milestones/m107.md)       | Planned     |             | Car mode sideways on phones, covers granted per car app, headphone drain counted once                    |
 | [M108 Themes](milestones/m108.md)                    | Planned     |             | Themes beyond the night theme, an accent colour, high contrast, and themes shared as a file              |
-| [M109 Series and reading order](milestones/m109.md)  | Planned     |             | Reading order within a series, "Next in the series" when a book ends, missing volumes shown              |
+| [M109 Series and reading order](milestones/m109.md)  | Done        |           7 | Reading order within a series, "Next in the series" when a book ends, missing volumes shown              |
 | [M110 Upkeep](milestones/m110.md)                    | Done        |           2 | First start leftovers, scan and play in the emulator test, developer setup fixes                         |
 | [M111 Podcasts 6](milestones/m111.md)                | Planned     |             | A show's place on a map and podcast:value shown as information                                           |
 | [M112 Lists 2](milestones/m112.md)                   | Planned     |             | Play a list from start to end, books and episodes mixed, building on M16's lists                         |

@@ -50,7 +50,10 @@ export type KindTags = {
   narrator: string | null;
   /** MP4 `stik` (`audiobook`, `music`, `podcast`, `other`), or what a server says the item is. */
   mediaKind: string | null;
-  /** The book's series as a server names it, such as `Dune #1` (M65); absent from file tags. */
+  /**
+   * The book's series as `Dune #1, Dune Chronicles #1`: from a server (M65), the file's own series
+   * tags or an add-on's meta for a streamed book (M109). Absent from files read before M109.
+   */
   series?: string | null;
 };
 
@@ -701,7 +704,13 @@ export const tombstones = sqliteTable(
 );
 
 /** What a library book shows instead of its tags once it was matched with a catalog by hand. */
-export type LinkedMeta = { title: string; author: string | null; cover: string | null };
+export type LinkedMeta = {
+  title: string;
+  author: string | null;
+  cover: string | null;
+  /** The work's series as `Dune #1, Dune Chronicles #1` (M109); absent before M109. */
+  series?: string | null;
+};
 
 /**
  * A library book and an add-on work it is, or is not (M56). Keyed on the book's location

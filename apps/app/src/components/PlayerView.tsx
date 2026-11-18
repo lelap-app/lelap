@@ -6,6 +6,7 @@ import {
   getBook,
   getSettings,
   listBookmarks,
+  parseSeries,
   setBookmarkNote,
   setSpeed,
   SPEED_STEPS,
@@ -34,6 +35,8 @@ import { BookCover, coverUri } from './BookCover';
 import { BookmarksSheet } from './BookmarksSheet';
 import { CastSheet } from './CastSheet';
 import { SleepStopBanner } from './SleepStopBanner';
+import { NextInSeries } from './NextInSeries';
+import { openSeriesOf } from '../series';
 import { ChaptersSheet } from './ChaptersSheet';
 import { COLORS, Icon, IconButton, type IconName } from './Icon';
 import { Scrubber, type ScrubMark } from './Scrubber';
@@ -282,6 +285,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
   }
 
   const { chapters } = detail;
+  const [series] = parseSeries(detail.series);
   const total = detail.book.durationMs;
   const position = toBookPosition(detail.files, state.fileLocation ?? '', state.positionMs);
   const current = chapterAt(chapters, position);
@@ -402,6 +406,11 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           playing={state.playing}
         />
       )}
+      <NextInSeries
+        className="mt-2"
+        bookId={bookId}
+        ended={!state.playing && (state.ended || detail.book.finishedAt !== null)}
+      />
     </>
   );
 
@@ -439,15 +448,24 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           ) : (
             detail.book.author !== null && <Text className="text-soft">{detail.book.author}</Text>
           )}
-          {/* A server's series and narrator (M65), or a narrator tag. */}
-          {(detail.series !== null || detail.narrator !== null) && (
+          {/* The series (M65, M109), which opens its page, and the narrator. */}
+          {series && (
+            <Pressable
+              onPress={() => openSeriesOf(router, bookId, series.name)}
+              accessibilityRole="button"
+              {...hint(t('Opens the series'))}
+              className="min-h-12 justify-center"
+            >
+              <Text numberOfLines={1} className="text-sm text-amber">
+                {series.position
+                  ? t('{series}, book {n}', { series: series.name, n: series.position })
+                  : series.name}
+              </Text>
+            </Pressable>
+          )}
+          {detail.narrator !== null && (
             <Text numberOfLines={1} className="text-sm text-muted">
-              {[
-                detail.series,
-                detail.narrator ? t('Read by {names}', { names: detail.narrator }) : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
+              {t('Read by {names}', { names: detail.narrator })}
             </Text>
           )}
         </View>
