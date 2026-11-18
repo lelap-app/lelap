@@ -260,6 +260,7 @@ describe('revision 5: add-ons as library sources', () => {
     expect(
       settingHosts(fields, { url: 'http://NAS.local:8080/x', other: 'https://elsewhere.example' }),
     ).toEqual(['nas.local:8080']);
+    expect(settingHosts(fields, { url: 'https://nas.local/books' })).toEqual(['nas.local:443']);
     expect(settingHosts(fields, { url: 'not an address' })).toEqual([]);
   });
 

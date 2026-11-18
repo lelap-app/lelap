@@ -199,14 +199,15 @@ class MediaServer(private val context: Context) {
   }
 
   private fun serveRemote(out: OutputStream, source: Source.Remote, mimeType: String, range: String?, head: Boolean) {
-    val connection = URL(source.url).openConnection() as HttpURLConnection
+    // The login goes only to the file's own server, not to a host a redirect points at.
+    val connection = LoginRedirects.open(source.url, source.headers) { c ->
+      c.requestMethod = if (head) "HEAD" else "GET"
+      c.connectTimeout = 15_000
+      c.readTimeout = 30_000
+      c.setRequestProperty("User-Agent", "Lelap")
+      range?.let { c.setRequestProperty("Range", it) }
+    }
     try {
-      connection.requestMethod = if (head) "HEAD" else "GET"
-      connection.connectTimeout = 15_000
-      connection.readTimeout = 30_000
-      connection.setRequestProperty("User-Agent", "Lelap")
-      source.headers.forEach { (k, v) -> connection.setRequestProperty(k, v) }
-      range?.let { connection.setRequestProperty("Range", it) }
       val code = connection.responseCode
       val headers = mediaHeaders(mimeType).toMutableMap()
       connection.getHeaderField("Content-Length")?.let { headers["Content-Length"] = it }

@@ -1,4 +1,10 @@
-import { addonSourceHosts, bundledAddon, bundledAddons, listAddons } from '@lelap/core';
+import {
+  addonSourceHosts,
+  bundledAddon,
+  bundledAddons,
+  getLocalAddonCode,
+  listAddons,
+} from '@lelap/core';
 import { LibraryResponse, type Manifest, offersLibrary, type Settings } from '@lelap/sdk';
 
 import { db } from './db';
@@ -26,6 +32,15 @@ export function sourceManifest(addonUrl: string): Manifest | null {
     listAddons(db).find((a) => a.url === addonUrl)?.manifest ??
     null
   );
+}
+
+/**
+ * The fingerprint of an installed add-on's file; null for a bundled one, which comes with the app
+ * and is trusted as it is.
+ */
+export function codeFingerprint(addonUrl: string): string | null {
+  if (bundledAddon(addonUrl)) return null;
+  return getLocalAddonCode(db, addonUrl)?.sha256 ?? 'missing';
 }
 
 /** The hosts an add-on inside the app declares; null for one that is not on this device. */

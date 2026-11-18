@@ -52,6 +52,7 @@ export {
   addonSource,
   addonSourceHosts,
   headersFor,
+  sameAddonCode,
   sharedHeaders,
   withAddonLogin,
 } from './addon';

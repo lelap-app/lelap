@@ -24,6 +24,7 @@ import {
   addonSource,
   addonSourceHosts,
   headersFor,
+  sameAddonCode,
   sharedHeaders,
   withAddonLogin,
 } from './addon';
@@ -92,6 +93,30 @@ describe('an add-on as a library source', () => {
     ]) {
       expect(headersFor(elsewhere, headers, hosts), elsewhere).toEqual({});
     }
+  });
+
+  it('trusts the login only with the file it was entered for', () => {
+    const bundled = source();
+    expect(sameAddonCode(bundled, null)).toBe(true);
+    expect(sameAddonCode(bundled, 'abc')).toBe(false);
+    const installed = addonSource({
+      addonUrl: 'lelap-local://org.example.nas/manifest.json',
+      manifest,
+      key: 'k2',
+      settings: { url: 'http://nas.local/' },
+      codeSha: 'abc',
+    });
+    expect(sameAddonCode(installed, 'abc')).toBe(true);
+    // Another file under the same ID, or the file gone.
+    expect(sameAddonCode(installed, 'def')).toBe(false);
+    expect(sameAddonCode(installed, null)).toBe(false);
+  });
+
+  it('opens only the port of an address typed without one', () => {
+    const hosts = addonSourceHosts(manifest, { url: 'http://nas.local/books/' });
+    expect(headersFor('http://nas.local/a.mp3', { A: 'b' }, hosts)).toEqual({ A: 'b' });
+    expect(headersFor('http://nas.local:5000/admin', { A: 'b' }, hosts)).toEqual({});
+    expect(headersFor('https://nas.local/a.mp3', { A: 'b' }, hosts)).toEqual({});
   });
 
   it('sends one set of headers for a book only when all its files get the same', () => {

@@ -37,7 +37,12 @@ import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { scanLibrary } from '../src/scan';
 import { Pill } from '../src/components/Pill';
-import { libraryKinds, listAddonLibrary, type SourceKind } from '../src/addonSources';
+import {
+  codeFingerprint,
+  libraryKinds,
+  listAddonLibrary,
+  type SourceKind,
+} from '../src/addonSources';
 import { closeSandbox } from '../src/sandbox';
 
 type BuiltIn = 'webdav' | 's3' | 'jellyfin' | 'audiobookshelf';
@@ -282,6 +287,7 @@ export default function ServerScreen() {
       return;
     }
     setBusy(true);
+    const code = codeFingerprint(chosen.url);
     const key = addonRoot?.key ?? newId();
     // A sandbox of its own for the check, so nothing of a server not yet added stays running.
     const sandboxId = `check-${key}`;
@@ -299,6 +305,8 @@ export default function ServerScreen() {
         key,
         settings: read.settings,
         ...(listing.headers ? { headers: listing.headers } : {}),
+        // The login is for this file; another one under the same ID has to ask again.
+        ...(code ? { codeSha: code } : {}),
       });
       if (existing && rootId) updateRemoteRoot(db, rootId, remote, Date.now());
       else addRemoteRoot(db, remote, Date.now(), newId);

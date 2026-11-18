@@ -2,7 +2,6 @@ package app.lelap.library
 
 import java.io.IOException
 import java.net.HttpURLConnection
-import java.net.URL
 
 private const val BLOCK = 64 * 1024
 
@@ -51,15 +50,14 @@ class RemoteBytes(private val url: String, private val headers: Map<String, Stri
     }
   }
 
-  private fun open(from: Long, to: Long): HttpURLConnection {
-    val c = URL(url).openConnection() as HttpURLConnection
-    c.connectTimeout = 20_000
-    c.readTimeout = 30_000
-    c.setRequestProperty("Range", "bytes=$from-$to")
-    c.setRequestProperty("Accept-Encoding", "identity")
-    headers.forEach { (k, v) -> c.setRequestProperty(k, v) }
-    return c
-  }
+  // The login goes only to the file's own server, not to a host a redirect points at.
+  private fun open(from: Long, to: Long): HttpURLConnection =
+    LoginRedirects.open(url, headers) { c ->
+      c.connectTimeout = 20_000
+      c.readTimeout = 30_000
+      c.setRequestProperty("Range", "bytes=$from-$to")
+      c.setRequestProperty("Accept-Encoding", "identity")
+    }
 }
 
 object Ranges {

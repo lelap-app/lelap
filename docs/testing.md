@@ -276,6 +276,8 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M57] A book added to the server folder appears after Rescan, a removed one is marked missing, and the server scans with the others after a restart. ([m57](m57-follow-ups.md#rescan))
 - [ ] [M57] Restore a backup on another phone: the HTTP folder server asks only for its password again, and its books come back. ([m57](m57-follow-ups.md#restore))
 - [ ] [M57] An add-on file whose `library` sets `location.href` to an address with a setting in it: nothing opens in the browser. ([m57](m57-follow-ups.md#navigate))
+- [ ] [M57] A server that redirects its audio to a CDN: playback, casting and tag reading follow it without the login, and the book plays. ([m57](m57-follow-ups.md#redirect))
+- [ ] [M57] Another file with the same ID as an add-on that has a server: the review warns, Settings shows “The add-on changed”, nothing scans until Log in. ([m57](m57-follow-ups.md#replaced))
 - [ ] [M30] Hardcover with a real token: Currently reading with progress after a few minutes, Read with today's date after finishing, the Want to read row. ([m30](m30-follow-ups.md))
 - [ ] [M30] Hardcover events from an offline session arrive with their own times once back online. ([m30](m30-follow-ups.md))
 - [ ] [M51] Hardcover gets start, progress and pause for 15 minutes heard with the app closed, and nothing twice after opening and closing the app; casting time counts too. ([m51](m51-follow-ups.md#checks-on-a-phone))

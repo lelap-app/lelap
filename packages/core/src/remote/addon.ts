@@ -63,6 +63,8 @@ export function addonSource(args: {
   key: string;
   settings: Settings;
   headers?: RequestHeaders;
+  /** The installed file's fingerprint; leave it out for a bundled add-on. */
+  codeSha?: string;
 }): AddonSource {
   const fields = args.manifest.settings ?? [];
   const secret = new Set(fields.filter((f) => f.type === 'password').map((f) => f.key));
@@ -81,8 +83,16 @@ export function addonSource(args: {
     name: host ? `${args.manifest.name} · ${host}` : args.manifest.name,
     settings: plain,
     secret: JSON.stringify({ passwords, headers: args.headers ?? {} }),
+    ...(args.codeSha ? { codeSha: args.codeSha } : {}),
   };
 }
+
+/**
+ * Whether the add-on's code is still the one the login was entered for: `current` is the
+ * installed file's fingerprint, or null for a bundled add-on (it comes with the app).
+ */
+export const sameAddonCode = (remote: AddonSource, current: string | null): boolean =>
+  (remote.codeSha ?? null) === current;
 
 /** The hosts this server's add-on may reach: its manifest's and those its settings grant. */
 export function addonSourceHosts(manifest: Manifest, settings: Settings): string[] {

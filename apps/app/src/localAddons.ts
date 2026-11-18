@@ -1,5 +1,13 @@
 import { t } from './i18n';
-import { bundledAddon, installAddon, localAddonUrl, saveLocalAddonCode } from '@lelap/core';
+import {
+  bundledAddon,
+  forgetStreamHeaders,
+  getLocalAddonCode,
+  installAddon,
+  listRoots,
+  localAddonUrl,
+  saveLocalAddonCode,
+} from '@lelap/core';
 import { Manifest } from '@lelap/sdk';
 import * as Crypto from 'expo-crypto';
 
@@ -33,13 +41,22 @@ export async function installAddonFile(sourceUrl: string): Promise<boolean> {
   // A file can't take the place of an add-on that comes with the app, and with it its servers.
   if (bundledAddon(url)) throw new Error(t('An add-on with this ID comes with Lelap already.'));
   const sha256 = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, code);
+  const previous = getLocalAddonCode(db, url)?.sha256 ?? null;
+  const servers = listRoots(db).filter(
+    (r) => r.remote?.type === 'addon' && r.remote.addonUrl === url,
+  ).length;
+  const fingerprint = t('Code fingerprint {hash}…', { hash: sha256.slice(0, 16) });
   const accepted = await reviewAddon(
     manifest,
     url,
     t('Add'),
-    t('Code fingerprint {hash}…', { hash: sha256.slice(0, 16) }),
+    servers > 0 && previous !== sha256
+      ? `${fingerprint}\n${t('It replaces the add-on your servers use; they ask for their login again.')}`
+      : fingerprint,
   );
   if (!accepted) return false;
+  // Logins a stream of the old file asked for don't go to the new one.
+  if (previous !== sha256) forgetStreamHeaders(db, url);
   saveLocalAddonCode(db, { url, sourceUrl, code, sha256, now: Date.now() });
   installAddon(db, { url, manifest, now: Date.now(), newId });
   // A running sandbox of an older version restarts with the new code.

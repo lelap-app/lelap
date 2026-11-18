@@ -6,6 +6,7 @@ import {
   normalizeManifestUrl,
   parseAddonLink,
   removeAddon,
+  forgetStreamHeaders,
 } from '@lelap/core';
 import {
   isConfigurable,
@@ -209,6 +210,7 @@ function AddonsManager() {
           style: 'destructive',
           onPress: () => {
             removeAddon(db, addon.url, Date.now());
+            forgetStreamHeaders(db, addon.url);
             // Its code is gone; so are its sandboxes, with any server's settings in them.
             closeSandboxesOf(addon.url);
             changed();

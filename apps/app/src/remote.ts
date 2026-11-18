@@ -8,12 +8,13 @@ import {
   parseS3Uri,
   presignGet,
   type RemoteSource,
+  sameAddonCode,
   streamHeadersFor,
   webdavHeaders,
 } from '@lelap/core';
 import { Platform } from 'react-native';
 
-import { declaredHosts, sourceManifest } from './addonSources';
+import { codeFingerprint, declaredHosts, sourceManifest } from './addonSources';
 import { db } from './db';
 
 /** Where a file plays from and what to send with it. */
@@ -37,7 +38,9 @@ export function fileAccess(
 ): FileAccess {
   const remote = remoteOf(file.rootId);
   if (remote?.type === 'addon') {
-    const manifest = sourceManifest(remote.addonUrl);
+    // Another file under the add-on's ID gets none of the login entered for the old one.
+    const trusted = sameAddonCode(remote, codeFingerprint(remote.addonUrl));
+    const manifest = trusted ? sourceManifest(remote.addonUrl) : null;
     const hosts = manifest ? addonSourceHosts(manifest, remote.settings) : [];
     return { uri: file.uri, headers: headersFor(file.uri, addonLogin(remote).headers, hosts) };
   }

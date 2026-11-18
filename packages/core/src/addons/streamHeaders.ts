@@ -38,6 +38,11 @@ export function saveStreamHeaders(
     .run();
 }
 
+/** Forgets every login an add-on's streams asked for, such as when another file takes its place. */
+export function forgetStreamHeaders(db: Db, addonUrl: string): void {
+  db.delete(streamHeaders).where(eq(streamHeaders.addonUrl, addonUrl)).run();
+}
+
 /**
  * The headers to send with a request for one of a streamed book's files: those its add-on asked
  * for, and only when the request goes to one of that add-on's hosts. `hostsOf` gives an add-on's

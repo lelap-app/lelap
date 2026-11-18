@@ -10,7 +10,7 @@ import { createSecretBox, plainBox, setSecretBox } from '../secrets';
 import { collectOps } from '../sync/ops';
 import { type Fetcher, fetchAddonStreams, type InstalledAddon } from './client';
 import { addStreamedBook, removeStreamedBook } from './streamed';
-import { streamHeadersFor } from './streamHeaders';
+import { forgetStreamHeaders, streamHeadersFor } from './streamHeaders';
 
 const random = (n: number) => new Uint8Array(randomBytes(n));
 let n = 0;
@@ -45,6 +45,13 @@ describe('stream headers', () => {
     });
     expect(streamHeadersFor(db, bookId, 'http://evil.example/dune.mp3', hostsOf)).toEqual({});
     expect(streamHeadersFor(db, bookId, 'http://nas.local:8080/dune.mp3', () => null)).toEqual({});
+  });
+
+  it('forgets an add-on’s logins when another file takes its place', () => {
+    const db = createTestDb();
+    const bookId = addStreamedBook(db, { addonUrl: LOCAL, meta, stream: stream(), now: 1, newId });
+    forgetStreamHeaders(db, LOCAL);
+    expect(streamHeadersFor(db, bookId, 'http://nas.local:8080/dune.mp3', hostsOf)).toEqual({});
   });
 
   it('never keeps headers from a web add-on', () => {

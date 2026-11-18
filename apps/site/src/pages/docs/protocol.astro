@@ -1360,7 +1360,8 @@ const toc: [string, string][] = [
       <code>settings</code> in the manifest describes the form. The values stay on the phone,
       passwords sealed like a WebDAV password, never synced, exported or in diagnostics. They reach
       only this add-on’s <code>library</code> handler, as <code>args.settings</code>, for that
-      server.
+      server. Put keys and tokens in <code>password</code> fields: text and address fields are kept
+      like a server’s address, unsealed.
     </li>
     <li>
       <code>{`GET /${libraryPath()}`}</code> answers every file, with a <code>headers</code> object
@@ -1369,14 +1370,14 @@ const toc: [string, string][] = [
     </li>
     <li>
       Each server runs in a sandbox of its own that reaches only <code>sandbox.hosts</code> and the
-      hosts of <code>url</code> fields marked <code>host</code>. The code runs in a worker inside
-      it, which can’t open a page or an address; where a worker can’t start, the add-on gets no
-      settings.
+      hosts of <code>url</code> fields marked <code>host</code>, with their port. The code runs in a
+      worker inside it, which can’t open a page or an address and has no <code>fetch</code> of its
+      own; where a worker can’t start, the add-on gets no settings.
     </li>
     <li>
       The app sends the headers with the audio on the phone (playing, downloading, casting through
-      the phone) only to those hosts, and leaves out any file or cover elsewhere: an address could
-      otherwise carry a setting off.
+      the phone) only to those hosts, drops them when a redirect leaves the server, and leaves out
+      any file or cover elsewhere: an address could otherwise carry a setting off.
     </li>
     <li>
       A browser can’t send headers with audio, so books that need them play in the Android app.

@@ -89,8 +89,25 @@ const ADDON_SIDE = `
 })
 `;
 
-// The page's own script: starts the worker and passes messages both ways. `ADDON_SIDE_TEXT` and
-// `ADDON_CODE` are replaced with string literals.
+// Runs first in the worker: whatever reaches the network or another context goes, on the global
+// and up its prototypes, in case a browser doesn't hand the page's content policy to the worker.
+// `lelap.fetch` stays the only way out.
+const LOCKDOWN = `
+(function () {
+  ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'WebTransport', 'importScripts',
+   'Worker', 'SharedWorker', 'BroadcastChannel', 'caches', 'indexedDB'].forEach(function (name) {
+    for (var o = self; o; o = Object.getPrototypeOf(o)) {
+      if (Object.prototype.hasOwnProperty.call(o, name)) {
+        try { Object.defineProperty(o, name, { value: undefined, writable: false, configurable: false }); } catch (e) {}
+      }
+    }
+    try { Object.defineProperty(self, name, { value: undefined, writable: false, configurable: false }); } catch (e) {}
+  });
+})();
+`;
+
+// The page's own script: starts the worker and passes messages both ways. `LOCKDOWN_TEXT`,
+// `ADDON_SIDE_TEXT` and `ADDON_CODE` are replaced with string literals.
 const PAGE_SIDE = `
 (function () {
   var toApp = function (text) {
@@ -101,9 +118,23 @@ const PAGE_SIDE = `
   var addonSide = ADDON_SIDE_TEXT;
   var code = ADDON_CODE;
   var worker = null;
+  var inPage = function () {
+    // No worker here: the add-on runs in the page, as before M57, and the app hands it no settings.
+    worker = null;
+    window.__lelapToApp = function (m) { toApp(JSON.stringify(m)); };
+    var run = function (text) {
+      var s = document.createElement('script');
+      s.textContent = text;
+      document.body.appendChild(s);
+    };
+    // Said first: the app takes the first word, and code in the page could claim otherwise.
+    ready(false);
+    run(addonSide + '(window.__lelapToApp);');
+    run(code);
+  };
   try {
     worker = new Worker(URL.createObjectURL(new Blob([
-      addonSide + '(function (m) { self.postMessage(JSON.stringify(m)); });\\n' +
+      LOCKDOWN_TEXT + addonSide + '(function (m) { self.postMessage(JSON.stringify(m)); });\\n' +
       'self.onmessage = function (e) { self.__lelapReceive(e.data); };\\n' +
       // After the add-on's code ran, or threw.
       'setTimeout(function () { self.postMessage(JSON.stringify({ t: "started" })); }, 0);\\n' +
@@ -119,21 +150,19 @@ const PAGE_SIDE = `
       if (!started && e.data === '{"t":"started"}') { started = true; ready(true); return; }
       toApp(e.data);
     };
-  } else {
-    // No worker here: the add-on runs in the page, as before M57, and the app hands it no settings.
-    window.__lelapToApp = function (m) { toApp(JSON.stringify(m)); };
-    var run = function (text) {
-      var s = document.createElement('script');
-      s.textContent = text;
-      document.body.appendChild(s);
+    // A worker refused later, or code that doesn't load in it: fail fast, in the page.
+    worker.onerror = function () {
+      if (started || !worker) return;
+      worker.terminate();
+      inPage();
     };
-    // Said first: the app takes the first word, and code in the page could claim otherwise.
-    ready(false);
-    run(addonSide + '(window.__lelapToApp);');
-    run(code);
+  } else {
+    inPage();
   }
   var fromApp = function (e) {
     if (typeof e.data !== 'string') return;
+    // On the web only the app's page may talk to this one.
+    if (!window.ReactNativeWebView && e.source !== window.parent) return;
     if (worker) worker.postMessage(e.data);
     else if (window.__lelapReceive) window.__lelapReceive(e.data);
   };
@@ -148,10 +177,9 @@ const literal = (text: string) => JSON.stringify(text).replace(/</g, '\\u003c');
 /** The add-on's code inside a closed page. */
 export function sandboxPage(code: string): string {
   // Functions as replacements, so `$&` and friends in the code stay as they are.
-  const page = PAGE_SIDE.replace('ADDON_SIDE_TEXT', () => literal(ADDON_SIDE)).replace(
-    'ADDON_CODE',
-    () => literal(code),
-  );
+  const page = PAGE_SIDE.replace('LOCKDOWN_TEXT', () => literal(LOCKDOWN))
+    .replace('ADDON_SIDE_TEXT', () => literal(ADDON_SIDE))
+    .replace('ADDON_CODE', () => literal(code));
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; worker-src blob:">
 </head><body><script>${page}</script>

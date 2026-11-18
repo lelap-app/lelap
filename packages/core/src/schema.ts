@@ -99,6 +99,12 @@ export type RemoteSource =
       settings: Record<string, string>;
       /** JSON of the password fields and the headers the library last asked for; sealed. */
       secret: string;
+      /**
+       * SHA-256 of the installed file the login was entered for; absent for a bundled add-on. A
+       * different file under the same ID gets no settings or headers until the login is entered
+       * again.
+       */
+      codeSha?: string;
     };
 
 export const libraryRoots = sqliteTable('library_roots', {

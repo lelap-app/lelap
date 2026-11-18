@@ -40,7 +40,8 @@ export function hostAllowed(url: string, hosts: string[]): boolean {
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
   if (parsed.username || parsed.password) return false;
   const name = parsed.hostname.toLowerCase();
-  const port = parsed.port;
+  // A default port counts as written out, so `nas.local:80` allows `http://nas.local/`.
+  const port = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
   return hosts.some((entry) => {
     const e = entry.trim().toLowerCase();
     const [pattern, wantPort] = e.startsWith('[')

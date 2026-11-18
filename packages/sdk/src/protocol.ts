@@ -591,14 +591,18 @@ export function readSettings(
 
 /**
  * The hosts the listener's settings let an add-on reach: those of `url` fields marked `host`,
- * with their port when the address has one, such as `192.168.1.20:8080`.
+ * always with their port, such as `192.168.1.20:8080` or `nas.local:443`.
  */
 export function settingHosts(fields: SettingField[], settings: Settings): string[] {
   const hosts = new Set<string>();
   for (const field of fields) {
     if (field.type !== 'url' || field.host !== true) continue;
     const value = settings[field.key] ?? '';
-    if (isHttpUrl(value)) hosts.add(new URL(value).host.toLowerCase());
+    if (!isHttpUrl(value)) continue;
+    // Always with the port, so `http://nas.local/` opens port 80 only, not the NAS's admin page.
+    const url = new URL(value);
+    const port = url.port || (url.protocol === 'https:' ? '443' : '80');
+    hosts.add(`${url.hostname.toLowerCase()}:${port}`);
   }
   return [...hosts];
 }

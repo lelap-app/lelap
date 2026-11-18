@@ -723,5 +723,8 @@
   "The add-on for this server is no longer on this device.": "Alat tambah untuk pelayan ini tiada lagi dalam peranti ini.",
   "The add-on’s list of files is not valid.": "Senarai fail alat tambah ini tidak sah.",
   "The login for {name} is needed again.": "Log masuk untuk {name} diperlukan semula.",
-  "This add-on needs a login, which this device can’t keep apart from it.": "Alat tambah ini memerlukan log masuk, yang tidak dapat diasingkan daripadanya dalam peranti ini."
+  "This add-on needs a login, which this device can’t keep apart from it.": "Alat tambah ini memerlukan log masuk, yang tidak dapat diasingkan daripadanya dalam peranti ini.",
+  "The add-on for {name} changed. Log in again to use it.": "Alat tambah untuk {name} telah berubah. Log masuk semula untuk menggunakannya.",
+  "It replaces the add-on your servers use; they ask for their login again.": "Ia menggantikan alat tambah yang digunakan oleh pelayan anda; pelayan itu akan meminta log masuk semula.",
+  "The add-on changed. Log in again to use it.": "Alat tambah telah berubah. Log masuk semula untuk menggunakannya."
 }

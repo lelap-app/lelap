@@ -6,6 +6,7 @@ import {
   addonSourceHosts,
   type AddonScan,
   applyRemotePlaces,
+  sameAddonCode,
   applyScan,
   audiobookshelfMe,
   audiobookshelfScan,
@@ -32,7 +33,7 @@ import { idsFromTags } from '@lelap/sdk';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
-import { listAddonLibrary, sourceManifest } from './addonSources';
+import { codeFingerprint, listAddonLibrary, sourceManifest } from './addonSources';
 import { forgetAudiobookshelfParts, withKey } from './audiobookshelf';
 import { db, newId } from './db';
 import { logDiagnostic } from './diagnostics';
@@ -283,6 +284,12 @@ async function scanAddonSource(
     throw new Error(t('The login for {name} is needed again.', { name: remote.name }));
   const manifest = sourceManifest(remote.addonUrl);
   if (!manifest) throw new Error(t('The add-on for this server is no longer on this device.'));
+  // A different file under the same ID gets the settings only once the listener enters them again.
+  if (!sameAddonCode(remote, codeFingerprint(remote.addonUrl))) {
+    throw new Error(
+      t('The add-on for {name} changed. Log in again to use it.', { name: remote.name }),
+    );
+  }
   const response = await listAddonLibrary({
     addonUrl: remote.addonUrl,
     manifest,
