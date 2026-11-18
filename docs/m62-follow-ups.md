@@ -7,7 +7,9 @@ and called a wrong password a refused login and a missing share not found; SFTP 
 server's Ed25519 key with the same fingerprint `ssh-keyscan | ssh-keygen -l` printed, then listed
 the books with the password and that key.
 
-EMULATOR
+Not checked on the Android emulator: the release APK built and installed, but the emulator
+(`Medium_Phone_API_37.0`) stalled under the load. Its package and activity services kept dying,
+also after a reboot, before Lelap's first screen. So nothing here has run inside the app yet.
 
 Covered by tests: addresses in both directions (`@lelap/core` builds them, Kotlin reads them, with
 spaces, `#`, `?` and `+` in names; `..` refused), logins sealed in the database, the bounded walk
