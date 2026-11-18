@@ -87,8 +87,8 @@ export const ms: Record<string, string> = {
   'How it works': 'Cara ia berfungsi',
   'How to reach you, and that you are authorised to act for the rights holder':
     'Cara menghubungi anda, dan pengesahan bahawa anda diberi kuasa untuk bertindak bagi pihak pemegang hak',
-  'Import m4b, mp3, opus and flac, or point it at a folder. Chapters come from the tags, and a book you own plays from its catalog page. OPML in and out for podcasts.':
-    'Import m4b, mp3, opus dan flac, atau tunjukkan folder. Bab diambil daripada tag, dan buku milik anda dimainkan dari halaman katalognya. Import dan eksport OPML untuk podcast.',
+  'Import m4b, mp3, opus and flac, or point it at a folder. Chapters come from the tags, covers from the tags or an image beside the audio, and a book you own plays from its catalog page. OPML in and out for podcasts.':
+    'Import m4b, mp3, opus dan flac, atau tunjukkan folder. Bab diambil daripada tag, kulit buku daripada tag atau imej di sebelah audio, dan buku milik anda dimainkan dari halaman katalognya. Import dan eksport OPML untuk podcast.',
   'In development · Open source · Android and web':
     'Dalam pembangunan · Sumber terbuka · Android dan web',
   'Is it free?': 'Adakah ia percuma?',
@@ -129,8 +129,6 @@ export const ms: Record<string, string> = {
   'On Android, finds chapters at the long silences of a book without any. Skips a show’s intro and outro, set once per show.':
     'Di Android, mencari bab pada senyap panjang dalam buku yang tiada bab. Melangkau pengenalan dan penutup rancangan, ditetapkan sekali bagi setiap rancangan.',
   'On this phone': 'Dalam telefon ini',
-  'One queue for books and episodes, hand-made lists, and smart ones like “short and not started” or “for the flight”. Hide what you don’t want in the library; files that look like music are pointed out.':
-    'Satu baris gilir untuk buku dan episod, senarai buatan sendiri, dan senarai pintar seperti “pendek dan belum dimulakan” atau “untuk penerbangan”. Sembunyikan apa yang anda tidak mahu dalam pustaka; fail yang kelihatan seperti muzik akan ditunjukkan.',
   'Open source · Android · Web · Self-hosted': 'Sumber terbuka · Android · Web · Hos sendiri',
   'Open source · Beta · Android and web': 'Sumber terbuka · Beta · Android dan web',
   'Open source, so you can check every line of that claim.':
@@ -192,6 +190,8 @@ export const ms: Record<string, string> = {
     'Dokumentasi, terma dan dasar privasi hanya dalam bahasa Inggeris.',
   'The full experience: background playback, downloads with the screen off, casting and Android Auto. Small updates install themselves; new versions take one tap.':
     'Pengalaman penuh: main balik di latar belakang, muat turun dengan skrin dimatikan, penghantaran dan Android Auto. Kemas kini kecil dipasang sendiri; versi baharu hanya perlu satu ketikan.',
+  'The library opens in three groups: in progress, not started and finished. One queue for books and episodes, hand-made lists, and smart ones like “short and not started” or “for the flight”. Hide what you don’t want in the library; files that look like music are pointed out.':
+    'Pustaka dibuka dalam tiga kumpulan: sedang didengar, belum dimulakan dan selesai didengar. Satu baris gilir untuk buku dan episod, senarai buatan sendiri, dan senarai pintar seperti “pendek dan belum dimulakan” atau “untuk penerbangan”. Sembunyikan apa yang anda tidak mahu dalam pustaka; fail yang kelihatan seperti muzik akan ditunjukkan.',
   'The open player for audiobooks and podcasts.': 'Pemain terbuka untuk buku audio dan podcast.',
   'The PWA, served as static files.': 'PWA, disajikan sebagai fail statik.',
   'The signed APK from our own downloads host. Once installed, the app checks for updates itself.':
