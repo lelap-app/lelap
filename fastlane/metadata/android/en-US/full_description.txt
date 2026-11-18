@@ -12,10 +12,10 @@ Lelap is an open-source player for audiobooks and podcasts. It plays, downloads,
 <b>Your library</b>
 <ul>
 <li>Your own files and folders: m4b, mp3, opus, flac, with chapters from the tags.</li>
-<li>Your own servers: WebDAV (Nextcloud, ownCloud), S3-compatible storage, Jellyfin and Audiobookshelf.</li>
+<li>Your own servers: WebDAV (Nextcloud, ownCloud), S3-compatible storage, Jellyfin, Emby, Plex, Navidrome and other Subsonic servers, Audiobookshelf, and SMB and SFTP shares.</li>
 <li>Public-domain audiobooks from LibriVox, and podcasts by RSS with OPML import and export.</li>
 <li>Tags, hand-made lists and smart lists; Up Next for books and episodes.</li>
-<li>Downloads over Wi-Fi with the screen off; airplane mode is a normal day.</li>
+<li>Downloads over Wi-Fi with the screen off, to an SD card if you like; airplane mode is a normal day.</li>
 </ul>
 
 <b>Around the house</b>

@@ -108,7 +108,8 @@ node server.mjs      # http://localhost:8787/manifest.json
   <h2 id="sdk">The matcher in the SDK</h2>
   <p>
     All of it is in <code>@lelap/sdk</code> (MIT). Everything but <code>lookupWork</code> is pure:
-    no requests, no state.
+    no requests, no state. It comes with the SDK release after 0.3.0; until that is on npm, 0.3.0
+    doesn’t have it.
   </p>
   <div class="table-wrap">
     <table class="table">
@@ -187,15 +188,15 @@ node server.mjs      # http://localhost:8787/manifest.json
   <CodeBlock code={run} label="Terminal" />
   <p>
     In the repository the sample uses the SDK’s TypeScript source, which only its tests can load.
-    Copy the folder out to run it with Node:
+    Copy the folder out to run it with Node, once the SDK release after 0.3.0 is on npm:
   </p>
   <CodeBlock code={fromNpm} label="Terminal" />
 
   <h2 id="app">Your own storage in the app</h2>
   <p>
-    For a folder on the phone, WebDAV, S3, Jellyfin and Audiobookshelf, {site.name} does this
-    mapping itself, with the same rules, on the device. No request leaves the phone for it, so no
-    add-on and no server learns what is in the library.
+    For a folder on the phone and the servers added in the app, such as WebDAV, S3, SMB, Jellyfin or
+    Plex, {site.name} does this mapping itself, with the same rules, on the device. No request
+    leaves the phone for it, so no add-on and no server learns what is in the library.
   </p>
   <ul>
     <li>

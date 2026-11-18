@@ -58,8 +58,8 @@ export const ms: Record<string, string> = {
   'Download beta .apk': 'Muat turun .apk beta',
   'Older phone with a 32-bit processor? Get the 32-bit .apk':
     'Telefon lama dengan pemproses 32-bit? Dapatkan .apk 32-bit',
-  'Download books and episodes over Wi-Fi with the screen off. Airplane mode is a normal day, not an error state.':
-    'Muat turun buku dan episod melalui Wi-Fi dengan skrin dimatikan. Mod pesawat ialah hari biasa, bukan keadaan ralat.',
+  'Download books and episodes over Wi-Fi with the screen off, on Android to an SD card if you like. Airplane mode is a normal day, not an error state.':
+    'Muat turun buku dan episod melalui Wi-Fi dengan skrin dimatikan, di Android ke kad SD jika anda mahu. Mod pesawat ialah hari biasa, bukan keadaan ralat.',
   'Download for Android': 'Muat turun untuk Android',
   Downloaded: 'Dimuat turun',
   'Early Mornings at the Laksa Café': 'Pagi-pagi di Kafe Laksa',
@@ -88,8 +88,8 @@ export const ms: Record<string, string> = {
   'How it works': 'Cara ia berfungsi',
   'How to reach you, and that you are authorised to act for the rights holder':
     'Cara menghubungi anda, dan pengesahan bahawa anda diberi kuasa untuk bertindak bagi pihak pemegang hak',
-  'Import m4b, mp3, opus and flac, or point it at a folder. Chapters come from the tags. OPML in and out for podcasts.':
-    'Import m4b, mp3, opus dan flac, atau tunjukkan folder. Bab diambil daripada tag. Import dan eksport OPML untuk podcast.',
+  'Import m4b, mp3, opus and flac, or point it at a folder. Chapters come from the tags, and a book you own plays from its catalog page. OPML in and out for podcasts.':
+    'Import m4b, mp3, opus dan flac, atau tunjukkan folder. Bab diambil daripada tag, dan buku milik anda dimainkan dari halaman katalognya. Import dan eksport OPML untuk podcast.',
   'In development · Open source · Android and web':
     'Dalam pembangunan · Sumber terbuka · Android dan web',
   'Is it free?': 'Adakah ia percuma?',
@@ -144,8 +144,8 @@ export const ms: Record<string, string> = {
   'Phone, tablet or laptop': 'Telefon, tablet atau komputer riba',
   'Pick up on your laptop where you stopped on your phone. Pair devices with a code; sync is end-to-end encrypted.':
     'Sambung di komputer riba dari tempat anda berhenti di telefon. Gandingkan peranti dengan kod; segerak disulitkan hujung ke hujung.',
-  'Play straight from your WebDAV, S3-compatible, Jellyfin or Audiobookshelf server. The app talks to it directly and keeps the credentials on your device.':
-    'Main terus dari pelayan WebDAV, storan serasi S3, Jellyfin atau Audiobookshelf anda. Aplikasi berhubung terus dengannya dan menyimpan butiran log masuk dalam peranti anda.',
+  'Play straight from your WebDAV, S3-compatible, Jellyfin, Emby, Plex, Navidrome or Audiobookshelf server, and on Android from SMB and SFTP. The app talks to it directly and keeps the credentials on your device.':
+    'Main terus dari pelayan WebDAV, storan serasi S3, Jellyfin, Emby, Plex, Navidrome atau Audiobookshelf anda, dan di Android dari SMB dan SFTP. Aplikasi berhubung terus dengannya dan menyimpan butiran log masuk dalam peranti anda.',
   'Playing from': 'Dimainkan dari',
   'Playlists, tags and Up Next': 'Senarai main, tag dan Seterusnya',
   'Please include:': 'Sila sertakan:',

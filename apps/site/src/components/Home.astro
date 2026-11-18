@@ -31,7 +31,7 @@ const features: { icon: IconName; title: string; text: string }[] = [
     title: t(lang, 'Offline first'),
     text: t(
       lang,
-      'Download books and episodes over Wi-Fi with the screen off. Airplane mode is a normal day, not an error state.',
+      'Download books and episodes over Wi-Fi with the screen off, on Android to an SD card if you like. Airplane mode is a normal day, not an error state.',
     ),
   },
   {
@@ -39,7 +39,7 @@ const features: { icon: IconName; title: string; text: string }[] = [
     title: t(lang, 'Your server, your bucket'),
     text: t(
       lang,
-      'Play straight from your WebDAV, S3-compatible, Jellyfin or Audiobookshelf server. The app talks to it directly and keeps the credentials on your device.',
+      'Play straight from your WebDAV, S3-compatible, Jellyfin, Emby, Plex, Navidrome or Audiobookshelf server, and on Android from SMB and SFTP. The app talks to it directly and keeps the credentials on your device.',
     ),
   },
   {
@@ -87,7 +87,7 @@ const features: { icon: IconName; title: string; text: string }[] = [
     title: t(lang, 'Bring your own files'),
     text: t(
       lang,
-      'Import m4b, mp3, opus and flac, or point it at a folder. Chapters come from the tags. OPML in and out for podcasts.',
+      'Import m4b, mp3, opus and flac, or point it at a folder. Chapters come from the tags, and a book you own plays from its catalog page. OPML in and out for podcasts.',
     ),
   },
   {
@@ -297,6 +297,7 @@ const compose = `services:
             <span class="muted chips-gap">{t(lang, 'Optional:')}</span>
             <span class="chip chip-dashed">Audiobookshelf</span>
             <span class="chip chip-dashed">WebDAV</span>
+            <span class="chip chip-dashed">Internet Archive</span>
             <span class="chip chip-dashed">Hardcover</span>
             <span class="chip chip-dashed">gPodder</span>
           </div>
