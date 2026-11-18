@@ -70,6 +70,8 @@ const USUAL_NAMES = [
   /^albumart.*large$/i,
 ];
 
+const LOOSE_NAMES = /^(cover|folder)$/i;
+
 const usualRank = (name: string) => {
   const stem = stripExtension(name);
   return USUAL_NAMES.findIndex((pattern) => pattern.test(stem));
@@ -182,8 +184,14 @@ function guess<F extends CoverCandidate>(images: F[], sizes: Map<string, ImageSi
 export type CoverFiles<F> = {
   /** Rule 2: per audio file's location, the image with its name (`Book A.mp3`, `Book A.png`). */
   byFile: Map<string, F>;
-  /** Rules 3 to 6: per folder's location, the image the books in it share. */
+  /** Rules 3 to 6: per folder's location, the cover of the one book a folder becomes. */
   byFolder: Map<string, F>;
+  /**
+   * Per folder's location, for books that are single files in it (the library's top folder, or
+   * files that each have chapters): only `cover.*` or `folder.*`. Any other image there is more
+   * likely one book's than all of theirs.
+   */
+  forLoose: Map<string, F>;
 };
 
 /**
@@ -191,13 +199,14 @@ export type CoverFiles<F> = {
  * `groupIntoBooks`). Then, per book, the first that applies wins: 2. an image with the audio
  * file's name, the first part's for a book of several files; 3. `cover`, `folder`, `front`,
  * `poster`, `albumart`, `AlbumArt…Large`; 4. an image named after the folder; 5. the only image;
- * 6. a guess among several, which needs the `sizes` of the images `coverGuesses` lists.
+ * 6. a guess among several, which needs the `sizes` of the images `coverGuesses` lists. Rules 4
+ * to 6 only fit a folder that is one book; books that are single files in a folder get `forLoose`.
  */
 export function folderCoverFiles<F extends CoverCandidate>(
   files: F[],
   sizes: Map<string, ImageSize> = new Map(),
 ): CoverFiles<F> {
-  const result: CoverFiles<F> = { byFile: new Map(), byFolder: new Map() };
+  const result: CoverFiles<F> = { byFile: new Map(), byFolder: new Map(), forLoose: new Map() };
   for (const [folder, entry] of filesByFolder(files)) {
     if (entry.images.length === 0) continue;
     for (const audio of entry.audio) {
@@ -212,6 +221,10 @@ export function folderCoverFiles<F extends CoverCandidate>(
     const chosen =
       settled(folder, shared) ?? (shared.length === 1 && only ? only : guess(shared, sizes));
     if (chosen) result.byFolder.set(folder, chosen);
+    const [loose] = shared
+      .filter((f) => LOOSE_NAMES.test(stripExtension(f.name)))
+      .sort((a, b) => usualRank(a.name) - usualRank(b.name) || byExtensionThenName(a, b));
+    if (loose) result.forLoose.set(folder, loose);
   }
   return result;
 }

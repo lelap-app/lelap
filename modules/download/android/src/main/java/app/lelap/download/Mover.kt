@@ -49,15 +49,15 @@ object Mover {
   /** Picks up a move that stopped or waited for an SD card; nothing when every book is in place. */
   fun resume(context: Context) {
     if (isMoving(context)) return
-    clearLeftovers(context)
-    if (waiting(context) > 0) start(context)
+    if (waiting(context) > 0 || Downloads.bookDirs(context).any { Downloads.moving(it) != null }) start(context)
   }
 
   /**
    * Deletes the half copies a crash left mid-copy. Their folder may never be chosen again, so the
-   * next move would not replace them. Runs only while no move does.
+   * next move would not replace them. Only [MoveWorker] calls it, before it copies anything: it is
+   * unique work, so no copy can be under way.
    */
-  private fun clearLeftovers(context: Context) {
+  internal fun clearLeftovers(context: Context) {
     for (dir in Downloads.bookDirs(context)) {
       synchronized(Downloads.lock) {
         val target = (Downloads.moving(dir) ?: return@synchronized).ifEmpty { null }
@@ -100,6 +100,7 @@ class MoveWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
     runCatching { setForeground(foregroundInfo(0, Mover.waiting(context))) }
     return withContext(Dispatchers.IO) {
       Mover.setError(context, null)
+      Mover.clearLeftovers(context)
       val dirs = Downloads.bookDirs(context)
       var moved = 0
       try {

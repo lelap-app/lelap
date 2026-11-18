@@ -50,6 +50,8 @@ export function groupIntoBooks(
   folderCovers: Map<string, string>,
   /** Covers from images named after an audio file, by the audio file's location. */
   fileCovers: Map<string, string> = new Map(),
+  /** For books that are single files in a folder: only its `cover.*` or `folder.*`. */
+  looseCovers: Map<string, string> = new Map(),
 ): BookDraft[] {
   const locate = (relPath: string) =>
     relPath === '' ? rootLocation : `${rootLocation}/${relPath}`;
@@ -111,7 +113,7 @@ export function groupIntoBooks(
           coverPath:
             file.coverPath ??
             fileCovers.get(file.location) ??
-            folderCovers.get(locate(folder)) ??
+            looseCovers.get(locate(folder)) ??
             null,
           files: [file],
         });

@@ -175,10 +175,15 @@ async function imageSizeOf(root: Root, file: ListedFile): Promise<ImageSize | nu
 async function imageCovers(
   root: Root,
   listed: ListedFile[],
-): Promise<{ folderCovers: Map<string, string>; fileCovers: Map<string, string> }> {
+): Promise<{
+  folderCovers: Map<string, string>;
+  fileCovers: Map<string, string>;
+  looseCovers: Map<string, string>;
+}> {
   const folderCovers = new Map<string, string>();
   const fileCovers = new Map<string, string>();
-  if (Platform.OS === 'web') return { folderCovers, fileCovers };
+  const looseCovers = new Map<string, string>();
+  if (Platform.OS === 'web') return { folderCovers, fileCovers, looseCovers };
   const sizes = new Map<string, ImageSize>();
   for (const file of coverGuesses(listed)) {
     const size = await imageSizeOf(root, file).catch(() => null);
@@ -202,7 +207,11 @@ async function imageCovers(
     const path = await save(file);
     if (path) fileCovers.set(audio, path);
   }
-  return { folderCovers, fileCovers };
+  for (const [folder, file] of chosen.forLoose) {
+    const path = await save(file);
+    if (path) looseCovers.set(folder, path);
+  }
+  return { folderCovers, fileCovers, looseCovers };
 }
 
 async function run(onProgress: (done: number, total: number) => void): Promise<ScanResult> {
@@ -277,7 +286,7 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
     }
     onProgress(need.length, need.length);
 
-    const { folderCovers, fileCovers } = await imageCovers(root, listed);
+    const { folderCovers, fileCovers, looseCovers } = await imageCovers(root, listed);
 
     const result = applyScan(db, {
       rootId: root.id,
@@ -286,6 +295,7 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
       tags,
       folderCovers,
       fileCovers,
+      looseCovers,
       now: Date.now(),
       newId,
     });

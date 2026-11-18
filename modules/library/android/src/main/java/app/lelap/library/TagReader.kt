@@ -215,7 +215,7 @@ class TagReader(private val context: Context) {
     }
     coverDir.mkdirs()
     val file = File(coverDir, fileName ?: "${sha1(uri.toString())}.jpg")
-    file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+    CoverFile.writeAtomically(file) { bitmap.compress(Bitmap.CompressFormat.JPEG, 85, it) }
     return file.absolutePath
   }
 

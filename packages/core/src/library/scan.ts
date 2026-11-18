@@ -174,13 +174,16 @@ export type ApplyScanArgs = {
   folderCovers: Map<string, string>;
   /** Covers from images named after an audio file, by the audio file's location (`byFile`). */
   fileCovers?: Map<string, string>;
+  /** Covers for books that are single files in a folder, by folder location (`forLoose`). */
+  looseCovers?: Map<string, string>;
   now: number;
   newId: IdGenerator;
 };
 
 /** Brings the library in line with a listing of its folder. */
 export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing: number } {
-  const { rootId, rootLocation, listed, tags, folderCovers, fileCovers, now, newId } = args;
+  const { rootId, rootLocation, listed, tags, folderCovers, fileCovers, looseCovers, now, newId } =
+    args;
 
   return db.transaction((tx) => {
     const storedFiles = new Map(
@@ -287,7 +290,13 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
     // Books whose files, their order or their tags changed: their chapters and places are redone.
     const changedBooks = new Set<string>();
     let added = 0;
-    for (const draft of groupIntoBooks(rootLocation, scanned, folderCovers, fileCovers)) {
+    for (const draft of groupIntoBooks(
+      rootLocation,
+      scanned,
+      folderCovers,
+      fileCovers,
+      looseCovers,
+    )) {
       const values = {
         rootId,
         kind: draft.kind,
@@ -327,8 +336,25 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
         if (pending) Object.assign(pending, { bookId, idx });
         else moves.push({ location: file.location, bookId, idx });
       }
-      if (stored) tx.delete(chapters).where(eq(chapters.bookId, bookId)).run();
-      for (const [idx, c] of buildChapters(draft.files).entries()) {
+      const built = buildChapters(draft.files);
+      // Chapters found from silences stay while the same files with the same lengths hold them,
+      // when only a tag changed (or how tags are read).
+      const sameAudio =
+        before.length === draft.files.length &&
+        draft.files.every(
+          (f, idx) =>
+            before[idx]?.location === f.location && before[idx]?.durationMs === f.durationMs,
+        );
+      if (stored) {
+        tx.delete(chapters)
+          .where(
+            built.length === 0 && sameAudio
+              ? and(eq(chapters.bookId, bookId), eq(chapters.found, false))
+              : eq(chapters.bookId, bookId),
+          )
+          .run();
+      }
+      for (const [idx, c] of built.entries()) {
         newChapters.push({ id: newId(), bookId, idx, ...c, updatedAt: now });
       }
     }
@@ -470,7 +496,8 @@ function sameFile(
     stored.artist === row.artist &&
     stored.albumArtist === row.albumArtist &&
     stored.coverPath === row.coverPath &&
-    JSON.stringify(stored.ids) === JSON.stringify(row.ids) &&
+    // Normalised again, so a change in how IDs are normalised doesn't count as a changed file.
+    JSON.stringify(stored.ids && normalizeIds(stored.ids)) === JSON.stringify(row.ids) &&
     JSON.stringify(stored.kindTags) === JSON.stringify(row.kindTags) &&
     sameChapters(stored.chaptersJson, row.chaptersJson)
   );

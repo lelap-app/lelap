@@ -158,6 +158,65 @@ describe('covers from image files', () => {
     ).toEqual({ Dune: 'front.jpg' });
   });
 
+  describe('books that are single files in a folder', () => {
+    const chaptered = { chapters: [{ title: 'One', startMs: 0 }] };
+    /** Each book's cover after choosing and grouping, with images named by their file name. */
+    function coversOf(audio: ReturnType<typeof scanned>[], images: string[]) {
+      const listing = [...audio, ...images.map((n) => file(`${ROOT}/${n}`))];
+      const covers = folderCoverFiles(listing);
+      const paths = (map: Map<string, { name: string }>) =>
+        new Map([...map].map(([k, f]) => [k, f.name]));
+      return Object.fromEntries(
+        groupIntoBooks(
+          ROOT,
+          audio,
+          paths(covers.byFolder),
+          paths(covers.byFile),
+          paths(covers.forLoose),
+        ).map((b) => [b.location.slice(ROOT.length + 1), b.coverPath]),
+      );
+    }
+
+    it('don’t share an image named after the folder', () => {
+      const books = [
+        scanned('Author/Book1.m4b', chaptered),
+        scanned('Author/Book2.m4b', chaptered),
+      ];
+      expect(coversOf(books, ['Author/author.jpg'])).toEqual({
+        'Author/Book1.m4b': null,
+        'Author/Book2.m4b': null,
+      });
+      // The same folder as one book does take it.
+      expect(coversOf([scanned('Author/Book1.m4b')], ['Author/author.jpg'])).toEqual({
+        Author: 'author.jpg',
+      });
+    });
+
+    it('don’t take another book’s image', () => {
+      expect(coversOf([scanned('A.mp3'), scanned('B.mp3')], ['A cover.jpg'])).toEqual({
+        'A.mp3': null,
+        'B.mp3': null,
+      });
+    });
+
+    it('don’t get a guess between two books’ images', () => {
+      const books = [scanned('Author/A.m4b', chaptered), scanned('Author/B.m4b', chaptered)];
+      expect(coversOf(books, ['Author/A (cover).jpg', 'Author/B (cover).jpg'])).toEqual({
+        'Author/A.m4b': null,
+        'Author/B.m4b': null,
+      });
+    });
+
+    it('don’t take a stray image, only the folder’s cover or folder image', () => {
+      const loose = [scanned('A.mp3'), scanned('B.mp3')];
+      expect(coversOf(loose, ['Screenshot 1.png'])).toEqual({ 'A.mp3': null, 'B.mp3': null });
+      expect(coversOf(loose, ['Screenshot 1.png', 'Folder.jpg', 'B.png'])).toEqual({
+        'A.mp3': 'Folder.jpg',
+        'B.mp3': 'B.png',
+      });
+    });
+  });
+
   it('applies the rules in order per book: embedded, own image, then the folder’s', () => {
     const books = groupIntoBooks(
       ROOT,
@@ -193,16 +252,18 @@ describe('covers from image files', () => {
     const single = groupIntoBooks(
       ROOT,
       [scanned('A.mp3', { coverPath: '/embedded-a.jpg' }), scanned('B.mp3'), scanned('C.mp3')],
-      new Map([[ROOT, '/root-folder.jpg']]),
+      new Map([[ROOT, '/root-guess.jpg']]),
       new Map([
         [`${ROOT}/A.mp3`, '/a.jpg'],
         [`${ROOT}/B.mp3`, '/b.jpg'],
       ]),
+      new Map([[ROOT, '/root-cover.jpg']]),
     );
+    // Single-file books take the folder's `cover.*`, never the folder book's choice.
     expect(single.map((b) => b.coverPath)).toEqual([
       '/embedded-a.jpg',
       '/b.jpg',
-      '/root-folder.jpg',
+      '/root-cover.jpg',
     ]);
     const folder = groupIntoBooks(
       ROOT,
