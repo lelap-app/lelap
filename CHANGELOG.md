@@ -51,7 +51,7 @@ client in the app, which keeps them away from your home network unless you typed
   what is left. Downloads asks the browser to keep its storage and says whether it does. Server
   logins go with web downloads, as on Android. (#187)
 - A cover you chose with Match with catalog… is kept on the phone, so it shows offline. (#186)
-- Saving in the web app is faster. (#186)
+- Saving in the web app no longer works out a checksum of the whole library on each change. (#186)
 - On a narrow phone the player’s tools wrap into rows and their labels no longer end in “…”; the
   playback buttons shrink to fit. (#186)
 - Accessibility: every screen has a heading, errors are read out when they appear, buttons keep
