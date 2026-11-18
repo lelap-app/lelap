@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
@@ -9,13 +11,17 @@ import { applyScan, splitScanned, upsertRoot } from './library/scan';
 import {
   CLIP_MAX_MS,
   findPlaceBook,
+  findPlaceEpisode,
+  isShareableFeed,
   parsePlace,
   placeOfBook,
   placeUrl,
   type SharedPlace,
 } from './placeLink';
+import { episodeBook, listEpisodes, saveFeed, subscribe } from './podcasts/repository';
+import { parseFeed } from './podcasts/rss';
 import { createProfile, DEFAULT_PROFILE_ID as ME } from './profiles';
-import { books, workLinks } from './schema';
+import { books, episodes, workLinks } from './schema';
 
 let n = 0;
 const newId = () => `id-${String(++n).padStart(6, '0')}`;
@@ -165,5 +171,113 @@ describe('finding the listener’s own copy', () => {
     scan(db, [scanned('B/01.mp3', { album: 'Dune', artist: 'Frank Herbert' })]);
     const kid = createProfile(db, { name: 'Mia', avatar: null, kids: true }, 1, newId);
     expect(findPlaceBook(db, kid, { ...dune, ids: [], work: null })).toBeNull();
+  });
+});
+
+describe('a shared place in a podcast episode', () => {
+  const FEED = 'https://example.org/garden-hour.xml';
+  const fixture = (name: string) =>
+    readFileSync(new URL(`../test/fixtures/${name}`, import.meta.url), 'utf8');
+
+  function follow(db: Db, feedUrl = FEED) {
+    const { podcastId } = saveFeed(
+      db,
+      feedUrl,
+      parseFeed(fixture('garden-hour.xml')),
+      { etag: null, lastModified: null },
+      1,
+      newId,
+    );
+    const episode = listEpisodes(db, ME, podcastId).find((e) => e.title === 'Why tomatoes split');
+    if (!episode) throw new Error('no episode');
+    return { podcastId, bookId: episodeBook(db, episode.id, 2, newId), episodeId: episode.id };
+  }
+
+  it('names the episode by its feed and guid, and goes through a link and back', () => {
+    const db = createTestDb();
+    const { bookId } = follow(db);
+    const place = placeOfBook(db, bookId, 1_234_500, 1_276_750);
+    expect(place).toEqual({
+      title: 'Why tomatoes split',
+      author: 'Garden Hour',
+      ids: [],
+      work: null,
+      atMs: 1_234_500,
+      toMs: 1_276_750,
+      episode: { feed: FEED, guid: 'garden-hour-42' },
+    });
+    const url = placeUrl('https://listen.example.org', place as SharedPlace);
+    expect(query(url).f).toBe(FEED);
+    expect(parsePlace(query(url))).toEqual({ ...place, atMs: 1_234_000, toMs: 1_276_000 });
+  });
+
+  it('is not shared from a feed with a login or a query, which may hold a token', () => {
+    const db = createTestDb();
+    const { bookId } = follow(db, 'https://example.org/private.xml?auth=s3cret');
+    expect(placeOfBook(db, bookId, 0)).toBeNull();
+    expect(isShareableFeed('https://rosa:pw@example.org/feed.xml')).toBe(false);
+    expect(isShareableFeed('ftp://example.org/feed.xml')).toBe(false);
+    // Tokens in the path, as some private feeds have them.
+    expect(isShareableFeed('https://example.org/feeds/k3J9xQ2mP8vL5nR7tY4wZ1aB')).toBe(false);
+    expect(
+      isShareableFeed('https://example.org/private/5f0e2d6a-7c1b-5e1a-9d3e-000000000075.rss'),
+    ).toBe(false);
+    expect(isShareableFeed(FEED)).toBe(true);
+    expect(isShareableFeed('https://feeds.example.org/GLT1412515089')).toBe(true);
+    expect(isShareableFeed('https://example.org/shows/garden-hour-weekly-questions/feed')).toBe(
+      true,
+    );
+  });
+
+  it('is not shared when the episode has no guid, so its audio address would travel', () => {
+    const db = createTestDb();
+    const { bookId, episodeId } = follow(db);
+    db.update(episodes)
+      .set({ guid: 'https://cdn.example.org/gh42.mp3' })
+      .where(eq(episodes.id, episodeId))
+      .run();
+    expect(placeOfBook(db, bookId, 0)).toBeNull();
+  });
+
+  it('ignores a feed or guid a link should not carry', () => {
+    const base = { t: 'Why tomatoes split', at: '60' };
+    expect(parsePlace({ ...base, f: 'javascript:alert(1)', g: 'x' })?.episode).toBeUndefined();
+    expect(parsePlace({ ...base, f: FEED })?.episode).toBeUndefined();
+    expect(parsePlace({ ...base, f: FEED, g: 'garden-hour-42' })?.episode).toEqual({
+      feed: FEED,
+      guid: 'garden-hour-42',
+    });
+  });
+
+  it('finds the episode here, a show whose stored feed lacks it, or a show to subscribe to', () => {
+    const db = createTestDb();
+    const { podcastId, bookId, episodeId } = follow(db);
+    expect(findPlaceEpisode(db, ME, { feed: FEED, guid: 'garden-hour-42' })).toEqual({
+      kind: 'here',
+      episodeId,
+      bookId,
+    });
+    expect(findPlaceEpisode(db, ME, { feed: FEED, guid: 'garden-hour-1' })).toEqual({
+      kind: 'missing',
+      podcastId,
+      subscribed: false,
+    });
+    subscribe(db, ME, podcastId, 3);
+    expect(findPlaceEpisode(db, ME, { feed: FEED, guid: 'garden-hour-1' })).toEqual({
+      kind: 'missing',
+      podcastId,
+      subscribed: true,
+    });
+    expect(findPlaceEpisode(db, ME, { feed: 'https://example.org/other.xml', guid: 'x' })).toEqual({
+      kind: 'unknown',
+    });
+  });
+
+  it('never offers a kids profile a show it has not got', () => {
+    const db = createTestDb();
+    follow(db);
+    const kid = createProfile(db, { name: 'Mia', avatar: null, kids: true }, 1, newId);
+    expect(findPlaceEpisode(db, kid, { feed: FEED, guid: 'garden-hour-42' })).toBeNull();
+    expect(findPlaceEpisode(db, kid, { feed: 'https://example.org/o.xml', guid: 'x' })).toBeNull();
   });
 });

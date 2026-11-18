@@ -21,7 +21,7 @@ import { READABLE } from '../src/layout';
 import { openPlayer } from '../src/navigation';
 import { playAt, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
-import { sharePlace } from '../src/sharePlace';
+import { canSharePlace, sharePlace } from '../src/sharePlace';
 
 /** Every bookmark across the listener's books (M85), newest first. */
 export default function BookmarksScreen() {
@@ -101,9 +101,9 @@ export default function BookmarksScreen() {
               setEditing(null);
               refresh();
             }}
-            {...(editing.book.source === 'feed'
-              ? {}
-              : { onShare: () => void sharePlace(editing.bookId, editing.bookPositionMs) })}
+            {...(canSharePlace(editing.bookId)
+              ? { onShare: () => void sharePlace(editing.bookId, editing.bookPositionMs) }
+              : {})}
             onDelete={() => {
               remove(editing.id);
               setEditing(null);

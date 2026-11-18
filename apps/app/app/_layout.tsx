@@ -27,6 +27,7 @@ import { HandoffBanner } from '../src/components/HandoffBanner';
 import { PlayerPane } from '../src/components/PlayerPane';
 import { ShortcutsHost } from '../src/shortcuts';
 import { PodcastSync } from '../src/podcasts';
+import { ClipStop } from '../src/clips';
 import { SyncRunner } from '../src/sync';
 import { offerUpdateOnStart } from '../src/updates';
 import { OtaRunner } from '../src/ota';
@@ -84,6 +85,7 @@ export default function RootLayout() {
         <DownloadSync />
         <SilenceSync />
         <PodcastSync />
+        <ClipStop />
         <SyncRunner />
         <OtaRunner />
         <DeviceRunner />

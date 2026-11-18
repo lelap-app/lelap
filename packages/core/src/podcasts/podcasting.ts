@@ -247,6 +247,44 @@ export function parseChaptersFile(
   return chapters.filter((c, i) => i === 0 || c.startMs !== chapters[i - 1]?.startMs);
 }
 
+/** Where a chapters file changes the artwork; `img` null goes back to the episode's cover. */
+export type ChapterImage = { startMs: number; img: string | null };
+
+/**
+ * The artwork of a JSON chapters file, `toc: false` entries included: they exist to change the
+ * picture mid-chapter. Empty when no entry has an image at a web address.
+ */
+export function parseChapterImages(text: string): ChapterImage[] {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return [];
+  }
+  const list = isNode(data) && Array.isArray(data.chapters) ? data.chapters : [];
+  const images: ChapterImage[] = [];
+  for (const entry of list) {
+    if (!isNode(entry)) continue;
+    const start = seconds(entry.startTime);
+    if (start === null) continue;
+    const img = typeof entry.img === 'string' ? httpOrNull(entry.img.trim()) : null;
+    images.push({ startMs: Math.round(start * 1000), img });
+  }
+  if (!images.some((i) => i.img !== null)) return [];
+  // Stable, so of two entries at one start the later one in the file wins below.
+  return images.sort((a, b) => a.startMs - b.startMs);
+}
+
+/** The picture at a position: that of the last entry started at or before it, or null. */
+export function chapterImageAt(images: ChapterImage[], positionMs: number): string | null {
+  let found: string | null = null;
+  for (const image of images) {
+    if (image.startMs > positionMs) break;
+    found = image.img;
+  }
+  return found;
+}
+
 /** One line of a transcript. Untimed transcripts (HTML, plain text) have `startMs` null. */
 export type TranscriptCue = {
   startMs: number | null;

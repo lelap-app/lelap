@@ -8,12 +8,15 @@ import {
   isPlaceholderFeed,
   refreshFeeds,
   feedCache,
+  findPlaceEpisode,
   findPodcast,
   listSubscriptions,
   parseFeed,
   parseOpml,
   saveFeed,
   subscribe,
+  type FeedSoundbite,
+  type SharedPlace,
 } from '@lelap/core';
 import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
@@ -23,8 +26,9 @@ import { proxyBase } from './config';
 import { db, newId } from './db';
 import { logDiagnostic } from './diagnostics';
 import { deleteDownload, startDownload } from './downloads';
+import { playClip } from './clips';
 import { loadEpisodeChapters, loadEpisodeChaptersWithin } from './podcasting';
-import { playBook, seekToBookPosition, useLibrary, usePlayerState } from './player';
+import { playAt, playBook, useLibrary, usePlayerState } from './player';
 import { profileId } from './profile';
 
 const FETCH_TIMEOUT_MS = 20_000;
@@ -149,12 +153,34 @@ export async function playEpisode(episodeId: string): Promise<void> {
   await playBook(bookId);
 }
 
-/** Plays an episode from a soundbite's start; it plays on from there like any other seek. */
-export async function playSoundbite(episodeId: string, startMs: number): Promise<void> {
+/** Plays a soundbite as a clip: from its start, pausing at its end (M88). */
+export async function playSoundbite(episodeId: string, soundbite: FeedSoundbite): Promise<void> {
   const bookId = episodeBook(db, episodeId, Date.now(), newId);
   await loadEpisodeChaptersWithin(bookId, CHAPTERS_WAIT_MS);
-  await playBook(bookId);
-  await seekToBookPosition(bookId, startMs);
+  await playClip(bookId, soundbite.startMs, soundbite.startMs + soundbite.durationMs);
+}
+
+/**
+ * Plays a shared place in an episode (M88). When this device's copy of the show's feed lacks the
+ * episode, the feed is read again first, subscribing this profile if it isn't yet. Returns false
+ * when the feed no longer lists the episode.
+ */
+export async function playSharedEpisode(place: SharedPlace): Promise<boolean> {
+  if (!place.episode) return false;
+  let found = findPlaceEpisode(db, profileId, place.episode);
+  if (found?.kind === 'missing' && found.subscribed) {
+    await fetchFeed(place.episode.feed);
+    found = findPlaceEpisode(db, profileId, place.episode);
+  } else if (found?.kind === 'missing' || found?.kind === 'unknown') {
+    await subscribeToFeed(place.episode.feed);
+    found = findPlaceEpisode(db, profileId, place.episode);
+  }
+  if (found?.kind !== 'here') return false;
+  const bookId = found.bookId ?? episodeBook(db, found.episodeId, Date.now(), newId);
+  await loadEpisodeChaptersWithin(bookId, CHAPTERS_WAIT_MS);
+  if (place.toMs !== null) await playClip(bookId, place.atMs, place.toMs);
+  else await playAt(bookId, place.atMs);
+  return true;
 }
 
 /** Subscribes to every feed in an OPML file. Returns how many were added and which failed. */

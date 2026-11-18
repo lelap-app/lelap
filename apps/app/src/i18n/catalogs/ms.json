@@ -986,5 +986,16 @@
   "The sleep timer stopped playback at {clock}.": "Pemasa tidur menghentikan main balik pada {clock}.",
   "Back to when you last used it": "Kembali ke saat anda kali terakhir menggunakannya",
   "{clock}, {n} min before it stopped": "{clock}, {n} min sebelum ia berhenti",
-  "{n} min back": "{n} min ke belakang"
+  "{n} min back": "{n} min ke belakang",
+  "Soundbites": "Petikan audio",
+  "Soundbite {n}": "Petikan audio {n}",
+  "Picked by the show. Each plays to its end, then pauses.": "Dipilih oleh rancangan. Setiap satu dimainkan hingga habis, kemudian berhenti seketika.",
+  "Plays this soundbite": "Memainkan petikan audio ini",
+  "The show’s feed no longer lists this episode.": "Suapan rancangan ini tidak lagi menyenaraikan episod ini.",
+  "You are not subscribed to this show. Lelap can subscribe from its feed and play the episode; the audio comes from the show, not from the link.": "Anda belum melanggan rancangan ini. Lelap boleh melanggan daripada suapannya dan memainkan episod ini; audio datang daripada rancangan, bukan daripada pautan.",
+  "Subscribe and play": "Langgan dan main",
+  "Open the show": "Buka rancangan",
+  "This episode is not on your shelf.": "Episod ini tiada di rak anda.",
+  "This episode is not in your copy of the show’s feed yet.": "Episod ini belum ada dalam salinan suapan rancangan anda.",
+  "Refresh and play": "Muat semula dan main"
 }

@@ -1,13 +1,19 @@
 import { t } from './i18n';
 import {
+  chapterImageAt,
   episodeDetail,
   getBook,
+  parseChapterImages,
   parseChaptersFile,
   parseTranscript,
   pickTranscript,
   saveEpisodeChapters,
+  type ChapterImage,
+  type FeedSoundbite,
   type TranscriptCue,
 } from '@lelap/core';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { Platform } from 'react-native';
 
 import { proxyBase } from './config';
@@ -36,13 +42,27 @@ export async function fetchText(url: string): Promise<string> {
   }
 }
 
+const chapterFiles = new Map<string, Promise<string>>();
+
+/** A chapters file, fetched once per app start for both its chapters and its pictures. */
+function fetchChaptersFile(url: string): Promise<string> {
+  let file = chapterFiles.get(url);
+  if (!file) {
+    file = fetchText(url);
+    // A failed fetch is tried again the next time it is asked for.
+    file.catch(() => chapterFiles.delete(url));
+    chapterFiles.set(url, file);
+  }
+  return file;
+}
+
 const attempts = new Map<string, Promise<boolean>>();
 
 async function fetchChapters(bookId: string): Promise<boolean> {
   const url = episodeDetail(db, bookId)?.extras?.chaptersUrl;
   if (!url || (getBook(db, profileId, bookId)?.chapters.length ?? 0) > 0) return false;
   try {
-    const chapters = parseChaptersFile(await fetchText(url), chapterName);
+    const chapters = parseChaptersFile(await fetchChaptersFile(url), chapterName);
     return saveEpisodeChapters(db, bookId, chapters, Date.now(), newId);
   } catch {
     // No chapters is fine: the episode plays as one stretch, as before.
@@ -69,6 +89,41 @@ export function loadEpisodeChaptersWithin(bookId: string, ms: number): Promise<b
     loadEpisodeChapters(bookId),
     new Promise<boolean>((resolve) => setTimeout(() => resolve(false), ms)),
   ]);
+}
+
+/**
+ * The pictures of an episode's chapters file (M88), for the player to show as each stretch plays.
+ * Empty for any other book, a file without pictures, or one that can't be read.
+ */
+export async function loadChapterImages(bookId: string): Promise<ChapterImage[]> {
+  const url = episodeDetail(db, bookId)?.extras?.chaptersUrl;
+  if (!url) return [];
+  return parseChapterImages(await fetchChaptersFile(url).catch(() => ''));
+}
+
+/** The chapters file's picture at a position of the playing book, or null for its own cover. */
+export function useChapterImage(
+  bookId: string | null,
+  positionMs: number,
+  // `version` is the signal to re-read the database: a refresh may bring a chapters file.
+  version: number,
+): string | null {
+  const chaptersUrl = useMemo(
+    () => (bookId ? (episodeDetail(db, bookId)?.extras?.chaptersUrl ?? null) : null),
+    [bookId, version],
+  );
+  const images = useQuery({
+    queryKey: ['chapter-images', chaptersUrl],
+    queryFn: () => loadChapterImages(bookId ?? ''),
+    enabled: chaptersUrl !== null,
+    staleTime: Infinity,
+  });
+  return images.data ? chapterImageAt(images.data, positionMs) : null;
+}
+
+/** An episode book's soundbites; none for any other book. */
+export function soundbitesOf(bookId: string): FeedSoundbite[] {
+  return episodeDetail(db, bookId)?.extras?.soundbites ?? [];
 }
 
 /** The transcript to show for a book, if it is an episode whose feed lists one. */

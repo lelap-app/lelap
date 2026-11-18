@@ -186,6 +186,7 @@ const ICONS = {
     </>
   ),
   queue: (c) => <Path d="M4 6h16M4 12h10M4 18h10M18 14v6M15 17h6" {...stroke(c)} />,
+  soundbite: (c) => <Path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" {...stroke(c)} />,
   transcript: (c) => (
     <>
       <Path

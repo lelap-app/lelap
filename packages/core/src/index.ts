@@ -15,6 +15,7 @@ export * from './bookmarks';
 export * from './library/queries';
 export * from './library/ownChapters';
 export * from './placeLink';
+export * from './clip';
 export * from './library/byProgress';
 export * from './settings';
 export * from './sound';
