@@ -120,7 +120,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M108 Themes](milestones/m108.md)                    | Planned     |             | Themes beyond the night theme, an accent colour, high contrast, and themes shared as a file              |
 | [M109 Series and reading order](milestones/m109.md)  | Done        |           7 | Reading order within a series, "Next in the series" when a book ends, missing volumes shown              |
 | [M110 Upkeep](milestones/m110.md)                    | Done        |           2 | First start leftovers, scan and play in the emulator test, developer setup fixes                         |
-| [M111 Podcasts 6](milestones/m111.md)                | Planned     |             | A show's place on a map and podcast:value shown as information                                           |
+| [M111 Podcasts 6](milestones/m111.md)                | Done        |           4 | A show's place on a map and podcast:value shown as information                                           |
 | [M112 Lists 2](milestones/m112.md)                   | Planned     |             | Play a list from start to end, books and episodes mixed, building on M16's lists                         |
 | [M113 Big screens 2](milestones/m113.md)             | Planned     |             | What M44 left: foldables, wider desktop layouts, resizable panes, drag to lists                          |
 | [M114 Add-on test kit](milestones/m114.md)           | Planned     |             | A command in the SDK that checks an add-on against protocol v1 and says what's wrong                     |
@@ -142,8 +142,8 @@ when it is planned.
 
 - **More from Podcasting 2.0 tags (left from M75):** play a soundbite as a clip that stops at its
   end, and list soundbites in the player; let the listener pick among alternate enclosures (a
-  smaller file on mobile data) and check `podcast:integrity`; open a show's place on a map; show
-  `podcast:value`. Sending value-for-value payments would move money and needs a decision first.
+  smaller file on mobile data) and check `podcast:integrity`. Sending value-for-value payments
+  would move money and needs a decision first.
 - **Accessibility leftovers (from M83):** the web app ignores the browser's default text size, since
   react-native-web sets sizes in pixels; zooming works. Following it would mean reading the root
   font size and scaling text the way Android's font scale does. The accessibility check has gaps
