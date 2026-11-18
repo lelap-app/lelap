@@ -152,8 +152,9 @@ async function saveLocalImage(file: ListedFile): Promise<string | null> {
 
 /**
  * An image's width and height for guessing a cover among several: Android reads the header of a
- * file on the phone; a WebDAV, S3 or add-on server is asked for the first 64 KB. SMB and SFTP
- * can only copy whole files, so their guesses go by file size.
+ * file on the phone; a WebDAV, S3 or add-on server is asked for the first 64 KB, from the browser
+ * too. SMB and SFTP can only copy whole files, and a server that refuses the request gives no
+ * size either; those guesses go by file size.
  */
 async function imageSizeOf(root: Root, file: ListedFile): Promise<ImageSize | null> {
   if (!root.remote) return readImageSize(file.uri);
@@ -170,7 +171,7 @@ async function imageSizeOf(root: Root, file: ListedFile): Promise<ImageSize | nu
 /**
  * Covers from image files beside the audio (`folderCoverFiles` has the rules), for books whose
  * files carry none. A server's image is fetched with the same login as its audio, straight from
- * the server, and kept with the other covers. The web keeps no covers folder, so it has none.
+ * the server, and kept with the other covers (in the origin private file system on the web).
  */
 async function imageCovers(
   root: Root,
@@ -183,7 +184,6 @@ async function imageCovers(
   const folderCovers = new Map<string, string>();
   const fileCovers = new Map<string, string>();
   const looseCovers = new Map<string, string>();
-  if (Platform.OS === 'web') return { folderCovers, fileCovers, looseCovers };
   const sizes = new Map<string, ImageSize>();
   for (const file of coverGuesses(listed)) {
     const size = await imageSizeOf(root, file).catch(() => null);
