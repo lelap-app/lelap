@@ -1,7 +1,8 @@
 # services
 
 Small Hono services that run on Cloudflare Workers and, for self-hosters, in Docker. See
-[`docs/brief.md`](../docs/brief.md).
+[`docs/brief.md`](../docs/brief.md). Self-hosting, with the admin page each service has in
+Docker (never on Workers), backups and reverse proxies: [`docker/README.md`](../docker/README.md).
 
 ## `sync`
 
@@ -147,8 +148,3 @@ the `web` environment. Setup: [M18](../docs/milestones/m18.md#setup).
 The smallest third-party add-on: one catalog, meta and streams for two LibriVox recordings, with a
 README on copying it, running `wrangler dev`, adding it in Lelap and deploying. CI type-checks,
 tests and bundles it.
-
-## Planned
-
-- `proxy`: RSS feeds and cover images for the web app. Never audio.
-- `sync`: encrypted sync blobs and oplogs.

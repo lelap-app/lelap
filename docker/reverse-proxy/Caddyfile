@@ -1,0 +1,39 @@
+# Lelap behind Caddy, with HTTPS certificates from Let's Encrypt. Used by the compose file's
+# `https` profile as it is; on a host of its own, set the *_UPSTREAM variables to where the
+# services listen (for example WEB_UPSTREAM=127.0.0.1:8080). See README.md in this folder.
+# The admin pages (ports 9787 to 9790) are left out on purpose: reach them over SSH instead.
+
+(lelap) {
+	encode zstd gzip
+	# Devices push up to about 13 MB of sealed sync messages at once.
+	request_body {
+		max_size 16MB
+	}
+	header -Server
+}
+
+listen.{$LELAP_DOMAIN} {
+	import lelap
+	reverse_proxy {$WEB_UPSTREAM:web:8080}
+}
+
+catalog.{$LELAP_DOMAIN} {
+	import lelap
+	reverse_proxy {$CATALOG_UPSTREAM:catalog:8787}
+}
+
+proxy.{$LELAP_DOMAIN} {
+	import lelap
+	reverse_proxy {$PROXY_UPSTREAM:proxy:8788}
+}
+
+sync.{$LELAP_DOMAIN} {
+	import lelap
+	reverse_proxy {$SYNC_UPSTREAM:sync:8789}
+}
+
+# Only with Android builds of your own (the compose file's `updates` profile).
+# updates.{$LELAP_DOMAIN} {
+# 	import lelap
+# 	reverse_proxy {$UPDATES_UPSTREAM:updates:8790}
+# }

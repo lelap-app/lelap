@@ -6,8 +6,10 @@ import init from '../../../services/sync/migrations/0001_init.sql';
 import snapshots from '../../../services/sync/migrations/0002_snapshots.sql';
 import { createApp } from '../../../services/sync/src/app';
 import { runUpkeep } from '../../../services/sync/src/expiry';
+import { adminFromEnv } from './admin';
 import { port, serve } from './serve';
 import { migrate, sqliteStore } from './sqliteStore';
+import { syncStatus } from './syncAdmin';
 
 const file = process.env.SYNC_DB ?? '/data/sync.db';
 mkdirSync(dirname(file), { recursive: true });
@@ -16,7 +18,17 @@ db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
 migrate(db, { '0001_init.sql': init, '0002_snapshots.sql': snapshots });
 
 const store = sqliteStore(db);
-serve(createApp(store), port(8789), 'sync');
+// Closing checkpoints the WAL, so the volume holds one whole file after a stop.
+const servicePort = port(8789);
+serve(createApp(store), servicePort, 'sync', () => db.close());
+adminFromEnv('sync', servicePort, {
+  // /health runs often and without the token: one cheap query, never the group listing.
+  health: async () => {
+    db.prepare('SELECT 1').get();
+    return [{ name: 'Database', ok: true, detail: 'Answers' }];
+  },
+  status: async () => syncStatus(db, process.env.SYNC_IDLE_EXPIRY_DAYS),
+});
 
 // What the Worker's daily cron trigger does: old pairings, and idle groups when
 // SYNC_IDLE_EXPIRY_DAYS is set. Once at start, then once a day.

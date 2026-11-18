@@ -1,0 +1,37 @@
+# Traefik's routes to Lelap's services (the file provider in traefik.yml). Replace example.org
+# with your domain, and the addresses with where the services listen.
+# The admin pages (ports 9787 to 9790) are left out on purpose: reach them over SSH instead.
+http:
+  middlewares:
+    lelap-limits:
+      rateLimit: { average: 20, burst: 40 }
+    lelap-body:
+      buffering: { maxRequestBodyBytes: 16777216 }
+
+  routers:
+    lelap-web:
+      rule: Host(`listen.example.org`)
+      service: lelap-web
+      middlewares: [lelap-limits]
+    lelap-catalog:
+      rule: Host(`catalog.example.org`)
+      service: lelap-catalog
+      middlewares: [lelap-limits]
+    lelap-proxy:
+      rule: Host(`proxy.example.org`)
+      service: lelap-proxy
+      middlewares: [lelap-limits]
+    lelap-sync:
+      rule: Host(`sync.example.org`)
+      service: lelap-sync
+      middlewares: [lelap-limits, lelap-body]
+
+  services:
+    lelap-web:
+      loadBalancer: { servers: [{ url: 'http://127.0.0.1:8080' }] }
+    lelap-catalog:
+      loadBalancer: { servers: [{ url: 'http://127.0.0.1:8787' }] }
+    lelap-proxy:
+      loadBalancer: { servers: [{ url: 'http://127.0.0.1:8788' }] }
+    lelap-sync:
+      loadBalancer: { servers: [{ url: 'http://127.0.0.1:8789' }] }

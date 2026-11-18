@@ -2,6 +2,10 @@
 export function memoryCache(maxEntries = 2_000) {
   const entries = new Map<string, { body: ArrayBuffer; init: ResponseInit; expires: number }>();
   return {
+    /** Responses held, expired ones included until they are next asked for or pushed out. */
+    get size(): number {
+      return entries.size;
+    },
     async match(key: string): Promise<Response | undefined> {
       const hit = entries.get(key);
       if (!hit) return undefined;
