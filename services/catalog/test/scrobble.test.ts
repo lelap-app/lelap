@@ -51,7 +51,25 @@ async function configure(
       body: new URLSearchParams(form).toString(),
     }),
   );
-  const html = await response.text();
+  let html = await response.text();
+  // Hardcover asks for the rows to show on a second page; take what it ticks.
+  const draft = /name="draft" value="([^"]+)"/.exec(html)?.[1];
+  if (draft) {
+    const picks = new URLSearchParams({ draft });
+    for (const [, name, value] of html.matchAll(
+      /type="checkbox" name="([^"]+)" id="[^"]+" value="([^"]+)" checked/g,
+    ))
+      picks.append(name ?? '', value ?? '');
+    html = await (
+      await app.fetch(
+        new Request(`https://addons.example${path}/configure`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: picks.toString(),
+        }),
+      )
+    ).text();
+  }
   // Empty when the page shows an error instead of a link.
   const url = /<code>([^<]+manifest\.json)<\/code>/.exec(html)?.[1] ?? '';
   return { response, html, url };
@@ -153,6 +171,8 @@ describe('Hardcover', () => {
       };
       if (query.includes('query Me'))
         return json({ data: { me: [{ id: 7, username: 'reader' }] } });
+      if (query.includes('query Lists'))
+        return json({ data: { mine: [], followed: [], featured: [] } });
       if (query.includes('query WantToRead'))
         return json({
           data: {
@@ -297,8 +317,8 @@ describe('Hardcover', () => {
     const { url } = await configure(app, '/hardcover', { token: TOKEN });
     const before = calls.length;
     await post(app, url, [event({ event: 'pause', item: { type: 'episode', name: 'Ep' } })]);
-    // Only the `me` lookup.
-    expect(calls.length - before).toBe(1);
+    // Not even the `me` lookup: configuring already learned it.
+    expect(calls.length - before).toBe(0);
   });
 
   it('keeps the last state per book', () => {

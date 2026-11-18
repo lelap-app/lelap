@@ -4,6 +4,8 @@
 // associated data, so a sealed Hardcover token is not accepted by the gPodder add-on.
 
 const PREFIX = 'v1.';
+/** Longer sealed segments are refused, so a link stays usable as a URL. */
+export const MAX_SEALED = 4096;
 const encoder = new TextEncoder();
 
 function base64url(bytes: Uint8Array): string {
@@ -14,8 +16,13 @@ function base64url(bytes: Uint8Array): string {
 
 function fromBase64url(text: string): Uint8Array | null {
   if (!/^[A-Za-z0-9_-]+$/.test(text)) return null;
-  const binary = atob(text.replace(/-/g, '+').replace(/_/g, '/'));
-  return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  try {
+    const binary = atob(text.replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  } catch {
+    // A length that no base64 has, from a hand-edited link.
+    return null;
+  }
 }
 
 async function keyFor(secret: string): Promise<CryptoKey> {
@@ -51,7 +58,7 @@ export function createSealer(secret: string | undefined, addon: string): Sealer 
       return PREFIX + base64url(out);
     },
     async open(sealed) {
-      if (!sealed.startsWith(PREFIX) || sealed.length > 4096) return null;
+      if (!sealed.startsWith(PREFIX) || sealed.length > MAX_SEALED) return null;
       const bytes = fromBase64url(sealed.slice(PREFIX.length));
       if (!bytes || bytes.length < 12 + 16) return null;
       try {

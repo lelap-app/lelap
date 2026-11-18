@@ -1,6 +1,6 @@
 import { type AddonHandlers, AddonError, createAddon, type Manifest } from '@lelap/sdk';
 
-import type { Sealer } from './sealed';
+import { MAX_SEALED, type Sealer } from './sealed';
 
 // A configurable add-on under its own path. The listener fills in `/configure`; the answer is a
 // manifest URL with their settings sealed into one path segment:
@@ -11,11 +11,20 @@ import type { Sealer } from './sealed';
 export type Field = {
   name: string;
   label: string;
-  type: 'text' | 'password' | 'url' | 'select';
+  /** `checkbox` is a group: one box per option, all sent under the field's name. */
+  type: 'text' | 'password' | 'url' | 'select' | 'checkbox';
   hint?: string;
   placeholder?: string;
-  options?: { value: string; label: string }[];
+  options?: { value: string; label: string; checked?: boolean }[];
   required?: boolean;
+};
+
+/** A second page once the first form is accepted, such as choosing from what the account holds. */
+export type PickStep<C> = {
+  intro: string;
+  fields: (config: C) => Promise<Field[]>;
+  /** The settings with the choices applied, or throws an `AddonError` (400) with what to fix. */
+  apply: (config: C, form: (name: string) => string[]) => Promise<C>;
 };
 
 export type ConfigurableAddon<C> = {
@@ -24,7 +33,12 @@ export type ConfigurableAddon<C> = {
   manifest: Manifest;
   /** Shown above the form. */
   intro: string;
+  /** A link under the intro, such as the service's page for making a token. */
+  introLink?: { href: string; label: string };
   fields: Field[];
+  /** The manifest for one listener's settings, when their catalogs depend on them. */
+  manifestFor?: (config: C) => Manifest;
+  pick?: PickStep<C>;
   /** Turns the form into settings, or throws an `AddonError` (400) with what to fix. */
   parse: (form: Record<string, string>) => C;
   /** Checks the settings with the service, so a typo shows now rather than as silent failures. */
@@ -54,7 +68,11 @@ main{max-width:34rem;margin:0 auto;padding:2rem 1rem}
 label{display:block;margin:1rem 0 .25rem;font-weight:600}
 input,select{box-sizing:border-box;width:100%;padding:.6rem;border-radius:.5rem;border:1px solid #3a3644;background:#1e1b26;color:inherit;font:inherit}
 small,.muted{color:#a59fb0}
-button,.button{display:inline-block;margin-top:1.25rem;padding:.6rem 1rem;border:0;border-radius:999px;background:#f5b041;color:#14121a;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+button,.check{display:flex;gap:.5rem;align-items:center;margin:.35rem 0;font-weight:400}
+.check input{width:auto;margin:0}
+fieldset{border:0;padding:0;margin:1rem 0 0}
+legend{font-weight:600;padding:0}
+.button{display:inline-block;margin-top:1.25rem;padding:.6rem 1rem;border:0;border-radius:999px;background:#f5b041;color:#14121a;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
 code{word-break:break-all;background:#1e1b26;padding:.15rem .3rem;border-radius:.25rem}
 .error{color:#ff8a80}
 </style></head><body><main>${body}</main></body></html>`;
@@ -68,10 +86,19 @@ code{word-break:break-all;background:#1e1b26;padding:.15rem .3rem;border-radius:
   });
 }
 
-function form<C>(addon: ConfigurableAddon<C>, action: string, error?: string): Response {
-  const fields = addon.fields
-    .map((f) => {
+function inputs(fields: Field[]): string {
+  return fields
+    .map((f, i) => {
       const hint = f.hint ? `<small>${escape(f.hint)}</small>` : '';
+      if (f.type === 'checkbox')
+        return `<fieldset><legend>${escape(f.label)}</legend>${(f.options ?? [])
+          .map(
+            (o, j) =>
+              `<label class="check" for="${f.name}-${i}-${j}"><input type="checkbox" name="${f.name}" id="${f.name}-${i}-${j}" value="${escape(o.value)}"${
+                o.checked ? ' checked' : ''
+              }>${escape(o.label)}</label>`,
+          )
+          .join('')}${hint}</fieldset>`;
       const attrs = `name="${f.name}" id="${f.name}"${f.required === false ? '' : ' required'}`;
       const input =
         f.type === 'select'
@@ -84,12 +111,42 @@ function form<C>(addon: ConfigurableAddon<C>, action: string, error?: string): R
       return `<label for="${f.name}">${escape(f.label)}</label>${input}${hint}`;
     })
     .join('');
+}
+
+function form<C>(addon: ConfigurableAddon<C>, action: string, error?: string): Response {
+  const link = addon.introLink
+    ? `<p><a href="${escape(addon.introLink.href)}" rel="noreferrer" target="_blank">${escape(addon.introLink.label)}</a></p>`
+    : '';
   return page(
     `${addon.manifest.name} for Lelap`,
-    `<h1>${escape(addon.manifest.name)}</h1><p>${escape(addon.intro)}</p>${
+    `<h1>${escape(addon.manifest.name)}</h1><p>${escape(addon.intro)}</p>${link}${
       error ? `<p class="error">${escape(error)}</p>` : ''
-    }<form method="post" action="${escape(action)}">${fields}<button type="submit">Make my add-on link</button></form>
+    }<form method="post" action="${escape(action)}">${inputs(addon.fields)}<button type="submit">${
+      addon.pick ? 'Next' : 'Make my add-on link'
+    }</button></form>
 <p class="muted">What you enter is sealed into the link with a key only this server has. It is not stored here.</p>`,
+    error ? 400 : 200,
+  );
+}
+
+/** The second page; `draft` is the settings so far, sealed, so the token never shows in the page. */
+async function pickPage<C>(
+  addon: ConfigurableAddon<C>,
+  pick: PickStep<C>,
+  config: C,
+  draft: string,
+  action: string,
+  error?: string,
+): Promise<Response> {
+  const fields = await pick.fields(config);
+  return page(
+    `${addon.manifest.name} for Lelap`,
+    `<h1>${escape(addon.manifest.name)}</h1><p>${escape(pick.intro)}</p>${
+      error ? `<p class="error">${escape(error)}</p>` : ''
+    }<form method="post" action="${escape(action)}"><input type="hidden" name="draft" value="${escape(draft)}">${inputs(
+      fields,
+    )}<button type="submit">Make my add-on link</button></form>
+<p class="muted">What you choose is sealed into the link with a key only this server has. It is not stored here.</p>`,
     error ? 400 : 200,
   );
 }
@@ -139,12 +196,38 @@ export function mountConfigurable<C>(addon: ConfigurableAddon<C>, sealer: Sealer
       const action = `${base}/configure`;
       if (request.method !== 'POST') return form(addon, action);
       const body = new URLSearchParams(await request.text());
+      const finish = async (config: C) => {
+        const sealed = await sealer.seal(config);
+        if (sealed.length > MAX_SEALED)
+          throw new AddonError(400, 'That is too much for one link. Choose fewer.');
+        return installed(`${url.origin}${base}/${sealed}/manifest.json`, addon.manifest.name);
+      };
+      const draft = body.get('draft');
+      if (draft !== null && addon.pick) {
+        const config = addon.revive(await sealer.open(draft));
+        if (config === null) return form(addon, action, 'These settings expired. Start again.');
+        try {
+          return await finish(await addon.pick.apply(config, (name) => body.getAll(name)));
+        } catch (error) {
+          if (!(error instanceof AddonError)) addon.onError?.(error);
+          const message =
+            error instanceof AddonError
+              ? error.message
+              : 'The service could not be reached. Try again in a moment.';
+          try {
+            return await pickPage(addon, addon.pick, config, draft, action, message);
+          } catch {
+            return form(addon, action, message);
+          }
+        }
+      }
       const values = Object.fromEntries(addon.fields.map((f) => [f.name, body.get(f.name) ?? '']));
       try {
         const config = addon.parse(values);
         await addon.check(config);
-        const sealed = await sealer.seal(config);
-        return installed(`${url.origin}${base}/${sealed}/manifest.json`, addon.manifest.name);
+        if (addon.pick)
+          return await pickPage(addon, addon.pick, config, await sealer.seal(config), action);
+        return await finish(config);
       } catch (error) {
         if (error instanceof AddonError) return form(addon, action, error.message);
         addon.onError?.(error);
@@ -159,10 +242,26 @@ export function mountConfigurable<C>(addon: ConfigurableAddon<C>, sealer: Sealer
         status: 401,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       });
-    if (more[0] === 'configure') return form(addon, `${base}/configure`);
+    if (more[0] === 'configure') {
+      const action = `${base}/configure`;
+      // Changing the choices keeps the token: the page carries this link's sealed settings.
+      if (!addon.pick) return form(addon, action);
+      try {
+        return await pickPage(addon, addon.pick, config, first, action);
+      } catch (error) {
+        if (!(error instanceof AddonError)) addon.onError?.(error);
+        return form(
+          addon,
+          action,
+          error instanceof AddonError
+            ? error.message
+            : 'The service could not be reached. Try again in a moment.',
+        );
+      }
+    }
     // Built per request: the handlers close over this listener's settings.
     return createAddon(
-      { manifest: addon.manifest, ...addon.handlers(config) },
+      { manifest: addon.manifestFor?.(config) ?? addon.manifest, ...addon.handlers(config) },
       {
         basePath: `${base}/${first}`,
         ...(addon.onError ? { onError: (error: unknown) => addon.onError?.(error) } : {}),

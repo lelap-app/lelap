@@ -46,14 +46,35 @@ const catalog = `catalog.${site.domain}`;
     <strong>Read</strong> when you finish it. Your <strong>Want to read</strong> shelf shows on
     Home, and books on it that an add-on can play open as usual.
   </p>
+  <p>
+    The add-on can also show rows from Hardcover: the books trending this month and of all time,
+    your own lists (private ones too), the lists you follow, Hardcover’s featured lists and any
+    public list you add by its link. You choose which; each list is one row, in its own order, up to
+    12.
+  </p>
   <ol>
-    <li>On Hardcover, open Settings → Hardcover API and copy your token.</li>
     <li>
-      Open <code>https://{catalog}/hardcover/configure</code>, paste the token and make your add-on
-      link.
+      On Hardcover, open Settings → Hardcover API and make a token with the permissions
+      <code>read:me</code>, <code>read:library</code>, <code>write:library</code>,{' '}
+      <code>read:catalog</code> and <code>read:lists</code>. Tokens made before August 2026 have
+      them all.
+    </li>
+    <li>
+      Open <code>https://{catalog}/hardcover/configure</code>, paste the token, choose your rows and
+      make your add-on link.
     </li>
     <li>In {site.name}, open Settings → Add-ons and paste the link.</li>
   </ol>
+  <p>
+    To change the rows later, open the add-on link with <code>configure</code> in place of{' '}
+    <code>manifest.json</code>, and replace the add-on with the new link. Rows you add or rename on
+    Hardcover show once you choose them again there.
+  </p>
+  <p>
+    The rows are read with your token only, never with one of ours: Hardcover’s terms allow lists to
+    be read only for the person they belong to or who chose to see them. Answers are kept for a few
+    hours per token, under a hash of it, so your token’s daily limit lasts.
+  </p>
   <p>
     Books are matched by ISBN or Audible ASIN when the add-on that lists them knows one, and
     otherwise by title and author. Books Hardcover doesn’t know are skipped. Hardcover tokens expire
@@ -131,6 +152,10 @@ const catalog = `catalog.${site.domain}`;
     <li>
       The add-ons are stateless: they act on each batch of events and forget it. What you played is
       kept by Hardcover or your gPodder server, under their terms.
+    </li>
+    <li>
+      Hardcover’s rows are kept in the server’s cache for a few hours, under a hash of your token
+      that can’t be turned back into it. Only a request with the same token gets them.
     </li>
   </ul>
 
