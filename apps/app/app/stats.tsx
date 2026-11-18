@@ -1,65 +1,61 @@
-import { dayKey, getSettings, listeningStats, setSetting } from '@lelap/core';
+import { dayDate, dayKey, getSettings, listeningStats, setSetting } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { Icon, IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { Sheet } from '../src/components/Sheet';
+import {
+  Bars,
+  daysText,
+  Figure,
+  listenedText,
+  SectionTitle,
+  streakDates,
+  useStatsPalette,
+} from '../src/components/Stats';
 import { db } from '../src/db';
-import { formatWeekday } from '../src/format';
+import {
+  formatDayMonth,
+  formatLongDate,
+  formatNumber,
+  formatSpokenDay,
+  formatWeekday,
+  weekStartsOn,
+} from '../src/format';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 
 const GOALS = [0, 6, 12, 24, 36, 52];
+// Finished books listed by title; the rest are counted.
+const FINISHED_SHOWN = 8;
 
-/** “3 h 20 min”, “45 min”, “under 1 min”, “0 min”. */
-function hours(ms: number): string {
-  if (ms > 0 && ms < 60_000) return t('under 1 min');
-  const minutes = Math.round(ms / 60_000);
-  const h = Math.floor(minutes / 60);
-  return h > 0 ? t('{h} h {m} min', { h, m: minutes % 60 }) : t('{n} min', { n: minutes });
-}
-
-function Figure({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-1 gap-1 rounded-xl bg-raised p-3">
-      <Text className="text-xs uppercase tracking-wider text-muted">{label}</Text>
-      <Text className="text-lg font-semibold text-paper">{value}</Text>
-    </View>
-  );
-}
-
-/** Listening time, streaks and the yearly goal. Computed and kept on this device. */
+/** Listening time, streaks, finished books and the years. Computed and kept on this device. */
 export default function StatsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const palette = useStatsPalette();
   const { version, refresh } = useLibrary();
   const [choosingGoal, setChoosingGoal] = useState(false);
 
   // `version` is the signal to re-read the database.
-  const { stats, goal } = useMemo(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    return {
-      stats: listeningStats(
-        db,
-        profileId,
-        dayKey(now),
-        new Date(year, 0, 1).getTime(),
-        new Date(year + 1, 0, 1).getTime(),
-      ),
+  const { stats, goal } = useMemo(
+    () => ({
+      stats: listeningStats(db, profileId, dayKey(new Date()), weekStartsOn()),
       goal: getSettings(db, profileId).yearlyGoalBooks,
-    };
-  }, [version]);
+    }),
+    [version],
+  );
 
-  const weekMs = stats.week.reduce((sum, d) => sum + d.ms, 0);
-  const peak = Math.max(1, ...stats.week.map((d) => d.ms));
+  const thisWeek = stats.weeks[stats.weeks.length - 1];
+  const finished = stats.finishedThisYear.length;
+  const longest = stats.longestStreak;
 
   return (
-    <View className="flex-1 bg-night">
+    <View style={{ backgroundColor: palette.background }} className="flex-1">
       <ScrollView
         contentContainerStyle={{ paddingTop: insets.top + 4, paddingBottom: 24 }}
         className="px-4"
@@ -68,106 +64,187 @@ export default function StatsScreen() {
           <IconButton
             name="back"
             label={t('Back')}
-            color={COLORS.soft}
+            color={palette.secondary}
             onPress={() => router.back()}
           />
         </View>
-        <Text accessibilityRole="header" className="pb-4 text-3xl font-semibold text-paper">
+        <Text
+          accessibilityRole="header"
+          style={{ color: palette.text }}
+          className="pb-4 text-3xl font-semibold"
+        >
           {t('Listening')}
         </Text>
 
         <View className="flex-row gap-3">
-          <Figure label={t('Today')} value={hours(stats.todayMs)} />
-          <Figure label={t('7 days')} value={hours(weekMs)} />
+          <Figure palette={palette} label={t('Today')} value={listenedText(stats.todayMs)} />
+          <Figure
+            palette={palette}
+            label={t('This week')}
+            value={listenedText(thisWeek?.ms ?? 0)}
+          />
         </View>
         <View className="flex-row gap-3 pt-3">
-          <Figure label={t('This year')} value={hours(stats.yearMs)} />
+          <Figure palette={palette} label={t('This year')} value={listenedText(stats.yearMs)} />
+          <Figure palette={palette} label={t('In all')} value={listenedText(stats.totalMs)} />
+        </View>
+        <View className="flex-row gap-3 pt-3">
+          <Figure palette={palette} label={t('Streak')} value={daysText(stats.streak)} />
           <Figure
-            label={t('Streak')}
-            value={
-              stats.streak === 1
-                ? t('1 day')
-                : `${t('{n} days', { n: stats.streak })}${stats.longestStreak > stats.streak ? ` · ${t('best {n}', { n: stats.longestStreak })}` : ''}`
-            }
+            palette={palette}
+            label={t('Longest streak')}
+            value={daysText(longest?.days ?? 0)}
+            {...(longest && longest.days > 1
+              ? { detail: streakDates(longest, new Date().getFullYear()) }
+              : {})}
           />
         </View>
 
-        <View
-          accessible
-          accessibilityLabel={t('Last 7 days: {hours}', {
-            hours: stats.week.map((d) => hours(d.ms)).join(', '),
+        <SectionTitle
+          palette={palette}
+          title={t('Last 7 days')}
+          count={listenedText(stats.week.reduce((sum, d) => sum + d.ms, 0))}
+        />
+        <Bars
+          palette={palette}
+          title={t('Time listened per day')}
+          bars={stats.week.map((d, index) => {
+            const date = dayDate(d.day);
+            return {
+              key: d.day,
+              label: formatWeekday(date),
+              spoken: formatSpokenDay(date),
+              ms: d.ms,
+              current: index === stats.week.length - 1,
+            };
           })}
-          className="mt-6 h-36 flex-row items-end gap-2 rounded-xl bg-raised px-3 pb-2 pt-4"
-        >
-          {stats.week.map((d, index) => {
-            const [y, m, day] = d.day.split('-').map(Number);
-            const weekday = formatWeekday(new Date(y ?? 1970, (m ?? 1) - 1, day ?? 1));
-            const today = index === stats.week.length - 1;
-            return (
-              <View key={d.day} className="flex-1 items-center gap-1">
-                <View className="w-full flex-1 justify-end">
-                  <View
-                    style={{ height: `${Math.max(2, (d.ms / peak) * 100)}%` }}
-                    className={`w-full rounded-md ${today ? 'bg-amber' : 'bg-line'}`}
-                  />
-                </View>
-                <Text className={`text-xs ${today ? 'text-amber' : 'text-muted'}`}>{weekday}</Text>
-              </View>
-            );
+        />
+
+        <SectionTitle
+          palette={palette}
+          title={t('Last 8 weeks')}
+          count={listenedText(stats.weeks.reduce((sum, w) => sum + w.ms, 0))}
+        />
+        <Bars
+          palette={palette}
+          title={t('Time listened per week')}
+          bars={stats.weeks.map((w, index) => {
+            const date = dayDate(w.start);
+            return {
+              key: w.start,
+              label: formatDayMonth(date),
+              spoken: t('Week of {date}', { date: formatLongDate(date) }),
+              ms: w.ms,
+              current: index === stats.weeks.length - 1,
+            };
           })}
-        </View>
+        />
 
         <Pressable
           onPress={() => setChoosingGoal(true)}
           accessibilityRole="button"
-          className="mt-6 gap-2 rounded-xl border border-line p-4 active:bg-raised"
+          accessibilityLabel={
+            goal > 0
+              ? t('Finished this year: {n} of {goal} books. Change goal', {
+                  n: formatNumber(finished),
+                  goal: formatNumber(goal),
+                })
+              : t('Finished this year: {n}. Set a goal', { n: formatNumber(finished) })
+          }
+          style={{ borderColor: palette.border }}
+          className="mt-6 gap-2 rounded-xl border p-4"
         >
           <View className="flex-row items-baseline justify-between">
-            <Text className="font-semibold text-paper">{t('Finished this year')}</Text>
-            <Text className="text-sm text-amber">
+            <Text style={{ color: palette.text }} className="font-semibold">
+              {t('Finished this year')}
+            </Text>
+            <Text style={{ color: palette.accentText }} className="text-sm">
               {goal > 0 ? t('Change goal') : t('Set a goal')}
             </Text>
           </View>
-          <Text className="text-2xl font-semibold text-paper">
-            {stats.finishedThisYear}
+          <Text style={{ color: palette.text }} className="text-2xl font-semibold">
+            {formatNumber(finished)}
             {goal > 0 && (
-              <Text className="text-base text-muted"> {t('of {n} books', { n: goal })}</Text>
+              <Text style={{ color: palette.secondary }} className="text-base">
+                {' '}
+                {t('of {n} books', { n: formatNumber(goal) })}
+              </Text>
             )}
           </Text>
           {goal > 0 && (
-            <View className="h-1.5 overflow-hidden rounded-full bg-line">
+            <View
+              style={{ backgroundColor: palette.border }}
+              className="h-1.5 overflow-hidden rounded-full"
+            >
               <View
-                style={{ width: `${Math.min(1, stats.finishedThisYear / goal) * 100}%` }}
-                className="h-1.5 bg-amber"
+                style={{
+                  width: `${Math.min(1, finished / goal) * 100}%`,
+                  backgroundColor: palette.accent,
+                }}
+                className="h-1.5"
               />
             </View>
           )}
         </Pressable>
-
-        {stats.topThisYear.length > 0 && (
-          <View className="mt-6 gap-2">
-            <Text
-              accessibilityRole="header"
-              className="text-xs uppercase tracking-wider text-muted"
-            >
-              {t('Most listened this year')}
+        {stats.finishedThisYear.slice(0, FINISHED_SHOWN).map((b) => (
+          <View key={b.bookId} accessible className="flex-row items-center gap-3 py-2">
+            <Text numberOfLines={1} style={{ color: palette.text }} className="flex-1">
+              {b.title || t('Untitled')}
             </Text>
-            {stats.topThisYear.map((b, index) => (
-              <View key={b.bookId} className="flex-row items-center gap-3 py-1">
-                <Text className="w-5 text-muted">{index + 1}</Text>
-                <Text numberOfLines={1} className="flex-1 text-paper">
-                  {b.title || t('Untitled')}
-                </Text>
-                <Text className="text-sm text-soft">{hours(b.ms)}</Text>
-              </View>
-            ))}
+            <Text style={{ color: palette.secondary }} className="text-sm">
+              {formatDayMonth(dayDate(b.day))}
+            </Text>
           </View>
+        ))}
+        {finished > FINISHED_SHOWN && (
+          <Text style={{ color: palette.secondary }} className="py-1 text-sm">
+            {t('and {n} more', { n: formatNumber(finished - FINISHED_SHOWN) })}
+          </Text>
         )}
 
-        <Text className="pt-8 text-xs text-muted">
+        {stats.topThisYear.length > 0 && (
+          <>
+            <SectionTitle palette={palette} title={t('Most listened this year')} />
+            {stats.topThisYear.map((b, index) => (
+              <View key={b.bookId} accessible className="flex-row items-center gap-3 py-1">
+                <Text style={{ color: palette.secondary }} className="w-5">
+                  {index + 1}
+                </Text>
+                <Text numberOfLines={1} style={{ color: palette.text }} className="flex-1">
+                  {b.title || t('Untitled')}
+                </Text>
+                <Text style={{ color: palette.secondary }} className="text-sm">
+                  {listenedText(b.ms)}
+                </Text>
+              </View>
+            ))}
+          </>
+        )}
+
+        {stats.years.length > 0 && (
+          <>
+            <SectionTitle palette={palette} title={t('Year in sound')} />
+            {stats.years.map((year) => (
+              <Pressable
+                key={year}
+                onPress={() => router.push({ pathname: '/year', params: { year: String(year) } })}
+                accessibilityRole="button"
+                accessibilityLabel={t('{year} in sound', { year: String(year) })}
+                style={{ borderColor: palette.border }}
+                className="mb-2 min-h-12 flex-row items-center justify-between rounded-xl border px-4 py-3"
+              >
+                <Text style={{ color: palette.text }} className="font-semibold">
+                  {t('{year} in sound', { year: String(year) })}
+                </Text>
+                <Icon name="forward" size={20} color={palette.secondary} />
+              </Pressable>
+            ))}
+          </>
+        )}
+
+        <Text style={{ color: palette.secondary }} className="pt-8 text-xs">
           {t(
-            'Worked out on this device from what you play here. Never synced or sent anywhere. In all: {time}.',
-            { time: hours(stats.totalMs) },
+            'Worked out on this device from what you play here. Never synced or sent anywhere, unless you share a year as an image.',
           )}
         </Text>
       </ScrollView>

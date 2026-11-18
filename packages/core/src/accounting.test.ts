@@ -27,7 +27,6 @@ const scrobbler: InstalledAddon = {
 };
 
 const MIN = 60_000;
-const YEAR = [new Date(2026, 0, 1).getTime(), new Date(2027, 0, 1).getTime()] as const;
 
 function setup() {
   const db = createTestDb();
@@ -37,7 +36,7 @@ function setup() {
   ]);
   const merge = (batch: ServiceAccounting, addons = [scrobbler]) =>
     mergeServiceAccounting(db, { profileId: ME, batch, addons, now: 1 });
-  const todayMs = (day = '2026-11-17') => listeningStats(db, ME, day, ...YEAR).todayMs;
+  const todayMs = (day = '2026-11-17') => listeningStats(db, ME, day).todayMs;
   const outbox = () => db.select().from(scrobbleOutbox).all();
   return { db, bookId, merge, todayMs, outbox };
 }

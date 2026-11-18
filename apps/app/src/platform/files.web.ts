@@ -15,6 +15,14 @@ export async function shareText(name: string, text: string): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
+/** Saves a PNG, given as base64, through the browser's download. */
+export async function shareImage(name: string, base64: string): Promise<void> {
+  const link = document.createElement('a');
+  link.href = `data:${mimeTypeOf(name)};base64,${base64}`;
+  link.download = name;
+  link.click();
+}
+
 /** The bytes of a file the document picker returned, for binary files such as databases. */
 export async function readPickedBytes(asset: { uri: string; file?: File }): Promise<Uint8Array> {
   const buffer = asset.file

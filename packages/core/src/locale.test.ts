@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { dateText, localeTag, numberText, timeText, weekdayText } from './locale';
+import {
+  dateText,
+  dayMonthText,
+  firstDayFromTable,
+  firstDayOfWeek,
+  localeTag,
+  longDateText,
+  monthText,
+  numberText,
+  spokenDayText,
+  timeText,
+  weekdayText,
+} from './locale';
 
 const evening = new Date(2026, 10, 18, 21, 5, 12);
 
@@ -39,6 +51,30 @@ describe('locale', () => {
   it('names weekdays in English and Malay', () => {
     expect(weekdayText(evening, 'en')).toBe('Wed');
     expect(weekdayText(evening, 'ms')).toBe('Rab');
+  });
+
+  it('writes days and months in English and Malay', () => {
+    expect(dayMonthText(evening, 'en-GB')).toBe('18 Nov');
+    expect(dayMonthText(evening, 'en-US')).toBe('Nov 18');
+    expect(dayMonthText(evening, 'ms')).toBe('18 Nov');
+    expect(longDateText(evening, 'en-GB')).toBe('18 November 2026');
+    expect(spokenDayText(evening, 'en-GB')).toBe('Wednesday 18 November');
+    expect(spokenDayText(evening, 'ms')).toBe('Rabu, 18 November');
+    expect(monthText(0, 'en')).toBe('Jan');
+    expect(monthText(7, 'ms', 'long')).toBe('Ogos');
+  });
+
+  it('starts the week on the region’s first day', () => {
+    expect(firstDayOfWeek('en-GB')).toBe(1);
+    expect(firstDayOfWeek('ms-MY')).toBe(1);
+    expect(firstDayOfWeek('en-US')).toBe(0);
+    expect(firstDayOfWeek('ms-EG')).toBe(6);
+    // Without `Intl.Locale` week info, as on Hermes, the table agrees.
+    for (const tag of ['en-GB', 'ms-MY', 'en-US', 'ms-EG', 'en-DK', 'en-JP', 'en-AE', 'en-BR']) {
+      expect(firstDayFromTable(tag)).toBe(firstDayOfWeek(tag));
+    }
+    expect(firstDayFromTable('en')).toBe(1);
+    expect(firstDayFromTable('en-u-ca-gregory')).toBe(1);
   });
 
   it('writes numbers with the language’s separators', () => {
