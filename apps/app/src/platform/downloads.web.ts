@@ -50,7 +50,7 @@ if (typeof window !== 'undefined') {
 
 const JOB_FILE = 'job.json';
 
-type Running = { bytesDone: number; controller: AbortController };
+type Running = { bytesDone: number; controller: AbortController; received: boolean };
 const running = new Map<string, Running>();
 const errors = new Map<string, string>();
 
@@ -114,7 +114,7 @@ async function fetchTo(
 
 async function run(job: DownloadJob): Promise<void> {
   const dir = bookDir(job.bookId);
-  const state: Running = { bytesDone: 0, controller: new AbortController() };
+  const state: Running = { bytesDone: 0, controller: new AbortController(), received: false };
   running.set(job.bookId, state);
   errors.delete(job.bookId);
   try {
@@ -131,6 +131,7 @@ async function run(job: DownloadJob): Promise<void> {
         state.controller.signal,
         (n) => {
           state.bytesDone = finished + n;
+          state.received = true;
         },
         job.headers,
       );
@@ -145,8 +146,10 @@ async function run(job: DownloadJob): Promise<void> {
       ).catch(() => {});
     }
   } catch (error) {
-    // Offline, it waits and carries on with the next status poll once the connection is back.
-    if (!state.controller.signal.aborted && !offline()) {
+    // Offline, it waits and carries on with the next status poll once the connection is back. A
+    // network error after data came in is a dropped connection, not CORS: the next poll retries.
+    const dropped = error instanceof TypeError && state.received;
+    if (!state.controller.signal.aborted && !offline() && !dropped) {
       errors.set(job.bookId, failure(error));
     }
   } finally {

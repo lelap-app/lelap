@@ -32,7 +32,13 @@ module.exports = ({ config }) => {
               {
                 action: 'VIEW',
                 autoVerify: true,
-                data: [{ scheme: 'https', host: web.hostname, pathPrefix: '/place' }],
+                data: [
+                  {
+                    scheme: 'https',
+                    host: web.hostname,
+                    pathPrefix: `${web.pathname.replace(/\/$/, '')}/place`,
+                  },
+                ],
                 category: ['BROWSABLE', 'DEFAULT'],
               },
             ]

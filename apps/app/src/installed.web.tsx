@@ -65,13 +65,11 @@ export function InstalledAppHost() {
 
   useEffect(() => {
     document.title = title;
-    // Navigation may set its own title on a screen change; the book's wins.
-    const head = document.querySelector('title');
-    if (!head) return;
+    // Navigation may set or replace the title on a screen change; the book's wins.
     const observer = new MutationObserver(() => {
       if (document.title !== title) document.title = title;
     });
-    observer.observe(head, { childList: true, characterData: true, subtree: true });
+    observer.observe(document.head, { childList: true, characterData: true, subtree: true });
     return () => observer.disconnect();
   }, [title]);
 

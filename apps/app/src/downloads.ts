@@ -75,14 +75,19 @@ export async function startDownload(
   // A browser's quota is often a few gigabytes: a book that can't fit isn't started.
   if (!native.RULES_APPLY) {
     const room = await native.storage().catch(() => null);
-    if (room && !hasRoomFor(plan.bytesTotal, room.freeBytes)) {
+    // Downloads still running take their share too; their written parts count twice, to be safe.
+    const pending = listDownloads(db)
+      .filter((d) => d.state === 'queued' && d.bookId !== bookId)
+      .reduce((sum, d) => sum + d.bytesTotal, 0);
+    const free = Math.max(0, (room?.freeBytes ?? 0) - pending);
+    if (room && !hasRoomFor(plan.bytesTotal, free)) {
       if (ask) {
         showAlert(
           t('Not enough space'),
           t('{title} needs {size}, and this browser has {free} left for Lelap.', {
             title: plan.title,
             size: formatBytes(plan.bytesTotal),
-            free: formatBytes(room.freeBytes),
+            free: formatBytes(free),
           }),
         );
       }
