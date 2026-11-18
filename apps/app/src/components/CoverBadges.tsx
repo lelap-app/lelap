@@ -9,7 +9,7 @@ import {
   type WorkRef,
 } from '@lelap/core';
 import type { Badges, MetaPreview } from '@lelap/sdk';
-import { useMemo } from 'react';
+import { createContext, type ReactNode, useContext, useMemo } from 'react';
 import { Text, View } from 'react-native';
 
 import { db } from '../db';
@@ -17,34 +17,39 @@ import { t } from '../i18n';
 import { useLibrary } from '../player';
 import { profileId } from '../profile';
 
-// One read of the setting and the library per library change, shared by every cover on screen.
-let source: {
-  key: string;
+type BadgeSource = {
   on: boolean;
   listening: (work: WorkRef) => ListeningState | null;
-} | null = null;
+};
+const OFF: BadgeSource = { on: false, listening: () => null };
+const BadgeSourceContext = createContext<BadgeSource>(OFF);
 
-function badgeSource(version: number) {
-  const key = `${profileId} ${version}`;
-  if (source?.key !== key) {
-    source = {
-      key,
-      on: getSettings(db, profileId).badgesOnCovers,
-      listening: listeningLookup(db, profileId),
-    };
-  }
-  return source;
+/**
+ * One read of the setting and the library per library change, shared by every cover on screen.
+ * With badges off the value never changes, so tiles and rows don't redraw for the library.
+ */
+export function BadgeSourceProvider({ children }: { children: ReactNode }) {
+  const { version } = useLibrary();
+  // `version` is the signal to re-read the database.
+  const source = useMemo(
+    () =>
+      getSettings(db, profileId).badgesOnCovers
+        ? { on: true, listening: listeningLookup(db, profileId) }
+        : OFF,
+    [version],
+  );
+  return <BadgeSourceContext.Provider value={source}>{children}</BadgeSourceContext.Provider>;
 }
 
 /** Badges fit on a cover by its size: one on a list row's, two on a tile's, all on a large one. */
 export const badgesFor = (size: number) => (size < 100 ? 1 : size < 200 ? 2 : 3);
 
 /** The badges for a catalog item's cover: the add-on's data and this profile's own state. */
-export function useMetaBadges(meta: MetaPreview, size: number): CoverBadge[] {
-  const { version } = useLibrary();
+export function useMetaBadges(meta: MetaPreview | undefined, size: number): CoverBadge[] {
+  const source = useContext(BadgeSourceContext);
   return useMemo(() => {
-    const { on, listening } = badgeSource(version);
-    if (!on) return [];
+    const { on, listening } = source;
+    if (!on || !meta) return [];
     const work: WorkRef = {
       type: meta.type,
       id: meta.id,
@@ -52,7 +57,7 @@ export function useMetaBadges(meta: MetaPreview, size: number): CoverBadge[] {
       ...(meta.author ? { author: meta.author } : {}),
     };
     return coverBadges(meta.badges, listening(work), badgesFor(size));
-  }, [version, meta, size]);
+  }, [source, meta, size]);
 }
 
 /**
@@ -64,11 +69,11 @@ export function useBookBadges(
   size: number,
   fromAddon?: Badges,
 ): CoverBadge[] {
-  const { version } = useLibrary();
+  const source = useContext(BadgeSourceContext);
   return useMemo(() => {
-    if (!badgeSource(version).on) return [];
+    if (!source.on) return [];
     return coverBadges(fromAddon, book ? listeningOf(book) : null, badgesFor(size));
-  }, [version, book, size, fromAddon]);
+  }, [source, book, size, fromAddon]);
 }
 
 const stars = (value: number) => value.toFixed(1);

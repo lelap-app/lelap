@@ -1,7 +1,8 @@
 import { and, asc, eq, isNull } from 'drizzle-orm';
 
 import type { Db } from '../db';
-import { bookFiles } from '../schema';
+import { bookFiles, books, chapters } from '../schema';
+import { chapterAt } from './timeline';
 
 /** The files of a book that are on disk, in play order. */
 export function presentFiles(db: Db, bookId: string) {
@@ -19,4 +20,30 @@ export function presentFiles(db: Db, bookId: string) {
     .where(and(eq(bookFiles.bookId, bookId), isNull(bookFiles.missingSince)))
     .orderBy(asc(bookFiles.idx))
     .all();
+}
+
+/**
+ * The book that now holds `fileLocation` when `bookId` is gone because a rescan regrouped its
+ * files; null while the book is still there or no present file is at that location.
+ */
+export function regroupedBook(db: Db, bookId: string, fileLocation: string): string | null {
+  if (db.select({ id: books.id }).from(books).where(eq(books.id, bookId)).get()) return null;
+  const file = db
+    .select({ bookId: bookFiles.bookId })
+    .from(bookFiles)
+    .where(and(eq(bookFiles.location, fileLocation), isNull(bookFiles.missingSince)))
+    .get();
+  return file?.bookId ?? null;
+}
+
+/** The title of the chapter at a place in the book; null for a book with one chapter or none. */
+export function chapterTitleAt(db: Db, bookId: string, bookPositionMs: number): string | null {
+  const list = db
+    .select({ title: chapters.title, startMs: chapters.startMs })
+    .from(chapters)
+    .where(eq(chapters.bookId, bookId))
+    .orderBy(asc(chapters.idx))
+    .all();
+  if (list.length < 2) return null;
+  return list[chapterAt(list, bookPositionMs)]?.title ?? null;
 }

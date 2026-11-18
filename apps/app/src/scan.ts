@@ -68,6 +68,21 @@ const coverDir = () =>
 
 let running: Promise<ScanResult> | null = null;
 
+// Told after each root is in the database, so its books show before the whole scan ends.
+const rootListeners = new Set<() => void>();
+
+/** Calls `listener` after each root a scan has brought in; returns the unsubscribe. */
+export function onRootScanned(listener: () => void): () => void {
+  rootListeners.add(listener);
+  return () => {
+    rootListeners.delete(listener);
+  };
+}
+
+const rootScanned = () => {
+  for (const listener of rootListeners) listener();
+};
+
 /**
  * Brings the library in line with the phone's folder and every server. Reads tags only for new or
  * changed files. A root that cannot be read changes nothing, so its books are never marked missing
@@ -246,12 +261,14 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
       const result = await scanJellyfin(root, root.remote).catch(failed(root));
       added += result?.added ?? 0;
       missing += result?.missing ?? 0;
+      if (result) rootScanned();
       continue;
     }
     if (root.remote?.type === 'audiobookshelf') {
       const result = await scanAudiobookshelf(root, root.remote).catch(failed(root));
       added += result?.added ?? 0;
       missing += result?.missing ?? 0;
+      if (result) rootScanned();
       continue;
     }
     // An add-on's listing may come with tags, which then aren't read from the files.
@@ -324,6 +341,7 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
     }
     added += result.added;
     missing += result.missing;
+    rootScanned();
   }
   if (lostLocal) return { error: 'permission' };
   return { added, missing };

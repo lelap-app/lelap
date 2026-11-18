@@ -35,6 +35,11 @@ export function logDiagnostic(event: DiagnosticEvent | null, at: number = Date.n
   }
 }
 
+/** For a promise nobody waits on: its failure goes to the log instead of going unhandled. */
+export function logCaught(error: unknown): void {
+  logDiagnostic(appErrorEvent(error, 'error'));
+}
+
 /** For the add-on health tracker: a failed request, named by the installed add-on. */
 export function logAddonFailure(
   base: string,

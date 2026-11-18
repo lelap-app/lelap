@@ -102,6 +102,13 @@ export default function DiscoverScreen() {
     [items, playableOnly, availability],
   );
   const hiddenCount = items.length - shown.length;
+  // Rows made here rather than with numColumns, which can't change without a new list: that list
+  // would start at the top each time the player pane opens or the window resizes.
+  const rows = useMemo(() => {
+    const out: MetaPreview[][] = [];
+    for (let i = 0; i < shown.length; i += columns) out.push(shown.slice(i, i + columns));
+    return out;
+  }, [shown, columns]);
 
   return (
     <View
@@ -118,13 +125,10 @@ export default function DiscoverScreen() {
         </Text>
       ) : (
         <FlatList
-          key={columns}
-          data={shown}
+          data={rows}
           extraData={availability}
           {...visible}
-          numColumns={columns}
-          keyExtractor={(m) => m.id}
-          columnWrapperStyle={{ gap: GAP, paddingHorizontal: 16 }}
+          keyExtractor={(row) => row[0]?.id ?? ''}
           contentContainerStyle={{ gap: 16, paddingBottom: 24 }}
           onEndReachedThreshold={0.6}
           onEndReached={() => {
@@ -211,13 +215,18 @@ export default function DiscoverScreen() {
           ListFooterComponent={
             query.isFetchingNextPage ? <ActivityIndicator color="#f5b041" /> : undefined
           }
-          renderItem={({ item }) => (
-            <MetaTile
-              meta={item}
-              width={tile}
-              availability={availability(item)}
-              onPress={(meta) => openItem(router, meta)}
-            />
+          renderItem={({ item: row }) => (
+            <View style={{ flexDirection: 'row', gap: GAP, paddingHorizontal: 16 }}>
+              {row.map((item) => (
+                <MetaTile
+                  key={item.id}
+                  meta={item}
+                  width={tile}
+                  availability={availability(item)}
+                  onPress={(meta) => openItem(router, meta)}
+                />
+              ))}
+            </View>
           )}
         />
       )}

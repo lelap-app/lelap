@@ -60,7 +60,7 @@ function WantedAlertsHint({ onDone }: { onDone: () => void }) {
         {t('Get a notification when a book you want to read can be played?')}
       </Text>
       <TextButton text={t('Not now')} tone="muted" onPress={() => void answer(false)} />
-      <TextButton text={t('Allow')} onPress={() => void answer(true)} />
+      <TextButton strong text={t('Allow')} onPress={() => void answer(true)} />
     </View>
   );
 }

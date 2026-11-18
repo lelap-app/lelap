@@ -22,6 +22,7 @@ import { DeviceRunner } from '../src/devices';
 import { DownloadSync } from '../src/downloads';
 import { SilenceSync } from '../src/silences';
 import { PlayerProvider, useLibrary } from '../src/player';
+import { BadgeSourceProvider } from '../src/components/CoverBadges';
 import { HandoffBanner } from '../src/components/HandoffBanner';
 import { PlayerPane } from '../src/components/PlayerPane';
 import { ShortcutsHost } from '../src/shortcuts';
@@ -87,30 +88,32 @@ export default function RootLayout() {
         <OtaRunner />
         <DeviceRunner />
         {/* On a wide screen the player stands at the end, beside whichever screen is open. */}
-        <View className="flex-1 flex-row bg-night">
-          <View className="flex-1">
-            <Stack
-              key={language}
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: '#0d0e11' },
-                ...(reduced ? { animation: 'none' } : {}),
-              }}
-            >
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen
-                name="player"
-                options={{
-                  presentation: 'modal',
-                  animation: reduced ? 'none' : 'slide_from_bottom',
+        <BadgeSourceProvider>
+          <View className="flex-1 flex-row bg-night">
+            <View className="flex-1">
+              <Stack
+                key={language}
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: '#0d0e11' },
+                  ...(reduced ? { animation: 'none' } : {}),
                 }}
-              />
-              <Stack.Screen name="who" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="car" options={{ animation: reduced ? 'none' : 'fade' }} />
-            </Stack>
+              >
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen
+                  name="player"
+                  options={{
+                    presentation: 'modal',
+                    animation: reduced ? 'none' : 'slide_from_bottom',
+                  }}
+                />
+                <Stack.Screen name="who" options={{ presentation: 'modal' }} />
+                <Stack.Screen name="car" options={{ animation: reduced ? 'none' : 'fade' }} />
+              </Stack>
+            </View>
+            <PlayerPane key={language} />
           </View>
-          <PlayerPane key={language} />
-        </View>
+        </BadgeSourceProvider>
         <ShortcutsHost key={language} />
         <HandoffBanner />
         <DialogHost />

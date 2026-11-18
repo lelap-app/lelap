@@ -30,7 +30,7 @@ import { COLORS, Icon, IconButton } from '../src/components/Icon';
 import { addItem, playItem, queries, useAddons, useArtwork } from '../src/addons';
 import { sourceCache } from '../src/availability';
 import { BookCover, coverUri } from '../src/components/BookCover';
-import { badgeWords, useBookBadges } from '../src/components/CoverBadges';
+import { badgeWords, useBookBadges, useMetaBadges } from '../src/components/CoverBadges';
 import { DownloadButton } from '../src/components/DownloadButton';
 import { db } from '../src/db';
 import { startDownload } from '../src/downloads';
@@ -213,7 +213,10 @@ export default function ItemScreen() {
   };
 
   const title = item?.name ?? saved?.book.title ?? '';
-  const badges = useBookBadges(saved?.book, 220, item?.badges);
+  const bookBadges = useBookBadges(saved?.book, 220, item?.badges);
+  // Without a book of its own, the cover matches the library by title and author, as tiles do.
+  const metaBadges = useMetaBadges(saved ? undefined : item, 220);
+  const badges = saved ? bookBadges : metaBadges;
   const canPlay = (item !== undefined && stream !== undefined) || saved !== null;
   const looking = (meta.isPending || sources.isPending) && !saved;
   const noAudio = !saved && !own && sources.isSuccess && found.length === 0;
@@ -336,7 +339,7 @@ export default function ItemScreen() {
               <Text className="text-center text-soft">
                 {t('Your add-ons did not answer. Check the connection and try again.')}
               </Text>
-              <TextButton text={t('Try again')} onPress={() => void sources.refetch()} />
+              <TextButton strong text={t('Try again')} onPress={() => void sources.refetch()} />
             </View>
           ) : (
             <Pressable

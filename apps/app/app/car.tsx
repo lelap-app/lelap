@@ -27,8 +27,10 @@ function BigButton({
   onPress,
   primary = false,
   disabled = false,
+  value,
 }: {
   icon: IconName;
+  value?: string;
   label: string;
   caption: string;
   onPress: () => void;
@@ -48,7 +50,12 @@ function BigButton({
         primary ? 'border-amber bg-amber active:opacity-80' : 'border-[#5a5d66] active:bg-[#22252b]'
       }`}
     >
-      <Icon name={icon} size={primary ? 64 : 48} color={color} />
+      <Icon
+        name={icon}
+        size={primary ? 64 : 48}
+        color={color}
+        {...(value === undefined ? {} : { value })}
+      />
       <Text style={{ color }} className="text-lg font-bold">
         {caption}
       </Text>
@@ -119,7 +126,8 @@ export default function CarMode() {
       <View className="flex-1 gap-4">
         <View className="flex-[2] flex-row gap-4">
           <BigButton
-            icon="back30"
+            icon="skipBack"
+            value={String(skipSeconds)}
             label={t('Back {n} seconds', { n: skipSeconds })}
             caption={t('Back')}
             disabled={!bookId}
@@ -134,7 +142,8 @@ export default function CarMode() {
             onPress={() => void (state.playing ? audio.pause() : audio.play())}
           />
           <BigButton
-            icon="forward30"
+            icon="skipForward"
+            value={String(skipSeconds)}
             label={t('Forward {n} seconds', { n: skipSeconds })}
             caption={t('Forward')}
             disabled={!bookId}

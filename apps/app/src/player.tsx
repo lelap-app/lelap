@@ -20,6 +20,7 @@ import {
   trimmedStart,
   sharedHeaders,
   isLocalAddress,
+  regroupedBook,
 } from '@lelap/core';
 import {
   createContext,
@@ -31,10 +32,12 @@ import {
   useRef,
   useState,
 } from 'react';
-import { AppState, Platform } from 'react-native';
+import { AppState, Platform, View } from 'react-native';
 
 import { applyBedtime } from './bedtime';
+import { coverUri } from './components/BookCover';
 import { db, newId } from './db';
+import { logCaught } from './diagnostics';
 import * as audio from './platform/audio';
 import { profileId, setProfileId } from './profile';
 import { addonPlacesFinished, trackAddonPlaces } from './addonPlaces';
@@ -46,6 +49,7 @@ import {
 } from './audiobookshelf';
 import { askLocalNetwork } from './localNetwork';
 import { fileAccess } from './remote';
+import { onRootScanned } from './scan';
 import { flushScrobbles, foldServiceAccounting, trackFinished, trackPlayerState } from './scrobble';
 
 export const IDLE: audio.PlayerState = {
@@ -100,8 +104,8 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
   return next;
 }
 
-/** Folds the service's journal into the database, for places saved while the app was closed. */
 const PLAYER_PROFILE = 'playerProfile';
+const JOURNAL_WAIT_MS = 1_500;
 
 /**
  * The profile the loaded book was loaded for. Its places go there, even after the listener has
@@ -109,6 +113,7 @@ const PLAYER_PROFILE = 'playerProfile';
  */
 export const playerProfile = () => deviceValue(db, PLAYER_PROFILE) ?? profileId;
 
+/** Folds the service's journal into the database, for places saved while the app was closed. */
 async function foldJournal(): Promise<void> {
   // Books the service replaced by itself (Up Next, Android Auto) first: they are older.
   const earlier = await audio.takeEarlierPlaces().catch(() => []);
@@ -169,6 +174,20 @@ export function reloadBook(bookId: string, evenWhilePlaying: boolean): Promise<v
       return;
     }
     await load(bookId, current.playing, true);
+  });
+}
+
+/**
+ * After a rescan regrouped the loaded book's files into another book, loads that book at the same
+ * place, so the Player shows it instead of “Nothing is playing”.
+ */
+export function followRegrouped(): Promise<void> {
+  return enqueue(async () => {
+    const current = await audio.getState();
+    if (!current.bookId || !current.fileLocation || current.partIndex < 0) return;
+    if (playerProfile() !== profileId) return;
+    const target = regroupedBook(db, current.bookId, current.fileLocation);
+    if (target) await load(target, current.playing, true);
   });
 }
 
@@ -237,7 +256,13 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
     bookId,
     title: detail.book.title,
     author: detail.book.author,
-    coverUri: detail.book.coverPath ? localFileUri(detail.book.coverPath) : detail.book.coverUrl,
+    // The web's saved covers are in OPFS; the web player turns `opfs:` into a blob URL.
+    coverUri:
+      Platform.OS === 'web'
+        ? coverUri(detail.book)
+        : detail.book.coverPath
+          ? localFileUri(detail.book.coverPath)
+          : detail.book.coverUrl,
     files: detail.files.map((f, i) => ({
       // A downloaded part plays from the phone; the rest stream (signed, if on a server).
       uri: f.downloadPath ? localFileUri(f.downloadPath) : (access[i]?.uri ?? f.uri),
@@ -359,10 +384,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const refreshedFor = useRef<string | null>(null);
   const wasPlaying = useRef(false);
 
+  // Children wait for the journal, so the first screen already shows places saved while the app
+  // was closed. A player that doesn't answer holds them back no longer than this.
+  const [journalFolded, setJournalFolded] = useState(false);
+
   useEffect(() => {
     const subscription = audio.addStateListener(setState);
     const start = async () => {
-      await foldJournal();
+      await Promise.race([
+        foldJournal().catch(logCaught),
+        new Promise((resolve) => setTimeout(resolve, JOURNAL_WAIT_MS)),
+      ]);
+      setJournalFolded(true);
       await foldServiceAccounting(playerProfile());
       await foldFinished();
       await audio.setSettings(getSettings(db, profileId));
@@ -375,13 +408,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (next) await loadAtStartup(next.id).catch(() => {});
       }
     };
-    void start().finally(refresh);
+    void start()
+      .catch(logCaught)
+      .finally(() => {
+        setJournalFolded(true);
+        refresh();
+      });
     void flushScrobbles();
     const appState = AppState.addEventListener('change', (status) => {
       if (status !== 'active') return;
       void foldJournal()
         .then(() => foldServiceAccounting(playerProfile()))
         .then(foldFinished)
+        .catch(logCaught)
         .finally(refresh);
       void flushScrobbles();
     });
@@ -390,6 +429,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       appState.remove();
     };
   }, [refresh]);
+
+  // Each root a scan brings in shows at once; a regrouped loaded book is followed.
+  useEffect(
+    () =>
+      onRootScanned(() => {
+        refresh();
+        void followRegrouped().catch(logCaught).finally(refresh);
+      }),
+    [refresh],
+  );
 
   // Listening time for the stats: what the position advanced since the last report, buffered and
   // written with the saves below, or as soon as another book starts. Only where the playback
@@ -477,7 +526,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const library = useMemo(() => ({ version, refresh }), [version, refresh]);
   return (
     <LibraryContext.Provider value={library}>
-      <PlayerStateContext.Provider value={state}>{children}</PlayerStateContext.Provider>
+      <PlayerStateContext.Provider value={state}>
+        {journalFolded ? children : <View className="flex-1 bg-night" />}
+      </PlayerStateContext.Provider>
     </LibraryContext.Provider>
   );
 }
