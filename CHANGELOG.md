@@ -2,6 +2,101 @@
 
 What changed in each Lelap release, newest first.
 
+## 0.1.0-beta.6 (2026-11-18)
+
+This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t
+bring it. The app offers it as usual. At first start it adds a table for hidden items, and on
+Android the first scan reads single-file books once more for their tags.
+
+### New
+
+- Hardcover rows on Home and in Discover: the books trending this month and of all time, your own
+  lists (private ones too), the lists you follow, Hardcover’s featured lists and any public list
+  added by its link. Choose up to 12 on the add-on’s settings page. Everything is read with your
+  own token. (#133)
+- Hide a book or episode from the Library: swipe its row to the left, or choose Hide in its menu.
+  A bar offers Undo, and “Hidden (N)” next to the sort pills shows what you hid, with “Show in
+  library” to bring it back. Hidden items stay out of Continue listening, lists, suggestions and
+  Android Auto; a book’s page and the player still find them. (#135)
+- Files that look like music: a card at the top of the Library says “N items look like music.”
+  Review lists them, and “Hide selected” hides the ones you tick. Nothing is hidden on its own.
+  (#135)
+- Hardcover and gPodder sync are in Settings → Add-ons under Comes with Lelap, with Set up. On
+  Android, Open in Lelap on the setup page adds the add-on; in the web app you paste the link.
+  (#136)
+- The Hardcover setup page walks you through making a token: a button opens Hardcover’s form with
+  the right permissions ticked, then numbered steps. (#137, #138)
+
+### Improved
+
+- The source you choose for a book follows you to your other devices. (#139)
+- The Play on sheet stops spinning after 12 s with nothing found. It names the usual causes, such
+  as another Wi-Fi, a guest network or a VPN, and offers Search again. (#143)
+- When the search for speakers can’t start, the sheet says so with an error code. The diagnostics
+  log records how the search went, without names or addresses. (#145)
+- Settings lists Catalogs right after Servers, so everything about where books come from sits
+  together. (#134)
+- The Catalog add-on is now called Open Library catalog. Nothing to do: installed apps pick up the
+  new name. (#136)
+- A later release that changes only the app’s JavaScript arrives over the air, without offering an
+  APK of about 40 MB for the same code. (#141)
+- lelap.app fits a 320 px screen, the theme switch says its new name, and other open tabs follow a
+  theme change. The site no longer offers to install itself as an app; the web app still does.
+  (#132, #140)
+
+### Fixed
+
+- Casting found no speakers or TVs on Android 17. Lelap never asked for Android 17’s new local
+  network permission, so the search saw nothing. The Play on sheet now asks on every Android 17
+  phone, and the search starts once you allow it. (#145)
+- Resuming from headphones plays at the speed you last chose, also when you changed it from the
+  notification, a watch or the car. Smart rewind counts from when you paused. (#142)
+- Removing a download while its book plays switches to the stream at the same place. A finished
+  download now reaches a paused book. (#142)
+- After switching to a profile with nothing to play, headphones and the car no longer resume the
+  last profile’s book. (#142)
+- Chapters found from silences reach a book while it plays: the lock screen title and an
+  end-of-chapter sleep timer follow them. (#142)
+- A place saved inside a show’s intro stays there; only a start from 0 skips the intro. (#142)
+- Changing the skip interval reaches watches and Android Auto, not only the button icons. (#142)
+- An episode in Up Next no longer starts from deleted files after a download move. (#142)
+- Weeks with the app closed no longer grow the listening log to its cap; it keeps one total per
+  book and day. (#142)
+- A large first sync works: changes go out in messages and pushes the server accepts. One change
+  too large for any message is left out instead of stopping sync. (#139)
+- A phone that only receives changes keeps its sync group; before, idle expiry counted only
+  pushes. (#139)
+- A phone whose sync group is gone says “Sync stopped on this device” instead of blaming another
+  device. (#139)
+- Shows whose intro and outro an older version dropped get their values back. (#139)
+- The developer test screen no longer opens in release builds. (#141)
+
+### Self-hosting and add-on developers
+
+- `@lelap/sdk` 0.4.0 is on npm: protocol revisions 4 to 8 and the work matcher
+  (`createWorkIndex`, `lookupWork` and the normalising helpers). (#128)
+- The Hardcover add-on caches rows for hours per token, keyed on a SHA-256 of it; Docker keeps them
+  in memory. Opening an add-on link with `configure` in place of `manifest.json` changes its rows.
+  The configure pages end in an Open in Lelap button (`lelap://addon?manifest=…`). (#133, #136)
+- The Catalog add-on’s manifest name is now Open Library catalog; its ID `app.lelap.catalog` and
+  URL stay. (#136)
+- Sync: no D1 migration. Pulls now update `last_push_at` at most once a day, so idle expiry counts
+  any sync. Snapshots keep at most 20,000 operations of unknown types. (#139)
+- Releases: `beta.json` and `latest.json` gain `runtime`. When it is unchanged and the
+  over-the-air bundle went out, the release leaves the file alone. Signing pins build-tools 37.0.0
+  and checks the certificate against `AllowedAPKSigningKeys`. The F-Droid recipe reads the version
+  from `apps/app/app.json` at the tag, which the release pull request now stamps. (#141)
+
+### Known issues
+
+- On Android 17, library servers at a local network address (SMB, SFTP, WebDAV, Audiobookshelf,
+  Jellyfin and others) don’t ask for the local network permission yet, so scanning or playing from
+  them may fail. Casting asks already.
+- The Android 17 casting fix follows what we found on a phone over adb, but this build hasn’t been
+  tried on one yet. (#145)
+- Hardcover rows haven’t been tried with a real token. (#133)
+- Hiding, the music card and the playback fixes haven’t been tried on a phone yet. (#135, #142)
+
 ## 0.1.0-beta.5 (2026-11-18)
 
 This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t

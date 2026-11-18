@@ -129,8 +129,8 @@ export const ms: Record<string, string> = {
   'On Android, finds chapters at the long silences of a book without any. Skips a show’s intro and outro, set once per show.':
     'Di Android, mencari bab pada senyap panjang dalam buku yang tiada bab. Melangkau pengenalan dan penutup rancangan, ditetapkan sekali bagi setiap rancangan.',
   'On this phone': 'Dalam telefon ini',
-  'One queue for books and episodes, hand-made lists, and smart ones like “short and not started” or “for the flight”.':
-    'Satu baris gilir untuk buku dan episod, senarai buatan sendiri, dan senarai pintar seperti “pendek dan belum dimulakan” atau “untuk penerbangan”.',
+  'One queue for books and episodes, hand-made lists, and smart ones like “short and not started” or “for the flight”. Hide what you don’t want in the library; files that look like music are pointed out.':
+    'Satu baris gilir untuk buku dan episod, senarai buatan sendiri, dan senarai pintar seperti “pendek dan belum dimulakan” atau “untuk penerbangan”. Sembunyikan apa yang anda tidak mahu dalam pustaka; fail yang kelihatan seperti muzik akan ditunjukkan.',
   'Open source · Android · Web · Self-hosted': 'Sumber terbuka · Android · Web · Hos sendiri',
   'Open source · Beta · Android and web': 'Sumber terbuka · Beta · Android dan web',
   'Open source, so you can check every line of that claim.':
