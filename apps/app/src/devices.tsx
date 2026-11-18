@@ -104,13 +104,14 @@ function update(found: bluetooth.AudioDevice[]) {
   const marked = markedCars();
   const devices = reported.map((d) => (isCar(d, marked) ? { ...d, car: true } : d));
   const known = new Set(snapshot.devices.map((d) => d.id));
+  const wereCars = new Set(snapshot.devices.filter((d) => d.car).map((d) => d.id));
   const samples = new Map<string, BatterySample[]>();
   const learned = new Map<string, number | null>();
   for (const d of devices) {
     let before = snapshot.samples.get(d.id) ?? [];
     let earlier = snapshot.learned.get(d.id) ?? null;
-    if (!known.has(d.id) && !d.car) {
-      // Connected, or the app started mid-session: carry on with what was stored.
+    if ((!known.has(d.id) || wereCars.has(d.id)) && !d.car) {
+      // Connected, unmarked as a car, or the app started mid-session: go on from what was stored.
       const record = connectRecord(d.id, d.battery, now);
       before = record.session;
       earlier = record.learned;
