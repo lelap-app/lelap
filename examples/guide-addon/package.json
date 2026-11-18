@@ -1,0 +1,21 @@
+{
+  "name": "@lelap/example-guide",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The add-on of the developer guide: a catalog, then settings, then a source for your own files.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lelap/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^5.1.0"
+  }
+}

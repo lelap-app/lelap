@@ -79,10 +79,12 @@ const toc: [string, string][] = [
 >
   <h1>Samples</h1>
   <p class="lead">
-    Five small add-ons, each runnable and tested in the repository. The first three serve the same
+    Six small add-ons, each runnable and tested in the repository. The first three serve the same
     two public-domain LibriVox recordings with one catalog, meta and streams; pick the one closest
-    to your stack and replace the data with your own source. The last answers other add-ons’ book
-    pages from its files, and has <a href="/docs/mapping-files/">a page of its own</a>.
+    to your stack and replace the data with your own source. The source sample answers other
+    add-ons’ book pages from its files; <a href="/docs/mapping-files/">Mapping your files</a>{' '}
+    explains it. The last is the add-on that <a href="/docs/guide/">Your first add-on</a> builds
+    step by step.
   </p>
   <div class="table-wrap">
     <table class="table">
@@ -152,6 +154,19 @@ const toc: [string, string][] = [
           <td>
             <a href={tree('examples/source-addon')}>
               <code>examples/source-addon</code>
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <a href="/docs/guide/">Step by step</a>
+          </td>
+          <td>
+            Node 20+, <code>@lelap/sdk</code>
+          </td>
+          <td>
+            <a href={tree('examples/guide-addon')}>
+              <code>examples/guide-addon</code>
             </a>
           </td>
         </tr>
@@ -263,7 +278,11 @@ const toc: [string, string][] = [
       <code>Access-Control-Allow-Origin: *</code> on every answer and <code>204</code> for{' '}
       <code>OPTIONS</code>;
     </li>
-    <li>that every answer passes the protocol’s schemas, Python’s included.</li>
+    <li>that every answer passes the protocol’s schemas, Python’s included;</li>
+    <li>
+      in the step-by-step add-on, the settings form with its sender line, a catalog that follows the
+      saved settings, and files in a folder found for an Open Library work.
+    </li>
   </ul>
   <p>
     Before you share your own add-on, paste its manifest into the{' '}

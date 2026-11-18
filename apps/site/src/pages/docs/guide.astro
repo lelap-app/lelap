@@ -1,0 +1,375 @@
+---
+import CodeBlock from '../../components/CodeBlock.astro';
+import Docs from '../../layouts/Docs.astro';
+import { site } from '../../site';
+
+// The guide's code is the tested sample's own source, read at build time, so the page and the
+// files CI runs never drift apart.
+import books from '../../../../../examples/guide-addon/books.mjs?raw';
+import catalog from '../../../../../examples/guide-addon/catalog.mjs?raw';
+import dockerfile from '../../../../../examples/guide-addon/Dockerfile?raw';
+import page from '../../../../../examples/guide-addon/page.mjs?raw';
+import server from '../../../../../examples/guide-addon/server.mjs?raw';
+import settings from '../../../../../examples/guide-addon/settings.mjs?raw';
+import source from '../../../../../examples/guide-addon/source.mjs?raw';
+import worker from '../../../../../examples/guide-addon/worker.mjs?raw';
+
+const sample = `${site.repoUrl}/tree/main/examples/guide-addon`;
+
+const setup = `
+mkdir classics && cd classics
+npm init -y
+npm pkg set type=module
+npm install @lelap/sdk
+`;
+
+const files = `
+classics/
+  package.json
+  books.mjs       the books and where their audio is
+  catalog.mjs     step 1
+  settings.mjs    step 2
+  source.mjs      step 3
+  server.mjs      serves any step with node:http
+  worker.mjs      step 4: steps 1 and 2 on Cloudflare Workers
+  Dockerfile      step 4: step 3 in Docker
+  page.mjs        a page of your own in the shared style
+`;
+
+const runCatalog = `
+node server.mjs catalog
+# Add-on running: http://localhost:8787/manifest.json
+`;
+
+const tryCatalog = `
+curl http://localhost:8787/manifest.json
+curl http://localhost:8787/catalog/audiobook/classics.json
+curl http://localhost:8787/meta/audiobook/classics%3Araven.json
+curl http://localhost:8787/stream/audiobook/classics%3Araven.json
+`;
+
+const runSettings = `
+node server.mjs settings
+# Open http://localhost:8787/configure in a browser
+`;
+
+const configured = `
+http://localhost:8787/p1.eyJvcmRlciI6IlllYXIiLCJzaG9ydCI6dHJ1ZX0/manifest.json
+`;
+
+const folder = `
+audiobooks/
+  Charles Dickens/
+    A Christmas Carol.m4b
+  Edgar Allan Poe/
+    The Raven.mp3
+`;
+
+const runSource = `
+BOOKS_FOLDER=/srv/audiobooks FILES_URL=https://files.example.org node server.mjs source
+`;
+
+const caddy = `
+# Caddy gets and renews the certificates on its own, and tells the add-on it is behind HTTPS.
+addon.example.org {
+	reverse_proxy 127.0.0.1:8787
+}
+
+files.example.org {
+	root * /srv/audiobooks
+	file_server
+}
+`;
+
+// Open Library's work IDs for A Christmas Carol and The Raven.
+const trySource = `
+curl http://localhost:8787/stream/audiobook/ol%3AOL32466W.json
+curl http://localhost:8787/stream/audiobook/ol%3AOL41081W.json
+`;
+
+const workers = `
+npx wrangler login
+npx wrangler deploy worker.mjs --name classics --compatibility-date 2026-11-01
+# prints https://classics.<your-subdomain>.workers.dev
+`;
+
+const docker = `
+docker build -t classics .
+docker run -d --restart unless-stopped -p 127.0.0.1:8787:8787 \\
+  -v /srv/audiobooks:/books:ro -e FILES_URL=https://files.example.org \\
+  classics
+`;
+
+const toc: [string, string][] = [
+  ['start', 'Before you start'],
+  ['catalog', '1. A catalog'],
+  ['settings', '2. Settings'],
+  ['source', '3. A source for your files'],
+  ['deploy', '4. Deploy it'],
+  ['page-style', 'Pages in the shared style'],
+  ['next', 'Where to go next'],
+];
+---
+
+<Docs
+  title="Your first add-on"
+  description={`Build a ${site.name} add-on step by step: a catalog, then settings, then a source for your own files, then deploy it.`}
+  toc={toc}
+>
+  <h1>Your first add-on</h1>
+  <p class="lead">
+    Build an add-on from an empty folder in four steps: a catalog of public-domain books, a settings
+    page, a source that finds your own audiobook files for book pages, and a deploy. Each step runs
+    on its own, so you can stop after any of them.
+  </p>
+  <p>
+    The code below is <a href={sample}>the guide’s sample</a> in the repository, and its tests run
+    in CI on every change. It uses <code>@lelap/sdk</code> 0.5.0 from npm and plain JavaScript, so
+    Node runs it with no build step.
+  </p>
+
+  <h2 id="start">Before you start</h2>
+  <p>You need Node 20 or later and a terminal. Make a folder and install the SDK:</p>
+  <CodeBlock code={setup} label="Terminal" />
+  <p>By the end it holds these files:</p>
+  <CodeBlock code={files} />
+  <p>
+    The books come first. Two LibriVox recordings on archive.org stand in for your data; every book
+    has an ID that starts with <code>classics:</code>, the add-on’s own prefix.
+  </p>
+  <details>
+    <summary>
+      <code>books.mjs</code>
+    </summary>
+    <CodeBlock code={books} />
+  </details>
+  <p>
+    <code>server.mjs</code> serves an add-on with Node’s own <code>node:http</code>. The SDK gives
+    you a <code>fetch(request)</code> function; this file turns each request into one. On Cloudflare
+    Workers, Deno and Bun you need no such file.
+  </p>
+  <details>
+    <summary>
+      <code>server.mjs</code>
+    </summary>
+    <CodeBlock code={server} />
+  </details>
+
+  <h2 id="catalog">1. A catalog</h2>
+  <p>
+    A manifest says who the add-on is and what it answers. Three handlers answer it: the catalog
+    lists the books, <code>meta</code> gives one book’s details and <code>stream</code> says where
+    its audio is. <code>createAddon</code> does the routing, CORS and caching headers, and checks
+    every answer against the protocol.
+  </p>
+  <CodeBlock code={catalog} label="catalog.mjs" />
+  <CodeBlock code={runCatalog} label="Terminal" />
+  <p>In a second terminal, ask it what the app will ask:</p>
+  <CodeBlock code={tryCatalog} label="Terminal" />
+  <p>
+    IDs in paths are percent-encoded, so <code>classics:raven</code> is{' '}
+    <code>classics%3Araven</code>. The details of a book it doesn’t have answer <code>404</code>.
+  </p>
+  <p>
+    The app only adds add-ons at an HTTPS address, so to try this one on your phone,{' '}
+    <a href="#deploy">deploy it</a>: on Cloudflare Workers that takes two commands. Then paste its
+    address under <strong>Settings → Add-ons</strong>. The Classics row shows up on Home and the
+    books play from archive.org.
+  </p>
+
+  <h2 id="settings">2. Settings</h2>
+  <p>
+    Add <code>configure</code> next to the handlers and the SDK serves a form at{' '}
+    <code>/configure</code>. What the listener chooses goes into the add-on’s address, so your
+    server stores nothing, and every handler gets it as <code>config</code>. This step keeps step
+    1’s handlers and replaces the catalog with one that follows two settings.
+  </p>
+  <CodeBlock code={settings} label="settings.mjs" />
+  <CodeBlock code={runSettings} label="Terminal" />
+  <p>
+    The form has the add-on’s name and description, the two fields and <strong>Save</strong>. Saving
+    shows the new manifest address with the settings in it, and a button that hands it to the app:
+  </p>
+  <CodeBlock code={configured} />
+  <p>
+    The manifest now says <code>configurable: true</code>, so the app shows{' '}
+    <strong>Configure</strong> for the add-on and opens this page. Fields are <code>text</code>,{' '}
+    <code>password</code>, <code>select</code> and <code>checkbox</code>; until someone saves the
+    form, <code>config</code> is <code>null</code>. Without a <code>secret</code> the settings are
+    only encoded, so anyone with the address can read them; that is fine for an order and a
+    checkbox. For a password, set a <code>secret</code>: the{' '}
+    <a href="/docs/sdk/#configure">SDK guide</a> shows how, and how to check a login before the
+    address is made.
+  </p>
+  <p>
+    Every page the SDK serves ends with a line saying who runs it, here “This page is run by
+    localhost:8787, not by {site.name}.” Listeners type passwords into these pages, so they always
+    know whose page it is. See <a href="#page-style">pages in the shared style</a>.
+  </p>
+
+  <h2 id="source">3. A source for your own files</h2>
+  <p>
+    So far the add-on answers only for its own <code>classics:</code> books. A source answers book
+    pages from other add-ons too: when a listener opens <em>A Christmas Carol</em> from the Open
+    Library catalog, {site.name} asks every add-on that takes <code>ol:</code> IDs for streams. Your
+    add-on looks the work up and, if one of your files is that book, offers it.
+  </p>
+  <p>
+    The files are your own audiobooks, one file per book, in a folder by author. A web server or a
+    WebDAV server serves the same folder over HTTPS, since the app plays audio from HTTPS addresses
+    only. Here that is <code>https://files.example.org</code>.
+  </p>
+  <CodeBlock code={folder} />
+  <p>
+    <code>createWorkIndex</code> indexes the files by title and author once, at start.{' '}
+    <code>lookupWork</code> turns the ID the app sends into what the index needs: an{' '}
+    <code>isbn:</code> as it is, an <code>ol:</code> work’s title and authors from Open Library.{' '}
+    <code>index.find(work)</code> returns the files that are that work: a shared ISBN first, else
+    the same title and author after folding case and accents and dropping articles, notes such as
+    “(Unabridged)” and subtitles. The rules are on{' '}
+    <a href="/docs/mapping-files/">Mapping your files to works</a>.
+  </p>
+  <CodeBlock code={source} label="source.mjs" />
+  <CodeBlock code={runSource} label="Terminal" />
+  <CodeBlock code={trySource} label="Terminal" />
+  <p>
+    Each answers a stream that points at the file on your file server, such as{' '}
+    <code>https://files.example.org/Charles%20Dickens/A%20Christmas%20Carol.m4b</code>. The add-on
+    never serves the audio itself. Once it is deployed (step 4), add its address in the app, search
+    for <em>A Christmas Carol</em> and open the book: <strong>My files</strong> is one of its
+    sources.
+  </p>
+  <ul>
+    <li>
+      <strong>Restart it after adding books.</strong> The folder is read once, at start.
+    </li>
+    <li>
+      <strong>A book in several files</strong> needs a stream with <code>parts</code>, and each part
+      needs its length; read it from the tags with a library such as <code>music-metadata</code>.
+      Tags are also where ISBNs live: put them into each entry’s <code>ids</code>, and{' '}
+      <code>idsFromTags</code> reads them for you.
+    </li>
+    <li>
+      <strong>Keep both addresses to yourself.</strong> A web add-on’s streams can’t send a login,
+      so anyone with a file’s address can play it, and anyone with the add-on’s address can ask it
+      for any book. Share them only with your household, and only serve audio you are allowed to
+      share.
+    </li>
+    <li>
+      <strong>Only for yourself?</strong> {site.name} reads a folder on the phone and WebDAV servers
+      with a login on its own, and links your files to book pages on the device. A source add-on is
+      for files on a server the app can’t reach that way, or for a household sharing one collection.
+    </li>
+  </ul>
+
+  <h2 id="deploy">4. Deploy it</h2>
+  <p>
+    An add-on online needs HTTPS and an address that stays the same. Steps 1 and 2 need nothing but
+    the SDK, so they run on Cloudflare Workers. Step 3 reads a folder, so it runs next to the files:
+    on the server that holds them, in Docker or with Node.
+  </p>
+  <h3>Steps 1 and 2 on Cloudflare Workers</h3>
+  <p>
+    A Worker exports the same <code>fetch</code>:
+  </p>
+  <CodeBlock code={worker} label="worker.mjs" />
+  <CodeBlock code={workers} label="Terminal" />
+  <h3>Step 3 in Docker</h3>
+  <CodeBlock code={dockerfile} label="Dockerfile" />
+  <CodeBlock code={docker} label="Terminal" />
+  <p>
+    The container answers on port 8787 of that machine only. Caddy in front gives the add-on and the
+    folder their HTTPS addresses:
+  </p>
+  <CodeBlock code={caddy} label="Caddyfile" />
+  <p>
+    With nginx, add <code>proxy_set_header X-Forwarded-Proto $scheme;</code> so the address the
+    settings page hands out starts with https. <a href="/docs/hosting/#https">Hosting</a> has more
+    on both.
+  </p>
+  <h3>Add it</h3>
+  <ol>
+    <li>
+      Paste the HTTPS manifest address into the{' '}
+      <a href="/docs/manifest-builder/#check">manifest checker</a>.
+    </li>
+    <li>
+      In {site.name}, open <strong>Settings → Add-ons</strong>, paste the address and add it. Tap{' '}
+      <strong>Configure</strong> to choose the settings.
+    </li>
+    <li>
+      Share the address of steps 1 and 2 with whoever you like; keep step 3’s to your household.{' '}
+      {site.name} keeps no directory of add-ons; listeners add yours by its address.
+    </li>
+  </ol>
+  <p>
+    Keep the manifest’s <code>id</code> and each stream’s <code>sourceKey</code> the same in new
+    versions: listeners’ saved places depend on them.
+  </p>
+
+  <h2 id="page-style">Pages in the shared style</h2>
+  <p>
+    The configure form, the page after it and {site.name}’s own add-ons’ pages share one style, so a
+    listener moving between them sees one design: dark, amber buttons, one column that fits a phone.
+    The SDK exports it as <code>PAGE_STYLE</code>, one stylesheet with no requests to anyone.
+  </p>
+  <ul>
+    <li>
+      It styles <code>main</code>, headings, links, labels and fields, a <code>.help</code> line
+      under a field, <code>.check</code> boxes, <code>fieldset</code>, buttons and{' '}
+      <code>.button</code> links, <code>.error</code>, <code>.muted</code>, steps in an{' '}
+      <code>ol</code>, a tap-to-copy <code>.copy</code> button and the <code>.sender</code> line.
+    </li>
+    <li>
+      Every page ends with the sender line: “This page is run by {'{host}'}, not by {site.name}.”
+      The SDK’s pages always add it, with the host the request came to. Add it to pages of your own
+      too. {site.name} never appears as the sender of a page it doesn’t run, since these pages ask
+      for tokens and passwords.
+    </li>
+  </ul>
+  <p>
+    For a page of your own, such as help or a sign-in step, put <code>PAGE_STYLE</code> in a{' '}
+    <code>&lt;style&gt;</code> element and the sender line last in <code>main</code>:
+  </p>
+  <CodeBlock code={page} label="page.mjs" />
+
+  <h2 id="next">Where to go next</h2>
+  <ul>
+    <li>
+      <a href="/docs/sdk/">SDK guide</a>: passwords and sign-in, health, badges, errors and tests.
+    </li>
+    <li>
+      <a href="/docs/protocol/">Protocol v1</a>: every route and field, including podcasts, search
+      and catalogs in pages.
+    </li>
+    <li>
+      <a href="/docs/samples/">Samples</a>: the same kind of add-on in TypeScript with Hono, plain
+      Node without the SDK, and Python.
+    </li>
+    <li>
+      <a href="/docs/hosting/">Hosting</a>: Workers, Docker, HTTPS and static files in detail.
+    </li>
+  </ul>
+</Docs>
+
+<style>
+  details {
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+  }
+
+  summary {
+    padding: 12px 20px;
+    cursor: pointer;
+    color: var(--fg-soft);
+  }
+
+  details[open] summary {
+    border-bottom: 1px solid var(--line-strong);
+  }
+
+  details :global(.code) {
+    border: none;
+    border-radius: 0 0 14px 14px;
+  }
+</style>
