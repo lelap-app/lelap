@@ -14,7 +14,7 @@
     "android": "pnpm --filter @lelap/app android",
     "build": "pnpm -r build",
     "check": "pnpm -r check",
-    "test": "pnpm -r test",
+    "test": "pnpm -r --no-sort test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
