@@ -94,7 +94,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M81 Test round 2](milestones/m81.md)                | Planned     |             | A full phone round over adb and the fixes it finds, the gate for v0.1.0                                  |
 | [M82 First start](milestones/m82.md)                 | Planned     |             | A first start that helps: choose a folder or a server, suggested add-ons, helpful empty states           |
 | [M83 Accessibility 2](milestones/m83.md)             | Planned     |             | One pass over every screen with TalkBack, large text and contrast                                        |
-| [M84 Better sound](milestones/m84.md)                | In progress |          12 | Voice boost, skip silence and even loudness between books                                                |
+| [M84 Better sound](milestones/m84.md)                | Done        |          12 | Voice boost, skip silence and even loudness between books                                                |
 | [M85 Chapters and bookmarks 2](milestones/m85.md)    | Planned     |             | Edit chapter names and times, notes on bookmarks, share a short clip                                     |
 | [M86 Sleep 2](milestones/m86.md)                     | Planned     |             | Shake to extend the timer, a bedtime routine and back to where you fell asleep                           |
 | [M87 Stats and year in sound](milestones/m87.md)     | Done        |           7 | Listening time, finished books and a year overview, worked out on the phone                              |
