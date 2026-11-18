@@ -96,6 +96,7 @@ export default function PlaceScreen() {
       onPress={play}
       disabled={busy}
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ busy, disabled: busy }}
       className="min-h-12 items-center justify-center rounded-full bg-amber px-6 active:opacity-80"
     >

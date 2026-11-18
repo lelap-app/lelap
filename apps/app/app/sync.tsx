@@ -117,7 +117,7 @@ export default function SyncScreen() {
               placeholder={t('Name, such as Kitchen tablet')}
               accessibilityLabel={t('Name of this device')}
               placeholderTextColor="#8d8a83"
-              className="rounded-lg border border-line px-3 py-2 text-paper"
+              className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
             />
           </View>
           <Pressable
@@ -146,7 +146,7 @@ export default function SyncScreen() {
                 placeholderTextColor="#8d8a83"
                 autoCapitalize="characters"
                 autoCorrect={false}
-                className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 font-mono text-paper"
+                className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 font-mono text-paper"
               />
               <TextButton
                 text={t('Join')}

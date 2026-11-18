@@ -11,7 +11,7 @@ import {
 } from '@lelap/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
@@ -22,7 +22,7 @@ import { Avatar, AVATAR_IDS, avatarName } from '../src/components/Avatar';
 import { db } from '../src/db';
 import { switchProfile, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
-import { TextButton } from '../src/components/TextButton';
+import { TextButton, Toggle } from '../src/components/TextButton';
 
 /** One profile: name, avatar, PIN, kids limits, delete. */
 export default function ProfileScreen() {
@@ -106,7 +106,7 @@ export default function ProfileScreen() {
           onChangeText={setName}
           onEndEditing={() => save({ name })}
           accessibilityLabel={t('Name')}
-          className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-xl text-paper"
+          className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-xl text-paper"
         />
       </View>
 
@@ -157,7 +157,7 @@ export default function ProfileScreen() {
           placeholder={profile.pinHash ? t('New PIN') : t('PIN')}
           accessibilityLabel={profile.pinHash ? t('New PIN') : t('PIN')}
           placeholderTextColor="#8d8a83"
-          className="w-32 rounded-lg border border-line px-3 py-2 text-paper"
+          className="min-h-12 w-32 rounded-lg border border-line px-3 py-2 text-paper"
         />
         <TextButton
           text={t('Set PIN')}
@@ -189,7 +189,7 @@ export default function ProfileScreen() {
             )}
           </Text>
         </View>
-        <Switch
+        <Toggle
           accessibilityLabel={t('Kids profile')}
           value={profile.kids}
           onValueChange={(kids) => save({ kids })}
@@ -236,7 +236,7 @@ export default function ProfileScreen() {
       {addons.map((a) => (
         <View key={a.url} className="flex-row items-center gap-3 border-b border-line py-2">
           <Text className="flex-1 text-paper">{a.manifest.name}</Text>
-          <Switch
+          <Toggle
             accessibilityLabel={a.manifest.name}
             value={!hidden.has(a.url)}
             onValueChange={(shown) =>

@@ -9,7 +9,7 @@ import {
   setSetting,
 } from '@lelap/core';
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, ScrollView, Switch, Text, View } from 'react-native';
+import { Platform, ScrollView, Text, View } from 'react-native';
 
 import { t } from '../i18n';
 import { db } from '../db';
@@ -18,7 +18,7 @@ import * as audio from '../platform/audio';
 import { updateSound, useLibrary } from '../player';
 import { profileId } from '../profile';
 import { Sheet } from './Sheet';
-import { TextButton } from './TextButton';
+import { TextButton, Toggle } from './TextButton';
 
 /** Settings for every book: they suit this phone or the listener's ears, not a recording. */
 export type DeviceSoundKey = 'volumeBoost' | 'mono';
@@ -127,7 +127,7 @@ export function SoundRow({
         <Text className="text-sm text-muted">{detail}</Text>
         {note ? <Text className="text-sm text-amber">{note}</Text> : null}
       </View>
-      <Switch value={value} onValueChange={onChange} accessibilityLabel={label} />
+      <Toggle value={value} onValueChange={onChange} accessibilityLabel={label} />
     </View>
   );
 }

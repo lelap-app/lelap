@@ -107,7 +107,7 @@ export default function MatchScreen() {
               disabled={text.trim().length < 2}
               onPress={() => setQuery(text.trim())}
               accessibilityRole="button"
-              className="min-h-12 justify-center px-1"
+              className="min-h-12 min-w-12 items-center justify-center px-1"
             >
               <Text className={text.trim().length < 2 ? 'text-muted' : 'text-amber'}>
                 {t('Search')}

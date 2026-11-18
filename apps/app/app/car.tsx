@@ -183,8 +183,9 @@ export default function CarMode() {
   const insets = useSafeAreaInsets();
   const dims = useWindowDimensions();
   const palette = useColorScheme() === 'light' ? DAY : NIGHT;
-  // The screen stays on while car mode is open, like a navigation app's.
-  useKeepAwake();
+  // The screen stays on while car mode is open, like a navigation app's. Leaving before the
+  // browser granted the wake lock throws on the web; there is nothing to release then.
+  useKeepAwake(undefined, { suppressDeactivateWarnings: true });
   const [pressed, setPressed] = useState<SleepStep>('off');
   const bookId = state.bookId;
   const detail = useMemo(() => (bookId ? getBook(db, profileId, bookId) : null), [bookId, version]);
@@ -274,6 +275,7 @@ export default function CarMode() {
   const words = (
     <View className="gap-2" style={{ alignItems: landscape ? 'flex-start' : 'center' }}>
       <Text
+        accessibilityRole="header"
         numberOfLines={landscape ? 1 : 2}
         style={{
           color: palette.text,
@@ -324,6 +326,15 @@ export default function CarMode() {
     </View>
   );
 
+  // A narrow screen (320 points, or large display size) shrinks the three round buttons to fit
+  // side by side; at 320 the skips stay at 70, well above 48.
+  const side = Math.max(insets.left, insets.right) + 24;
+  const row = landscape ? dims.width - 2 * side - coverSize - 32 : dims.width - 2 * side;
+  const fit = Math.min(1, row / (PLAY_SIZE[shape] + 2 * SKIP_SIZE[shape] + 48));
+  const playSize = Math.max(64, Math.round(PLAY_SIZE[shape] * fit));
+  // Never under 48, even in a small split-screen window.
+  const skipSize = Math.max(48, Math.round(SKIP_SIZE[shape] * fit));
+
   const controls = (
     <View style={{ gap: landscape ? 16 : 24 }}>
       <View className="flex-row items-center justify-center gap-6">
@@ -331,7 +342,7 @@ export default function CarMode() {
           icon="skipBack"
           value={String(skipSeconds)}
           label={t('Back {n} seconds', { n: skipSeconds })}
-          size={SKIP_SIZE[shape]}
+          size={skipSize}
           palette={palette}
           disabled={!bookId}
           onPress={() => void audio.skip(false)}
@@ -339,7 +350,7 @@ export default function CarMode() {
         <RoundButton
           icon={state.playing ? 'pause' : 'play'}
           label={state.playing ? t('Pause') : t('Play')}
-          size={PLAY_SIZE[shape]}
+          size={playSize}
           palette={palette}
           primary
           disabled={!bookId}
@@ -349,7 +360,7 @@ export default function CarMode() {
           icon="skipForward"
           value={String(skipSeconds)}
           label={t('Forward {n} seconds', { n: skipSeconds })}
-          size={SKIP_SIZE[shape]}
+          size={skipSize}
           palette={palette}
           disabled={!bookId}
           onPress={() => void audio.skip(true)}
@@ -393,7 +404,7 @@ export default function CarMode() {
         paddingTop: insets.top + 8,
         paddingBottom: insets.bottom + 16,
         // Sideways, the camera cut-out may be on either side.
-        paddingHorizontal: Math.max(insets.left, insets.right) + 24,
+        paddingHorizontal: side,
         gap: 16,
       }}
     >

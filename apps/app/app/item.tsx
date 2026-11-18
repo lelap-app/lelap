@@ -376,6 +376,8 @@ export default function ItemScreen() {
               disabled={!canPlay || starting}
               onPress={() => void play()}
               accessibilityRole="button"
+              accessibilityLabel={looking ? t('Looking for audio…') : playLabel}
+              accessibilityState={{ busy: starting, disabled: !canPlay || starting }}
               className={`min-h-12 items-center justify-center rounded-full py-3 ${canPlay ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
             >
               {starting ? (
@@ -438,7 +440,7 @@ export default function ItemScreen() {
                 />
               )}
               {(sources.data?.failed.length ?? 0) > 0 && (
-                <Text className="text-xs text-muted">
+                <Text accessibilityLiveRegion="polite" className="text-xs text-muted">
                   {t('{names} did not answer.', { names: sources.data?.failed.join(', ') ?? '' })}
                 </Text>
               )}

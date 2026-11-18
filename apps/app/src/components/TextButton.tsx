@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { hint } from '../a11y';
+import { COLORS } from './Icon';
 
 /**
  * The role of a row that holds buttons of its own, such as the mini player with Play. Android
@@ -64,9 +65,28 @@ export function TextButton({
   );
 }
 
+// The web's switch is 40 by 20 in grey and teal: too small to hit and faint on the night theme.
+// There it is 48 by 24, with a muted track (5:1 on night) that turns amber when on.
+// `activeThumbColor` is the web's own prop for the thumb when on.
+const WEB_SWITCH: Partial<SwitchProps> & { activeThumbColor?: string } =
+  Platform.OS === 'web'
+    ? {
+        style: { height: 24 },
+        trackColor: { false: COLORS.muted, true: COLORS.amber },
+        thumbColor: COLORS.paper,
+        activeThumbColor: COLORS.paper,
+      }
+    : {};
+
 /** A switch named by its settings row, or by `accessibilityLabel` outside one. */
 export function Toggle(props: SwitchProps) {
   const row = useContext(RowLabel);
   const label = props.accessibilityLabel ?? row;
-  return <Switch {...props} {...(label === undefined ? {} : { accessibilityLabel: label })} />;
+  return (
+    <Switch
+      {...WEB_SWITCH}
+      {...props}
+      {...(label === undefined ? {} : { accessibilityLabel: label })}
+    />
+  );
 }

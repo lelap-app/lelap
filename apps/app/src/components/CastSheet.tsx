@@ -180,7 +180,11 @@ export function CastSheet({
           </View>
         </View>
       )}
-      {casting.error !== null && <Text className="pb-3 text-sm text-danger">{casting.error}</Text>}
+      {casting.error !== null && (
+        <Text accessibilityLiveRegion="assertive" className="pb-3 text-sm text-danger">
+          {casting.error}
+        </Text>
+      )}
       {access === 'ask' && (
         <View className="gap-3 pb-4">
           <Text className="text-soft">

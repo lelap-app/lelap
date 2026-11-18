@@ -5,7 +5,8 @@ import Svg, { Circle, Ellipse, Path, Polygon, Rect } from 'react-native-svg';
 import { t } from '../i18n';
 
 // Lelap's own avatars, drawn for the app from simple shapes so their licence is the app's: a
-// night theme on amber, teal, rose and navy tiles.
+// night theme on amber, teal, rose and navy tiles. The colours are art (contrast: illustration);
+// only the initial on a tile is text, in ink or cream, whichever stands out on that tile.
 
 const AMBER = '#f5b041';
 const TEAL = '#2a9d8f';
@@ -494,13 +495,17 @@ export function Avatar({
   const drawing = avatar ? AVATARS[avatar] : undefined;
   if (!drawing) {
     const hash = [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const tile = TILES[hash % TILES.length] ?? NAVY;
     return (
       <View
         aria-hidden
-        style={{ width: size, height: size, backgroundColor: TILES[hash % TILES.length] }}
+        style={{ width: size, height: size, backgroundColor: tile }}
         className="items-center justify-center rounded-2xl"
       >
-        <Text style={{ fontSize: size / 2.2, color: CREAM }} className="font-semibold">
+        <Text
+          style={{ fontSize: size / 2.2, color: tile === NAVY ? CREAM : INK }}
+          className="font-semibold"
+        >
           {name.trim().charAt(0).toUpperCase() || '?'}
         </Text>
       </View>

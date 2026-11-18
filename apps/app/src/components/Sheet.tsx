@@ -28,6 +28,8 @@ export function Sheet({
       transparent
       animationType={reduced ? 'none' : 'slide'}
       onRequestClose={onClose}
+      // The web reads the dialog by this name when focus moves into it.
+      aria-label={title}
     >
       {/* A modal sits outside the activity's resize, so the sheet lifts itself above the keyboard. */}
       <KeyboardAvoidingView

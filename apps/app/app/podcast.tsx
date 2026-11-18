@@ -26,7 +26,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Switch,
   Text,
   View,
 } from 'react-native';
@@ -54,7 +53,7 @@ import {
 } from '../src/podcasts';
 import { profileId } from '../src/profile';
 import { Pill } from '../src/components/Pill';
-import { ROW_BUTTON, TextButton } from '../src/components/TextButton';
+import { ROW_BUTTON, TextButton, Toggle } from '../src/components/TextButton';
 
 const KEEP = [1, 3, 5, 10];
 
@@ -327,7 +326,7 @@ export default function PodcastScreen() {
             </View>
             {loading && <ActivityIndicator color="#f5b041" className="pt-24" />}
             {failed && (
-              <Text className="pt-24 text-center text-muted">
+              <Text accessibilityLiveRegion="polite" className="pt-24 text-center text-muted">
                 {fetched.isError
                   ? t('The feed could not be read: {error}', { error: message(fetched.error) })
                   : meta.data && !feedUrl
@@ -384,7 +383,7 @@ export default function PodcastScreen() {
                           )}
                         </Text>
                       </View>
-                      <Switch
+                      <Toggle
                         accessibilityLabel={t('Auto-download')}
                         value={sub.autoDownload}
                         onValueChange={(v) => setRule(v, sub.keepLatest)}
@@ -435,6 +434,8 @@ export default function PodcastScreen() {
                       void run(async () => void (await subscribeToFeed(podcast.feedUrl)))
                     }
                     accessibilityRole="button"
+                    accessibilityLabel={t('Subscribe')}
+                    accessibilityState={{ busy, disabled: busy }}
                     className="min-h-12 items-center justify-center rounded-full bg-amber py-3 active:opacity-80"
                   >
                     {busy ? (
@@ -475,10 +476,14 @@ export default function PodcastScreen() {
               }
               onLongPress={() => showActions(e)}
               {...ROW_BUTTON}
-              className={`flex-row items-center gap-3 border-b border-line px-4 py-3 active:bg-raised ${e.finished ? 'opacity-50' : ''}`}
+              className="flex-row items-center gap-3 border-b border-line px-4 py-3 active:bg-raised"
             >
               <View className="flex-1 gap-1">
-                <Text numberOfLines={2} className="text-base text-paper">
+                {/* Finished episodes are dimmed by colour, not opacity, so they stay readable. */}
+                <Text
+                  numberOfLines={2}
+                  className={`text-base ${e.finished ? 'text-muted' : 'text-paper'}`}
+                >
                   {e.title}
                 </Text>
                 <Text numberOfLines={1} className="text-sm text-muted">
