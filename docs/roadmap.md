@@ -106,7 +106,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M94 Tests against real servers](milestones/m94.md)  | Done        |           1 | WebDAV and S3 servers in CI, and an emulator smoke test of the app                                       |
 | [M95 Self-hosting 2](milestones/m95.md)              | Done        |           3 | One-command setup, a small admin page and backup guides                                                  |
 | [M96 Security review 2](milestones/m96.md)           | Planned     |             | A new audit of what has landed since M19                                                                 |
-| [M97 Landing page 3](milestones/m97.md)              | Planned     |             | Real app screenshots with made-up books, a changelog page and help                                       |
+| [M97 Landing page 3](milestones/m97.md)              | Done        |           4 | Real app screenshots from a demo library, a changelog page and help                                      |
 | [M98 Developer verification](milestones/m98.md)      | Planned     |             | Google's developer verification for sideloaded apps                                                      |
 | [M99 Languages 3](milestones/m99.md)                 | Planned     |             | Media3's own notification texts, saved English chapter names, raw native error details                   |
 | [M100 Server sources 3](milestones/m100.md)          | Planned     |             | Places sent while the app is closed, and Plex addresses that follow the server                           |

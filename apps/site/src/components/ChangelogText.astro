@@ -1,0 +1,23 @@
+---
+// One line of the changelog: text, `code`, and pull request numbers linked to the repository.
+import type { Inline } from '../lib/changelog';
+import { site } from '../site';
+
+interface Props {
+  parts: Inline[];
+}
+
+const { parts } = Astro.props;
+---
+
+{parts.map((part) =>
+  part.kind === 'code' ? (
+    <code>{part.value}</code>
+  ) : part.kind === 'pr' ? (
+    <a href={`${site.repoUrl}/pull/${part.number}`} aria-label={`Pull request ${part.number}`}>
+      #{part.number}
+    </a>
+  ) : (
+    part.value
+  ),
+)}

@@ -256,7 +256,9 @@ const english = lang === 'en' ? undefined : 'en';
             )}
           </p>
           {english && (
-            <p class="muted">{t(lang, 'The docs, terms and privacy policy are in English.')}</p>
+            <p class="muted">
+              {t(lang, 'The docs, help, changelog, terms and privacy policy are in English.')}
+            </p>
           )}
         </div>
         <nav aria-label={t(lang, 'Footer')} class="footer-nav">
@@ -267,6 +269,12 @@ const english = lang === 'en' ? undefined : 'en';
           <a href={anchor('selfhost')}>{t(lang, 'Self-hosting')}</a>
           <a href="/docs/" hreflang={english}>
             {t(lang, 'Add-on docs')}
+          </a>
+          <a href="/help" hreflang={english}>
+            {t(lang, 'Help')}
+          </a>
+          <a href="/changelog" hreflang={english}>
+            {t(lang, 'Changelog')}
           </a>
           <a href="/terms" hreflang={english}>
             {t(lang, 'Terms')}

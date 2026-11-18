@@ -3,8 +3,7 @@
 import Base from '../layouts/Base.astro';
 import Icon, { type IconName } from './Icon.astro';
 import Lori from './Lori.astro';
-import CatalogMockup from './CatalogMockup.astro';
-import PhoneMockup from './PhoneMockup.astro';
+import AppScreen from './AppScreen.astro';
 import { site } from '../site';
 import { html, t, type Lang } from '../i18n';
 
@@ -301,7 +300,7 @@ const compose = `services:
       </ul>
     </div>
     <div class="hero-visual">
-      <PhoneMockup lang={lang} />
+      <AppScreen lang={lang} screen="player" eager />
     </div>
   </section>
 
@@ -342,7 +341,7 @@ const compose = `services:
           </div>
         </div>
         <div class="how-visual" data-reveal style="--i: 1">
-          <CatalogMockup lang={lang} />
+          <AppScreen lang={lang} screen="home" />
         </div>
       </div>
       <div class="grid">
@@ -695,7 +694,7 @@ const compose = `services:
         <p>
           {t(
             lang,
-            'No. We publish our own add-ons for open sources and the SDK, nothing else. There is no add-on store, and we don’t link to, review or promote add-ons made by others.',
+            'No. An add-on is just a web address that anyone can build, host and share, and you decide whose you trust. We can’t check what someone else’s add-on connects to, or keep checking as it changes, so we won’t vouch for any of it. We publish our own add-ons for open sources and the SDK, nothing else.',
           )}
         </p>
       </details>
@@ -745,6 +744,13 @@ const compose = `services:
           )}
         </p>
       </details>
+      <p
+        class="faq-more"
+        set:html={html(
+          lang,
+          'More answers, from adding an add-on to moving to a new phone, are on the <a href="/help" hreflang="en">help page</a>.',
+        )}
+      />
     </div>
   </section>
 
@@ -801,7 +807,7 @@ const compose = `services:
     gap: 24px;
   }
 
-  /* min-width: 0 lets the mock-up shrink below its 340 px on a 320 px screen; the same for .how-visual. */
+  /* min-width: 0 lets the screenshot shrink below its 340 px on a 320 px screen; the same for .how-visual. */
   .hero-visual {
     flex: 0 1 340px;
     min-width: 0;
@@ -1226,6 +1232,11 @@ const compose = `services:
     cursor: pointer;
     font-size: 18px;
     font-weight: 600;
+  }
+
+  .faq-more {
+    margin: 20px 0 0;
+    color: var(--fg-soft);
   }
 
   details p {

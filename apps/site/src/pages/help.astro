@@ -1,0 +1,227 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../site';
+
+const sections: { id: string; title: string }[] = [
+  { id: 'start', title: 'Getting started' },
+  { id: 'addons', title: 'Add-ons' },
+  { id: 'library', title: 'Your library' },
+  { id: 'listening', title: 'Listening' },
+  { id: 'problems', title: 'When something doesn’t work' },
+];
+---
+
+<Base
+  title={`Help · ${site.name}`}
+  description={`Answers about ${site.name}: add-ons, your library, sync, downloads and what to do when something doesn’t work.`}
+>
+  <article class="container prose help">
+    <h1>Help</h1>
+    <p>
+      Short answers about {site.name}. Something missing? Ask on{' '}
+      <a href={`${site.repoUrl}/issues`}>GitHub</a>.
+    </p>
+    <nav aria-label="On this page">
+      <ul class="toc">
+        {sections.map((s) => (
+          <li>
+            <a href={`#${s.id}`}>{s.title}</a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
+    <section id="start" aria-labelledby="start-title">
+      <h2 id="start-title">Getting started</h2>
+
+      <h3>How do I get {site.name}?</h3>
+      <p>
+        On Android, install the .apk from <a href="/#get">Get it</a> on the home page; the app
+        checks for updates itself. Everywhere else there is the web app in your browser. The home
+        page says what is out today.
+      </p>
+
+      <h3>What can I listen to straight away?</h3>
+      <p>
+        Public-domain audiobooks from LibriVox, podcasts from Podcast Index or any RSS feed, and
+        your own files. {site.name} installs its own add-ons for the catalogs on first start.
+      </p>
+
+      <h3>Do I need an account?</h3>
+      <p>
+        No. Everything stays on your device. To continue on another device, pair it with a sync
+        code.
+      </p>
+    </section>
+
+    <section id="addons" aria-labelledby="addons-title">
+      <h2 id="addons-title">Add-ons</h2>
+
+      <h3>What is an add-on?</h3>
+      <p>
+        A small web service that answers the app: the catalogs you browse, the details of a book,
+        and where its audio is. {site.name} plays, downloads and remembers; add-ons bring the
+        library.
+      </p>
+
+      <h3>How do I add one?</h3>
+      <p>
+        In Settings → Add-ons, paste the add-on’s address, the one ending in{' '}
+        <code>/manifest.json</code>. Some add-ons have a setup page of their own that gives you the
+        address. To remove one, use its menu in the same list.
+      </p>
+
+      <h3 id="no-directory">Why is there no add-on directory?</h3>
+      <p>
+        An add-on is just a web address that anyone can build, host and share, and you decide whose
+        you trust. We can’t check what someone else’s add-on connects to, or keep checking as it
+        changes, so we won’t vouch for any of it.
+      </p>
+      <p>
+        That is why {site.name} lists only our own add-ons, and the SDK so anyone can build one. We
+        don’t link to, review or promote add-ons made by others.
+      </p>
+
+      <h3>What does an add-on see?</h3>
+      <p>
+        What you ask it: the catalogs you open, what you search for and the books you look at. Audio
+        comes from wherever the add-on points, straight to your device; it never passes through our
+        servers. Add only add-ons you trust, and play only what you have the right to.
+      </p>
+
+      <h3>Can I build my own?</h3>
+      <p>
+        Yes. The <a href="/docs/">add-on docs</a> cover the protocol and the SDK, and the{' '}
+        <a href="/docs/manifest-builder">manifest builder</a> writes a manifest with you.
+      </p>
+    </section>
+
+    <section id="library" aria-labelledby="library-title">
+      <h2 id="library-title">Your library</h2>
+
+      <h3>Where is my library kept?</h3>
+      <p>
+        On your device: books, places, bookmarks, downloads and playlists. Add-ons can be slow,
+        offline or gone tomorrow, and what you downloaded keeps playing.
+      </p>
+
+      <h3>Can I play my own files?</h3>
+      <p>
+        Yes. On Android, choose a folder in Settings → Library. Or play from your own server in
+        Settings → Servers: WebDAV, S3-compatible, Jellyfin, Emby, Plex, Navidrome or
+        Audiobookshelf, and on Android also SMB and SFTP. The app talks to your server directly and
+        keeps the passwords on your device.
+      </p>
+
+      <h3>How does sync work?</h3>
+      <p>
+        In Settings → Sync, show a pairing code on one device and join with it on the other. Your
+        places and podcasts are encrypted on your device before they leave it, so the sync server
+        can’t read them. You can <a href="/#selfhost">run your own sync server</a>.
+      </p>
+
+      <h3>How do I move to a new phone?</h3>
+      <p>
+        Use sync, or Settings → Backup → Export library on the old phone and Import library on the
+        new one. The file holds your places, bookmarks, lists, tags, podcasts and add-on addresses;
+        keep it private, as add-on addresses can hold your keys for them. Passwords for your servers
+        and the sync key are not in it, so enter those again.
+      </p>
+    </section>
+
+    <section id="listening" aria-labelledby="listening-title">
+      <h2 id="listening-title">Listening</h2>
+
+      <h3>How does the sleep timer work?</h3>
+      <p>
+        Tap Sleep in the player and choose minutes or the end of the chapter. It fades out over the
+        last minute. On Android, shake the phone in the last five minutes for ten more. When you
+        press Play again, smart rewind (Settings → Playback) goes back a few seconds, so you find
+        your place.
+      </p>
+
+      <h3>Can I listen offline?</h3>
+      <p>
+        Yes. Download a book or an episode and it plays without a connection. On Android, Settings →
+        Downloads has the rules, such as Wi-Fi only.
+      </p>
+    </section>
+
+    <section id="problems" aria-labelledby="problems-title">
+      <h2 id="problems-title">When something doesn’t work</h2>
+
+      <h3>An add-on did not answer</h3>
+      <p>
+        Add-ons run on their makers’ servers and can be slow or offline. Pull Home down to try
+        again. Settings → Add-ons shows how each add-on’s requests went. If one of our own add-ons
+        stays down, tell us on GitHub.
+      </p>
+
+      <h3>How do I report a bug?</h3>
+      <p>
+        Open an issue on <a href={`${site.repoUrl}/issues`}>GitHub</a> with what you did and what
+        happened. Settings → Help → Diagnostics keeps a log once you turn it on: it holds no titles,
+        file names, addresses or logins, and leaves your device only when you share the file.
+      </p>
+
+      <h3>Something infringes my rights</h3>
+      <p>
+        See <a href="/#rights">Report copyright infringement</a> on the home page.
+      </p>
+    </section>
+
+    <p>
+      See also: <a href="/changelog">what changed in each release</a>,{' '}
+      <a href="/privacy">privacy</a> and <a href="/terms">terms</a>.
+    </p>
+  </article>
+</Base>
+
+<style>
+  .toc {
+    list-style: none;
+    padding: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .toc a {
+    display: inline-block;
+    padding: 4px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-size: 14px;
+  }
+
+  .help section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    scroll-margin-top: 96px;
+  }
+
+  .help h2 {
+    margin: 0;
+  }
+
+  .help h3 {
+    margin: 12px 0 0;
+    font-size: 18px;
+  }
+
+  .help h3 + p {
+    margin-top: 0;
+  }
+
+  .help p {
+    margin: 0;
+  }
+
+  .help code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+  }
+</style>
