@@ -91,6 +91,24 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M78 Casting 4](milestones/m78.md)                   | Planned     |             | Speaker groups across protocols, and Cast device authentication enforced                                 |
 | [M79 Library by progress](milestones/m79.md)         | Done        |           4 | The Library in three groups, In progress, Not started and Finished, each in its own order                |
 | [M80 App polish 2](milestones/m80.md)                | Planned     |             | The bigger items left from M71: a zoomed scrubber, saved catalog covers, faster web saves                |
+| [M81 Test round 2](milestones/m81.md)                | Planned     |             | A full phone round over adb and the fixes it finds, the gate for v0.1.0                                  |
+| [M82 First start](milestones/m82.md)                 | Planned     |             | A first start that helps: choose a folder or a server, suggested add-ons, helpful empty states           |
+| [M83 Accessibility 2](milestones/m83.md)             | Planned     |             | One pass over every screen with TalkBack, large text and contrast                                        |
+| [M84 Better sound](milestones/m84.md)                | Planned     |             | Voice boost, skip silence and even loudness between books                                                |
+| [M85 Chapters and bookmarks 2](milestones/m85.md)    | Planned     |             | Edit chapter names and times, notes on bookmarks, share a short clip                                     |
+| [M86 Sleep 2](milestones/m86.md)                     | Planned     |             | Shake to extend the timer, a bedtime routine and back to where you fell asleep                           |
+| [M87 Stats and year in sound](milestones/m87.md)     | Planned     |             | Listening time, finished books and a year overview, worked out on the phone                              |
+| [M88 Podcasts 4](milestones/m88.md)                  | Planned     |             | Transcripts while listening, chapter images, soundbite clips and alternate files                         |
+| [M89 Wear OS](milestones/m89.md)                     | Planned     |             | Control playback from the watch, and maybe play downloads on it                                          |
+| [M90 Web app 3](milestones/m90.md)                   | Planned     |             | Offline downloads in the browser, a better installed app, desktop keys                                   |
+| [M91 iOS decision](milestones/m91.md)                | Planned     |             | A decision on iOS: what an App Store app would mean for Lelap                                            |
+| [M92 Hardcover sign-in](milestones/m92.md)           | Planned     |             | Sign in to Hardcover instead of pasting a token                                                          |
+| [M93 Developer docs 2](milestones/m93.md)            | Planned     |             | A real guide to building an add-on, sample source files and shared page styling                          |
+| [M94 Tests against real servers](milestones/m94.md)  | Planned     |             | WebDAV and S3 servers in CI, and an emulator smoke test of the app                                       |
+| [M95 Self-hosting 2](milestones/m95.md)              | Planned     |             | One-command setup, a small admin page and backup guides                                                  |
+| [M96 Security review 2](milestones/m96.md)           | Planned     |             | A new audit of what has landed since M19                                                                 |
+| [M97 Landing page 3](milestones/m97.md)              | Planned     |             | Real app screenshots with made-up books, a changelog page and help                                       |
+| [M98 Developer verification](milestones/m98.md)      | Planned     |             | Google's developer verification for sideloaded apps                                                      |
 
 <!-- milestones:end -->
 
