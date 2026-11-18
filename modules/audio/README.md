@@ -36,7 +36,7 @@ Kotlin Expo module for Android playback.
   and records start, progress and pause. `AccountingLog` keeps it in its own preferences file
   until the app merges it (`takeAccounting`, then `ackAccounting`); records handed out never
   change, so each is merged once. The app does not count on Android
-  ([m51 follow-ups](../../docs/m51-follow-ups.md#how-it-works)).
+  ([M51](../../docs/milestones/m51.md)).
 - `AudioModule`: the JavaScript bridge (`src/index.ts`), a `MediaController` on the main thread.
 
 Unit tests for the pure parts run on the JVM:

@@ -128,9 +128,10 @@ add shipped features that a reader would look for.
   `CurrentVersionCode` (the arm64 code). Before the first
   submission, `AllowedAPKSigningKeys` needs the certificate hash; ask the user whether this
   release is the one to submit, and make the landing page's F-Droid card say the same.
-- **Project docs:** the status line of the release milestone (`docs/milestones/m40.md` for
-  `v0.1.0`) and of any milestone this release finishes; `docs/brief.md` if a decision changed.
-  Never edit the table in `docs/roadmap.md`.
+- **Project docs:** the front matter and record of the release milestone
+  (`docs/milestones/m40.md` for `v0.1.0`) and of any milestone this release finishes, then
+  `pnpm roadmap`; `docs/brief.md` if a decision changed. Never edit the table in
+  `docs/roadmap.md` by hand.
 
 ### 5. Release pull request
 
@@ -158,7 +159,8 @@ add shipped features that a reader would look for.
 5. Site state: the first beta needs `LELAP_BETA=true`; the first stable needs
    `LELAP_RELEASED=true`. Then rerun the site deploy (`gh workflow run site.yml`). Changing a
    repository variable is the user's call: ask, and run `gh variable set` only on their yes.
-6. Update the milestone status line with what is out, in a small follow-up pull request.
+6. Update the release milestone's record with what is out (and its status when it is
+   finished), run `pnpm roadmap`, in a small follow-up pull request.
 
 ## Common mistakes
 

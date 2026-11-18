@@ -38,7 +38,7 @@ send no-sniff and sandbox headers. Rate limits belong in your reverse proxy.
 `scripts/ota.mts` writes into its `/data` volume (`ota/channels/…` and `ota/<runtime>/…`), at
 `updates.<LELAP_DOMAIN>`. Pass `https://updates.<LELAP_DOMAIN>` as the script's base URL so the
 bundles come from the same place. Builds need your own code-signing certificate; see
-[`docs/m18-follow-ups.md`](../docs/m18-follow-ups.md).
+[M18 setup](../docs/milestones/m18.md#setup).
 
 Back up the `sync-data` volume: it holds encrypted messages only, but losing it means devices
 pair again.

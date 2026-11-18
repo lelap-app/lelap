@@ -3,7 +3,7 @@
 A review of the services, sync crypto, CI, the Android app and the web build, made on 17 November
 2026 against `main` at `8ee0bc0`. Each finding has a severity, where it is, what it is, and either
 the fix in this change or a decision for the maintainer. Open device and dashboard checks are in
-[`m19-follow-ups.md`](m19-follow-ups.md).
+[M19](milestones/m19.md#open-checks).
 
 **Severity:** High (exploitable now, real harm), Medium (exploitable with conditions, or a missing
 layer that matters), Low (hardening), Info (checked and fine, or by design).
@@ -233,7 +233,7 @@ gave every controller Lelap's custom commands. Any installed app could load a bo
 replace Up Next or change settings.
 **Fix:** Only controllers from Lelap's own package get the custom commands; others get the standard
 session, library and player commands. Media buttons, the notification (Lelap's own package) and
-Android Auto use standard commands. Device check listed in the follow-ups.
+Android Auto use standard commands. Device check listed in [M19](milestones/m19.md#open-checks).
 
 ### 6. Secrets in plain SQLite and in backups (Medium, fixed on Android)
 

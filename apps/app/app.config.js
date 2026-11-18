@@ -1,6 +1,6 @@
 // Over-the-air JavaScript updates (M18), on top of app.json. Hosts come from the environment like
 // `src/config.ts`. Updates switch on only when a code-signing certificate is present, so builds
-// without one (forks, local checkouts) never load code from the network. See docs/m18-follow-ups.md.
+// without one (forks, local checkouts) never load code from the network. See docs/milestones/m18.md.
 const { existsSync } = require('node:fs');
 const path = require('node:path');
 
