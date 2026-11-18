@@ -42,6 +42,10 @@ export type SilenceStatus = {
   state: 'waiting' | 'running' | 'done' | 'failed';
   filesDone: number;
   filesTotal: number;
+  /** How far the scan is through the book, 0 to 1. */
+  fraction: number;
+  /** Waiting because the battery is low now, not just waiting to start (M85). */
+  lowBattery: boolean;
   result: string | null;
   error: string | null;
 };
@@ -99,11 +103,14 @@ export function readRemoteTags(
 
 /**
  * Starts a background scan of a book's files on this device for long silences (M45). Files are
- * `content://` or `file://` URIs; it waits for enough battery and stops when it runs low.
+ * `content://` or `file://` URIs. It starts at once (M85) and waits or stops while the battery is
+ * low. `title` names it in the notification; `durationsMs`, each file's stored length, moves its bar.
  */
 export function findSilences(job: {
   bookId: string;
+  title: string;
   files: string[];
+  durationsMs: number[];
   thresholdDb: number;
   minSilenceMs: number;
 }): Promise<void> {

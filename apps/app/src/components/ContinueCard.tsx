@@ -9,12 +9,13 @@ import { formatLeft } from '../format';
 import { BookCover, coverUri } from './BookCover';
 import { db } from '../db';
 import { useLibrary } from '../player';
+import { profileId } from '../profile';
 
 export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: () => void }) {
   const { version } = useLibrary();
   // `version` is the signal to re-read the database: chapters found from silences arrive later.
   const chapter = useMemo(
-    () => chapterTitleAt(db, book.id, book.bookPositionMs),
+    () => chapterTitleAt(db, book.id, book.bookPositionMs, profileId),
     [book.id, book.bookPositionMs, version],
   );
   return (

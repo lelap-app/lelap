@@ -414,6 +414,12 @@ export default function LibraryScreen() {
             />
           )}
           <IconButton
+            name="bookmark"
+            label={t('Bookmarks')}
+            color={COLORS.soft}
+            onPress={() => router.push('/bookmarks')}
+          />
+          <IconButton
             name="settings"
             label={t('Settings')}
             color={COLORS.soft}

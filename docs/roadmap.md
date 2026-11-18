@@ -74,7 +74,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M61 Open Library reading log](milestones/m61.md)    | Done        |           8 | A scrobble add-on marking books read or reading on Open Library                                          |
 | [M62 SMB and SFTP](milestones/m62.md)                | Done        |          11 | Built-in sources for NAS shares and plain servers, on Android                                            |
 | [M63 Playback fixes](milestones/m63.md)              | Done        |          10 | Small fixes in the playback service and the player, left from earlier reviews                            |
-| [M64 Library fixes](milestones/m64.md)               | Done        |          17 | Covers from image files, and folder scans, tags, downloads and matching: fixes left from earlier reviews |
+| [M64 Library fixes](milestones/m64.md)               | Done        |          16 | Covers from image files, and folder scans, tags, downloads and matching: fixes left from earlier reviews |
 | [M65 Server sources 2](milestones/m65.md)            | Done        |          15 | Outboxes, narrators and series, and steadier places for the media servers                                |
 | [M66 Add-on protocol 3](milestones/m66.md)           | Done        |          12 | Editions, settings for every route, paging, more scrobble events and upkeep of first-party add-ons       |
 | [M67 Web app 2](milestones/m67.md)                   | Done        |           9 | Faster saves, covers from servers and steadier media keys in the web app                                 |
@@ -95,7 +95,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M82 First start](milestones/m82.md)                 | Done        |          10 | A first start that helps: choose a folder or a server, suggested add-ons, helpful empty states           |
 | [M83 Accessibility 2](milestones/m83.md)             | Planned     |             | One pass over every screen with TalkBack, large text and contrast                                        |
 | [M84 Better sound](milestones/m84.md)                | Done        |          12 | Voice boost, skip silence and even loudness between books                                                |
-| [M85 Chapters and bookmarks 2](milestones/m85.md)    | Planned     |             | Edit chapter names and times, notes on bookmarks, share a short clip                                     |
+| [M85 Chapters and bookmarks 2](milestones/m85.md)    | In progress |          10 | Edit chapter names and times, notes on bookmarks, share a short clip                                     |
 | [M86 Sleep 2](milestones/m86.md)                     | Planned     |             | Shake to extend the timer, a bedtime routine and back to where you fell asleep                           |
 | [M87 Stats and year in sound](milestones/m87.md)     | Done        |           7 | Listening time, finished books and a year overview, worked out on the phone                              |
 | [M88 Podcasts 4](milestones/m88.md)                  | Planned     |             | Transcripts while listening, chapter images, soundbite clips and alternate files                         |

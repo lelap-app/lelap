@@ -162,6 +162,13 @@
       "when": 1795015162705,
       "tag": "0022_opposite_infant_terrible",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1795024094315,
+      "tag": "0023_nebulous_thunderbolt",
+      "breakpoints": true
     }
   ]
 }

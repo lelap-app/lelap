@@ -17,6 +17,8 @@ export type SilenceStatus = {
   state: 'waiting' | 'running' | 'done' | 'failed';
   filesDone: number;
   filesTotal: number;
+  fraction: number;
+  lowBattery: boolean;
   result: string | null;
   error: string | null;
 };

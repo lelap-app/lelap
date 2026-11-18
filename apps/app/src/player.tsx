@@ -190,7 +190,8 @@ export function followRegrouped(): Promise<void> {
 }
 
 /**
- * Hands the loaded book's new chapters (found from silences) to the player, also while it plays:
+ * Hands the loaded book's new chapters (found from silences, or edited by hand) to the player,
+ * also while it plays:
  * the Android service keeps the place and renames the lock screen title and moves a chapter
  * timer. The web player would start the book over, so there a playing book waits for its next load.
  */
@@ -398,6 +399,13 @@ export async function seekToBookPosition(bookId: string, bookPositionMs: number)
   if (!detail) return;
   const target = toFilePosition(detail.files, bookPositionMs);
   await audio.seekTo(target.index, target.positionMs);
+}
+
+/** Plays a book from a place on its timeline: a bookmark in another book, or a shared place (M85). */
+export async function playAt(bookId: string, bookPositionMs: number): Promise<void> {
+  await playBook(bookId, false);
+  await seekToBookPosition(bookId, bookPositionMs);
+  await audio.play();
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {

@@ -11,6 +11,7 @@ import {
   toBookPosition,
   parseTime,
   removeFoundChapters,
+  resetOwnChapters,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -47,10 +48,12 @@ import {
   reloadBook,
   seekToBookPosition,
   streamsFromLocalNetwork,
+  updateChapters,
   useLibrary,
   usePlayerState,
 } from '../player';
 import { transcriptOf } from '../podcasting';
+import { CLIP_BACK_MS, sharePlace } from '../sharePlace';
 import { canFindChapters, findChapters, stopFindingChapters, useSilenceScans } from '../silences';
 import { profileId } from '../profile';
 
@@ -494,9 +497,8 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           active={timer !== null}
           onPress={() => setSheet('sleep')}
         />
-        {(chapters.length > 0 || canFind) && (
-          <Tool icon="chapters" label={t('Chapters')} onPress={() => setSheet('chapters')} />
-        )}
+        {/* Every book: one without chapters can have them found or added by hand (M85). */}
+        <Tool icon="chapters" label={t('Chapters')} onPress={() => setSheet('chapters')} />
         {hasTranscript && (
           <Tool
             icon="transcript"
@@ -572,6 +574,18 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
             void reloadBook(bookId, false).catch(() => {});
           },
         }}
+        own={{
+          own: detail.ownChapters,
+          onEdit: () => {
+            setSheet(null);
+            router.push({ pathname: '/chapters', params: { book: bookId } });
+          },
+          onReset: () => {
+            resetOwnChapters(db, profileId, bookId, Date.now());
+            refresh();
+            void updateChapters(bookId).catch(() => {});
+          },
+        }}
       />
       <BookmarksSheet
         visible={sheet === 'bookmarks'}
@@ -584,6 +598,15 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           deleteBookmark(db, profileId, id);
           refresh();
         }}
+        onSaveNote={(id, text) => {
+          setBookmarkNote(db, profileId, id, text, Date.now());
+          refresh();
+        }}
+        onShare={(b) => void sharePlace(bookId, b.bookPositionMs)}
+        onShareHere={() => void sharePlace(bookId, position)}
+        onShareClip={() =>
+          void sharePlace(bookId, Math.max(0, position - CLIP_BACK_MS), Math.max(1_000, position))
+        }
         onClose={() => setSheet(null)}
       />
       <CastSheet visible={sheet === 'cast'} bookId={bookId} onClose={() => setSheet(null)} />

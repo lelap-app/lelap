@@ -29,6 +29,7 @@ const nativeLines = (): Record<string, string> => ({
   Downloading: t('Downloading'),
   Cancel: t('Cancel'),
   'Listening for long silences': t('Listening for long silences'),
+  'Finding chapters in {title}': t('Finding chapters in {title}'),
   // Downloads in a folder the listener chose, and moving them there.
   'The download folder can’t be reached. Put the SD card back, or choose another folder in Settings.':
     t(
