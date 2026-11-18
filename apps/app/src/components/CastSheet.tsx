@@ -20,6 +20,9 @@ import { bookLoad } from '../player';
 import { COLORS, Icon } from './Icon';
 import { Sheet } from './Sheet';
 
+/** How long a search finds nothing before the sheet says so; most devices answer in a few seconds. */
+const QUIET_AFTER_MS = 12_000;
+
 const KIND: Record<CastDevice['kind'], string> = {
   upnp: 'UPnP',
   cast: 'Google Cast',
@@ -53,6 +56,9 @@ export function CastSheet({
   const [devices, setDevices] = useState<CastDevice[]>([]);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [access, setAccess] = useState<LocalNetworkAccess | null>(null);
+  // Bumped by "Search again"; `quiet` is set when a search has found nothing for a while.
+  const [search, setSearch] = useState(0);
+  const [quiet, setQuiet] = useState(false);
 
   // Android 17 asks before an app reaches the Wi-Fi's devices; the sheet explains first.
   useEffect(() => {
@@ -76,11 +82,14 @@ export function CastSheet({
     const subscription = addDevicesListener(setDevices);
     void listDevices().then(setDevices);
     void startDiscovery();
+    setQuiet(false);
+    const timer = setTimeout(() => setQuiet(true), QUIET_AFTER_MS);
     return () => {
+      clearTimeout(timer);
       subscription.remove();
       void stopDiscovery();
     };
-  }, [visible, access]);
+  }, [visible, access, search]);
 
   const pick = async (device: CastDevice) => {
     if (device.id === casting.device?.id) return;
@@ -191,14 +200,28 @@ export function CastSheet({
               </Pressable>
             );
           })}
-          <View className="flex-row items-center gap-3 py-3">
-            <ActivityIndicator color={COLORS.muted} />
-            <Text className="flex-1 text-sm text-muted">
-              {t(
-                'Looking for speakers and TVs on this Wi-Fi. Sonos, DLNA, Google Cast and FCast receivers play the book themselves; files on this phone are shared with them only while casting.',
-              )}
-            </Text>
-          </View>
+          {quiet && devices.length === 0 ? (
+            <View className="gap-3 py-3">
+              <Text className="text-paper">{t('No speakers or TVs found on this Wi-Fi.')}</Text>
+              <Text className="text-sm text-muted">
+                {t(
+                  'Check that the speaker or TV is on and on the same Wi-Fi as this phone. Guest networks, some mesh and office networks, and a VPN on the phone stop devices from seeing each other.',
+                )}
+              </Text>
+              <View className="flex-row">
+                <Chip label={t('Search again')} onPress={() => setSearch((n) => n + 1)} />
+              </View>
+            </View>
+          ) : (
+            <View className="flex-row items-center gap-3 py-3">
+              <ActivityIndicator color={COLORS.muted} />
+              <Text className="flex-1 text-sm text-muted">
+                {t(
+                  'Looking for speakers and TVs on this Wi-Fi. Sonos, DLNA, Google Cast and FCast receivers play the book themselves; files on this phone are shared with them only while casting.',
+                )}
+              </Text>
+            </View>
+          )}
         </ScrollView>
       )}
     </Sheet>
