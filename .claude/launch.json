@@ -4,18 +4,15 @@
     {
       "name": "site",
       "runtimeExecutable": "bash",
-      "runtimeArgs": [
-        "-c",
-        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && pnpm --filter @lelap/site dev --port ${PORT:-4321}"
-      ],
+      "runtimeArgs": ["scripts/dev-node.sh", "pnpm --filter @lelap/site dev --port ${PORT:-4321}"],
       "port": 4321
     },
     {
       "name": "site-released",
       "runtimeExecutable": "bash",
       "runtimeArgs": [
-        "-c",
-        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && PUBLIC_LELAP_RELEASED=true pnpm --filter @lelap/site dev --port 4331"
+        "scripts/dev-node.sh",
+        "PUBLIC_LELAP_RELEASED=true pnpm --filter @lelap/site dev --port 4331"
       ],
       "port": 4331
     },
@@ -23,26 +20,23 @@
       "name": "site-beta",
       "runtimeExecutable": "bash",
       "runtimeArgs": [
-        "-c",
-        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && PUBLIC_LELAP_BETA=true pnpm --filter @lelap/site dev --port 4341"
+        "scripts/dev-node.sh",
+        "PUBLIC_LELAP_BETA=true pnpm --filter @lelap/site dev --port 4341"
       ],
       "port": 4341
     },
     {
       "name": "metro",
       "runtimeExecutable": "bash",
-      "runtimeArgs": [
-        "-c",
-        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && pnpm --filter @lelap/app start"
-      ],
+      "runtimeArgs": ["scripts/dev-node.sh", "pnpm --filter @lelap/app start"],
       "port": 8081
     },
     {
       "name": "web",
       "runtimeExecutable": "bash",
       "runtimeArgs": [
-        "-c",
-        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && EXPO_PUBLIC_LELAP_PROXY=${EXPO_PUBLIC_LELAP_PROXY:-http://localhost:8788} EXPO_PUBLIC_LELAP_SYNC=${EXPO_PUBLIC_LELAP_SYNC:-http://localhost:8789} pnpm --filter @lelap/app exec expo start --web --port 8082"
+        "scripts/dev-node.sh",
+        "EXPO_PUBLIC_LELAP_PROXY=${EXPO_PUBLIC_LELAP_PROXY:-http://localhost:8788} EXPO_PUBLIC_LELAP_SYNC=${EXPO_PUBLIC_LELAP_SYNC:-http://localhost:8789} pnpm --filter @lelap/app exec expo start --web --port 8082"
       ],
       "port": 8082
     },
@@ -50,8 +44,8 @@
       "name": "proxy",
       "runtimeExecutable": "bash",
       "runtimeArgs": [
-        "-c",
-        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && pnpm --filter @lelap/proxy exec wrangler dev --port 8788"
+        "scripts/dev-node.sh",
+        "pnpm --filter @lelap/proxy exec wrangler dev --port 8788"
       ],
       "port": 8788
     },
@@ -59,8 +53,8 @@
       "name": "sync",
       "runtimeExecutable": "bash",
       "runtimeArgs": [
-        "-c",
-        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && cd services/sync && pnpm exec wrangler d1 migrations apply lelap-sync --local >/dev/null && pnpm exec wrangler dev --port 8789"
+        "scripts/dev-node.sh",
+        "cd services/sync && pnpm exec wrangler d1 migrations apply lelap-sync --local >/dev/null && pnpm exec wrangler dev --port 8789"
       ],
       "port": 8789
     },
@@ -68,8 +62,8 @@
       "name": "catalog",
       "runtimeExecutable": "bash",
       "runtimeArgs": [
-        "-c",
-        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && pnpm --filter @lelap/catalog exec wrangler dev --port 8787"
+        "scripts/dev-node.sh",
+        "pnpm --filter @lelap/catalog exec wrangler dev --port 8787"
       ],
       "port": 8787
     },
@@ -77,8 +71,8 @@
       "name": "web-dist",
       "runtimeExecutable": "bash",
       "runtimeArgs": [
-        "-c",
-        "source ~/.nvm/nvm.sh && nvm use 24 >/dev/null && cd services/proxy && pnpm exec wrangler pages dev ../../apps/app/dist-web --port 8083"
+        "scripts/dev-node.sh",
+        "cd services/proxy && pnpm exec wrangler pages dev ../../apps/app/dist-web --port 8083"
       ],
       "port": 8083
     }

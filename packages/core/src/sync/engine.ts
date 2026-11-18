@@ -108,6 +108,11 @@ function readMembership(db: Db): SyncMembership | null {
   }
 }
 
+/** Whether this device joined a sync group, even one whose key can't be opened here. */
+export function hasSyncMembership(db: Db): boolean {
+  return readMembership(db) !== null;
+}
+
 /** This device's membership, with its group key opened; null when it can't be opened here. */
 export function getMembership(db: Db): SyncMembership | null {
   const stored = readMembership(db);

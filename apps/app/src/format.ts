@@ -90,3 +90,10 @@ export const formatMonth = (month: number, width: 'short' | 'long' = 'short'): s
 
 /** The first day of the week in the phone's region: 0 Sunday, 1 Monday … 6 Saturday. */
 export const weekStartsOn = (): number => firstDayOfWeek(locale());
+
+/** Names as a sentence's list: “A”, “A and B”, “A, B and C”. */
+export function formatNames(names: string[]): string {
+  const last = names.at(-1) ?? '';
+  if (names.length < 2) return last;
+  return t('{list} and {last}', { list: names.slice(0, -1).join(', '), last });
+}

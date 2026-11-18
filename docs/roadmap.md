@@ -119,7 +119,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M107 Car and Bluetooth 3](milestones/m107.md)       | Planned     |             | Car mode sideways on phones, covers granted per car app, headphone drain counted once                    |
 | [M108 Themes](milestones/m108.md)                    | Planned     |             | Themes beyond the night theme, an accent colour, high contrast, and themes shared as a file              |
 | [M109 Series and reading order](milestones/m109.md)  | Planned     |             | Reading order within a series, "Next in the series" when a book ends, missing volumes shown              |
-| [M110 Upkeep](milestones/m110.md)                    | Planned     |             | First start leftovers, scan and play in the emulator test, developer setup fixes                         |
+| [M110 Upkeep](milestones/m110.md)                    | Done        |           2 | First start leftovers, scan and play in the emulator test, developer setup fixes                         |
 | [M111 Podcasts 6](milestones/m111.md)                | Planned     |             | A show's place on a map and podcast:value shown as information                                           |
 | [M112 Lists 2](milestones/m112.md)                   | Planned     |             | Play a list from start to end, books and episodes mixed, building on M16's lists                         |
 | [M113 Big screens 2](milestones/m113.md)             | Planned     |             | What M44 left: foldables, wider desktop layouts, resizable panes, drag to lists                          |
@@ -139,15 +139,6 @@ when it is planned.
   and maybe play downloads on it. Was M89; set aside on 2026-11-18 until there is a watch to test
   on.
 
-- **First start, small things (left from M82):** the “Free books” choice names LibriVox even in a
-  build whose default add-ons leave it out; it could name the installed ones instead. An install
-  with only add-ons, sync or listening history and no books sees the welcome once after updating;
-  `needsFirstStart` could count those too.
-- **Scan and play on the emulator (left from M94):** the emulator smoke test stops at the empty
-  Library. Scanning a pushed folder and playing a file needs the folder picker driven, or a
-  debug-only way to add a folder, and a check in logcat that playback started.
-- **Developer setup:** Babel's cache hides edits to existing `.sql` migrations (start Expo with
-  `--clear`), and `.claude/launch.json` assumes `~/.nvm/nvm.sh` (from M2's review).
 - **More from Podcasting 2.0 tags (left from M75):** play a soundbite as a clip that stops at its
   end, and list soundbites in the player; let the listener pick among alternate enclosures (a
   smaller file on mobile data) and check `podcast:integrity`; open a show's place on a map; show

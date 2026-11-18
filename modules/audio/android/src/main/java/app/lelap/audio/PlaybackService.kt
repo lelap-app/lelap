@@ -16,6 +16,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
@@ -76,6 +77,9 @@ private const val SHAKE_BATCH_US = 200_000
 
 @OptIn(UnstableApi::class)
 private const val PAUSE_SETTLE_MS = 500L
+
+// The emulator smoke test waits for this tag's "Playing" line (scripts/emulator-smoke.sh).
+private const val TAG = "LelapPlayback"
 
 class PlaybackService : MediaLibraryService() {
   private lateinit var player: ExoPlayer
@@ -1169,6 +1173,7 @@ class PlaybackService : MediaLibraryService() {
   }
 
   private fun onPlayingChanged(isPlaying: Boolean) {
+    Log.i(TAG, if (isPlaying) "Playing" else "Paused")
     account()
     bankSilence(current?.bookId)
     handler.removeCallbacks(journalTicker)
