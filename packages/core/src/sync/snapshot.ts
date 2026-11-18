@@ -26,36 +26,77 @@ function rowOf(op: Op): string {
   return `${op.type}\u0000${'profile' in op ? op.profile : ''}\u0000${op.key}`;
 }
 
+/**
+ * The row of an operation this version does not know, by the protocol's rule that the newest
+ * change to a row wins; null when it doesn't look like a row change, so it is kept as it is.
+ */
+function unknownRowOf(op: Record<string, unknown>): string | null {
+  const { type, profile, key, kind, at } = op;
+  if (typeof type !== 'string' || typeof key !== 'string' || typeof at !== 'number') return null;
+  const profilePart = typeof profile === 'string' ? profile : '';
+  const kindPart = typeof kind === 'string' ? kind : '';
+  return `?${type}\u0000${kindPart}\u0000${profilePart}\u0000${key}`;
+}
+
+/**
+ * At most this many operations of unknown types stay in a snapshot, the newest. Only a version
+ * that knows them can fold them; until one compacts, they would otherwise grow with every
+ * snapshot an older version writes.
+ */
+export const MAX_UNKNOWN_OPS = 20_000;
+
 type Held = { device: string; name: string; op: Op };
+
+const newer = (a: Held, b: Held) => a.op.at > b.op.at;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /**
  * Folds operations into the newest per row, with the result applying them in order would have:
  * on equal times the first stays, and fields a newer change leaves out (older app versions do)
- * keep their older value. Types this version does not know are kept as they are.
+ * keep their older value. Types this version does not know are folded the same way when they
+ * look like row changes, and capped at MAX_UNKNOWN_OPS.
  */
-export function snapshotReducer() {
+export function snapshotReducer(maxUnknown = MAX_UNKNOWN_OPS) {
   const rows = new Map<string, Held>();
   const unknown: Held[] = [];
+  const fold = (row: string, next: Held) => {
+    const held = rows.get(row);
+    if (held && !newer(next, held)) return;
+    const { op } = next;
+    const merged =
+      held && 'data' in held.op && 'data' in op && isRecord(held.op.data) && isRecord(op.data)
+        ? ({ ...op, data: { ...held.op.data, ...op.data } } as Op)
+        : op;
+    rows.set(row, { ...next, op: merged });
+  };
   return {
     add(device: string, name: string, ops: Op[]): void {
       for (const op of ops) {
-        if (!knownOp(op)) {
-          unknown.push({ device, name, op });
+        if (typeof op !== 'object' || op === null) continue;
+        if (knownOp(op)) {
+          fold(rowOf(op), { device, name, op });
           continue;
         }
-        const row = rowOf(op);
-        const held = rows.get(row);
-        if (held && op.at <= held.op.at) continue;
-        const merged =
-          held && 'data' in held.op && 'data' in op
-            ? ({ ...op, data: { ...held.op.data, ...op.data } } as Op)
-            : op;
-        rows.set(row, { device, name, op: merged });
+        const row = unknownRowOf(op as unknown as Record<string, unknown>);
+        if (row === null) unknown.push({ device, name, op });
+        else fold(row, { device, name, op });
       }
     },
     entries(): SnapshotEntry[] {
+      const known: Held[] = [];
+      const others: Held[] = [...unknown];
+      for (const [row, held] of rows) (row.startsWith('?') ? others : known).push(held);
+      // The newest stay; the order among them is the order they came in.
+      let kept = others;
+      if (others.length > maxUnknown) {
+        const at = (h: Held) => (typeof h.op.at === 'number' ? h.op.at : 0);
+        const cut = new Set([...others].sort((a, b) => at(b) - at(a)).slice(0, maxUnknown));
+        kept = others.filter((h) => cut.has(h));
+      }
       const byDevice = new Map<string, SnapshotEntry>();
-      for (const { device, name, op } of [...rows.values(), ...unknown]) {
+      for (const { device, name, op } of [...known, ...kept]) {
         const id = `${device}\u0000${name}`;
         const entry = byDevice.get(id) ?? { device, name, ops: [] };
         entry.ops.push(op);

@@ -99,7 +99,7 @@ export default function SyncScreen() {
                     'The sync key stays on the phone it was made on and is not in backups. Your library is here; join again with a code from one of your devices.',
                   )
                 : t(
-                    'Another device reset sync, so this one stopped syncing. Your library is still here. Join again with a code from one of your devices.',
+                    'Sync stopped on this device: another device reset it, or no device synced for a long time. Your library is still here. Join again with a code from one of your devices.',
                   )}
             </Text>
           )}

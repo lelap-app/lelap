@@ -18,6 +18,8 @@ export const LIMITS = {
   partsPerUpload: 50,
   /** Parts per page when a device reads a snapshot. */
   partsPerPage: 20,
+  /** A pull notes the group as used at most this often, so pulls stay reads. */
+  seenEveryMs: 24 * 60 * 60_000,
 };
 
 export type Limits = typeof LIMITS;
@@ -154,6 +156,9 @@ export function createApp(
         410,
       );
     }
+    // Expiry goes by the last sync, not the last push: a device with nothing to send still uses
+    // the group.
+    if (now() - group.lastPushAt >= limits.seenEveryMs) await store.seen(id, now());
     const messages = await store.read(id, after, Math.min(limits.pullMax, limit));
     return c.json({ messages, last: messages.at(-1)?.seq ?? after });
   });

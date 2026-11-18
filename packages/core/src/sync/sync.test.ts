@@ -31,7 +31,8 @@ import {
 } from '../organise';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { saveProgress } from '../progress';
-import { books, settings } from '../schema';
+import { books, settings, subscriptions, syncState } from '../schema';
+import { getSourceChoice, setSourceChoice } from '../addons/sources';
 import { getSettings, setSetting } from '../settings';
 import { addToUpNext, listUpNext } from '../upNext';
 import {
@@ -51,12 +52,14 @@ import {
   getMembership,
   joinWithCode,
   offerPairing,
+  packMessages,
   removedFromSync,
   resetSync,
   startSync,
   syncNow,
 } from './engine';
 import { bookIdForKey } from './keys';
+import { applyOps, collectOps, fillMissingSkips, type Op } from './ops';
 
 function must<T>(value: T | undefined): T {
   if (value === undefined) throw new Error('missing');
@@ -395,5 +398,148 @@ describe('sync between two devices', () => {
       title: 'Roses',
       positionMs: 4_000,
     });
+  });
+
+  it('carries the source picked for a work, checked, and old versions skip it', async () => {
+    const choice = { addonUrl: 'https://addon.example/manifest.json', sourceKey: 'garden:128kb' };
+    setSourceChoice(phone, ME, 'audiobook', 'librivox:garden', choice, 30);
+    await syncNow(phone, server, random, 100, newId);
+    await syncNow(laptop, server, random, 110, newId);
+    expect(getSourceChoice(laptop, ME, 'audiobook', 'librivox:garden')).toEqual(choice);
+    // The source choice is no playback setting.
+    expect(getSettings(laptop, ME)).not.toHaveProperty('source:audiobook:librivox:garden');
+
+    // A newer pick wins; an older one, or one that isn't a source, changes nothing.
+    const later = { ...choice, sourceKey: 'garden:64kb' };
+    const op = (at: number, data: unknown) =>
+      ({ type: 'source', profile: ME, key: 'audiobook:librivox:garden', at, data }) as Op;
+    applyOps(laptop, [op(20, later)], 120, newId);
+    applyOps(laptop, [op(40, { addonUrl: 'javascript:alert(1)', sourceKey: 'x' })], 120, newId);
+    applyOps(laptop, [op(41, { addonUrl: choice.addonUrl })], 120, newId);
+    applyOps(laptop, [{ ...op(42, later), key: 'no-type' }], 120, newId);
+    expect(getSourceChoice(laptop, ME, 'audiobook', 'librivox:garden')).toEqual(choice);
+    applyOps(laptop, [op(50, later)], 120, newId);
+    expect(getSourceChoice(laptop, ME, 'audiobook', 'librivox:garden')).toEqual(later);
+
+    // A version before M68 knows no `source`: it sorts last and is skipped, as any unknown type.
+    const unknown = { type: 'rating', profile: ME, key: 'k', at: 60, data: {} } as unknown as Op;
+    expect(applyOps(laptop, [unknown], 130, newId)).toEqual([]);
+  });
+
+  it('sends a large first sync in messages and pushes the server takes', async () => {
+    const pushes: number[] = [];
+    const push = server.push;
+    server.push = async (id, token, device, messages) => {
+      pushes.push(messages.length);
+      return push(id, token, device, messages);
+    };
+    // 60 lists of about 100 KB each: two to a message would pass the server's 256 KB.
+    for (let i = 0; i < 60; i++) {
+      createPlaylist(phone, ME, newId, { name: `${i} ${'x'.repeat(100_000)}`, rule: null }, 10);
+    }
+    expect((await syncNow(phone, server, random, 100, newId)).pushed).toBeGreaterThan(60);
+    expect(pushes.length).toBeGreaterThan(1);
+    expect(Math.max(...pushes)).toBeLessThanOrEqual(50);
+    await syncNow(laptop, server, random, 110, newId);
+    expect(listPlaylists(laptop, ME)).toHaveLength(60);
+  });
+
+  it('packs messages by size and count, leaving out a change too large to send', () => {
+    const setting = (i: number, size = 1000): Op => ({
+      type: 'setting',
+      profile: ME,
+      key: 'mono',
+      at: i,
+      data: { value: 'x'.repeat(size) },
+    });
+    const huge = setting(0, 200_000);
+    const envelopes = packMessages(
+      [huge, ...Array.from({ length: 450 }, (_, i) => setting(i + 1))],
+      'd',
+      'Phone',
+    );
+    expect(envelopes.length).toBe(3);
+    for (const e of envelopes) expect(JSON.stringify(e).length).toBeLessThanOrEqual(190_000);
+    expect(envelopes.flatMap((e) => e.ops)).toHaveLength(450);
+    expect(envelopes.flatMap((e) => e.ops)).not.toContain(huge);
+    const small = packMessages(
+      Array.from({ length: 450 }, (_, i) => setting(i, 0)),
+      'd',
+      'Phone',
+    );
+    expect(small.map((e) => e.ops.length)).toEqual([200, 200, 50]);
+  });
+
+  it('fills in a show’s intro and outro that a version before M45 left out', async () => {
+    const xml = `<rss><channel><title>Garden Hour</title></channel></rss>`;
+    const feedUrl = 'https://feeds.example/garden.xml';
+    const show = (db: Db) =>
+      saveFeed(db, feedUrl, parseFeed(xml), { etag: null, lastModified: null }, 10, newId)
+        .podcastId;
+    const podcastId = show(phone);
+    subscribe(phone, ME, podcastId, 11);
+    setTrim(phone, ME, podcastId, { skipIntroMs: 30_000, skipOutroMs: 15_000 }, 12);
+    await syncNow(phone, server, random, 100, newId);
+    await syncNow(laptop, server, random, 110, newId);
+    // As an old version left it: the change's time, but no intro or outro.
+    laptop.update(subscriptions).set({ skipIntroMs: 0, skipOutroMs: 0 }).run();
+    laptop.delete(syncState).where(eq(syncState.key, 'skipsFilled')).run();
+
+    await syncNow(laptop, server, random, 120, newId);
+    expect(listSubscriptions(laptop, ME)[0]).toMatchObject({
+      skipIntroMs: 30_000,
+      skipOutroMs: 15_000,
+    });
+    // The row keeps its time, so it is not sent back.
+    expect(laptop.select().from(subscriptions).get()?.updatedAt).toBe(12);
+    expect(collectOps(laptop, 110).filter((op) => op.type === 'subscription')).toEqual([]);
+    // Once per device: a show cleared later stays cleared.
+    laptop.update(subscriptions).set({ skipIntroMs: 0, skipOutroMs: 0 }).run();
+    await syncNow(laptop, server, random, 130, newId);
+    expect(listSubscriptions(laptop, ME)[0]?.skipIntroMs).toBe(0);
+  });
+
+  it('fills intro and outro only from the newest change that carries them', () => {
+    const feedUrl = 'https://feeds.example/garden.xml';
+    const { podcastId } = saveFeed(
+      laptop,
+      feedUrl,
+      parseFeed('<rss><channel><title>Garden Hour</title></channel></rss>'),
+      { etag: null, lastModified: null },
+      10,
+      newId,
+    );
+    subscribe(laptop, ME, podcastId, 50);
+    const sub = (at: number, skips: { skipIntroMs?: number; skipOutroMs?: number }): Op => ({
+      type: 'subscription',
+      profile: ME,
+      key: feedUrl,
+      at,
+      data: {
+        title: 'Garden Hour',
+        coverUrl: null,
+        autoDownload: false,
+        keepLatest: 0,
+        subscribedAt: 1,
+        ...skips,
+      },
+    });
+    const removed: Op = { type: 'delete', kind: 'subscription', profile: ME, key: feedUrl, at: 30 };
+    // Removed after the only change with values: a later subscription starts without them.
+    expect(
+      fillMissingSkips(laptop, [sub(20, { skipIntroMs: 9_000 }), removed, sub(40, {})], 100),
+    ).toBe(0);
+    // A newer 0 wins over an older value.
+    expect(
+      fillMissingSkips(
+        laptop,
+        [sub(35, { skipIntroMs: 9_000 }), sub(45, { skipIntroMs: 0, skipOutroMs: 0 })],
+        100,
+      ),
+    ).toBe(0);
+    // Not yet pushed from here: left alone.
+    expect(fillMissingSkips(laptop, [sub(35, { skipIntroMs: 9_000 })], 40)).toBe(0);
+    expect(fillMissingSkips(laptop, [sub(35, { skipIntroMs: 9_000 }), sub(40, {})], 100)).toBe(1);
+    expect(listSubscriptions(laptop, ME)[0]).toMatchObject({ skipIntroMs: 9_000, skipOutroMs: 0 });
   });
 });

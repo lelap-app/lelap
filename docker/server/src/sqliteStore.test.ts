@@ -74,6 +74,10 @@ describe('sync on Node SQLite', () => {
       snapshotParts: 1,
       lastPushAt: 3_000,
     });
+    await store.seen('g'.repeat(32), 2_500);
+    expect((await store.group('g'.repeat(32)))?.lastPushAt).toBe(3_000);
+    await store.seen('i'.repeat(32), 1_500);
+    expect((await store.group('i'.repeat(32)))?.lastPushAt).toBe(1_500);
     expect(await store.expireIdle(2_000)).toBe(1);
     expect(await store.group('i'.repeat(32))).toBeNull();
     expect(await store.group('g'.repeat(32))).not.toBeNull();

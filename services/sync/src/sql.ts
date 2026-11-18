@@ -10,6 +10,8 @@ export const SQL = {
   insertMessage:
     'INSERT INTO messages (group_id, device, data, created_at) VALUES (?1, ?2, ?3, ?4)',
   pushed: 'UPDATE groups SET bytes = bytes + ?2, last_push_at = ?3 WHERE id = ?1',
+  /** A pull keeps the group too; `last_push_at` has meant “last sync” since M68. */
+  seen: 'UPDATE groups SET last_push_at = MAX(last_push_at, ?2) WHERE id = ?1',
   read: 'SELECT seq, device, data, created_at AS at FROM messages WHERE group_id = ?1 AND seq > ?2 ORDER BY seq LIMIT ?3',
   older:
     'SELECT COUNT(*) AS messages, COALESCE(SUM(LENGTH(data)), 0) AS bytes FROM messages WHERE group_id = ?1 AND created_at < ?2',

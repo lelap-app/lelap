@@ -27,6 +27,9 @@ export function d1Store(db: D1Database): SyncStore {
       const { results } = await q(SQL.read, id, after, limit).all<Message>();
       return results;
     },
+    async seen(id, now) {
+      await q(SQL.seen, id, now).run();
+    },
     async older(id, before) {
       const row = await q(SQL.older, id, before).first<{ messages: number; bytes: number }>();
       return row ?? { messages: 0, bytes: 0 };

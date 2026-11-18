@@ -1,8 +1,9 @@
-import { eq } from 'drizzle-orm';
+import { utf8ToBytes } from '@noble/ciphers/utils.js';
+import { and, eq } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
-import { syncState } from '../schema';
+import { subscriptions, syncState } from '../schema';
 import { isSealed, secretBox } from '../secrets';
 import { type SyncClient, SyncError } from './client';
 import {
@@ -19,7 +20,7 @@ import {
   toBase64Url,
   toHex,
 } from './crypto';
-import { applyOps, collectOps, type Handoff, type Op } from './ops';
+import { applyOps, collectOps, fillMissingSkips, type Handoff, type Op } from './ops';
 import {
   applySnapshot,
   openSnapshot,
@@ -44,12 +45,44 @@ export type SyncMembership = {
   compactCheckedAt?: number;
 };
 
-type Envelope = { v: 1; device: string; name: string; ops: Op[] };
+/** What one sealed message holds. */
+export type Envelope = { v: 1; device: string; name: string; ops: Op[] };
+
+/**
+ * A message's envelope: null when it is not one (it can never be applied anywhere), `newer` when
+ * a newer version of Lelap wrote it.
+ */
+function readEnvelope(text: string | null): Envelope | 'newer' | null {
+  if (text === null) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  const envelope = parsed as Partial<Envelope> & { v?: unknown };
+  if (envelope.v !== 1) return typeof envelope.v === 'number' ? 'newer' : null;
+  if (!Array.isArray(envelope.ops)) return null;
+  return {
+    v: 1,
+    device: typeof envelope.device === 'string' ? envelope.device : '',
+    name: typeof envelope.name === 'string' ? envelope.name : '',
+    ops: envelope.ops.filter((op): op is Op => typeof op === 'object' && op !== null),
+  };
+}
 
 const STATE_KEY = 'membership';
 /** Set when this device stopped syncing on its own: its group was reset, or its key was lost. */
 const REMOVED_KEY = 'removed';
 const OPS_PER_MESSAGE = 200;
+/**
+ * Plain text per message. Sealed and in base64 a message grows by a third, and the server takes
+ * up to 256 KB; a change larger than this alone could never be sent, so it is left out.
+ */
+const MESSAGE_BYTES = 190_000;
+/** Messages per push, as the server takes them. */
+const MESSAGES_PER_PUSH = 50;
 const PULL_LIMIT = 200;
 const SNAPSHOT_PAGE = 20;
 const SNAPSHOT_UPLOAD = 50;
@@ -97,8 +130,9 @@ export function leaveSync(db: Db): void {
 }
 
 /**
- * Why this device stopped syncing without being asked: another device reset sync (`reset`), or
- * the group key did not come back with a restored backup (`restore`). Null otherwise.
+ * Why this device stopped syncing without being asked: its group is gone (`reset`: another device
+ * reset sync, or the server expired the group after no device synced for a long time), or the
+ * group key did not come back with a restored backup (`restore`). Null otherwise.
  */
 export type SyncRemoval = { at: number; reason: 'reset' | 'restore' };
 
@@ -275,7 +309,7 @@ export async function syncNow(
     try {
       page = await client.pull(membership.groupId, token, cursor, PULL_LIMIT);
     } catch (error) {
-      // The group is gone: another device reset sync. Stop here; the data stays.
+      // The group is gone: another device reset sync, or it expired. Stop here; the data stays.
       if (error instanceof SyncError && error.status === 403) {
         markRemoved(db, 'reset', now);
         return { pulled: 0, pushed: 0, handoffs: [] };
@@ -294,10 +328,8 @@ export async function syncNow(
     }
     for (const message of page.messages) {
       if (message.device === membership.deviceId) continue;
-      const text = open(enc, context, message.data);
-      if (!text) continue;
-      const envelope = JSON.parse(text) as Envelope;
-      if (envelope.v !== 1) continue;
+      const envelope = readEnvelope(open(enc, context, message.data));
+      if (envelope === null || envelope === 'newer') continue;
       const handoffs = applyOps(db, envelope.ops, now, newId);
       result.pulled += envelope.ops.length;
       for (const h of handoffs) result.handoffs.push({ ...h, deviceName: envelope.name });
@@ -306,19 +338,17 @@ export async function syncNow(
     if (page.messages.length < PULL_LIMIT) break;
   }
 
+  // Once per device: shows a version before M45 kept without their intro and outro.
+  if (!skipsFilled(db)) {
+    await fillSkipsFromGroup(db, client, membership, token, enc, now).catch(() => {});
+  }
+
   // Collected after the pull, so what just arrived is not sent straight back (much).
   const since = membership.pushedAt;
   const ops = collectOps(db, since);
-  const messages: string[] = [];
-  for (let i = 0; i < ops.length; i += OPS_PER_MESSAGE) {
-    const envelope: Envelope = {
-      v: 1,
-      device: membership.deviceId,
-      name: membership.deviceName,
-      ops: ops.slice(i, i + OPS_PER_MESSAGE),
-    };
-    messages.push(seal(enc, context, JSON.stringify(envelope), random));
-  }
+  const messages = packMessages(ops, membership.deviceId, membership.deviceName).map((envelope) =>
+    seal(enc, context, JSON.stringify(envelope), random),
+  );
   // Before the push, so a full group gets room. Upkeep only: a failure is tried again tomorrow
   // and never fails the sync; the day is saved first, so a crash mid-way doesn't repeat it.
   let current: SyncMembership = { ...membership, cursor };
@@ -327,22 +357,116 @@ export async function syncNow(
     saveMembership(db, current, now);
     await compact(client, membership.groupId, token, enc, random).catch(() => false);
   }
-  const push = () => client.push(membership.groupId, token, membership.deviceId, messages);
-  try {
-    await push();
-  } catch (error) {
-    // The group is full: whatever is old enough goes into a snapshot, then try once more.
-    if (!(error instanceof SyncError && error.status === 413)) throw error;
-    const freed = await compact(client, membership.groupId, token, enc, random, 0).catch(
-      () => false,
-    );
-    if (!freed) throw error;
-    await push();
+  // In batches the server takes. A batch that fails leaves `pushedAt` as it was, so the next sync
+  // sends everything again; applying a change twice changes nothing.
+  let freed = false;
+  for (let i = 0; i < messages.length; i += MESSAGES_PER_PUSH) {
+    const batch = messages.slice(i, i + MESSAGES_PER_PUSH);
+    const push = () => client.push(membership.groupId, token, membership.deviceId, batch);
+    try {
+      await push();
+    } catch (error) {
+      // The group is full: whatever is old enough goes into a snapshot, then try once more.
+      if (freed || !(error instanceof SyncError && error.status === 413)) throw error;
+      freed = await compact(client, membership.groupId, token, enc, random, 0).catch(() => false);
+      if (!freed) throw error;
+      await push();
+    }
   }
   result.pushed = ops.length;
 
   saveMembership(db, { ...current, pushedAt: now, lastSyncAt: now }, now);
   return result;
+}
+
+const textBytes = (value: unknown) => utf8ToBytes(JSON.stringify(value)).length;
+
+/**
+ * Splits operations into envelopes of at most OPS_PER_MESSAGE operations and MESSAGE_BYTES of
+ * text. A single change too large for any message is left out rather than stopping every sync.
+ */
+export function packMessages(ops: Op[], device: string, name: string): Envelope[] {
+  const envelopes: Envelope[] = [];
+  const empty = textBytes({ v: 1, device, name, ops: [] });
+  let current: Op[] = [];
+  let bytes = empty;
+  for (const op of ops) {
+    const size = textBytes(op) + 1;
+    if (empty + size > MESSAGE_BYTES) continue;
+    if (current.length >= OPS_PER_MESSAGE || bytes + size > MESSAGE_BYTES) {
+      envelopes.push({ v: 1, device, name, ops: current });
+      current = [];
+      bytes = empty;
+    }
+    current.push(op);
+    bytes += size;
+  }
+  if (current.length > 0) envelopes.push({ v: 1, device, name, ops: current });
+  return envelopes;
+}
+
+/** Set once this device has looked for intro and outro values it missed (M68). */
+const SKIPS_KEY = 'skipsFilled';
+
+function skipsFilled(db: Db): boolean {
+  return db.select().from(syncState).where(eq(syncState.key, SKIPS_KEY)).get() !== undefined;
+}
+
+/**
+ * Reads the group's snapshot and log once, for `fillMissingSkips`. Only when some show here reads
+ * 0 and 0, which is the only case it can change; this device's own messages count too, since a
+ * newer change from here wins over another device's older one.
+ */
+async function fillSkipsFromGroup(
+  db: Db,
+  client: SyncClient,
+  { groupId, pushedAt }: SyncMembership,
+  token: string,
+  enc: Uint8Array,
+  now: number,
+): Promise<void> {
+  // A device that never pushed has nothing older than the group to fill in.
+  const unset =
+    pushedAt > 0 &&
+    db
+      .select({ at: subscriptions.updatedAt })
+      .from(subscriptions)
+      .where(and(eq(subscriptions.skipIntroMs, 0), eq(subscriptions.skipOutroMs, 0)))
+      .get();
+  if (unset) {
+    const ops: Op[] = [];
+    const keep = (list: Op[]) => {
+      for (const op of list) {
+        if (op.type === 'subscription' || (op.type === 'delete' && op.kind === 'subscription')) {
+          ops.push(op);
+        }
+      }
+    };
+    let after = 0;
+    for (;;) {
+      let page: Awaited<ReturnType<SyncClient['pull']>>;
+      try {
+        page = await client.pull(groupId, token, after, PULL_LIMIT);
+      } catch (error) {
+        if (!(error instanceof SyncError && error.status === 410) || after > 0) throw error;
+        const snapshot = await readSnapshot(client, groupId, token, enc);
+        for (const entry of snapshot.entries) keep(entry.ops);
+        after = snapshot.covers;
+        continue;
+      }
+      for (const message of page.messages) {
+        const envelope = readEnvelope(open(enc, groupId, message.data));
+        if (envelope !== null && envelope !== 'newer') keep(envelope.ops);
+      }
+      after = Math.max(after, page.last);
+      if (page.messages.length < PULL_LIMIT) break;
+    }
+    fillMissingSkips(db, ops, pushedAt);
+  }
+  db.insert(syncState)
+    .values({ key: SKIPS_KEY, value: '1', updatedAt: now })
+    .onConflictDoNothing()
+    .run();
 }
 
 /** The group's snapshot, read and opened; throws when there is none or it does not open. */
@@ -399,22 +523,30 @@ export async function compact(
   }
   const from = covers;
   let after = covers;
+  let opened = info.snapshot !== null;
+  let unreadable = false;
   read: for (;;) {
     const page = await client.pull(groupId, token, after, PULL_LIMIT);
     for (const message of page.messages) {
       // Servers before M52 don't date messages; those never get here (no info above).
       if (message.at === undefined || message.at >= cutoff) break read;
-      const text = open(enc, groupId, message.data);
-      if (!text) return false;
-      const envelope = JSON.parse(text) as Envelope;
-      if (envelope.v !== 1) return false;
-      reducer.add(message.device, envelope.name, envelope.ops);
+      const envelope = readEnvelope(open(enc, groupId, message.data));
+      // A newer version's message waits for a version that can read it.
+      if (envelope === 'newer') return false;
+      // One that doesn't open with the group's key, or isn't an envelope, no device can apply
+      // (sync skips it too), so it may go.
+      if (envelope === null) unreadable = true;
+      else {
+        opened = true;
+        reducer.add(message.device, envelope.name, envelope.ops);
+      }
       covers = message.seq;
     }
     after = page.last;
     if (page.messages.length < PULL_LIMIT) break;
   }
-  if (covers === from) return false;
+  // Nothing opened at all: rather a fault here than a group whose every message is unreadable.
+  if (covers === from || (unreadable && !opened)) return false;
 
   const upload = toHex(random(16));
   const sealed = sealSnapshot(enc, groupId, covers, upload, reducer.entries(), random);

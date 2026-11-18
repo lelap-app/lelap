@@ -3,7 +3,7 @@ import type { SyncStore } from './store';
 const DAY_MS = 24 * 60 * 60_000;
 
 /**
- * How long a group may go without a push, from `SYNC_IDLE_EXPIRY_DAYS`. Unset, empty or 0 means
+ * How long a group may go without a sync, from `SYNC_IDLE_EXPIRY_DAYS`. Unset, empty or 0 means
  * never, the default for self-hosters; anything else that is not a whole number of days too, so a
  * typo never deletes groups.
  */
