@@ -13,6 +13,7 @@ import {
   LATEST_PROTOCOL_VERSION,
   needsConfiguration,
   protocolVersionOf,
+  scrobblesWithSettings,
 } from '@lelap/sdk';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -33,6 +34,10 @@ import { db } from '../src/db';
 import { useLibrary } from '../src/player';
 import { activeProfile } from '../src/profile';
 import { TextButton } from '../src/components/TextButton';
+import { bundledScrobblers, scrobblersWork } from '../src/scrobblers';
+
+const openScrobbler = (router: ReturnType<typeof useRouter>, url: string) =>
+  router.push({ pathname: '/scrobbler', params: { url } });
 
 const STATE_COLOR: Record<HealthState, string> = {
   unknown: COLORS.muted,
@@ -75,6 +80,7 @@ function healthLines(health: AddonHealth, now: number): string[] {
 }
 
 function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void }) {
+  const router = useRouter();
   const health = useAddonHealth(addon.url);
   const state = healthState(health);
   const newer = protocolVersionOf(addon.manifest) > LATEST_PROTOCOL_VERSION;
@@ -93,6 +99,16 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
             className="min-h-12 justify-center rounded-full border border-line px-3 active:bg-raised"
           >
             <Text className="text-sm text-amber">{t('Configure')}</Text>
+          </Pressable>
+        )}
+        {scrobblesWithSettings(addon.manifest) && (
+          <Pressable
+            onPress={() => openScrobbler(router, addon.url)}
+            accessibilityRole="button"
+            accessibilityLabel={t('Settings for {name}', { name: addon.manifest.name })}
+            className="min-h-12 justify-center rounded-full border border-line px-3 active:bg-raised"
+          >
+            <Text className="text-sm text-amber">{t('Settings')}</Text>
           </Pressable>
         )}
         <IconButton
@@ -273,6 +289,42 @@ function AddonsManager() {
         <AddonRow key={addon.url} addon={addon} onMore={() => setMenu(addon)} />
       ))}
       {addons.length === 0 && <Text className="py-4 text-muted">{t('No add-ons installed.')}</Text>}
+
+      {bundledScrobblers().some((s) => !addons.some((a) => a.url === s.url)) && (
+        <Text
+          accessibilityRole="header"
+          className="pt-6 text-xs uppercase tracking-wider text-muted"
+        >
+          {t('Comes with Lelap')}
+        </Text>
+      )}
+      {bundledScrobblers()
+        .filter((s) => !addons.some((a) => a.url === s.url))
+        .map((s) => (
+          <View key={s.url} className="gap-1 border-b border-line py-4">
+            <View className="flex-row items-center gap-3">
+              <Text className="flex-1 text-base text-paper">{s.manifest.name}</Text>
+              {scrobblersWork && (
+                <Pressable
+                  onPress={() => openScrobbler(router, s.url)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('Set up {name}', { name: s.manifest.name })}
+                  className="min-h-12 justify-center rounded-full border border-line px-3 active:bg-raised"
+                >
+                  <Text className="text-sm text-amber">{t('Set up')}</Text>
+                </Pressable>
+              )}
+            </View>
+            <Text className="text-sm text-soft">{s.manifest.description}</Text>
+            {!scrobblersWork && (
+              <Text className="text-xs text-muted">
+                {t(
+                  'This works in the Android app only: it signs in with a cookie, which a browser keeps from the page.',
+                )}
+              </Text>
+            )}
+          </View>
+        ))}
 
       <Text accessibilityRole="header" className="pt-6 text-xs uppercase tracking-wider text-muted">
         {t('Add an add-on')}

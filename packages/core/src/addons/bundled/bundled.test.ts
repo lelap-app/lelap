@@ -83,7 +83,10 @@ describe('bundled add-ons', () => {
   });
 
   it('declares valid library sources with a sandbox, and plex.tv as the only fixed host', () => {
-    for (const addon of bundledAddons()) {
+    // The Open Library reading log (M61) is a scrobbler, not a library source.
+    for (const addon of bundledAddons().filter(
+      (a) => a.manifest.id !== 'app.lelap.openlibrary-log',
+    )) {
       expect(offersLibrary(addon.manifest)).toBe(true);
       expect(addon.manifest.sandbox?.hosts).toEqual(
         addon.manifest.id === 'app.lelap.plex' ? ['plex.tv:443'] : [],

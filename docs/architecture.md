@@ -23,23 +23,23 @@ directly.
 
 ## Where code lives
 
-| Folder              | What                                                                                                                               |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/app`          | Expo app for Android and web: `app/` screens (Expo Router), `src/` hooks and platform glue                                         |
-| `apps/site`         | Landing page and developer docs (Astro, static)                                                                                    |
-| `packages/core`     | Domain model, Drizzle schema and migrations, library, add-on client, sync, stats, seek                                             |
-| `packages/sdk`      | Add-on protocol as zod schemas, `createAddon()`; MIT, on npm                                                                       |
-| `modules/audio`     | Media3 playback service: queue of parts, speed, focus, sleep timer, sound effects                                                  |
-| `modules/library`   | Folder access, tags and chapters for local files                                                                                   |
-| `modules/download`  | WorkManager downloads with Wi-Fi and charging rules                                                                                |
-| `modules/cast`      | UPnP, an own Cast v2 client, FCast, and a LAN file server                                                                          |
-| `modules/updater`   | In-app APK updates through PackageInstaller                                                                                        |
-| `modules/widget`    | Home screen widget and Quick Settings tile                                                                                         |
-| `modules/bluetooth` | Connected audio devices, their battery, car detection                                                                              |
-| `services/*`        | Hono services: `catalog` (Catalog, LibriVox, Hardcover, gPodder, Open Library reading log), `proxy`, `sync`, `updates`, `template` |
-| `docker/`           | Node entries, Dockerfiles and compose for self-hosting                                                                             |
-| `examples/`         | Add-on samples in Node, Python and in-app JavaScript; tested in CI                                                                 |
-| `scripts/`          | Release helpers for the tag workflow                                                                                               |
+| Folder              | What                                                                                                     |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `apps/app`          | Expo app for Android and web: `app/` screens (Expo Router), `src/` hooks and platform glue               |
+| `apps/site`         | Landing page and developer docs (Astro, static)                                                          |
+| `packages/core`     | Domain model, Drizzle schema and migrations, library, add-on client, sync, stats, seek                   |
+| `packages/sdk`      | Add-on protocol as zod schemas, `createAddon()`; MIT, on npm                                             |
+| `modules/audio`     | Media3 playback service: queue of parts, speed, focus, sleep timer, sound effects                        |
+| `modules/library`   | Folder access, tags and chapters for local files                                                         |
+| `modules/download`  | WorkManager downloads with Wi-Fi and charging rules                                                      |
+| `modules/cast`      | UPnP, an own Cast v2 client, FCast, and a LAN file server                                                |
+| `modules/updater`   | In-app APK updates through PackageInstaller                                                              |
+| `modules/widget`    | Home screen widget and Quick Settings tile                                                               |
+| `modules/bluetooth` | Connected audio devices, their battery, car detection                                                    |
+| `services/*`        | Hono services: `catalog` (Catalog, LibriVox, Hardcover, gPodder), `proxy`, `sync`, `updates`, `template` |
+| `docker/`           | Node entries, Dockerfiles and compose for self-hosting                                                   |
+| `examples/`         | Add-on samples in Node, Python and in-app JavaScript; tested in CI                                       |
+| `scripts/`          | Release helpers for the tag workflow                                                                     |
 
 ### Layers inside the app
 

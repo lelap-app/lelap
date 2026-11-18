@@ -1,6 +1,14 @@
 import { t } from '../i18n';
 import { bundledAddon, getLocalAddonCode, hostAllowed, listAddons } from '@lelap/core';
-import { libraryPath, type PlaceReport, placePath, type Settings, signinPath } from '@lelap/sdk';
+import {
+  libraryPath,
+  type PlaceReport,
+  placePath,
+  type ScrobbleEvent,
+  scrobblePath,
+  type Settings,
+  signinPath,
+} from '@lelap/sdk';
 
 import { db } from '../db';
 import { sandboxPage } from './page';
@@ -125,7 +133,17 @@ async function fetchFor(box: Box, id: string, url: string, init: RequestInit | u
     const text = await response.text();
     if (text.length > MAX_RESPONSE_CHARS) throw new Error(t('The answer was too large.'));
     const type = response.headers.get('content-type');
-    reply({ status: response.status, text, headers: type ? { 'content-type': type } : {} });
+    // A login's cookie, for an add-on that signs in with one (M61). Only on Android: a browser
+    // never shows it to a page, and the app's own cookies are never sent (`credentials: 'omit'`).
+    const cookie = response.headers.get('set-cookie');
+    reply({
+      status: response.status,
+      text,
+      headers: {
+        ...(type ? { 'content-type': type } : {}),
+        ...(cookie ? { 'set-cookie': cookie } : {}),
+      },
+    });
   } catch (error) {
     reply({ error: error instanceof Error ? error.message : String(error) });
   } finally {
@@ -188,7 +206,12 @@ async function call(
   box: Box,
   path: string,
   settings?: Settings,
-  extra: { place?: PlaceReport; signin?: { state?: string }; timeoutMs?: number } = {},
+  extra: {
+    place?: PlaceReport;
+    signin?: { state?: string };
+    events?: ScrobbleEvent[];
+    timeoutMs?: number;
+  } = {},
 ): Promise<{ status: number; body: unknown }> {
   if (!box.ready || !box.post) {
     await new Promise<void>((resolve, reject) => {
@@ -221,6 +244,7 @@ async function call(
         ...(settings ? { settings } : {}),
         ...(extra.place ? { place: extra.place } : {}),
         ...(extra.signin ? { signin: extra.signin } : {}),
+        ...(extra.events ? { events: extra.events } : {}),
       }),
     );
   });
@@ -296,6 +320,24 @@ export async function callAddonSignin(args: {
   return call(serverBox(args), signinPath(args.step), args.settings, {
     signin: args.state === undefined ? {} : { state: args.state },
   });
+}
+
+/**
+ * Hands a scrobbler inside the app (revision 8) a batch of events with its settings, in a sandbox
+ * of its own that reaches only `hosts`. No events is the check made when it is set up.
+ */
+export async function callAddonScrobble(args: {
+  addonUrl: string;
+  hosts: string[];
+  settings: Settings;
+  events: ScrobbleEvent[];
+}): Promise<{ status: number; body: unknown }> {
+  return call(
+    serverBox({ addonUrl: args.addonUrl, sandboxId: 'scrobble', hosts: args.hosts }),
+    scrobblePath(),
+    args.settings,
+    { events: args.events, timeoutMs: PLACE_TIMEOUT_MS },
+  );
 }
 
 /** Runs code that isn't installed yet, with no network, to read its manifest. */

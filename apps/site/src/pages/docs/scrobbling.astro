@@ -69,23 +69,28 @@ const catalog = `catalog.${site.domain}`;
   </p>
   <ol>
     <li>
-      Open Library has no API tokens; it signs apps in with your archive.org S3 keys instead of your
+      Open Library has no API tokens; apps sign in with your archive.org S3 keys instead of your
       password. Signed in with the account you use on Open Library, open{' '}
       <a href="https://archive.org/account/s3.php">archive.org/account/s3.php</a> and copy the
       access key and the secret key.
     </li>
     <li>
-      Open <code>https://{catalog}/open-library/configure</code>, paste both and make your add-on
-      link. The add-on signs in once to check them.
+      In {site.name}, open Settings → Add-ons. Under Comes with {site.name}, choose Set up next to
+      Open Library reading log, paste both keys and choose Check and save.
     </li>
-    <li>In {site.name}, open Settings → Add-ons and paste the link.</li>
   </ol>
   <p>
-    Books from the Catalog are Open Library works already. Books from other add-ons count when the
-    add-on gives their Open Library work ID; all others, your own files among them, are skipped
-    rather than guessed. The S3 keys also work for archive.org itself, such as uploads, so keep the
-    link to yourself. To stop the add-on, make new keys on the same archive.org page; the link made
-    with the old ones then no longer signs in.
+    The add-on runs inside the app, in a sandbox that can reach only openlibrary.org. The keys stay
+    on your phone, sealed with its key store, and are never synced, exported or sent anywhere else;
+    no {site.name} server sees them. Books from the Catalog are Open Library works already. Books
+    from other add-ons count when the add-on gives their Open Library work ID; all others, your own
+    files among them, are skipped rather than guessed. The keys also work for the rest of
+    archive.org, such as uploads. To stop the add-on, remove it, or make new keys on the same
+    archive.org page.
+  </p>
+  <p>
+    It works in the Android app only. Open Library signs apps in with a cookie, and a browser never
+    shows a page the cookie, so the web app offers the add-on but can’t set it up.
   </p>
 
   <h2 id="gpodder">gPodder sync</h2>
@@ -114,25 +119,25 @@ const catalog = `catalog.${site.domain}`;
   <h2 id="privacy">Tokens and privacy</h2>
   <ul>
     <li>
-      Your token, keys or password are sealed into the add-on link with a key only the catalog
-      service has (AES-256-GCM). It isn’t stored on the server, and a link copied out of a log or a
-      screenshot doesn’t show it.
+      Your token or password is sealed into the add-on link with a key only the catalog service has
+      (AES-256-GCM). It isn’t stored on the server, and a link copied out of a log or a screenshot
+      doesn’t show it.
     </li>
     <li>
       The link itself still works for whoever has it, so keep it to yourself. {site.name} keeps it
-      on your device and syncs it end-to-end encrypted. To stop a leaked link, revoke the token,
-      make new keys or change the password at the service.
+      on your device and syncs it end-to-end encrypted. To stop a leaked link, revoke the token or
+      change the password at the service.
     </li>
     <li>
       The add-ons are stateless: they act on each batch of events and forget it. What you played is
-      kept by Hardcover, Open Library or your gPodder server, under their terms.
+      kept by Hardcover or your gPodder server, under their terms.
     </li>
   </ul>
 
   <h2 id="self-hosting">Self-hosting</h2>
   <p>
-    All three add-ons are part of the catalog service, on Workers and in the <code>catalog</code>{' '}
-    Docker image. Set <code>CONFIG_SECRET</code> to at least 32 random characters (on Workers with{' '}
+    Both add-ons are part of the catalog service, on Workers and in the <code>catalog</code> Docker
+    image. Set <code>CONFIG_SECRET</code> to at least 32 random characters (on Workers with{' '}
     <code>wrangler secret put CONFIG_SECRET</code>); without it, the configure pages say they are
     unavailable. Keep it stable: changing it makes every link stop working until it is configured
     again. On Docker, the gPodder add-on can’t reach private addresses unless you set{' '}

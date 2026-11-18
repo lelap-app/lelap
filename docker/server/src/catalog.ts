@@ -14,7 +14,6 @@ const app = createApp(
   {
     SOURCE_URL: process.env.SOURCE_URL ?? 'https://github.com/lelap-app/lelap',
     ...(process.env.CONFIG_SECRET ? { CONFIG_SECRET: process.env.CONFIG_SECRET } : {}),
-    ...(process.env.OPEN_LIBRARY_URL ? { OPEN_LIBRARY_URL: process.env.OPEN_LIBRARY_URL } : {}),
     // Podcast Index catalogs only when both are set, as on Workers.
     ...(process.env.PODCASTINDEX_KEY && process.env.PODCASTINDEX_SECRET
       ? {

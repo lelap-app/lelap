@@ -49,7 +49,7 @@ describe('createAddon', () => {
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
     expect(await response.json()).toEqual({
       ...manifest,
-      protocolVersion: 7,
+      protocolVersion: 8,
       behaviorHints: { health: true },
     });
   });

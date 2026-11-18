@@ -45,7 +45,6 @@ describe('the worker app', () => {
       configure: [
         'https://addons.test/hardcover/configure',
         'https://addons.test/gpodder/configure',
-        'https://addons.test/open-library/configure',
       ],
     });
   });

@@ -10,6 +10,7 @@ import {
   LibraryResponse,
   offersLibrary,
   offersPlaces,
+  scrobblesWithSettings,
   PlaceReport,
   QueryParams,
   readSettings,
@@ -424,5 +425,25 @@ describe('revision 7: signing in through a website, and a query for the browser'
       webQuery: { 'X-Plex-Token': 'tok' },
     });
     expect(parsed.webQuery).toEqual({ 'X-Plex-Token': 'tok' });
+  });
+});
+
+describe('revision 8: scrobblers inside the app with settings', () => {
+  const scrobbler: Manifest = {
+    ...base,
+    protocolVersion: 8,
+    resources: ['scrobble'],
+    sandbox: { hosts: ['openlibrary.org'] },
+    settings: [{ key: 'secret', label: 'Secret', type: 'password', required: true }],
+  };
+
+  it('tells a scrobbler set up with its settings from library sources and web add-ons', () => {
+    expect(scrobblesWithSettings(Manifest.parse(scrobbler))).toBe(true);
+    const library = { ...scrobbler, resources: ['scrobble', 'library'] };
+    expect(scrobblesWithSettings(Manifest.parse(library))).toBe(false);
+    const bare = { ...scrobbler, settings: [] };
+    expect(scrobblesWithSettings(Manifest.parse(bare))).toBe(false);
+    const web = { ...scrobbler, sandbox: undefined };
+    expect(Manifest.safeParse(web).success).toBe(false);
   });
 });

@@ -738,5 +738,13 @@
   "Open {host} on any device and enter this code:": "Buka {host} pada mana-mana peranti dan masukkan kod ini:",
   "Code: {code}": "Kod: {code}",
   "Open {host}": "Buka {host}",
-  "Waiting for the code to be entered…": "Menunggu kod dimasukkan…"
+  "Waiting for the code to be entered…": "Menunggu kod dimasukkan…",
+  "Check and save": "Semak dan simpan",
+  "Comes with Lelap": "Disertakan dengan Lelap",
+  "Enter the keys again: this device can’t open the ones saved before.": "Masukkan kunci sekali lagi: peranti ini tidak dapat membuka kunci yang disimpan sebelum ini.",
+  "Runs on this device, in a sandbox. It can reach only {hosts}, and what you enter stays sealed on this device.": "Berjalan pada peranti ini, dalam kotak pasir. Ia hanya boleh mencapai {hosts}, dan apa yang anda masukkan kekal tersegel pada peranti ini.",
+  "Set up": "Sediakan",
+  "Set up {name}": "Sediakan {name}",
+  "Settings for {name}": "Tetapan untuk {name}",
+  "This works in the Android app only: it signs in with a cookie, which a browser keeps from the page.": "Ini hanya berfungsi dalam aplikasi Android: ia log masuk dengan kuki, yang disembunyikan oleh pelayar daripada halaman."
 }
