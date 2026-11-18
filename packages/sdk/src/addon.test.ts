@@ -236,6 +236,8 @@ describe('AddonError', () => {
     );
     expect(response.status).toBe(503);
     expect(response.headers.get('retry-after')).toBe('90');
+    // A web app can read it only when it is exposed.
+    expect(response.headers.get('access-control-expose-headers')).toBe('Retry-After');
     expect(await response.json()).toEqual({ error: 'Busy' });
   });
 });

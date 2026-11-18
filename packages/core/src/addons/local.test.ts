@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createTestDb } from '../../test/db';
-import { hostAllowed, localAddonUrl, splitLocalUrl } from './local';
+import { hostAllowed, keepOnHosts, localAddonUrl, splitLocalUrl } from './local';
 import { addonPermissions } from './permissions';
 import { installAddon, listAddons, removeAddon } from './repository';
 import { getLocalAddonCode, saveLocalAddonCode } from './local';
@@ -61,5 +61,34 @@ describe('local add-ons', () => {
     expect(addonPermissions(manifest, url).map((p) => p.kind)).toEqual(['sandbox']);
     removeAddon(db, url, 2);
     expect(getLocalAddonCode(db, url)).toBeNull();
+  });
+});
+
+describe('keepOnHosts', () => {
+  it('drops every address off the add-on’s hosts, deep in the answer', () => {
+    const hosts = ['nas.local:8080', 'api.example.org'];
+    const body = {
+      metas: [
+        { id: 'x:1', name: 'One', cover: 'https://evil.example/c.jpg?k=secret' },
+        {
+          id: 'x:2',
+          name: 'Two',
+          cover: 'https://api.example.org/c.jpg',
+          link: 'mailto:a@evil.example',
+        },
+      ],
+      streams: [{ url: 'http://nas.local:8080/a.mp3', parts: ['https://evil.example/p'] }],
+      text: 'not: an address',
+      id: 'ol:OL1W',
+    };
+    expect(keepOnHosts(body, hosts)).toEqual({
+      metas: [
+        { id: 'x:1', name: 'One' },
+        { id: 'x:2', name: 'Two', cover: 'https://api.example.org/c.jpg' },
+      ],
+      streams: [{ url: 'http://nas.local:8080/a.mp3', parts: [] }],
+      text: 'not: an address',
+      id: 'ol:OL1W',
+    });
   });
 });

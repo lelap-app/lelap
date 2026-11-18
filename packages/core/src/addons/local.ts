@@ -26,6 +26,30 @@ export function splitLocalUrl(url: string): { manifestUrl: string; path: string 
   };
 }
 
+// What the app could fetch or open; IDs such as `ol:OL1W` are not addresses.
+const ADDRESS = /^(?:https?:|[a-z][a-z0-9+.-]*:\/\/|mailto:|tel:|sms:|intent:|data:)/i;
+
+/**
+ * An answer of an add-on that was handed settings (revision 9), with every address off its hosts
+ * left out: a field holding such an address is dropped, an array loses the entry. Whatever the app
+ * would fetch or open, a cover, a stream, a link, could otherwise carry a setting elsewhere in its
+ * address, as for a library's files. Validation then drops what no longer fits, such as a stream
+ * without its `url`.
+ */
+export function keepOnHosts(value: unknown, hosts: string[]): unknown {
+  const offHost = (v: unknown) =>
+    typeof v === 'string' && ADDRESS.test(v.trim()) && !hostAllowed(v.trim(), hosts);
+  if (Array.isArray(value))
+    return value.filter((v) => !offHost(v)).map((v) => keepOnHosts(v, hosts));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (offHost(v)) continue;
+    out[key] = keepOnHosts(v, hosts);
+  }
+  return out;
+}
+
 /**
  * Whether a sandboxed add-on may fetch `url`: http(s) only, to a declared host. A host is
  * `name`, `name:port`, or `*.suffix` for any name under it (not the suffix itself); one without a

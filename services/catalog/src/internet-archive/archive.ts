@@ -321,7 +321,7 @@ export function airDateOf(
   const dates = [1900, 2000].flatMap((century) => {
     const date = new Date(Date.UTC(century + year, month - 1, day, 12));
     const real = date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
-    const past = !hints.before || date.getTime() <= hints.before;
+    const past = date.getTime() <= (hints.before ?? Date.now());
     return real && past ? [date] : [];
   });
   const { year: near } = hints;

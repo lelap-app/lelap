@@ -61,25 +61,36 @@ export function chosenEdition(meta: Meta | undefined, key: string | null): Editi
   return meta.editions.find((e) => e.key === key) ?? null;
 }
 
+/** The IDs that name one edition rather than the work; another edition's are left out. */
+const EDITION_IDS = new Set(['asin', 'isbn', 'isbn_13', 'isbn_10']);
+
 /**
  * The meta as the item page shows it with an edition chosen: the edition's cover, year,
- * narrators, length and language where it has them, and its IDs over the work's, so add-ons that
- * know the edition by its ASIN or ISBN are asked by those.
+ * narrators, length and language, and its IDs, so add-ons that know it by its ASIN or ISBN are
+ * asked by those. The meta's own narrators, length, chapters and edition IDs describe one edition
+ * (the one with the meta's ASIN); for any other they are left out where the edition has none.
  */
 export function withEdition(meta: Meta, edition: Edition | null): Meta {
   if (!edition) return meta;
-  const externalIds = { ...meta.externalIds, ...edition.externalIds };
-  // The work's chapters fit a recording of the work's length; another length isn't that recording.
-  const { chapters, ...rest } = meta;
-  const otherLength = edition.durationMs !== undefined && edition.durationMs !== meta.durationMs;
+  const asin = meta.externalIds?.asin;
+  const same = asin !== undefined && edition.externalIds?.asin === asin;
+  const { chapters, narrators, durationMs, externalIds: workIds, ...rest } = meta;
+  const externalIds: Record<string, string> = {};
+  for (const [prefix, value] of Object.entries(workIds ?? {}))
+    if (same || !EDITION_IDS.has(prefix)) externalIds[prefix] = value;
+  Object.assign(externalIds, edition.externalIds);
+  const length = edition.durationMs ?? (same ? durationMs : undefined);
+  const readers = edition.narrators?.length ? edition.narrators : same ? narrators : undefined;
+  // Chapters fit a recording of the meta's length only.
+  const fits = same && (edition.durationMs === undefined || edition.durationMs === durationMs);
   return {
     ...rest,
-    ...(chapters && !otherLength ? { chapters } : {}),
     ...(edition.cover ? { cover: edition.cover } : {}),
     ...(edition.year ? { year: edition.year } : {}),
-    ...(edition.narrators?.length ? { narrators: edition.narrators } : {}),
-    ...(edition.durationMs ? { durationMs: edition.durationMs } : {}),
     ...(edition.language ? { language: edition.language } : {}),
+    ...(readers?.length ? { narrators: readers } : {}),
+    ...(length !== undefined ? { durationMs: length } : {}),
+    ...(chapters && fits ? { chapters } : {}),
     ...(Object.keys(externalIds).length > 0 ? { externalIds } : {}),
   };
 }

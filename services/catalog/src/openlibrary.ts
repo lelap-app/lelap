@@ -241,7 +241,10 @@ export async function workMeta(upstream: Upstream, id: string): Promise<Meta | n
   ]);
   const asin = audioAsin(editions);
   if (asin) meta.externalIds = { ol: workId, asin };
-  const audio = audioEditions(editions);
+  // The edition the meta describes (its ASIN) first, as the protocol asks.
+  const audio = audioEditions(editions).sort(
+    (a, b) => Number(b.externalIds?.asin === asin) - Number(a.externalIds?.asin === asin),
+  );
   if (audio.length > 0) meta.editions = audio;
   if (authors.length > 0) meta.author = authors.join(', ');
   const raw = typeof work.description === 'string' ? work.description : work.description?.value;

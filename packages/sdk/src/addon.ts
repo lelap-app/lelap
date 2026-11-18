@@ -110,6 +110,8 @@ export const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': '*',
+  // Not safelisted, so a web app couldn't read how long to wait without it.
+  'Access-Control-Expose-Headers': 'Retry-After',
 };
 
 export class AddonError extends Error {
@@ -354,7 +356,11 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
       } catch (error) {
         if (error instanceof AddonError) {
           const response = json({ error: error.message }, error.status);
-          if (error.retryAfter !== undefined && error.retryAfter >= 0)
+          if (
+            error.retryAfter !== undefined &&
+            Number.isFinite(error.retryAfter) &&
+            error.retryAfter >= 0
+          )
             response.headers.set('Retry-After', String(Math.round(error.retryAfter)));
           return response;
         }

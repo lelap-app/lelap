@@ -1374,14 +1374,16 @@ const toc: [string, string][] = [
     <code>catalog</code>, <code>meta</code>, <code>stream</code> and <code>artwork</code> get them
     as <code>args.settings</code> too, in the same sandbox, which also reaches the hosts of{' '}
     <code>url</code> fields marked <code>host</code>. Before it is set up, its calls go without
-    settings. A library source’s settings belong to each server, so its other calls get none. Every
-    value, text fields too, is sealed on the phone, and nothing is kept where the phone has no key
-    store; never synced, exported or in diagnostics. Instead of <code>POST /scrobble</code>, the app
-    calls <code>{scrobblePath()}</code> in the add-on’s own sandbox, and the handler gets{' '}
-    <code>args.events</code> and <code>args.settings</code>. Throw an error with a{' '}
-    <code>status</code> to answer it: <code>401</code> when the listener has to set the add-on up
-    again, a <code>5xx</code> to be tried later; give the error a <code>retryAfter</code> in seconds
-    to say how long to wait. The Open Library reading log, which comes with the app, is one.
+    settings. Addresses in its answers that are off those hosts (a cover, a stream, a link) are left
+    out, as for a library’s files: one could carry a setting elsewhere. A library source’s settings
+    belong to each server, so its other calls get none. Every value, text fields too, is sealed on
+    the phone, and nothing is kept where the phone has no key store; never synced, exported or in
+    diagnostics. Instead of <code>POST /scrobble</code>, the app calls <code>{scrobblePath()}</code>{' '}
+    in the add-on’s own sandbox, and the handler gets <code>args.events</code> and{' '}
+    <code>args.settings</code>. Throw an error with a <code>status</code> to answer it:{' '}
+    <code>401</code> when the listener has to set the add-on up again, a <code>5xx</code> to be
+    tried later; give the error a <code>retryAfter</code> in seconds to say how long to wait. The
+    Open Library reading log, which comes with the app, is one.
   </p>
 
   <h2 id="versions">Versions</h2>

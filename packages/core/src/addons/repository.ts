@@ -189,7 +189,11 @@ export async function syncAddons(
     ...installed.map((a) => a.url),
   ];
   // Run on every start, so rows a device left behind with foreign keys off don't stay.
-  pruneStreamHeaders(db);
+  try {
+    pruneStreamHeaders(db);
+  } catch {
+    // Tidying only: the add-ons still sync.
+  }
   const failed: string[] = [];
   // In order, so defaults keep their configured order on first start.
   for (const url of urls) {

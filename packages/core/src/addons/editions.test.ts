@@ -64,6 +64,19 @@ describe('editions', () => {
   it('keeps the work as it is without a choice, or when the chosen edition is gone', () => {
     expect(withEdition(meta, chosenEdition(meta, null))).toBe(meta);
     expect(chosenEdition(meta, 'OL9M')).toBe(null);
-    expect(withEdition(meta, chosenEdition(meta, 'OL2M')).chapters).toHaveLength(1);
+    // The edition the meta describes keeps its narrators, length and chapters.
+    const own = withEdition(meta, chosenEdition(meta, 'OL2M'));
+    expect(own.chapters).toHaveLength(1);
+    expect(own.narrators).toEqual(['Juliet Stevenson']);
+    expect(own.durationMs).toBe(1000);
+  });
+
+  it('never gives another edition the meta’s narrators, length or ASIN', () => {
+    const bare = { key: 'OL4M', name: 'Print', externalIds: { isbn: '9780141439587' } };
+    const shown = withEdition({ ...meta, editions: [bare] }, bare);
+    expect(shown.narrators).toBeUndefined();
+    expect(shown.durationMs).toBeUndefined();
+    expect(shown.chapters).toBeUndefined();
+    expect(shown.externalIds).toEqual({ ol: 'OL1W', isbn: '9780141439587' });
   });
 });

@@ -2,6 +2,7 @@ import {
   bundledAddons,
   CannotSealError,
   installAddon,
+  keepOnHosts,
   listAddons,
   loadAddonSettings,
   saveAddonSettings,
@@ -84,11 +85,10 @@ export async function callWithSettings(
   if (!manifest || !setUpWithSettings(manifest)) return null;
   const stored = loadAddonSettings(db, manifestUrl, codeFingerprint(manifestUrl));
   if (stored.state !== 'ok') return null;
-  return callAddonWithSettings({
-    addonUrl: manifestUrl,
-    ...given(manifest, stored.settings),
-    path,
-  });
+  const sandbox = given(manifest, stored.settings);
+  const result = await callAddonWithSettings({ addonUrl: manifestUrl, ...sandbox, path });
+  // Nothing it answers may point off its hosts: the address could carry a setting away.
+  return { status: result.status, body: keepOnHosts(result.body, sandbox.hosts) };
 }
 
 /**

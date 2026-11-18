@@ -459,18 +459,18 @@ export default function ItemScreen() {
                 details={t('As the catalog describes the book')}
                 onPress={() => chooseEdition(null)}
               />
-              {(allEditions
-                ? (meta.data?.meta.editions ?? [])
-                : (meta.data?.meta.editions ?? []).slice(0, EDITIONS_SHOWN)
-              ).map((e) => (
-                <SourceRow
-                  key={e.key}
-                  selected={edition?.key === e.key}
-                  label={e.name}
-                  details={editionDetails(e)}
-                  onPress={() => chooseEdition(e.key)}
-                />
-              ))}
+              {(meta.data?.meta.editions ?? [])
+                // The chosen one shows even when it is further down the list.
+                .filter((e, i) => allEditions || i < EDITIONS_SHOWN || e.key === edition?.key)
+                .map((e) => (
+                  <SourceRow
+                    key={e.key}
+                    selected={edition?.key === e.key}
+                    label={e.name}
+                    details={editionDetails(e)}
+                    onPress={() => chooseEdition(e.key)}
+                  />
+                ))}
               {!allEditions && (meta.data?.meta.editions?.length ?? 0) > EDITIONS_SHOWN && (
                 <TextButton
                   text={t('Show all {n}', { n: meta.data?.meta.editions?.length ?? 0 })}

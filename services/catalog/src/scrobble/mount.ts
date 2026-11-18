@@ -100,7 +100,10 @@ function inputs(fields: Field[]): string {
       const input =
         f.type === 'select'
           ? `<select ${attrs}>${(f.options ?? [])
-              .map((o) => `<option value="${escape(o.value)}">${escape(o.label)}</option>`)
+              .map(
+                (o) =>
+                  `<option value="${escape(o.value)}"${o.value === f.value ? ' selected' : ''}>${escape(o.label)}</option>`,
+              )
               .join('')}</select>`
           : `<input ${attrs} type="${f.type}" autocomplete="off"${
               f.placeholder ? ` placeholder="${escape(f.placeholder)}"` : ''
