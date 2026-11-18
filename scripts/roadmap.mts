@@ -4,6 +4,7 @@
 //   node scripts/roadmap.mts --check   exits with 1 when the table is out of date
 //   node scripts/roadmap.mts checks    prints every unticked item under “## Open checks”;
 //                                      --adb or --you keeps the checks with that tag
+//   node scripts/roadmap.mts status    prints every milestone as JSON for the roadmap-status skill
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -23,7 +24,9 @@ type Milestone = {
   title: string;
   status: Status;
   summary: string;
+  prs: number[];
   checks: string[];
+  text: string;
 };
 
 /** Reads a scalar: plain, "double-quoted" or 'single-quoted', as Prettier writes them. */
@@ -95,7 +98,7 @@ function readMilestones(): Milestone[] {
       if (!text.includes(`\n# M${n} ${title}\n`)) {
         throw new Error(`${where}: the heading must be “# M${n} ${title}”`);
       }
-      return { n, file, title, status: status as Status, summary, checks };
+      return { n, file, title, status: status as Status, summary, prs, checks, text };
     })
     .sort((a, b) => a.n - b.n);
 }
@@ -163,6 +166,53 @@ function printChecks(tag: string | null) {
     for (const c of kept) console.log(c.startsWith('### ') ? `\n${c}\n` : c);
   }
   console.log(`\n${total} open checks${tag ? ` tagged (${tag})` : ''}.`);
+}
+
+/** The top-level `- ` items of a `## {name}` section. */
+function sectionItems(text: string, name: string): string[] {
+  const lines = text.split('\n');
+  const from = lines.indexOf(`## ${name}`);
+  if (from < 0) return [];
+  const out: string[] = [];
+  for (const line of lines.slice(from + 1)) {
+    if (line.startsWith('## ')) break;
+    if (line.startsWith('- ')) out.push(line.slice(2).trim());
+  }
+  return out;
+}
+
+/** Every milestone as JSON: what the roadmap-status skill draws its overview from. */
+function printStatus() {
+  const milestones = readMilestones().map((m) => {
+    const open = m.checks.filter((c) => c.startsWith('- [ ]'));
+    const body = m.text.split('\n## ')[0] ?? '';
+    return {
+      n: m.n,
+      title: m.title,
+      status: m.status,
+      summary: m.summary,
+      prs: m.prs,
+      file: join(MILESTONES, m.file),
+      items: body.split('\n').filter((l) => l.startsWith('- ')).length,
+      checks: {
+        adb: open.filter((c) => c.startsWith('- [ ] (adb)')).length,
+        you: open.filter((c) => c.startsWith('- [ ] (you)')).length,
+      },
+      openQuestions: sectionItems(m.text, 'Open questions'),
+      leftOut: sectionItems(m.text, 'Left out').length,
+    };
+  });
+  console.log(JSON.stringify({ milestones }, null, 2));
+}
+
+if (process.argv.includes('status')) {
+  try {
+    printStatus();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
+  process.exit(0);
 }
 
 if (process.argv.includes('checks')) {
