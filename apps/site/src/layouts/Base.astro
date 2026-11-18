@@ -7,7 +7,6 @@ import '../styles/global.css';
 import Logo from '../components/Logo.astro';
 import Icon from '../components/Icon.astro';
 import { site } from '../site';
-import { splashImages } from '../splash-screens';
 import { languages, t, type Lang } from '../i18n';
 
 interface Props {
@@ -54,14 +53,6 @@ const english = lang === 'en' ? undefined : 'en';
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/site.webmanifest" />
-    <meta name="apple-mobile-web-app-title" content={site.name} />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-    {splashImages.map(({ href, media }) => (
-      <link rel="apple-touch-startup-image" href={href} media={media} />
-    ))}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={site.name} />
     <meta property="og:title" content={title} />
