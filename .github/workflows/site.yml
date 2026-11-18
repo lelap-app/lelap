@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - apps/site/**
+      # The /changelog page is built from it.
+      - CHANGELOG.md
       - pnpm-lock.yaml
       - .github/workflows/site.yml
   workflow_dispatch:
