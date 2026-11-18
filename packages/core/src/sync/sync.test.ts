@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createTestDb } from '../../test/db';
+import { TEST_PAIRING_COST } from '../../test/setup';
 import { fakeSyncServer } from '../../test/syncServer';
 import { addStreamedBook } from '../addons/streamed';
 import { addBookmark, deleteBookmark, listBookmarks } from '../bookmarks';
@@ -39,9 +40,12 @@ import {
   newPairingCode,
   normalizeCode,
   open,
+  PAIRING_COST,
   pairingKeys,
   seal,
+  setPairingCostForTests,
   toBase64Url,
+  toHex,
 } from './crypto';
 import {
   getMembership,
@@ -99,6 +103,19 @@ describe('crypto', () => {
     expect(normalizeCode(code.toLowerCase().replace(/-/g, ' '))).toBe(code);
     expect(normalizeCode('7KQM-2XPA-9HRO')).toBe('7KQM-2XPA-9HR0');
     expect(normalizeCode('too short')).toBeNull();
+  });
+
+  // The other tests run scrypt at a lower cost (test/setup.ts). The expected bytes come from
+  // Node's own scrypt, so this pins the parameters every installed app pairs with.
+  it('derives pairing keys at the real cost', { timeout: 60_000 }, async () => {
+    setPairingCostForTests(PAIRING_COST);
+    try {
+      const { lookup, key } = await pairingKeys('7KQM-2XPA-9HRT');
+      expect(lookup).toBe('df8168d926d2605b2de9750efb7daa7c6f63bdd2cf8a9cdedaecb947bd4e2b9c');
+      expect(toHex(key)).toBe('72ae76ec9df14af32b2d0d4870b6fccf9a4e895cf57e48f230918143be45a7fa');
+    } finally {
+      setPairingCostForTests(TEST_PAIRING_COST);
+    }
   });
 });
 
