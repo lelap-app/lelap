@@ -1,7 +1,9 @@
 package app.lelap.library
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SilenceScannerTest {
@@ -61,6 +63,14 @@ class SilenceScannerTest {
     assertEquals(job, SilenceJob.decode(job.encode()))
     assertNull(SilenceJob.decode(job.copy(files = listOf("https://example.org/1.mp3")).encode()))
     assertNull(SilenceJob.decode(job.copy(bookId = "../x").encode()))
+    // A scan's run token survives job.json; JavaScript's job, without one, still decodes.
+    val run = job.copy(run = "run-1")
+    assertEquals(run, SilenceJob.decode(run.encode()))
+    assertEquals(job, SilenceJob.decode("""{"bookId":"book-1","files":["content://a/1.m4b","file:///data/2.mp3"],"thresholdDb":-45.0,"minSilenceMs":2500}"""))
+    assertTrue(run.sameRun("run-1"))
+    assertFalse(run.sameRun("run-2"))
+    assertFalse(run.sameRun(null))
+    assertTrue(job.sameRun(null))
     val progress = SilenceProgress(listOf(listOf(Silence(1, 2))), listOf(9L), listOf(Silence(3, 4)), 5)
     assertEquals(progress, SilenceProgress.decode(progress.encode()))
     assertEquals(1, progress.fileIndex)

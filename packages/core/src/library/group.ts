@@ -48,6 +48,10 @@ export function groupIntoBooks(
   rootLocation: string,
   files: ScannedFile[],
   folderCovers: Map<string, string>,
+  /** Covers from images named after an audio file, by the audio file's location. */
+  fileCovers: Map<string, string> = new Map(),
+  /** For books that are single files in a folder: only its `cover.*` or `folder.*`. */
+  looseCovers: Map<string, string> = new Map(),
 ): BookDraft[] {
   const locate = (relPath: string) =>
     relPath === '' ? rootLocation : `${rootLocation}/${relPath}`;
@@ -106,7 +110,11 @@ export function groupIntoBooks(
           kind: 'file',
           title: file.album ?? stripExtension(file.name),
           author: tagAuthor(file) ?? (folder === '' ? null : baseName(folder)),
-          coverPath: file.coverPath ?? folderCovers.get(locate(folder)) ?? null,
+          coverPath:
+            file.coverPath ??
+            fileCovers.get(file.location) ??
+            looseCovers.get(locate(folder)) ??
+            null,
           files: [file],
         });
       }
@@ -120,8 +128,12 @@ export function groupIntoBooks(
       kind: 'folder',
       title: albums.size === 1 && onlyAlbum != null ? onlyAlbum : baseName(folder),
       author: tagAuthor(sorted[0]) ?? authorFromFolders(folder),
+      // An embedded picture, then the first part's own image, then the folder's.
       coverPath:
-        sorted.find((f) => f.coverPath)?.coverPath ?? folderCovers.get(locate(folder)) ?? null,
+        sorted.find((f) => f.coverPath)?.coverPath ??
+        (sorted[0] && fileCovers.get(sorted[0].location)) ??
+        folderCovers.get(locate(folder)) ??
+        null,
       files: sorted,
     });
   }

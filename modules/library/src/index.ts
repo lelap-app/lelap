@@ -23,7 +23,8 @@ type LelapLibraryModule = {
   hasPermission(uri: string): Promise<boolean>;
   listTree(uri: string): Promise<ListedFile[]>;
   readTags(uri: string, name: string, coverDir: string): Promise<NativeTags>;
-  readImage(uri: string, coverDir: string): Promise<string | null>;
+  readImage(uri: string, coverDir: string, fileName: string | null): Promise<string | null>;
+  imageSize(uri: string): Promise<{ width: number; height: number } | null>;
   readRemoteTags(
     url: string,
     headers: Record<string, string>,
@@ -69,9 +70,21 @@ export function readTags(uri: string, name: string, coverDir: string): Promise<N
   return native.readTags(uri, name, coverDir);
 }
 
-/** Saves an image file such as `cover.jpg` as a small cover in `coverDir`; returns its path. */
-export function readImage(uri: string, coverDir: string): Promise<string | null> {
-  return native.readImage(uri, coverDir);
+/**
+ * Saves an image file such as `cover.jpg` as a small cover in `coverDir`, under `fileName` when
+ * given; returns its path.
+ */
+export function readImage(
+  uri: string,
+  coverDir: string,
+  fileName: string | null = null,
+): Promise<string | null> {
+  return native.readImage(uri, coverDir, fileName);
+}
+
+/** An image's width and height from its header, without decoding it; null when unknown. */
+export function imageSize(uri: string): Promise<{ width: number; height: number } | null> {
+  return native.imageSize(uri);
 }
 
 /** Tags, duration, cover and chapters of a file on a server, read with [headers] (its login). */

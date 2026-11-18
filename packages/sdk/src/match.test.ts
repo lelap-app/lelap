@@ -7,6 +7,7 @@ import {
   idsFromTags,
   matchStrength,
   normalizeId,
+  normalizeIds,
   normalizeIsbn,
   sameAuthor,
   splitAuthors,
@@ -36,6 +37,9 @@ describe('titleKey', () => {
     });
     expect(titleKey('Harry Potter, Book 2').number).toBe(2);
     expect(titleKey('03 - The Dragon Reborn')).toMatchObject({ full: 'dragon reborn', number: 3 });
+    expect(titleKey('Book 2 - The Two Towers')).toMatchObject({ full: 'two towers', number: 2 });
+    expect(titleKey('Vol. 3: The Return of the King')).toMatchObject({ number: 3 });
+    expect(titleKey('Bookshop Tales')).toMatchObject({ full: 'bookshop tales', number: null });
     expect(titleKey('Leviathan Wakes (The Expanse 1)').number).toBe(1);
   });
 
@@ -96,6 +100,14 @@ describe('IDs', () => {
     expect(normalizeId('ol:ol893415w')).toBe('ol:OL893415W');
     expect(normalizeId('asin:short')).toBeNull();
     expect(normalizeId('librivox:dune')).toBe('librivox:dune');
+  });
+
+  it('lets a print ASIN, which is the ISBN-10, meet the ISBN-13', () => {
+    expect(normalizeIds(['asin:0441013597'])).toEqual(['asin:0441013597', 'isbn:9780441013593']);
+    expect(normalizeIds(['asin:B002UZMLXM'])).toEqual(['asin:B002UZMLXM']);
+    expect(matchStrength({ ids: ['isbn:978-0-441-01359-3'] }, { ids: ['asin:0441013597'] })).toBe(
+      'id',
+    );
   });
 
   it('reads ISBNs and ASINs from tags in any spelling', () => {

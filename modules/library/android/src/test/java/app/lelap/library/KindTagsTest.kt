@@ -100,6 +100,17 @@ class KindTagsTest {
   }
 
   @Test
+  fun readsTheAsinFromAudiblesCdekItem() {
+    val file = mp4(stik(2), atom("CDEK", atom("data", u32(1), u32(0), "B002UZMLXM".toByteArray())))
+    assertEquals(mapOf("asin" to "B002UZMLXM"), IdTags.parseAll("book.m4b", file).ids)
+  }
+
+  @Test
+  fun readsTheGenreFromFlac() {
+    assertEquals("Audiobook", IdTags.parseAll("book.flac", flac("GENRE=Audiobook")).genre)
+  }
+
+  @Test
   fun mapsStikValues() {
     assertEquals("music", IdTags.mediaKind(1))
     assertEquals("audiobook", IdTags.mediaKind(2))

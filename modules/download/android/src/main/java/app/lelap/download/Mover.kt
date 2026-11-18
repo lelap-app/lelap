@@ -48,7 +48,32 @@ object Mover {
 
   /** Picks up a move that stopped or waited for an SD card; nothing when every book is in place. */
   fun resume(context: Context) {
-    if (!isMoving(context) && waiting(context) > 0) start(context)
+    if (isMoving(context)) return
+    if (waiting(context) > 0 || Downloads.bookDirs(context).any { Downloads.moving(it) != null }) start(context)
+  }
+
+  /**
+   * Deletes the half copies a crash left mid-copy. Their folder may never be chosen again, so the
+   * next move would not replace them. Only [MoveWorker] calls it, before it copies anything: it is
+   * unique work, so no copy can be under way.
+   */
+  internal fun clearLeftovers(context: Context) {
+    for (dir in Downloads.bookDirs(context)) {
+      synchronized(Downloads.lock) {
+        val target = (Downloads.moving(dir) ?: return@synchronized).ifEmpty { null }
+        val current = Downloads.readJob(dir)?.location
+        val place = Downloads.place(context, target)
+        runCatching {
+          // An SD card that is out keeps the note until it is back.
+          if (!place.available()) return@runCatching
+          val folder = place.folder(dir.name, create = false)
+          if (folder != null && BookMove.clearLeftovers(folder) && target != null && target != current) {
+            place.removeFolder(dir.name)
+          }
+          Downloads.clearMoving(dir)
+        }
+      }
+    }
   }
 
   fun isMoving(context: Context): Boolean =
@@ -75,6 +100,7 @@ class MoveWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
     runCatching { setForeground(foregroundInfo(0, Mover.waiting(context))) }
     return withContext(Dispatchers.IO) {
       Mover.setError(context, null)
+      Mover.clearLeftovers(context)
       val dirs = Downloads.bookDirs(context)
       var moved = 0
       try {
@@ -103,7 +129,8 @@ class MoveWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         // goes mid-call. Every book keeps its files where its job says; originals are only ever
         // deleted after the job points at their copies.
         Mover.setError(context, NativeText.t(context, "Moving downloads stopped: {reason}", "reason" to (e.message ?: "")))
-        Result.failure()
+        // A failed result would fail the moves queued behind this one; the error is kept above.
+        Result.success()
       }
     }
   }
@@ -129,18 +156,30 @@ class MoveWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
     val names = if (source == null || folder == null) {
       emptyList()
     } else {
-      BookMove.copy(
-        from = source,
-        to = folder,
-        checkStopped = { if (worker.isStopped) throw CancellationException("Stopped") },
-        onBytes = { copied ->
-          val now = SystemClock.elapsedRealtime()
-          if (now - lastReport >= PROGRESS_INTERVAL_MS) {
-            lastReport = now
-            runBlocking { setProgress(workDataOf("bookId" to job.bookId, "bytesDone" to copied, "bytesTotal" to bytes)) }
+      Downloads.markMoving(dir, target)
+      try {
+        BookMove.copy(
+          from = source,
+          to = folder,
+          checkStopped = { if (worker.isStopped) throw CancellationException("Stopped") },
+          onBytes = { copied ->
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastReport >= PROGRESS_INTERVAL_MS) {
+              lastReport = now
+              runBlocking { setProgress(workDataOf("bookId" to job.bookId, "bytesDone" to copied, "bytesTotal" to bytes)) }
+            }
+          },
+        ).also { Downloads.clearMoving(dir) }
+      } catch (e: Exception) {
+        // A full card: its half copy goes now. A stop or a card taken out keeps the note for later.
+        if (e !is CancellationException) {
+          runCatching {
+            if (BookMove.clearLeftovers(folder) && target != null) to.removeFolder(job.bookId)
+            Downloads.clearMoving(dir)
           }
-        },
-      )
+        }
+        throw e
+      }
     }
     synchronized(Downloads.lock) {
       val current = Downloads.readJob(dir)

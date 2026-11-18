@@ -6,7 +6,7 @@ import {
   titleKey,
   type WorkInfo,
 } from '@lelap/sdk';
-import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 
 import { workIds } from '../addons/sources';
 import type { Db } from '../db';
@@ -265,12 +265,22 @@ export function unlinkBook(db: Db, bookId: string, now: number): void {
   for (const link of bookLinks(db, bookId)) rejectStored(db, bookKey, link, now);
 }
 
-/** Title, author and cover from Match with catalog…, by book location. */
-export function linkedMetaByKey(db: Db): Map<string, LinkedMeta> {
+/**
+ * Title, author and cover from Match with catalog…, by book location; only for `keys` when given,
+ * so reading one book doesn't read every link.
+ */
+export function linkedMetaByKey(db: Db, keys?: string[]): Map<string, LinkedMeta> {
+  if (keys?.length === 0) return new Map();
   const rows = db
     .select({ bookKey: workLinks.bookKey, meta: workLinks.meta })
     .from(workLinks)
-    .where(and(eq(workLinks.state, 'linked'), isNotNull(workLinks.meta)))
+    .where(
+      and(
+        eq(workLinks.state, 'linked'),
+        isNotNull(workLinks.meta),
+        keys ? inArray(workLinks.bookKey, keys) : undefined,
+      ),
+    )
     .orderBy(asc(workLinks.updatedAt))
     .all();
   const out = new Map<string, LinkedMeta>();

@@ -230,6 +230,18 @@ describe('downloads', () => {
     expect(getDownload(db, bookId)).toMatchObject({ state: 'queued', error: null });
   });
 
+  it('fails a queued download whose job is gone, after a minute’s grace', () => {
+    const bookId = add(db);
+    requestDownload(db, planDownload(db, bookId), meta, 10);
+    expect(applyDownloadStatuses(db, DIR, [], 30_000).changed).toEqual([]);
+    expect(getDownload(db, bookId)?.state).toBe('queued');
+    expect(applyDownloadStatuses(db, DIR, [], 70_000).changed).toEqual([bookId]);
+    expect(getDownload(db, bookId)).toMatchObject({
+      state: 'failed',
+      error: 'The download stopped.',
+    });
+  });
+
   it('keeps the snapshot when a retry has no meta', () => {
     const bookId = add(db);
     requestDownload(db, planDownload(db, bookId), meta, 10);

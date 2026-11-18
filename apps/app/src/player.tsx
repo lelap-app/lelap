@@ -219,6 +219,7 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
   const detail = getBook(db, profileId, bookId);
   if (!detail || detail.files.length === 0) return null;
   const start = resumePoint(db, profileId, bookId);
+  if (!start) return null;
   const trim = detail.book.source === 'feed' ? trimOfBook(db, profileId, bookId) : null;
   const now = Date.now();
   const access = detail.files.map((f) => fileAccess({ ...f, bookId }, now));

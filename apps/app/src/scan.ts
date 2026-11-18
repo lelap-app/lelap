@@ -16,11 +16,15 @@ import {
   jellyfinScan,
   listJellyfinItems,
   setRemoteCovers,
+  coverGuesses,
   type FileTags,
   filesNeedingTags,
   fillTags,
   folderCoverCacheName,
   folderCoverFiles,
+  IMAGE_HEAD_BYTES,
+  imageSize,
+  type ImageSize,
   type ListedFile,
   listRoots,
   listS3,
@@ -42,6 +46,7 @@ import { db, newId } from './db';
 import { logDiagnostic } from './diagnostics';
 import {
   FOLDER_UNAVAILABLE,
+  imageSize as readImageSize,
   listTree,
   pickFolder,
   readImage,
@@ -137,6 +142,78 @@ async function fetchFolderCover(root: Root, file: ListedFile): Promise<string | 
   return pathOf(target);
 }
 
+/** A cover from the phone's folder, saved once per version of the image like a server's. */
+async function saveLocalImage(file: ListedFile): Promise<string | null> {
+  const name = folderCoverCacheName(file).replace(/\.[^.]+$/, '.jpg');
+  const target = new File(new Directory(Paths.document, 'covers'), name);
+  if (target.exists) return decodeURI(target.uri.replace(/^file:\/\//, ''));
+  return readImage(file.uri, coverDir(), name);
+}
+
+/**
+ * An image's width and height for guessing a cover among several: Android reads the header of a
+ * file on the phone; a WebDAV, S3 or add-on server is asked for the first 64 KB, from the browser
+ * too. SMB and SFTP can only copy whole files, and a server that refuses the request gives no
+ * size either; those guesses go by file size.
+ */
+async function imageSizeOf(root: Root, file: ListedFile): Promise<ImageSize | null> {
+  if (!root.remote) return readImageSize(file.uri);
+  if (root.remote.type === 'smb' || root.remote.type === 'sftp') return null;
+  const access = fileAccess({ uri: file.uri, rootId: root.id });
+  const response = await fetch(access.uri, {
+    headers: { ...access.headers, Range: `bytes=0-${IMAGE_HEAD_BYTES - 1}` },
+  });
+  if (!response.ok) return null;
+  // A server that ignores Range sends the whole image; only its start is read.
+  return imageSize(new Uint8Array(await response.arrayBuffer()).subarray(0, IMAGE_HEAD_BYTES));
+}
+
+/**
+ * Covers from image files beside the audio (`folderCoverFiles` has the rules), for books whose
+ * files carry none. A server's image is fetched with the same login as its audio, straight from
+ * the server, and kept with the other covers (in the origin private file system on the web).
+ */
+async function imageCovers(
+  root: Root,
+  listed: ListedFile[],
+): Promise<{
+  folderCovers: Map<string, string>;
+  fileCovers: Map<string, string>;
+  looseCovers: Map<string, string>;
+}> {
+  const folderCovers = new Map<string, string>();
+  const fileCovers = new Map<string, string>();
+  const looseCovers = new Map<string, string>();
+  const sizes = new Map<string, ImageSize>();
+  for (const file of coverGuesses(listed)) {
+    const size = await imageSizeOf(root, file).catch(() => null);
+    if (size) sizes.set(file.location, size);
+  }
+  const chosen = folderCoverFiles(listed, sizes);
+  const saved = new Map<string, Promise<string | null>>();
+  const save = (file: ListedFile) => {
+    let path = saved.get(file.location);
+    if (!path) {
+      path = (root.remote ? fetchFolderCover(root, file) : saveLocalImage(file)).catch(() => null);
+      saved.set(file.location, path);
+    }
+    return path;
+  };
+  for (const [folder, file] of chosen.byFolder) {
+    const path = await save(file);
+    if (path) folderCovers.set(folder, path);
+  }
+  for (const [audio, file] of chosen.byFile) {
+    const path = await save(file);
+    if (path) fileCovers.set(audio, path);
+  }
+  for (const [folder, file] of chosen.forLoose) {
+    const path = await save(file);
+    if (path) looseCovers.set(folder, path);
+  }
+  return { folderCovers, fileCovers, looseCovers };
+}
+
 async function run(onProgress: (done: number, total: number) => void): Promise<ScanResult> {
   const roots = listRoots(db);
   if (roots.length === 0) return { error: 'no-folder' };
@@ -209,15 +286,7 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
     }
     onProgress(need.length, need.length);
 
-    // `cover.jpg` and friends, for books whose files carry no cover. A server's image is fetched
-    // with the same login as its audio, straight from the server, and kept with the other covers.
-    const folderCovers = new Map<string, string>();
-    for (const [folder, file] of folderCoverFiles(listed)) {
-      const path = await (
-        root.remote ? fetchFolderCover(root, file) : readImage(file.uri, dir())
-      ).catch(() => null);
-      if (path) folderCovers.set(folder, path);
-    }
+    const { folderCovers, fileCovers, looseCovers } = await imageCovers(root, listed);
 
     const result = applyScan(db, {
       rootId: root.id,
@@ -225,6 +294,8 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
       listed,
       tags,
       folderCovers,
+      fileCovers,
+      looseCovers,
       now: Date.now(),
       newId,
     });

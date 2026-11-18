@@ -1,5 +1,5 @@
 import { type Chapter, hasParts, type Meta, type MetaPreview, type Stream } from '@lelap/sdk';
-import { and, eq, like, notInArray } from 'drizzle-orm';
+import { and, asc, eq, like, notInArray } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
@@ -151,6 +151,24 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
     }
 
     const locations = parts.map((_, index) => partLocation(stream.sourceKey, index));
+    const before = tx
+      .select({
+        location: bookFiles.location,
+        uri: bookFiles.uri,
+        durationMs: bookFiles.durationMs,
+      })
+      .from(bookFiles)
+      .where(eq(bookFiles.bookId, bookId))
+      .orderBy(asc(bookFiles.idx))
+      .all();
+    const sameParts =
+      before.length === parts.length &&
+      parts.every(
+        (part, i) =>
+          before[i]?.location === locations[i] &&
+          before[i]?.uri === part.url &&
+          before[i]?.durationMs === part.durationMs,
+      );
     for (const [idx, part] of parts.entries()) {
       const row = {
         bookId,
@@ -182,10 +200,11 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
     saveStreamHeaders(tx, bookId, addonUrl, stream.headers, now);
 
     const built = chaptersOf(meta, stream, parts);
-    // Chapters found from silences stay until the add-on brings chapters of its own.
+    // Chapters found from silences stay until the add-on brings chapters of its own, or the parts
+    // change under them.
     tx.delete(chapters)
       .where(
-        built.length > 0
+        built.length > 0 || !sameParts
           ? eq(chapters.bookId, bookId)
           : and(eq(chapters.bookId, bookId), eq(chapters.found, false)),
       )

@@ -67,6 +67,12 @@ object BookMove {
   const val COPY_SUFFIX = ".move"
   private const val BUFFER_BYTES = 64 * 1024
 
+  /** Deletes the half copies a stopped move left in [folder]; true when nothing else is in it. */
+  fun clearLeftovers(folder: BookFolder): Boolean {
+    folder.list().keys.filter { it.endsWith(COPY_SUFFIX) }.forEach(folder::delete)
+    return folder.list().isEmpty()
+  }
+
   /**
    * Copies every file of [from] into [to], each under a temporary name first and checked by its
    * length before it gets its own name. Never deletes an original: that waits until the book

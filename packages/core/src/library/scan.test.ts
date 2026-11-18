@@ -6,7 +6,7 @@ import { ROOT, scanned } from '../../test/files';
 import type { Db } from '../db';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { resumePoint, saveProgress } from '../progress';
-import { getBook, setFinished, setSpeed } from './queries';
+import { getBook, saveFoundChapters, setFinished, setSpeed } from './queries';
 import {
   bookFiles,
   bookmarks,
@@ -145,6 +145,70 @@ describe('applyScan', () => {
       'Novel/01.mp3',
       'New/new.mp3',
     ]);
+  });
+
+  it('rebuilds a book once when a file goes missing, not on every scan after', () => {
+    const files = [
+      scanned('Novel/01.mp3', { durationMs: 1000 }),
+      scanned('Novel/02.mp3', { durationMs: 1000 }),
+      scanned('Novel/03.mp3', { durationMs: 1000 }),
+    ];
+    scan(db, files);
+    const chapterIds = () =>
+      db
+        .select({ id: chapters.id })
+        .from(chapters)
+        .all()
+        .map((c) => c.id);
+    const withoutSecond = [files[0], files[2]].flatMap((f) => (f ? [f] : []));
+    scan(db, withoutSecond, ROOT, 200);
+    const rebuilt = chapterIds();
+    expect(rebuilt).toHaveLength(2);
+    scan(db, withoutSecond, ROOT, 300);
+    expect(chapterIds()).toEqual(rebuilt);
+    // When the file comes back, the book is whole again.
+    scan(db, files, ROOT, 400);
+    expect(chapterIds()).toHaveLength(3);
+  });
+
+  it('keeps chapters found from silences through a tag change and a new way of reading IDs', () => {
+    const file = scanned('Memoir/memoir.mp3', {
+      durationMs: 5000,
+      album: 'A Memoir',
+      ids: ['asin:0441013597'],
+    });
+    scan(db, [file]);
+    const bookId = bookByLocation(db, `${ROOT}/Memoir`)?.id ?? '';
+    const found = [
+      { title: 'Part 1', startMs: 0 },
+      { title: 'Part 2', startMs: 2500 },
+    ];
+    expect(saveFoundChapters(db, bookId, found, 150, newId)).toBe(true);
+    // IDs stored before normalising learnt that a print ASIN is also an ISBN: no file change.
+    db.update(bookFiles)
+      .set({ ids: ['asin:0441013597'] })
+      .run();
+    const updatedAt = () => db.select().from(bookFiles).get()?.updatedAt;
+    scan(db, [file], ROOT, 200);
+    expect(updatedAt()).toBe(100);
+    expect(getBook(db, ME, bookId)?.chapters).toEqual(found);
+    // A tag read again changes the file but not its audio.
+    scan(db, [{ ...file, title: 'Memoir', ids: ['asin:0441013597'] }], ROOT, 300);
+    expect(getBook(db, ME, bookId)?.chapters).toEqual(found);
+    // A new recording of another length drops them.
+    scan(db, [{ ...file, durationMs: 6000, ids: ['asin:0441013597'] }], ROOT, 400);
+    expect(getBook(db, ME, bookId)?.chapters).toEqual([]);
+  });
+
+  it('adds a big first scan in one go, with every file in its book', () => {
+    const files = Array.from({ length: 450 }, (_, i) =>
+      scanned(`Book ${Math.floor(i / 3)}/${(i % 3) + 1}.mp3`, { durationMs: 1000 }),
+    );
+    expect(scan(db, files)).toEqual({ added: 150, missing: 0 });
+    const rows = db.select().from(bookFiles).all();
+    expect(rows).toHaveLength(450);
+    expect(rows.every((f) => f.bookId !== null)).toBe(true);
+    expect(db.select().from(chapters).all()).toHaveLength(450);
   });
 
   it('marks a removed book missing and keeps its progress and bookmarks', () => {

@@ -30,7 +30,8 @@ export function localLookup(db: Db, profileId: string): (work: WorkRef) => boole
   let index: Map<string, LibraryBook[]> | null = null;
   let downloaded: Set<string> | null = null;
   const load = () => {
-    index ??= bookIndex(db, profileId);
+    // A book the listener hid is not one they have: wanted books ask the add-ons instead.
+    index ??= bookIndex(db, profileId, 'visible');
     downloaded ??= new Set([...index.values()].flat().flatMap((b) => (b.downloaded ? [b.id] : [])));
     return { index, downloaded };
   };

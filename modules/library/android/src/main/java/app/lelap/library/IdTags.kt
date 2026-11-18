@@ -1,5 +1,6 @@
 package app.lelap.library
 
+import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.Charset
@@ -14,13 +15,16 @@ data class FileTags(
   val narrator: String? = null,
   /** MP4 `stik`: `music`, `audiobook`, `podcast` or `other`. */
   val mediaKind: String? = null,
+  /** A Vorbis `GENRE` comment, from FLAC, Ogg Vorbis and Opus files, which Android may not give. */
+  val genre: String? = null,
 )
 
 /**
  * Tags Android's metadata reader doesn't give. ISBN and ASIN: ID3 `TXXX` frames, MP4 `----` items
  * and FLAC comments whose name holds “isbn” or ends in “asin”, raw by tag name; the app checks and
  * normalises them (`idsFromTags` in the SDK). The ISRC comes from ID3 `TSRC`, the MP4
- * `----:com.apple.iTunes:ISRC` item or a FLAC `ISRC` comment; the media kind from MP4 `stik`.
+ * `----:com.apple.iTunes:ISRC` item or a Vorbis `ISRC` comment; the media kind from MP4 `stik`.
+ * Vorbis comments come from FLAC, Ogg Vorbis and Opus files; Audible's `CDEK` MP4 item is the ASIN.
  */
 object IdTags {
   private const val MAX_FRAME_BYTES = 4 shl 10
@@ -28,6 +32,7 @@ object IdTags {
   private const val MAX_TAGS = 16
   private const val MAX_FLAC_BLOCKS = 64
   private const val MAX_COMMENTS = 256
+  private const val MAX_OGG_PAGES = 4096
 
   /** ISBN and ASIN tags by name. */
   fun parse(name: String, read: (offset: Long, length: Int) -> ByteArray, size: Long): Map<String, String> =
@@ -40,6 +45,7 @@ object IdTags {
       "mp3" -> id3(read, size)
       "m4a", "m4b", "mp4", "aac" -> mp4(read, size)
       "flac" -> flac(read, size)
+      "ogg", "oga", "opus" -> ogg(read, size)
       else -> FileTags()
     }
   } catch (e: RuntimeException) {
@@ -77,6 +83,7 @@ object IdTags {
     var isrc: String? = null
     var narrator: String? = null
     var mediaKind: String? = null
+    var genre: String? = null
 
     fun add(name: String, value: String) {
       if (value.isBlank()) return
@@ -85,7 +92,7 @@ object IdTags {
       if (isNarrator(name)) narrator = narrator ?: value
     }
 
-    fun tags() = FileTags(ids, isrc, narrator, mediaKind)
+    fun tags() = FileTags(ids, isrc, narrator, mediaKind, genre)
   }
 
   private fun exactly(read: (Long, Int) -> ByteArray, size: Long, offset: Long, length: Int): ByteArray {
@@ -93,34 +100,17 @@ object IdTags {
     return read(offset, length).also { require(it.size == length) }
   }
 
+  private val ID3_FRAMES = setOf("TXXX", "TXX", "TSRC", "TRC")
+
   private fun id3(read: (Long, Int) -> ByteArray, size: Long): FileTags {
-    if (size < 10) return FileTags()
-    val header = exactly(read, size, 0, 10)
-    if (Id3Chapters.tagSize(header) == 0) return FileTags()
-    val version = header[3].toInt()
-    if (version != 3 && version != 4) return FileTags()
-    val end = minOf(size, 10L + synchsafe(header, 6))
-    var pos = 10L
-    if (header[5].toInt() and 0x40 != 0) {
-      val ext = exactly(read, size, pos, 4)
-      pos += if (version == 4) synchsafe(ext, 0).toLong() else 4L + u32(ext, 0)
-    }
     val found = Found()
-    while (pos + 10 <= end && found.ids.size < MAX_TAGS) {
-      val frame = exactly(read, size, pos, 10)
-      if (frame[0] == 0.toByte()) break
-      val id = String(frame, 0, 4, Charsets.ISO_8859_1)
-      val frameSize = (if (version == 4) synchsafe(frame, 4) else u32(frame, 4)).toLong() and 0xffffffffL
-      if (pos + 10 + frameSize > end) break
-      if (id == "TXXX" && frameSize in 2..MAX_FRAME_BYTES) {
-        txxx(exactly(read, size, pos + 10, frameSize.toInt()))?.let { (description, value) ->
-          found.add(description, value)
-        }
+    // v2.2 names the same frames with three letters.
+    Id3Frames.walk(read, size, { id, frameSize -> id in ID3_FRAMES && frameSize in 2..MAX_FRAME_BYTES }) { frame ->
+      when (frame.id) {
+        "TXXX", "TXX" -> txxx(frame.body)?.let { (description, value) -> found.add(description, value) }
+        "TSRC", "TRC" -> textFrame(frame.body)?.let { found.isrc = it }
       }
-      if (id == "TSRC" && frameSize in 2..MAX_FRAME_BYTES) {
-        textFrame(exactly(read, size, pos + 10, frameSize.toInt()))?.let { found.isrc = it }
-      }
-      pos += 10 + frameSize
+      found.ids.size < MAX_TAGS
     }
     return found.tags()
   }
@@ -199,6 +189,11 @@ object IdTags {
           val bytes = exactly(read, size, data.bodyStart + 8, length)
           found.mediaKind = mediaKind(bytes.fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xff) })
         }
+        // Audible's m4b files keep the ASIN here.
+        "CDEK" -> {
+          val data = boxes(item.bodyStart, item.end).firstOrNull { it.type == "data" } ?: continue
+          text(read, size, data, 8)?.let { found.add("asin", it) }
+        }
         NARRATOR_ATOM -> {
           val data = boxes(item.bodyStart, item.end).firstOrNull { it.type == "data" } ?: continue
           text(read, size, data, 8)?.let { found.add("narrator", it) }
@@ -237,6 +232,57 @@ object IdTags {
     return FileTags()
   }
 
+  /**
+   * Ogg Vorbis and Opus: pages of `OggS`, a 27-byte header and a lacing table of segment lengths;
+   * a segment shorter than 255 bytes ends a packet. The first stream's second packet holds the
+   * comments, after `\u0003vorbis` or `OpusTags`, and may span pages.
+   */
+  private fun ogg(read: (Long, Int) -> ByteArray, size: Long): FileTags {
+    var pos = 0L
+    var serial: Int? = null
+    var packet = 0
+    val comments = ByteArrayOutputStream()
+    repeat(MAX_OGG_PAGES) {
+      if (pos + 27 > size) return FileTags()
+      val header = exactly(read, size, pos, 27)
+      require(String(header, 0, 4, Charsets.ISO_8859_1) == "OggS")
+      val pageSerial = ByteBuffer.wrap(header, 14, 4).order(ByteOrder.LITTLE_ENDIAN).int
+      val lacing = exactly(read, size, pos + 27, header[26].toInt() and 0xff)
+      val dataStart = pos + 27 + lacing.size
+      val dataLength = lacing.sumOf { it.toInt() and 0xff }
+      if (serial == null) serial = pageSerial
+      if (pageSerial == serial) {
+        // The part of this page that belongs to the second packet, read at once.
+        var offset = 0
+        var from = -1
+        var to = -1
+        for (lace in lacing) {
+          val n = lace.toInt() and 0xff
+          if (packet == 1 && from < 0) from = offset
+          offset += n
+          if (packet == 1) to = offset
+          if (n < 255 && packet++ == 1) break
+        }
+        if (from >= 0) {
+          require(comments.size() + (to - from) <= MAX_BOX_BYTES)
+          comments.write(exactly(read, size, dataStart + from, to - from))
+        }
+        if (packet > 1) return commentPacket(comments.toByteArray())
+      }
+      pos = dataStart + dataLength
+    }
+    return FileTags()
+  }
+
+  private fun commentPacket(packet: ByteArray): FileTags {
+    val head = String(packet, 0, minOf(8, packet.size), Charsets.ISO_8859_1)
+    return when {
+      head.startsWith("\u0003vorbis") -> vorbisComments(packet.copyOfRange(7, packet.size))
+      head == "OpusTags" -> vorbisComments(packet.copyOfRange(8, packet.size))
+      else -> FileTags()
+    }
+  }
+
   internal fun vorbisComments(body: ByteArray): FileTags {
     val buffer = ByteBuffer.wrap(body).order(ByteOrder.LITTLE_ENDIAN)
     val vendor = buffer.int
@@ -250,7 +296,9 @@ object IdTags {
       val comment = String(body, buffer.position(), length, Charsets.UTF_8)
       buffer.position(buffer.position() + length)
       val key = comment.substringBefore('=', "")
-      if (key.isNotEmpty()) found.add(key, comment.substringAfter('=').trim())
+      val value = comment.substringAfter('=').trim()
+      if (key.isNotEmpty()) found.add(key, value)
+      if (key.equals("genre", ignoreCase = true) && value.isNotEmpty()) found.genre = found.genre ?: value
     }
     return found.tags()
   }
@@ -260,12 +308,4 @@ object IdTags {
     if (length < 0 || length > MAX_FRAME_BYTES) return null
     return String(exactly(read, size, box.bodyStart + skip, length), Charsets.UTF_8).trimEnd('\u0000').trim()
   }
-
-  private fun synchsafe(b: ByteArray, at: Int) =
-    ((b[at].toInt() and 0x7f) shl 21) or ((b[at + 1].toInt() and 0x7f) shl 14) or
-      ((b[at + 2].toInt() and 0x7f) shl 7) or (b[at + 3].toInt() and 0x7f)
-
-  private fun u32(b: ByteArray, at: Int) =
-    ((b[at].toInt() and 0xff) shl 24) or ((b[at + 1].toInt() and 0xff) shl 16) or
-      ((b[at + 2].toInt() and 0xff) shl 8) or (b[at + 3].toInt() and 0xff)
 }
