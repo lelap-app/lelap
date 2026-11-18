@@ -1,14 +1,14 @@
 # The sync service on Node, for self-hosting. Built from the repository root:
 #   docker build -f docker/sync.Dockerfile .
 # Built once on the runner's own CPU: the output is one JavaScript file, the same for every platform.
-FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS build
+FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS build
 WORKDIR /src
 RUN corepack enable
 COPY . .
 RUN pnpm install --frozen-lockfile --filter "@lelap/docker-server..." \
   && pnpm --filter @lelap/docker-server build
 
-FROM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5
+FROM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5
 WORKDIR /app
 COPY --from=build /src/docker/server/dist/sync.mjs ./server.mjs
 # Backups: node sync-db.mjs backup | verify <file> | restore <file>
