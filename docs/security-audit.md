@@ -415,7 +415,7 @@ messages still arrive after `ready`.
 to `192.168.1.1`; the app's fetch has no CORS, so the add-on could read a router or NAS page. It
 could also set `Host` and reach another site on an allowed address.
 **Fix:** `Host` and the other connection headers are dropped (tested). Since
-[M104](milestones/m104.md) the Android app fetches for add-ons through its own OkHttp client in
+[M104](milestones/m104.md) the Android app fetches for add-ons through its own OkHttp client, with no proxy, in
 the netfs module (`AddonFetch.kt`): a declared host whose name resolves to a loopback, private,
 link-local, CGNAT, multicast or reserved address is refused in OkHttp's DNS step, so the name
 can't answer differently between a check and the connection; an IP address written out is checked
@@ -484,7 +484,8 @@ sheet. A link still can't.
 data, so two add-ons sharing one secret accept each other's tokens. The catalog's own sealing
 (`services/catalog/src/scrobble/sealed.ts`) binds the add-on name already.
 **Fix ([M104](milestones/m104.md)):** `createAddon` seals new settings as `e2.` tokens with the
-manifest ID as AES-GCM associated data, and still opens `e1.` tokens, so configured URLs keep
+manifest ID as AES-GCM associated data, so another add-on with the same secret refuses them, and
+still opens `e1.` tokens, so configured URLs keep
 working. `encodeConfig` and `decodeConfig` take the ID as a third argument. A changeset for the
 next SDK release and the SDK docs say so. Tested.
 

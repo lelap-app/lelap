@@ -61,8 +61,8 @@ const atob = (data: string) => web.atob(data);
 const utf8 = (text: string): Bytes => new web.TextEncoder().encode(text);
 const fromUtf8 = (bytes: ArrayBuffer | Bytes): string => new web.TextDecoder().decode(bytes);
 
-// `e2.` seals with the add-on's ID as associated data, so two add-ons sharing a secret can't read
-// each other's tokens; `e1.` tokens from before still open.
+// `e2.` seals with the add-on's ID as associated data, so of two add-ons sharing a secret, neither
+// accepts the other's tokens; `e1.` tokens from before still open.
 const BOUND = 'e2.';
 const ENCRYPTED = 'e1.';
 const PLAIN = 'p1.';
@@ -107,8 +107,8 @@ function asConfig(value: unknown): Config | null {
 /**
  * Turns a config into a URL-safe token. With `secret`, it is encrypted with AES-GCM (the add-on
  * alone can read it); without, it is only encoded, so anyone holding the URL can read it. With
- * `id`, the manifest's ID, the sealed token (`e2.`) opens only for that add-on, even when another
- * shares its secret; `createAddon` always passes it.
+ * `id`, the manifest's ID, the sealed token (`e2.`) is accepted only by that add-on, even when
+ * another shares its secret; `createAddon` always passes it.
  */
 export async function encodeConfig(config: Config, secret?: string, id?: string): Promise<string> {
   const data = utf8(JSON.stringify(config));

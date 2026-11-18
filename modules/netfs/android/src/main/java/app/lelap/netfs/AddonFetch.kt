@@ -4,6 +4,7 @@ import java.io.IOException
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
+import java.net.Proxy
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 import okhttp3.Dns
@@ -48,7 +49,8 @@ class AddonFetch(private val system: Dns = Dns.SYSTEM) {
     .retryOnConnectionFailure(false)
     .dns(system)
     .build()
-  private val guarded = base.newBuilder().dns(publicOnly).build()
+  // No proxy for declared hosts: through one, OkHttp resolves only the proxy's name, never theirs.
+  private val guarded = base.newBuilder().dns(publicOnly).proxy(Proxy.NO_PROXY).build()
 
   fun fetch(
     url: String,
@@ -66,7 +68,9 @@ class AddonFetch(private val system: Dns = Dns.SYSTEM) {
     }
     // OkHttp unpacks gzip only when it asked for it itself.
     val requestHeaders = headers.filterKeys { !it.equals("Accept-Encoding", ignoreCase = true) }.toHeaders()
-    val requestBody = body?.toRequestBody(requestHeaders["Content-Type"]?.toMediaTypeOrNull())
+    // As `fetch` does for a string body without a type.
+    val type = requestHeaders["Content-Type"] ?: "text/plain;charset=UTF-8"
+    val requestBody = body?.toRequestBody(type.toMediaTypeOrNull())
       ?: if (method.uppercase() in setOf("POST", "PUT", "PATCH")) ByteArray(0).toRequestBody() else null
     val request = Request.Builder().url(parsed).headers(requestHeaders).method(method.uppercase(), requestBody).build()
     val client = (if (localNetwork) base else guarded).newBuilder()

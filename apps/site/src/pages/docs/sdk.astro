@@ -334,10 +334,10 @@ const toc: [string, string][] = [
     <li>
       With <code>secret</code>, the token is encrypted with AES-GCM and only your add-on can read
       it; <code>password</code> fields need one. Since SDK 0.6 the manifest's <code>id</code> is
-      sealed in too (<code>e2.…</code>), so two add-ons sharing a secret can't read each other's
-      tokens; URLs with <code>e1.…</code> from earlier versions keep working. Without, the token is
-      only encoded (<code>p1.…</code>), so anyone with the URL can read it. Changing the secret
-      makes every configured URL unreadable; those requests answer <code>403</code>.
+      sealed in too (<code>e2.…</code>), so of two add-ons sharing a secret, neither accepts the
+      other's tokens; URLs with <code>e1.…</code> from earlier versions keep working. Without, the
+      token is only encoded (<code>p1.…</code>), so anyone with the URL can read it. Changing the
+      secret makes every configured URL unreadable; those requests answer <code>403</code>.
     </li>
     <li>
       With a required field, the bare manifest says <code>configurationRequired</code> and resources
