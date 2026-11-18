@@ -337,6 +337,10 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M41] Web: an Audiobookshelf server that allows the site lists, plays with `?token=` and reports places; one that does not shows the CORS hint. ([m41](m41-follow-ups.md#m41-follow-ups))
 - [ ] [M44] Web: media keys in Chrome, Firefox and Safari play, pause and skip 30 s with the tab in the background; the browser's media overlay shows the progress in the current file and can drag within it. ([m44](m44-follow-ups.md#media-keys))
 - [ ] [M44] Web, keyboard only: Tab moves through the rail, the list and the player; Space on a focused button presses it once without also playing or pausing. ([m44](m44-follow-ups.md#media-keys))
+- [ ] [M55] Safari (Mac and iPhone) and Firefox: a saved theme opposite to the system's never flashes the other one on a cold load of `/` and `/docs/`; without JavaScript the site follows the system and has no switch. ([m55](m55-follow-ups.md#no-flash))
+- [ ] [M55] On a phone, system dark mode on and off: the browser bar takes the page's colour, the light theme reads well outdoors, the switch is easy to hit. ([m55](m55-follow-ups.md#phone))
+- [ ] [M55] VoiceOver and TalkBack name the theme switch with its state (“Tema: ikut sistem” on `/ms/`) and read the new state after a press. ([m55](m55-follow-ups.md#screen-reader))
+- [ ] [M55] Safari 17.4 or older shows the whole site in the night theme with no switch. ([m55](m55-follow-ups.md#old-safari))
 
 ## C. Already covered elsewhere or obsolete
 

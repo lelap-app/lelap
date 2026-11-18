@@ -195,6 +195,9 @@ export const ms: Record<string, string> = {
   'The signed APK from our own downloads host. Once installed, the app checks for updates itself.':
     'APK bertandatangan daripada hos muat turun kami sendiri. Setelah dipasang, aplikasi menyemak kemas kini sendiri.',
   'The work you hold rights to': 'Karya yang anda pegang haknya',
+  'Theme: dark': 'Tema: gelap',
+  'Theme: follows the system': 'Tema: ikut sistem',
+  'Theme: light': 'Tema: cerah',
   'Trending, new, your shelves': 'Sohor kini, baharu, rak anda',
   'Try the Android beta': 'Cuba beta Android',
   'Until the first stable release, use the <code>beta</code> tag of each image.':
