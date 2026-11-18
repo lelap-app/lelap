@@ -47,6 +47,8 @@ export const SettingsSchema = z.object({
   homeSuggestions: z.boolean().default(true),
   /** Rating, new episodes, finished and progress drawn on covers (M49). */
   badgesOnCovers: z.boolean().default(true),
+  /** The Library's Finished group (M79) is open; it starts closed, out of the way. */
+  libraryFinishedOpen: z.boolean().default(false),
   /**
    * The app's language for this profile; a new profile starts with its creator's. Any language
    * code, so a new catalog needs no change here; the app shows English for one it has no file for.

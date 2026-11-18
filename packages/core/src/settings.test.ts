@@ -28,6 +28,7 @@ describe('settings', () => {
       carModeOffer: false,
       homeSuggestions: true,
       badgesOnCovers: true,
+      libraryFinishedOpen: false,
       language: 'en',
     });
   });

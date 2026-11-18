@@ -275,7 +275,6 @@
   "Ready for offline": "Sedia untuk luar talian",
   "Ready offline": "Sedia luar talian",
   "Ready offline only": "Sedia luar talian sahaja",
-  "Recent": "Terkini",
   "Region": "Rantau",
   "Remove": "Buang",
   "Remove PIN": "Buang PIN",
@@ -810,5 +809,9 @@
   "{n} soundbites": "{n} petikan audio",
   "Soundbite: {title} ({time})": "Petikan audio: {title} ({time})",
   "Soundbite at {time}": "Petikan audio pada {time}",
-  "Place: {name}": "Tempat: {name}"
+  "Place: {name}": "Tempat: {name}",
+  "Progress": "Kemajuan",
+  "In progress ({n})": "Sedang didengar ({n})",
+  "Not started ({n})": "Belum dimulakan ({n})",
+  "Finished ({n})": "Selesai didengar ({n})"
 }

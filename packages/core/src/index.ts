@@ -12,6 +12,7 @@ export * from './progress';
 export * from './library/scan';
 export * from './bookmarks';
 export * from './library/queries';
+export * from './library/byProgress';
 export * from './settings';
 export * from './headphones';
 export * as schema from './schema';
