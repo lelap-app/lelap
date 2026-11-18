@@ -17,6 +17,8 @@ export const ms: Record<string, string> = {
   'A beta for Android is out: a test version, with rough edges. It updates itself as new betas arrive.':
     'Versi beta untuk Android sudah keluar: versi percubaan yang belum sempurna. Ia mengemas kini sendiri apabila beta baharu tiba.',
   'A sleep timer that fades': 'Pemasa tidur yang beransur senyap',
+  'Add the repository URL in Obtainium and it installs new versions from GitHub Releases. While Lelap is in beta, turn on “Include prereleases” for it.':
+    'Tambah URL repositori dalam Obtainium, dan ia memasang versi baharu daripada GitHub Releases. Semasa Lelap masih beta, hidupkan “Include prereleases” untuknya.',
   'Add the repository URL in Obtainium and it installs new versions from GitHub Releases.':
     'Tambah URL repositori dalam Obtainium, dan ia memasang versi baharu daripada GitHub Releases.',
   'Add-on docs': 'Dokumentasi alat tambah',
@@ -24,7 +26,6 @@ export const ms: Record<string, string> = {
     'Alat tambah boleh jadi perlahan, luar talian atau hilang esok. Apa yang anda muat turun terus dimainkan, dan kemajuan anda tidak pernah bergantung pada pelayan orang lain.',
   'Add-ons made by others run on their own servers. We can’t remove them, but we’ll tell you what we know about where one is hosted.':
     'Alat tambah yang dibuat oleh pihak lain berjalan pada pelayan mereka sendiri. Kami tidak dapat membuangnya, tetapi kami akan memberitahu anda apa yang kami tahu tentang tempat ia dihoskan.',
-  'All releases': 'Semua keluaran',
   'Audio never passes through our servers': 'Audio tidak pernah melalui pelayan kami',
   Audiobooks: 'Buku audio',
   Beta: 'Beta',
