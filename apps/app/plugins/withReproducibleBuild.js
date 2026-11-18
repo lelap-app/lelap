@@ -42,6 +42,15 @@ def lelapMapPaths = { sub ->
         ${maps('        ')}
         android.defaultConfig.externalNativeBuild.cmake.cFlags(*maps)
         android.defaultConfig.externalNativeBuild.cmake.cppFlags(*maps)
+        // Reanimated adds -flto=thin to release builds, and ThinLTO names symbols after a hash
+        // that depends on the build folder, so F-Droid's rebuild could not match. Its CMakeLists
+        // appends that flag to CMAKE_CXX_FLAGS; the per-config flags come after it on the
+        // command line, so this keeps CMake's defaults (-O2 -g -DNDEBUG) and turns LTO off.
+        if (sub.path == ':react-native-reanimated') {
+            // Android's Gradle plugin builds release native code as RelWithDebInfo.
+            android.defaultConfig.externalNativeBuild.cmake.arguments(
+                '-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g -DNDEBUG -fno-lto')
+        }
     }
 }
 // React Native's root plugin has some projects evaluated before this runs.
