@@ -128,7 +128,9 @@ export default function SearchScreen() {
                 {section.title}
               </Text>
               {section.error !== null && (
-                <Text className="pt-1 text-sm text-danger">{section.error}</Text>
+                <Text accessibilityLiveRegion="polite" className="pt-1 text-sm text-danger">
+                  {section.error}
+                </Text>
               )}
             </View>
           )}

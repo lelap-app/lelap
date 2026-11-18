@@ -276,7 +276,7 @@ export function Scrubber({
           onPress={onPressElapsed}
           onLongPress={toggleZoom}
           accessibilityRole="button"
-          className="min-h-12 justify-center"
+          className="min-h-12 min-w-12 justify-center"
           {...hint(
             onPressElapsed
               ? t('Jump to a time. Long press to zoom the bar in or out.')

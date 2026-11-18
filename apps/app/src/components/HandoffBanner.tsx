@@ -34,10 +34,11 @@ export function HandoffBanner() {
     <View
       style={{ top: insets.top + 8 }}
       accessibilityLiveRegion="polite"
-      className="absolute inset-x-3 flex-row items-center gap-3 rounded-xl border border-line bg-raised p-3"
+      className="absolute inset-x-3 flex-row flex-wrap items-center justify-end gap-3 rounded-xl border border-line bg-raised p-3"
     >
-      <View className="flex-1">
-        <Text numberOfLines={1} className="text-paper">
+      {/* The buttons move below the question when large text leaves them no room beside it. */}
+      <View className="min-w-24 flex-1">
+        <Text numberOfLines={2} className="text-paper">
           {t('Continue from {name}?', { name: offer.deviceName })}
         </Text>
         <Text numberOfLines={1} className="text-sm text-muted">

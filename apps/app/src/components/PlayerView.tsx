@@ -418,7 +418,11 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
     <>
       <View className={`flex-row items-center gap-3 ${landscape ? 'pb-1' : 'pb-4'}`}>
         <View className="flex-1 gap-1">
-          <Text numberOfLines={2} className="text-xl font-semibold text-paper">
+          <Text
+            accessibilityRole="header"
+            numberOfLines={2}
+            className="text-xl font-semibold text-paper"
+          >
             {detail.book.title}
           </Text>
           {chapter ? (
@@ -530,7 +534,9 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
         </Text>
       )}
       {state.error !== null && (
-        <Text className="pb-2 text-center text-sm text-danger">{state.error}</Text>
+        <Text accessibilityLiveRegion="assertive" className="pb-2 text-center text-sm text-danger">
+          {state.error}
+        </Text>
       )}
       {localNetworkCause !== null && bookId !== null && (
         <View className="items-center gap-2 pb-2">
@@ -816,7 +822,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
               keyboardType="numbers-and-punctuation"
               returnKeyType="go"
               autoFocus
-              className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+              className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
             />
             <Pressable
               disabled={jumpTarget === null}
@@ -846,7 +852,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           placeholderTextColor="#8d8a83"
           autoFocus
           onSubmitEditing={saveNote}
-          className="rounded-lg border border-line px-3 py-2 text-paper"
+          className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
         />
         <View className="flex-row justify-end gap-2 py-3">
           <Chip label={t('Done')} onPress={saveNote} />

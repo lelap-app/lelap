@@ -32,7 +32,7 @@ export function Pill({
     <Pressable
       {...props}
       accessibilityRole={accessibilityRole}
-      className="min-h-12 justify-center active:opacity-70"
+      className="min-h-12 min-w-12 items-center justify-center active:opacity-70"
     >
       {({ pressed }) => (
         <View className={pressed ? classes.pressed : classes.base}>{children}</View>

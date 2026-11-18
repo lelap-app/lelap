@@ -105,7 +105,9 @@ function TimeStepper({
         accessibilityLabel={t('{time}, 30 minutes earlier', { time: label })}
         className="h-12 w-12 items-center justify-center rounded-full border border-line active:bg-raised"
       >
-        <Text className="text-lg text-paper">−</Text>
+        <Text maxFontSizeMultiplier={1.5} className="text-lg text-paper">
+          −
+        </Text>
       </Pressable>
       <Text accessibilityLiveRegion="polite" className="min-w-16 text-center text-lg text-paper">
         {formatTimeOfDay(minutes)}
@@ -116,7 +118,9 @@ function TimeStepper({
         accessibilityLabel={t('{time}, 30 minutes later', { time: label })}
         className="h-12 w-12 items-center justify-center rounded-full border border-line active:bg-raised"
       >
-        <Text className="text-lg text-paper">+</Text>
+        <Text maxFontSizeMultiplier={1.5} className="text-lg text-paper">
+          +
+        </Text>
       </Pressable>
     </View>
   );

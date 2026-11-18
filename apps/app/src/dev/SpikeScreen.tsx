@@ -205,7 +205,11 @@ export function SpikeScreen() {
         <Button label="Cancel" onPress={() => run(audio.cancelSleepTimer())} />
       </View>
 
-      {error !== null && <Text style={styles.error}>{error}</Text>}
+      {error !== null && (
+        <Text accessibilityLiveRegion="assertive" style={styles.error}>
+          {error}
+        </Text>
+      )}
     </ScrollView>
   );
 }

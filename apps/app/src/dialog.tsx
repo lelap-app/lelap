@@ -67,6 +67,7 @@ export function DialogHost() {
       animationType={reduced ? 'none' : 'fade'}
       visible
       onRequestClose={() => close(cancel)}
+      aria-label={dialog.title}
     >
       <View className="flex-1 items-center justify-center bg-black/60 px-6">
         {/* A sibling behind the dialog, not its parent: a button can't hold the dialog's buttons. */}

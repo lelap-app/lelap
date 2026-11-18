@@ -89,6 +89,7 @@ export const BookRow = memo(function BookRow({
   swipe?: RowSwipe;
 }) {
   const progress = book.durationMs > 0 ? Math.min(1, book.bookPositionMs / book.durationMs) : 0;
+  const dim = book.missing || unavailable;
   // The row shows progress as a bar and a percent already; screen readers read its words.
   const badges = useBookBadges(book, 56).filter((b) => b.kind !== 'progress');
   const { x, width, handlers, justSwiped } = useSwipe(book, swipe);
@@ -131,11 +132,14 @@ export const BookRow = memo(function BookRow({
           {...actions}
           onAccessibilityAction={onAction}
           {...deleteKeyAction(swipe?.label, () => swipe?.onSwipe(book))}
-          className={`flex-row items-center gap-3 bg-night px-4 py-2 active:bg-raised ${book.missing || unavailable ? 'opacity-40' : ''}`}
+          className="flex-row items-center gap-3 bg-night px-4 py-2 active:bg-raised"
         >
-          <BookCover uri={coverUri(book)} title={book.title} size={56} badges={badges} />
+          {/* A book that can't play here is dimmed by colour, not opacity, so its text stays readable. */}
+          <View className={dim ? 'opacity-40' : ''}>
+            <BookCover uri={coverUri(book)} title={book.title} size={56} badges={badges} />
+          </View>
           <View className="flex-1 gap-1">
-            <Text numberOfLines={2} className="text-base text-paper">
+            <Text numberOfLines={2} className={`text-base ${dim ? 'text-muted' : 'text-paper'}`}>
               {book.title}
             </Text>
             {(book.author !== null || book.source === 'addon') && (

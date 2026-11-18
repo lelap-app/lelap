@@ -31,7 +31,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Switch,
   Text,
   TextInput,
   View,
@@ -55,7 +54,7 @@ import {
 } from '../src/addonSources';
 import { closeSandbox } from '../src/sandbox';
 import { AddonSignin } from '../src/components/AddonSignin';
-import { TextButton } from '../src/components/TextButton';
+import { TextButton, Toggle } from '../src/components/TextButton';
 import { askLocalNetwork, withLocalNetworkCause } from '../src/localNetwork';
 import { netServerReason } from '../src/netServers';
 import {
@@ -117,7 +116,7 @@ function LibrarySwitch({
         <Text className="text-paper">{name}</Text>
         {detail && <Text className="text-xs text-muted">{detail}</Text>}
       </View>
-      <Switch accessibilityLabel={name} value={on} onValueChange={onChange} />
+      <Toggle accessibilityLabel={name} value={on} onValueChange={onChange} />
     </View>
   );
 }
@@ -159,7 +158,7 @@ function Field({
         editable={!locked}
         multiline={multiline}
         {...(multiline ? { numberOfLines: 4, textAlignVertical: 'top' as const } : {})}
-        className={`rounded-lg border border-line px-3 py-2 ${locked ? 'text-muted' : 'text-paper'} ${multiline ? 'min-h-24 font-mono text-xs' : ''}`}
+        className={`rounded-lg border border-line px-3 py-2 ${locked ? 'text-muted' : 'text-paper'} ${multiline ? 'min-h-24 font-mono text-xs' : 'min-h-12'}`}
       />
       {hint && <Text className="text-xs text-muted">{hint}</Text>}
     </View>

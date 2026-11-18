@@ -110,7 +110,7 @@ export default function ScrobblerScreen() {
                     autoCapitalize="none"
                     autoCorrect={false}
                     secureTextEntry={field.type === 'password'}
-                    className="rounded-lg border border-line px-3 py-2 text-paper"
+                    className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
                   />
                   {field.help && <Text className="text-xs text-muted">{field.help}</Text>}
                 </View>
@@ -121,7 +121,11 @@ export default function ScrobblerScreen() {
                   { hosts: (manifest.sandbox?.hosts ?? []).join(', ') },
                 )}
               </Text>
-              {error && <Text className="text-sm text-danger">{error}</Text>}
+              {error && (
+                <Text accessibilityLiveRegion="assertive" className="text-sm text-danger">
+                  {error}
+                </Text>
+              )}
               <Pressable
                 disabled={saving}
                 onPress={() => void save()}

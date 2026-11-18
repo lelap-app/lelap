@@ -1,7 +1,7 @@
 import { createProfile, getSettings, listProfiles, setSetting } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
@@ -11,7 +11,7 @@ import { Avatar, pickAvatar } from '../src/components/Avatar';
 import { db, newId } from '../src/db';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
-import { TextButton } from '../src/components/TextButton';
+import { TextButton, Toggle } from '../src/components/TextButton';
 
 /** Everyone who listens on this device (and, with sync, the household). */
 export default function ProfilesScreen() {
@@ -107,7 +107,7 @@ export default function ProfilesScreen() {
           accessibilityLabel={t('Name')}
           placeholderTextColor="#8d8a83"
           onSubmitEditing={add}
-          className="rounded-lg border border-line px-3 py-2 text-paper"
+          className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
         />
         <View className="flex-row items-center gap-3">
           <View className="flex-1">
@@ -116,7 +116,7 @@ export default function ProfilesScreen() {
               {t('Can’t change add-ons; sees the catalogs you allow.')}
             </Text>
           </View>
-          <Switch accessibilityLabel={t('Kids profile')} value={kids} onValueChange={setKids} />
+          <Toggle accessibilityLabel={t('Kids profile')} value={kids} onValueChange={setKids} />
         </View>
         <TextButton
           text={t('Add')}

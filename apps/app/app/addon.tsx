@@ -12,7 +12,8 @@ import { TextButton } from '../src/components/TextButton';
 
 /**
  * `lelap://addon?manifest=…` (and `/addon?manifest=…` on the web): where an add-on's configure page
- * sends the listener with the manifest URL that carries their settings.
+ * sends the listener with the manifest URL that carries their settings. A passing screen with one
+ * line, read as it changes, so it has no heading (a11y: no heading).
  */
 export default function AddonLinkScreen() {
   const router = useRouter();
@@ -52,11 +53,15 @@ export default function AddonLinkScreen() {
       {message === null ? (
         <>
           <ActivityIndicator color="#f5b041" />
-          <Text className="text-soft">{t('Opening the add-on…')}</Text>
+          <Text accessibilityLiveRegion="polite" className="text-soft">
+            {t('Opening the add-on…')}
+          </Text>
         </>
       ) : (
         <>
-          <Text className="text-center text-paper">{message}</Text>
+          <Text accessibilityLiveRegion="polite" className="text-center text-paper">
+            {message}
+          </Text>
           <TextButton text={t('Add-ons')} onPress={() => router.replace('/addons')} />
         </>
       )}

@@ -2,7 +2,7 @@ import { needsFirstStart } from '@lelap/core';
 import { Redirect } from 'expo-router';
 import { BottomTabBar, Tabs } from 'expo-router/js-tabs';
 import { useState } from 'react';
-import { useWindowDimensions, View } from 'react-native';
+import { Platform, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../../src/i18n';
@@ -18,6 +18,9 @@ import { useWide } from '../../src/layout';
 // step of the system font scale keeps the labels whole at the largest sizes.
 const TAB_BAR = 49;
 const LABEL_GROWTH = 16;
+// The web squeezes the label to 10 of its 12 points in a 49-point bar, cutting off the y of
+// Library; a little more room keeps it whole.
+const WEB_EXTRA = Platform.OS === 'web' ? 4 : 0;
 
 const ICONS: Record<string, IconName> = {
   index: 'home',
@@ -36,8 +39,12 @@ export default function TabsLayout() {
   // Asked once as the tabs open: a device with nothing in it starts with the welcome (M82).
   const [firstStart] = useState(() => needsFirstStart(db, profileId));
   const tall =
-    fontScale > 1 && !wide
-      ? { height: Math.round(TAB_BAR + LABEL_GROWTH * (fontScale - 1)) + insets.bottom }
+    (fontScale > 1 || WEB_EXTRA > 0) && !wide
+      ? {
+          height:
+            Math.round(TAB_BAR + WEB_EXTRA + LABEL_GROWTH * Math.max(0, fontScale - 1)) +
+            insets.bottom,
+        }
       : {};
   if (firstStart) return <Redirect href="/welcome" />;
   return (

@@ -104,13 +104,13 @@ export default function ConvertScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
-              className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+              className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
             />
             <Pressable
               disabled={busy || feedUrl.trim() === ''}
               onPress={() => void convert(feedUrl.trim())}
               accessibilityRole="button"
-              className="min-h-12 justify-center px-1"
+              className="min-h-12 min-w-12 items-center justify-center px-1"
             >
               <Text className={feedUrl.trim() === '' ? 'text-muted' : 'text-amber'}>
                 {t('Use')}
