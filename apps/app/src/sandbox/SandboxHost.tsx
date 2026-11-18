@@ -6,6 +6,7 @@ import { attachSandbox, type Box, currentBoxes, sandboxMessage, subscribeBoxes }
 
 // Android: one hidden WebView per running in-app add-on. It loads only the inline page; any
 // navigation is refused, and it has no file or content access and keeps nothing between runs.
+// The add-on's code runs in a worker inside it (see page.ts), which can't navigate at all.
 
 // react-native-webview 14's class typings don't fit React 19's; its own props type still does.
 const Web = WebView as unknown as ComponentType<WebViewProps & { ref?: Ref<WebView> }>;
@@ -19,7 +20,9 @@ function Sandbox({ box }: { box: Box }) {
     <Web
       ref={ref}
       source={{ html: box.html, baseUrl: 'about:blank' }}
-      originWhitelist={['about:*']}
+      // Every address passes the list so the check below decides: one that fails the list is
+      // handed to the phone's browser instead, address and all.
+      originWhitelist={['*']}
       onShouldStartLoadWithRequest={(request) => request.url.startsWith('about:')}
       onMessage={(event) => sandboxMessage(box.key, event.nativeEvent.data)}
       javaScriptEnabled

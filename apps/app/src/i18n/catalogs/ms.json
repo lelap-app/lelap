@@ -508,7 +508,7 @@
   "Try new versions before everyone else.": "Cuba versi baharu sebelum orang lain.",
   "Update": "Kemas kini",
   "Update {name}?": "Kemas kini {name}?",
-  "WebDAV, an S3-compatible bucket, Jellyfin or Audiobookshelf.": "WebDAV, baldi serasi S3, Jellyfin atau Audiobookshelf.",
+  "WebDAV, an S3-compatible bucket, Jellyfin, Audiobookshelf or an HTTP folder.": "WebDAV, baldi serasi S3, Jellyfin, Audiobookshelf atau folder HTTP.",
   "What is on the phone and how much space it takes.": "Apa yang ada dalam telefon dan berapa banyak ruang yang digunakan.",
   "When your Bluetooth headphones or speaker likely won’t last the sleep timer or the chapter. Needs “nearby devices”; devices that don’t report a level show nothing.": "Apabila fon kepala atau pembesar suara Bluetooth anda mungkin tidak bertahan sepanjang pemasa tidur atau bab. Memerlukan “peranti berdekatan”; peranti yang tidak melaporkan tahap tidak menunjukkan apa-apa.",
   "Where Home, Discover and Search look for books.": "Tempat Utama, Teroka dan Cari mencari buku.",
@@ -714,5 +714,17 @@
   "Title or author": "Tajuk atau pengarang",
   "Search the catalogs": "Cari dalam katalog",
   "The search goes to your add-ons when you send it.": "Carian dihantar kepada alat tambah anda apabila anda menghantarnya.",
-  "Nothing found. Try fewer words.": "Tiada apa-apa ditemui. Cuba kurangkan perkataan."
+  "Nothing found. Try fewer words.": "Tiada apa-apa ditemui. Cuba kurangkan perkataan.",
+  "Add-on on this device": "Alat tambah dalam peranti ini",
+  "An add-on with this ID comes with Lelap already.": "Alat tambah dengan ID ini sudah disertakan dengan Lelap.",
+  "In the browser the server must allow this site (CORS), and books that need a login play in the Android app only: a browser can't send the login with audio.": "Dalam pelayar, pelayan mesti membenarkan laman ini (CORS), dan buku yang memerlukan log masuk hanya dimainkan dalam aplikasi Android: pelayar tidak dapat menghantar log masuk bersama audio.",
+  "Runs on this device, in a sandbox. It can reach only the address you enter, and the login stays on this device.": "Berjalan dalam peranti ini, dalam kotak pasir. Ia hanya boleh mencapai alamat yang anda masukkan, dan log masuk kekal dalam peranti ini.",
+  "The add-on answered {status}.": "Alat tambah menjawab {status}.",
+  "The add-on for this server is no longer on this device.": "Alat tambah untuk pelayan ini tiada lagi dalam peranti ini.",
+  "The add-on’s list of files is not valid.": "Senarai fail alat tambah ini tidak sah.",
+  "The login for {name} is needed again.": "Log masuk untuk {name} diperlukan semula.",
+  "This add-on needs a login, which this device can’t keep apart from it.": "Alat tambah ini memerlukan log masuk, yang tidak dapat diasingkan daripadanya dalam peranti ini.",
+  "The add-on for {name} changed. Log in again to use it.": "Alat tambah untuk {name} telah berubah. Log masuk semula untuk menggunakannya.",
+  "It replaces the add-on your servers use; they ask for their login again.": "Ia menggantikan alat tambah yang digunakan oleh pelayan anda; pelayan itu akan meminta log masuk semula.",
+  "The add-on changed. Log in again to use it.": "Alat tambah telah berubah. Log masuk semula untuk menggunakannya."
 }

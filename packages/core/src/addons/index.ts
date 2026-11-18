@@ -4,5 +4,7 @@ export * from './repository';
 export * from './streamed';
 export * from './sources';
 export * from './local';
+export * from './streamHeaders';
+export * from './bundled';
 export * from './permissions';
 export * from './availability';

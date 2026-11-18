@@ -124,13 +124,28 @@ class PlaybackService : MediaLibraryService() {
       headersByUri = value?.takeIf { it.headers.isNotEmpty() }
         ?.let { book -> book.files.associate { file -> file.uri to book.headers } }
         .orEmpty()
+      // Signed links and redirects change; each book's files are resolved again.
+      resolvedUris.clear()
     }
 
   @Volatile private var headersByUri: Map<String, Map<String, String>> = emptyMap()
 
+  // Where each file with a login ends up after redirects. Media3 sends the same headers after a
+  // redirect, to any host, so the redirects are followed first and the login is sent only when
+  // the file stays on its own server.
+  private val resolvedUris = java.util.concurrent.ConcurrentHashMap<String, Pair<String, Boolean>>()
+
   private fun withBookHeaders(upstream: DataSource.Factory): DataSource.Factory =
     ResolvingDataSource.Factory(upstream) { spec ->
-      headersByUri[spec.uri.toString()]?.let(spec::withAdditionalHeaders) ?: spec
+      val uri = spec.uri.toString()
+      val headers = headersByUri[uri] ?: return@Factory spec
+      val resolved = resolvedUris[uri]
+        ?: runCatching { LoginRedirects.resolve(uri, headers) }.getOrNull()?.also { resolvedUris[uri] = it }
+        // Unreachable now: as before, the login goes with the file's own address.
+        ?: return@Factory spec.withAdditionalHeaders(headers)
+      val (target, sameServer) = resolved
+      val moved = if (target == uri) spec else spec.buildUpon().setUri(android.net.Uri.parse(target)).build()
+      if (sameServer) moved.withAdditionalHeaders(headers) else moved
     }
   private var currentHandsOver = false
 

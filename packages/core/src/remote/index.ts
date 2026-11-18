@@ -41,3 +41,18 @@ export {
   reportAudiobookshelfProgress,
 } from './audiobookshelf';
 export { applyRemotePlaces, setRemoteCovers } from './places';
+export {
+  type AddonLogin,
+  type AddonScan,
+  type AddonSource,
+  addonLibraryScan,
+  addonLogin,
+  addonRootLocation,
+  addonSettings,
+  addonSource,
+  addonSourceHosts,
+  headersFor,
+  sameAddonCode,
+  sharedHeaders,
+  withAddonLogin,
+} from './addon';

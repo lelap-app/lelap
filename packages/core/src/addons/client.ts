@@ -1,3 +1,4 @@
+import { isLocalAddonUrl } from './local';
 import {
   ArtworkImage,
   artworkPath,
@@ -11,6 +12,7 @@ import {
   metaPath,
   Stream,
   streamPath,
+  WebStream,
   supports,
 } from '@lelap/sdk';
 
@@ -247,7 +249,11 @@ export async function fetchMeta(
 
 export type FoundStream = { addon: InstalledAddon; stream: Stream };
 
-/** The valid streams one add-on returns for this ID. */
+/**
+ * The valid streams one add-on returns for this ID. A web add-on's stream with `headers` is
+ * refused: only an add-on inside the app may ask for headers, since its answers never leave the
+ * phone.
+ */
 export async function fetchAddonStreams(
   fetcher: Fetcher,
   addon: InstalledAddon,
@@ -257,7 +263,7 @@ export async function fetchAddonStreams(
   return validEntries(
     await getJson(fetcher, addonBase(addon.url) + streamPath(type, id)),
     'streams',
-    parseWith(Stream),
+    parseWith<Stream>(isLocalAddonUrl(addon.url) ? Stream : WebStream),
   ).map((stream) => ({ addon, stream }));
 }
 

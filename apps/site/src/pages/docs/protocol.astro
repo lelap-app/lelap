@@ -3,12 +3,14 @@ import {
   CatalogResponse,
   HealthResponse,
   LATEST_PROTOCOL_VERSION,
+  LibraryResponse,
   Manifest,
   MetaResponse,
   PROTOCOL_VERSION,
   ScrobbleRequest,
   StreamResponse,
   catalogPath,
+  libraryPath,
   metaPath,
   streamPath,
 } from '@lelap/sdk';
@@ -177,8 +179,45 @@ GET /stream/{type}/{id}.json                → { "streams": Stream[] }
 POST /scrobble                              ← { "events": ScrobbleEvent[] }
 GET /health                                 → HealthResponse      (revision 2)
 GET /artwork/{type}/{id}.json               → { "artwork": ArtworkImage[] }  (revision 3)
+GET /library/audiobook/all.json             → { "files": LibraryFile[] }  (revision 5, inside the app)
 GET /configure                              → your settings page  (HTML)
 `;
+
+const sourceManifest = example(Manifest, {
+  id: 'org.example.nas-shelf',
+  version: '1.0.0',
+  protocol: 1,
+  protocolVersion: LATEST_PROTOCOL_VERSION,
+  name: 'NAS shelf',
+  description: 'Audiobooks on the NAS at home.',
+  types: ['audiobook'],
+  resources: ['library'],
+  catalogs: [],
+  sandbox: { hosts: [] },
+  settings: [
+    { key: 'url', label: 'Server address', type: 'url', required: true, host: true },
+    { key: 'user', label: 'Username', type: 'text' },
+    { key: 'password', label: 'Password', type: 'password' },
+  ],
+});
+
+const library = example(LibraryResponse, {
+  files: [
+    {
+      path: 'Frances Hodgson Burnett/The Secret Garden/01 Chapter 1.mp3',
+      url: 'http://192.168.1.20:8080/books/secret-garden/01.mp3',
+      size: 14_912_000,
+      modifiedAt: 1_700_000_000_000,
+      durationMs: 1_234_000,
+      title: 'Chapter 1',
+      album: 'The Secret Garden',
+      albumArtist: 'Frances Hodgson Burnett',
+      ids: ['isbn:9780141321066'],
+      cover: 'http://192.168.1.20:8080/books/secret-garden/cover.jpg',
+    },
+  ],
+  headers: { Authorization: 'Basic bWU6c2VjcmV0' },
+});
 
 const configuredManifest = example(Manifest, {
   id: 'com.example.readings',
@@ -329,6 +368,104 @@ const manifestFields: Field[] = [
     required: false,
     meaning:
       'The revision 1 spelling of `behaviorHints.configurable`. Send both if apps from before revision 2 should show Configure.',
+  },
+  {
+    name: 'sandbox',
+    type: '{ hosts: string[] }',
+    required: false,
+    meaning:
+      'Revision 3, for add-ons inside the app only: the hosts the app fetches for it. See “Add-ons inside the app” below.',
+  },
+  {
+    name: 'settings',
+    type: 'SettingField[]',
+    required: false,
+    meaning:
+      'Revision 5, for add-ons inside the app only: the form the app shows when the listener adds it as a server. See “Library sources” below.',
+  },
+];
+
+const settingFields: Field[] = [
+  {
+    name: 'key',
+    type: 'string',
+    required: true,
+    meaning: 'Where the value goes in `settings`: a letter, then letters, digits or `_`; up to 32.',
+  },
+  { name: 'label', type: 'string', required: true, meaning: 'The field’s name on the form.' },
+  {
+    name: 'type',
+    type: '"text" | "url" | "password"',
+    required: true,
+    meaning:
+      '`url` takes an `http` or `https` address without a login in it; `password` is hidden as it is typed.',
+  },
+  {
+    name: 'required',
+    type: 'boolean',
+    required: false,
+    meaning: 'The form can’t be sent without it. Fields are optional otherwise.',
+  },
+  { name: 'placeholder', type: 'string', required: false, meaning: 'Shown in the empty field.' },
+  { name: 'help', type: 'string', required: false, meaning: 'A short line under the field.' },
+  {
+    name: 'host',
+    type: 'boolean',
+    required: false,
+    meaning:
+      'For `url`: the add-on may reach the host of the address typed, for this server only, as if it were in `sandbox.hosts`.',
+  },
+];
+
+const libraryFields: Field[] = [
+  {
+    name: 'path',
+    type: 'string',
+    required: true,
+    meaning:
+      'Folders and the file name with its extension, separated by `/`, such as `Author/Book/01.mp3`. No empty, `.` or `..` parts. A folder of audio files is a book, as on the phone.',
+  },
+  {
+    name: 'url',
+    type: 'URL',
+    required: true,
+    meaning:
+      'The file, `http` or `https`, on one of the add-on’s hosts. Files elsewhere are left out.',
+  },
+  { name: 'size', type: 'integer ≥ 0', required: false, meaning: 'Bytes.' },
+  {
+    name: 'modifiedAt',
+    type: 'integer',
+    required: false,
+    meaning:
+      'Unix time in milliseconds. A changed size or time makes the app read the file’s tags again.',
+  },
+  {
+    name: 'durationMs',
+    type: 'integer ≥ 0',
+    required: false,
+    meaning:
+      'With it, the app takes `title`, `album`, `artist`, `albumArtist`, `chapters` and `ids` as they are; without it, it reads the tags from the file itself.',
+  },
+  {
+    name: 'album',
+    type: 'string',
+    required: false,
+    meaning: 'The book’s title; `albumArtist` is its author.',
+  },
+  {
+    name: 'ids',
+    type: 'string[]',
+    required: false,
+    meaning:
+      '`isbn:…`, `asin:…` and the like, so the app can show the book on its work’s page. Up to 16.',
+  },
+  {
+    name: 'cover',
+    type: 'URL',
+    required: false,
+    meaning:
+      'A cover for the file’s book, on one of the add-on’s hosts. A `cover.jpg` in the folder works too, fetched with the headers.',
   },
 ];
 
@@ -680,6 +817,13 @@ const streamFields: Field[] = [
     required: false,
     meaning: 'The source allows keeping a copy for offline listening.',
   },
+  {
+    name: 'headers',
+    type: 'object',
+    required: false,
+    meaning:
+      'Revision 5, from add-ons inside the app only: request headers for the audio, such as `Authorization`. The app sends them on the phone, only to the add-on’s hosts. A web add-on’s stream with headers is refused.',
+  },
 ];
 
 const singleFields: Field[] = [
@@ -733,6 +877,8 @@ const toc: [string, string][] = [
   ['configure', 'Configuration page'],
   ['health', 'Health'],
   ['badges', 'Badges'],
+  ['in-app', 'Add-ons inside the app'],
+  ['library', 'Library sources'],
   ['schema', 'JSON Schema'],
 ];
 ---
@@ -1060,8 +1206,11 @@ const toc: [string, string][] = [
   <p>
     Revision 2 adds <code>behaviorHints</code>, a configure flow with sign-in, and{' '}
     <code>/health</code>. Revision 3 adds <a href="#artwork">artwork</a> and{' '}
-    <a href="#in-app">add-ons inside the app</a>; revision 4 adds <a href="#badges">badges</a>. When
-    an add-on declares a newer revision than the app knows, Settings → Add-ons says so.
+    <a href="#in-app">add-ons inside the app</a>; revision 4 adds <a href="#badges">badges</a>;
+    revision 5 adds <a href="#library">library sources</a>: settings, a library listing and stream
+    headers, for add-ons inside the app. An app before revision 5 refuses a manifest that lists{' '}
+    <code>library</code>. When an add-on declares a newer revision than the app knows, Settings →
+    Add-ons says so.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />
@@ -1197,6 +1346,55 @@ const toc: [string, string][] = [
     reads a <code>books.json</code> from a server at home.
   </p>
 
+  <h2 id="library">Library sources</h2>
+  <p>
+    Since revision 5, an add-on inside the app can be a source for the listener’s own library, next
+    to WebDAV and S3: it lists the books and files on a server, and the app scans them into the
+    library with places, downloads and offline play. The listener adds it in Settings → Servers →
+    Add a server, where it shows as a kind of its own and asks for what <code>settings</code>{' '}
+    describes. Lelap ships one with the app, HTTP folder, which reads the folder listings of servers
+    such as nginx, Apache and Caddy.
+  </p>
+  <ul>
+    <li>
+      <code>settings</code> in the manifest describes the form. The values stay on the phone,
+      passwords sealed like a WebDAV password, never synced, exported or in diagnostics. They reach
+      only this add-on’s <code>library</code> handler, as <code>args.settings</code>, for that
+      server. Put keys and tokens in <code>password</code> fields: text and address fields are kept
+      like a server’s address, unsealed.
+    </li>
+    <li>
+      <code>{`GET /${libraryPath()}`}</code> answers every file, with a <code>headers</code> object
+      when the audio needs a login. Libraries are scanned when the app starts and when the listener
+      scans, with the other servers.
+    </li>
+    <li>
+      Each server runs in a sandbox of its own that reaches only <code>sandbox.hosts</code> and the
+      hosts of <code>url</code> fields marked <code>host</code>, with their port. The code runs in a
+      worker inside it, which can’t open a page or an address and has no <code>fetch</code> of its
+      own; where a worker can’t start, the add-on gets no settings.
+    </li>
+    <li>
+      The app sends the headers with the audio on the phone (playing, downloading, casting through
+      the phone) only to those hosts, drops them when a redirect leaves the server, and leaves out
+      any file or cover elsewhere: an address could otherwise carry a setting off.
+    </li>
+    <li>
+      A browser can’t send headers with audio, so books that need them play in the Android app.
+    </li>
+  </ul>
+  <CodeBlock code={sourceManifest} label="manifest" />
+  <h3 id="setting-field">SettingField</h3>
+  <FieldTable fields={settingFields} />
+  <CodeBlock code={library} label={`GET /${libraryPath()}`} />
+  <h3 id="library-file">LibraryFile</h3>
+  <FieldTable fields={libraryFields} />
+  <p>
+    <code>title</code> and <code>artist</code> work as in a file’s tags, and <code>chapters</code>{' '}
+    is a list of <a href="#chapter">Chapter</a>. The SDK’s <code>readSettings</code> checks a form
+    the same way the app does, and <code>settingHosts</code> gives the hosts it grants.
+  </p>
+
   <h2 id="speed">Making it fast</h2>
   <p>
     Listeners feel every add-on in Home, Discover and Search. The app shows each add-on's answer as
@@ -1243,8 +1441,8 @@ const toc: [string, string][] = [
     </a>{' '}
     is a JSON Schema (draft 2020-12) generated from the SDK’s schemas, with <code>Manifest</code>,{' '}
     <code>CatalogResponse</code>, <code>MetaResponse</code>, <code>StreamResponse</code>,{' '}
-    <code>ScrobbleRequest</code> and <code>HealthResponse</code> under <code>$defs</code>. Point a
-    validator or your editor at one of them:
+    <code>ScrobbleRequest</code>, <code>HealthResponse</code> and <code>LibraryResponse</code> under{' '}
+    <code>$defs</code>. Point a validator or your editor at one of them:
   </p>
   <CodeBlock code={schemaRef} />
 </Docs>

@@ -1,5 +1,6 @@
 import { t } from '../i18n';
-import { getLocalAddonCode, hostAllowed, listAddons } from '@lelap/core';
+import { bundledAddon, getLocalAddonCode, hostAllowed, listAddons } from '@lelap/core';
+import { libraryPath, type Settings } from '@lelap/sdk';
 
 import { db } from '../db';
 import { sandboxPage } from './page';
@@ -7,6 +8,8 @@ import { sandboxPage } from './page';
 // The app's side of in-app add-ons (M38). Each add-on runs in its own hidden sandbox (a WebView
 // on Android, an iframe on the web), started when first needed. Calls go in as messages; the
 // sandbox asks the app to fetch, and the app fetches only from the add-on's declared hosts.
+// An add-on used as a library source (M57) gets a sandbox of its own per server, with that
+// server's hosts, and its settings only in that sandbox's `library` calls.
 
 const CALL_TIMEOUT_MS = 20_000;
 const FETCH_TIMEOUT_MS = 20_000;
@@ -26,6 +29,8 @@ export type Box = {
   hosts: string[];
   post: ((message: string) => void) | null;
   ready: boolean;
+  /** The add-on runs in a worker, which can't navigate away with what it was given. */
+  isolated: boolean;
   waiting: (() => void)[];
   calls: Map<string, Call>;
 };
@@ -54,12 +59,20 @@ function open(id: string, code: string, hosts: string[]): Box {
     hosts,
     post: null,
     ready: false,
+    isolated: false,
     waiting: [],
     calls: new Map(),
   };
   boxes.set(id, box);
   changed();
   return box;
+}
+
+/** Closes an add-on's sandbox and those of every server it lists. */
+export function closeSandboxesOf(manifestUrl: string): void {
+  for (const id of [...boxes.keys()]) {
+    if (id === manifestUrl || id.startsWith(`${manifestUrl}#`)) closeSandbox(id);
+  }
 }
 
 /** Closes a sandbox, such as after its add-on is removed or updated. */
@@ -117,6 +130,7 @@ export function sandboxMessage(key: string, data: string): void {
   let m: {
     t?: string;
     id?: string;
+    isolated?: boolean;
     status?: number;
     body?: unknown;
     url?: string;
@@ -128,7 +142,9 @@ export function sandboxMessage(key: string, data: string): void {
     return;
   }
   if (m.t === 'ready') {
+    if (box.ready) return;
     box.ready = true;
+    box.isolated = m.isolated === true;
     for (const go of box.waiting.splice(0)) go();
   } else if (m.t === 'result' && m.id) {
     const call = box.calls.get(m.id);
@@ -141,16 +157,28 @@ export function sandboxMessage(key: string, data: string): void {
   }
 }
 
+/** An add-on's code and manifest: bundled with the app first, else installed from a file. */
+function codeOf(manifestUrl: string) {
+  const bundled = bundledAddon(manifestUrl);
+  if (bundled) return { code: bundled.code, manifest: bundled.manifest };
+  const stored = getLocalAddonCode(db, manifestUrl);
+  const addon = listAddons(db).find((a) => a.url === manifestUrl);
+  return stored && addon ? { code: stored.code, manifest: addon.manifest } : null;
+}
+
 function boxFor(manifestUrl: string): Box | null {
   const existing = boxes.get(manifestUrl);
   if (existing) return existing;
-  const stored = getLocalAddonCode(db, manifestUrl);
-  const addon = listAddons(db).find((a) => a.url === manifestUrl);
-  if (!stored || !addon) return null;
-  return open(manifestUrl, stored.code, addon.manifest.sandbox?.hosts ?? []);
+  const found = codeOf(manifestUrl);
+  if (!found) return null;
+  return open(manifestUrl, found.code, found.manifest.sandbox?.hosts ?? []);
 }
 
-async function call(box: Box, path: string): Promise<{ status: number; body: unknown }> {
+async function call(
+  box: Box,
+  path: string,
+  settings?: Settings,
+): Promise<{ status: number; body: unknown }> {
   if (!box.ready || !box.post) {
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(
@@ -163,6 +191,10 @@ async function call(box: Box, path: string): Promise<{ status: number; body: unk
       });
     });
   }
+  // A login reaches only code that can't carry it off by navigating somewhere else.
+  if (settings && !box.isolated) {
+    throw new Error(t('This add-on needs a login, which this device can’t keep apart from it.'));
+  }
   const id = `c${++seq}`;
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -170,7 +202,7 @@ async function call(box: Box, path: string): Promise<{ status: number; body: unk
       reject(new Error(t('The add-on did not answer in time.')));
     }, CALL_TIMEOUT_MS);
     box.calls.set(id, { resolve, reject, timer });
-    box.post?.(JSON.stringify({ t: 'call', id, path }));
+    box.post?.(JSON.stringify({ t: 'call', id, path, ...(settings ? { settings } : {}) }));
   });
 }
 
@@ -182,6 +214,29 @@ export async function callLocalAddon(
   const box = boxFor(manifestUrl);
   if (!box) throw new Error(t('This add-on is not on this device.'));
   return call(box, path);
+}
+
+/**
+ * Asks an add-on for one server's library, in that server's own sandbox: it may reach only
+ * `hosts`, and it is the only one to get `settings`. `sandboxId` names the server, such as
+ * `<manifest URL>#<root ID>`; a sandbox whose hosts changed is started again.
+ */
+export async function callAddonLibrary(args: {
+  addonUrl: string;
+  sandboxId: string;
+  hosts: string[];
+  settings: Settings;
+}): Promise<{ status: number; body: unknown }> {
+  const found = codeOf(args.addonUrl);
+  if (!found) throw new Error(t('This add-on is not on this device.'));
+  const id = `${args.addonUrl}#${args.sandboxId}`;
+  let box = boxes.get(id);
+  if (box && box.hosts.join(' ') !== args.hosts.join(' ')) {
+    closeSandbox(id);
+    box = undefined;
+  }
+  box ??= open(id, found.code, args.hosts);
+  return call(box, libraryPath(), args.settings);
 }
 
 /** Runs code that isn't installed yet, with no network, to read its manifest. */

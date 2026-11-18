@@ -1,4 +1,5 @@
 import {
+  addonSource,
   addRemoteRoot,
   type AudiobookshelfLibrary,
   audiobookshelfMe,
@@ -13,6 +14,7 @@ import {
   signInJellyfin,
   updateRemoteRoot,
 } from '@lelap/core';
+import { readSettings, type Settings } from '@lelap/sdk';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -35,21 +37,34 @@ import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { scanLibrary } from '../src/scan';
 import { Pill } from '../src/components/Pill';
+import {
+  codeFingerprint,
+  libraryKinds,
+  listAddonLibrary,
+  type SourceKind,
+} from '../src/addonSources';
+import { closeSandbox } from '../src/sandbox';
 
-type Kind = 'webdav' | 's3' | 'jellyfin' | 'audiobookshelf';
+type BuiltIn = 'webdav' | 's3' | 'jellyfin' | 'audiobookshelf';
+/** A built-in kind, or an add-on inside the app by its manifest URL (M57). */
+type Kind = BuiltIn | `addon:${string}`;
 
-const KIND_LABEL: Record<Kind, string> = {
+const KIND_LABEL: Record<BuiltIn, string> = {
   webdav: 'WebDAV',
   s3: t('S3-compatible'),
   jellyfin: 'Jellyfin',
   audiobookshelf: 'Audiobookshelf',
 };
 
+const BUILT_IN: BuiltIn[] = ['webdav', 's3', 'jellyfin', 'audiobookshelf'];
+
+const addonKind = (url: string): Kind => `addon:${url}`;
+
 /** Why a server could not be reached, with what a browser adds to it. */
-function reason(error: unknown, kind: Kind): string {
+function reason(error: unknown, label: string): string {
   const message = error instanceof Error ? error.message : String(error);
   if (Platform.OS === 'web' && error instanceof RemoteError && error.status === 0) {
-    return `${message}\n\nIn the browser the ${KIND_LABEL[kind]} server must allow this site (CORS headers), and an http:// server can't be reached from an https:// page. The Android app has neither limit.`;
+    return `${message}\n\nIn the browser the ${label} server must allow this site (CORS headers), and an http:// server can't be reached from an https:// page. The Android app has neither limit.`;
   }
   return message;
 }
@@ -135,7 +150,23 @@ export default function ServerScreen() {
   const s3 = existing?.type === 's3' ? existing : null;
   const jf = existing?.type === 'jellyfin' ? existing : null;
   const abs = existing?.type === 'audiobookshelf' ? existing : null;
-  const [kind, setKind] = useState<Kind>(existing?.type ?? 'webdav');
+  const addonRoot = existing?.type === 'addon' ? existing : null;
+  const [kinds] = useState<SourceKind[]>(() => libraryKinds());
+  const [kind, setKind] = useState<Kind>(
+    addonRoot
+      ? addonKind(addonRoot.addonUrl)
+      : existing && existing.type !== 'addon'
+        ? existing.type
+        : 'webdav',
+  );
+  const addonUrl = kind.startsWith('addon:') ? kind.slice('addon:'.length) : null;
+  const chosenSource = addonUrl ? (kinds.find((k) => k.url === addonUrl) ?? null) : null;
+  const labelOf = (k: Kind) =>
+    k.startsWith('addon:')
+      ? (kinds.find((s) => addonKind(s.url) === k)?.manifest.name ?? k)
+      : KIND_LABEL[k as BuiltIn];
+  // An add-on's form: the plain fields come back when the login is entered again.
+  const [values, setValues] = useState<Settings>(() => ({ ...(addonRoot?.settings ?? {}) }));
   const [busy, setBusy] = useState(false);
   const [url, setUrlValue] = useState(dav?.url ?? jf?.url ?? abs?.url ?? '');
   const [username, setUsernameValue] = useState(dav?.username ?? jf?.username ?? '');
@@ -189,7 +220,7 @@ export default function ServerScreen() {
       // Book libraries are picked to begin with; music libraries only when the user says so.
       if (!jf) setPicked(new Set(libraries.filter((l) => l.kind === 'books').map((l) => l.id)));
     } catch (error) {
-      showAlert(t('Could not connect'), reason(error, 'jellyfin'));
+      showAlert(t('Could not connect'), reason(error, 'Jellyfin'));
     } finally {
       setBusy(false);
     }
@@ -207,7 +238,7 @@ export default function ServerScreen() {
       setAbsSignedIn({ userId: me.id, username: me.username ?? '', libraries });
       if (!abs) setPicked(new Set(libraries.map((l) => l.id)));
     } catch (error) {
-      showAlert(t('Could not connect'), reason(error, 'audiobookshelf'));
+      showAlert(t('Could not connect'), reason(error, 'Audiobookshelf'));
     } finally {
       setBusy(false);
     }
@@ -249,7 +280,56 @@ export default function ServerScreen() {
               secretAccessKey,
             };
 
+  const connectAddon = async (chosen: SourceKind) => {
+    const read = readSettings(chosen.manifest.settings ?? [], values);
+    if ('error' in read) {
+      showAlert(t('Could not connect'), read.error);
+      return;
+    }
+    setBusy(true);
+    const code = codeFingerprint(chosen.url);
+    const key = addonRoot?.key ?? newId();
+    // A sandbox of its own for the check, so nothing of a server not yet added stays running.
+    const sandboxId = `check-${key}`;
+    try {
+      // One listing checks the address and the login before anything is saved.
+      const listing = await listAddonLibrary({
+        addonUrl: chosen.url,
+        manifest: chosen.manifest,
+        sandboxId,
+        settings: read.settings,
+      });
+      const remote = addonSource({
+        addonUrl: chosen.url,
+        manifest: chosen.manifest,
+        key,
+        settings: read.settings,
+        ...(listing.headers ? { headers: listing.headers } : {}),
+        // The login is for this file; another one under the same ID has to ask again.
+        ...(code ? { codeSha: code } : {}),
+      });
+      if (existing && rootId) updateRemoteRoot(db, rootId, remote, Date.now());
+      else addRemoteRoot(db, remote, Date.now(), newId);
+      void scanLibrary().finally(refresh);
+      refresh();
+      showAlert(
+        t('Connected'),
+        t('{n} files found. Books appear as the scan reads them.', { n: listing.files.length }),
+      );
+      router.back();
+    } catch (error) {
+      showAlert(t('Could not connect'), reason(error, chosen.manifest.name));
+    } finally {
+      closeSandbox(`${chosen.url}#${sandboxId}`);
+      setBusy(false);
+    }
+  };
+
   const connect = async () => {
+    if (chosenSource) {
+      await connectAddon(chosenSource);
+      return;
+    }
     setBusy(true);
     try {
       const remote = source();
@@ -272,14 +352,17 @@ export default function ServerScreen() {
       );
       router.back();
     } catch (error) {
-      showAlert(t('Could not connect'), reason(error, kind));
+      showAlert(t('Could not connect'), reason(error, labelOf(kind)));
     } finally {
       setBusy(false);
     }
   };
 
-  const ready =
-    kind === 'webdav'
+  const ready = chosenSource
+    ? (chosenSource.manifest.settings ?? []).every(
+        (f) => !f.required || (values[f.key] ?? '').trim() !== '',
+      )
+    : kind === 'webdav'
       ? /^https?:\/\//.test(url.trim())
       : kind === 'jellyfin'
         ? /^https?:\/\//.test(url.trim()) && username.trim() !== ''
@@ -339,7 +422,7 @@ export default function ServerScreen() {
       </Text>
 
       <View className={`flex-row flex-wrap gap-2 ${locked ? 'hidden' : ''}`}>
-        {(['webdav', 's3', 'jellyfin', 'audiobookshelf'] as const).map((k) => (
+        {[...BUILT_IN, ...kinds.map((k) => addonKind(k.url))].map((k) => (
           <Pill
             key={k}
             onPress={() => setKind(k)}
@@ -347,12 +430,45 @@ export default function ServerScreen() {
             aria-selected={kind === k}
             className={`rounded-full border px-4 py-2 ${kind === k ? 'border-amber bg-amber' : 'border-line'}`}
           >
-            <Text className={kind === k ? 'text-ink' : 'text-soft'}>{KIND_LABEL[k]}</Text>
+            <Text className={kind === k ? 'text-ink' : 'text-soft'}>{labelOf(k)}</Text>
           </Pill>
         ))}
       </View>
 
-      {kind === 'jellyfin' ? (
+      {addonUrl && !chosenSource ? (
+        <Text className="text-muted">
+          {t('The add-on for this server is no longer on this device.')}
+        </Text>
+      ) : chosenSource ? (
+        <>
+          <Text className="text-sm text-soft">{chosenSource.manifest.description}</Text>
+          {(chosenSource.manifest.settings ?? []).map((field) => (
+            <Field
+              key={field.key}
+              label={field.label}
+              // The server's place stays when only the login is entered again.
+              locked={locked && field.type !== 'password'}
+              value={values[field.key] ?? ''}
+              onChange={(v) => setValues((current) => ({ ...current, [field.key]: v }))}
+              secret={field.type === 'password'}
+              {...(field.placeholder === undefined ? {} : { placeholder: field.placeholder })}
+              {...(field.help === undefined ? {} : { hint: field.help })}
+            />
+          ))}
+          <Text className="text-xs text-muted">
+            {t(
+              'Runs on this device, in a sandbox. It can reach only the address you enter, and the login stays on this device.',
+            )}
+          </Text>
+          {Platform.OS === 'web' && (
+            <Text className="text-sm text-muted">
+              {t(
+                "In the browser the server must allow this site (CORS), and books that need a login play in the Android app only: a browser can't send the login with audio.",
+              )}
+            </Text>
+          )}
+        </>
+      ) : kind === 'jellyfin' ? (
         <>
           <Field
             label={t('Server address')}

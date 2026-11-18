@@ -6,6 +6,7 @@ import {
   normalizeManifestUrl,
   parseAddonLink,
   removeAddon,
+  forgetStreamHeaders,
 } from '@lelap/core';
 import {
   isConfigurable,
@@ -22,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../src/i18n';
 import { reviewAddon } from '../src/addonReview';
 import { installAddonFile, isAddonFile } from '../src/localAddons';
+import { closeSandboxesOf } from '../src/sandbox';
 import { ActionSheet, type Action } from '../src/components/ActionSheet';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { showAlert } from '../src/dialog';
@@ -208,6 +210,9 @@ function AddonsManager() {
           style: 'destructive',
           onPress: () => {
             removeAddon(db, addon.url, Date.now());
+            forgetStreamHeaders(db, addon.url);
+            // Its code is gone; so are its sandboxes, with any server's settings in them.
+            closeSandboxesOf(addon.url);
             changed();
           },
         },

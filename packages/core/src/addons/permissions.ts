@@ -11,6 +11,8 @@ export type Permission = {
     | 'stream'
     | 'scrobble'
     | 'artwork'
+    | 'library'
+    | 'login'
     | 'settings'
     | 'insecure'
     | 'host'
@@ -83,6 +85,20 @@ export function addonPermissions(manifest: Manifest, manifestUrl: string): Permi
       notable: false,
     });
   }
+  if (resources.has('library') && manifest.sandbox) {
+    list.push({
+      kind: 'library',
+      text: 'Lists the books on a server you add under Settings → Servers, so they play and download like your own.',
+      notable: false,
+    });
+  }
+  if (manifest.sandbox && (manifest.settings ?? []).length > 0) {
+    list.push({
+      kind: 'login',
+      text: 'Asks for an address and login when you add a server. They stay sealed on this device and reach only this add-on.',
+      notable: false,
+    });
+  }
   if (resources.has('scrobble')) {
     list.push({
       kind: 'scrobble',
@@ -106,10 +122,14 @@ export function addonPermissions(manifest: Manifest, manifestUrl: string): Permi
   }
   if (manifest.sandbox) {
     const hosts = manifest.sandbox.hosts;
+    const typed = (manifest.settings ?? []).some((f) => f.type === 'url' && f.host === true);
     list.push({
       kind: 'sandbox',
-      text:
-        hosts.length > 0
+      text: typed
+        ? hosts.length > 0
+          ? `Runs on this device, in a sandbox. It can reach only ${hosts.join(', ')} and the address you enter.`
+          : 'Runs on this device, in a sandbox. It can reach only the address you enter.'
+        : hosts.length > 0
           ? `Runs on this device, in a sandbox. It can reach only ${hosts.join(', ')}.`
           : 'Runs on this device, in a sandbox, with no network at all.',
       notable: hosts.some((h) => h.startsWith('*')),

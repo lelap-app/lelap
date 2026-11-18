@@ -22,6 +22,7 @@ export const SHARED_TABLES = [
   'addons',
   'removed_addons',
   'local_addon_code',
+  'stream_headers',
   'downloads',
   'podcasts',
   'episodes',
@@ -49,8 +50,9 @@ export const profiles = sqliteTable('profiles', {
 });
 
 /**
- * A WebDAV server, an S3 bucket, or a Jellyfin or Audiobookshelf server used as a library folder.
- * Kept on this device, never synced. Jellyfin keeps a token, not the password; Audiobookshelf an API key.
+ * A WebDAV server, an S3 bucket, a Jellyfin or Audiobookshelf server, or an add-on inside the app
+ * that lists a library (M57), used as a library folder. Kept on this device, never synced.
+ * Jellyfin keeps a token, not the password; Audiobookshelf an API key.
  */
 export type RemoteSource =
   | { type: 'webdav'; url: string; username: string; password: string }
@@ -84,6 +86,25 @@ export type RemoteSource =
       prefix: string;
       accessKeyId: string;
       secretAccessKey: string;
+    }
+  | {
+      type: 'addon';
+      /** The add-on's `lelap-local://` manifest URL, bundled with the app or installed. */
+      addonUrl: string;
+      /** Random; names this server's files, `addon-source:<key>/<path>`. */
+      key: string;
+      /** Shown in Settings, such as `HTTP folder · nas.local:8080`. */
+      name: string;
+      /** The text and address fields of the add-on's settings form. */
+      settings: Record<string, string>;
+      /** JSON of the password fields and the headers the library last asked for; sealed. */
+      secret: string;
+      /**
+       * SHA-256 of the installed file the login was entered for; absent for a bundled add-on. A
+       * different file under the same ID gets no settings or headers until the login is entered
+       * again.
+       */
+      codeSha?: string;
     };
 
 export const libraryRoots = sqliteTable('library_roots', {
@@ -295,6 +316,21 @@ export const localAddonCode = sqliteTable('local_addon_code', {
   code: text('code').notNull(),
   /** SHA-256 of `code`, shown at install so a listener can compare it with the author's. */
   sha256: text('sha256').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+/**
+ * Request headers a stream from an add-on inside the app asked for (M57), such as a login, sealed
+ * like a server's password. On this device only: never synced, exported or in diagnostics.
+ */
+export const streamHeaders = sqliteTable('stream_headers', {
+  bookId: text('book_id')
+    .primaryKey()
+    .references(() => books.id, { onDelete: 'cascade' }),
+  /** The add-on that sent them; they go only to its hosts. */
+  addonUrl: text('addon_url').notNull(),
+  /** JSON of the headers, sealed. */
+  headers: text('headers').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
 

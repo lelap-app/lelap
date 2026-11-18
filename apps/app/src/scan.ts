@@ -1,6 +1,12 @@
 import { t } from './i18n';
 import {
+  addonLibraryScan,
+  addonLogin,
+  addonSettings,
+  addonSourceHosts,
+  type AddonScan,
   applyRemotePlaces,
+  sameAddonCode,
   applyScan,
   audiobookshelfMe,
   audiobookshelfScan,
@@ -19,12 +25,15 @@ import {
   listS3,
   listWebdav,
   scanFailureEvent,
+  updateRemoteRoot,
   upsertRoot,
+  withAddonLogin,
 } from '@lelap/core';
 import { idsFromTags } from '@lelap/sdk';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
+import { codeFingerprint, listAddonLibrary, sourceManifest } from './addonSources';
 import { forgetAudiobookshelfParts, withKey } from './audiobookshelf';
 import { db, newId } from './db';
 import { logDiagnostic } from './diagnostics';
@@ -69,6 +78,7 @@ async function listRoot(root: Root): Promise<ListedFile[]> {
   if (root.remote.type === 'audiobookshelf') {
     throw new Error('Audiobookshelf is scanned by scanAudiobookshelf.');
   }
+  if (root.remote.type === 'addon') throw new Error('Add-ons are scanned by scanAddonSource.');
   return listS3((u, i) => fetch(u, i), root.remote, Date.now());
 }
 
@@ -138,9 +148,16 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
       missing += result?.missing ?? 0;
       continue;
     }
+    // An add-on's listing may come with tags, which then aren't read from the files.
+    let fromAddon: AddonScan | null = null;
     let listed: ListedFile[];
     try {
-      listed = await listRoot(root);
+      if (root.remote?.type === 'addon') {
+        fromAddon = await scanAddonSource(root, root.remote);
+        listed = fromAddon.listed;
+      } else {
+        listed = await listRoot(root);
+      }
     } catch (error) {
       const lost = !root.remote && isCode(error, FOLDER_UNAVAILABLE);
       if (lost) lostLocal = true;
@@ -150,8 +167,10 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
     }
 
     // Android's reader gives ISBN and ASIN tags; the browser's reads only the duration.
-    const need = filesNeedingTags(db, listed, { readsIds: Platform.OS !== 'web' });
-    const tags = new Map<string, FileTags>();
+    const need = filesNeedingTags(db, listed, { readsIds: Platform.OS !== 'web' }).filter(
+      (f) => !fromAddon?.tags.has(f.location),
+    );
+    const tags = new Map<string, FileTags>(fromAddon?.tags ?? []);
     for (const [i, file] of need.entries()) {
       onProgress(i, need.length);
       try {
@@ -181,6 +200,7 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
       now: Date.now(),
       newId,
     });
+    if (fromAddon) setRemoteCovers(db, root.id, fromAddon.covers, Date.now());
     added += result.added;
     missing += result.missing;
   }
@@ -249,6 +269,39 @@ async function scanAudiobookshelf(
   applyRemotePlaces(db, profile, scan.places, now);
   forgetAudiobookshelfParts();
   return result;
+}
+
+/**
+ * An add-on inside the app lists the server's files (M57), in that server's own sandbox and with
+ * its settings. The headers it asks for are kept sealed with the login, for playing and
+ * downloading; files and covers on hosts it may not reach are left out.
+ */
+async function scanAddonSource(
+  root: Root,
+  remote: Extract<NonNullable<Root['remote']>, { type: 'addon' }>,
+): Promise<AddonScan> {
+  if (root.needsLogin)
+    throw new Error(t('The login for {name} is needed again.', { name: remote.name }));
+  const manifest = sourceManifest(remote.addonUrl);
+  if (!manifest) throw new Error(t('The add-on for this server is no longer on this device.'));
+  // A different file under the same ID gets the settings only once the listener enters them again.
+  if (!sameAddonCode(remote, codeFingerprint(remote.addonUrl))) {
+    throw new Error(
+      t('The add-on for {name} changed. Log in again to use it.', { name: remote.name }),
+    );
+  }
+  const response = await listAddonLibrary({
+    addonUrl: remote.addonUrl,
+    manifest,
+    sandboxId: root.id,
+    settings: addonSettings(remote),
+  });
+  const login = addonLogin(remote);
+  const headers = response.headers ?? {};
+  if (JSON.stringify(login.headers) !== JSON.stringify(headers)) {
+    updateRemoteRoot(db, root.id, withAddonLogin(remote, { ...login, headers }), Date.now());
+  }
+  return addonLibraryScan(root.location, response, addonSourceHosts(manifest, remote.settings));
 }
 
 /** Lets the user choose the library folder. Returns false when they cancel. */

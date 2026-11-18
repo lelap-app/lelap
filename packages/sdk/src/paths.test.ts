@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { catalogPath, encodeExtra, metaPath, parseExtra, parseRoute, streamPath } from './paths';
+import {
+  catalogPath,
+  encodeExtra,
+  libraryPath,
+  metaPath,
+  parseExtra,
+  parseRoute,
+  streamPath,
+} from './paths';
 
 describe('paths', () => {
   it('builds catalog paths with and without extras', () => {
@@ -8,6 +16,15 @@ describe('paths', () => {
     expect(catalogPath('audiobook', 'new', { skip: '20', search: 'a&b=c d' })).toBe(
       'catalog/audiobook/new/search=a%26b%3Dc%20d&skip=20.json',
     );
+  });
+
+  it('routes the library listing', () => {
+    expect(libraryPath()).toBe('library/audiobook/all.json');
+    expect(parseRoute(libraryPath())).toEqual({
+      resource: 'library',
+      type: 'audiobook',
+      id: 'all',
+    });
   });
 
   it('drops empty extras and sorts keys', () => {

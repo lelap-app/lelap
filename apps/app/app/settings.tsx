@@ -5,6 +5,7 @@ import {
   localRoot,
   removeBigLibrary,
   removeRemoteRoot,
+  sameAddonCode,
   seedBigLibrary,
   type Settings,
   setSetting,
@@ -45,6 +46,8 @@ import { SELF_UPDATES } from '../src/platform/updater';
 import { fetchOtaUpdate, OTA_UPDATES, otaDescription } from '../src/ota';
 import { checkForUpdate, installUpdate } from '../src/updates';
 import { chooseFolder, scanLibrary } from '../src/scan';
+import { closeSandbox } from '../src/sandbox';
+import { codeFingerprint } from '../src/addonSources';
 import { Pill } from '../src/components/Pill';
 import { RowLabel, TextButton, Toggle } from '../src/components/TextButton';
 
@@ -382,16 +385,24 @@ export default function SettingsScreen() {
                       : t('Password needed: it is not in backups.')
                     : s.remote?.type === 'audiobookshelf' && s.remote.keyRefused
                       ? t('Audiobookshelf refused the API key. Change it to keep syncing.')
-                      : s.remote?.type === 's3'
-                        ? t('S3 bucket')
-                        : s.remote?.type === 'jellyfin'
-                          ? 'Jellyfin'
-                          : s.remote?.type === 'audiobookshelf'
-                            ? 'Audiobookshelf'
-                            : 'WebDAV'
+                      : s.remote?.type === 'addon' &&
+                          !sameAddonCode(s.remote, codeFingerprint(s.remote.addonUrl))
+                        ? t('The add-on changed. Log in again to use it.')
+                        : s.remote?.type === 's3'
+                          ? t('S3 bucket')
+                          : s.remote?.type === 'jellyfin'
+                            ? 'Jellyfin'
+                            : s.remote?.type === 'audiobookshelf'
+                              ? 'Audiobookshelf'
+                              : s.remote?.type === 'addon'
+                                ? t('Add-on on this device')
+                                : 'WebDAV'
                 }
               >
-                {(s.needsLogin || (s.remote?.type === 'audiobookshelf' && s.remote.keyRefused)) && (
+                {(s.needsLogin ||
+                  (s.remote?.type === 'audiobookshelf' && s.remote.keyRefused) ||
+                  (s.remote?.type === 'addon' &&
+                    !sameAddonCode(s.remote, codeFingerprint(s.remote.addonUrl)))) && (
                   <TextButton
                     text={s.remote?.type === 'audiobookshelf' ? t('Change key') : t('Log in')}
                     onPress={() => router.push(`/server?root=${s.id}`)}
@@ -412,6 +423,9 @@ export default function SettingsScreen() {
                           style: 'destructive',
                           onPress: () => {
                             removeRemoteRoot(db, s.id);
+                            if (s.remote?.type === 'addon') {
+                              closeSandbox(`${s.remote.addonUrl}#${s.id}`);
+                            }
                             refresh();
                           },
                         },
@@ -424,7 +438,9 @@ export default function SettingsScreen() {
             ))}
             <Row
               label={t('Add a server')}
-              detail={t('WebDAV, an S3-compatible bucket, Jellyfin or Audiobookshelf.')}
+              detail={t(
+                'WebDAV, an S3-compatible bucket, Jellyfin, Audiobookshelf or an HTTP folder.',
+              )}
             >
               <TextButton text={t('Add')} onPress={() => router.push('/server')} />
             </Row>
