@@ -3,12 +3,16 @@ import { and, desc, eq, isNotNull, isNull, ne } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { isKidsProfile, shelfBookIds } from './kids';
-import { bookFiles, books, workLinks } from './schema';
+import { bookFiles, books, episodes, podcasts, workLinks } from './schema';
 import { bookIdForKey } from './sync/keys';
 
 // A shared place (M85): a link that says which book and where in it, never the audio. It names
 // the book by its title as the library shows it, a tagged or matched author, ISBN or ASIN and the
-// catalog work, never a file path, and the one who opens it plays their own copy.
+// catalog work, never a file path, and the one who opens it plays their own copy. A podcast
+// episode (M88) is named by its show's public feed and the episode's guid instead.
+
+/** A podcast episode: the feed it is in and its guid there. */
+export type SharedEpisode = { feed: string; guid: string };
 
 export type SharedPlace = {
   title: string;
@@ -20,6 +24,8 @@ export type SharedPlace = {
   atMs: number;
   /** The end of a short clip; null for a place alone. */
   toMs: number | null;
+  /** Set for a podcast episode: `title` is the episode's and `author` the show's. */
+  episode?: SharedEpisode;
 };
 
 /** A clip is at most this long. */
@@ -28,6 +34,22 @@ const TITLE_MAX = 300;
 const IDS_MAX = 5;
 const SHAREABLE_ID = /^(isbn|asin|ol):/;
 const CATALOG_ID = /^[a-z][a-z0-9_-]{0,31}:[A-Za-z0-9._-]{1,128}$/;
+const FEED_MAX = 2048;
+const GUID_MAX = 512;
+
+/**
+ * A feed address that may travel in a link: https or http, no login and no query. A private
+ * feed's token usually sits in its query; such a show's episodes are not shared.
+ */
+export function isShareableFeed(url: string): boolean {
+  if (url.length > FEED_MAX || !/^https?:\/\//i.test(url)) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.username === '' && parsed.password === '' && parsed.search === '';
+  } catch {
+    return false;
+  }
+}
 
 const seconds = (ms: number) => String(Math.max(0, Math.floor(ms / 1000)));
 
@@ -41,6 +63,10 @@ export function placeQuery(place: SharedPlace): string {
   if (place.work) params.set('w', `${place.work.type}:${place.work.id}`);
   params.set('at', seconds(place.atMs));
   if (place.toMs !== null && place.toMs > place.atMs) params.set('to', seconds(place.toMs));
+  if (place.episode) {
+    params.set('f', place.episode.feed);
+    params.set('g', place.episode.guid);
+  }
   return params.toString();
 }
 
@@ -81,10 +107,50 @@ export function parsePlace(
       : null;
   const to = wholeSeconds(one(params.to));
   const toMs = to !== null && to > atMs ? Math.min(to, atMs + CLIP_MAX_MS) : null;
-  return { title, author, ids, work, atMs, toMs };
+  const feed = one(params.f)?.trim() ?? '';
+  const guid = one(params.g)?.trim() ?? '';
+  const episode =
+    isShareableFeed(feed) && guid !== '' && guid.length <= GUID_MAX ? { feed, guid } : null;
+  return { title, author, ids, work, atMs, toMs, ...(episode ? { episode } : {}) };
 }
 
-/** What a link says about a book on this device. Null for a podcast episode or a missing book. */
+const clipEndOf = (atMs: number, toMs: number | null) =>
+  toMs !== null && toMs > atMs ? Math.min(toMs, atMs + CLIP_MAX_MS) : null;
+
+/** What a link says about an episode: its show's feed and its guid. Null for a private feed. */
+function placeOfEpisode(
+  db: Db,
+  bookId: string,
+  atMs: number,
+  toMs: number | null,
+): SharedPlace | null {
+  const row = db
+    .select({
+      title: episodes.title,
+      guid: episodes.guid,
+      show: podcasts.title,
+      feed: podcasts.feedUrl,
+    })
+    .from(episodes)
+    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .where(eq(episodes.bookId, bookId))
+    .get();
+  if (!row || !isShareableFeed(row.feed) || row.guid.length > GUID_MAX) return null;
+  return {
+    title: row.title,
+    author: row.show,
+    ids: [],
+    work: null,
+    atMs: Math.max(0, atMs),
+    toMs: clipEndOf(atMs, toMs),
+    episode: { feed: row.feed, guid: row.guid },
+  };
+}
+
+/**
+ * What a link says about a book on this device. Null for a missing book, or an episode of a show
+ * whose feed can't travel.
+ */
 export function placeOfBook(
   db: Db,
   bookId: string,
@@ -102,7 +168,8 @@ export function placeOfBook(
     .from(books)
     .where(eq(books.id, bookId))
     .get();
-  if (!book || book.source === 'feed') return null;
+  if (!book) return null;
+  if (book.source === 'feed') return placeOfEpisode(db, bookId, atMs, toMs);
   const files = db
     .select({ ids: bookFiles.ids, artist: bookFiles.artist, albumArtist: bookFiles.albumArtist })
     .from(bookFiles)
@@ -136,7 +203,7 @@ export function placeOfBook(
     (book.source !== 'local' || (book.author !== null && tagged.has(book.author))
       ? book.author
       : null);
-  const clipEnd = toMs !== null && toMs > atMs ? Math.min(toMs, atMs + CLIP_MAX_MS) : null;
+  const clipEnd = clipEndOf(atMs, toMs);
   return {
     title: link?.meta?.title ?? book.title,
     author,
@@ -211,4 +278,44 @@ export function findPlaceBook(db: Db, profileId: string, place: SharedPlace): st
     ids: place.ids,
   });
   return best?.item ?? null;
+}
+
+/** Where a shared episode stands on this device. */
+export type PlaceEpisode =
+  /** The episode is here: `bookId` is null until it was first played or downloaded. */
+  | { kind: 'here'; episodeId: string; bookId: string | null }
+  /** The show is here, but its feed no longer lists the episode. */
+  | { kind: 'gone'; podcastId: string }
+  /** The show is not on this device: it can be followed from the link's feed. */
+  | { kind: 'unknown' };
+
+/**
+ * The listener's copy of a shared episode, by the feed and the guid. Only this device's database
+ * is read. A kids profile finds only an episode on its shelf, and never follows a new show.
+ */
+export function findPlaceEpisode(
+  db: Db,
+  profileId: string,
+  episode: SharedEpisode,
+): PlaceEpisode | null {
+  const kids = isKidsProfile(db, profileId);
+  const podcast = db
+    .select({ id: podcasts.id })
+    .from(podcasts)
+    .where(eq(podcasts.feedUrl, episode.feed))
+    .get();
+  if (!podcast) return kids ? null : { kind: 'unknown' };
+  const found = db
+    .select({ id: episodes.id, bookId: episodes.bookId })
+    .from(episodes)
+    .where(and(eq(episodes.podcastId, podcast.id), eq(episodes.guid, episode.guid)))
+    .get();
+  if (kids) {
+    const shelf = shelfBookIds(db, profileId);
+    return found?.bookId && shelf.has(found.bookId)
+      ? { kind: 'here', episodeId: found.id, bookId: found.bookId }
+      : null;
+  }
+  if (!found) return { kind: 'gone', podcastId: podcast.id };
+  return { kind: 'here', episodeId: found.id, bookId: found.bookId };
 }

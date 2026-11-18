@@ -286,7 +286,7 @@ export default function PodcastScreen() {
           refresh();
         },
       },
-      // `podcast:soundbite`: the stretches the show picked to start with (M75).
+      // `podcast:soundbite`: the stretches the show picked to start with (M75), played as clips.
       ...(e.extras?.soundbites ?? []).map((s): Action => ({
         icon: 'play',
         label: s.title
@@ -294,7 +294,7 @@ export default function PodcastScreen() {
           : t('Soundbite at {time}', { time: formatClock(s.startMs) }),
         onPress: () =>
           void run(async () => {
-            await playSoundbite(e.id, s.startMs);
+            await playSoundbite(e.id, s);
             openPlayer(router);
           }),
       })),

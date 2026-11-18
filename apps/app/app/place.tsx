@@ -1,7 +1,15 @@
-import { findPlaceBook, getBook, parsePlace, placeQuery } from '@lelap/core';
+import { findPlaceBook, findPlaceEpisode, getBook, parsePlace, placeQuery } from '@lelap/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo } from 'react';
-import { Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookCover, coverUri } from '../src/components/BookCover';
@@ -13,7 +21,9 @@ import { formatClock } from '../src/format';
 import { t } from '../src/i18n';
 import { READABLE } from '../src/layout';
 import { openPlayer } from '../src/navigation';
+import { playClip } from '../src/clips';
 import { playAt, useLibrary } from '../src/player';
+import { playSharedEpisode } from '../src/podcasts';
 import { profileId } from '../src/profile';
 
 // Only a browser on an Android phone may have the app to hand the link to.
@@ -22,32 +32,80 @@ const androidBrowser =
 
 /**
  * A shared place (M85), from `/place?t=…&at=…` on the web or `lelap://place?…`: which book and
- * where. It plays the listener's own copy; the link never carries audio.
+ * where. It plays the listener's own copy; the link never carries audio. An episode's link (M88)
+ * names its show's feed, which is fetched only when the listener taps Subscribe and play.
  */
 export default function PlaceScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { version } = useLibrary();
+  const { version, refresh } = useLibrary();
   const params = useLocalSearchParams<Record<string, string | string[]>>();
   // Keyed by the query, since the params object may be new on every render.
   const query = JSON.stringify(params);
   const place = useMemo(() => parsePlace(params), [query]);
   // `version` is the signal to re-read the database: a scan may bring the book.
+  // A podcast episode (M88) is found by its feed and guid, a book by its title and IDs.
+  const episode = useMemo(
+    () => (place?.episode ? findPlaceEpisode(db, profileId, place.episode) : null),
+    [place, version],
+  );
   const book = useMemo(() => {
-    const id = place ? findPlaceBook(db, profileId, place) : null;
+    const id = place?.episode
+      ? episode?.kind === 'here'
+        ? episode.bookId
+        : null
+      : place
+        ? findPlaceBook(db, profileId, place)
+        : null;
     return id ? getBook(db, profileId, id) : null;
-  }, [place, version]);
+  }, [place, episode, version]);
+  const [busy, setBusy] = useState(false);
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
+  const failed = (error: unknown) =>
+    showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error));
+
   const play = () => {
-    if (!book || !place) return;
-    void playAt(book.book.id, place.atMs)
-      .then(() => openPlayer(router))
-      .catch((error: unknown) =>
-        showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error)),
-      );
+    if (!place) return;
+    if (place.episode) {
+      setBusy(true);
+      void playSharedEpisode(place)
+        .then((played) => {
+          if (played) openPlayer(router);
+          else showAlert(t('Cannot play'), t('The show’s feed no longer lists this episode.'));
+        })
+        .catch(failed)
+        .finally(() => {
+          setBusy(false);
+          refresh();
+        });
+      return;
+    }
+    if (!book) return;
+    // A shared clip stops at its end (M88).
+    const start =
+      place.toMs === null
+        ? playAt(book.book.id, place.atMs)
+        : playClip(book.book.id, place.atMs, place.toMs);
+    void start.then(() => openPlayer(router)).catch(failed);
   };
+
+  const playButton = (label: string) => (
+    <Pressable
+      onPress={play}
+      disabled={busy}
+      accessibilityRole="button"
+      accessibilityState={{ busy, disabled: busy }}
+      className="min-h-12 items-center justify-center rounded-full bg-amber px-6 active:opacity-80"
+    >
+      {busy ? (
+        <ActivityIndicator color={COLORS.ink} />
+      ) : (
+        <Text className="font-semibold text-ink">{label}</Text>
+      )}
+    </Pressable>
+  );
 
   return (
     <ScrollView
@@ -84,22 +142,44 @@ export default function PlaceScreen() {
               </Text>
             </View>
           </View>
-          {book ? (
+          {place.episode ? (
+            <View className="gap-2">
+              {episode?.kind === 'here' ? (
+                playButton(t('Play from {time}', { time: formatClock(place.atMs) }))
+              ) : episode?.kind === 'unknown' ? (
+                <>
+                  <Text className="text-soft">
+                    {t(
+                      'You are not subscribed to this show. Lelap can subscribe from its feed and play the episode; the audio comes from the show, not from the link.',
+                    )}
+                  </Text>
+                  {playButton(t('Subscribe and play'))}
+                </>
+              ) : episode?.kind === 'gone' ? (
+                <>
+                  <Text className="text-soft">
+                    {t('The show’s feed no longer lists this episode.')}
+                  </Text>
+                  <TextButton
+                    className="self-start"
+                    text={t('Open the show')}
+                    onPress={() =>
+                      router.push({ pathname: '/podcast', params: { id: episode.podcastId } })
+                    }
+                  />
+                </>
+              ) : (
+                <Text className="text-soft">{t('This episode is not on your shelf.')}</Text>
+              )}
+            </View>
+          ) : book ? (
             <View className="gap-2">
               {book.book.title !== place.title && (
                 <Text className="text-sm text-muted">
                   {t('In your library as “{title}”.', { title: book.book.title })}
                 </Text>
               )}
-              <Pressable
-                onPress={play}
-                accessibilityRole="button"
-                className="min-h-12 items-center justify-center rounded-full bg-amber px-6 active:opacity-80"
-              >
-                <Text className="font-semibold text-ink">
-                  {t('Play from {time}', { time: formatClock(place.atMs) })}
-                </Text>
-              </Pressable>
+              {playButton(t('Play from {time}', { time: formatClock(place.atMs) }))}
             </View>
           ) : (
             <View className="gap-2">

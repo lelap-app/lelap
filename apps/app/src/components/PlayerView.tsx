@@ -54,8 +54,10 @@ import {
   useLibrary,
   usePlayerState,
 } from '../player';
-import { transcriptOf } from '../podcasting';
-import { CLIP_BACK_MS, sharePlace } from '../sharePlace';
+import { playClip } from '../clips';
+import { soundbitesOf, transcriptOf, useChapterImage } from '../podcasting';
+import { canSharePlace, CLIP_BACK_MS, sharePlace } from '../sharePlace';
+import { SoundbitesSheet } from './SoundbitesSheet';
 import { canFindChapters, findChapters, stopFindingChapters, useSilenceScans } from '../silences';
 import { profileId } from '../profile';
 
@@ -115,7 +117,7 @@ function Tool({
       className="flex-1 items-center gap-1 rounded-xl py-2 active:bg-raised"
     >
       <Icon name={icon} size={22} color={color} />
-      {/* Up to seven tools share the row: at large font sizes the label shrinks to fit whole. */}
+      {/* Up to eight tools share the row: at large font sizes the label shrinks to fit whole. */}
       <Text
         numberOfLines={1}
         adjustsFontSizeToFit
@@ -188,7 +190,16 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
   const dims = useWindowDimensions();
   const landscape = !pane && dims.width > dims.height;
   const [sheet, setSheet] = useState<
-    'chapters' | 'bookmarks' | 'speed' | 'sleep' | 'sound' | 'note' | 'cast' | 'jump' | null
+    | 'chapters'
+    | 'bookmarks'
+    | 'speed'
+    | 'sleep'
+    | 'sound'
+    | 'note'
+    | 'cast'
+    | 'jump'
+    | 'soundbites'
+    | null
   >(null);
   const casting = useCasting();
   const [note, setNote] = useState('');
@@ -219,6 +230,13 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
   const hasTranscript = useMemo(
     () => (bookId ? transcriptOf(bookId) !== null : false),
     [bookId, version],
+  );
+  const soundbites = useMemo(() => (bookId ? soundbitesOf(bookId) : []), [bookId, version]);
+  const canShare = useMemo(() => (bookId ? canSharePlace(bookId) : false), [bookId, version]);
+  // An episode's chapters file may change the picture as it plays (M88).
+  const chapterImage = useChapterImage(
+    bookId,
+    detail ? toBookPosition(detail.files, state.fileLocation ?? '', state.positionMs) : 0,
   );
 
   if (!bookId || !detail) {
@@ -364,7 +382,11 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
   );
 
   const cover = (
-    <BookCover uri={coverUri(detail.book)} title={detail.book.title} size={coverSize} />
+    <BookCover
+      uri={chapterImage ?? coverUri(detail.book)}
+      title={detail.book.title}
+      size={coverSize}
+    />
   );
 
   const details = (
@@ -517,6 +539,9 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
             onPress={() => router.push('/transcript')}
           />
         )}
+        {soundbites.length > 0 && (
+          <Tool icon="soundbite" label={t('Soundbites')} onPress={() => setSheet('soundbites')} />
+        )}
         <Tool
           icon="bookmark"
           label={
@@ -625,7 +650,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           setBookmarkNote(db, profileId, id, text, Date.now());
           refresh();
         }}
-        canShare={detail.book.source !== 'feed'}
+        canShare={canShare}
         onShare={(b) => void sharePlace(bookId, b.bookPositionMs)}
         onShareHere={() => void sharePlace(bookId, position)}
         onShareClip={() =>
@@ -634,6 +659,15 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
         onClose={() => setSheet(null)}
       />
       <CastSheet visible={sheet === 'cast'} bookId={bookId} onClose={() => setSheet(null)} />
+      <SoundbitesSheet
+        visible={sheet === 'soundbites'}
+        soundbites={soundbites}
+        onPlay={(s) => {
+          setSheet(null);
+          void playClip(bookId, s.startMs, s.startMs + s.durationMs);
+        }}
+        onClose={() => setSheet(null)}
+      />
       <Sheet visible={sheet === 'speed'} title={t('Speed')} onClose={() => setSheet(null)}>
         <View className="flex-row flex-wrap gap-2 pb-2">
           {SPEED_STEPS.map((s) => (

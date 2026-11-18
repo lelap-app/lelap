@@ -10,8 +10,10 @@ import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { bookFiles, podcasts } from '../schema';
 import {
   castOf,
+  chapterImageAt,
   cueAt,
   groupBySeason,
+  parseChapterImages,
   parseChaptersFile,
   parseTranscript,
   pickTranscript,
@@ -123,6 +125,44 @@ describe('chapters files', () => {
   it('gives nothing for a file that is not a chapters file', () => {
     expect(parseChaptersFile('<html>')).toEqual([]);
     expect(parseChaptersFile('{"chapters": 3}')).toEqual([]);
+  });
+});
+
+describe('chapter images', () => {
+  const file = JSON.stringify({
+    version: '1.2.0',
+    chapters: [
+      { startTime: 60, title: 'Seed trays', img: 'https://img.example.org/trays.jpg' },
+      { startTime: 0, title: 'Welcome to Garden Hour' },
+      { startTime: 90, toc: false, img: ' https://img.example.org/compost.jpg ' },
+      { startTime: 120, title: 'Questions', img: 'javascript:alert(1)' },
+    ],
+  });
+
+  it('reads every picture in order, artwork-only entries too', () => {
+    expect(parseChapterImages(file)).toEqual([
+      { startMs: 0, img: null },
+      { startMs: 60_000, img: 'https://img.example.org/trays.jpg' },
+      { startMs: 90_000, img: 'https://img.example.org/compost.jpg' },
+      { startMs: 120_000, img: null },
+    ]);
+  });
+
+  it('shows the picture of the stretch playing, and the cover where there is none', () => {
+    const images = parseChapterImages(file);
+    expect(chapterImageAt(images, 30_000)).toBeNull();
+    expect(chapterImageAt(images, 60_000)).toBe('https://img.example.org/trays.jpg');
+    expect(chapterImageAt(images, 100_000)).toBe('https://img.example.org/compost.jpg');
+    expect(chapterImageAt(images, 500_000)).toBeNull();
+  });
+
+  it('gives nothing for a file without pictures or a broken one', () => {
+    expect(parseChapterImages('{"chapters":[{"startTime":0,"title":"Intro"}]}')).toEqual([]);
+    expect(parseChapterImages('<html>')).toEqual([]);
+    expect(parseChapterImages(fixture('chapters.json'))[0]).toEqual({
+      startMs: 0,
+      img: 'https://example.org/intro.jpg',
+    });
   });
 });
 

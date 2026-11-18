@@ -10,8 +10,13 @@ import { t } from './i18n';
 /** How far back “Last 30 seconds” reaches. */
 export const CLIP_BACK_MS = 30_000;
 
+/** Whether a book's places can be shared: not an episode of a show whose feed can't travel. */
+export function canSharePlace(bookId: string): boolean {
+  return placeOfBook(db, bookId, 0) !== null;
+}
+
 /**
- * Shares a link to a place in a book (M85), or to a short clip from `atMs` to `toMs`: only which
+ * Shares a link to a place in a book (M85) or a podcast episode (M88), or to a short clip from `atMs` to `toMs`: only which
  * book and where, never the audio. Whoever opens it plays their own copy.
  */
 export async function sharePlace(
