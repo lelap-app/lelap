@@ -89,7 +89,7 @@ jobs:
       - run: bash scripts/android-sdk.sh
       # The Android project is generated, not committed.
       - run: pnpm --filter @lelap/app exec expo prebuild --platform android --no-install
-      - run: ./gradlew :lelap-audio:testDebugUnitTest :lelap-cast:testDebugUnitTest :lelap-library:testDebugUnitTest :lelap-download:testDebugUnitTest :lelap-updater:testDebugUnitTest :lelap-widget:testDebugUnitTest :lelap-bluetooth:testDebugUnitTest :lelap-text:testDebugUnitTest
+      - run: ./gradlew :lelap-audio:testDebugUnitTest :lelap-cast:testDebugUnitTest :lelap-library:testDebugUnitTest :lelap-download:testDebugUnitTest :lelap-updater:testDebugUnitTest :lelap-widget:testDebugUnitTest :lelap-bluetooth:testDebugUnitTest :lelap-text:testDebugUnitTest :lelap-netfs:testDebugUnitTest
         working-directory: apps/app/android
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

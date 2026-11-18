@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.provider.OpenableColumns
+import app.lelap.netfs.Netfs
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -51,7 +52,8 @@ object Ranges {
 /**
  * A tiny HTTP server on the Wi-Fi address, so receivers can fetch files that live on the phone.
  * Each file is reachable only under a random token, and only while casting. Streams that need a
- * login (WebDAV) are passed through from their own host, since receivers cannot send headers.
+ * login (WebDAV) are passed through from their own host, since receivers cannot send headers;
+ * SMB and SFTP files are read from their server by the phone.
  * Audio still never touches Lelap's servers.
  */
 class MediaServer(private val context: Context) {
@@ -142,12 +144,22 @@ class MediaServer(private val context: Context) {
     val entry = entries[token] ?: return status(out, 404, "Not Found")
     when (val source = entry.source) {
       is Source.Local -> serveLocal(out, source.uri, entry.mimeType, headers["range"], method == "HEAD")
-      is Source.Remote -> serveRemote(out, source, entry.mimeType, headers["range"], method == "HEAD")
+      // SMB and SFTP (M62): read from the server by the phone, like a file on it.
+      is Source.Remote -> if (Netfs.handles(source.url)) {
+        val opened = runCatching { Netfs.opener(source.url, source.headers) }.getOrNull() ?: return status(out, 502, "Bad Gateway")
+        serveRanges(out, opened, entry.mimeType, headers["range"], method == "HEAD")
+      } else {
+        serveRemote(out, source, entry.mimeType, headers["range"], method == "HEAD")
+      }
     }
   }
 
   private fun serveLocal(out: OutputStream, uri: String, mimeType: String, range: String?, head: Boolean) {
-    val (length, open) = openLocal(uri) ?: return status(out, 404, "Not Found")
+    serveRanges(out, openLocal(uri) ?: return status(out, 404, "Not Found"), mimeType, range, head)
+  }
+
+  private fun serveRanges(out: OutputStream, opened: Pair<Long, (Long) -> InputStream>, mimeType: String, range: String?, head: Boolean) {
+    val (length, open) = opened
     when (val r = Ranges.parse(range, length)) {
       Ranges.Result.Unsatisfiable -> {
         writeHead(out, 416, "Range Not Satisfiable", mapOf("Content-Range" to "bytes */$length", "Content-Length" to "0"))

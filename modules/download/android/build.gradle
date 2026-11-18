@@ -17,6 +17,8 @@ android {
 }
 
 dependencies {
+  // Files on SMB and SFTP servers (M62).
+  implementation project(':lelap-netfs')
   // The profile's language for notifications (modules/text).
   implementation project(':lelap-text')
   implementation 'androidx.work:work-runtime-ktx:2.10.1'

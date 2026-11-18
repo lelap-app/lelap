@@ -36,6 +36,8 @@ import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.PlayerMessage
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import app.lelap.netfs.NetDataSource
+import app.lelap.netfs.Netfs
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.session.CommandButton
@@ -139,6 +141,8 @@ class PlaybackService : MediaLibraryService() {
     ResolvingDataSource.Factory(upstream) { spec ->
       val uri = spec.uri.toString()
       val headers = headersByUri[uri] ?: return@Factory spec
+      // SMB and SFTP have no redirects; the login only ever reaches native code.
+      if (Netfs.handles(uri)) return@Factory spec.withAdditionalHeaders(headers)
       val resolved = resolvedUris[uri]
         ?: runCatching { LoginRedirects.resolve(uri, headers) }.getOrNull()?.also { resolvedUris[uri] = it }
         // Unreachable now: as before, the login goes with the file's own address.
@@ -224,7 +228,7 @@ class PlaybackService : MediaLibraryService() {
       .setAllowCrossProtocolRedirects(true)
     player = ExoPlayer.Builder(this, SoundRenderersFactory(this, SoundProcessor(sound)))
       .setMediaSourceFactory(
-        DefaultMediaSourceFactory(withBookHeaders(DefaultDataSource.Factory(this, http)))
+        DefaultMediaSourceFactory(withBookHeaders(NetDataSource.Factory(DefaultDataSource.Factory(this, http))))
           .setLoadErrorHandlingPolicy(
             ExpiringLinkPolicy { status -> handler.post { note(Diagnostics.LINK_REFRESHED, status = status) } },
           ),

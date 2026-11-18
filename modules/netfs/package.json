@@ -1,0 +1,21 @@
+{
+  "name": "@lelap/netfs",
+  "private": true,
+  "version": "0.0.0",
+  "description": "SMB and SFTP servers: listing, byte ranges for Media3, and their Expo bridge.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lelap/text": "workspace:*"
+  },
+  "peerDependencies": {
+    "expo": "*"
+  },
+  "devDependencies": {
+    "expo": "~58.0.25",
+    "typescript": "~6.0.3"
+  }
+}
