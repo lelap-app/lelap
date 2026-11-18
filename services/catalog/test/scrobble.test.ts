@@ -127,7 +127,14 @@ describe('configure pages', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('content-security-policy')).toContain("form-action 'self'");
     expect(response.headers.get('cache-control')).toBe('no-store');
-    expect(await response.text()).toContain('<form method="post"');
+    const html = await response.text();
+    expect(html).toContain('<form method="post"');
+    // How to get a token: a button to Hardcover's form with the scopes ticked, then the steps.
+    expect(html).toContain(
+      'class="button" href="https://hardcover.app/account/api/keys/new?scope=',
+    );
+    expect(html).toContain('<ol><li>');
+    expect(html).toContain('hc_pat_');
   });
 
   it('says so without a CONFIG_SECRET', async () => {
