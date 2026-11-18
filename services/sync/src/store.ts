@@ -10,6 +10,7 @@ export type Group = {
   snapshotParts: number;
   /** The random ID of the upload that became the snapshot. */
   snapshotUpload: string;
+  /** When a device last pushed or pulled; idle groups expire by it. */
   lastPushAt: number;
 };
 
@@ -19,6 +20,8 @@ export type SyncStore = {
   deleteGroup(id: string): Promise<void>;
   append(id: string, device: string, messages: string[], now: number): Promise<void>;
   read(id: string, after: number, limit: number): Promise<Message[]>;
+  /** Notes that a device synced, so a group that only pulls does not expire. */
+  seen(id: string, now: number): Promise<void>;
   /** How many messages, and how many bytes of them, arrived before `before`. */
   older(id: string, before: number): Promise<{ messages: number; bytes: number }>;
   /** Parts `from` up to `to` of an upload, in order. */
@@ -46,7 +49,7 @@ export type SyncStore = {
     parts: number,
     now: number,
   ): Promise<boolean>;
-  /** Deletes groups no device pushed to since `before`; returns how many. */
+  /** Deletes groups no device synced with since `before`; returns how many. */
   expireIdle(before: number): Promise<number>;
   putPairing(lookup: string, blob: string, expiresAt: number, now: number): Promise<boolean>;
   takePairing(lookup: string, now: number): Promise<string | null>;

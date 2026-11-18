@@ -81,11 +81,39 @@ describe('folding operations', () => {
     ]);
   });
 
-  it('keeps every operation of a type this version does not know', () => {
+  it('folds operations of a type this version does not know, and caps them', () => {
+    const future = (key: string, at: number, data: object) =>
+      ({ type: 'rating', profile: ME, key, at, data }) as unknown as Op;
+    const r = snapshotReducer(2);
+    const odd = { type: 'shuffle', seed: 7 } as unknown as Op;
+    r.add('a', 'Phone', [future('book', 3, { stars: 5 }), odd]);
+    r.add('b', 'Tablet', [future('book', 4, { note: 'fine' }), future('book', 2, { stars: 1 })]);
+    r.add('a', 'Phone', [future('other', 1, { stars: 2 }), future('third', 5, { stars: 3 })]);
+    // Newest per row, keeping fields the newest leaves out; the oldest go past the cap.
+    expect(r.entries().flatMap((e) => e.ops)).toEqual([
+      future('book', 4, { stars: 5, note: 'fine' }),
+      future('third', 5, { stars: 3 }),
+    ]);
+    // Within the cap nothing goes, including what doesn't look like a row change.
+    const roomy = snapshotReducer();
+    roomy.add('a', 'Phone', [odd, odd, future('book', 3, { stars: 5 })]);
+    expect(roomy.entries()[0]?.ops).toEqual([odd, odd, future('book', 3, { stars: 5 })]);
+  });
+
+  it('seals a change as large as a message allows in a part of its own', () => {
+    const key = random(32);
+    const big: Op = {
+      type: 'playlist',
+      profile: ME,
+      key: 'list',
+      at: 1,
+      data: { name: 'All', rule: null, items: ['x'.repeat(189_000)], createdAt: 1 },
+    };
     const r = snapshotReducer();
-    const future = { type: 'rating', key: 'book', at: 3, data: { stars: 5 } } as unknown as Op;
-    r.add('a', 'Phone', [future, future]);
-    expect(r.entries()[0]?.ops).toEqual([future, future]);
+    r.add('a', 'Phone', [progress(1, 1), big, progress(2, 2)]);
+    const sealed = sealSnapshot(key, 'g', 1, 'u', r.entries(), random);
+    expect(sealed.length).toBe(2);
+    for (const part of sealed) expect(part.length).toBeLessThan(256 * 1024);
   });
 
   it('seals large snapshots in parts that only open in their place', () => {
@@ -290,6 +318,36 @@ describe('snapshots between devices', () => {
     const before = server.log(m?.groupId ?? '').length;
     expect(await compactNow(phone, T0 + 40 * DAY)).toBe(false);
     expect(server.log(m?.groupId ?? '')).toHaveLength(before);
+  });
+
+  it('compacts past a message that does not open with the group key', async () => {
+    await history();
+    const m = getMembership(phone);
+    const groupId = m?.groupId ?? '';
+    const key = fromBase64Url(m?.key ?? '');
+    server.clock.now = T0 + 1;
+    const wrong = seal(random(32), groupId, JSON.stringify({ v: 1, ops: [] }), random);
+    const notJson = seal(deriveKeys(key).enc, groupId, 'not json', random);
+    await server.push(groupId, authToken(key), 'f'.repeat(32), [wrong, notJson]);
+    // The laptop skips them as it syncs, and so does compaction.
+    await sync(laptop, T0 + 2);
+    await sync(phone, T0 + 40 * DAY);
+    expect(await compactNow(phone, T0 + 40 * DAY + 1)).toBe(true);
+    expect(server.stored().join()).not.toContain(wrong);
+    const tablet = await join('Tablet', T0 + 41 * DAY);
+    await sync(tablet, T0 + 41 * DAY);
+    expect(getSettings(tablet, ME).skipIntervalMs).toBe(45_000);
+  });
+
+  it('compacts nothing when no message opens at all', async () => {
+    const m = getMembership(phone);
+    const groupId = m?.groupId ?? '';
+    server.clock.now = T0 + 1;
+    await server.push(groupId, authToken(fromBase64Url(m?.key ?? '')), 'f'.repeat(32), [
+      seal(random(32), groupId, '{}', random),
+    ]);
+    expect(await compactNow(phone, T0 + 40 * DAY)).toBe(false);
+    expect(server.log(groupId)).toHaveLength(1);
   });
 
   it('makes room in a full group before giving up on a push', async () => {

@@ -1,5 +1,5 @@
 import { normalizeIds } from '@lelap/sdk';
-import { and, asc, eq, gt, inArray } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, like, lte } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
@@ -31,6 +31,25 @@ import {
   workLinks,
 } from '../schema';
 import { bookIdForKey, bookKey, parseEpisodeKey, recordDeletion, type TombstoneKind } from './keys';
+
+/** Where a profile's source choices live in `settings` (see addons/sources.ts). */
+const SOURCE_PREFIX = 'source:';
+
+/** A stored or received source choice, checked: it is only data. */
+function sourceChoiceOf(value: unknown): { addonUrl: string; sourceKey: string } | null {
+  let parsed: unknown = value;
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  const { addonUrl, sourceKey } = parsed as { addonUrl?: unknown; sourceKey?: unknown };
+  if (!isText(addonUrl) || !/^https?:\/\//.test(addonUrl) || !isText(sourceKey, 1024)) return null;
+  return { addonUrl, sourceKey };
+}
 
 /** Settings that follow the listener between devices; download rules stay with each device. */
 export const SYNCED_SETTINGS = [
@@ -166,6 +185,15 @@ export type Op =
       key: string;
       at: number;
       data: { hidden: boolean; notMusic: boolean };
+    }
+  | {
+      /** The source a profile picked for an add-on work (M15). Since M68; older devices skip it. */
+      type: 'source';
+      profile: string;
+      /** `<work type>:<work ID>`, as in the settings key `source:<type>:<id>`. */
+      key: string;
+      at: number;
+      data: { addonUrl: string; sourceKey: string };
     }
   | { type: 'delete'; kind: TombstoneKind; profile: string; key: string; at: number };
 
@@ -394,6 +422,22 @@ export function collectOps(db: Db, since: number): Op[] {
       data: { value: s.value },
     });
   }
+  const choices = db
+    .select()
+    .from(settings)
+    .where(and(gt(settings.updatedAt, since), like(settings.key, `${SOURCE_PREFIX}%`)))
+    .all();
+  for (const s of choices) {
+    const choice = sourceChoiceOf(s.value);
+    if (!choice) continue;
+    ops.push({
+      type: 'source',
+      profile: s.profileId,
+      key: s.key.slice(SOURCE_PREFIX.length),
+      at: s.updatedAt,
+      data: choice,
+    });
+  }
   for (const t of db.select().from(bookTags).where(gt(bookTags.updatedAt, since)).all()) {
     const k = key(t.bookId);
     if (!k) continue;
@@ -487,6 +531,7 @@ const ORDER: Record<Op['type'], number> = {
   hidden: 3,
   playlist: 3,
   link: 3,
+  source: 3,
   delete: 4,
 };
 
@@ -834,6 +879,9 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
         case 'hidden':
           applyHidden(tx, op, now);
           break;
+        case 'source':
+          applySource(tx, op, now);
+          break;
         case 'delete':
           applyDelete(tx, op);
           break;
@@ -899,6 +947,79 @@ function applyHidden(db: Db, op: Extract<Op, { type: 'hidden' }>, now: number): 
     .values({ profileId: op.profile, bookKey: op.key, ...row })
     .onConflictDoUpdate({ target: [hiddenBooks.profileId, hiddenBooks.bookKey], set: row })
     .run();
+}
+
+/** Another device's source choice; kept by the work, so it waits for the book to be played. */
+function applySource(db: Db, op: Extract<Op, { type: 'source' }>, now: number): void {
+  const choice = sourceChoiceOf(op.data);
+  if (!choice || !isText(op.key, 1024) || !op.key.includes(':') || !isText(op.profile, 256)) return;
+  if (typeof op.at !== 'number' || !Number.isFinite(op.at)) return;
+  if (!ensureProfile(db, op.profile, now)) return;
+  const key = `${SOURCE_PREFIX}${op.key}`;
+  const where = and(eq(settings.profileId, op.profile), eq(settings.key, key));
+  const local = db.select({ updatedAt: settings.updatedAt }).from(settings).where(where).get();
+  if (local && local.updatedAt >= op.at) return;
+  const value = JSON.stringify(choice);
+  db.insert(settings)
+    .values({ profileId: op.profile, key, value, updatedAt: op.at })
+    .onConflictDoUpdate({
+      target: [settings.profileId, settings.key],
+      set: { value, updatedAt: op.at },
+    })
+    .run();
+}
+
+/**
+ * Versions before M45 kept a show's settings without its intro and outro but took the change's
+ * time, so after updating the show read 0 until someone changed it again. Given every subscription
+ * change the group holds, a row that still reads 0 and 0 takes the values of the newest change
+ * that carries them (unless the subscription was removed after it). Rows changed here after
+ * `pushedAt` are left alone: that change has not reached the group yet. The row keeps its time,
+ * so nothing is sent back. Returns how many rows changed.
+ */
+export function fillMissingSkips(db: Db, ops: Op[], pushedAt: number): number {
+  const newest = new Map<string, Extract<Op, { type: 'subscription' }>>();
+  const removed = new Map<string, number>();
+  const rowKey = (profile: string, feed: string) => `${profile}\u0000${feed}`;
+  for (const op of ops) {
+    if (op.type === 'delete' && op.kind === 'subscription') {
+      const id = rowKey(op.profile, op.key);
+      removed.set(id, Math.max(removed.get(id) ?? 0, op.at));
+    }
+    if (op.type !== 'subscription' || typeof op.data !== 'object' || op.data === null) continue;
+    if (typeof op.data.skipIntroMs !== 'number' && typeof op.data.skipOutroMs !== 'number')
+      continue;
+    const id = rowKey(op.profile, op.key);
+    const held = newest.get(id);
+    if (!held || op.at > held.at) newest.set(id, op);
+  }
+  let changed = 0;
+  db.transaction((tx) => {
+    for (const [id, op] of newest) {
+      if ((removed.get(id) ?? -Infinity) >= op.at) continue;
+      const trim = trimOf(op.data);
+      if (!trim.skipIntroMs && !trim.skipOutroMs) continue;
+      const podcast = tx
+        .select({ id: podcasts.id })
+        .from(podcasts)
+        .where(eq(podcasts.feedUrl, op.key))
+        .get();
+      if (!podcast) continue;
+      const where = and(
+        eq(subscriptions.profileId, op.profile),
+        eq(subscriptions.podcastId, podcast.id),
+        eq(subscriptions.skipIntroMs, 0),
+        eq(subscriptions.skipOutroMs, 0),
+        lte(subscriptions.updatedAt, pushedAt),
+      );
+      if (!tx.select({ at: subscriptions.updatedAt }).from(subscriptions).where(where).get()) {
+        continue;
+      }
+      tx.update(subscriptions).set(trim).where(where).run();
+      changed++;
+    }
+  });
+  return changed;
 }
 
 function applyDelete(db: Db, op: Extract<Op, { type: 'delete' }>): void {

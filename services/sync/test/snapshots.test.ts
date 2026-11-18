@@ -281,6 +281,33 @@ describe('idle groups', () => {
     expect(await count('pairings')).toBe(0);
   });
 
+  it('stay while a device only pulls, noting it at most once a day', async () => {
+    const now = Date.now();
+    const clock = { now: now - 800 * DAY };
+    const g = await withGroup(clock);
+    await g.push(['a']);
+    const lastSync = async () =>
+      (
+        await d1.db
+          .prepare('SELECT last_push_at AS at FROM groups WHERE id = ?1')
+          .bind(GROUP)
+          .first<{ at: number }>()
+      )?.at;
+    clock.now = now - DAY;
+    expect((await g.pull(0)).status).toBe(200);
+    expect(await lastSync()).toBe(now - DAY);
+    // Within the day a pull writes nothing.
+    clock.now = now - DAY + 60_000;
+    await g.pull(0);
+    expect(await lastSync()).toBe(now - DAY);
+    await runCron('730');
+    expect(await groups()).toEqual([GROUP]);
+    // A stranger's pull is refused and keeps nothing alive.
+    clock.now = now;
+    expect((await g.call(`/v1/groups/${GROUP}/messages`, {})).status).toBe(403);
+    expect(await lastSync()).toBe(now - DAY);
+  });
+
   it('never expire when the setting is unset, 0 or not a whole number', async () => {
     await twoGroups();
     for (const value of [undefined, '', '0', 'two years', '-5', '1.5']) await runCron(value);

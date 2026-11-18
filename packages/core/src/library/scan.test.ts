@@ -17,6 +17,7 @@ import {
   progress,
 } from '../schema';
 import type { ScannedFile } from './files';
+import { collectOps } from '../sync/ops';
 import { applyScan, filesNeedingTags, type ListedFile, splitScanned, upsertRoot } from './scan';
 
 let n = 0;
@@ -81,6 +82,32 @@ describe('applyScan', () => {
     expect(filesNeedingTags(db, listed)).toEqual([]);
     expect(scan(db, twoBooks(), ROOT, 200)).toEqual({ added: 0, missing: 0 });
     expect(db.select({ id: books.id, location: books.location }).from(books).all()).toEqual(before);
+  });
+
+  it('gives sync nothing to send after a rescan that finds no changes (M68)', () => {
+    scan(db, twoBooks());
+    const novel = bookByLocation(db, `${ROOT}/Novel`);
+    const files = db.select().from(bookFiles).all();
+    const chapterIds = db.select({ id: chapters.id }).from(chapters).all();
+    saveProgress(
+      db,
+      ME,
+      {
+        bookId: novel?.id ?? '',
+        fileLocation: files[1]?.location ?? '',
+        filePositionMs: 500,
+        savedAt: 150,
+      },
+      'app',
+    );
+    setSpeed(db, ME, novel?.id ?? '', 1.25, 150);
+    // Only the default profile, made at the real time, is newer than the last push at 160.
+    const pending = collectOps(db, 160);
+    expect(pending.map((op) => op.type)).toEqual(['profile']);
+    scan(db, twoBooks(), ROOT, 200);
+    expect(collectOps(db, 160)).toEqual(pending);
+    expect(db.select().from(bookFiles).all()).toEqual(files);
+    expect(db.select({ id: chapters.id }).from(chapters).all()).toEqual(chapterIds);
   });
 
   it('reads single files once more for genre and ISRC (M77), not the parts of a book', () => {

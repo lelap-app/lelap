@@ -27,6 +27,10 @@ export function fakeSyncServer(clock = { now: 0 }) {
       void groups.set(id, { authHash: hash, log: [], snapshot: null, uploads: new Map() }),
     push: async (id, token, device, messages) => {
       const g = group(id, token);
+      // The real server's limits: 50 messages per push, 256 KB each.
+      if (messages.length > 50 || messages.some((m) => m.length > 256 * 1024)) {
+        throw new SyncError(400, 'Send a device ID and up to 50 sealed messages.');
+      }
       for (const data of messages) g.log.push({ seq: ++seq, device, data, at: clock.now });
     },
     pull: async (id, token, after, limit) => {

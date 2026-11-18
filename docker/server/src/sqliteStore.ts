@@ -44,6 +44,9 @@ export function sqliteStore(db: DatabaseSync): SyncStore {
     async read(id, after, limit) {
       return db.prepare(SQL.read).all(id, after, limit) as Message[];
     },
+    async seen(id, now) {
+      run(SQL.seen, id, now);
+    },
     async older(id, before) {
       return db.prepare(SQL.older).get(id, before) as { messages: number; bytes: number };
     },

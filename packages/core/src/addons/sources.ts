@@ -126,8 +126,8 @@ export function pickSource(found: FoundStream[], choices: (SourceChoice | null)[
   return 0;
 }
 
-// Kept in the settings table under keys `getSettings` ignores and sync never sends, so the
-// choice needs no migration. One row per book the user picked a source for.
+// Kept in the settings table under keys `getSettings` ignores, so the choice needs no migration.
+// One row per book the user picked a source for; sync sends it as a `source` operation (M68).
 const choiceKey = (type: string, id: string) => `source:${type}:${id}`;
 
 /** The source this profile picked for a work, if any. */
