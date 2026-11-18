@@ -1,5 +1,6 @@
 package app.lelap.audio
 
+import android.media.AudioManager
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -69,7 +70,7 @@ class PlaybackRulesTest {
   }
 
   @Test fun sleepTimerFinishingDuringCallPauseDoesNotResumeAfterCall() {
-    rules.duckOnInterruption = false
+    rules.interruption = Interruption.PAUSE
     port.play()
     rules.onFocus(FocusAction.PAUSE_TRANSIENT)
     assertFalse(port.playWhenReady)
@@ -88,7 +89,7 @@ class PlaybackRulesTest {
   }
 
   @Test fun permanentLossAfterCallPauseAbandonsFocus() {
-    rules.duckOnInterruption = false
+    rules.interruption = Interruption.PAUSE
     port.play()
     rules.onFocus(FocusAction.PAUSE_TRANSIENT)
     rules.onFocus(FocusAction.PAUSE)
@@ -98,7 +99,7 @@ class PlaybackRulesTest {
   }
 
   @Test fun playDuringCallWithDuckOffWaitsForTheCallToEnd() {
-    rules.duckOnInterruption = false
+    rules.interruption = Interruption.PAUSE
     port.play()
     rules.onFocus(FocusAction.PAUSE_TRANSIENT)
     port.play()
@@ -153,7 +154,7 @@ class PlaybackRulesTest {
   }
 
   @Test fun playDuringACallWithDuckOffStartsWhenTheCallEnds() {
-    rules.duckOnInterruption = false
+    rules.interruption = Interruption.PAUSE
     port.focusResult = FocusResult.DELAYED
     port.play()
     assertFalse(port.playWhenReady)
@@ -167,12 +168,107 @@ class PlaybackRulesTest {
   }
 
   @Test fun callPauseResumesWhenTheCallEnds() {
-    rules.duckOnInterruption = false
+    rules.interruption = Interruption.PAUSE
     port.play()
     rules.onFocus(FocusAction.PAUSE_TRANSIENT)
     assertEquals(0, port.timerFrozen)
     rules.onFocus(FocusAction.RESTORE)
     assertTrue(port.playWhenReady)
     assertEquals(1f, port.duckLevel, 0f)
+  }
+
+  @Test fun aCallDucksToTheChosenLevelAndRestoresFullVolume() {
+    rules.duckLevel = 0.5f
+    port.play()
+    rules.onFocus(focusAction(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT, rules.interruption))
+    assertTrue(port.playWhenReady)
+    assertEquals(0.5f, port.duckLevel, 1e-6f)
+    rules.onFocus(FocusAction.RESTORE)
+    assertEquals(1f, port.duckLevel, 0f)
+  }
+
+  @Test fun playDuringACallDucksToTheChosenLevel() {
+    rules.duckLevel = 0.7f
+    port.focusResult = FocusResult.DELAYED
+    port.play()
+    assertTrue(port.playWhenReady)
+    assertEquals(0.7f, port.duckLevel, 1e-6f)
+    port.focusResult = FocusResult.GRANTED
+    rules.onFocus(FocusAction.RESTORE)
+    assertEquals(1f, port.duckLevel, 0f)
+  }
+
+  @Test fun aNewLevelDuringACallAppliesAtOnceAndNotOutsideOne() {
+    rules.duckLevel = 0.6f
+    port.play()
+    assertEquals(1f, port.duckLevel, 0f)
+    rules.onFocus(FocusAction.DUCK)
+    rules.duckLevel = 0.3f
+    assertEquals(0.3f, port.duckLevel, 1e-6f)
+    rules.onFocus(FocusAction.RESTORE)
+    rules.duckLevel = 0.9f
+    assertEquals(1f, port.duckLevel, 0f)
+  }
+
+  @Test fun pauseModePausesForACallAndResumesAtFullVolume() {
+    rules.interruption = Interruption.PAUSE
+    rules.duckLevel = 0.4f
+    port.play()
+    rules.onFocus(focusAction(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT, rules.interruption))
+    assertFalse(port.playWhenReady)
+    assertEquals(1f, port.duckLevel, 0f)
+    rules.onFocus(FocusAction.RESTORE)
+    assertTrue(port.playWhenReady)
+    assertEquals(1f, port.duckLevel, 0f)
+  }
+
+  // Navigation and notifications ask to duck, not to pause; that stays a duck in pause mode too.
+  @Test fun pauseModeStillDucksWhenAndroidAsksToDuck() {
+    rules.interruption = Interruption.PAUSE
+    rules.duckLevel = 0.4f
+    port.play()
+    rules.onFocus(focusAction(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK, rules.interruption))
+    assertTrue(port.playWhenReady)
+    assertEquals(0.4f, port.duckLevel, 1e-6f)
+  }
+
+  @Test fun switchingToDuckDuringAPausedCallPlaysLowered() {
+    rules.interruption = Interruption.PAUSE
+    port.play()
+    rules.onFocus(FocusAction.PAUSE_TRANSIENT)
+    rules.interruption = Interruption.DUCK
+    port.play()
+    assertTrue(port.playWhenReady)
+    assertEquals(0.2f, port.duckLevel, 1e-6f)
+  }
+
+  @Test fun theOldSwitchKeepsItsMeaning() {
+    assertEquals(Interruption.DUCK, interruptionOf(true))
+    assertEquals(Interruption.PAUSE, interruptionOf(false))
+    // Saved before the level existed: lower to the old fixed 20 %.
+    assertEquals(0.2f, duckLevelOf(null), 0f)
+    assertEquals(0.2f, PlaybackRules(FakePort()).duckLevel, 0f)
+  }
+
+  @Test fun theLevelStaysWithin20To100InStepsOf10() {
+    assertEquals(0.2f, duckLevelOf(0f), 0f)
+    assertEquals(0.2f, duckLevelOf(Float.NaN), 0f)
+    assertEquals(1f, duckLevelOf(1.5f), 0f)
+    assertEquals(0.5f, duckLevelOf(0.46f), 1e-6f)
+    rules.duckLevel = 0.05f
+    assertEquals(0.2f, rules.duckLevel, 0f)
+  }
+
+  @Test fun theDuckLevelMultipliesWithTheSleepFadeAndTheBedtimeVolume() {
+    var volume = -1f
+    val mixer = VolumeMixer { volume = it }
+    mixer.duck = 0.6f
+    mixer.fade = 0.5f
+    assertEquals(0.3f, volume, 1e-6f)
+    mixer.bedtime = 0.5f
+    assertEquals(0.15f, volume, 1e-6f)
+    // At 100 % a call leaves the volume alone; the fade and the bedtime volume still work.
+    mixer.duck = 1f
+    assertEquals(0.25f, volume, 1e-6f)
   }
 }

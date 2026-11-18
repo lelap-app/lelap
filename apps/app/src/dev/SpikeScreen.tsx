@@ -173,6 +173,7 @@ export function SpikeScreen() {
             run(
               audio.setSettings({
                 duckOnInterruption: enabled,
+                duckPercent: 20,
                 skipIntervalMs: 30_000,
                 smartRewind: true,
                 mono: false,

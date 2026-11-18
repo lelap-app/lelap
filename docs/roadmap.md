@@ -11,7 +11,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | Milestone                                            | Status      | Open checks | In short                                                                                                 |
 | ---------------------------------------------------- | ----------- | ----------: | -------------------------------------------------------------------------------------------------------- |
 | [M0 Claim the name](milestones/m0.md)                | Done        |             | Domain, email, GitHub organisation and Cloudflare account                                                |
-| [M1 Audio spike](milestones/m1.md)                   | Done        |           4 | Media3 playback on a real phone: gapless parts, speed, calls, sleep fade                                 |
+| [M1 Audio spike](milestones/m1.md)                   | Done        |           6 | Media3 playback on a real phone: gapless parts, speed, calls, sleep fade                                 |
 | [M2 Local library](milestones/m2.md)                 | Done        |          13 | Local files and folders, chapters from tags, progress, bookmarks                                         |
 | [M3 Add-on protocol and SDK](milestones/m3.md)       | Done        |           4 | Add-on protocol, SDK, Workers template, Catalog and LibriVox add-ons                                     |
 | [M4 Downloads](milestones/m4.md)                     | Done        |           8 | Background downloads with Wi-Fi and charging rules, storage overview                                     |

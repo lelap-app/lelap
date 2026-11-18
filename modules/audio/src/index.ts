@@ -44,7 +44,10 @@ export type FinishedItem = { bookId: string; at: number };
 
 /** Player settings that must also work with the app closed. */
 export type PlayerSettings = {
+  /** During a call: true lowers the volume to `duckPercent`, false pauses until it ends. */
   duckOnInterruption: boolean;
+  /** 20–100; also the level for Android's own short duck requests, such as navigation. */
+  duckPercent: number;
   skipIntervalMs: number;
   smartRewind: boolean;
   /** Both channels mixed into one, for one earbud or one good ear. */
@@ -143,6 +146,7 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   setSpeed(speed: number): Promise<void>;
   setSettings(
     duck: boolean,
+    duckLevel: number,
     skipIntervalMs: number,
     smartRewind: boolean,
     switches: Record<
@@ -216,6 +220,7 @@ export function setSpeed(speed: number): Promise<void> {
 export function setSettings(settings: PlayerSettings): Promise<void> {
   return native.setSettings(
     settings.duckOnInterruption,
+    settings.duckPercent / 100,
     settings.skipIntervalMs,
     settings.smartRewind,
     {

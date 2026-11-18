@@ -54,6 +54,7 @@ const SETTINGS: (keyof Settings)[] = [
   'language',
   'skipIntervalMs',
   'duckOnInterruption',
+  'duckPercent',
   'smartRewind',
   'mono',
   'voiceEq',

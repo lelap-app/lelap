@@ -319,7 +319,10 @@ class PlaybackService : MediaLibraryService() {
     }
     port = Port()
     rules = PlaybackRules(port).apply {
-      duckOnInterruption = prefs.getBoolean(Commands.EXTRA_DUCK, true)
+      interruption = interruptionOf(prefs.getBoolean(Commands.EXTRA_DUCK, true))
+      duckLevel = duckLevelOf(
+        if (prefs.contains(Commands.KEY_DUCK_LEVEL)) prefs.getFloat(Commands.KEY_DUCK_LEVEL, DEFAULT_DUCK_LEVEL) else null,
+      )
     }
     skipIntervalMs = prefs.getLong(Commands.KEY_SKIP_INTERVAL_MS, 30_000L)
     smartRewind = prefs.getBoolean(Commands.KEY_SMART_REWIND, true)
@@ -332,7 +335,7 @@ class PlaybackService : MediaLibraryService() {
       evenLoudness = prefs.getBoolean(Commands.KEY_EVEN_LOUDNESS, false),
     )
     applySound()
-    focus.duckOnInterruption = rules.duckOnInterruption
+    focus.interruption = rules.interruption
     queue = UpNext.decodeQueue(prefs.getString(Commands.PREF_QUEUE, null))
     Accounting.edit(this) { tally.recover(it) }
     player.addListener(object : Player.Listener {
@@ -1421,7 +1424,7 @@ class PlaybackService : MediaLibraryService() {
     updateSleepButton()
     session.setSessionExtras(
       Bundle().apply {
-        putBoolean(Commands.EXTRA_DUCK, focus.duckOnInterruption)
+        putBoolean(Commands.EXTRA_DUCK, focus.interruption == Interruption.DUCK)
         putBoolean(Commands.EXTRA_WAITING_FOR_FOCUS, rules.isWaitingForFocus)
         sleepTimer.mode?.let { putString(Commands.EXTRA_SLEEP_TIMER_MODE, it.wire) }
         val remaining = sleepTimer.remainingMs?.coerceAtLeast(0L)
@@ -1480,8 +1483,11 @@ class PlaybackService : MediaLibraryService() {
       when (customCommand.customAction) {
         Commands.SET_SETTINGS -> {
           val duck = args.getBoolean(Commands.EXTRA_DUCK, true)
-          rules.duckOnInterruption = duck
-          focus.duckOnInterruption = duck
+          rules.interruption = interruptionOf(duck)
+          focus.interruption = rules.interruption
+          rules.duckLevel = duckLevelOf(
+            if (args.containsKey(Commands.KEY_DUCK_LEVEL)) args.getFloat(Commands.KEY_DUCK_LEVEL) else null,
+          )
           val interval = args.getLong(Commands.KEY_SKIP_INTERVAL_MS, 30_000L).coerceIn(5_000L, 300_000L)
           if (interval != skipIntervalMs) {
             skipIntervalMs = interval
@@ -1500,6 +1506,7 @@ class PlaybackService : MediaLibraryService() {
           applySound()
           prefs.edit()
             .putBoolean(Commands.EXTRA_DUCK, duck)
+            .putFloat(Commands.KEY_DUCK_LEVEL, rules.duckLevel)
             .putLong(Commands.KEY_SKIP_INTERVAL_MS, skipIntervalMs)
             .putBoolean(Commands.KEY_SMART_REWIND, smartRewind)
             .putBoolean(Commands.KEY_SHAKE_TO_EXTEND, shakeToExtend)

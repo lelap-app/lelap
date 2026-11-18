@@ -1,6 +1,20 @@
 package app.lelap.audio
 
-private const val DUCK_VOLUME = 0.2f
+/** What a call or another transient loss does to playback; the listener chooses. */
+enum class Interruption { PAUSE, DUCK }
+
+/** The fixed level before it became a setting, and still the default. */
+const val DEFAULT_DUCK_LEVEL = 0.2f
+private const val MIN_DUCK_LEVEL = 0.2f
+
+/** Only a switch was stored before the level: on meant ducking to 20 %, off meant pausing. */
+fun interruptionOf(duck: Boolean): Interruption = if (duck) Interruption.DUCK else Interruption.PAUSE
+
+/** A stored or received level, kept to 20–100 % in steps of 10; a missing one is 20 %. */
+fun duckLevelOf(level: Float?): Float {
+  if (level == null || level.isNaN()) return DEFAULT_DUCK_LEVEL
+  return Math.round(level.coerceIn(MIN_DUCK_LEVEL, 1f) * 10f) / 10f
+}
 
 /**
  * Decides what playback does on user play/pause, audio focus changes and the end of the sleep timer.
@@ -19,7 +33,17 @@ class PlaybackRules(private val port: Port) {
     fun resumeSleepTimer()
   }
 
-  var duckOnInterruption = true
+  var interruption = Interruption.DUCK
+
+  /** The volume while ducked; Android's own duck requests (navigation) use it in either mode. */
+  var duckLevel = DEFAULT_DUCK_LEVEL
+    set(value) {
+      field = duckLevelOf(value)
+      // A new level chosen during a call applies at once.
+      if (ducked) port.setDuck(field)
+    }
+
+  private var ducked = false
 
   // A transient loss (call, VoIP, navigation) is under way and focus will come back.
   private var transientLoss = false
@@ -47,7 +71,9 @@ class PlaybackRules(private val port: Port) {
     }
     if (transientLoss) {
       // Play during a call: ducked if that is the setting, otherwise wait for the call to end.
-      if (duckOnInterruption) {
+      if (interruption == Interruption.DUCK) {
+        // The call may have paused us before the listener switched to lowering the volume.
+        duck(true)
         port.resumeSleepTimer()
       } else {
         resumeOnGain = true
@@ -58,14 +84,14 @@ class PlaybackRules(private val port: Port) {
     resumeOnGain = false
     when (port.requestFocus()) {
       FocusResult.GRANTED -> {
-        port.setDuck(1f)
+        duck(false)
         port.resumeSleepTimer()
       }
       // A call holds focus, so Android grants ours when it ends. Duck until then, or wait.
       FocusResult.DELAYED ->
-        if (duckOnInterruption) {
+        if (interruption == Interruption.DUCK) {
           transientLoss = true
-          port.setDuck(DUCK_VOLUME)
+          duck(true)
           port.resumeSleepTimer()
         } else {
           resumeOnGain = true
@@ -79,7 +105,7 @@ class PlaybackRules(private val port: Port) {
     when (action) {
       FocusAction.PAUSE -> {
         resumeOnGain = false
-        port.setDuck(1f)
+        duck(false)
         pauseInternally()
         abandonFocus()
       }
@@ -92,11 +118,11 @@ class PlaybackRules(private val port: Port) {
       }
       FocusAction.DUCK -> {
         transientLoss = true
-        port.setDuck(DUCK_VOLUME)
+        duck(true)
       }
       FocusAction.RESTORE -> {
         transientLoss = false
-        port.setDuck(1f)
+        duck(false)
         if (resumeOnGain) {
           resumeOnGain = false
           port.play()
@@ -109,6 +135,11 @@ class PlaybackRules(private val port: Port) {
     resumeOnGain = false
     pauseInternally()
     abandonFocus()
+  }
+
+  private fun duck(on: Boolean) {
+    ducked = on
+    port.setDuck(if (on) duckLevel else 1f)
   }
 
   private fun pauseInternally() {

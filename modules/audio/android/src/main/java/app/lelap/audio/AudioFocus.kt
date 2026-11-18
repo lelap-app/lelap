@@ -14,10 +14,10 @@ enum class FocusAction { PAUSE, PAUSE_TRANSIENT, DUCK, RESTORE }
 /** DELAYED: Android holds the request during a call and grants it when the call ends. */
 enum class FocusResult { GRANTED, DELAYED, FAILED }
 
-fun focusAction(focusChange: Int, duckOnInterruption: Boolean): FocusAction = when (focusChange) {
+fun focusAction(focusChange: Int, interruption: Interruption): FocusAction = when (focusChange) {
   AudioManager.AUDIOFOCUS_LOSS -> FocusAction.PAUSE
   AudioManager.AUDIOFOCUS_LOSS_TRANSIENT ->
-    if (duckOnInterruption) FocusAction.DUCK else FocusAction.PAUSE_TRANSIENT
+    if (interruption == Interruption.DUCK) FocusAction.DUCK else FocusAction.PAUSE_TRANSIENT
   AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> FocusAction.DUCK
   else -> FocusAction.RESTORE
 }
@@ -27,7 +27,7 @@ fun focusAction(focusChange: Int, duckOnInterruption: Boolean): FocusAction = wh
  * for spoken audio. Calls and VoIP arrive as transient loss, so ducking them is our policy.
  */
 class AudioFocus(context: Context, private val onAction: (FocusAction) -> Unit) {
-  var duckOnInterruption = true
+  var interruption = Interruption.DUCK
 
   private val audioManager = AudioManagerCompat.getAudioManager(context)
   private enum class State { NONE, PENDING, HELD }
@@ -47,7 +47,7 @@ class AudioFocus(context: Context, private val onAction: (FocusAction) -> Unit) 
     .setOnAudioFocusChangeListener(
       { change ->
         if (change == AudioManager.AUDIOFOCUS_GAIN) state = State.HELD
-        onAction(focusAction(change, duckOnInterruption))
+        onAction(focusAction(change, interruption))
       },
       Handler(Looper.getMainLooper()),
     )

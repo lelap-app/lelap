@@ -87,7 +87,10 @@ object Commands {
   const val SILENCE_PREFS = "lelap_silence"
   const val SILENCE_KEY = "saved"
 
+  /** True lowers the volume during calls, false pauses: the meaning it had as a plain switch. */
   const val EXTRA_DUCK = "duckOnInterruption"
+  /** 0.2–1; missing in settings saved before it existed, which then duck to 20 %. */
+  const val KEY_DUCK_LEVEL = "duckLevel"
   const val EXTRA_WAITING_FOR_FOCUS = "waitingForFocus"
   const val EXTRA_SLEEP_TIMER_END = "sleepTimerEndsAtElapsedMs"
   const val EXTRA_SLEEP_TIMER_FROZEN = "sleepTimerFrozenRemainingMs"
