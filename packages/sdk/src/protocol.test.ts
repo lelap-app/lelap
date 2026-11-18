@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  applySignin,
   HealthResponse,
+  offersSignin,
+  SigninResult,
+  SigninStart,
   isConfigurable,
   LibraryResponse,
   offersLibrary,
@@ -356,5 +360,66 @@ describe('revision 6: places and logins in the address', () => {
     const report = { file, files: [file], positionMs: 5, at: 1, finished: false };
     expect(PlaceReport.safeParse(report).success).toBe(true);
     expect(PlaceReport.safeParse({ ...report, positionMs: -1 }).success).toBe(false);
+  });
+});
+
+describe('revision 7: signing in through a website, and a query for the browser', () => {
+  const inApp: Manifest = {
+    ...base,
+    protocolVersion: 7,
+    resources: ['library', 'signin'],
+    sandbox: { hosts: ['plex.tv:443'] },
+    settings: [
+      { key: 'account', label: 'Plex account', type: 'signin', required: true },
+      { key: 'url', label: 'Server address', type: 'url', host: true },
+    ],
+  };
+
+  it('takes one signin field, with the signin resource, inside the app only', () => {
+    expect(offersSignin(Manifest.parse(inApp))).toBe(true);
+    expect(Manifest.safeParse({ ...inApp, resources: ['library'] }).success).toBe(false);
+    const two = [...(inApp.settings ?? []), { key: 'b', label: 'B', type: 'signin' }];
+    expect(Manifest.safeParse({ ...inApp, settings: two }).success).toBe(false);
+    const web = { ...inApp, sandbox: undefined, settings: undefined, resources: ['signin'] };
+    expect(Manifest.safeParse(web).success).toBe(false);
+  });
+
+  it('asks for a sign-in before a server is added, and keeps the value as it came', () => {
+    const fields = inApp.settings ?? [];
+    expect(readSettings(fields, {})).toEqual({ error: 'Plex account: sign in first.' });
+    expect(readSettings(fields, { account: ' token ' })).toEqual({
+      settings: { account: ' token ', url: '' },
+    });
+  });
+
+  it('describes a sign-in: a code, an https page, and when to stop asking', () => {
+    const start = { code: 'AB12', url: 'https://plex.tv/link', interval: 2, state: '1' };
+    expect(SigninStart.safeParse(start).success).toBe(true);
+    expect(SigninStart.safeParse({ ...start, url: 'http://plex.tv/link' }).success).toBe(false);
+    expect(SigninStart.safeParse({ ...start, interval: 1 }).success).toBe(false);
+    expect(SigninResult.parse({}).settings).toBeUndefined();
+  });
+
+  it('puts only the form’s own fields from a sign-in into the form', () => {
+    const fields = inApp.settings ?? [];
+    const result = { settings: { account: 'tok', url: 'https://a.plex.direct:32400', other: 'x' } };
+    expect(applySignin(fields, { url: '' }, result)).toEqual({
+      account: 'tok',
+      url: 'https://a.plex.direct:32400',
+    });
+    // Logging in again changes the sealed value only.
+    expect(applySignin(fields, { url: 'http://nas:32400' }, result, true)).toEqual({
+      account: 'tok',
+      url: 'http://nas:32400',
+    });
+  });
+
+  it('reads a listing with headers and a query for the browser', () => {
+    const parsed = LibraryResponse.parse({
+      files: [],
+      headers: { 'X-Plex-Token': 'tok' },
+      webQuery: { 'X-Plex-Token': 'tok' },
+    });
+    expect(parsed.webQuery).toEqual({ 'X-Plex-Token': 'tok' });
   });
 });

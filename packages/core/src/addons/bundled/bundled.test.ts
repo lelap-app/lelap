@@ -2,7 +2,16 @@ import { createHash, webcrypto } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
-import { LibraryResponse, offersLibrary, readSettings, settingHosts } from '@lelap/sdk';
+import {
+  applySignin,
+  LibraryResponse,
+  offersLibrary,
+  offersSignin,
+  readSettings,
+  settingHosts,
+  SigninResult,
+  SigninStart,
+} from '@lelap/sdk';
 import { describe, expect, it } from 'vitest';
 
 import { hostAllowed } from '../local';
@@ -17,6 +26,7 @@ type Handlers = {
   manifest: unknown;
   library: (args: unknown) => Promise<unknown>;
   place?: (args: unknown) => Promise<unknown>;
+  signin?: (args: unknown) => Promise<unknown>;
 };
 
 /**
@@ -72,9 +82,12 @@ describe('bundled add-ons', () => {
     }
   });
 
-  it('declares valid library sources with a sandbox and no fixed hosts', () => {
+  it('declares valid library sources with a sandbox, and plex.tv as the only fixed host', () => {
     for (const addon of bundledAddons()) {
       expect(offersLibrary(addon.manifest)).toBe(true);
+      expect(addon.manifest.sandbox?.hosts).toEqual(
+        addon.manifest.id === 'app.lelap.plex' ? ['plex.tv:443'] : [],
+      );
       expect(addon.url).toBe(`lelap-local://${addon.manifest.id}/manifest.json`);
       expect(bundledAddon(addon.url)).toBe(addon);
     }
@@ -394,5 +407,477 @@ describe('Subsonic', () => {
     expect(saved?.post).toBe(true);
     expect(saved?.url).not.toContain('?');
     expect([...nd.bookmarks]).toEqual([['6OBZNgINrkxkmI2U4zOkfC', 700]]);
+  });
+});
+
+// Answers recorded from Emby Server 4.10.2 in Docker, with an “Audiobooks” library (two books
+// made with `say`) and a “Music” library; the access token is replaced with `emby-test-token`.
+const emby = (name: string): string =>
+  readFileSync(new URL(`../../../test/fixtures/emby/${name}.json`, import.meta.url), 'utf8');
+
+describe('Emby', () => {
+  const manifest = bundledAddon('lelap-local://app.lelap.emby/manifest.json')?.manifest;
+  const fields = manifest?.settings ?? [];
+  const TOKEN = 'emby-test-token';
+  const API_KEY = 'emby-api-key-0123456789';
+  const USER = 'bcabd293d25e489684749058b00172c2';
+
+  type Call = { method: string; path: string; url: string; headers: Record<string, string> };
+
+  /** An Emby server from the recorded answers, checking the login on every call. */
+  function server(options: { password?: string } = {}) {
+    const calls: Call[] = [];
+    const saved = new Map<string, unknown>();
+    const json = (body: string): Reply => ({ status: 200, type: 'application/json', body });
+    const answer = (url: string, headers: Record<string, string>, init: Init): Reply => {
+      const address = new URL(url);
+      const path = address.pathname.replace(/^\/emby/, '');
+      const method = init.method ?? 'GET';
+      calls.push({ method, path, url, headers });
+      if (!address.pathname.startsWith('/emby/')) return { status: 404, body: '' };
+      if (path === '/Users/AuthenticateByName' && method === 'POST') {
+        const body = JSON.parse(init.body ?? '{}') as { Username?: string; Pw?: string };
+        if (body.Username !== 'lelap' || body.Pw !== (options.password ?? 'test-pass')) {
+          return { status: 401, body: 'Invalid username or password. Please try again.' };
+        }
+        return json(emby('AuthenticateByName'));
+      }
+      const token = headers['X-Emby-Token'];
+      if (token !== TOKEN && token !== API_KEY) return { status: 401, body: '' };
+      if (path === '/Users' && token === API_KEY) return json(emby('Users'));
+      if (path === `/Users/${USER}/Views`) return json(emby('Views'));
+      if (path === `/Users/${USER}/Items` && address.searchParams.get('ParentId') === '3') {
+        return json(emby('Items-3'));
+      }
+      if (path === `/Users/${USER}/Items` && address.searchParams.has('Ids')) {
+        return json(emby('Items-folders'));
+      }
+      const data = /^\/Users\/[^/]+\/Items\/([^/]+)\/UserData$/.exec(path);
+      if (data && method === 'POST') {
+        saved.set(data[1] ?? '', JSON.parse(init.body ?? '{}'));
+        return { status: 204, body: '' };
+      }
+      return { status: 404, body: '' };
+    };
+    return { answer, calls, saved };
+  }
+
+  function run(settings: Record<string, string>, answer: ReturnType<typeof server>['answer']) {
+    const read = readSettings(fields, settings);
+    if ('error' in read) throw new Error(read.error);
+    const loaded = load('emby.js', answer);
+    loaded.hosts.push(...(manifest?.sandbox?.hosts ?? []), ...settingHosts(fields, read.settings));
+    return {
+      list: async () =>
+        LibraryResponse.parse(await loaded.handlers.library({ settings: read.settings })),
+      place: (place: unknown) => loaded.handlers.place?.({ settings: read.settings, place }),
+    };
+  }
+
+  const login = {
+    url: 'http://nas.local:8096/web/index.html',
+    user: 'lelap',
+    password: 'test-pass',
+  };
+
+  it('lists audiobook libraries as books, with the token as a header and for the browser', async () => {
+    const recorded = server();
+    const result = await run(login, recorded.answer).list();
+    expect(result.files.map((f) => f.path)).toEqual([
+      'Kenneth Grahame/The Wind in the Willows/001 The Wind in the Willows.m4b',
+      'Frances Hodgson Burnett/The Secret Garden/001 Chapter 1.mp3',
+      'Frances Hodgson Burnett/The Secret Garden/002 Chapter 2.mp3',
+      'Frances Hodgson Burnett/The Secret Garden/cover.jpg',
+    ]);
+    const [willows, first, second, cover] = result.files;
+    expect(first).toMatchObject({
+      url: 'http://nas.local:8096/emby/Audio/11/stream?static=true',
+      downloadUrl: 'http://nas.local:8096/emby/Items/11/Download',
+      durationMs: 2403,
+      title: 'Chapter 1',
+      album: 'The Secret Garden',
+      albumArtist: 'Frances Hodgson Burnett',
+      size: 9993,
+    });
+    expect(first?.place).toBeUndefined();
+    // The place set on the server, with when it was set.
+    expect(second?.place).toEqual({ positionMs: 1500, at: Date.parse('2026-11-18T02:30:00Z') });
+    expect(cover?.url).toBe(
+      'http://nas.local:8096/emby/Items/9/Images/Primary?maxHeight=1200&tag=4fb90696aeec375a5960aaa87f7cd55d_639305645713410640',
+    );
+    expect(willows?.place).toEqual({
+      positionMs: 0,
+      at: Date.parse('2026-11-17T21:00:00Z'),
+      played: true,
+    });
+    expect(willows?.chapters).toEqual([
+      { title: 'The River Bank', startMs: 0 },
+      { title: 'The Open Road', startMs: 2500 },
+    ]);
+
+    expect(result.headers).toEqual({ 'X-Emby-Token': TOKEN });
+    expect(result.webQuery).toEqual({ api_key: TOKEN });
+    expect(result.query).toBeUndefined();
+    const listed = JSON.stringify(result.files);
+    for (const secret of [TOKEN, 'test-pass', 'api_key']) expect(listed).not.toContain(secret);
+    // The password goes only in the sign-in's body; the token only as a header, to this server.
+    for (const call of recorded.calls) {
+      expect(call.url.startsWith('http://nas.local:8096/emby/')).toBe(true);
+      expect(call.url).not.toContain('test-pass');
+      expect(call.url).not.toContain(TOKEN);
+    }
+    expect(recorded.calls[0]?.headers['X-Emby-Token']).toBeUndefined();
+    expect(recorded.calls[0]?.headers['X-Emby-Authorization']).toMatch(
+      /^Emby UserId="", Client="Lelap", Device="Lelap", DeviceId="lelap-[0-9a-f]+", Version="1.0.0"$/,
+    );
+  });
+
+  it('keeps one device for one server and user, so Emby gives the same token back', async () => {
+    const a = server();
+    const b = server();
+    await run(login, a.answer).list();
+    await run({ ...login, url: 'http://nas.local:8096/' }, b.answer).list();
+    const device = (c: Call | undefined) => c?.headers['X-Emby-Authorization'];
+    expect(device(a.calls[0])).toBe(device(b.calls[0]));
+  });
+
+  it('uses an API key with the username instead of a password', async () => {
+    const recorded = server();
+    const result = await run(
+      { url: 'http://nas.local:8096', user: 'LELAP', apiKey: API_KEY },
+      recorded.answer,
+    ).list();
+    expect(result.files).toHaveLength(4);
+    expect(result.headers).toEqual({ 'X-Emby-Token': API_KEY });
+    expect(recorded.calls.some((c) => c.path === '/Users/AuthenticateByName')).toBe(false);
+  });
+
+  it('takes the libraries named, and names those there are when one is not', async () => {
+    const named = await run({ ...login, libraries: 'audiobooks' }, server().answer).list();
+    expect(named.files).toHaveLength(4);
+    await expect(run({ ...login, libraries: 'Books' }, server().answer).list()).rejects.toThrow(
+      'The Emby server has no library called “Books” for this user. It has “Audiobooks”, “Music”.',
+    );
+  });
+
+  it('says when the password is wrong, without the address in the message', async () => {
+    const error = await run({ ...login, password: 'nope' }, server().answer)
+      .list()
+      .catch((e: unknown) => e);
+    expect(String(error)).toContain('Emby refused the username or password');
+    expect(String(error)).not.toContain('nas.local');
+  });
+
+  it('saves the place as the user’s data, and marks the item played at the end', async () => {
+    const recorded = server();
+    const source = run(login, recorded.answer);
+    const result = await source.list();
+    const [, first, second] = result.files;
+    const file = (f: typeof first) => ({ path: f?.path ?? '', url: f?.url ?? '' });
+    const book = [file(first), file(second)];
+    const at = Date.parse('2026-11-18T04:00:00Z');
+    await source.place({ file: book[0], files: book, positionMs: 1200, at, finished: false });
+    expect(recorded.saved.get('11')).toEqual({
+      Played: false,
+      PlaybackPositionTicks: 12_000_000,
+      LastPlayedDate: '2026-11-18T04:00:00.000Z',
+    });
+    await source.place({ file: book[1], files: book, positionMs: 5015, at, finished: true });
+    expect(recorded.saved.get('10')).toMatchObject({ Played: true, PlaybackPositionTicks: 0 });
+  });
+
+  it('signs in again to save a place in a sandbox that never listed the library', async () => {
+    const recorded = server();
+    const file = {
+      path: 'Frances Hodgson Burnett/The Secret Garden/001 Chapter 1.mp3',
+      url: 'http://nas.local:8096/emby/Audio/11/stream?static=true',
+    };
+    await run(login, recorded.answer).place({
+      file,
+      files: [file],
+      positionMs: 700,
+      at: 5,
+      finished: false,
+    });
+    expect(recorded.calls.map((c) => c.path)).toEqual([
+      '/Users/AuthenticateByName',
+      `/Users/${USER}/Items/11/UserData`,
+    ]);
+  });
+});
+
+// Plex answers, written by hand in the shapes plex.tv and Plex Media Server 1.41 give (no Plex
+// account was used): a PIN, the account's resources with a phone, an owned server with local,
+// remote and relayed connections and a friend's server, and a music library “Audiobooks”.
+const plex = (name: string): string =>
+  readFileSync(new URL(`../../../test/fixtures/plex/${name}.json`, import.meta.url), 'utf8');
+
+describe('Plex', () => {
+  const manifest = bundledAddon('lelap-local://app.lelap.plex/manifest.json')?.manifest;
+  const fields = manifest?.settings ?? [];
+  const ACCOUNT = 'plex-account-token';
+  const SERVER = 'plex-server-token';
+  const MACHINE = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
+  const HOME = 'https://192-168-1-20.0f1e2d3c4b5a69788796a5b4c3d2e1f0.plex.direct:32400';
+  const AWAY = 'https://203-0-113-7.0f1e2d3c4b5a69788796a5b4c3d2e1f0.plex.direct:32400';
+
+  type Call = { url: string; headers: Record<string, string>; method: string };
+
+  /** plex.tv and the server from the hand-written answers; `home` false: away from home. */
+  function world(
+    options: { approved?: boolean; home?: boolean; machine?: string; plexTv?: boolean } = {},
+  ) {
+    const calls: Call[] = [];
+    const saved: { path: string; params: URLSearchParams }[] = [];
+    let approved = options.approved ?? true;
+    const json = (body: string): Reply => ({ status: 200, type: 'application/json', body });
+    const answer = (url: string, headers: Record<string, string>, init: Init): Reply => {
+      const address = new URL(url);
+      calls.push({ url, headers, method: init.method ?? 'GET' });
+      if (headers['X-Plex-Product'] !== 'Lelap' || !headers['X-Plex-Client-Identifier']) {
+        return { status: 400, body: '' };
+      }
+      if (address.host === 'plex.tv') {
+        if (options.plexTv === false) throw new Error('offline');
+        if (address.pathname === '/api/v2/pins' && init.method === 'POST') {
+          return json(plex('pins'));
+        }
+        if (address.pathname === '/api/v2/pins/2034967251') {
+          if (address.searchParams.get('code') !== 'K7QX') return { status: 404, body: '{}' };
+          return json(plex(approved ? 'pins-done' : 'pins'));
+        }
+        if (address.pathname === '/api/v2/resources') {
+          if (headers['X-Plex-Token'] !== ACCOUNT) return { status: 401, body: '' };
+          return json(plex('resources'));
+        }
+        return { status: 404, body: '' };
+      }
+      if (address.origin === HOME && options.home === false) throw new Error('timed out');
+      if (address.pathname === '/identity') {
+        if (headers['X-Plex-Token']) throw new Error('A token went to an unchecked address.');
+        const body = JSON.parse(plex('identity')) as {
+          MediaContainer: { machineIdentifier: string };
+        };
+        if (options.machine) body.MediaContainer.machineIdentifier = options.machine;
+        return json(JSON.stringify(body));
+      }
+      const token = headers['X-Plex-Token'];
+      if (token !== SERVER && !(options.plexTv === false && token === ACCOUNT)) {
+        return { status: 401, body: '' };
+      }
+      if (address.pathname === '/library/sections') return json(plex('sections'));
+      if (address.pathname === '/library/sections/2/all') return json(plex('tracks-2'));
+      if (address.pathname === '/:/progress' || address.pathname === '/:/scrobble') {
+        saved.push({ path: address.pathname, params: address.searchParams });
+        return { status: 200, body: '' };
+      }
+      return { status: 404, body: '' };
+    };
+    return {
+      answer,
+      calls,
+      saved,
+      approve: () => {
+        approved = true;
+      },
+    };
+  }
+
+  function run(settings: Record<string, string>, answer: ReturnType<typeof world>['answer']) {
+    const loaded = load('plex.js', answer);
+    const values: Record<string, string> = { ...settings };
+    // The sandbox's hosts follow the form, as the app's do.
+    const hosts = () => {
+      loaded.hosts.splice(0, loaded.hosts.length, ...(manifest?.sandbox?.hosts ?? []));
+      loaded.hosts.push(...settingHosts(fields, values));
+    };
+    hosts();
+    return {
+      values,
+      signin: async (id: 'start' | 'check', state?: string) => {
+        hosts();
+        return loaded.handlers.signin?.({ id, settings: values, signin: { state } });
+      },
+      list: async () => {
+        const read = readSettings(fields, values);
+        if ('error' in read) throw new Error(read.error);
+        hosts();
+        return LibraryResponse.parse(await loaded.handlers.library({ settings: read.settings }));
+      },
+      place: (place: unknown) => loaded.handlers.place?.({ settings: values, place }),
+    };
+  }
+
+  /** Signs in as the app does: start, check, and put the result into the form. */
+  async function signedIn(answer: ReturnType<typeof world>['answer']) {
+    const source = run({}, answer);
+    const start = SigninStart.parse(await source.signin('start'));
+    const result = SigninResult.parse(await source.signin('check', start.state));
+    Object.assign(source.values, applySignin(fields, source.values, result));
+    return source;
+  }
+
+  it('signs in with a code entered at plex.tv/link, as the product Lelap', async () => {
+    expect(manifest && offersSignin(manifest)).toBe(true);
+    const tv = world({ approved: false });
+    const source = run({}, tv.answer);
+    const start = SigninStart.parse(await source.signin('start'));
+    expect(start).toMatchObject({
+      code: 'K7QX',
+      url: 'https://plex.tv/link',
+      expiresAt: Date.parse('2026-11-18T03:15:00Z'),
+    });
+    expect(SigninResult.parse(await source.signin('check', start.state))).toEqual({});
+    tv.approve();
+    const result = SigninResult.parse(await source.signin('check', start.state));
+    const account = JSON.parse(result.settings?.account ?? '{}') as Record<string, string>;
+    expect(account).toEqual({ client: expect.any(String), token: ACCOUNT, machine: MACHINE });
+    // The owned server, at home over https and away, never through the relay.
+    expect(result.settings).toMatchObject({ server: 'Shelf', url: HOME, remote: AWAY });
+    // One client ID for the whole sign-in, and nothing asked but plex.tv.
+    const clients = new Set(tv.calls.map((c) => c.headers['X-Plex-Client-Identifier']));
+    expect([...clients]).toEqual([account.client]);
+    for (const call of tv.calls) {
+      expect(call.url.startsWith('https://plex.tv/')).toBe(true);
+      expect(call.url).not.toContain(ACCOUNT);
+    }
+  });
+
+  it('keeps the client ID when signing in again, and takes the server named', async () => {
+    const first = await signedIn(world().answer);
+    const client = (JSON.parse(first.values.account ?? '{}') as { client: string }).client;
+    const tv = world();
+    const again = run(
+      { account: first.values.account ?? '', server: 'Friend’s server' },
+      tv.answer,
+    );
+    const start = SigninStart.parse(await again.signin('start'));
+    const result = SigninResult.parse(await again.signin('check', start.state));
+    expect(tv.calls.every((c) => c.headers['X-Plex-Client-Identifier'] === client)).toBe(true);
+    expect(result.settings?.remote).toBe(
+      'https://192-0-2-44.ffeeddccbbaa99887766554433221100.plex.direct:32400',
+    );
+    expect(result.settings?.url).toBeUndefined();
+  });
+
+  it('lists the music library named like audiobooks, with the server’s token sealed apart', async () => {
+    const tv = world();
+    const source = await signedIn(tv.answer);
+    tv.calls.length = 0;
+    const result = await source.list();
+    expect(result.files.map((f) => f.path)).toEqual([
+      'Frances Hodgson Burnett/The Secret Garden/001 Chapter 1.mp3',
+      'Frances Hodgson Burnett/The Secret Garden/002 Chapter 2.mp3',
+      'Frances Hodgson Burnett/The Secret Garden/cover.jpg',
+      'Kenneth Grahame/The Wind in the Willows/001 The Wind in the Willows.m4b',
+    ]);
+    const [first, second, cover, willows] = result.files;
+    expect(first).toMatchObject({
+      url: `${HOME}/library/parts/313/1763434800/file.mp3`,
+      downloadUrl: `${HOME}/library/parts/313/1763434800/file.mp3?download=1`,
+      size: 9993,
+      place: { positionMs: 0, at: 1763434850000, played: true },
+    });
+    // The first file of each book is read by the app, for chapters and ISBN or ASIN tags.
+    expect(first?.durationMs).toBeUndefined();
+    expect(willows?.durationMs).toBeUndefined();
+    expect(second).toMatchObject({
+      durationMs: 5015,
+      title: 'Chapter 2',
+      album: 'The Secret Garden',
+      albumArtist: 'Frances Hodgson Burnett',
+      place: { positionMs: 1500, at: 1763434900000 },
+    });
+    expect(cover?.url).toBe(`${HOME}/library/metadata/111/thumb/1763434800`);
+
+    // The server's own token, not the account's, as a header and for the browser.
+    expect(result.headers).toEqual({ 'X-Plex-Token': SERVER });
+    expect(result.webQuery).toEqual({ 'X-Plex-Token': SERVER });
+    expect(JSON.stringify(result.files)).not.toContain('token');
+    // The account's token goes to plex.tv only, the server's to the checked address only.
+    for (const call of tv.calls) {
+      const token = call.headers['X-Plex-Token'];
+      if (call.url.startsWith('https://plex.tv/')) expect(token).toBe(ACCOUNT);
+      else expect(call.url.startsWith(`${HOME}/`) && (token === SERVER || !token)).toBe(true);
+      expect(call.url).not.toContain('Token');
+    }
+    const onServer = tv.calls.filter((c) => !c.url.startsWith('https://plex.tv/'));
+    expect(onServer[0]?.url).toBe(`${HOME}/identity`);
+  });
+
+  it('uses the address away from home when the one at home does not answer', async () => {
+    const tv = world({ home: false });
+    const source = await signedIn(tv.answer);
+    const result = await source.list();
+    expect(result.files[0]?.url).toBe(`${AWAY}/library/parts/313/1763434800/file.mp3`);
+    // Never the relay, which the app would not let it reach anyway.
+    expect(tv.calls.every((c) => !c.url.includes('198-51-100-9'))).toBe(true);
+  });
+
+  it('sends no token to an address where another server answers', async () => {
+    const tv = world({ machine: 'ffffffffffffffffffffffffffffffff' });
+    const source = await signedIn(tv.answer);
+    tv.calls.length = 0;
+    await expect(source.list()).rejects.toThrow('Another Plex server answers');
+    const tokens = tv.calls.filter(
+      (c) => !c.url.startsWith('https://plex.tv/') && c.headers['X-Plex-Token'],
+    );
+    expect(tokens).toEqual([]);
+  });
+
+  it('lists at home with the account’s token when plex.tv can’t be reached', async () => {
+    const source = await signedIn(world().answer);
+    const result = await run(source.values, world({ plexTv: false }).answer).list();
+    expect(result.headers).toEqual({ 'X-Plex-Token': ACCOUNT });
+    expect(result.files).toHaveLength(4);
+  });
+
+  it('takes the libraries named, and names the music libraries there are when one is not', async () => {
+    const source = await signedIn(world().answer);
+    source.values.libraries = 'audiobooks';
+    expect((await source.list()).files).toHaveLength(4);
+    source.values.libraries = 'Films';
+    await expect(source.list()).rejects.toThrow(
+      'The Plex server has no music library called “Films”. It has “Music”, “Audiobooks”.',
+    );
+  });
+
+  it('needs a sign-in before anything is listed', async () => {
+    await expect(run({}, world().answer).list()).rejects.toThrow('Plex account: sign in first.');
+  });
+
+  it('saves the place as the track’s view offset, and scrobbles it at the end', async () => {
+    const tv = world();
+    const source = await signedIn(tv.answer);
+    const result = await source.list();
+    const [first, second] = result.files;
+    const file = (f: typeof first) => ({ path: f?.path ?? '', url: f?.url ?? '' });
+    const book = [file(first), file(second)];
+    await source.place({ file: book[0], files: book, positionMs: 1200, at: 5, finished: false });
+    await source.place({ file: book[1], files: book, positionMs: 5015, at: 9, finished: true });
+    expect(tv.saved.map((s) => [s.path, Object.fromEntries(s.params)])).toEqual([
+      [
+        '/:/progress',
+        { key: '113', identifier: 'com.plexapp.plugins.library', time: '1200', state: 'stopped' },
+      ],
+      ['/:/scrobble', { key: '112', identifier: 'com.plexapp.plugins.library' }],
+    ]);
+  });
+
+  it('lists again to save a place in a sandbox that never listed the library', async () => {
+    const source = await signedIn(world().answer);
+    const tv = world();
+    const file = {
+      path: 'Frances Hodgson Burnett/The Secret Garden/002 Chapter 2.mp3',
+      url: `${HOME}/library/parts/312/1763434800/file.mp3`,
+    };
+    await run(source.values, tv.answer).place({
+      file,
+      files: [file],
+      positionMs: 2000,
+      at: 5,
+      finished: false,
+    });
+    expect(tv.saved.map((s) => s.params.get('key'))).toEqual(['112']);
   });
 });

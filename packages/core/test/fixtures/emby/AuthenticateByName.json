@@ -1,0 +1,14 @@
+{
+  "User": {
+    "Name": "lelap",
+    "ServerId": "800c8c1537bd47928ad120d90ae0daf2",
+    "Id": "bcabd293d25e489684749058b00172c2",
+    "HasPassword": true
+  },
+  "SessionInfo": {
+    "DeviceId": "lelap-record",
+    "Client": "Lelap"
+  },
+  "AccessToken": "emby-test-token",
+  "ServerId": "800c8c1537bd47928ad120d90ae0daf2"
+}

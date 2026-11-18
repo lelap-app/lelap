@@ -93,9 +93,12 @@ export function addonPermissions(manifest: Manifest, manifestUrl: string): Permi
     });
   }
   if (manifest.sandbox && (manifest.settings ?? []).length > 0) {
+    const signin = (manifest.settings ?? []).some((f) => f.type === 'signin');
     list.push({
       kind: 'login',
-      text: 'Asks for an address and login when you add a server. They stay sealed on this device and reach only this add-on.',
+      text: signin
+        ? 'Signs you in on a website it names when you add a server, with a code you enter there. What it gets back stays sealed on this device and reaches only this add-on.'
+        : 'Asks for an address and login when you add a server. They stay sealed on this device and reach only this add-on.',
       notable: false,
     });
   }

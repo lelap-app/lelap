@@ -1,0 +1,69 @@
+{
+  "Items": [
+    {
+      "Name": "Audiobooks",
+      "ServerId": "800c8c1537bd47928ad120d90ae0daf2",
+      "Id": "3",
+      "Guid": "eb47224f17734f70ab053f2e25988e4f",
+      "Etag": "e31956e7ff4a2c5d84baa228fe414567",
+      "DateCreated": "2026-11-18T02:10:53.4664621Z",
+      "DateModified": "0001-01-01T00:00:00.0000000Z",
+      "CanDelete": false,
+      "CanDownload": false,
+      "PresentationUniqueKey": "eb47224f17734f70ab053f2e25988e4f",
+      "SortName": "Audiobooks",
+      "ForcedSortName": "Audiobooks",
+      "ExternalUrls": [],
+      "Taglines": [],
+      "RemoteTrailers": [],
+      "ProviderIds": {},
+      "IsFolder": true,
+      "ParentId": "2",
+      "Type": "CollectionFolder",
+      "UserData": {
+        "PlaybackPositionTicks": 0,
+        "IsFavorite": false,
+        "Played": false
+      },
+      "DisplayPreferencesId": "eb47224f17734f70ab053f2e25988e4f",
+      "CollectionType": "audiobooks",
+      "ImageTags": {},
+      "BackdropImageTags": [],
+      "LockedFields": [],
+      "LockData": false
+    },
+    {
+      "Name": "Music",
+      "ServerId": "800c8c1537bd47928ad120d90ae0daf2",
+      "Id": "17",
+      "Guid": "3160a3ba468140498bacefc98841e52c",
+      "Etag": "0d347523b51cdc1d2ba47b18a51d3789",
+      "DateCreated": "2026-11-18T02:12:35.5366368Z",
+      "DateModified": "0001-01-01T00:00:00.0000000Z",
+      "CanDelete": false,
+      "CanDownload": false,
+      "PresentationUniqueKey": "3160a3ba468140498bacefc98841e52c",
+      "SortName": "Music",
+      "ForcedSortName": "Music",
+      "ExternalUrls": [],
+      "Taglines": [],
+      "RemoteTrailers": [],
+      "ProviderIds": {},
+      "IsFolder": true,
+      "ParentId": "2",
+      "Type": "CollectionFolder",
+      "UserData": {
+        "PlaybackPositionTicks": 0,
+        "IsFavorite": false,
+        "Played": false
+      },
+      "DisplayPreferencesId": "3160a3ba468140498bacefc98841e52c",
+      "CollectionType": "music",
+      "ImageTags": {},
+      "BackdropImageTags": [],
+      "LockedFields": [],
+      "LockData": false
+    }
+  ],
+  "TotalRecordCount": 2
+}

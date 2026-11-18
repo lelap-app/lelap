@@ -285,6 +285,16 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M58] Cast a book from it to a speaker: it plays, fetched from the phone, never with the token. ([m58](m58-follow-ups.md#cast))
 - [ ] [M58] Restore a backup on another phone: the Subsonic server asks only for its password again. ([m58](m58-follow-ups.md#restore))
 - [ ] [M58] Gonic and Airsonic-Advanced: books by genre and by music folder, places kept. ([m58](m58-follow-ups.md#gonic))
+- [ ] [M59] An Emby server added with a username and password: its audiobook library scans in with covers and chapters, and books play with the screen off. ([m59](m59-follow-ups.md#emby))
+- [ ] [M59] Download a book from Emby on Wi-Fi: it comes from `/Items/…/Download` and plays in flight mode. ([m59](m59-follow-ups.md#emby-download))
+- [ ] [M59] Pause a book from Emby: Emby's web app shows the place; a place moved there comes back after a rescan. ([m59](m59-follow-ups.md#emby-places))
+- [ ] [M59] Emby with an API key and a username instead of the password: the same books. ([m59](m59-follow-ups.md#emby-key))
+- [ ] [M59] Plex sign-in with the maintainer's account: the code entered at plex.tv/link fills in the server and its addresses; Authorized Devices lists “Lelap” once, also after signing in again. ([m59](m59-follow-ups.md#plex-signin))
+- [ ] [M59] Plex books from a music library “Audiobooks” scan in with covers, play with the screen off, and a single-file `.m4b` shows its chapters. ([m59](m59-follow-ups.md#plex-play))
+- [ ] [M59] Plex away from home: a rescan finds the server at its address away; with remote access off the scan says so, and nothing plays through a relay. ([m59](m59-follow-ups.md#plex-away))
+- [ ] [M59] Pause a book from Plex: Plex Web shows the place; finishing marks the last track played. ([m59](m59-follow-ups.md#plex-places))
+- [ ] [M59] Cast a book from Emby and from Plex: it plays, fetched through the phone, never with the token. ([m59](m59-follow-ups.md#cast))
+- [ ] [M59] Restore a backup on another phone: Emby asks for its password again, Plex for a new sign-in. ([m59](m59-follow-ups.md#restore))
 - [ ] [M30] Hardcover with a real token: Currently reading with progress after a few minutes, Read with today's date after finishing, the Want to read row. ([m30](m30-follow-ups.md))
 - [ ] [M30] Hardcover events from an offline session arrive with their own times once back online. ([m30](m30-follow-ups.md))
 - [ ] [M51] Hardcover gets start, progress and pause for 15 minutes heard with the app closed, and nothing twice after opening and closing the app; casting time counts too. ([m51](m51-follow-ups.md#checks-on-a-phone))
@@ -364,6 +374,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M55] On a phone, system dark mode on and off: the browser bar takes the page's colour, the light theme reads well outdoors, the switch is easy to hit. ([m55](m55-follow-ups.md#phone))
 - [ ] [M55] VoiceOver and TalkBack name the theme switch with its state (“Tema: ikut sistem” on `/ms/`) and read the new state after a press. ([m55](m55-follow-ups.md#screen-reader))
 - [ ] [M55] Safari 17.4 or older shows the whole site in the night theme with no switch. ([m55](m55-follow-ups.md#old-safari))
+- [ ] [M59] Web: Plex with a real account signs in, scans and plays with `X-Plex-Token` in the address over a `plex.direct` connection. ([m59](m59-follow-ups.md#web-plex))
 
 ## C. Already covered elsewhere or obsolete
 

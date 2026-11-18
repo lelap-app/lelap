@@ -14,9 +14,9 @@ import {
   signInJellyfin,
   updateRemoteRoot,
 } from '@lelap/core';
-import { offersPlaces, readSettings, type Settings } from '@lelap/sdk';
+import { applySignin, offersPlaces, readSettings, type Settings } from '@lelap/sdk';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -44,6 +44,7 @@ import {
   type SourceKind,
 } from '../src/addonSources';
 import { closeSandbox } from '../src/sandbox';
+import { AddonSignin } from '../src/components/AddonSignin';
 
 type BuiltIn = 'webdav' | 's3' | 'jellyfin' | 'audiobookshelf';
 /** A built-in kind, or an add-on inside the app by its manifest URL (M57). */
@@ -167,6 +168,15 @@ export default function ServerScreen() {
       : KIND_LABEL[k as BuiltIn];
   // An add-on's form: the plain fields come back when the login is entered again.
   const [values, setValues] = useState<Settings>(() => ({ ...(addonRoot?.settings ?? {}) }));
+  // The server's key, and the sandbox that signs in and checks it before it is added.
+  const [serverKey] = useState(() => addonRoot?.key ?? newId());
+  const checkSandbox = `check-${serverKey}`;
+  useEffect(
+    () => () => {
+      for (const k of kinds) closeSandbox(`${k.url}#check-${serverKey}`);
+    },
+    [kinds, serverKey],
+  );
   const [busy, setBusy] = useState(false);
   const [url, setUrlValue] = useState(dav?.url ?? jf?.url ?? abs?.url ?? '');
   const [username, setUsernameValue] = useState(dav?.username ?? jf?.username ?? '');
@@ -288,9 +298,9 @@ export default function ServerScreen() {
     }
     setBusy(true);
     const code = codeFingerprint(chosen.url);
-    const key = addonRoot?.key ?? newId();
+    const key = serverKey;
     // A sandbox of its own for the check, so nothing of a server not yet added stays running.
-    const sandboxId = `check-${key}`;
+    const sandboxId = checkSandbox;
     try {
       // One listing checks the address and the login before anything is saved.
       const listing = await listAddonLibrary({
@@ -306,6 +316,7 @@ export default function ServerScreen() {
         settings: read.settings,
         ...(listing.headers ? { headers: listing.headers } : {}),
         ...(listing.query ? { query: listing.query } : {}),
+        ...(listing.webQuery ? { webQuery: listing.webQuery } : {}),
         // The login is for this file; another one under the same ID has to ask again.
         ...(code ? { codeSha: code } : {}),
         // Places on the server belong to the profile that adds it, as with Jellyfin.
@@ -445,28 +456,49 @@ export default function ServerScreen() {
       ) : chosenSource ? (
         <>
           <Text className="text-sm text-soft">{chosenSource.manifest.description}</Text>
-          {(chosenSource.manifest.settings ?? []).map((field) => (
-            <Field
-              key={field.key}
-              label={field.label}
-              // The server's place stays when only the login is entered again.
-              locked={locked && field.type !== 'password'}
-              value={values[field.key] ?? ''}
-              onChange={(v) => setValues((current) => ({ ...current, [field.key]: v }))}
-              secret={field.type === 'password'}
-              {...(field.placeholder === undefined ? {} : { placeholder: field.placeholder })}
-              {...(field.help === undefined ? {} : { hint: field.help })}
-            />
-          ))}
+          {(chosenSource.manifest.settings ?? []).map((field) =>
+            field.type === 'signin' ? (
+              <AddonSignin
+                key={field.key}
+                field={field}
+                addonUrl={chosenSource.url}
+                manifest={chosenSource.manifest}
+                sandboxId={checkSandbox}
+                values={values}
+                onDone={(result) =>
+                  setValues((current) =>
+                    applySignin(chosenSource.manifest.settings ?? [], current, result, locked),
+                  )
+                }
+              />
+            ) : (
+              <Field
+                key={field.key}
+                label={field.label}
+                // The server's place stays when only the login is entered again.
+                locked={locked && field.type !== 'password'}
+                value={values[field.key] ?? ''}
+                onChange={(v) => setValues((current) => ({ ...current, [field.key]: v }))}
+                secret={field.type === 'password'}
+                {...(field.placeholder === undefined ? {} : { placeholder: field.placeholder })}
+                {...(field.help === undefined ? {} : { hint: field.help })}
+              />
+            ),
+          )}
           {offersPlaces(chosenSource.manifest) && (
             <Text className="text-xs text-muted">
               {t('Places sync both ways with this server, for the profile adding it.')}
             </Text>
           )}
           <Text className="text-xs text-muted">
-            {t(
-              'Runs on this device, in a sandbox. It can reach only the address you enter, and the login stays on this device.',
-            )}
+            {(chosenSource.manifest.sandbox?.hosts ?? []).length > 0
+              ? t(
+                  'Runs on this device, in a sandbox. It can reach only {hosts} and the addresses in this form, and the login stays on this device.',
+                  { hosts: (chosenSource.manifest.sandbox?.hosts ?? []).join(', ') },
+                )
+              : t(
+                  'Runs on this device, in a sandbox. It can reach only the address you enter, and the login stays on this device.',
+                )}
           </Text>
           {Platform.OS === 'web' && (
             <Text className="text-sm text-muted">

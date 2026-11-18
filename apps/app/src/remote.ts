@@ -1,8 +1,8 @@
 import {
+  addonFileAccess,
   addonLogin,
   addonSourceHosts,
   audiobookshelfStream,
-  headersFor,
   jellyfinStream,
   listRoots,
   parseS3Uri,
@@ -11,7 +11,6 @@ import {
   sameAddonCode,
   streamHeadersFor,
   webdavHeaders,
-  withQuery,
 } from '@lelap/core';
 import { Platform } from 'react-native';
 
@@ -46,14 +45,8 @@ export function fileAccess(
     const trusted = sameAddonCode(remote, codeFingerprint(remote.addonUrl));
     const manifest = trusted ? sourceManifest(remote.addonUrl) : null;
     const hosts = manifest ? addonSourceHosts(manifest, remote.settings) : [];
-    const login = addonLogin(remote);
     // The stored address never has the login in it; it is added here, as late as possible.
-    const uri = withQuery(file.uri, login.query, hosts);
-    return {
-      uri,
-      headers: headersFor(file.uri, login.headers, hosts),
-      ...(uri !== file.uri ? { private: true } : {}),
-    };
+    return addonFileAccess(file.uri, addonLogin(remote), hosts, Platform.OS !== 'web');
   }
   if (!remote && file.bookId) {
     return { uri: file.uri, headers: streamHeadersFor(db, file.bookId, file.uri, declaredHosts) };

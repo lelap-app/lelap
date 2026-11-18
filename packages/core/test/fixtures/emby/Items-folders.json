@@ -1,0 +1,37 @@
+{
+  "Items": [
+    {
+      "Name": "The Secret Garden",
+      "ServerId": "800c8c1537bd47928ad120d90ae0daf2",
+      "Id": "9",
+      "IsFolder": true,
+      "Type": "Folder",
+      "UserData": {
+        "PlaybackPositionTicks": 0,
+        "PlayCount": 0,
+        "IsFavorite": false,
+        "Played": false
+      },
+      "ImageTags": {
+        "Primary": "4fb90696aeec375a5960aaa87f7cd55d_639305645713410640"
+      },
+      "BackdropImageTags": []
+    },
+    {
+      "Name": "The Wind in the Willows",
+      "ServerId": "800c8c1537bd47928ad120d90ae0daf2",
+      "Id": "7",
+      "IsFolder": true,
+      "Type": "Folder",
+      "UserData": {
+        "PlaybackPositionTicks": 0,
+        "PlayCount": 0,
+        "IsFavorite": false,
+        "Played": false
+      },
+      "ImageTags": {},
+      "BackdropImageTags": []
+    }
+  ],
+  "TotalRecordCount": 2
+}

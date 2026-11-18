@@ -1,0 +1,93 @@
+{
+  "MediaContainer": {
+    "size": 3,
+    "allowSync": false,
+    "title1": "Plex Library",
+    "Directory": [
+      {
+        "allowSync": true,
+        "art": "/:/resources/artist-fanart.jpg",
+        "composite": "/library/sections/1/composite/1763430000",
+        "filters": true,
+        "refreshing": false,
+        "thumb": "/:/resources/artist.png",
+        "key": "1",
+        "type": "artist",
+        "title": "Music",
+        "agent": "tv.plex.agents.music",
+        "scanner": "Plex Music",
+        "language": "en-US",
+        "uuid": "0b5a1c3e-1111-4a2b-9c3d-000000000001",
+        "updatedAt": 1763430000,
+        "createdAt": 1717232400,
+        "scannedAt": 1763430000,
+        "content": true,
+        "directory": true,
+        "contentChangedAt": 1234,
+        "hidden": 0,
+        "Location": [
+          {
+            "id": 1,
+            "path": "/data/music"
+          }
+        ]
+      },
+      {
+        "allowSync": true,
+        "art": "/:/resources/artist-fanart.jpg",
+        "composite": "/library/sections/2/composite/1763430000",
+        "filters": true,
+        "refreshing": false,
+        "thumb": "/:/resources/artist.png",
+        "key": "2",
+        "type": "artist",
+        "title": "Audiobooks",
+        "agent": "tv.plex.agents.none",
+        "scanner": "Plex Music",
+        "language": "en-US",
+        "uuid": "0b5a1c3e-1111-4a2b-9c3d-000000000002",
+        "updatedAt": 1763430000,
+        "createdAt": 1717232400,
+        "scannedAt": 1763430000,
+        "content": true,
+        "directory": true,
+        "contentChangedAt": 1234,
+        "hidden": 0,
+        "Location": [
+          {
+            "id": 2,
+            "path": "/data/books"
+          }
+        ]
+      },
+      {
+        "allowSync": true,
+        "art": "/:/resources/movie-fanart.jpg",
+        "composite": "/library/sections/3/composite/1763430000",
+        "filters": true,
+        "refreshing": false,
+        "thumb": "/:/resources/movie.png",
+        "key": "3",
+        "type": "movie",
+        "title": "Films",
+        "agent": "tv.plex.agents.movie",
+        "scanner": "Plex Movie",
+        "language": "en-US",
+        "uuid": "0b5a1c3e-1111-4a2b-9c3d-000000000003",
+        "updatedAt": 1763430000,
+        "createdAt": 1717232400,
+        "scannedAt": 1763430000,
+        "content": true,
+        "directory": true,
+        "contentChangedAt": 1234,
+        "hidden": 0,
+        "Location": [
+          {
+            "id": 3,
+            "path": "/data/films"
+          }
+        ]
+      }
+    ]
+  }
+}

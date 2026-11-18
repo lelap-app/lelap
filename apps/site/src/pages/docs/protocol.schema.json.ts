@@ -8,6 +8,8 @@ import {
   MetaResponse,
   PROTOCOL_VERSION,
   ScrobbleRequest,
+  SigninResult,
+  SigninStart,
   StreamResponse,
 } from '@lelap/sdk';
 
@@ -22,6 +24,8 @@ export const GET: APIRoute = () => {
   registry.add(ScrobbleRequest, { id: 'ScrobbleRequest' });
   registry.add(HealthResponse, { id: 'HealthResponse' });
   registry.add(LibraryResponse, { id: 'LibraryResponse' });
+  registry.add(SigninStart, { id: 'SigninStart' });
+  registry.add(SigninResult, { id: 'SigninResult' });
 
   const { schemas } = z.toJSONSchema(registry, {
     io: 'output',

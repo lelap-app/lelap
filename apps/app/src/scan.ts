@@ -311,11 +311,14 @@ async function scanAddonSource(
   const login = addonLogin(remote);
   const headers = response.headers ?? {};
   const query = response.query ?? {};
+  const webQuery = response.webQuery ?? {};
   if (
     JSON.stringify(login.headers) !== JSON.stringify(headers) ||
-    JSON.stringify(login.query) !== JSON.stringify(query)
+    JSON.stringify(login.query) !== JSON.stringify(query) ||
+    JSON.stringify(login.webQuery) !== JSON.stringify(webQuery)
   ) {
-    updateRemoteRoot(db, root.id, withAddonLogin(remote, { ...login, headers, query }), Date.now());
+    const next = withAddonLogin(remote, { ...login, headers, query, webQuery });
+    updateRemoteRoot(db, root.id, next, Date.now());
   }
   return addonLibraryScan(root.location, response, addonSourceHosts(manifest, remote.settings));
 }

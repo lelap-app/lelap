@@ -9,11 +9,14 @@ import {
   PlaceReport,
   PROTOCOL_VERSION,
   ScrobbleRequest,
+  SigninResult,
+  SigninStart,
   StreamResponse,
   catalogPath,
   libraryPath,
   metaPath,
   placePath,
+  signinPath,
   streamPath,
 } from '@lelap/sdk';
 import type { ZodType } from 'zod';
@@ -183,6 +186,8 @@ GET /health                                 → HealthResponse      (revision 2)
 GET /artwork/{type}/{id}.json               → { "artwork": ArtworkImage[] }  (revision 3)
 GET /library/audiobook/all.json             → { "files": LibraryFile[] }  (revision 5, inside the app)
 place/audiobook/all.json                    ← PlaceReport          (revision 6, inside the app only)
+signin/audiobook/start.json                 → SigninStart          (revision 7, inside the app only)
+signin/audiobook/check.json                 → SigninResult         (revision 7, inside the app only)
 GET /configure                              → your settings page  (HTML)
 `;
 
@@ -255,6 +260,35 @@ const placeReport = example(PlaceReport, {
   positionMs: 1_500,
   at: 1_795_000_000_000,
   finished: false,
+});
+
+const signinStart = example(SigninStart, {
+  code: 'K7QX',
+  url: 'https://plex.tv/link',
+  expiresAt: 1_795_000_900_000,
+  interval: 2,
+  state: '{"id":2034967251,"code":"K7QX","client":"4f0c…"}',
+});
+
+const signinResult = example(SigninResult, {
+  settings: {
+    account: '{"client":"4f0c…","token":"…","machine":"a1b2…"}',
+    server: 'Shelf',
+    url: 'https://192-168-1-20.0f1e….plex.direct:32400',
+  },
+});
+
+const plexLibrary = example(LibraryResponse, {
+  files: [
+    {
+      path: 'Frances Hodgson Burnett/The Secret Garden/002 Chapter 2.mp3',
+      url: 'https://192-168-1-20.0f1e.plex.direct:32400/library/parts/312/1763434800/file.mp3',
+      durationMs: 5_015,
+      place: { positionMs: 1_500, at: 1_795_000_000_000 },
+    },
+  ],
+  headers: { 'X-Plex-Token': 'aB3dE5gH7jK9mN1pQ2rS' },
+  webQuery: { 'X-Plex-Token': 'aB3dE5gH7jK9mN1pQ2rS' },
 });
 
 const configuredManifest = example(Manifest, {
@@ -433,10 +467,10 @@ const settingFields: Field[] = [
   { name: 'label', type: 'string', required: true, meaning: 'The field’s name on the form.' },
   {
     name: 'type',
-    type: '"text" | "url" | "password"',
+    type: '"text" | "url" | "password" | "signin"',
     required: true,
     meaning:
-      '`url` takes an `http` or `https` address without a login in it; `password` is hidden as it is typed.',
+      '`url` takes an `http` or `https` address without a login in it; `password` is hidden as it is typed. `signin` (revision 7) is a button, not a field: the add-on’s sign-in fills it, and it is sealed like a password.',
   },
   {
     name: 'required',
@@ -1263,7 +1297,9 @@ const toc: [string, string][] = [
     headers, for add-ons inside the app. An app before revision 5 refuses a manifest that lists{' '}
     <code>library</code>. Revision 6 adds a library’s <code>query</code>, a file’s{' '}
     <code>downloadUrl</code> and <code>place</code>, and <a href="#places">places</a>; an app before
-    revision 6 refuses a manifest that lists <code>place</code>. When an add-on declares a newer
+    revision 6 refuses a manifest that lists <code>place</code>. Revision 7 adds a library’s{' '}
+    <code>webQuery</code> and <a href="#signin">signing in through a website</a>; an app before
+    revision 7 refuses a manifest that lists <code>signin</code>. When an add-on declares a newer
     revision than the app knows, Settings → Add-ons says so.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
@@ -1406,9 +1442,9 @@ const toc: [string, string][] = [
     to WebDAV and S3: it lists the books and files on a server, and the app scans them into the
     library with places, downloads and offline play. The listener adds it in Settings → Servers →
     Add a server, where it shows as a kind of its own and asks for what <code>settings</code>{' '}
-    describes. Lelap ships two with the app: HTTP folder, which reads the folder listings of servers
-    such as nginx, Apache and Caddy, and Subsonic, for Navidrome, Airsonic-Advanced, Gonic and other
-    servers that speak the Subsonic API.
+    describes. Lelap ships four with the app: HTTP folder, which reads the folder listings of
+    servers such as nginx, Apache and Caddy; Subsonic, for Navidrome, Airsonic-Advanced, Gonic and
+    other servers that speak the Subsonic API; Emby; and Plex.
   </p>
   <ul>
     <li>
@@ -1435,7 +1471,12 @@ const toc: [string, string][] = [
       any file or cover elsewhere: an address could otherwise carry a setting off.
     </li>
     <li>
-      A browser can’t send headers with audio, so books that need them play in the Android app.
+      A browser can’t send headers with audio, so books that need them play in the Android app,
+      unless the listing also gives a{' '}
+      <a href="#web-query">
+        <code>webQuery</code>
+      </a>
+      .
     </li>
   </ul>
   <CodeBlock code={sourceManifest} label="manifest" />
@@ -1474,6 +1515,50 @@ const toc: [string, string][] = [
     only the sandbox calls it.
   </p>
   <CodeBlock code={placeReport} label="PlaceReport" />
+
+  <h3 id="web-query">Headers in the browser</h3>
+  <p>
+    Since revision 7, a listing with <code>headers</code> can also carry <code>webQuery</code>:
+    where the app can’t send headers, as with a browser’s audio element, it adds these query
+    parameters to a file’s address instead, sealed and only on the add-on’s hosts, as with{' '}
+    <code>query</code>. On the phone the headers go as before and <code>webQuery</code> is never
+    used. Emby and Plex send their token this way.
+  </p>
+  <CodeBlock code={plexLibrary} label={`GET /${libraryPath()}, from a Plex server`} />
+
+  <h3 id="signin">Signing in through a website</h3>
+  <p>
+    Since revision 7, an add-on can sign the listener in on a website instead of asking for a
+    password, as Plex does with a code entered at plex.tv/link. It lists the <code>signin</code>{' '}
+    resource and has one setting of type <code>signin</code>; the form shows a Sign in button for
+    it.
+  </p>
+  <ul>
+    <li>
+      The button calls <code>{signinPath('start')}</code>. The add-on answers a{' '}
+      <code>SigninStart</code>: a <code>code</code> and an https <code>url</code>, which the app
+      shows with a button to open it, on this device or another.
+    </li>
+    <li>
+      Every <code>interval</code> seconds until <code>expiresAt</code> the app calls{' '}
+      <code>{signinPath('check')}</code>, with <code>args.signin.state</code> as the start gave it.
+      An answer without <code>settings</code> means the listener isn’t done yet.
+    </li>
+    <li>
+      An answer with <code>settings</code> fills in the form by field key: the <code>signin</code>{' '}
+      field’s value is whatever the add-on keeps (a token), and other fields may be filled too, such
+      as a server address. The listener sees the address fields and can change them before
+      connecting; only addresses in the form become hosts, as for typed ones. When the listener logs
+      in again to a server already added, only the sealed fields change.
+    </li>
+    <li>
+      Both calls get <code>args.settings</code> with the form so far, in the server’s own sandbox,
+      reaching only <code>sandbox.hosts</code> (for Plex, <code>plex.tv:443</code>) and the
+      addresses in the form. There is no HTTP route for them; only the sandbox calls them.
+    </li>
+  </ul>
+  <CodeBlock code={signinStart} label={signinPath('start')} />
+  <CodeBlock code={signinResult} label={signinPath('check')} />
 
   <h2 id="speed">Making it fast</h2>
   <p>

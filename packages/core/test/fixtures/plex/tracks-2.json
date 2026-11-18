@@ -1,0 +1,164 @@
+{
+  "MediaContainer": {
+    "size": 3,
+    "totalSize": 3,
+    "offset": 0,
+    "allowSync": true,
+    "identifier": "com.plexapp.plugins.library",
+    "librarySectionID": 2,
+    "librarySectionTitle": "Audiobooks",
+    "mediaTagPrefix": "/system/bundle/media/flags/",
+    "nocache": true,
+    "title1": "Audiobooks",
+    "title2": "All Tracks",
+    "viewGroup": "track",
+    "Metadata": [
+      {
+        "ratingKey": "112",
+        "key": "/library/metadata/112",
+        "parentRatingKey": "111",
+        "grandparentRatingKey": "110",
+        "guid": "local://112",
+        "parentGuid": "local://111",
+        "grandparentGuid": "local://110",
+        "type": "track",
+        "title": "Chapter 2",
+        "grandparentKey": "/library/metadata/110",
+        "parentKey": "/library/metadata/111",
+        "librarySectionTitle": "Audiobooks",
+        "librarySectionID": 2,
+        "librarySectionKey": "/library/sections/2",
+        "grandparentTitle": "Frances Hodgson Burnett",
+        "parentTitle": "The Secret Garden",
+        "summary": "",
+        "index": 2,
+        "parentIndex": 1,
+        "ratingCount": 0,
+        "thumb": "/library/metadata/111/thumb/1763434800",
+        "parentThumb": "/library/metadata/111/thumb/1763434800",
+        "grandparentThumb": "/library/metadata/110/thumb/1763434801",
+        "duration": 5015,
+        "addedAt": 1763434800,
+        "updatedAt": 1763434801,
+        "Media": [
+          {
+            "id": 212,
+            "duration": 5015,
+            "bitrate": 32,
+            "audioChannels": 1,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 312,
+                "key": "/library/parts/312/1763434800/file.mp3",
+                "duration": 5015,
+                "file": "/data/books/Frances Hodgson Burnett/The Secret Garden/02 Chapter 2.mp3",
+                "size": 20442,
+                "container": "mp3"
+              }
+            ]
+          }
+        ],
+        "viewOffset": 1500,
+        "lastViewedAt": 1763434900
+      },
+      {
+        "ratingKey": "113",
+        "key": "/library/metadata/113",
+        "parentRatingKey": "111",
+        "grandparentRatingKey": "110",
+        "guid": "local://113",
+        "parentGuid": "local://111",
+        "grandparentGuid": "local://110",
+        "type": "track",
+        "title": "Chapter 1",
+        "grandparentKey": "/library/metadata/110",
+        "parentKey": "/library/metadata/111",
+        "librarySectionTitle": "Audiobooks",
+        "librarySectionID": 2,
+        "librarySectionKey": "/library/sections/2",
+        "grandparentTitle": "Frances Hodgson Burnett",
+        "parentTitle": "The Secret Garden",
+        "summary": "",
+        "index": 1,
+        "parentIndex": 1,
+        "ratingCount": 0,
+        "thumb": "/library/metadata/111/thumb/1763434800",
+        "parentThumb": "/library/metadata/111/thumb/1763434800",
+        "grandparentThumb": "/library/metadata/110/thumb/1763434801",
+        "duration": 2403,
+        "addedAt": 1763434800,
+        "updatedAt": 1763434801,
+        "Media": [
+          {
+            "id": 213,
+            "duration": 2403,
+            "bitrate": 32,
+            "audioChannels": 1,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 313,
+                "key": "/library/parts/313/1763434800/file.mp3",
+                "duration": 2403,
+                "file": "/data/books/Frances Hodgson Burnett/The Secret Garden/01 Chapter 1.mp3",
+                "size": 9993,
+                "container": "mp3"
+              }
+            ]
+          }
+        ],
+        "viewCount": 1,
+        "lastViewedAt": 1763434850
+      },
+      {
+        "ratingKey": "121",
+        "key": "/library/metadata/121",
+        "parentRatingKey": "120",
+        "grandparentRatingKey": "119",
+        "guid": "local://121",
+        "parentGuid": "local://120",
+        "grandparentGuid": "local://119",
+        "type": "track",
+        "title": "The Wind in the Willows",
+        "grandparentKey": "/library/metadata/119",
+        "parentKey": "/library/metadata/120",
+        "librarySectionTitle": "Audiobooks",
+        "librarySectionID": 2,
+        "librarySectionKey": "/library/sections/2",
+        "grandparentTitle": "Kenneth Grahame",
+        "parentTitle": "The Wind in the Willows",
+        "summary": "",
+        "index": 1,
+        "parentIndex": 1,
+        "ratingCount": 0,
+        "grandparentThumb": "/library/metadata/119/thumb/1763434801",
+        "duration": 5828,
+        "addedAt": 1763434800,
+        "updatedAt": 1763434801,
+        "Media": [
+          {
+            "id": 221,
+            "duration": 5828,
+            "bitrate": 32,
+            "audioChannels": 1,
+            "audioCodec": "aac",
+            "container": "mp4",
+            "Part": [
+              {
+                "id": 321,
+                "key": "/library/parts/321/1763434800/file.m4b",
+                "duration": 5828,
+                "file": "/data/books/Kenneth Grahame/The Wind in the Willows/The Wind in the Willows.m4b",
+                "size": 57247,
+                "container": "mp4"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

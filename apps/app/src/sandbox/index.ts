@@ -1,6 +1,6 @@
 import { t } from '../i18n';
 import { bundledAddon, getLocalAddonCode, hostAllowed, listAddons } from '@lelap/core';
-import { libraryPath, type PlaceReport, placePath, type Settings } from '@lelap/sdk';
+import { libraryPath, type PlaceReport, placePath, type Settings, signinPath } from '@lelap/sdk';
 
 import { db } from '../db';
 import { sandboxPage } from './page';
@@ -186,7 +186,7 @@ async function call(
   box: Box,
   path: string,
   settings?: Settings,
-  extra: { place?: PlaceReport; timeoutMs?: number } = {},
+  extra: { place?: PlaceReport; signin?: { state?: string }; timeoutMs?: number } = {},
 ): Promise<{ status: number; body: unknown }> {
   if (!box.ready || !box.post) {
     await new Promise<void>((resolve, reject) => {
@@ -218,6 +218,7 @@ async function call(
         path,
         ...(settings ? { settings } : {}),
         ...(extra.place ? { place: extra.place } : {}),
+        ...(extra.signin ? { signin: extra.signin } : {}),
       }),
     );
   });
@@ -272,6 +273,24 @@ export async function callAddonPlace(args: {
   place: PlaceReport;
 }): Promise<{ status: number; body: unknown }> {
   return call(serverBox(args), placePath(), args.settings, { place: args.place });
+}
+
+/**
+ * One step of an add-on's sign-in (revision 7) for a server being added: `start` gets the code to
+ * show, `check` whether the listener entered it yet. In that server's own sandbox, with the form's
+ * values so far.
+ */
+export async function callAddonSignin(args: {
+  addonUrl: string;
+  sandboxId: string;
+  hosts: string[];
+  settings: Settings;
+  step: 'start' | 'check';
+  state?: string;
+}): Promise<{ status: number; body: unknown }> {
+  return call(serverBox(args), signinPath(args.step), args.settings, {
+    signin: args.state === undefined ? {} : { state: args.state },
+  });
 }
 
 /** Runs code that isn't installed yet, with no network, to read its manifest. */

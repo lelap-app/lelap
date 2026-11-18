@@ -65,6 +65,14 @@ export function placePath(type: ContentType = 'audiobook'): string {
   return `place/${type}/all.json`;
 }
 
+/**
+ * Since revision 7: the two calls of an add-on's sign-in, `start` and then `check` until it is
+ * done. Only the sandbox makes them; there is no such route over HTTP.
+ */
+export function signinPath(step: 'start' | 'check', type: ContentType = 'audiobook'): string {
+  return `signin/${type}/${step}.json`;
+}
+
 export type Route =
   | { resource: 'manifest' }
   | { resource: 'catalog'; type: ContentType; id: string; extra: Extra }

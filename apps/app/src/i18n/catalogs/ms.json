@@ -727,5 +727,16 @@
   "This add-on needs a login, which this device can’t keep apart from it.": "Alat tambah ini memerlukan log masuk, yang tidak dapat diasingkan daripadanya dalam peranti ini.",
   "The add-on for {name} changed. Log in again to use it.": "Alat tambah untuk {name} telah berubah. Log masuk semula untuk menggunakannya.",
   "It replaces the add-on your servers use; they ask for their login again.": "Ia menggantikan alat tambah yang digunakan oleh pelayan anda; pelayan itu akan meminta log masuk semula.",
-  "The add-on changed. Log in again to use it.": "Alat tambah telah berubah. Log masuk semula untuk menggunakannya."
+  "The add-on changed. Log in again to use it.": "Alat tambah telah berubah. Log masuk semula untuk menggunakannya.",
+  "Runs on this device, in a sandbox. It can reach only {hosts} and the addresses in this form, and the login stays on this device.": "Berjalan dalam peranti ini, dalam kotak pasir. Ia hanya boleh mencapai {hosts} dan alamat dalam borang ini, dan log masuk kekal dalam peranti ini.",
+  "Sign in": "Log masuk",
+  "Sign in again": "Log masuk semula",
+  "Signed in.": "Sudah log masuk.",
+  "Could not sign in": "Tidak dapat log masuk",
+  "The add-on’s sign-in is not valid.": "Log masuk alat tambah ini tidak sah.",
+  "The code ran out. Sign in again for a new one.": "Kod telah tamat tempoh. Log masuk semula untuk mendapatkan kod baharu.",
+  "Open {host} on any device and enter this code:": "Buka {host} pada mana-mana peranti dan masukkan kod ini:",
+  "Code: {code}": "Kod: {code}",
+  "Open {host}": "Buka {host}",
+  "Waiting for the code to be entered…": "Menunggu kod dimasukkan…"
 }

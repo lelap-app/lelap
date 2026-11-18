@@ -12,9 +12,11 @@ export const PROTOCOL_VERSION = 1;
  * 2 adds `behaviorHints` (a `/configure` page, sign-in) and `GET /health`; 3 adds `artwork`; 4
  * adds `badges` on items; 5 adds `settings`, stream `headers` and the `library` resource for
  * add-ons inside the app; 6 adds a library's sealed `query`, a file's `downloadUrl` and `place`, and
- * the `place` resource, for add-ons inside the app.
+ * the `place` resource, for add-ons inside the app; 7 adds `signin` settings and the `signin`
+ * resource (a code the listener enters on a website) and a library's `webQuery`, for add-ons inside
+ * the app.
  */
-export const LATEST_PROTOCOL_VERSION = 6;
+export const LATEST_PROTOCOL_VERSION = 7;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
@@ -28,6 +30,7 @@ export const RESOURCES = [
   'artwork',
   'library',
   'place',
+  'signin',
 ] as const;
 export const ResourceName = z.enum(RESOURCES);
 export type ResourceName = z.infer<typeof ResourceName>;
@@ -144,7 +147,7 @@ export const QueryParams = z
   .refine((query) => Object.keys(query).length <= 16, 'At most 16 query parameters');
 export type QueryParams = z.infer<typeof QueryParams>;
 
-export const SETTING_TYPES = ['text', 'url', 'password'] as const;
+export const SETTING_TYPES = ['text', 'url', 'password', 'signin'] as const;
 
 /**
  * Since revision 5: one field of the form the app shows when the listener adds an add-on inside
@@ -158,7 +161,11 @@ export const SettingField = z
       .string()
       .regex(/^[A-Za-z][A-Za-z0-9_]{0,31}$/, 'Keys are a letter, then letters, digits or _'),
     label: z.string().min(1).max(80),
-    /** `url` is an http or https address; `password` is hidden as it is typed. */
+    /**
+     * `url` is an http or https address; `password` is hidden as it is typed. `signin` (revision 7)
+     * is never typed: the app shows a sign-in button, and the add-on's `signin` resource fills the
+     * value, which is sealed like a password.
+     */
     type: z.enum(SETTING_TYPES),
     /** Fields are optional unless this is true. */
     required: z.boolean().optional(),
@@ -239,6 +246,22 @@ export const Manifest = z
     const keys = (manifest.settings ?? []).map((f) => f.key);
     if (new Set(keys).size !== keys.length) {
       context.addIssue({ code: 'custom', path: ['settings'], message: 'Setting keys must differ' });
+    }
+    const signins = (manifest.settings ?? []).filter((f) => f.type === 'signin').length;
+    const signs = resourceNames(manifest.resources).includes('signin');
+    if (!manifest.sandbox && signs) {
+      context.addIssue({
+        code: 'custom',
+        path: ['resources'],
+        message: 'Only add-ons inside the app sign in',
+      });
+    }
+    if (signins > 1 || (signins === 1 && !signs)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['settings'],
+        message: 'One signin field at most, with the signin resource',
+      });
     }
   });
 export type Manifest = z.infer<typeof Manifest>;
@@ -448,6 +471,12 @@ export const LibraryResponse = z.object({
   headers: RequestHeaders.optional(),
   /** Since revision 6: added to every address of these files, only on the add-on's own hosts. */
   query: QueryParams.optional(),
+  /**
+   * Since revision 7: added instead of `headers` where the app can't send headers, such as a
+   * browser's audio element, so a server that also takes its login in the address plays there.
+   * Sealed like `query`, on the add-on's own hosts only.
+   */
+  webQuery: QueryParams.optional(),
   cacheMaxAge: CacheMaxAge,
 });
 export type LibraryResponse = z.infer<typeof LibraryResponse>;
@@ -472,6 +501,34 @@ export const PlaceReport = z.object({
   finished: z.boolean(),
 });
 export type PlaceReport = z.infer<typeof PlaceReport>;
+
+/**
+ * Since revision 7, for add-ons with the `signin` resource: the answer to `signin/…/start.json`.
+ * The app shows `code` and a button that opens `url`, where the listener enters or approves the
+ * code, then asks `signin/…/check.json` every `interval` seconds until `expiresAt`.
+ */
+export const SigninStart = z.object({
+  code: z.string().min(1).max(64),
+  /** An https page the listener opens, on this device or another. */
+  url: Url.refine((value) => value.startsWith('https://'), 'An https address'),
+  /** Unix time in milliseconds; the app stops asking then. At most an hour away. */
+  expiresAt: z.number().int().nonnegative().optional(),
+  /** Seconds between checks, 2 to 30; 5 when absent. */
+  interval: z.number().int().min(2).max(30).optional(),
+  /** Handed back to each check as `args.signin.state`, such as the sign-in's ID on the website. */
+  state: z.string().max(4096).optional(),
+});
+export type SigninStart = z.infer<typeof SigninStart>;
+
+/**
+ * Since revision 7: the answer to `signin/…/check.json`. Without `settings` the listener hasn't
+ * finished yet; with them, the app puts these values into the form, by field key, and stops
+ * asking. The `signin` field's value is what the add-on keeps, such as a token.
+ */
+export const SigninResult = z.object({
+  settings: z.record(z.string(), z.string().max(4096)).optional(),
+});
+export type SigninResult = z.infer<typeof SigninResult>;
 
 /**
  * One picture of an item. The app picks the best square cover itself and draws any badges from the
@@ -660,11 +717,17 @@ export function readSettings(
   const settings: Settings = {};
   for (const field of fields) {
     const raw = input[field.key] ?? '';
-    const value = field.type === 'password' ? raw : raw.trim();
-    if (value.length > (field.type === 'password' ? 4096 : 2048)) {
+    const sealed = field.type === 'password' || field.type === 'signin';
+    const value = sealed ? raw : raw.trim();
+    if (value.length > (sealed ? 4096 : 2048)) {
       return { error: `${field.label} is too long.` };
     }
-    if (field.required && value === '') return { error: `${field.label} is needed.` };
+    if (field.required && value === '') {
+      return {
+        error:
+          field.type === 'signin' ? `${field.label}: sign in first.` : `${field.label} is needed.`,
+      };
+    }
     if (field.type === 'url' && value !== '' && !isHttpUrl(value)) {
       return { error: `${field.label}: an http:// or https:// address, without a login in it.` };
     }
@@ -689,4 +752,34 @@ export function settingHosts(fields: SettingField[], settings: Settings): string
     hosts.add(`${url.hostname.toLowerCase()}:${port}`);
   }
   return [...hosts];
+}
+
+/** Whether the add-on signs the listener in through a website (revision 7). */
+export function offersSignin(manifest: Manifest): boolean {
+  return (
+    manifest.sandbox !== undefined &&
+    resourceNames(manifest.resources).includes('signin') &&
+    (manifest.settings ?? []).some((f) => f.type === 'signin')
+  );
+}
+
+/**
+ * The form's values after a sign-in: those the add-on's `SigninResult` gave, for the form's own
+ * fields only. With `sealedOnly`, such as when the listener logs in again to a server already
+ * added, only the `signin` and password fields change.
+ */
+export function applySignin(
+  fields: SettingField[],
+  current: Settings,
+  result: SigninResult,
+  sealedOnly = false,
+): Settings {
+  const next: Settings = { ...current };
+  for (const field of fields) {
+    const value = result.settings?.[field.key];
+    if (value === undefined) continue;
+    if (sealedOnly && field.type !== 'signin' && field.type !== 'password') continue;
+    next[field.key] = value;
+  }
+  return next;
 }
