@@ -71,7 +71,9 @@ export default function EditChaptersScreen() {
   const add = () => {
     const last = rows.at(-1);
     const at = here ?? (last ? (startOf(last) ?? 0) + 60_000 : 0);
-    setRows((list) => [...list, row('', Math.min(at, Math.max(0, detail.book.durationMs - 1)))]);
+    // A streamed book's length may not be known yet; then nothing caps the start.
+    const end = detail.book.durationMs > 0 ? detail.book.durationMs - 1 : at;
+    setRows((list) => [...list, row('', Math.min(at, end))]);
   };
 
   const save = () => {

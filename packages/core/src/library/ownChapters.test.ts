@@ -125,6 +125,35 @@ describe('own chapters', () => {
     expect(getOwnChapters(db, ME, bookId)).toBeNull();
   });
 
+  it('are not kept when saved unchanged, and never start past the end', () => {
+    setOwnChapters(
+      db,
+      ME,
+      bookId,
+      [
+        { title: 'Opening', startMs: 0 },
+        { title: 'Chapter 1', startMs: 600_000 },
+      ],
+      3_600_000,
+      untitled,
+      200,
+    );
+    expect(getOwnChapters(db, ME, bookId)).toBeNull();
+    setOwnChapters(
+      db,
+      ME,
+      bookId,
+      [
+        { title: 'A', startMs: 0 },
+        { title: 'B', startMs: 9_000_000 },
+      ],
+      0,
+      untitled,
+      300,
+    );
+    expect(getBook(db, ME, bookId)?.chapters).toEqual([{ title: 'A', startMs: 0 }]);
+  });
+
   it('may remove every chapter', () => {
     setOwnChapters(db, ME, bookId, [], 3_600_000, untitled, 200);
     expect(getBook(db, ME, bookId)?.chapters).toEqual([]);

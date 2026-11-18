@@ -33,8 +33,12 @@ export async function sharePlace(
     typeof navigator !== 'undefined' &&
     typeof (navigator.share as unknown) !== 'function'
   ) {
-    await navigator.clipboard.writeText(url);
-    showAlert(t('Link copied'), message);
+    // No clipboard outside a secure page, or it was refused: the alert shows the link to copy.
+    const copied = await navigator.clipboard
+      ?.writeText(url)
+      .then(() => true)
+      .catch(() => false);
+    showAlert(copied ? t('Link copied') : t('Share this place'), message);
     return;
   }
   try {

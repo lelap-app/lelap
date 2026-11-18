@@ -1,7 +1,7 @@
 import { and, asc, eq } from 'drizzle-orm';
 
 import type { Db } from '../db';
-import { chapters, ownChapters, type StoredChapter } from '../schema';
+import { books, chapters, ownChapters, type StoredChapter } from '../schema';
 import { bookKey } from '../sync/keys';
 
 // The listener's own chapters (M85): a book's chapters fixed by hand, renamed, moved, added or
@@ -39,13 +39,17 @@ export function cleanChapters(
 export function getOwnChapters(db: Db, profileId: string, bookId: string): StoredChapter[] | null {
   const key = bookKey(db, bookId);
   if (!key) return null;
-  return (
+  const list =
     db
       .select({ chapters: ownChapters.chapters })
       .from(ownChapters)
       .where(and(eq(ownChapters.profileId, profileId), eq(ownChapters.bookKey, key)))
-      .get()?.chapters ?? null
-  );
+      .get()?.chapters ?? null;
+  if (!list) return list;
+  // Synced from a device whose copy may be longer: nothing starts past this copy's end.
+  const durationMs =
+    db.select({ d: books.durationMs }).from(books).where(eq(books.id, bookId)).get()?.d ?? 0;
+  return durationMs > 0 ? list.filter((c) => c.startMs < durationMs) : list;
 }
 
 /** The chapters as the book itself has them: from tags, a feed, a server or found from silences. */
@@ -95,7 +99,17 @@ export function setOwnChapters(
   untitled: (n: number) => string,
   now: number,
 ): boolean {
-  return write(db, profileId, bookId, cleanChapters(list, durationMs, untitled), now);
+  const clean = cleanChapters(list, durationMs, untitled);
+  const book = bookChapters(db, bookId);
+  // Saved unchanged: the book's own keep applying, so a later fix to them still shows.
+  const same =
+    clean.length === book.length &&
+    clean.every((c, i) => c.title === book[i]?.title && c.startMs === book[i]?.startMs);
+  if (same) {
+    resetOwnChapters(db, profileId, bookId, now);
+    return true;
+  }
+  return write(db, profileId, bookId, clean, now);
 }
 
 /** Goes back to the book's own chapters, on every device of this profile. */

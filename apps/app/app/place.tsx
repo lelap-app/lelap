@@ -29,10 +29,12 @@ export default function PlaceScreen() {
   const insets = useSafeAreaInsets();
   const { version } = useLibrary();
   const params = useLocalSearchParams<Record<string, string | string[]>>();
-  const place = useMemo(() => parsePlace(params), [params]);
+  // Keyed by the query, since the params object may be new on every render.
+  const query = JSON.stringify(params);
+  const place = useMemo(() => parsePlace(params), [query]);
   // `version` is the signal to re-read the database: a scan may bring the book.
   const book = useMemo(() => {
-    const id = place ? findPlaceBook(db, place) : null;
+    const id = place ? findPlaceBook(db, profileId, place) : null;
     return id ? getBook(db, profileId, id) : null;
   }, [place, version]);
 

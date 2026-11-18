@@ -14,6 +14,7 @@ import {
   placeUrl,
   type SharedPlace,
 } from './placeLink';
+import { createProfile, DEFAULT_PROFILE_ID as ME } from './profiles';
 import { books, workLinks } from './schema';
 
 let n = 0;
@@ -63,6 +64,26 @@ describe('a shared place', () => {
     const url = placeUrl('https://listen.example.org', place);
     expect(url).not.toMatch(/Private|content|primary|mp3/);
     expect(query(url)).toEqual({ t: 'Dune', a: 'Frank Herbert', at: '5' });
+  });
+
+  it('leaves out an author taken from a folder name, and an add-on item ID that is a path', () => {
+    const db = createTestDb();
+    scan(db, [scanned('Frank Herbert/Dune/01.mp3')]);
+    const place = placeOfBook(db, idOf(db, `${ROOT}/Frank Herbert/Dune`), 0);
+    expect(place?.author).toBeNull();
+    db.update(books)
+      .set({
+        source: 'addon',
+        addonItem: {
+          addonUrl: 'https://x.example',
+          type: 'audiobook',
+          id: 'lib:/home/me/a',
+          sourceKey: 'k',
+        },
+      })
+      .where(eq(books.location, `${ROOT}/Frank Herbert/Dune`))
+      .run();
+    expect(placeOfBook(db, idOf(db, `${ROOT}/Frank Herbert/Dune`), 0)?.work).toBeNull();
   });
 
   it('turns down a link without a title or a time, and keeps a clip short', () => {
@@ -115,10 +136,10 @@ describe('finding the listener’s own copy', () => {
       scanned('A/01.mp3', { ids: ['isbn:9780441172719'], album: 'Something else' }),
       scanned('B/01.mp3', { album: 'Dune', artist: 'Frank Herbert' }),
     ]);
-    expect(findPlaceBook(db, dune)).toBe(idOf(db, `${ROOT}/A`));
-    expect(findPlaceBook(db, { ...dune, ids: [], work: null })).toBe(idOf(db, `${ROOT}/B`));
+    expect(findPlaceBook(db, ME, dune)).toBe(idOf(db, `${ROOT}/A`));
+    expect(findPlaceBook(db, ME, { ...dune, ids: [], work: null })).toBe(idOf(db, `${ROOT}/B`));
     expect(
-      findPlaceBook(db, { ...dune, title: 'Emma', author: 'Jane Austen', ids: [] }),
+      findPlaceBook(db, ME, { ...dune, title: 'Emma', author: 'Jane Austen', ids: [] }),
     ).toBeNull();
   });
 
@@ -136,6 +157,13 @@ describe('finding the listener’s own copy', () => {
         updatedAt: 1,
       })
       .run();
-    expect(findPlaceBook(db, { ...dune, ids: [] })).toBe(idOf(db, `${ROOT}/Unnamed`));
+    expect(findPlaceBook(db, ME, { ...dune, ids: [] })).toBe(idOf(db, `${ROOT}/Unnamed`));
+  });
+
+  it('only on a kid’s shelf for a kids profile', () => {
+    const db = createTestDb();
+    scan(db, [scanned('B/01.mp3', { album: 'Dune', artist: 'Frank Herbert' })]);
+    const kid = createProfile(db, { name: 'Mia', avatar: null, kids: true }, 1, newId);
+    expect(findPlaceBook(db, kid, { ...dune, ids: [], work: null })).toBeNull();
   });
 });

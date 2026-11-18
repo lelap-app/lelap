@@ -101,7 +101,9 @@ export default function BookmarksScreen() {
               setEditing(null);
               refresh();
             }}
-            onShare={() => void sharePlace(editing.bookId, editing.bookPositionMs)}
+            {...(editing.book.source === 'feed'
+              ? {}
+              : { onShare: () => void sharePlace(editing.bookId, editing.bookPositionMs) })}
             onDelete={() => {
               remove(editing.id);
               setEditing(null);

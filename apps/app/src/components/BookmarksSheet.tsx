@@ -27,7 +27,8 @@ export function BookmarkEditor({
 }: {
   bookmark: Bookmark;
   onSave: (note: string) => void;
-  onShare: () => void;
+  /** Left out where a place can't be shared, such as in a podcast episode. */
+  onShare?: () => void;
   onDelete: () => void;
 }) {
   const [note, setNote] = useState(bookmark.note ?? '');
@@ -50,11 +51,13 @@ export function BookmarkEditor({
           onPress={() => confirmDeleteBookmark(bookmark, onDelete)}
           tone="danger"
         />
-        <TextButton
-          text={t('Share')}
-          accessibilityLabel={t('Share this place')}
-          onPress={onShare}
-        />
+        {onShare && (
+          <TextButton
+            text={t('Share')}
+            accessibilityLabel={t('Share this place')}
+            onPress={onShare}
+          />
+        )}
         <TextButton text={t('Save')} onPress={() => onSave(note)} strong />
       </View>
     </View>
@@ -116,6 +119,7 @@ export function BookmarksSheet({
   onShare,
   onShareHere,
   onShareClip,
+  canShare,
   onClose,
 }: {
   visible: boolean;
@@ -128,6 +132,8 @@ export function BookmarksSheet({
   onShareHere: () => void;
   /** Shares the last 30 seconds as a short clip. */
   onShareClip: () => void;
+  /** Places in books can be shared; places in podcast episodes not yet. */
+  canShare: boolean;
   onClose: () => void;
 }) {
   const [editing, setEditing] = useState<Bookmark | null>(null);
@@ -150,7 +156,7 @@ export function BookmarksSheet({
             onSaveNote(editing.id, note);
             setEditing(null);
           }}
-          onShare={() => onShare(editing)}
+          {...(canShare ? { onShare: () => onShare(editing) } : {})}
           onDelete={() => {
             onDelete(editing.id);
             setEditing(null);
@@ -158,11 +164,13 @@ export function BookmarksSheet({
         />
       ) : (
         <>
-          <View className="flex-row flex-wrap items-center gap-x-2 pb-2">
-            <Text className="flex-1 text-sm text-muted">{t('Share a link to this place:')}</Text>
-            <TextButton text={t('From here')} onPress={onShareHere} />
-            <TextButton text={t('Last 30 seconds')} onPress={onShareClip} />
-          </View>
+          {canShare && (
+            <View className="flex-row flex-wrap items-center gap-x-2 pb-2">
+              <Text className="flex-1 text-sm text-muted">{t('Share a link to this place:')}</Text>
+              <TextButton text={t('From here')} onPress={onShareHere} />
+              <TextButton text={t('Last 30 seconds')} onPress={onShareClip} />
+            </View>
+          )}
           {bookmarks.length === 0 ? (
             <Text className="pb-4 text-muted">
               {t('No bookmarks yet. Tap “Add bookmark” while listening.')}

@@ -40,6 +40,7 @@ import { TextButton } from './TextButton';
 import { SoundSheet, useSound } from './SoundSheet';
 import { CASTING_SUPPORTED, useCasting } from '../casting';
 import { db, newId } from '../db';
+import { showAlert } from '../dialog';
 import { HeadphoneBanner } from '../devices';
 import { formatClock, formatLeft } from '../format';
 import * as audio from '../platform/audio';
@@ -580,11 +581,23 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
             setSheet(null);
             router.push({ pathname: '/chapters', params: { book: bookId } });
           },
-          onReset: () => {
-            resetOwnChapters(db, profileId, bookId, Date.now());
-            refresh();
-            void updateChapters(bookId).catch(() => {});
-          },
+          onReset: () =>
+            showAlert(
+              t('Back to the book’s chapters?'),
+              t('Your own chapters for this book go, on your other devices too.'),
+              [
+                { text: t('Cancel'), style: 'cancel' },
+                {
+                  text: t('Reset'),
+                  style: 'destructive',
+                  onPress: () => {
+                    resetOwnChapters(db, profileId, bookId, Date.now());
+                    refresh();
+                    void updateChapters(bookId).catch(() => {});
+                  },
+                },
+              ],
+            ),
         }}
       />
       <BookmarksSheet
@@ -602,6 +615,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           setBookmarkNote(db, profileId, id, text, Date.now());
           refresh();
         }}
+        canShare={detail.book.source !== 'feed'}
         onShare={(b) => void sharePlace(bookId, b.bookPositionMs)}
         onShareHere={() => void sharePlace(bookId, position)}
         onShareClip={() =>

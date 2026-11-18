@@ -6,7 +6,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
-import androidx.work.BackoffPolicy
+import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
@@ -19,7 +19,6 @@ import androidx.work.workDataOf
 import app.lelap.text.NativeText
 import java.io.File
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -36,8 +35,6 @@ object Silences {
   private const val ERROR = "error.txt"
   /** Present while the scan waits because the worker found the battery low. */
   private const val LOW_BATTERY = "low-battery"
-  /** How long a scan stopped for a low battery waits before it looks again. */
-  private const val LOW_BATTERY_RETRY_MINUTES = 10L
 
   fun root(context: Context) = File(context.noBackupFilesDir, "silences")
 
@@ -86,15 +83,28 @@ object Silences {
       writeAtomically(File(dir, JOB), job.copy(run = run).encode())
     }
     // The listener asked for this scan, so it starts now (M85). A battery constraint let Android's
-    // flexible scheduling hold it back at 84 %; the worker checks the battery itself instead, and
-    // a scan stopped for a low battery goes on from its last checkpoint.
+    // flexible scheduling hold it back at 84 %; the worker checks the battery itself instead.
     val request = OneTimeWorkRequestBuilder<SilenceWorker>()
       .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-      .setBackoffCriteria(BackoffPolicy.LINEAR, LOW_BATTERY_RETRY_MINUTES, TimeUnit.MINUTES)
       .setInputData(workDataOf(SilenceWorker.KEY_BOOK_ID to job.bookId, SilenceWorker.KEY_RUN to run))
       .addTag(TAG)
       .build()
     WorkManager.getInstance(context).enqueueUniqueWork(workName(job.bookId), ExistingWorkPolicy.REPLACE, request)
+  }
+
+  /**
+   * Goes on with a scan stopped for a low battery, from its last checkpoint, once the battery is
+   * fine again. Nobody waits for it now, so here a battery constraint is right; it follows the
+   * stopped worker, which then ends.
+   */
+  fun resumeLater(context: Context, bookId: String, run: String?) {
+    val request = OneTimeWorkRequestBuilder<SilenceWorker>()
+      .setConstraints(Constraints.Builder().setRequiresBatteryNotLow(true).build())
+      .setInputData(workDataOf(SilenceWorker.KEY_BOOK_ID to bookId, SilenceWorker.KEY_RUN to run))
+      .addTag(TAG)
+      .build()
+    WorkManager.getInstance(context)
+      .enqueueUniqueWork(workName(bookId), ExistingWorkPolicy.APPEND_OR_REPLACE, request)
   }
 
   /** Stops a scan and forgets it, or forgets a finished one after JavaScript stored its chapters. */
@@ -109,7 +119,11 @@ object Silences {
       val job = readJob(dir) ?: return@mapNotNull null
       val result = File(dir, RESULT).takeIf { it.isFile }?.readText()
       val error = File(dir, ERROR).takeIf { it.isFile }?.readText()
-      val info = WorkManager.getInstance(context).getWorkInfosForUniqueWork(workName(job.bookId)).get().lastOrNull()
+      // A scan resumed after a low battery is a second request in the same name.
+      val infos = WorkManager.getInstance(context).getWorkInfosForUniqueWork(workName(job.bookId)).get()
+      val info = infos.firstOrNull { it.state == WorkInfo.State.RUNNING }
+        ?: infos.firstOrNull { !it.state.isFinished }
+        ?: infos.lastOrNull()
       val progress = readProgress(dir)
       val state = when {
         result != null -> "done"
@@ -148,6 +162,14 @@ class SilenceWorker(context: Context, params: WorkerParameters) : CoroutineWorke
     return Silences.readJob(Silences.dir(applicationContext, bookId))?.takeIf { it.sameRun(inputData.getString(KEY_RUN)) }
   }
 
+  /** Marks the scan as waiting for the battery and hands it to a request that waits for it. */
+  private fun waitForBattery(bookId: String, run: String?): Result {
+    val dir = Silences.dir(applicationContext, bookId)
+    if (!Silences.writeFor(dir, run) { Silences.markLowBattery(dir, true) }) return Result.failure()
+    Silences.resumeLater(applicationContext, bookId, run)
+    return Result.success()
+  }
+
   // Expedited work runs as a foreground service before Android 12, which asks for this.
   override suspend fun getForegroundInfo(): ForegroundInfo =
     foregroundInfo(inputData.getString(KEY_BOOK_ID).orEmpty(), job()?.title, 0.0)
@@ -157,13 +179,13 @@ class SilenceWorker(context: Context, params: WorkerParameters) : CoroutineWorke
     val dir = Silences.dir(applicationContext, bookId)
     val run = inputData.getString(KEY_RUN)
     val job = job() ?: return Result.failure()
-    if (Battery.isLow(applicationContext)) {
-      Silences.writeFor(dir, run) { Silences.markLowBattery(dir, true) }
-      return Result.retry()
-    }
+    if (Battery.isLow(applicationContext)) return waitForBattery(bookId, run)
     if (!Silences.writeFor(dir, run) { Silences.markLowBattery(dir, false) }) return Result.failure()
-    // A long book can take more than the ten minutes a plain job gets.
-    runCatching { setForeground(foregroundInfo(bookId, job.title, job.fractionDone(Silences.readProgress(dir)))) }
+    // A long book can take more than the ten minutes a plain job gets. Android 12 and later refuse
+    // a foreground service to a resumed scan started in the background; it then runs as a plain job.
+    val foreground = runCatching {
+      setForeground(foregroundInfo(bookId, job.title, job.fractionDone(Silences.readProgress(dir))))
+    }.isSuccess
 
     return withContext(Dispatchers.IO) {
       try {
@@ -190,13 +212,15 @@ class SilenceWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             if (!replaced && now - lastCheck >= CHECK_EVERY_MS) {
               lastCheck = now
               lowBattery = Battery.isLow(applicationContext)
-              if (!lowBattery) setForegroundAsync(foregroundInfo(bookId, job.title, job.fractionDone(current)))
+              if (foreground && !lowBattery) {
+                setForegroundAsync(foregroundInfo(bookId, job.title, job.fractionDone(current)))
+              }
             }
             !isStopped && !replaced && !lowBattery
           }
           if (file == null) {
             if (replaced) return@withContext Result.failure()
-            if (lowBattery) Silences.writeFor(dir, run) { Silences.markLowBattery(dir, true) }
+            if (lowBattery) return@withContext waitForBattery(bookId, run)
             return@withContext Result.retry()
           }
           progress = SilenceProgress(progress.done + listOf(file.silences), progress.durations + file.durationMs)

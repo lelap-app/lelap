@@ -2,12 +2,13 @@ import { createWorkIndex, normalizeIds, splitAuthors } from '@lelap/sdk';
 import { and, desc, eq, isNotNull, isNull, ne } from 'drizzle-orm';
 
 import type { Db } from './db';
+import { isKidsProfile, shelfBookIds } from './kids';
 import { bookFiles, books, workLinks } from './schema';
 import { bookIdForKey } from './sync/keys';
 
 // A shared place (M85): a link that says which book and where in it, never the audio. It names
-// the book by what anyone may know about it (title, author, ISBN or ASIN, the catalog work), not
-// by its file or folder, and the one who opens it plays their own copy.
+// the book by its title as the library shows it, a tagged or matched author, ISBN or ASIN and the
+// catalog work, never a file path, and the one who opens it plays their own copy.
 
 export type SharedPlace = {
   title: string;
@@ -26,6 +27,7 @@ export const CLIP_MAX_MS = 5 * 60_000;
 const TITLE_MAX = 300;
 const IDS_MAX = 5;
 const SHAREABLE_ID = /^(isbn|asin|ol):/;
+const CATALOG_ID = /^[a-z][a-z0-9_-]{0,31}:[A-Za-z0-9._-]{1,128}$/;
 
 const seconds = (ms: number) => String(Math.max(0, Math.floor(ms / 1000)));
 
@@ -101,30 +103,43 @@ export function placeOfBook(
     .where(eq(books.id, bookId))
     .get();
   if (!book || book.source === 'feed') return null;
-  const fileIds = db
-    .select({ ids: bookFiles.ids })
+  const files = db
+    .select({ ids: bookFiles.ids, artist: bookFiles.artist, albumArtist: bookFiles.albumArtist })
     .from(bookFiles)
-    .where(and(eq(bookFiles.bookId, bookId), isNotNull(bookFiles.ids)))
-    .all()
-    .flatMap((f) => f.ids ?? []);
+    .where(eq(bookFiles.bookId, bookId))
+    .all();
+  const fileIds = files.flatMap((f) => f.ids ?? []);
   const link = db
-    .select({ type: workLinks.workType, id: workLinks.workId, ids: workLinks.ids })
+    .select({
+      type: workLinks.workType,
+      id: workLinks.workId,
+      ids: workLinks.ids,
+      meta: workLinks.meta,
+    })
     .from(workLinks)
     .where(and(eq(workLinks.bookKey, book.location), eq(workLinks.state, 'linked')))
     .orderBy(desc(workLinks.updatedAt))
     .get();
-  const work = book.addonItem
-    ? { type: book.addonItem.type, id: book.addonItem.id }
-    : link
-      ? { type: link.type, id: link.id }
+  // An add-on's item ID can hold a server's path or settings; only a plain `prefix:id` travels.
+  const item =
+    book.addonItem && CATALOG_ID.test(book.addonItem.id)
+      ? { type: book.addonItem.type, id: book.addonItem.id }
       : null;
+  const work = link ? { type: link.type, id: link.id } : item;
   const ids = normalizeIds([...fileIds, ...(link?.ids ?? [])]).filter((id) =>
     SHAREABLE_ID.test(id),
   );
+  // A folder book's author may be its parent folder's name: only a tagged or matched one goes.
+  const tagged = new Set(files.flatMap((f) => [f.artist, f.albumArtist]));
+  const author =
+    link?.meta?.author ??
+    (book.source !== 'local' || (book.author !== null && tagged.has(book.author))
+      ? book.author
+      : null);
   const clipEnd = toMs !== null && toMs > atMs ? Math.min(toMs, atMs + CLIP_MAX_MS) : null;
   return {
-    title: book.title,
-    author: book.author,
+    title: link?.meta?.title ?? book.title,
+    author,
     ids: ids.slice(0, IDS_MAX),
     work,
     atMs: Math.max(0, atMs),
@@ -135,9 +150,10 @@ export function placeOfBook(
 /**
  * The listener's own copy of a shared book: one streamed from that work or linked to it, then one
  * with the same ISBN or ASIN, then one with the same title and author. Only this device's
- * database is read.
+ * database is read. A kids profile finds only the books on its shelf.
  */
-export function findPlaceBook(db: Db, place: SharedPlace): string | null {
+export function findPlaceBook(db: Db, profileId: string, place: SharedPlace): string | null {
+  const shelf = isKidsProfile(db, profileId) ? shelfBookIds(db, profileId) : null;
   const present = db
     .select({
       id: books.id,
@@ -148,7 +164,8 @@ export function findPlaceBook(db: Db, place: SharedPlace): string | null {
     })
     .from(books)
     .where(and(ne(books.source, 'feed'), isNull(books.missingSince)))
-    .all();
+    .all()
+    .filter((b) => shelf === null || shelf.has(b.id));
   const { work } = place;
   if (work) {
     const streamed = present.find(
