@@ -45,6 +45,7 @@ it untrue. What gets built when is in [`roadmap.md`](roadmap.md).
 | Release builds       | APKs build without secrets, with caches written only by pushes to `main`, and are signed in a separate job; one APK per CPU type, native libraries uncompressed                     | A poisoned cache can’t reach a signed release; per-CPU APKs halve the download; uncompressed libraries load in place (M54).                                                                                                                                                                                                                                                                                                                                               |
 | npm publishing       | Trusted publishing from the `npm` environment (`main` only, with reviewers), separate from `release`                                                                                | npm’s trusted publisher names one environment, and the signing keys stay in `release` (M20).                                                                                                                                                                                                                                                                                                                                                                              |
 | Hardcover data       | Catalogs from Hardcover run on the listener’s own token only, never on one token shared by a hosted service                                                                         | Hardcover’s API terms forbid public services from using list data unless a user allowed it, and a token’s rate limit suits one listener (M76).                                                                                                                                                                                                                                                                                                                            |
+| Hidden books         | The listener hides items from the library per profile, kept by the book’s location and synced like tags; the app only suggests hiding what looks like music                         | A folder can hold music beside the books (M77). A wrong guess must never make a book disappear, so nothing is hidden without the listener, and a no is remembered.                                                                                                                                                                                                                                                                                                        |
 
 ## Principles
 
@@ -92,8 +93,8 @@ The repository layout is in [`AGENTS.md`](../AGENTS.md#repository-map).
 - **Pairing:** a 12-character code (60 bits). Its scrypt output gives the server a lookup ID and a
   key that seals the group secret; the server keeps the blob ten minutes and hands it out once.
 - **What syncs:** places, finished and speed, bookmarks, streamed books, podcast subscriptions and
-  episode places, Up Next, playback settings, profiles, and which library books are which add-on
-  works (keyed on the book's location). Not: local files, downloads, download
+  episode places, Up Next, playback settings, profiles, hidden books, and which library books are
+  which add-on works (keyed on the book's location). Not: local files, downloads, download
   rules, add-on lists.
 - **Snapshots:** once a group's messages older than 30 days reach 1 MB, a device folds them,
   with the previous snapshot, into a sealed snapshot (the newest change per row) and the server

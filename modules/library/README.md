@@ -7,6 +7,10 @@ Kotlin Expo module for the local library on Android.
   path (`primary:Audiobooks/Book/01.mp3`) as a stable location. It rejects with
   `ERR_LELAP_PERMISSION` when the folder cannot be read, so a scan never mistakes a lost folder for
   an empty one.
+- `readTags`, `readRemoteTags`: Android's metadata reader for text tags, genre, track, year,
+  composer, duration and cover; `IdTags` for what it doesn't give: ISBN and ASIN, the ISRC (ID3
+  `TSRC`, MP4 `----:com.apple.iTunes:ISRC`, a FLAC `ISRC` comment), a narrator tag and the MP4
+  media kind (`stik`). Genre, ISRC and the media kind tell songs from books (M77).
 
 - `findSilences`: chapters from silences (M45). `SilenceWorker` decodes the book's own files
   (MediaExtractor and MediaCodec) in WorkManager, only with enough battery, and keeps a checkpoint

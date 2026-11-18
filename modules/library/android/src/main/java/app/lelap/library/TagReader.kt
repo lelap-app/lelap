@@ -25,6 +25,36 @@ data class Tags(
   val chapters: List<Chapter>,
   /** ISBN and ASIN tags by name, unchecked (`IdTags`). */
   val idTags: Map<String, String>,
+  /** Genre, ISRC and the like, for telling songs from books (M77). */
+  val kind: KindTags,
+)
+
+data class KindTags(
+  val genre: String?,
+  val isrc: String?,
+  val track: String?,
+  val year: String?,
+  /** A narrator tag, else the composer, which audiobooks often use for the narrator. */
+  val narrator: String?,
+  val mediaKind: String?,
+) {
+  fun toMap(): Map<String, String?> = mapOf(
+    "genre" to genre,
+    "isrc" to isrc,
+    "track" to track,
+    "year" to year,
+    "narrator" to narrator,
+    "mediaKind" to mediaKind,
+  )
+}
+
+private fun kindTags(tag: (Int) -> String?, file: FileTags) = KindTags(
+  genre = tag(MediaMetadataRetriever.METADATA_KEY_GENRE),
+  isrc = file.isrc,
+  track = tag(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER),
+  year = tag(MediaMetadataRetriever.METADATA_KEY_YEAR),
+  narrator = file.narrator ?: tag(MediaMetadataRetriever.METADATA_KEY_COMPOSER),
+  mediaKind = file.mediaKind,
 )
 
 /** Text tags, duration and embedded cover from Android, chapters from our own parsers. */
@@ -41,7 +71,7 @@ class TagReader(private val context: Context) {
       val cover = retriever.embeddedPicture?.let { saveCover(it, coverKey, coverDir) }
       val bytes = RemoteBytes(url, headers)
       val chapters = runCatching { parseChapters(name, bytes::read, bytes.size) }.getOrDefault(emptyList())
-      val idTags = runCatching { IdTags.parse(name, bytes::read, bytes.size) }.getOrDefault(emptyMap())
+      val fileTags = runCatching { IdTags.parseAll(name, bytes::read, bytes.size) }.getOrDefault(FileTags())
       return Tags(
         durationMs = tag(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L,
         title = tag(MediaMetadataRetriever.METADATA_KEY_TITLE),
@@ -50,7 +80,8 @@ class TagReader(private val context: Context) {
         albumArtist = tag(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST),
         coverPath = cover,
         chapters = chapters,
-        idTags = idTags,
+        idTags = fileTags.ids,
+        kind = kindTags(::tag, fileTags),
       )
     } finally {
       retriever.release()
@@ -80,6 +111,7 @@ class TagReader(private val context: Context) {
         })
         fun tag(key: Int) = retriever.extractMetadata(key)?.trim()?.takeIf { it.isNotEmpty() }
         val cover = retriever.embeddedPicture?.let { saveCover(it, Uri.parse(url), coverDir) }
+        val fileTags = runCatching { IdTags.parseAll(name, bytes::read, bytes.size) }.getOrDefault(FileTags())
         Tags(
           durationMs = tag(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L,
           title = tag(MediaMetadataRetriever.METADATA_KEY_TITLE),
@@ -88,7 +120,8 @@ class TagReader(private val context: Context) {
           albumArtist = tag(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST),
           coverPath = cover,
           chapters = runCatching { parseChapters(name, bytes::read, bytes.size) }.getOrDefault(emptyList()),
-          idTags = runCatching { IdTags.parse(name, bytes::read, bytes.size) }.getOrDefault(emptyMap()),
+          idTags = fileTags.ids,
+          kind = kindTags(::tag, fileTags),
         )
       } finally {
         retriever.release()
@@ -101,7 +134,7 @@ class TagReader(private val context: Context) {
       retriever.setDataSource(context, uri)
       fun tag(key: Int) = retriever.extractMetadata(key)?.trim()?.takeIf { it.isNotEmpty() }
       val cover = retriever.embeddedPicture?.let { saveCover(it, uri, coverDir) }
-      val (chapters, idTags) = fromFile(uri, name)
+      val (chapters, fileTags) = fromFile(uri, name)
       return Tags(
         durationMs = tag(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L,
         title = tag(MediaMetadataRetriever.METADATA_KEY_TITLE),
@@ -110,7 +143,8 @@ class TagReader(private val context: Context) {
         albumArtist = tag(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST),
         coverPath = cover,
         chapters = chapters,
-        idTags = idTags,
+        idTags = fileTags.ids,
+        kind = kindTags(::tag, fileTags),
       )
     } finally {
       retriever.release()
@@ -123,9 +157,9 @@ class TagReader(private val context: Context) {
     return saveCover(bytes, uri, coverDir)
   }
 
-  /** Chapters and ID tags, read from the file with our own parsers. */
-  private fun fromFile(uri: Uri, name: String): Pair<List<Chapter>, Map<String, String>> {
-    val descriptor = context.contentResolver.openFileDescriptor(uri, "r") ?: return emptyList<Chapter>() to emptyMap()
+  /** Chapters and the tags Android doesn't give, read from the file with our own parsers. */
+  private fun fromFile(uri: Uri, name: String): Pair<List<Chapter>, FileTags> {
+    val descriptor = context.contentResolver.openFileDescriptor(uri, "r") ?: return emptyList<Chapter>() to FileTags()
     descriptor.use { pfd ->
       FileInputStream(pfd.fileDescriptor).channel.use { channel ->
         val size = channel.size()
@@ -136,7 +170,7 @@ class TagReader(private val context: Context) {
           while (buffer.hasRemaining() && channel.read(buffer, offset + buffer.position()) > 0) Unit
           buffer.array().copyOf(buffer.position())
         }
-        return parseChapters(name, read, size) to IdTags.parse(name, read, size)
+        return parseChapters(name, read, size) to IdTags.parseAll(name, read, size)
       }
     }
   }

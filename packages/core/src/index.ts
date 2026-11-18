@@ -39,3 +39,6 @@ export * from './recommend';
 export * from './diagnostics';
 export * from './badges';
 export * from './library/links';
+export * from './library/hidden';
+export * from './library/music';
+export * from './library/musicSuggestions';

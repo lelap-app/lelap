@@ -12,7 +12,10 @@ export type PickedFolder = {
 /** Error code when the folder can no longer be read (permission revoked, storage gone). */
 export const FOLDER_UNAVAILABLE = 'ERR_LELAP_PERMISSION';
 
-/** Tags as the native reader gives them: ISBN and ASIN tags by name, not yet checked. */
+/**
+ * Tags as the native reader gives them: ISBN and ASIN tags by name, not yet checked, and genre,
+ * ISRC and the MP4 media kind (`kindTags`, M77).
+ */
 export type NativeTags = Omit<FileTags, 'ids'> & { idTags?: Record<string, string> };
 
 type LelapLibraryModule = {

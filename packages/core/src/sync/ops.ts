@@ -15,6 +15,7 @@ import {
   bookTags,
   chapters,
   episodes,
+  hiddenBooks,
   libraryEntries,
   listeningLog,
   playlists,
@@ -156,6 +157,15 @@ export type Op =
         ids: string[];
         meta: LinkedMeta | null;
       };
+    }
+  | {
+      /** A book hidden from the library, or said not to be music (M77). Older devices skip it. */
+      type: 'hidden';
+      profile: string;
+      /** The book's location, as for tags. */
+      key: string;
+      at: number;
+      data: { hidden: boolean; notMusic: boolean };
     }
   | { type: 'delete'; kind: TombstoneKind; profile: string; key: string; at: number };
 
@@ -395,6 +405,15 @@ export function collectOps(db: Db, since: number): Op[] {
       data: { tags: t.tags },
     });
   }
+  for (const h of db.select().from(hiddenBooks).where(gt(hiddenBooks.updatedAt, since)).all()) {
+    ops.push({
+      type: 'hidden',
+      profile: h.profileId,
+      key: h.bookKey,
+      at: h.updatedAt,
+      data: { hidden: h.hidden, notMusic: h.notMusic },
+    });
+  }
   for (const p of db.select().from(playlists).where(gt(playlists.updatedAt, since)).all()) {
     // Items are already keys; naming them here sends along streamed books the other device lacks.
     for (const item of p.items) {
@@ -465,6 +484,7 @@ const ORDER: Record<Op['type'], number> = {
   upNext: 3,
   setting: 3,
   tags: 3,
+  hidden: 3,
   playlist: 3,
   link: 3,
   delete: 4,
@@ -811,6 +831,9 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
         case 'link':
           applyLink(tx, op);
           break;
+        case 'hidden':
+          applyHidden(tx, op, now);
+          break;
         case 'delete':
           applyDelete(tx, op);
           break;
@@ -854,6 +877,27 @@ function applyLink(db: Db, op: Extract<Op, { type: 'link' }>): void {
       target: [workLinks.bookKey, workLinks.workType, workLinks.workId],
       set: row,
     })
+    .run();
+}
+
+/** Another device's hidden mark; kept by the book's name even when the book isn't here yet. */
+function applyHidden(db: Db, op: Extract<Op, { type: 'hidden' }>, now: number): void {
+  if (typeof op.data !== 'object' || op.data === null) return;
+  const { hidden, notMusic } = op.data;
+  if (!isText(op.key) || !isText(op.profile, 256)) return;
+  if (typeof hidden !== 'boolean' || typeof notMusic !== 'boolean') return;
+  if (!ensureProfile(db, op.profile, now)) return;
+  const where = and(eq(hiddenBooks.profileId, op.profile), eq(hiddenBooks.bookKey, op.key));
+  const local = db
+    .select({ updatedAt: hiddenBooks.updatedAt })
+    .from(hiddenBooks)
+    .where(where)
+    .get();
+  if (local && local.updatedAt >= op.at) return;
+  const row = { hidden, notMusic, updatedAt: op.at };
+  db.insert(hiddenBooks)
+    .values({ profileId: op.profile, bookKey: op.key, ...row })
+    .onConflictDoUpdate({ target: [hiddenBooks.profileId, hiddenBooks.bookKey], set: row })
     .run();
 }
 
@@ -924,6 +968,7 @@ function applyDelete(db: Db, op: Extract<Op, { type: 'delete' }>): void {
         subscriptions,
         upNext,
         bookTags,
+        hiddenBooks,
         playlists,
         listeningLog,
         scrobbleOutbox,

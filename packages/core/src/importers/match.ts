@@ -39,7 +39,8 @@ export function sameAuthor(a: string, b: string): boolean {
 /** Books (not podcast episodes) on this device, indexed by title key. */
 export function bookIndex(db: Db, profileId: string): Map<string, LibraryBook[]> {
   const index = new Map<string, LibraryBook[]>();
-  for (const book of listAllBooks(db, profileId)) {
+  // Hidden books too: an import still finds a book the listener hid.
+  for (const book of listAllBooks(db, profileId, 'all')) {
     if (book.source === 'feed' || book.missing) continue;
     const key = titleKey(book.title);
     index.set(key, [...(index.get(key) ?? []), book]);
