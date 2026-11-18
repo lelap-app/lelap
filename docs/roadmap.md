@@ -74,7 +74,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M61 Open Library reading log](milestones/m61.md)    | Done        |           8 | A scrobble add-on marking books read or reading on Open Library                                          |
 | [M62 SMB and SFTP](milestones/m62.md)                | Done        |          11 | Built-in sources for NAS shares and plain servers, on Android                                            |
 | [M63 Playback fixes](milestones/m63.md)              | Done        |          10 | Small fixes in the playback service and the player, left from earlier reviews                            |
-| [M64 Library fixes](milestones/m64.md)               | Done        |          16 | Covers from image files, and folder scans, tags, downloads and matching: fixes left from earlier reviews |
+| [M64 Library fixes](milestones/m64.md)               | Done        |          17 | Covers from image files, and folder scans, tags, downloads and matching: fixes left from earlier reviews |
 | [M65 Server sources 2](milestones/m65.md)            | Planned     |           3 | Outboxes, narrators and series, and steadier places for the media servers                                |
 | [M66 Add-on protocol 3](milestones/m66.md)           | Planned     |             | Editions, settings for every route, paging, more scrobble events and upkeep of first-party add-ons       |
 | [M67 Web app 2](milestones/m67.md)                   | Done        |           9 | Faster saves, covers from servers and steadier media keys in the web app                                 |
