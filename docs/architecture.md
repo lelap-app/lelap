@@ -59,7 +59,7 @@ Native modules have a JavaScript API in `modules/<name>/src`; the app reaches th
 - **Secrets** (server passwords, the sync key) are sealed with a key from the Android Keystore
   (`expo-secure-store`) and left out of backups.
 - **Sync** pushes changed rows as operations sealed with XChaCha20-Poly1305; the server stores a
-  group's log under a random ID and never sees the key. Details: [brief](brief.md#sync-m7).
+  group's log under a random ID and never sees the key. Details: [brief](brief.md#sync).
 - **Downloads** are files in the app's storage, tracked in the database; the queue runs in
   WorkManager so it survives the app closing.
 

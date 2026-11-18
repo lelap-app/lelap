@@ -52,8 +52,9 @@ CI runs the same five on every pull request, plus the Kotlin unit tests when nat
   `packages/core`, on top of the latest `main`; never write or renumber one by hand.
 - **UI text** goes through `t()` with the English as the key; see
   [`apps/app/src/i18n/README.md`](apps/app/src/i18n/README.md).
-- **Milestones:** each has a file in [`docs/milestones/`](docs/milestones/) with its status, and
-  open checks in `docs/mN-follow-ups.md`. Update the status in that file, not in the roadmap table.
+- **Milestones:** each has a file in [`docs/milestones/`](docs/milestones/) with its status in
+  front matter and its open checks at the end. Run `pnpm roadmap` after changing either; never
+  edit the roadmap table by hand.
 
 ## Releases
 

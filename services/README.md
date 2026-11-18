@@ -140,7 +140,7 @@ pnpm --filter @lelap/updates test
 ```
 
 Deploys from `services.yml` (job `deploy-updates`); set `UPDATES_DOMAIN` (`updates.lelap.app`) in
-the `web` environment. Setup: [`docs/m18-follow-ups.md`](../docs/m18-follow-ups.md).
+the `web` environment. Setup: [M18](../docs/milestones/m18.md#setup).
 
 ## `template`
 

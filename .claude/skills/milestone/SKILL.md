@@ -1,26 +1,57 @@
 ---
 name: milestone
-description: Use when starting, building, finishing or reviewing a Lelap roadmap milestone (M1–M99, “do M41”, “next milestone”), when several milestones are to be built in a row, or when a milestone's status line, follow-ups file or pull request needs writing.
+description: Use when starting, building, finishing or reviewing a Lelap roadmap milestone (M1–M99, “do M41”, “next milestone”), when several milestones are to be built in a row, or when a milestone's status, open checks or pull request needs writing.
 ---
 
 # Building a Lelap milestone
 
-Each milestone has one file, `docs/milestones/mN.md`, listed in `docs/roadmap.md`. It is built in
-one pull request, with what can't be checked here written down for a later test round. This skill
-is the order to do that in and the files each step touches.
+Each milestone has one file, `docs/milestones/mN.md`. Its front matter is the source of the
+roadmap table, which `pnpm roadmap` writes; nobody edits the table by hand. A milestone is built
+in one pull request, with what can't be checked here written into its own `## Open checks`
+section for a later test round. This skill is the order to do that in and the files each step
+touches.
+
+## The milestone file
+
+```markdown
+---
+title: Audiobookshelf
+status: in progress # planned | in progress | done
+summary: Audiobookshelf libraries as a source, with progress synced both ways
+prs: [91]
+---
+
+# M41 Audiobookshelf
+
+What it brings (planned), or what shipped and where it lives (done).
+
+## Open checks
+
+- [ ] (adb) <the action, on what, and what should happen>
+- [ ] (you) <a check that needs the maintainer: calls, car, by ear, accounts, a second device,
+      browsers>
+```
+
+- `title` matches the heading after `# MN `. `summary` is one line for the roadmap table.
+- `status`: `planned` (nothing built), `in progress` (code still missing), `done` (code merged;
+  open checks may remain).
+- `prs`: every pull request that built it, `[]` until one exists.
+- `## Open checks` is always the last section. Each item starts with `(adb)` or `(you)`;
+  `pnpm checks` lists them and `pnpm roadmap --check` fails on an untagged one.
+- After any change to the front matter or the open checks, run `pnpm roadmap`; CI runs
+  `pnpm roadmap --check`.
 
 ## Before you write code
 
 1. Read `docs/milestones/mN.md`, `docs/brief.md` (decisions, architecture) and the nested
    `AGENTS.md` of every folder you will touch. If the milestone is in “ideas to pick from” form,
    say which ideas you'll build and why, and ask the user before starting.
-2. Look for what earlier milestones left for this one: `grep -rn "MN\b" docs/` (follow-ups files,
-   M40's “Small fixes”, other milestones saying “waits for MN”).
+2. Look for what earlier milestones left for this one: `grep -rn "MN\b" docs/` (other
+   milestones' notes, M40's “Small fixes”, planned milestones that gather skipped work).
 3. Branch: `mN/<short-name>` (for example `m39/precise-seeking`). Several milestones in a row: one
    branch and pull request each, each based on the previous milestone's branch (M41 into `main`,
    M42 into M41's branch). The user reviews them one at a time.
-4. Set the status line to `**Status:** in progress.` in the milestone file only. Never edit the
-   table in `docs/roadmap.md`; parallel pull requests would conflict on it.
+4. Set `status: in progress` in the front matter and run `pnpm roadmap`.
 
 ## While building
 
@@ -38,45 +69,42 @@ is the order to do that in and the files each step touches.
 ## What you can't check here
 
 The maintainer tests on a phone in batches, not during a milestone. Verify what you can (tests,
-`pnpm build`, the web preview with screenshots), then write every remaining check into
-`docs/mN-follow-ups.md`:
+`pnpm build`, the web preview with screenshots), then write every remaining check into the
+milestone's `## Open checks`, one item each: the action, on what, and what should happen. Tag it
+`(adb)` if an agent with a USB phone and `adb` can run it, `(you)` if it needs the user. A short
+group word may follow the tag (`(you) [car]`).
 
-```markdown
-# M41 follow-ups
-
-Checked in the web preview: <what>. Covered by tests: <what>.
-
-Open on a phone:
-
-- <One check per line: the action, then what should happen.>
-```
-
-Add each phone check to `docs/testing.md` too, under the matching `A.` section if `adb` can do it
-or `B.` if it needs the user, in the form
-`- [ ] [M41] <check>. ([m41](m41-follow-ups.md#anchor))`. Deferred review findings go in the
-follow-ups file under their own heading.
+**Skipped work is not a check.** Code or a feature you left out (a deferred review finding, a
+known limit you could fix, “later”) goes into a planned milestone: add it to an existing planned
+milestone of the same area, or make a new file with the next free number, `status: planned`, a
+summary and a short body. Small unrelated ideas can go under “Future goals” in `docs/roadmap.md`.
 
 ## Finishing
 
-1. Run `pnpm format:check`, `pnpm lint`, `pnpm check`, `pnpm test` and `pnpm build`.
+1. Run `pnpm format:check`, `pnpm lint`, `pnpm check`, `pnpm test`, `pnpm build` and
+   `pnpm roadmap --check`.
 2. Review your own diff with a fresh pair of eyes (the `code-review` skill or a subagent given the
-   diff, not your summary). Fix critical and important findings; list minor ones in follow-ups.
-3. Status line: `in progress` with one or two sentences on what was built and a link to the
-   follow-ups file. `done` only when the follow-ups have no open checks, with the pull request:
-   `**Status:** done ([#74](https://github.com/lelap-app/lelap/pull/74)).`
+   diff, not your summary). Fix critical and important findings; put minor ones into a planned
+   milestone as above.
+3. Front matter: `status: done` once the code is merged (open checks may remain), and the pull
+   request numbers in `prs`. Shorten the body to a record: what shipped and where it lives in the
+   code, links to decisions in the brief. Never shorten or drop the `## Open checks` section.
+   Run `pnpm roadmap`.
 4. Commit message and pull request title: `MN Name: what it brings`, for example
    `M39 Precise seeking: marks, snapping, fine scrubbing, whole book, jump to`.
 5. Pull request body: if stacked, the first line is `Stacked on #NN (MNN). Merge that first.`
-   Then a bullet per user-visible change in plain words, then what was checked where and what is
-   in the follow-ups file.
+   Then a bullet per user-visible change in plain words, then what was checked where and how many
+   open checks the milestone file has.
 6. Check `docs/brief.md`, `README.md` and every `AGENTS.md` you passed still describe reality.
 
 ## Common mistakes
 
-| Mistake                                             | Instead                                                       |
-| --------------------------------------------------- | ------------------------------------------------------------- |
-| Marking a milestone done because the code is merged | Done means its phone checks passed.                           |
-| Asking the user to test on the phone mid-milestone  | Write the check into follow-ups and `testing.md`; keep going. |
-| Editing the roadmap table to change a status        | Status lives in the milestone file.                           |
-| One pull request for three milestones               | One per milestone, stacked.                                   |
-| A migration numbered by hand after a merge conflict | Regenerate it with `drizzle-kit generate`.                    |
+| Mistake                                             | Instead                                                           |
+| --------------------------------------------------- | ----------------------------------------------------------------- |
+| Editing the roadmap table                           | Change the front matter and run `pnpm roadmap`.                   |
+| Ticking a check without `pnpm roadmap`              | The table counts open checks; CI fails until it is regenerated.   |
+| Asking the user to test on the phone mid-milestone  | Write the check into `## Open checks`; keep going.                |
+| Writing skipped work as an open check               | Put it in a planned milestone; checks are tests of existing code. |
+| A check without `(adb)` or `(you)`                  | Tag every check; `pnpm checks --adb` relies on it.                |
+| One pull request for three milestones               | One per milestone, stacked.                                       |
+| A migration numbered by hand after a merge conflict | Regenerate it with `drizzle-kit generate`.                        |

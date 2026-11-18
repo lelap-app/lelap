@@ -18,7 +18,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "roadmap": "node scripts/roadmap.mts",
+    "checks": "node scripts/roadmap.mts checks"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm exec lint-staged"
