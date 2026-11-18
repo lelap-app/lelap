@@ -12,6 +12,14 @@ allowBuilds:
   # Like esbuild, workerd's install script only re-checks the binary from its platform package.
   workerd: false
 
+# Security fixes for transitive build-time packages (Dependabot alerts). Both targets were already
+# in the lockfile; drop an entry once its dependents ship a patched range.
+overrides:
+  # GHSA-67mh-4wv8-2f99: drizzle-kit's @esbuild-kit loader pins esbuild ^0.18.
+  'esbuild@<0.25.0': 0.25.12
+  # GHSA-g3hv-75wg-m249: @expo/fingerprint and typescript-eslint still ask for minimatch ^10.
+  'minimatch@>=7.0.0 <11.0.1': 11.0.5
+
 # Supply-chain policy (see AGENTS.md). Versions must be published for 7 days before they install;
 # an explicit value makes the check strict. Let an urgent fix through with
 # minimumReleaseAgeExclude and a comment saying why.
