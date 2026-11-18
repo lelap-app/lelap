@@ -10,11 +10,12 @@ const catalog = `catalog.${site.domain}`;
   toc={[
     ['how', 'How it works'],
     ['hardcover', 'Hardcover'],
+    ['open-library', 'Open Library reading log'],
     ['gpodder', 'gPodder sync'],
     ['privacy', 'Tokens and privacy'],
     ['self-hosting', 'Self-hosting'],
   ]}
-  description={`Report what you listen to in ${site.name} to Hardcover and to gPodder-compatible servers.`}
+  description={`Report what you listen to in ${site.name} to Hardcover, your Open Library reading log and gPodder-compatible servers.`}
 >
   <h1>Scrobbling</h1>
   <p class="lead">
@@ -59,6 +60,34 @@ const catalog = `catalog.${site.domain}`;
     after a while; when yours does, make a new link the same way and replace the add-on.
   </p>
 
+  <h2 id="open-library">Open Library reading log</h2>
+  <p>
+    <a href="https://openlibrary.org">Open Library</a> keeps a reading log for every account. With
+    this add-on, a book you start listening to goes on <strong>Currently reading</strong>, and moves
+    to <strong>Already read</strong> when you finish it. Only the book and the shelf are sent: no
+    times, no progress, no ratings.
+  </p>
+  <ol>
+    <li>
+      Open Library has no API tokens; it signs apps in with your archive.org S3 keys instead of your
+      password. Signed in with the account you use on Open Library, open{' '}
+      <a href="https://archive.org/account/s3.php">archive.org/account/s3.php</a> and copy the
+      access key and the secret key.
+    </li>
+    <li>
+      Open <code>https://{catalog}/open-library/configure</code>, paste both and make your add-on
+      link. The add-on signs in once to check them.
+    </li>
+    <li>In {site.name}, open Settings → Add-ons and paste the link.</li>
+  </ol>
+  <p>
+    Books from the Catalog are Open Library works already. Books from other add-ons count when the
+    add-on gives their Open Library work ID; all others, your own files among them, are skipped
+    rather than guessed. The S3 keys also work for archive.org itself, such as uploads, so keep the
+    link to yourself. To stop the add-on, make new keys on the same archive.org page: the old ones,
+    and every link made with them, stop working.
+  </p>
+
   <h2 id="gpodder">gPodder sync</h2>
   <p>
     gPodder-compatible servers keep the places of podcast episodes for several apps at once, such as
@@ -85,25 +114,25 @@ const catalog = `catalog.${site.domain}`;
   <h2 id="privacy">Tokens and privacy</h2>
   <ul>
     <li>
-      Your token or password is sealed into the add-on link with a key only the catalog service has
-      (AES-256-GCM). It isn’t stored on the server, and a link copied out of a log or a screenshot
-      doesn’t show it.
+      Your token, keys or password are sealed into the add-on link with a key only the catalog
+      service has (AES-256-GCM). It isn’t stored on the server, and a link copied out of a log or a
+      screenshot doesn’t show it.
     </li>
     <li>
       The link itself still works for whoever has it, so keep it to yourself. {site.name} keeps it
-      on your device and syncs it end-to-end encrypted. To stop a leaked link, revoke the token or
-      change the password at the service.
+      on your device and syncs it end-to-end encrypted. To stop a leaked link, revoke the token,
+      make new keys or change the password at the service.
     </li>
     <li>
       The add-ons are stateless: they act on each batch of events and forget it. What you played is
-      kept by Hardcover or your gPodder server, under their terms.
+      kept by Hardcover, Open Library or your gPodder server, under their terms.
     </li>
   </ul>
 
   <h2 id="self-hosting">Self-hosting</h2>
   <p>
-    Both add-ons are part of the catalog service, on Workers and in the <code>catalog</code> Docker
-    image. Set <code>CONFIG_SECRET</code> to at least 32 random characters (on Workers with{' '}
+    All three add-ons are part of the catalog service, on Workers and in the <code>catalog</code>{' '}
+    Docker image. Set <code>CONFIG_SECRET</code> to at least 32 random characters (on Workers with{' '}
     <code>wrangler secret put CONFIG_SECRET</code>); without it, the configure pages say they are
     unavailable. Keep it stable: changing it makes every link stop working until it is configured
     again. On Docker, the gPodder add-on can’t reach private addresses unless you set{' '}

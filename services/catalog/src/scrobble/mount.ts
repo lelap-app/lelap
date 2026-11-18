@@ -99,7 +99,7 @@ function installed(manifestUrl: string, name: string): Response {
     `${name} is ready`,
     `<h1>Your ${escape(name)} add-on</h1>
 <p>Copy this link and paste it in Lelap under Settings → Add-ons:</p><p><code>${escape(manifestUrl)}</code></p>
-<p class="muted">Keep the link to yourself: whoever has it can report listening to your account. To stop that, revoke the token or password at the service.</p>`,
+<p class="muted">Keep the link to yourself: whoever has it can report listening to your account. To stop that, revoke the token, keys or password at the service.</p>`,
   );
 }
 

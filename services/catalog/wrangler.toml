@@ -1,5 +1,6 @@
 # The Catalog add-on at the root, LibriVox under /librivox, Internet Archive under
-# /internet-archive, Hardcover under /hardcover and gPodder sync under /gpodder.
+# /internet-archive, Hardcover under /hardcover, gPodder sync under /gpodder and the Open Library
+# reading log under /open-library.
 # No routes here: attach a custom domain in the Cloudflare dashboard, so forks deploy to their own.
 name = "lelap-catalog"
 main = "src/index.ts"
@@ -12,5 +13,6 @@ SOURCE_URL = "https://github.com/lelap-app/lelap"
 
 # Optional secrets, set with `wrangler secret put`:
 #   PODCASTINDEX_KEY, PODCASTINDEX_SECRET  turn on the Podcast Index catalogs.
-#   CONFIG_SECRET  32+ random characters; lets listeners configure the Hardcover and gPodder
-#                  add-ons (their tokens are sealed into the add-on URL with it).
+#   CONFIG_SECRET  32+ random characters; lets listeners configure the Hardcover, gPodder and
+#                  Open Library reading log add-ons (their tokens and keys are sealed into the
+#                  add-on URL with it).

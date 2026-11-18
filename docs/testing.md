@@ -302,6 +302,8 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M30] Hardcover with a real token: Currently reading with progress after a few minutes, Read with today's date after finishing, the Want to read row. ([m30](m30-follow-ups.md))
 - [ ] [M30] Hardcover events from an offline session arrive with their own times once back online. ([m30](m30-follow-ups.md))
 - [ ] [M51] Hardcover gets start, progress and pause for 15 minutes heard with the app closed, and nothing twice after opening and closing the app; casting time counts too. ([m51](m51-follow-ups.md#checks-on-a-phone))
+- [ ] [M61] Open Library reading log with real archive.org S3 keys: the configure page makes a link; a started Catalog book is on Currently reading within a minute, and on Already read within a minute of finishing. ([m61](m61-follow-ups.md#reading))
+- [ ] [M61] Make new archive.org S3 keys: the reading log add-on stops and asks to be configured again; a book on Want to read moves to Currently reading rather than coming off. ([m61](m61-follow-ups.md#revoke))
 - [ ] [M30] gPodder (gpodder.net and Nextcloud gPodder Sync): play and pause an episode; AntennaPod on the same server continues there. ([m30](m30-follow-ups.md))
 - [ ] [M5] Podcast search needs `PODCASTINDEX_KEY` and `PODCASTINDEX_SECRET` on the catalog Worker; try trending and a search. ([m3](m3-follow-ups.md#3-not-verified))
 - [ ] [M30] Set `CONFIG_SECRET` on the catalog Worker; check the CORS preflight for `POST /scrobble` on the deployed catalog. ([m30](m30-follow-ups.md))

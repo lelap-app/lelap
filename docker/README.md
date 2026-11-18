@@ -4,13 +4,13 @@ Lelap's services run in Docker as well as on Cloudflare: the same Hono apps, wit
 [`server/`](server/) (Node's HTTP server, an in-memory cache, and Node's built-in SQLite for sync
 instead of D1).
 
-| Image                       | Port | What                                                    |
-| --------------------------- | ---- | ------------------------------------------------------- |
-| `ghcr.io/lelap-app/web`     | 8080 | The web app (static files behind Caddy)                 |
-| `ghcr.io/lelap-app/catalog` | 8787 | Catalog, LibriVox, Internet Archive, Hardcover, gPodder |
-| `ghcr.io/lelap-app/proxy`   | 8788 | RSS, covers, transcripts for the web app; never audio   |
-| `ghcr.io/lelap-app/sync`    | 8789 | Encrypted sync; data in the `/data` volume              |
-| `ghcr.io/lelap-app/updates` | 8790 | Signed app bundles (over the air); `/data`              |
+| Image                       | Port | What                                                                              |
+| --------------------------- | ---- | --------------------------------------------------------------------------------- |
+| `ghcr.io/lelap-app/web`     | 8080 | The web app (static files behind Caddy)                                           |
+| `ghcr.io/lelap-app/catalog` | 8787 | Catalog, LibriVox, Internet Archive, Hardcover, gPodder, Open Library reading log |
+| `ghcr.io/lelap-app/proxy`   | 8788 | RSS, covers, transcripts for the web app; never audio                             |
+| `ghcr.io/lelap-app/sync`    | 8789 | Encrypted sync; data in the `/data` volume                                        |
+| `ghcr.io/lelap-app/updates` | 8790 | Signed app bundles (over the air); `/data`                                        |
 
 Images are multi-arch (amd64, arm64) and published with build provenance on every release tag:
 `latest` and `1.2` for stable releases, `beta` for betas.
