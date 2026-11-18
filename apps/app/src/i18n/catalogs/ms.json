@@ -216,7 +216,7 @@
   "No feed": "Tiada suapan",
   "No goal": "Tiada sasaran",
   "No note": "Tiada nota",
-  "No podcasts found. Podcast search needs the Catalog add-on with Podcast Index.": "Tiada podcast dijumpai. Carian podcast memerlukan alat tambah Catalog dengan Podcast Index.",
+  "No podcasts found. Podcast search needs the Open Library catalog add-on with Podcast Index.": "Tiada podcast dijumpai. Carian podcast memerlukan alat tambah Open Library catalog dengan Podcast Index.",
   "No podcasts yet.": "Belum ada podcast.",
   "None of your add-ons has audio for books like this one.": "Tiada alat tambah anda yang mempunyai audio untuk buku seperti ini.",
   "Not a web address": "Bukan alamat web",
@@ -794,5 +794,9 @@
   "Review": "Semak",
   "Show in library": "Tunjukkan dalam pustaka",
   "Swipe a book to the left, or press and hold it, to hide it here.": "Leret buku ke kiri, atau tekan lama padanya, untuk menyembunyikannya di sini.",
-  "Undo": "Buat asal"
+  "Undo": "Buat asal",
+  "Keeps your Hardcover shelves up to date as you listen, and shows your Want to read shelf, trending books and your lists.": "Memastikan rak Hardcover anda dikemas kini semasa anda mendengar, dan menunjukkan rak Want to read, buku yang sedang popular dan senarai anda.",
+  "Reports the episodes you play to a gPodder-compatible server, so other podcast apps continue where you stopped.": "Melaporkan episod yang anda mainkan kepada pelayan serasi gPodder, supaya aplikasi podcast lain menyambung di tempat anda berhenti.",
+  "Opens a page on our server for your account; Lelap adds it when you are done.": "Membuka halaman di pelayan kami untuk akaun anda; Lelap menambahnya apabila anda selesai.",
+  "Opens a page on our server for your account; paste the link it gives you below.": "Membuka halaman di pelayan kami untuk akaun anda; tampal pautan yang diberikannya di bawah."
 }

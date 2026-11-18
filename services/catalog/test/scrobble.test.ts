@@ -248,6 +248,8 @@ describe('Hardcover', () => {
     expect(good.response.status).toBe(200);
     expect(good.url).toMatch(/^https:\/\/addons\.example\/hardcover\/v1\.[\w-]+\/manifest\.json$/);
     expect(good.html).not.toContain('test-token');
+    // One tap back into the app, which asks before adding it.
+    expect(good.html).toContain(`href="lelap://addon?manifest=${encodeURIComponent(good.url)}"`);
   });
 
   it('lists the Want to read shelf as a catalog', async () => {

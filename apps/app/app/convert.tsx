@@ -129,7 +129,9 @@ export default function ConvertScreen() {
           {(busy || results.isFetching) && <ActivityIndicator color="#f5b041" />}
           {results.isSuccess && results.data.length === 0 && (
             <Text className="text-muted">
-              {t('No podcasts found. Podcast search needs the Catalog add-on with Podcast Index.')}
+              {t(
+                'No podcasts found. Podcast search needs the Open Library catalog add-on with Podcast Index.',
+              )}
             </Text>
           )}
         </View>

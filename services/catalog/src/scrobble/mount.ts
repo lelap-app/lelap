@@ -155,7 +155,8 @@ function installed(manifestUrl: string, name: string): Response {
   return page(
     `${name} is ready`,
     `<h1>Your ${escape(name)} add-on</h1>
-<p>Copy this link and paste it in Lelap under Settings → Add-ons:</p><p><code>${escape(manifestUrl)}</code></p>
+<p><a class="button" href="${escape(`lelap://addon?manifest=${encodeURIComponent(manifestUrl)}`)}">Open in Lelap</a></p>
+<p>On the phone with Lelap, that adds it in one tap. Anywhere else, such as the web app, copy this link and paste it in Lelap under Settings → Add-ons:</p><p><code>${escape(manifestUrl)}</code></p>
 <p class="muted">Keep the link to yourself: whoever has it can report listening to your account. To stop that, revoke the token or password at the service.</p>`,
   );
 }

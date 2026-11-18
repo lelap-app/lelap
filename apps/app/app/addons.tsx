@@ -18,7 +18,16 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
@@ -35,6 +44,7 @@ import { useLibrary } from '../src/player';
 import { activeProfile } from '../src/profile';
 import { TextButton } from '../src/components/TextButton';
 import { bundledScrobblers, scrobblersWork } from '../src/scrobblers';
+import { hostedAddons } from '../src/config';
 
 const openScrobbler = (router: ReturnType<typeof useRouter>, url: string) =>
   router.push({ pathname: '/scrobbler', params: { url } });
@@ -174,6 +184,26 @@ function AddonsManager() {
   };
 
   const [menu, setMenu] = useState<InstalledAddon | null>(null);
+  // Our own add-ons that need your account, until one is added (its link starts with the base).
+  const hostedOffers = hostedAddons
+    .filter((h) => !addons.some((a) => a.url.startsWith(`${h.base}/`)))
+    .map((h) =>
+      h.id === 'hardcover'
+        ? {
+            ...h,
+            name: 'Hardcover',
+            description: t(
+              'Keeps your Hardcover shelves up to date as you listen, and shows your Want to read shelf, trending books and your lists.',
+            ),
+          }
+        : {
+            ...h,
+            name: 'gPodder sync',
+            description: t(
+              'Reports the episodes you play to a gPodder-compatible server, so other podcast apps continue where you stopped.',
+            ),
+          },
+    );
 
   // Real requests fill in most of the health; `/health` adds what the add-on says about itself.
   useEffect(() => {
@@ -290,7 +320,8 @@ function AddonsManager() {
       ))}
       {addons.length === 0 && <Text className="py-4 text-muted">{t('No add-ons installed.')}</Text>}
 
-      {bundledScrobblers().some((s) => !addons.some((a) => a.url === s.url)) && (
+      {(bundledScrobblers().some((s) => !addons.some((a) => a.url === s.url)) ||
+        hostedOffers.length > 0) && (
         <Text
           accessibilityRole="header"
           className="pt-6 text-xs uppercase tracking-wider text-muted"
@@ -325,6 +356,28 @@ function AddonsManager() {
             )}
           </View>
         ))}
+
+      {hostedOffers.map((h) => (
+        <View key={h.id} className="gap-1 border-b border-line py-4">
+          <View className="flex-row items-center gap-3">
+            <Text className="flex-1 text-base text-paper">{h.name}</Text>
+            <Pressable
+              onPress={() => void Linking.openURL(`${h.base}/configure`)}
+              accessibilityRole="button"
+              accessibilityLabel={t('Set up {name}', { name: h.name })}
+              className="min-h-12 justify-center rounded-full border border-line px-3 active:bg-raised"
+            >
+              <Text className="text-sm text-amber">{t('Set up')}</Text>
+            </Pressable>
+          </View>
+          <Text className="text-sm text-soft">{h.description}</Text>
+          <Text className="text-xs text-muted">
+            {Platform.OS === 'web'
+              ? t('Opens a page on our server for your account; paste the link it gives you below.')
+              : t('Opens a page on our server for your account; Lelap adds it when you are done.')}
+          </Text>
+        </View>
+      ))}
 
       <Text accessibilityRole="header" className="pt-6 text-xs uppercase tracking-wider text-muted">
         {t('Add an add-on')}

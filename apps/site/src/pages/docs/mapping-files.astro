@@ -60,9 +60,9 @@ node server.mjs      # http://localhost:8787/manifest.json
   <p>
     {site.name} asks every add-on with a <code>stream</code> resource once per page, with the first
     of the work’s IDs the add-on declares: the work’s own ID, then its <code>externalIds</code> as{' '}
-    <code>prefix:value</code>. A work from the Catalog add-on is <code>ol:OL893415W</code>, often
-    with <code>asin:…</code>; Hardcover adds <code>isbn:…</code>. Declare the prefixes you can
-    answer on the resource:
+    <code>prefix:value</code>. A work from the Open Library catalog add-on is{' '}
+    <code>ol:OL893415W</code>, often with <code>asin:…</code>; Hardcover adds <code>isbn:…</code>.
+    Declare the prefixes you can answer on the resource:
   </p>
   <CodeBlock
     code={`resources: [{ name: 'stream', types: ['audiobook'], idPrefixes: ['ol:', 'isbn:', 'asin:'] }]`}
@@ -174,8 +174,9 @@ node server.mjs      # http://localhost:8787/manifest.json
       <code>examples/source-addon</code>
     </a>{' '}
     is plain Node with the SDK: a file list with tags, an index built from it, and a{' '}
-    <code>stream</code> handler. It answers the Catalog add-on’s pages for its two books, one by the
-    ISBN in its tags and one by title and author, with no code beyond the file list.
+    <code>stream</code> handler. It answers the Open Library catalog add-on’s pages for its two
+    books, one by the ISBN in its tags and one by title and author, with no code beyond the file
+    list.
   </p>
   <details>
     <summary>
