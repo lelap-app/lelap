@@ -128,7 +128,9 @@ import { AddonError } from '@lelap/sdk';
 catalog: async ({ extra }) => {
   if (!extra.search?.trim()) throw new AddonError(400, 'Type something to search for');
   const response = await fetch(upstreamSearchUrl(extra.search));
-  if (response.status === 429) throw new AddonError(503, 'The source is busy, try again soon');
+  if (response.status === 429)
+    // Sent as Retry-After, so the app waits at least that long (SDK 0.5.0).
+    throw new AddonError(503, 'The source is busy, try again soon', { retryAfter: 60 });
   // …
 },
 `;
@@ -351,6 +353,12 @@ const toc: [string, string][] = [
       describes the flow for add-ons without the SDK.
     </li>
     <li>
+      The form and the page after it say who runs them: “This page is run by {'{host}'}, not by
+      Lelap.” Lelap never appears as the sender, since the page asks for tokens and passwords. The
+      pages use <code>PAGE_STYLE</code>, the stylesheet Lelap’s own configure pages use too, so
+      listeners see one style; use it for pages of your own.
+    </li>
+    <li>
       On Workers the secret arrives in <code>env</code> with each request, so build the add-on on
       the first one:{' '}
       <code>
@@ -391,11 +399,21 @@ const toc: [string, string][] = [
     the answer passes through the network, so the SDK refuses one that does, also with validation
     off. These helpers, revisions 5 to 8, need SDK 0.4.0 or later, like badges.
   </p>
+  <p>
+    Revision 9 (SDK 0.5.0) adds <code>Edition</code> for a meta’s <code>editions</code>,{' '}
+    <code>resumed</code> on a <code>ScrobbleEvent</code>, <code>next</code> on a{' '}
+    <code>LibraryResponse</code> for a library in pages, and{' '}
+    <code>setUpWithSettings(manifest)</code>, which tells whether an add-on inside the app is set up
+    with its settings under Settings → Add-ons, its settings reaching every call. See{' '}
+    <a href="/docs/protocol/#versions">Versions</a>.
+  </p>
 
   <h2 id="errors">Errors</h2>
   <p>
     Throw <code>new AddonError(status, message)</code> to answer with that status and{' '}
-    <code>{'{ "error": message }'}</code>. Anything else a handler throws becomes a <code>500</code>
+    <code>{'{ "error": message }'}</code>; <code>{'{ retryAfter: seconds }'}</code> as a third
+    argument adds a <code>Retry-After</code> header. Anything else a handler throws becomes a{' '}
+    <code>500</code>
     with <code>{'{ "error": "The add-on failed to answer" }'}</code>, so internal details never
     reach listeners.
   </p>

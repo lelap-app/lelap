@@ -1,21 +1,25 @@
 import {
   bookSourceChoice,
+  chosenEdition,
   downloadSnapshot,
   findBookBySource,
   findStreamedBook,
   findYourCopy,
   type FoundStream,
   getBook,
+  getEditionChoice,
   getSourceChoice,
   linkBook,
   type LinkableWork,
   pickSource,
   rejectLink,
   type SourceChoice,
+  setEditionChoice,
   setSourceChoice,
   sourceLabel,
+  withEdition,
 } from '@lelap/core';
-import { CONTENT_TYPES, type ContentType, hasParts, type Meta } from '@lelap/sdk';
+import { CONTENT_TYPES, type ContentType, type Edition, hasParts, type Meta } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -40,6 +44,19 @@ import { profileId } from '../src/profile';
 import { TextButton } from '../src/components/TextButton';
 
 const PARTS_SHOWN = 8;
+const EDITIONS_SHOWN = 4;
+
+/** The second line of an edition: who reads it, how long, which language. */
+const editionDetails = (edition: Edition) =>
+  [
+    edition.narrators?.length
+      ? t('Read by {names}', { names: edition.narrators.join(', ') })
+      : null,
+    edition.durationMs ? formatDuration(edition.durationMs) : null,
+    edition.language ? languageName(edition.language) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
 const isType = (value: string | undefined): value is ContentType =>
   (CONTENT_TYPES as readonly (string | undefined)[]).includes(value);
@@ -93,14 +110,24 @@ export default function ItemScreen() {
   const addons = useAddons();
   const [picked, setPicked] = useState<SourceChoice | null>(null);
   const [allParts, setAllParts] = useState(false);
+  const [allEditions, setAllEditions] = useState(false);
   const [starting, setStarting] = useState(false);
   // The listener's own copy plays unless they pick an add-on's source instead.
   const [ownPicked, setOwnPicked] = useState(true);
 
   const meta = useQuery(queries.meta(addons, type, id));
+  // The edition this profile chose (M66); the page shows it and asks for audio by its IDs too.
+  // `version` is the signal to re-read the database.
+  const editionKey = useMemo(() => getEditionChoice(db, profileId, type, id), [type, id, version]);
+  const edition = chosenEdition(meta.data?.meta, editionKey);
+  const work = meta.data ? withEdition(meta.data.meta, edition) : undefined;
+  const chooseEdition = (key: string | null) => {
+    setEditionChoice(db, profileId, type, id, key, Date.now());
+    refresh();
+  };
   // Wait for the meta: its external IDs reach add-ons that know the work by another ID.
   const sources = useQuery({
-    ...queries.sources(addons, type, id, meta.data?.meta.externalIds),
+    ...queries.sources(addons, type, id, work?.externalIds),
     enabled: !meta.isPending,
   });
 
@@ -122,7 +149,7 @@ export default function ItemScreen() {
 
   // The same book in the listener's own library, found on this device only (M56).
   // `version` is the signal to re-read the database.
-  const work = useMemo((): LinkableWork | null => {
+  const linkable = useMemo((): LinkableWork | null => {
     const m = meta.data?.meta;
     if (!m) return null;
     const position = Number.parseFloat(m.series?.[0]?.position ?? '');
@@ -135,7 +162,10 @@ export default function ItemScreen() {
       series: Number.isInteger(position) ? position : null,
     };
   }, [meta.data, type, id]);
-  const yourCopy = useMemo(() => (work ? findYourCopy(db, work) : null), [work, version]);
+  const yourCopy = useMemo(
+    () => (linkable ? findYourCopy(db, linkable) : null),
+    [linkable, version],
+  );
   const own = yourCopy && yourCopy.how !== 'offer' ? yourCopy : null;
   const offer = yourCopy?.how === 'offer' ? yourCopy : null;
   const playingOwn = own !== null && ownPicked;
@@ -148,15 +178,15 @@ export default function ItemScreen() {
     setSourceChoice(db, profileId, type, id, choice, Date.now());
   };
   const confirm = (yes: boolean) => {
-    if (!work || !offer) return;
-    if (yes) linkBook(db, offer.bookId, work, Date.now());
-    else rejectLink(db, offer.bookId, work, Date.now());
+    if (!linkable || !offer) return;
+    if (yes) linkBook(db, offer.bookId, linkable, Date.now());
+    else rejectLink(db, offer.bookId, linkable, Date.now());
     setOwnPicked(true);
     refresh();
   };
   const unlink = () => {
-    if (!work || !own) return;
-    rejectLink(db, own.bookId, work, Date.now());
+    if (!linkable || !own) return;
+    rejectLink(db, own.bookId, linkable, Date.now());
     refresh();
   };
 
@@ -173,7 +203,7 @@ export default function ItemScreen() {
   }, [type, id, sourceKey, ownId, version]);
   // Offline, a downloaded book shows the metadata saved with its download.
   const snapshot = useMemo(() => (saved ? downloadSnapshot(db, saved.book.id) : null), [saved]);
-  const item = meta.data?.meta ?? snapshot ?? undefined;
+  const item = work ?? snapshot ?? undefined;
   const artwork = useArtwork({
     id,
     type,
@@ -192,7 +222,7 @@ export default function ItemScreen() {
   const download = async () => {
     const bookId = item && stream ? addItem(item, stream) : saved?.book.id;
     if (!bookId) return;
-    await startDownload(bookId, meta.data?.meta ?? null);
+    await startDownload(bookId, work ?? null);
   };
   const progress =
     saved && saved.book.durationMs > 0 ? saved.book.bookPositionMs / saved.book.durationMs : 0;
@@ -411,6 +441,42 @@ export default function ItemScreen() {
                 <Text className="text-xs text-muted">
                   {t('{names} did not answer.', { names: sources.data?.failed.join(', ') ?? '' })}
                 </Text>
+              )}
+            </View>
+          )}
+
+          {(meta.data?.meta.editions?.length ?? 0) > 1 && (
+            <View className="gap-2">
+              <Text
+                accessibilityRole="header"
+                className="text-xs uppercase tracking-wider text-muted"
+              >
+                {t('Editions')}
+              </Text>
+              <SourceRow
+                selected={edition === null}
+                label={t('Any edition')}
+                details={t('As the catalog describes the book')}
+                onPress={() => chooseEdition(null)}
+              />
+              {(allEditions
+                ? (meta.data?.meta.editions ?? [])
+                : (meta.data?.meta.editions ?? []).slice(0, EDITIONS_SHOWN)
+              ).map((e) => (
+                <SourceRow
+                  key={e.key}
+                  selected={edition?.key === e.key}
+                  label={e.name}
+                  details={editionDetails(e)}
+                  onPress={() => chooseEdition(e.key)}
+                />
+              ))}
+              {!allEditions && (meta.data?.meta.editions?.length ?? 0) > EDITIONS_SHOWN && (
+                <TextButton
+                  text={t('Show all {n}', { n: meta.data?.meta.editions?.length ?? 0 })}
+                  onPress={() => setAllEditions(true)}
+                  className="self-start"
+                />
               )}
             </View>
           )}

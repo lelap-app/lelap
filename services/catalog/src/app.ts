@@ -52,13 +52,19 @@ export function createApp(platform: Platform, env: Env): Hono {
   // Never log a request or its body here: it may carry a listener's settings.
   const onError = (error: unknown) =>
     console.error(error instanceof Error ? error.message : 'Scrobble add-on failed');
+  const now = platform.now ?? Date.now;
+  // Drafts are sealed for a purpose of their own, so one never opens as a finished link.
   const hardcover = mountConfigurable(
-    { ...hardcoverAddon(platform.fetch, agent, platform.cache), onError },
+    { ...hardcoverAddon(platform.fetch, agent, platform.cache, env.CONFIG_SECRET), onError },
     createSealer(env.CONFIG_SECRET, 'hardcover'),
+    createSealer(env.CONFIG_SECRET, 'hardcover draft'),
+    now,
   );
   const gpodder = mountConfigurable(
     { ...gpodderAddon(platform.userFetch ?? platform.fetch, agent), onError },
     createSealer(env.CONFIG_SECRET, 'gpodder'),
+    createSealer(env.CONFIG_SECRET, 'gpodder draft'),
+    now,
   );
 
   const app = new Hono();

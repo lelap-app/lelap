@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { AddonError, CORS_HEADERS, createAddon } from './addon';
+import { PAGE_STYLE } from './config';
 import { catalogPath, metaPath, streamPath } from './paths';
 import type { Manifest } from './protocol';
 
@@ -52,7 +53,7 @@ describe('createAddon', () => {
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
     expect(await response.json()).toEqual({
       ...manifest,
-      protocolVersion: 8,
+      protocolVersion: 9,
       behaviorHints: { health: true },
     });
   });
@@ -222,6 +223,23 @@ describe('scrobble', () => {
   });
 });
 
+describe('AddonError', () => {
+  it('passes a wait on as Retry-After', async () => {
+    const a = createAddon({
+      manifest,
+      catalog: () => {
+        throw new AddonError(503, 'Busy', { retryAfter: 90 });
+      },
+    });
+    const response = await a.fetch(
+      new Request(`https://addon.example/${catalogPath('audiobook', 'top')}`),
+    );
+    expect(response.status).toBe(503);
+    expect(response.headers.get('retry-after')).toBe('90');
+    expect(await response.json()).toEqual({ error: 'Busy' });
+  });
+});
+
 describe('createAddon with configure', () => {
   const configured = (secret = 'test secret') =>
     createAddon(
@@ -278,6 +296,16 @@ describe('createAddon with configure', () => {
     const text = await page.text();
     expect(text).toContain('name="password"');
     expect(text).not.toContain('evil.example');
+  });
+
+  it('says who runs its pages and never sends them as Lelap', async () => {
+    const a = configured();
+    const form = await (await a.fetch(new Request('https://addon.example/sub/configure'))).text();
+    expect(form).toContain('This page is run by addon.example, not by Lelap.');
+    expect(form).toContain(PAGE_STYLE);
+    const saved = await (await post(a, 'configure', { user: 'ada', password: PASSWORD })).text();
+    expect(saved).toContain('This page is run by addon.example, not by Lelap.');
+    expect(saved).not.toContain('Open in Lelap');
   });
 
   it('turns the form into a configured manifest URL', async () => {

@@ -1,5 +1,5 @@
 import type { RequestHeaders } from '@lelap/sdk';
-import { eq } from 'drizzle-orm';
+import { eq, notInArray } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import { headersFor } from '../remote/addon';
@@ -41,6 +41,17 @@ export function saveStreamHeaders(
 /** Forgets every login an add-on's streams asked for, such as when another file takes its place. */
 export function forgetStreamHeaders(db: Db, addonUrl: string): void {
   db.delete(streamHeaders).where(eq(streamHeaders.addonUrl, addonUrl)).run();
+}
+
+/**
+ * Forgets headers whose book is gone. The table's foreign key does that on its own, but a device
+ * that ran with foreign keys off (an old build, a restored backup) can have rows left behind,
+ * sealed logins with no book. Returns how many went.
+ */
+export function pruneStreamHeaders(db: Db): number {
+  const ids = db.select({ id: books.id }).from(books);
+  return db.delete(streamHeaders).where(notInArray(streamHeaders.bookId, ids)).returning().all()
+    .length;
 }
 
 /**

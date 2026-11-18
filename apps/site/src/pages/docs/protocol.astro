@@ -108,6 +108,23 @@ const meta = example(MetaResponse, {
     ],
     externalIds: { ol: 'OL69612W' },
     link: 'https://example.com/books/secret-garden',
+    editions: [
+      {
+        key: 'example:secret-garden-2010',
+        name: 'Example Audio, 2010',
+        year: 2010,
+        narrators: ['Ana Reader'],
+        language: 'en',
+        externalIds: { isbn: '9780000000002' },
+      },
+      {
+        key: 'example:secret-garden-1998',
+        name: 'Example Audio, 1998',
+        year: 1998,
+        narrators: ['Ben Reader'],
+        durationMs: 30120000,
+      },
+    ],
   },
   cacheMaxAge: 86400,
 });
@@ -680,6 +697,13 @@ const scrobbleFields: Field[] = [
     meaning: 'For `progress`, `pause` and `finish`: where this listening session started.',
   },
   {
+    name: 'resumed',
+    type: 'boolean',
+    required: false,
+    meaning:
+      'Revision 9, on `start`: the listener carries on with a book begun before, 30 seconds or more in. A tracker that moves books to Currently reading can leave these alone.',
+  },
+  {
     name: 'rating',
     type: 'number',
     required: false,
@@ -830,6 +854,48 @@ const metaFields: Field[] = [
     type: 'URL',
     required: false,
     meaning: 'For podcasts, the RSS feed. The app subscribes to it and reads it directly.',
+  },
+  {
+    name: 'editions',
+    type: 'Edition[]',
+    required: false,
+    meaning:
+      'Revision 9: the work’s editions, up to 100, the one the meta describes first. The item page lists them and the listener can choose one. A list that does not fit is dropped, not the item.',
+  },
+];
+
+const editionFields: Field[] = [
+  {
+    name: 'key',
+    type: 'string',
+    required: true,
+    meaning:
+      'Stable within the item, such as an Open Library edition key. The app keeps the listener’s choice by it.',
+  },
+  {
+    name: 'name',
+    type: 'string',
+    required: true,
+    meaning: 'What sets it apart, such as `Blackstone Audio, 2010`. Up to 200 characters.',
+  },
+  { name: 'year', type: 'integer', required: false, meaning: 'When it came out.' },
+  { name: 'narrators', type: 'string[]', required: false, meaning: 'Who reads it.' },
+  { name: 'publisher', type: 'string', required: false, meaning: 'Who published it.' },
+  { name: 'language', type: 'string', required: false, meaning: 'BCP 47 or ISO 639 code.' },
+  { name: 'cover', type: 'URL', required: false, meaning: 'This edition’s cover.' },
+  {
+    name: 'durationMs',
+    type: 'integer ≥ 0',
+    required: false,
+    meaning:
+      'Its length. When it differs from the meta’s, the meta’s chapters are not used for it.',
+  },
+  {
+    name: 'externalIds',
+    type: 'object<string, string>',
+    required: false,
+    meaning:
+      'This edition’s own IDs, such as `{ "asin": "B002UZMLXM" }`. With the edition chosen, the app asks add-ons for audio by these too.',
   },
 ];
 
@@ -1194,6 +1260,14 @@ const toc: [string, string][] = [
   <FieldTable fields={seriesFields} />
   <h3 id="episode">Episode</h3>
   <FieldTable fields={episodeFields} />
+  <h3 id="edition">Edition</h3>
+  <p>
+    Since revision 9. The item page lists a work’s editions when there are two or more; the listener
+    can choose one, and the page then shows its cover, year, narrators and length, and asks add-ons
+    for audio by its <code>externalIds</code> as well as the work’s. The choice stays on the device.
+    The Open Library catalog lists a work’s audio editions.
+  </p>
+  <FieldTable fields={editionFields} />
   <CodeBlock code={meta} label={`GET ${metaUrl}`} />
   <CodeBlock code={podcast} label={`GET ${podcastUrl}`} />
 
@@ -1254,8 +1328,15 @@ const toc: [string, string][] = [
     <li>
       <code>start</code> when playing starts, <code>progress</code> about every five minutes while
       it plays, <code>pause</code> when it stops or another item takes over, and <code>finish</code>{' '}
-      at the end. <code>abandon</code> (the listener gave up) and <code>rate</code> are part of the
-      protocol; the app doesn’t send them yet.
+      at the end, or when the listener marks a book as finished. <code>abandon</code> when the
+      listener chooses Stop reading in a book’s menu. <code>rate</code> is part of the protocol; the
+      app doesn’t send it yet.
+    </li>
+    <li>
+      Since revision 9, a <code>start</code> 30 seconds or more into a book carries{' '}
+      <code>resumed: true</code>: the listener goes on with a book begun before. Moving a book to
+      Currently reading on every <code>start</code> would sign in on every resume, and move a
+      finished book back when the listener plays its last minutes again.
     </li>
     <li>
       Events wait on the device and go out when the add-on can be reached, so a train ride offline
@@ -1268,7 +1349,9 @@ const toc: [string, string][] = [
     <li>
       Answer <code>2xx</code> when the events are handled or deliberately ignored. A{' '}
       <code>4xx</code> (other than <code>408</code> and <code>429</code>) drops them; anything else,
-      or no answer, makes the app try again later, waiting longer each time, for up to 30 days. Keep
+      or no answer, makes the app try again later, waiting longer each time, for up to 30 days. A{' '}
+      <code>Retry-After</code> header (seconds or a date, up to a day) makes it wait at least that
+      long; the SDK’s <code>AddonError(503, message, {'{ retryAfter }'})</code> sends one. Keep
       handling idempotent: set states rather than adding to them.
     </li>
   </ul>
@@ -1282,17 +1365,23 @@ const toc: [string, string][] = [
     <a href="/docs/scrobbling/">Scrobbling</a> for the first-party Hardcover, gPodder and Open
     Library reading log add-ons.
   </p>
-  <h3 id="scrobble-settings">Scrobblers inside the app with settings</h3>
+  <h3 id="scrobble-settings">Add-ons inside the app with settings</h3>
   <p>
     Since revision 8, an add-on inside the app with <code>scrobble</code> and <code>settings</code>{' '}
     but no <code>library</code> is set up under Settings → Add-ons, with the form its{' '}
-    <code>settings</code> describe. Every value, text fields too, is sealed on the phone, and
-    nothing is kept where the phone has no key store; never synced, exported or in diagnostics.
-    Instead of <code>POST /scrobble</code>, the app calls <code>{scrobblePath()}</code> in the
-    add-on’s own sandbox, and the handler gets <code>args.events</code> and{' '}
-    <code>args.settings</code>. Throw an error with a <code>status</code> to answer it:{' '}
-    <code>401</code> when the listener has to set the add-on up again, a <code>5xx</code> to be
-    tried later. The Open Library reading log, which comes with the app, is one.
+    <code>settings</code> describe. Since revision 9 that holds for every add-on inside the app with{' '}
+    <code>settings</code> and no <code>library</code>, and the values reach all of its calls:{' '}
+    <code>catalog</code>, <code>meta</code>, <code>stream</code> and <code>artwork</code> get them
+    as <code>args.settings</code> too, in the same sandbox, which also reaches the hosts of{' '}
+    <code>url</code> fields marked <code>host</code>. Before it is set up, its calls go without
+    settings. A library source’s settings belong to each server, so its other calls get none. Every
+    value, text fields too, is sealed on the phone, and nothing is kept where the phone has no key
+    store; never synced, exported or in diagnostics. Instead of <code>POST /scrobble</code>, the app
+    calls <code>{scrobblePath()}</code> in the add-on’s own sandbox, and the handler gets{' '}
+    <code>args.events</code> and <code>args.settings</code>. Throw an error with a{' '}
+    <code>status</code> to answer it: <code>401</code> when the listener has to set the add-on up
+    again, a <code>5xx</code> to be tried later; give the error a <code>retryAfter</code> in seconds
+    to say how long to wait. The Open Library reading log, which comes with the app, is one.
   </p>
 
   <h2 id="versions">Versions</h2>
@@ -1315,8 +1404,12 @@ const toc: [string, string][] = [
     revision 6 refuses a manifest that lists <code>place</code>. Revision 7 adds a library’s{' '}
     <code>webQuery</code> and <a href="#signin">signing in through a website</a>; an app before
     revision 7 refuses a manifest that lists <code>signin</code>. Revision 8 adds{' '}
-    <a href="#scrobble-settings">scrobblers inside the app with settings</a>. When an add-on
-    declares a newer revision than the app knows, Settings → Add-ons says so.
+    <a href="#scrobble-settings">scrobblers inside the app with settings</a>. Revision 9 adds a
+    meta’s <a href="#edition">editions</a>, a <code>start</code>’s <code>resumed</code>, a library’s{' '}
+    <a href="#library-pages">pages</a>, and hands the settings of an add-on inside the app without{' '}
+    <code>library</code> to <a href="#scrobble-settings">every one of its calls</a>; an app before
+    revision 9 ignores them. When an add-on declares a newer revision than the app knows, Settings →
+    Add-ons says so.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />
@@ -1362,6 +1455,11 @@ const toc: [string, string][] = [
     <li>
       Opened from a configured URL (<code>{base}/e1.…/configure</code>), the page should show the
       current settings, never a password.
+    </li>
+    <li>
+      Say who runs the page, and never pass it off as Lelap’s: it asks for tokens and passwords, and
+      a page that looks like the app’s own would make its trust warning meaningless. Pages the SDK
+      serves end with “This page is run by {'{host}'}, not by Lelap.”
     </li>
   </ul>
   <p>
@@ -1507,6 +1605,16 @@ const toc: [string, string][] = [
     <code>title</code> and <code>artist</code> work as in a file’s tags, and <code>chapters</code>{' '}
     is a list of <a href="#chapter">Chapter</a>. The SDK’s <code>readSettings</code> checks a form
     the same way the app does, and <code>settingHosts</code> gives the hosts it grants.
+  </p>
+
+  <h3 id="library-pages">Pages</h3>
+  <p>
+    Since revision 9, a large library can come in pages. An answer is at most 5 MB, about 20,000
+    files; give <code>next</code>, any string, when there are more, and the app calls{' '}
+    <code>library</code> again with it as <code>args.library.cursor</code>, joining the files, up to
+    1,000 pages. <code>headers</code>, <code>query</code> and <code>webQuery</code> come from the
+    first page. An app before revision 9 keeps the first page only. Once the listing is done, the
+    app closes the server’s sandbox until it is needed again.
   </p>
 
   <h3 id="query">A login in the address</h3>

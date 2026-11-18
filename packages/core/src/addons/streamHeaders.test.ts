@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
 import type { Manifest, Stream } from '@lelap/sdk';
+import { sql } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createTestDb } from '../../test/db';
@@ -10,7 +11,7 @@ import { createSecretBox, plainBox, setSecretBox } from '../secrets';
 import { collectOps } from '../sync/ops';
 import { type Fetcher, fetchAddonStreams, type InstalledAddon } from './client';
 import { addStreamedBook, removeStreamedBook } from './streamed';
-import { forgetStreamHeaders, streamHeadersFor } from './streamHeaders';
+import { forgetStreamHeaders, pruneStreamHeaders, streamHeadersFor } from './streamHeaders';
 
 const random = (n: number) => new Uint8Array(randomBytes(n));
 let n = 0;
@@ -104,5 +105,29 @@ describe('stream headers', () => {
     expect(fromWeb.map((f) => f.stream.sourceKey)).toEqual(['plain']);
     const fromLocal = await fetchAddonStreams(fetcher, local, 'audiobook', 'home:dune');
     expect(fromLocal.map((f) => f.stream.headers)).toEqual([{ Authorization: TOKEN }, undefined]);
+  });
+
+  it('forgets rows left behind for a book that is gone', () => {
+    const db = createTestDb();
+    const bookId = addStreamedBook(db, {
+      addonUrl: LOCAL,
+      meta,
+      stream: stream(),
+      now: 0,
+      newId,
+    });
+    db.run(sql`pragma foreign_keys = off`);
+    db.insert(streamHeaders)
+      .values({ bookId: 'gone', addonUrl: LOCAL, headers: 'sealed', updatedAt: 0 })
+      .run();
+    db.run(sql`pragma foreign_keys = on`);
+    expect(pruneStreamHeaders(db)).toBe(1);
+    expect(
+      db
+        .select()
+        .from(streamHeaders)
+        .all()
+        .map((r) => r.bookId),
+    ).toEqual([bookId]);
   });
 });

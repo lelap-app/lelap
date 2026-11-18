@@ -26,7 +26,8 @@ import { sandboxPage } from './page';
 // on Android, an iframe on the web), started when first needed. Calls go in as messages; the
 // sandbox asks the app to fetch, and the app fetches only from the add-on's declared hosts.
 // An add-on used as a library source (M57) gets a sandbox of its own per server, with that
-// server's hosts, and its settings only in that sandbox's `library` and `place` calls.
+// server's hosts, and its settings only in that sandbox's `library` and `place` calls. An add-on
+// set up with settings under Settings → Add-ons (M61, M66) gets one sandbox for all its calls.
 
 const CALL_TIMEOUT_MS = 20_000;
 // A library listing may take many requests, such as one per album on a Subsonic server: thousands
@@ -187,6 +188,7 @@ async function call(
     place?: PlaceReport;
     signin?: { state?: string };
     events?: ScrobbleEvent[];
+    library?: { cursor?: string };
     timeoutMs?: number;
   } = {},
 ): Promise<{ status: number; body: unknown }> {
@@ -222,6 +224,7 @@ async function call(
         ...(extra.place ? { place: extra.place } : {}),
         ...(extra.signin ? { signin: extra.signin } : {}),
         ...(extra.events ? { events: extra.events } : {}),
+        ...(extra.library ? { library: extra.library } : {}),
       }),
     );
   });
@@ -247,8 +250,24 @@ export async function callAddonLibrary(args: {
   sandboxId: string;
   hosts: string[];
   settings: Settings;
+  /** A page's `next` (revision 9), for the page after it. */
+  cursor?: string;
 }): Promise<{ status: number; body: unknown }> {
-  return call(serverBox(args), libraryPath(), args.settings, { timeoutMs: LIBRARY_TIMEOUT_MS });
+  return call(serverBox(args), libraryPath(), args.settings, {
+    timeoutMs: LIBRARY_TIMEOUT_MS,
+    library: args.cursor === undefined ? {} : { cursor: args.cursor },
+  });
+}
+
+/**
+ * Closes a server's sandbox once its listing is done, so a scan of several servers doesn't keep a
+ * hidden WebView each. A place report or the next scan starts it again.
+ */
+export function closeServerSandbox(addonUrl: string, sandboxId: string): void {
+  const id = `${addonUrl}#${sandboxId}`;
+  const box = boxes.get(id);
+  // A call still running, such as a place report, keeps it open.
+  if (box && box.calls.size === 0) closeSandbox(id);
 }
 
 /** One server's sandbox, started again when its hosts changed. */
@@ -299,6 +318,10 @@ export async function callAddonSignin(args: {
   });
 }
 
+// The one sandbox of an add-on set up with settings: its scrobbles and, since revision 9, every
+// other call go there, with the settings' hosts.
+const SETTINGS_BOX = 'settings';
+
 /**
  * Hands a scrobbler inside the app (revision 8) a batch of events with its settings, in a sandbox
  * of its own that reaches only `hosts`. No events is the check made when it is set up.
@@ -310,10 +333,27 @@ export async function callAddonScrobble(args: {
   events: ScrobbleEvent[];
 }): Promise<{ status: number; body: unknown }> {
   return call(
-    serverBox({ addonUrl: args.addonUrl, sandboxId: 'scrobble', hosts: args.hosts }),
+    serverBox({ addonUrl: args.addonUrl, sandboxId: SETTINGS_BOX, hosts: args.hosts }),
     scrobblePath(),
     args.settings,
     { events: args.events, timeoutMs: PLACE_TIMEOUT_MS },
+  );
+}
+
+/**
+ * Calls a route of an add-on set up with settings (revision 9), such as a catalog, with its
+ * settings, in the same sandbox as its scrobbles.
+ */
+export async function callAddonWithSettings(args: {
+  addonUrl: string;
+  hosts: string[];
+  settings: Settings;
+  path: string;
+}): Promise<{ status: number; body: unknown }> {
+  return call(
+    serverBox({ addonUrl: args.addonUrl, sandboxId: SETTINGS_BOX, hosts: args.hosts }),
+    args.path,
+    args.settings,
   );
 }
 

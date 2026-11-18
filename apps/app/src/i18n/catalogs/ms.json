@@ -909,5 +909,10 @@
   "Days in a row": "Hari berturut-turut",
   "Month by month": "Bulan demi bulan",
   "Most listened": "Paling banyak didengar",
-  "Most listened: {title}": "Paling banyak didengar: {title}"
+  "Most listened: {title}": "Paling banyak didengar: {title}",
+  "Editions": "Edisi",
+  "Any edition": "Mana-mana edisi",
+  "As the catalog describes the book": "Seperti yang diterangkan oleh katalog",
+  "Stop reading": "Berhenti membaca",
+  "Your reading trackers now show this book as not finished.": "Penjejak bacaan anda kini menunjukkan buku ini sebagai tidak selesai."
 }

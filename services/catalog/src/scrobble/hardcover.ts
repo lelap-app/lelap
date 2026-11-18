@@ -188,6 +188,9 @@ function mutationId(result: { id?: number | null; error?: string | null } | unde
 async function apply(gql: GraphQL, user: number, book: number, event: ScrobbleEvent) {
   const found = await gql<{ user_books: UserBook[] }>(USER_BOOK, { user, book });
   let userBook = found.user_books[0];
+  // Carrying on with a book already marked read, such as its last minutes again, isn't a new
+  // reading; only a fresh start (revision 9: a start without `resumed`) is.
+  if (userBook?.status_id === STATUS.read && carriesOn(event)) return;
   const wanted =
     event.event === 'finish'
       ? STATUS.read
@@ -249,6 +252,12 @@ async function apply(gql: GraphQL, user: number, book: number, event: ScrobbleEv
   }
 }
 
+/** Progress, a pause or a resumed start: the listener goes on with a reading already begun. */
+const carriesOn = (event: ScrobbleEvent) =>
+  event.event === 'progress' ||
+  event.event === 'pause' ||
+  (event.event === 'start' && event.resumed === true);
+
 /** Keeps the last event per book: Hardcover holds a state, not a history. */
 export function latestPerItem(events: ScrobbleEvent[]): ScrobbleEvent[] {
   const key = (e: ScrobbleEvent) =>
@@ -257,7 +266,15 @@ export function latestPerItem(events: ScrobbleEvent[]): ScrobbleEvent[] {
   for (const event of [...events].sort((a, b) => a.at - b.at)) {
     const previous = last.get(key(event));
     // A pause right after a finish must not make the book "reading" again.
-    if (previous?.event === 'finish' && event.event !== 'start') continue;
+    if (previous?.event === 'finish' && (event.event !== 'start' || event.resumed === true))
+      continue;
+    // A fresh start followed by progress stays a fresh start, at the later position.
+    if (previous?.event === 'start' && previous.resumed !== true && carriesOn(event)) {
+      const fresh: ScrobbleEvent = { ...event, event: 'start' };
+      delete fresh.resumed;
+      last.set(key(event), fresh);
+      continue;
+    }
     last.set(key(event), event);
   }
   return [...last.values()];
@@ -268,9 +285,11 @@ export function hardcoverAddon(
   userAgent: string,
   /** The Workers Cache API; without one (Docker), answers are kept in memory. */
   cache: ResponseCache = memoryCache(),
+  /** `CONFIG_SECRET`, which keys the cache's names for tokens. */
+  secret?: string,
 ): Omit<ConfigurableAddon<HardcoverConfig>, 'onError'> {
   const client = (config: HardcoverConfig) => hardcoverClient(fetch, config.token, userAgent);
-  const cachedFor = (config: HardcoverConfig) => tokenCache(cache, config.token);
+  const cachedFor = (config: HardcoverConfig) => tokenCache(cache, config.token, secret);
   // A token belongs to one account for good, so its user ID can be kept for a day.
   const userOf = (gql: GraphQL, config: HardcoverConfig) =>
     cachedFor(config)('me', TTL.item, () => currentUser(gql));

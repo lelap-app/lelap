@@ -15,6 +15,7 @@ import {
   type ScrobbleEvent,
   ScrobbleRequest,
   scrobblesWithSettings,
+  setUpWithSettings,
   type Settings,
 } from '@lelap/sdk';
 import { Platform } from 'react-native';
@@ -23,11 +24,13 @@ import { codeFingerprint, sourceManifest } from './addonSources';
 import { clientName, scrobblerStandInSetting } from './config';
 import { db, newId } from './db';
 import { t } from './i18n';
-import { callAddonScrobble } from './sandbox';
+import { callAddonScrobble, callAddonWithSettings } from './sandbox';
 
 // Scrobblers inside the app (M61, protocol revision 8), such as the Open Library reading log: set
 // up with their settings under Settings → Add-ons, kept sealed on this device, and handed their
-// events in a sandbox of their own instead of over HTTP.
+// events in a sandbox of their own instead of over HTTP. Since revision 9 (M66) every add-on
+// inside the app with settings and no library is set up the same way, and its settings reach all
+// of its calls.
 
 const CANNOT_SEAL = () =>
   t(
@@ -47,19 +50,44 @@ export function bundledScrobblers(): { url: string; manifest: Manifest }[] {
  */
 export const scrobblersWork = Platform.OS !== 'web';
 
-const answer = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+/** A sandbox's answer as HTTP; the add-on's `retryAfter` (seconds) becomes `Retry-After`. */
+const answer = (status: number, body: unknown) => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const wait =
+    typeof body === 'object' && body !== null && 'retryAfter' in body ? body.retryAfter : null;
+  if (typeof wait === 'number' && Number.isFinite(wait) && wait >= 0)
+    headers['Retry-After'] = String(Math.round(wait));
+  return new Response(JSON.stringify(body), { status, headers });
+};
 
-async function call(url: string, manifest: Manifest, settings: Settings, events: ScrobbleEvent[]) {
-  const { hosts, settings: given } = scrobblerCall(manifest, settings, {
+const given = (manifest: Manifest, settings: Settings) =>
+  scrobblerCall(manifest, settings, {
     client: clientName,
     server: scrobblerStandIn(process.env.NODE_ENV, scrobblerStandInSetting),
   });
-  return callAddonScrobble({
-    addonUrl: url,
-    hosts,
-    settings: given,
-    events,
+
+async function call(url: string, manifest: Manifest, settings: Settings, events: ScrobbleEvent[]) {
+  const sandbox = given(manifest, settings);
+  return callAddonScrobble({ addonUrl: url, ...sandbox, events });
+}
+
+/**
+ * A call of an add-on set up with settings (revision 9), such as `catalog/audiobook/top.json`,
+ * with its settings; null when it has none to hand over here, so the call goes without them.
+ */
+export async function callWithSettings(
+  manifestUrl: string,
+  path: string,
+): Promise<{ status: number; body: unknown } | null> {
+  if (!scrobblersWork) return null;
+  const manifest = sourceManifest(manifestUrl);
+  if (!manifest || !setUpWithSettings(manifest)) return null;
+  const stored = loadAddonSettings(db, manifestUrl, codeFingerprint(manifestUrl));
+  if (stored.state !== 'ok') return null;
+  return callAddonWithSettings({
+    addonUrl: manifestUrl,
+    ...given(manifest, stored.settings),
+    path,
   });
 }
 
@@ -97,16 +125,19 @@ export function scrobblerForm(url: string): { values: Settings; again: boolean }
 }
 
 /**
- * Checks the settings with the add-on (a call without events signs in), then keeps them sealed and
- * installs the add-on so the outbox sends it events. Throws with the add-on's words on failure.
+ * Checks the settings with a scrobbler (a call without events signs in), then keeps them sealed and
+ * installs the add-on so the outbox sends it events and its calls get them. An add-on without
+ * `scrobble` (revision 9) has no such check. Throws with the add-on's words on failure.
  */
 export async function setUpScrobbler(url: string, settings: Settings): Promise<void> {
   const manifest = sourceManifest(url);
-  if (!manifest || !scrobblesWithSettings(manifest))
+  if (!manifest || !setUpWithSettings(manifest))
     throw new Error(t('This add-on is not on this device.'));
   // Checked first, so keys that couldn't be kept are never sent either.
   if (!secretBox().sealing) throw new Error(CANNOT_SEAL());
-  const result = await call(url, manifest, settings, []);
+  const result = scrobblesWithSettings(manifest)
+    ? await call(url, manifest, settings, [])
+    : { status: 200, body: null };
   if (result.status !== 200) {
     const said =
       typeof result.body === 'object' && result.body !== null && 'error' in result.body

@@ -5,12 +5,15 @@ import { createTestDb } from '../test/db';
 import { seedBook } from '../test/seed';
 import type { InstalledAddon } from './addons/client';
 import { addStreamedBook } from './addons/streamed';
+import { linkBook } from './library/links';
 import { DEFAULT_PROFILE_ID as ME } from './profiles';
 import { scrobbleOutbox } from './schema';
 import {
   enqueueScrobble,
   nextScrobbleDue,
   type Poster,
+  RESUMED_AFTER_MS,
+  retryAfterMs,
   SCROBBLE_MAX_AGE_MS,
   SCROBBLE_PROGRESS_MS,
   ScrobbleTracker,
@@ -143,6 +146,21 @@ describe('sendScrobbles', () => {
     expect((await sendScrobbles(db, busy, [scrobbler], 1)).failed).toBe(1);
   });
 
+  it('waits at least as long as the add-on’s Retry-After', async () => {
+    const db = createTestDb();
+    enqueueScrobble(db, { profileId: ME, addons: [scrobbler], event: event(0), newId });
+    const busy = vi.fn<Poster>(async () => ({
+      ok: false,
+      status: 503,
+      headers: new Headers({ 'Retry-After': '3600' }),
+    }));
+    await sendScrobbles(db, busy, [scrobbler], 100);
+    expect(nextScrobbleDue(db)).toBe(100 + 3_600_000);
+    expect(retryAfterMs('soon', 0)).toBe(0);
+    expect(retryAfterMs(new Date(5_000).toUTCString(), 0)).toBe(5_000);
+    expect(retryAfterMs('999999', 0)).toBe(24 * 60 * 60 * 1000);
+  });
+
   it('drops events older than a month', async () => {
     const db = createTestDb();
     enqueueScrobble(db, { profileId: ME, addons: [scrobbler], event: event(0), newId });
@@ -234,6 +252,37 @@ describe('scrobbleItem', () => {
       },
     });
     expect(JSON.stringify(built)).not.toContain('audio.example');
+  });
+
+  it('gives the listener’s own book the IDs of the work it is linked to', () => {
+    const db = createTestDb();
+    const bookId = seedBook(db, 'Dune', [{ location: 'dune/1.mp3', durationMs: 1000 }]);
+    linkBook(
+      db,
+      bookId,
+      {
+        type: 'audiobook',
+        id: 'ol:OL893415W',
+        title: 'Dune',
+        author: 'Frank Herbert',
+        externalIds: { ol: 'OL893415W', asin: 'B002V1OF70' },
+        series: null,
+      },
+      0,
+    );
+    expect(scrobbleItem(db, bookId)?.externalIds).toEqual({ ol: 'OL893415W', asin: 'B002V1OF70' });
+  });
+
+  it('marks a start far into a book as resumed', () => {
+    const db = createTestDb();
+    const bookId = seedBook(db, 'Dune', [{ location: 'dune/1.mp3', durationMs: 100_000 }]);
+    const start = (positionMs: number) =>
+      scrobbleEventFor(db, { event: 'start', bookId, at: 1, positionMs })?.resumed;
+    expect(start(0)).toBeUndefined();
+    expect(start(RESUMED_AFTER_MS)).toBe(true);
+    expect(
+      scrobbleEventFor(db, { event: 'pause', bookId, at: 1, positionMs: 90_000 })?.resumed,
+    ).toBeUndefined();
   });
 
   it('is null for a book that is gone', () => {

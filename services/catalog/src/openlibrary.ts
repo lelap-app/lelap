@@ -1,4 +1,4 @@
-import type { Meta, MetaPreview } from '@lelap/sdk';
+import type { Edition as MetaEdition, Meta, MetaPreview } from '@lelap/sdk';
 import { z } from 'zod';
 
 import { first, truncate, unique, yearOf } from './text';
@@ -42,9 +42,18 @@ export type Work = z.infer<typeof Work>;
 const Author = z.object({ name: z.string().min(1) });
 
 const Edition = z.object({
+  key: lenient(z.string()),
   physical_format: lenient(z.string()),
   identifiers: lenient(z.object({ amazon: lenient(z.array(z.string())) })),
+  publishers: lenient(z.array(z.string())),
+  publish_date: lenient(z.string()),
+  isbn_13: lenient(z.array(z.string())),
+  isbn_10: lenient(z.array(z.string())),
+  covers: lenient(z.array(z.number().int())),
+  languages: lenient(z.array(z.object({ key: z.string() }))),
+  contributors: lenient(z.array(z.object({ role: lenient(z.string()), name: z.string() }))),
 });
+type Edition = z.infer<typeof Edition>;
 const Editions = z.object({ entries: z.array(z.unknown()) });
 
 /** Audible ASINs start with B0; ten-digit ISBNs in the same field are print or CD editions. */
@@ -128,25 +137,74 @@ export async function authorNames(upstream: Upstream, work: Work, max = 2): Prom
   return results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
 }
 
-/**
- * The Audible ASIN of an audio edition of the work, if Open Library records one. Editions marked
- * as Audible come first; ebooks have ASINs too, so only audio formats count.
- */
-export async function audioAsin(upstream: Upstream, workId: string): Promise<string | null> {
+/** The work's editions as Open Library lists them, up to 100; failures give none. */
+export async function fetchEditions(upstream: Upstream, workId: string): Promise<Edition[]> {
   const parsed = Editions.safeParse(
     await upstream.json(`${OPEN_LIBRARY}/works/${workId}/editions.json?limit=100`, {
       ttl: TTL.item,
     }),
   );
-  if (!parsed.success) return null;
-  const candidates = parsed.data.entries.flatMap((raw) => {
-    const edition = Edition.safeParse(raw).data;
-    const format = edition?.physical_format?.toLowerCase() ?? '';
-    if (!/audi|mp3/.test(format)) return [];
-    const asin = edition?.identifiers?.amazon?.find((id) => AUDIBLE_ASIN.test(id));
-    return asin ? [{ asin, audible: format.includes('audible') }] : [];
+  if (!parsed.success) return [];
+  return parsed.data.entries.flatMap((raw) => {
+    const edition = Edition.safeParse(raw);
+    return edition.success ? [edition.data] : [];
+  });
+}
+
+const isAudio = (edition: Edition) => /audi|mp3/.test(edition.physical_format?.toLowerCase() ?? '');
+const asinOf = (edition: Edition) =>
+  edition.identifiers?.amazon?.find((id) => AUDIBLE_ASIN.test(id));
+
+/**
+ * The Audible ASIN of an audio edition of the work, if Open Library records one. Editions marked
+ * as Audible come first; ebooks have ASINs too, so only audio formats count.
+ */
+export function audioAsin(editions: Edition[]): string | null {
+  const candidates = editions.filter(isAudio).flatMap((edition) => {
+    const asin = asinOf(edition);
+    const audible = edition.physical_format?.toLowerCase().includes('audible') ?? false;
+    return asin ? [{ asin, audible }] : [];
   });
   return (candidates.find((c) => c.audible) ?? candidates[0])?.asin ?? null;
+}
+
+/**
+ * The work's audio editions for the item page (protocol revision 9): publisher, year, narrators,
+ * cover and their own ISBN and ASIN. Print and ebook editions are left out; Lelap plays audio.
+ */
+export function audioEditions(editions: Edition[]): MetaEdition[] {
+  return editions.filter(isAudio).flatMap((edition) => {
+    const key = edition.key?.replace(/^\/books\//, '');
+    if (!key || !/^OL\d+M$/.test(key)) return [];
+    const publisher = first(edition.publishers)?.trim();
+    const year = yearOf(edition.publish_date);
+    const name = [publisher, year].filter(Boolean).join(', ') || edition.physical_format || key;
+    const narrators = unique(
+      (edition.contributors ?? [])
+        .filter((c) => /narrat|reader/i.test(c.role ?? ''))
+        .map((c) => c.name.trim()),
+    ).filter(Boolean);
+    const cover = edition.covers?.find((id) => id > 0);
+    const language = edition.languages?.[0]?.key.replace(/^\/languages\//, '');
+    // The key is the edition's own Open Library ID; `ol` stays the work's.
+    const externalIds: Record<string, string> = {};
+    const isbn = first(edition.isbn_13) ?? first(edition.isbn_10);
+    if (isbn) externalIds.isbn = isbn;
+    const asin = asinOf(edition);
+    if (asin) externalIds.asin = asin;
+    return [
+      {
+        key,
+        name: truncate(name, 200),
+        ...(year ? { year } : {}),
+        ...(publisher ? { publisher: truncate(publisher, 200) } : {}),
+        ...(narrators.length > 0 ? { narrators: narrators.slice(0, 20) } : {}),
+        ...(language ? { language } : {}),
+        ...(cover ? { cover: coverUrl(cover, 'L') } : {}),
+        ...(Object.keys(externalIds).length > 0 ? { externalIds } : {}),
+      },
+    ];
+  });
 }
 
 /** Open Library descriptions are Markdown with a source footer; keep the prose. */
@@ -173,14 +231,18 @@ export async function workMeta(upstream: Upstream, id: string): Promise<Meta | n
     link: `${OPEN_LIBRARY}/works/${workId}`,
     externalIds: { ol: workId },
   };
-  const [authors, asin] = await Promise.all([
+  const [authors, editions] = await Promise.all([
     authorNames(upstream, work),
     // A merged work's editions live under the work it points to.
-    audioAsin(upstream, workIdOf(`${PREFIX}${work.key.replace('/works/', '')}`) ?? workId).catch(
-      () => null,
-    ),
+    fetchEditions(
+      upstream,
+      workIdOf(`${PREFIX}${work.key.replace('/works/', '')}`) ?? workId,
+    ).catch(() => []),
   ]);
+  const asin = audioAsin(editions);
   if (asin) meta.externalIds = { ol: workId, asin };
+  const audio = audioEditions(editions);
+  if (audio.length > 0) meta.editions = audio;
   if (authors.length > 0) meta.author = authors.join(', ');
   const raw = typeof work.description === 'string' ? work.description : work.description?.value;
   const description = raw ? cleanDescription(raw) : '';

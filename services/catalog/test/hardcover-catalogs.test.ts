@@ -2,7 +2,8 @@ import type { Manifest, MetaPreview } from '@lelap/sdk';
 import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../src/app';
-import { editionIds } from '../src/scrobble/hardcover-api';
+import { cacheOwner, editionIds, retryAfter } from '../src/scrobble/hardcover-api';
+import { DRAFT_MS } from '../src/scrobble/mount';
 import { listLink, MAX_LISTS } from '../src/scrobble/hardcover-catalogs';
 import { createSealer } from '../src/scrobble/sealed';
 import type { FetchLike, ResponseCache } from '../src/upstream';
@@ -411,6 +412,57 @@ describe('Hardcover catalogs', () => {
       'trending-month',
       'trending-all',
     ]);
+  });
+
+  it('keeps the ticks and typed links when the choices page shows an error', async () => {
+    const app = appWith(hardcover().fetch);
+    const { response, html } = await configure(app, READER, {
+      trending: ['all'],
+      list: ['20'],
+      links: ['https://hardcover.app/@someone/lists/secret'],
+    });
+    expect(response.status).toBe(400);
+    expect(ticked(html)).toEqual(['trending=all', 'list=20']);
+    expect(html).toContain('value="https://hardcover.app/@someone/lists/secret"');
+  });
+
+  it('seals drafts apart from links, and they run out', async () => {
+    let now = 0;
+    const app = createApp({ fetch: hardcover().fetch, now: () => now }, { CONFIG_SECRET: SECRET });
+    const first = await (
+      await postForm(app, '/hardcover/configure', new URLSearchParams({ token: READER }))
+    ).text();
+    const draft = draftOf(first);
+    // A draft from the page's source is not an add-on link.
+    expect((await get(app, `${ORIGIN}/hardcover/${draft}/manifest.json`)).status).toBe(401);
+    now = DRAFT_MS + 1;
+    const late = await postForm(app, '/hardcover/configure', new URLSearchParams({ draft }));
+    expect(late.status).toBe(400);
+    expect(await late.text()).toContain('expired');
+    // A finished link is not a draft either.
+    const link = await createSealer(SECRET, 'hardcover')?.seal({ token: READER });
+    const wrong = await postForm(
+      app,
+      '/hardcover/configure',
+      new URLSearchParams({ draft: link ?? '' }),
+    );
+    expect(wrong.status).toBe(400);
+  });
+
+  it('reads Hardcover’s Retry-After in seconds or as a date, at most a day', () => {
+    expect(retryAfter('120')).toBe(120);
+    expect(retryAfter('999999')).toBe(86_400);
+    expect(retryAfter(new Date(61_000).toUTCString(), 1_000)).toBe(60);
+    expect(retryAfter(null)).toBe(null);
+    expect(retryAfter('soon')).toBe(null);
+  });
+
+  it('names a token in the cache by an HMAC keyed with the server’s secret', async () => {
+    const plain = await cacheOwner(READER);
+    const keyed = await cacheOwner(READER, SECRET);
+    expect(keyed).toMatch(/^[0-9a-f]{64}$/);
+    expect(keyed).not.toBe(plain);
+    expect(await cacheOwner(READER, `${SECRET}x`)).not.toBe(keyed);
   });
 
   it('changes the rows from the link without asking for the token again', async () => {

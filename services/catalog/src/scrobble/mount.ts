@@ -1,4 +1,4 @@
-import { type AddonHandlers, AddonError, createAddon, type Manifest } from '@lelap/sdk';
+import { type AddonHandlers, AddonError, createAddon, type Manifest, PAGE_STYLE } from '@lelap/sdk';
 
 import { MAX_SEALED, type Sealer } from './sealed';
 
@@ -17,6 +17,8 @@ export type Field = {
   placeholder?: string;
   options?: { value: string; label: string; checked?: boolean }[];
   required?: boolean;
+  /** What a text field holds, such as what the listener typed before an error. */
+  value?: string;
 };
 
 /** A second page once the first form is accepted, such as choosing from what the account holds. */
@@ -68,27 +70,7 @@ function page(title: string, body: string, status = 200, script?: string): Respo
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer"><title>${escape(title)}</title>
-<style>
-body{margin:0;background:#14121a;color:#f4efe6;font:16px/1.5 system-ui,sans-serif}
-main{max-width:34rem;margin:0 auto;padding:2rem 1rem}
-label{display:block;margin:1rem 0 .25rem;font-weight:600}
-input,select{box-sizing:border-box;width:100%;padding:.6rem;border-radius:.5rem;border:1px solid #3a3644;background:#1e1b26;color:inherit;font:inherit}
-small,.muted{color:#a59fb0}
-small{display:block;margin-top:.25rem}
-.check{display:flex;gap:.5rem;align-items:center;margin:.35rem 0;font-weight:400}
-a{color:#f5b041;text-underline-offset:.15em}
-.check input{width:auto;margin:0}
-fieldset{border:0;padding:0;margin:1rem 0 0}
-legend{font-weight:600;padding:0}
-.button,button[type=submit]{display:inline-flex;align-items:center;justify-content:center;margin-top:1.25rem;min-height:2.75rem;padding:.6rem 1rem;border:0;border-radius:999px;background:#f5b041;color:#14121a;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
-.button:focus-visible,button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #f5b041;outline-offset:2px}
-ol{padding-left:1.25rem}li{margin:.35rem 0}
-code{word-break:break-all;background:#1e1b26;padding:.15rem .3rem;border-radius:.25rem}
-.error{color:#ff8a80}
-.copy{display:block;width:100%;text-align:left;margin:0;padding:.5rem;border:1px solid #3a3644;border-radius:.5rem;background:#1e1b26;color:inherit;font:inherit;cursor:pointer}
-.copy code{background:none;padding:0;user-select:all}
-.copy-note{font-size:.875rem;color:#a59fb0;margin-top:.25rem}
-</style></head><body><main>${body}</main>${
+<style>${PAGE_STYLE}</style></head><body><main>${body}</main>${
     nonce ? `<script nonce="${nonce}">${script}</script>` : ''
   }</body></html>`;
   return new Response(html, {
@@ -104,7 +86,7 @@ code{word-break:break-all;background:#1e1b26;padding:.15rem .3rem;border-radius:
 function inputs(fields: Field[]): string {
   return fields
     .map((f, i) => {
-      const hint = f.hint ? `<small>${escape(f.hint)}</small>` : '';
+      const hint = f.hint ? `<p class="help">${escape(f.hint)}</p>` : '';
       if (f.type === 'checkbox')
         return `<fieldset><legend>${escape(f.label)}</legend>${(f.options ?? [])
           .map(
@@ -122,7 +104,7 @@ function inputs(fields: Field[]): string {
               .join('')}</select>`
           : `<input ${attrs} type="${f.type}" autocomplete="off"${
               f.placeholder ? ` placeholder="${escape(f.placeholder)}"` : ''
-            }>`;
+            }${f.value && f.type !== 'password' ? ` value="${escape(f.value)}"` : ''}>`;
       return `<label for="${f.name}">${escape(f.label)}</label>${input}${hint}`;
     })
     .join('');
@@ -149,7 +131,24 @@ function form<C>(addon: ConfigurableAddon<C>, action: string, error?: string): R
   );
 }
 
-/** The second page; `draft` is the settings so far, sealed, so the token never shows in the page. */
+/** The fields as the listener sent them: their ticks and what they typed, not the defaults. */
+export function asSent(fields: Field[], sent: (name: string) => string[]): Field[] {
+  return fields.map((f) => {
+    const values = sent(f.name);
+    if (f.type === 'checkbox')
+      return {
+        ...f,
+        options: (f.options ?? []).map((o) => ({ ...o, checked: values.includes(o.value) })),
+      };
+    if (f.type === 'password') return f;
+    return { ...f, value: values[0] ?? '' };
+  });
+}
+
+/**
+ * The second page; `draft` is the settings so far, sealed as a draft, so the token never shows in
+ * the page. After an error, `sent` keeps what the listener chose.
+ */
 async function pickPage<C>(
   addon: ConfigurableAddon<C>,
   pick: PickStep<C>,
@@ -157,8 +156,10 @@ async function pickPage<C>(
   draft: string,
   action: string,
   error?: string,
+  sent?: (name: string) => string[],
 ): Promise<Response> {
-  const fields = await pick.fields(config);
+  const listed = await pick.fields(config);
+  const fields = sent ? asSent(listed, sent) : listed;
   return page(
     `${addon.manifest.name} for Lelap`,
     `<h1>${escape(addon.manifest.name)}</h1><p>${escape(pick.intro)}</p>${
@@ -198,9 +199,30 @@ function installed(manifestUrl: string, name: string): Response {
 
 const ROUTES = new Set(['manifest.json', 'configure', 'scrobble', 'catalog', 'meta', 'stream']);
 
-/** Serves a configurable add-on; returns null for paths outside its base. */
-export function mountConfigurable<C>(addon: ConfigurableAddon<C>, sealer: Sealer | null) {
+/** How long the choices page keeps its draft: long enough to read a few lists and choose. */
+export const DRAFT_MS = 60 * 60 * 1000;
+
+/**
+ * Serves a configurable add-on; returns null for paths outside its base. `sealer` seals finished
+ * links; `drafts` seals the settings between the first and second page, apart from links and
+ * with a time, so a draft from a page's source is never an add-on link and runs out.
+ */
+export function mountConfigurable<C>(
+  addon: ConfigurableAddon<C>,
+  sealer: Sealer | null,
+  drafts: Sealer | null = null,
+  now: () => number = Date.now,
+) {
   const base = addon.basePath;
+  const sealDraft = async (config: C) => {
+    if (!drafts) throw new Error('No sealer for drafts');
+    return drafts.seal({ config, until: now() + DRAFT_MS });
+  };
+  const openDraft = async (draft: string): Promise<C | null> => {
+    const value = (await drafts?.open(draft)) as { config?: unknown; until?: unknown } | null;
+    if (!value || typeof value.until !== 'number' || value.until < now()) return null;
+    return addon.revive(value.config);
+  };
   const unconfigured = createAddon(
     {
       manifest: addon.manifest,
@@ -223,7 +245,7 @@ export function mountConfigurable<C>(addon: ConfigurableAddon<C>, sealer: Sealer
     const [first = '', ...more] = rest.split('/');
 
     if (first === 'configure' || (first === '' && more.length === 0)) {
-      if (!sealer)
+      if (!sealer || (addon.pick && !drafts))
         return page(
           'Not available',
           '<h1>Not available here</h1><p>This server has no key for sealing settings (CONFIG_SECRET), so the add-on can’t be configured.</p>',
@@ -240,10 +262,11 @@ export function mountConfigurable<C>(addon: ConfigurableAddon<C>, sealer: Sealer
       };
       const draft = body.get('draft');
       if (draft !== null && addon.pick) {
-        const config = addon.revive(await sealer.open(draft));
+        const config = await openDraft(draft);
         if (config === null) return form(addon, action, 'These settings expired. Start again.');
+        const sent = (name: string) => body.getAll(name);
         try {
-          return await finish(await addon.pick.apply(config, (name) => body.getAll(name)));
+          return await finish(await addon.pick.apply(config, sent));
         } catch (error) {
           if (!(error instanceof AddonError)) addon.onError?.(error);
           const message =
@@ -251,7 +274,7 @@ export function mountConfigurable<C>(addon: ConfigurableAddon<C>, sealer: Sealer
               ? error.message
               : 'The service could not be reached. Try again in a moment.';
           try {
-            return await pickPage(addon, addon.pick, config, draft, action, message);
+            return await pickPage(addon, addon.pick, config, draft, action, message, sent);
           } catch {
             return form(addon, action, message);
           }
@@ -262,7 +285,7 @@ export function mountConfigurable<C>(addon: ConfigurableAddon<C>, sealer: Sealer
         const config = addon.parse(values);
         await addon.check(config);
         if (addon.pick)
-          return await pickPage(addon, addon.pick, config, await sealer.seal(config), action);
+          return await pickPage(addon, addon.pick, config, await sealDraft(config), action);
         return await finish(config);
       } catch (error) {
         if (error instanceof AddonError) return form(addon, action, error.message);
@@ -280,10 +303,10 @@ export function mountConfigurable<C>(addon: ConfigurableAddon<C>, sealer: Sealer
       });
     if (more[0] === 'configure') {
       const action = `${base}/configure`;
-      // Changing the choices keeps the token: the page carries this link's sealed settings.
-      if (!addon.pick) return form(addon, action);
+      // Changing the choices keeps the token: the page carries a draft of this link's settings.
+      if (!addon.pick || !drafts) return form(addon, action);
       try {
-        return await pickPage(addon, addon.pick, config, first, action);
+        return await pickPage(addon, addon.pick, config, await sealDraft(config), action);
       } catch (error) {
         if (!(error instanceof AddonError)) addon.onError?.(error);
         return form(

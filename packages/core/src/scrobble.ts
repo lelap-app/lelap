@@ -11,6 +11,7 @@ import { and, asc, eq, lte, notInArray } from 'drizzle-orm';
 import { addonBase, type InstalledAddon, REQUEST_TIMEOUT_MS } from './addons/client';
 import type { Db } from './db';
 import type { IdGenerator } from './ids';
+import { bookLinks } from './library/links';
 import { books, downloads, episodes, podcasts, scrobbleOutbox } from './schema';
 
 // Scrobbling: what the listener plays is reported to the add-ons that declare `scrobble`. Events
@@ -26,7 +27,7 @@ export type Poster = (
     body: string;
     signal: AbortSignal;
   },
-) => Promise<{ ok: boolean; status: number }>;
+) => Promise<{ ok: boolean; status: number; headers?: { get(name: string): string | null } }>;
 
 /** Events per request; the protocol allows 100. */
 export const SCROBBLE_BATCH = 50;
@@ -90,8 +91,25 @@ export function scrobbleItem(db: Db, bookId: string): ScrobbleItem | null {
       ...(meta?.externalIds ? { externalIds: meta.externalIds } : {}),
     };
   }
-  // The listener's own files: the title and author are all there is, and enough to match.
-  return { ...base, type: 'audiobook' };
+  // The listener's own files: their title and author, and the work they are linked to (M56), so a
+  // tracker can match by Open Library ID, ISBN or ASIN instead of by name.
+  const externalIds = linkedIds(db, bookId);
+  return { ...base, type: 'audiobook', ...(externalIds ? { externalIds } : {}) };
+}
+
+/** `{ ol, isbn, asin }` of the work a library book is linked to, or null. */
+function linkedIds(db: Db, bookId: string): Record<string, string> | null {
+  const ids: Record<string, string> = {};
+  for (const link of bookLinks(db, bookId)) {
+    for (const id of [link.workId, ...link.ids]) {
+      const at = id.indexOf(':');
+      if (at <= 0) continue;
+      const prefix = id.slice(0, at);
+      if (prefix === 'ol' || prefix === 'isbn' || prefix === 'asin')
+        ids[prefix] ??= id.slice(at + 1);
+    }
+  }
+  return Object.keys(ids).length > 0 ? ids : null;
 }
 
 /**
@@ -184,7 +202,7 @@ export async function sendScrobbles(
         .all();
       const first = rows[0];
       if (!first || first.nextAttemptAt > now) break;
-      const status = await postEvents(
+      const { status, retryAfterMs } = await postEvents(
         post,
         url,
         rows.map((r) => r.event),
@@ -199,7 +217,8 @@ export async function sendScrobbles(
             tx.update(scrobbleOutbox)
               .set({
                 attempts: first.attempts + 1,
-                nextAttemptAt: now + scrobbleBackoff(first.attempts + 1),
+                // The add-on's own wait, when it said one, if that is longer.
+                nextAttemptAt: now + Math.max(scrobbleBackoff(first.attempts + 1), retryAfterMs),
               })
               .where(where)
               .run();
@@ -216,8 +235,22 @@ export async function sendScrobbles(
   return report;
 }
 
-/** The status the add-on answered, or null when it could not be reached. */
-async function postEvents(post: Poster, manifestUrl: string, events: ScrobbleEvent[]) {
+/** Milliseconds from a `Retry-After` header, in seconds or as a date; at most a day, else 0. */
+export function retryAfterMs(value: string | null | undefined, now: number): number {
+  const text = (value ?? '').trim();
+  const ms = /^\d+$/.test(text) ? Number(text) * 1000 : Date.parse(text) - now;
+  return Number.isFinite(ms) ? Math.max(0, Math.min(ms, 24 * 60 * 60 * 1000)) : 0;
+}
+
+/**
+ * The status the add-on answered, or null when it could not be reached, and how long it asked to
+ * wait before the next try.
+ */
+async function postEvents(
+  post: Poster,
+  manifestUrl: string,
+  events: ScrobbleEvent[],
+): Promise<{ status: number | null; retryAfterMs: number }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -227,9 +260,10 @@ async function postEvents(post: Poster, manifestUrl: string, events: ScrobbleEve
       body: JSON.stringify({ events }),
       signal: controller.signal,
     });
-    return response.status;
+    const wait = response.headers?.get('Retry-After');
+    return { status: response.status, retryAfterMs: retryAfterMs(wait, Date.now()) };
   } catch {
-    return null;
+    return { status: null, retryAfterMs: 0 };
   } finally {
     clearTimeout(timer);
   }
@@ -321,6 +355,12 @@ export class ScrobbleTracker {
   }
 }
 
+/**
+ * A `start` this far into a book carries on with it (revision 9 `resumed`): the listener began it
+ * before. A start near the beginning is a fresh one, such as listening to a finished book again.
+ */
+export const RESUMED_AFTER_MS = 30_000;
+
 /** Builds the event for an add-on from a tracked one; null when the book is gone. */
 export function scrobbleEventFor(
   db: Db,
@@ -329,6 +369,7 @@ export function scrobbleEventFor(
 ): Omit<ScrobbleEvent, 'eventId'> | null {
   const item = scrobbleItem(db, tracked.bookId);
   if (!item) return null;
+  const resumed = tracked.event === 'start' && tracked.positionMs >= RESUMED_AFTER_MS;
   return {
     event: tracked.event,
     at: Math.round(tracked.at),
@@ -337,6 +378,7 @@ export function scrobbleEventFor(
     ...(tracked.sessionStartMs !== undefined
       ? { sessionStartMs: Math.max(0, Math.round(tracked.sessionStartMs)) }
       : {}),
+    ...(resumed ? { resumed: true } : {}),
     ...extra,
   };
 }

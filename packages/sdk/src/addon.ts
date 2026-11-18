@@ -113,11 +113,15 @@ export const CORS_HEADERS: Record<string, string> = {
 };
 
 export class AddonError extends Error {
+  /** Seconds the app should wait before asking again; sent as `Retry-After`. */
+  readonly retryAfter: number | undefined;
   constructor(
     readonly status: number,
     message: string,
+    options: { retryAfter?: number } = {},
   ) {
     super(message);
+    this.retryAfter = options.retryAfter;
   }
 }
 
@@ -294,6 +298,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
       name: declared.name,
       description: declared.description,
       fields: configure.fields,
+      host: url.host,
     };
     if (request.method === 'GET' || request.method === 'HEAD') {
       const returnTo = allowed(url.searchParams.get('return'));
@@ -338,7 +343,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
         status: 303,
         headers: { Location: returnUrl(returnTo, manifestUrl), 'Referrer-Policy': 'no-referrer' },
       });
-    return html(configuredPage({ name: declared.name, manifestUrl }));
+    return html(configuredPage({ name: declared.name, manifestUrl, host: url.host }));
   }
 
   return {
@@ -347,7 +352,12 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
       try {
         return await handle(request);
       } catch (error) {
-        if (error instanceof AddonError) return json({ error: error.message }, error.status);
+        if (error instanceof AddonError) {
+          const response = json({ error: error.message }, error.status);
+          if (error.retryAfter !== undefined && error.retryAfter >= 0)
+            response.headers.set('Retry-After', String(Math.round(error.retryAfter)));
+          return response;
+        }
         options.onError?.(error, request);
         return json({ error: 'The add-on failed to answer' }, 500);
       }

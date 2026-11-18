@@ -76,7 +76,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M63 Playback fixes](milestones/m63.md)              | Done        |          10 | Small fixes in the playback service and the player, left from earlier reviews                            |
 | [M64 Library fixes](milestones/m64.md)               | Done        |          17 | Covers from image files, and folder scans, tags, downloads and matching: fixes left from earlier reviews |
 | [M65 Server sources 2](milestones/m65.md)            | Done        |          15 | Outboxes, narrators and series, and steadier places for the media servers                                |
-| [M66 Add-on protocol 3](milestones/m66.md)           | Planned     |             | Editions, settings for every route, paging, more scrobble events and upkeep of first-party add-ons       |
+| [M66 Add-on protocol 3](milestones/m66.md)           | In progress |          12 | Editions, settings for every route, paging, more scrobble events and upkeep of first-party add-ons       |
 | [M67 Web app 2](milestones/m67.md)                   | Done        |           9 | Faster saves, covers from servers and steadier media keys in the web app                                 |
 | [M68 Sync fixes](milestones/m68.md)                  | Done        |           5 | Quieter scans, the source choice synced, and sturdier snapshots and expiry                               |
 | [M69 Casting 3](milestones/m69.md)                   | Done        |           9 | Outro skipping, smart rewind and measured timings on receivers, Cast device authentication               |
@@ -112,6 +112,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M99 Languages 3](milestones/m99.md)                 | Planned     |             | Media3's own notification texts, saved English chapter names, raw native error details                   |
 | [M100 Server sources 3](milestones/m100.md)          | Planned     |             | Places sent while the app is closed, and Plex addresses that follow the server                           |
 | [M101 Better sound 2](milestones/m101.md)            | Planned     |             | Skip silence and even loudness on the web, and steadier skip silence accounting                          |
+| [M102 Add-on protocol 4](milestones/m102.md)         | Planned     |             | Ratings, Android finish sessions, scrobblers on the SDK's configure and catalog upkeep                   |
 
 <!-- milestones:end -->
 

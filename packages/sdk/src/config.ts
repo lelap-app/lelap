@@ -209,18 +209,51 @@ const escape = (text: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-const STYLE = `body{font:16px/1.5 system-ui,sans-serif;background:#14130f;color:#f3efe6;margin:0;padding:24px;max-width:32rem}
-h1{font-size:1.5rem;margin:0 0 4px}p{color:#bdb8ad}label{display:block;margin:16px 0 4px}
-input[type=text],input[type=password],select,textarea{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #3a3730;background:#1f1d18;color:inherit;font:inherit}
-.check label{display:inline;margin-left:8px}.help{font-size:.85rem;color:#8d8a83;margin:4px 0 0}
-button,.button{display:inline-block;margin-top:24px;padding:10px 20px;border:0;border-radius:999px;background:#e8a33c;color:#1a1305;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
-.error{color:#ff8a80}textarea{height:6rem;font-family:monospace;font-size:.85rem}`;
+/**
+ * One stylesheet for every configure page: the SDK's own (`configurePage`, `configuredPage`) and
+ * those of Lelap's first-party add-ons, so a listener sees one style. It styles `main`, headings,
+ * fields with a `.help` line, `.check` boxes, `fieldset`, buttons and `.button` links, `.error`,
+ * `.muted`, steps in `ol`, a tap-to-copy `.copy` button and the `.sender` line.
+ */
+export const PAGE_STYLE = `body{margin:0;background:#14121a;color:#f4efe6;font:16px/1.5 system-ui,sans-serif}
+main{max-width:34rem;margin:0 auto;padding:2rem 1rem}
+h1{font-size:1.5rem;line-height:1.25;margin:0 0 .5rem}
+label{display:block;margin:1rem 0 .25rem;font-weight:600}
+input,select,textarea{box-sizing:border-box;width:100%;padding:.6rem;border-radius:.5rem;border:1px solid #3a3644;background:#1e1b26;color:inherit;font:inherit}
+textarea{height:6rem;font-family:ui-monospace,monospace;font-size:.85rem}
+.help,.muted,.sender{color:#a59fb0}
+.help{display:block;font-size:.875rem;margin:.25rem 0 0}
+.check{display:flex;gap:.5rem;align-items:center;margin:.35rem 0;font-weight:400}
+.check input{width:auto;margin:0}
+fieldset{border:0;padding:0;margin:1rem 0 0}
+legend{font-weight:600;padding:0}
+a{color:#f5b041;text-underline-offset:.15em}
+.button,button[type=submit]{display:inline-flex;align-items:center;justify-content:center;margin-top:1.25rem;min-height:2.75rem;padding:.6rem 1rem;border:0;border-radius:999px;background:#f5b041;color:#14121a;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+.button:focus-visible,button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #f5b041;outline-offset:2px}
+ol{padding-left:1.25rem}li{margin:.35rem 0}
+code{word-break:break-all;background:#1e1b26;padding:.15rem .3rem;border-radius:.25rem}
+.error{color:#ff8a80}
+.copy{display:block;width:100%;text-align:left;margin:0;padding:.5rem;border:1px solid #3a3644;border-radius:.5rem;background:#1e1b26;color:inherit;font:inherit;cursor:pointer}
+.copy code{background:none;padding:0;user-select:all}
+.copy-note{font-size:.875rem;color:#a59fb0;margin-top:.25rem}
+.sender{font-size:.875rem;border-top:1px solid #3a3644;margin-top:2rem;padding-top:1rem}`;
 
-function page(title: string, body: string): string {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)}</title><style>${STYLE}</style></head><body>${body}</body></html>`;
+/**
+ * Who runs a page the SDK serves. Third-party pages ask for tokens and passwords, so they never
+ * pass for Lelap's own: each names its host.
+ */
+function sender(host: string | undefined): string {
+  return host ? `<p class="sender">This page is run by ${escape(host)}, not by Lelap.</p>` : '';
 }
 
-/** The configure form, filled with `values` (never with passwords). */
+function page(title: string, body: string, host?: string): string {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)}</title><style>${PAGE_STYLE}</style></head><body><main>${body}${sender(host)}</main></body></html>`;
+}
+
+/**
+ * The configure form, filled with `values` (never with passwords). `host` is the add-on's host,
+ * such as `addon.example.org`; the page says it runs there.
+ */
 export function configurePage(args: {
   name: string;
   description: string;
@@ -228,8 +261,9 @@ export function configurePage(args: {
   values?: Config;
   error?: string;
   returnTo?: string;
+  host?: string;
 }): string {
-  const { name, description, fields, values = {}, error, returnTo } = args;
+  const { name, description, fields, values = {}, error, returnTo, host } = args;
   const inputs = fields
     .map((field) => {
       const id = `f-${field.key}`;
@@ -238,7 +272,7 @@ export function configurePage(args: {
       const current = values[field.key] ?? field.default;
       if (field.type === 'checkbox') {
         const checked = current === true ? ' checked' : '';
-        return `<div class="check"><input type="checkbox" id="${id}" name="${escape(field.key)}"${checked}><label for="${id}">${escape(field.label)}</label>${help}</div>`;
+        return `<label class="check" for="${id}"><input type="checkbox" id="${id}" name="${escape(field.key)}"${checked}>${escape(field.label)}</label>${help}`;
       }
       if (field.type === 'select') {
         const options = (field.options ?? [])
@@ -262,6 +296,7 @@ export function configurePage(args: {
   return page(
     `${name} settings`,
     `<h1>${escape(name)}</h1><p>${escape(description)}</p>${problem}<form method="post">${inputs}${back}<button type="submit">Save</button></form>`,
+    host,
   );
 }
 
@@ -270,11 +305,13 @@ export function configuredPage(args: {
   name: string;
   manifestUrl: string;
   returnTo?: string;
+  host?: string;
 }): string {
-  const { name, manifestUrl, returnTo } = args;
+  const { name, manifestUrl, returnTo, host } = args;
   const open = returnUrl(returnTo ?? APP_RETURN, manifestUrl);
   return page(
     `${name} is ready`,
-    `<h1>${escape(name)} is ready</h1><p>Open it in Lelap, or copy this address and paste it under Settings → Add-ons.</p><textarea readonly aria-label="Manifest URL">${escape(manifestUrl)}</textarea><a class="button" href="${escape(open)}">Open in Lelap</a>`,
+    `<h1>${escape(name)} is ready</h1><p>Open it in the app, or copy this address and paste it under Settings → Add-ons.</p><textarea readonly aria-label="Manifest URL">${escape(manifestUrl)}</textarea><p><a class="button" href="${escape(open)}">Open in the app</a></p><p class="muted">Keep the address to yourself: it holds your settings for this add-on.</p>`,
+    host,
   );
 }

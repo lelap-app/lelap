@@ -11,6 +11,8 @@ import {
   offersLibrary,
   offersPlaces,
   scrobblesWithSettings,
+  setUpWithSettings,
+  LATEST_PROTOCOL_VERSION,
   PlaceReport,
   QueryParams,
   readSettings,
@@ -445,5 +447,54 @@ describe('revision 8: scrobblers inside the app with settings', () => {
     expect(scrobblesWithSettings(Manifest.parse(bare))).toBe(false);
     const web = { ...scrobbler, sandbox: undefined };
     expect(Manifest.safeParse(web).success).toBe(false);
+  });
+});
+
+describe('revision 9: editions, resumed starts, library pages, settings on every route', () => {
+  const work = { id: 'ol:OL1W', type: 'audiobook', name: 'Emma' };
+
+  it('reads editions on a meta and drops a list that does not fit, not the item', () => {
+    const parsed = Meta.parse({
+      ...work,
+      editions: [
+        {
+          key: 'OL2M',
+          name: 'Blackstone Audio, 2010',
+          year: 2010,
+          narrators: ['Kate Reading'],
+          externalIds: { asin: 'B002UZMLXM' },
+        },
+      ],
+    });
+    expect(parsed.editions?.[0]?.narrators).toEqual(['Kate Reading']);
+    const broken = Meta.parse({ ...work, editions: [{ key: 'x' }] });
+    expect(broken.name).toBe('Emma');
+    expect(broken.editions).toBeUndefined();
+  });
+
+  it('reads a resumed start, and an older event without it', () => {
+    const event = {
+      eventId: 'event-0001',
+      event: 'start',
+      at: 1,
+      item: { type: 'audiobook', name: 'Emma' },
+    };
+    expect(ScrobbleEvent.parse({ ...event, resumed: true }).resumed).toBe(true);
+    expect(ScrobbleEvent.parse(event).resumed).toBeUndefined();
+  });
+
+  it('reads a library page with a cursor to the next one', () => {
+    expect(LibraryResponse.parse({ files: [], next: 'page-2' }).next).toBe('page-2');
+    expect(LibraryResponse.safeParse({ files: [], next: '' }).success).toBe(false);
+  });
+
+  it('sets up every add-on inside the app with settings and no library', () => {
+    const fields: SettingField[] = [{ key: 'token', label: 'Token', type: 'password' }];
+    const inApp = { ...base, resources: ['catalog'], sandbox: { hosts: ['example.org'] } };
+    expect(setUpWithSettings(Manifest.parse({ ...inApp, settings: fields }))).toBe(true);
+    expect(setUpWithSettings(Manifest.parse(inApp))).toBe(false);
+    const library = { ...inApp, resources: ['catalog', 'library'], settings: fields };
+    expect(setUpWithSettings(Manifest.parse(library))).toBe(false);
+    expect(LATEST_PROTOCOL_VERSION).toBe(9);
   });
 });

@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../src/app';
 import { createInternetArchiveAddon, manifest } from '../src/internet-archive/addon';
-import { airDateOf, audioFiles, parseItem, parseSearch } from '../src/internet-archive/archive';
+import {
+  airDateOf,
+  audioFiles,
+  parseItem,
+  parseSearch,
+  stemOf,
+} from '../src/internet-archive/archive';
 import { licenceKind, rightsOf } from '../src/internet-archive/rights';
 import { createUpstream } from '../src/upstream';
 import { fakeFetch, fixture, path, platform } from './helpers';
@@ -303,6 +309,28 @@ describe('Internet Archive streams', () => {
     expect(audioFiles(item).map((file) => file.name)).toEqual(['KierkegaardPartOne_64kb.mp3']);
   });
 
+  it('merges copies of one recording uploaded apart at two bitrates', () => {
+    const item = parseItem({
+      metadata: {
+        identifier: 'Show_OTR',
+        title: 'Show',
+        mediatype: 'audio',
+        licenseurl: 'http://creativecommons.org/publicdomain/mark/1.0/',
+      },
+      files: [
+        { name: 'Show_ep01_128kb.mp3', format: 'VBR MP3', source: 'original', length: '1800' },
+        { name: 'Show_ep01_64kb.mp3', format: 'VBR MP3', source: 'original', length: '1800' },
+        { name: 'Show_ep02_128kb.mp3', format: 'VBR MP3', source: 'original', length: '1700' },
+      ],
+    });
+    if (!item) throw new Error('did not parse');
+    expect(audioFiles(item).map((file) => file.name)).toEqual([
+      'Show_ep01_64kb.mp3',
+      'Show_ep02_128kb.mp3',
+    ]);
+    expect(stemOf('Show_ep01_128Kbps.mp3')).toBe('show_ep01.mp3');
+  });
+
   it('keeps every recording of a series with mixed bitrates', () => {
     const item = parseItem(DRAGNET);
     if (!item) throw new Error('fixture did not parse');
@@ -377,6 +405,17 @@ describe('Internet Archive feeds', () => {
     );
     expect(airDateOf('Show_49-13-40_x.mp3')).toBeUndefined();
     expect(airDateOf('KierkegaardPartOne.mp3')).toBeUndefined();
+  });
+
+  it('dates a recreation from the 2000s in its own century', () => {
+    const uploaded = Date.UTC(2010, 0, 1);
+    // Below 1920 there was no radio to record.
+    expect(airDateOf('Recreation_05-03-12.mp3')?.getUTCFullYear()).toBe(2005);
+    // Never after the upload, so `49` stays 1949.
+    expect(airDateOf('Show_49-06-10.mp3', { before: uploaded })?.getUTCFullYear()).toBe(1949);
+    // The item's own year picks the century.
+    expect(airDateOf('Revival_25-04-01.mp3', { year: 2025 })?.getUTCFullYear()).toBe(2025);
+    expect(airDateOf('Revival_25-04-01.mp3', { year: 1925 })?.getUTCFullYear()).toBe(1925);
   });
 });
 

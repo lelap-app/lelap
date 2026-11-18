@@ -9,7 +9,7 @@ import { LibraryResponse, type Manifest, offersLibrary, type Settings } from '@l
 
 import { db } from './db';
 import { t } from './i18n';
-import { callAddonLibrary } from './sandbox';
+import { callAddonLibrary, closeServerSandbox } from './sandbox';
 
 // Add-ons inside the app used as library sources (M57): bundled ones, which show as kinds in
 // “Add a server”, and installed ones that list a library.
@@ -51,10 +51,14 @@ export function declaredHosts(addonUrl: string): string[] | null {
   return sourceManifest(addonUrl)?.sandbox?.hosts ?? null;
 }
 
+/** Pages of one library the app asks for (revision 9 `next`) before it stops. */
+const MAX_PAGES = 1000;
+
 /**
  * One server's library, from its add-on, in a sandbox that reaches only the add-on's hosts and
  * the addresses in `settings`. `sandboxId` keeps servers apart; a server not yet added uses one
- * of its own.
+ * of its own. A listing in pages (revision 9) is asked page by page and joined; the logins come
+ * from the first page. The sandbox closes once the listing is done.
  */
 export async function listAddonLibrary(args: {
   addonUrl: string;
@@ -62,11 +66,39 @@ export async function listAddonLibrary(args: {
   sandboxId: string;
   settings: Settings;
 }): Promise<LibraryResponse> {
+  try {
+    let first: LibraryResponse | null = null;
+    const files: LibraryResponse['files'] = [];
+    const seen = new Set<string>();
+    let cursor: string | undefined;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const listing = await libraryPage(args, cursor);
+      first ??= listing;
+      files.push(...listing.files);
+      // A cursor seen before would go round in circles.
+      if (!listing.next || seen.has(listing.next)) break;
+      seen.add(listing.next);
+      cursor = listing.next;
+    }
+    if (!first) throw new Error(t('The add-on’s list of files is not valid.'));
+    const joined: LibraryResponse = { ...first, files };
+    delete joined.next;
+    return joined;
+  } finally {
+    closeServerSandbox(args.addonUrl, args.sandboxId);
+  }
+}
+
+async function libraryPage(
+  args: { addonUrl: string; manifest: Manifest; sandboxId: string; settings: Settings },
+  cursor: string | undefined,
+): Promise<LibraryResponse> {
   const { status, body } = await callAddonLibrary({
     addonUrl: args.addonUrl,
     sandboxId: args.sandboxId,
     hosts: addonSourceHosts(args.manifest, args.settings),
     settings: args.settings,
+    ...(cursor === undefined ? {} : { cursor }),
   });
   if (status !== 200) {
     const said =
