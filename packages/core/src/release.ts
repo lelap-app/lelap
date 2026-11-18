@@ -86,8 +86,26 @@ export const ReleaseInfo = z.object({
   minSdk: z.number().int().positive().optional(),
   notes: z.string().optional(),
   publishedAt: z.string(),
+  /** The APKs' native fingerprint (expo-updates runtime version); the workflow reads it back. */
+  runtime: z.string().min(1).optional(),
 });
 export type ReleaseInfo = z.infer<typeof ReleaseInfo>;
+
+/**
+ * Whether a release must replace the published `latest.json` or `beta.json`. Not when the release
+ * on the downloads host has the same native fingerprint and the over-the-air bundle went out:
+ * the APK would bring only JavaScript that apps of that runtime already receive. Anything
+ * unreadable counts as a change, so a doubt publishes the APK.
+ */
+export function apkUpdateNeeded(
+  previous: unknown,
+  runtime: string,
+  otaPublished: boolean,
+): boolean {
+  if (!otaPublished || !runtime) return true;
+  const parsed = ReleaseInfo.safeParse(previous);
+  return !parsed.success || parsed.data.runtime !== runtime;
+}
 
 /**
  * Picks one of the offered CPU types for this device, or null when it runs none of them. On

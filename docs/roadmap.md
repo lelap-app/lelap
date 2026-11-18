@@ -80,7 +80,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M67 Web app 2](milestones/m67.md)                   | Planned     |             | Faster saves, covers from servers and steadier media keys in the web app                                |
 | [M68 Sync fixes](milestones/m68.md)                  | Planned     |             | Quieter scans, the source choice synced, and sturdier snapshots and expiry                              |
 | [M69 Casting 3](milestones/m69.md)                   | Planned     |             | Outro skipping, smart rewind and measured timings on receivers, Cast device authentication              |
-| [M70 Release upkeep](milestones/m70.md)              | Planned     |             | Smaller OTA updates, a pinned signing toolchain, F-Droid update checks and other pipeline fixes         |
+| [M70 Release upkeep](milestones/m70.md)              | In progress |           6 | Smaller OTA updates, a pinned signing toolchain, F-Droid update checks and other pipeline fixes         |
 | [M71 App polish](milestones/m71.md)                  | Planned     |             | Small fixes on Home, the Library, the Player and Settings, left from earlier reviews                    |
 | [M72 Languages 2](milestones/m72.md)                 | Planned     |             | Native errors, made-up chapter titles, dates and numbers in the profile’s language                      |
 | [M73 Landing page polish](milestones/m73.md)         | Planned     |             | Theme switch announcements, one shared hidden class, light splash colours and narrow screens            |
