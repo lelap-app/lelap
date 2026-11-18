@@ -77,7 +77,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M64 Library fixes](milestones/m64.md)               | Planned     |             | Folder scans, tags, downloads and matching: small fixes left from earlier reviews                       |
 | [M65 Server sources 2](milestones/m65.md)            | Planned     |             | Outboxes, narrators and series, and steadier places for the media servers                               |
 | [M66 Add-on protocol 3](milestones/m66.md)           | Planned     |             | Editions, settings for every route, paging, more scrobble events and upkeep of first-party add-ons      |
-| [M67 Web app 2](milestones/m67.md)                   | In progress |           9 | Faster saves, covers from servers and steadier media keys in the web app                                |
+| [M67 Web app 2](milestones/m67.md)                   | Done        |           9 | Faster saves, covers from servers and steadier media keys in the web app                                |
 | [M68 Sync fixes](milestones/m68.md)                  | Done        |           5 | Quieter scans, the source choice synced, and sturdier snapshots and expiry                              |
 | [M69 Casting 3](milestones/m69.md)                   | Done        |           9 | Outro skipping, smart rewind and measured timings on receivers, Cast device authentication              |
 | [M70 Release upkeep](milestones/m70.md)              | Done        |           6 | Smaller OTA updates, a pinned signing toolchain, F-Droid update checks and other pipeline fixes         |
