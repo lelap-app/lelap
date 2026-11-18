@@ -53,4 +53,11 @@ class SsdpTest {
     assertNull(Ssdp.parseResponse("HTTP/1.1 200 OK\r\nST: x\r\n\r\n"))
     assertNull(Ssdp.parseResponse(""))
   }
+
+  @Test
+  fun skipsAnAnswerWithTooManyHeaders() {
+    val flood = "HTTP/1.1 200 OK\r\n" + (1..200).joinToString("") { "a:b\r\n" } +
+      "LOCATION: http://192.168.1.20:1400/d.xml\r\n\r\n"
+    assertNull(Ssdp.parseResponse(flood))
+  }
 }

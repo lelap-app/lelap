@@ -105,7 +105,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M93 Developer docs 2](milestones/m93.md)            | Done        |           3 | A real guide to building an add-on, sample source files and shared page styling                          |
 | [M94 Tests against real servers](milestones/m94.md)  | Done        |           1 | WebDAV and S3 servers in CI, and an emulator smoke test of the app                                       |
 | [M95 Self-hosting 2](milestones/m95.md)              | Done        |           3 | One-command setup, a small admin page and backup guides                                                  |
-| [M96 Security review 2](milestones/m96.md)           | Planned     |             | A new audit of what has landed since M19                                                                 |
+| [M96 Security review 2](milestones/m96.md)           | Done        |           7 | A second audit of what landed since M19, its fixes, and an SBOM with each release                        |
 | [M97 Landing page 3](milestones/m97.md)              | Done        |           4 | Drawn phone screens checked against reference shots of the app, a changelog page and help                |
 | [M98 Developer verification](milestones/m98.md)      | Planned     |             | Google's developer verification for sideloaded apps                                                      |
 | [M99 Languages 3](milestones/m99.md)                 | Planned     |             | Media3's own notification texts, saved English chapter names, raw native error details                   |
@@ -113,6 +113,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M101 Better sound 2](milestones/m101.md)            | Planned     |             | Skip silence and even loudness on the web, and steadier skip silence accounting                          |
 | [M102 Add-on protocol 4](milestones/m102.md)         | Planned     |             | Ratings, Android finish sessions, scrobblers on the SDK's configure and catalog upkeep                   |
 | [M103 Podcasts 5](milestones/m103.md)                | Planned     |             | Alternate enclosures, podcast:integrity checks, chapter images on the lock screen                        |
+| [M104 Security hardening 3](milestones/m104.md)      | Planned     |             | What M96's audit left: LAN addresses for add-ons, discovery, SMB signing, SDK sealing                    |
 
 <!-- milestones:end -->
 

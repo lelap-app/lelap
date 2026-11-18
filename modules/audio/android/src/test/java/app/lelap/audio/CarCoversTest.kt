@@ -1,6 +1,7 @@
 package app.lelap.audio
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -32,6 +33,20 @@ class CarCoversTest {
     assertEquals(picked, CarCovers.find(CarCovers.key(picked), snapshot, null))
     assertNull(CarCovers.find(CarCovers.key("file:///data/user/0/app.lelap/databases/lelap.db"), snapshot, null))
     assertNull(CarCovers.find("not-a-key", snapshot, null))
+  }
+
+  @Test fun `only image files and other apps' documents are served`() {
+    assertTrue(CarCovers.servableFile("a.jpg"))
+    assertTrue(CarCovers.servableFile("Cover.PNG"))
+    assertTrue(CarCovers.servableFile("folder-1a2b.webp"))
+    // Names of the files the provider would really open, after `#`, `%2e` and links.
+    assertFalse(CarCovers.servableFile("lelap.db"))
+    assertFalse(CarCovers.servableFile("audio.xml"))
+    assertFalse(CarCovers.servableFile("lelap.db#.jpg".substringBefore('#')))
+    assertTrue(CarCovers.servableDocument(picked, "app.lelap"))
+    assertFalse(CarCovers.servableDocument("content://app.lelap.fileprovider/cache/shared/x.jpg", "app.lelap"))
+    assertFalse(CarCovers.servableDocument("content://app.lelap/x.jpg", "app.lelap"))
+    assertFalse(CarCovers.servableDocument("content:///x.jpg", "app.lelap"))
   }
 
   @Test fun `the journal's book counts, since it leads Continue listening`() {

@@ -17,6 +17,16 @@ const trust = (url: string) =>
 
 const host = (url: string) => /^https?:\/\/([^/?#]+)/i.exec(url)?.[1] ?? url;
 
+/** `https://host:port` of a web add-on; null for anything else, such as an in-app add-on. */
+const webOrigin = (url: string): string | null => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.origin : null;
+  } catch {
+    return null;
+  }
+};
+
 /** Opens the add-on's configure page in the browser. */
 export function openConfigure(manifestUrl: string): void {
   void Linking.openURL(configurePageUrl(manifestUrl));
@@ -56,6 +66,25 @@ export async function confirmAddon(manifestUrl: string): Promise<'added' | 'canc
       return;
     }
     const existing = findAddonById(db, manifest.id);
+    // A manifest can claim any ID. Only the same server may move an add-on, with its books and
+    // unsent scrobbles, to a new address; a link from anywhere else must not take it over.
+    const from = existing ? webOrigin(existing.url) : null;
+    if (existing && existing.url !== manifestUrl && (!from || from !== webOrigin(manifestUrl))) {
+      showAlert(
+        t('{name} is added already', { name: existing.manifest.name }),
+        from
+          ? t('It comes from {host}. Remove it first to add the one from {other}.', {
+              host: host(existing.url),
+              other: host(manifestUrl),
+            })
+          : t('It runs on this device. Remove it first to add the one from {other}.', {
+              other: host(manifestUrl),
+            }),
+        [{ text: t('OK'), onPress: () => resolve('cancelled') }],
+        options,
+      );
+      return;
+    }
     if (existing && existing.url !== manifestUrl) {
       showAlert(
         t('Update {name}?', { name: manifest.name }),

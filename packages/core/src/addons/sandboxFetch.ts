@@ -34,6 +34,25 @@ export type ManualFetch = (
   text: () => Promise<string>;
 }>;
 
+// Headers that name the host or shape the connection belong to the app's HTTP client. A `Host`
+// of the add-on's choosing would reach another site on the same address than the one declared.
+const CONNECTION_HEADERS = new Set([
+  'host',
+  'connection',
+  'keep-alive',
+  'proxy-authorization',
+  'proxy-connection',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+]);
+
+const ownHeaders = (headers: Record<string, string>) =>
+  Object.fromEntries(
+    Object.entries(headers).filter(([name]) => !CONNECTION_HEADERS.has(name.toLowerCase())),
+  );
+
 export async function sandboxFetch(
   fetch: ManualFetch,
   url: string,
@@ -49,7 +68,7 @@ export async function sandboxFetch(
   try {
     const response = await fetch(url, {
       method: init?.method ?? 'GET',
-      ...(init?.headers ? { headers: init.headers } : {}),
+      ...(init?.headers ? { headers: ownHeaders(init.headers) } : {}),
       ...(typeof init?.body === 'string' ? { body: init.body } : {}),
       signal: controller.signal,
       // Never the app's own cookies or credentials.
@@ -69,6 +88,12 @@ export async function sandboxFetch(
     // Belt and braces: an answer from another host is never handed to the add-on.
     if (response.url && !hostAllowed(response.url, hosts)) {
       return { error: 'Not allowed: the answer came from another host.' };
+    }
+    // Refused before reading when the server says it is too large (a character is a byte or more).
+    const length = Number(response.headers.get('content-length'));
+    if (Number.isFinite(length) && length > options.maxChars * 4) {
+      controller.abort();
+      return { error: options.tooLarge };
     }
     const text = await response.text();
     if (text.length > options.maxChars) return { error: options.tooLarge };

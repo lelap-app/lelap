@@ -2,20 +2,19 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
-import init from '../../../services/sync/migrations/0001_init.sql';
-import snapshots from '../../../services/sync/migrations/0002_snapshots.sql';
 import { createApp } from '../../../services/sync/src/app';
 import { runUpkeep } from '../../../services/sync/src/expiry';
 import { adminFromEnv } from './admin';
 import { port, serve } from './serve';
 import { migrate, sqliteStore } from './sqliteStore';
 import { syncStatus } from './syncAdmin';
+import { syncMigrations } from './syncMigrations';
 
 const file = process.env.SYNC_DB ?? '/data/sync.db';
 mkdirSync(dirname(file), { recursive: true });
 const db = new DatabaseSync(file);
 db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
-migrate(db, { '0001_init.sql': init, '0002_snapshots.sql': snapshots });
+migrate(db, syncMigrations);
 
 const store = sqliteStore(db);
 // Closing checkpoints the WAL, so the volume holds one whole file after a stop.

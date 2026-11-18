@@ -36,6 +36,24 @@ object CarCovers {
     }
   }
 
+  /**
+   * Whether the provider may hand a `content:` cover (as found by [find]) to another app: never
+   * through one of Lelap's own providers. A cover address can arrive from sync or an add-on.
+   */
+  fun servableDocument(coverUri: String, packageName: String): Boolean {
+    val authority = coverUri.removePrefix("content://").substringBefore('/')
+    return authority.isNotEmpty() && authority != packageName && !authority.startsWith("$packageName.")
+  }
+
+  /**
+   * Whether the provider may hand a file to another app, by the name of the file it really opens
+   * (after `..`, links and decoding): images only, never the database or another private file.
+   */
+  fun servableFile(canonicalName: String): Boolean =
+    IMAGE_EXTENSIONS.any { canonicalName.lowercase().endsWith(it) }
+
+  private val IMAGE_EXTENSIONS = listOf(".jpg", ".jpeg", ".jfif", ".png", ".webp", ".gif", ".avif", ".bmp")
+
   fun key(coverUri: String): String =
     MessageDigest.getInstance("SHA-256").digest(coverUri.toByteArray()).joinToString("") { "%02x".format(it) }
 

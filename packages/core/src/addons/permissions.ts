@@ -123,7 +123,8 @@ export function addonPermissions(manifest: Manifest, manifestUrl: string): Permi
       notable: true,
     });
   }
-  if (manifest.sandbox) {
+  // Only code inside the app runs in the sandbox; a web add-on saying `sandbox` is still a service.
+  if (manifest.sandbox && local) {
     const hosts = manifest.sandbox.hosts;
     const typed = (manifest.settings ?? []).some((f) => f.type === 'url' && f.host === true);
     list.push({

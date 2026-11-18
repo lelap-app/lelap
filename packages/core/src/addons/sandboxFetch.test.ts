@@ -32,7 +32,10 @@ function network(answer: (url: string) => Answer) {
         ...(reply.type ? { type: reply.type } : {}),
         url: reply.url ?? at,
         headers: { get: (name: string) => headers.get(name) },
-        text: async () => 'answer',
+        text: async () => {
+          if (reply.headers?.['content-length'] === '999999') throw new Error('read in full');
+          return 'answer';
+        },
       };
     }
     throw new Error('too many redirects');
@@ -163,6 +166,18 @@ describe('the sandbox’s fetch', () => {
     ).toEqual({ error: 'Not allowed: the answer came from another host.' });
   });
 
+  it('leaves out headers that name the host or the connection', async () => {
+    const { fetch, sent } = network(() => ({ status: 200 }));
+    await sandboxFetch(
+      fetch,
+      'https://openlibrary.org/',
+      { headers: { Host: 'router.home', 'Transfer-Encoding': 'chunked', Cookie: 'a=1' } },
+      ['openlibrary.org'],
+      options,
+    );
+    expect(sent[0]?.headers).toEqual({ Cookie: 'a=1' });
+  });
+
   it('refuses an answer that is too large', async () => {
     const { fetch } = network(() => ({ status: 200 }));
     const reply = await sandboxFetch(
@@ -176,5 +191,16 @@ describe('the sandbox’s fetch', () => {
       },
     );
     expect(reply).toEqual({ error: 'Too large' });
+    // A server that says how large it is gets refused before its answer is read.
+    const big = network(() => ({ status: 200, headers: { 'content-length': '999999' } }));
+    expect(
+      await sandboxFetch(
+        big.fetch,
+        'https://openlibrary.org/',
+        undefined,
+        ['openlibrary.org'],
+        options,
+      ),
+    ).toEqual({ error: 'Too large' });
   });
 });

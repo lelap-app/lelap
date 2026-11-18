@@ -200,6 +200,10 @@ object Upnp {
   }
 
   private fun parse(xml: String): Document? = try {
+    // Android's parser may refuse the feature below without saying so: turn DTDs away here too.
+    if (xml.contains("<!DOCTYPE", ignoreCase = true) || xml.contains("<!ENTITY", ignoreCase = true)) {
+      throw IllegalArgumentException("No DTDs")
+    }
     val factory = DocumentBuilderFactory.newInstance()
     // Descriptions come from any device on the network: no DTDs, no entities.
     runCatching { factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) }

@@ -157,14 +157,25 @@ const PAGE_SIDE = `
   }
   if (worker) {
     var started = false;
+    // Held until the worker has started: the add-on's own code runs first and could otherwise say
+    // ready, isolated, then throw and land in the page with the app handing it settings.
+    var early = [];
     worker.onmessage = function (e) {
-      if (typeof e.data !== 'string') return;
-      if (!started && e.data === '{"t":"started"}') { started = true; ready(true); return; }
+      // Nothing more once the code moved to the page (\`worker\` is null then).
+      if (typeof e.data !== 'string' || !worker) return;
+      if (!started) {
+        if (e.data !== '{"t":"started"}') { early.push(e.data); return; }
+        started = true;
+        ready(true);
+        early.splice(0).forEach(toApp);
+        return;
+      }
       toApp(e.data);
     };
     // A worker refused later, or code that doesn't load in it: fail fast, in the page.
     worker.onerror = function () {
       if (started || !worker) return;
+      early = [];
       worker.terminate();
       inPage();
     };
@@ -193,7 +204,7 @@ export function sandboxPage(code: string): string {
     .replace('ADDON_SIDE_TEXT', () => literal(ADDON_SIDE))
     .replace('ADDON_CODE', () => literal(code));
   return `<!doctype html><html><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; worker-src blob:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; worker-src blob:; form-action 'none'; base-uri 'none'">
 </head><body><script>${page}</script>
 </body></html>`;
 }

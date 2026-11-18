@@ -47,9 +47,23 @@ export type AdminOptions = {
   now?: () => number;
   /** Wait before answering a wrong token, so guessing a short one takes long. */
   failDelayMs?: number;
+  /** Host names the page answers besides IP addresses and `localhost` (`ADMIN_HOSTS`). */
+  hosts?: string[];
 };
 
-export type AdminRequest = { method: string; path: string; authorization: string | null };
+export type AdminRequest = {
+  method: string;
+  path: string;
+  authorization: string | null;
+  /** The `Host` header. */
+  host: string | null;
+};
+
+/** Wrong tokens from one address before it is refused for the rest of the window. */
+export const MAX_FAILURES = 10;
+export const FAILURE_WINDOW_MS = 15 * 60_000;
+// Bounds the memory a flood of addresses can take; past it, expired entries are dropped.
+const MAX_TRACKED = 10_000;
 
 export const MIN_TOKEN = 16;
 const started = Date.now();
@@ -89,6 +103,28 @@ for (const [net, prefix] of [
   local.addSubnet(net, prefix, 'ipv6');
 }
 
+/**
+ * Whether a `Host` header names the page by address, `localhost` or a listed name. A DNS
+ * rebinding page reaches the port under its own name, so refusing other names keeps it out.
+ */
+export function isAllowedHost(host: string | null, names: readonly string[] = []): boolean {
+  if (!host) return false;
+  let hostname: string;
+  try {
+    hostname = new URL(`http://${host}`).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  if (hostname === 'localhost' || isIP(hostname.replace(/^\[|\]$/g, '')) !== 0) return true;
+  return names.some((name) => {
+    try {
+      return new URL(`http://${name.trim()}`).hostname.toLowerCase() === hostname;
+    } catch {
+      return false;
+    }
+  });
+}
+
 /** Whether a caller's address is the server itself or on a private network. */
 export function isLocalAddress(address: string): boolean {
   const family = isIP(address);
@@ -126,7 +162,7 @@ const failing = (name: string, error: unknown): Check => ({
  * and `/status.json` behind the token. `remote` is the caller's address.
  */
 export function adminHandler(options: AdminOptions) {
-  const { service, allowRemote = false, now = Date.now, failDelayMs = 500 } = options;
+  const { service, allowRemote = false, now = Date.now, failDelayMs = 500, hosts = [] } = options;
   const token = options.token && options.token.length >= MIN_TOKEN ? options.token : undefined;
   const expected = token ? digest(token) : null;
 
@@ -134,6 +170,28 @@ export function adminHandler(options: AdminOptions) {
     const given = presented(header);
     // Compared as SHA-256 digests, so the comparison takes the same time for any length.
     return expected !== null && given !== null && timingSafeEqual(digest(given), expected);
+  };
+
+  // Wrong tokens per caller address: how many, and when the first of this window came.
+  const failures = new Map<string, { count: number; since: number }>();
+  const lockedOut = (remote: string) => {
+    const entry = failures.get(remote);
+    if (entry && now() - entry.since >= FAILURE_WINDOW_MS) failures.delete(remote);
+    return (failures.get(remote)?.count ?? 0) >= MAX_FAILURES;
+  };
+  const failed = (remote: string) => {
+    if (failures.size >= MAX_TRACKED) {
+      for (const [key, entry] of failures) {
+        if (now() - entry.since >= FAILURE_WINDOW_MS) failures.delete(key);
+      }
+      // Still full: the oldest go first (a Map keeps insertion order), never every counter.
+      for (const key of failures.keys()) {
+        if (failures.size < MAX_TRACKED) break;
+        failures.delete(key);
+      }
+    }
+    const entry = failures.get(remote) ?? { count: 0, since: now() };
+    failures.set(remote, { ...entry, count: entry.count + 1 });
   };
 
   const health = () => options.health().catch((error: unknown) => [failing('Health', error)]);
@@ -161,6 +219,12 @@ export function adminHandler(options: AdminOptions) {
     if (!allowRemote && !isLocalAddress(remote)) {
       return json({ error: 'The admin page only answers local addresses.' }, 403);
     }
+    if (!isAllowedHost(request.host, hosts)) {
+      return json(
+        { error: 'Open the admin page by address, or list its name in ADMIN_HOSTS.' },
+        421,
+      );
+    }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return json({ error: 'Only GET.' }, 405, { Allow: 'GET, HEAD' });
     }
@@ -178,8 +242,16 @@ export function adminHandler(options: AdminOptions) {
         404,
       );
     }
+    if (lockedOut(remote)) {
+      return json({ error: 'Too many wrong tokens. Try again in 15 minutes.' }, 429, {
+        'Retry-After': String(Math.ceil(FAILURE_WINDOW_MS / 1000)),
+      });
+    }
     if (!authorized(request.authorization)) {
-      if (request.authorization) await sleep(failDelayMs);
+      if (request.authorization) {
+        failed(remote);
+        await sleep(failDelayMs);
+      }
       return json({ error: 'Wrong or missing token.' }, 401, {
         'WWW-Authenticate': `Basic realm="Lelap ${service}", charset="UTF-8"`,
       });
@@ -201,6 +273,7 @@ export function serveAdmin(options: AdminOptions & { port: number }): void {
             method: req.method ?? 'GET',
             path: new URL(req.url ?? '/', 'http://admin').pathname,
             authorization: req.headers.authorization ?? null,
+            host: req.headers.host ?? null,
           },
           req.socket.remoteAddress ?? '',
         );
@@ -325,6 +398,7 @@ export function adminFromEnv(
     port,
     token: secret('ADMIN_TOKEN', env),
     allowRemote: env.ADMIN_ALLOW_REMOTE === 'true',
+    hosts: (env.ADMIN_HOSTS ?? '').split(',').filter((name) => name.trim()),
     health: async () => {
       const [own, rest] = await Promise.all([answers(servicePort), parts.health?.() ?? []]);
       return [own, ...rest];

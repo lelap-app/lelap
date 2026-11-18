@@ -1,4 +1,9 @@
-# Security audit (M19)
+# Security audit
+
+Two rounds so far. [Round 2 (M96)](#round-2-m96) covers what landed after the first; findings are
+numbered on from round 1.
+
+## Round 1 (M19)
 
 A review of the services, sync crypto, CI, the Android app and the web build, made on 17 November
 2026 against `main` at `8ee0bc0`. Each finding has a severity, where it is, what it is, and either
@@ -8,7 +13,7 @@ the fix in this change or a decision for the maintainer. Open device and dashboa
 **Severity:** High (exploitable now, real harm), Medium (exploitable with conditions, or a missing
 layer that matters), Low (hardening), Info (checked and fine, or by design).
 
-## Summary
+### Summary
 
 | #   | Severity | Area            | Finding                                                                 | Status   |
 | --- | -------- | --------------- | ----------------------------------------------------------------------- | -------- |
@@ -311,6 +316,8 @@ would expose them. Pages served no CSP and no other security headers.
 - `script-src 'self' 'wasm-unsafe-eval'`: the export's own files and sql.js's WebAssembly; no inline
   script, no `eval`.
 - `style-src 'self' 'unsafe-inline'`: react-native-web inserts `<style>` elements at run time.
+- `worker-src 'self' blob:`: the service worker (`/sw.js`, registered by `/sw-register.js`) and
+  the add-on sandbox's worker (finding 23).
 - `connect-src 'self'`, the configured proxy, sync, downloads and add-on hosts, and `https:`.
 - `img-src` and `media-src` allow `https:`, `blob:` (OPFS downloads) and `data:` for images.
 - `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`.
@@ -341,3 +348,339 @@ pairing code, with no CSP violations; a request to an unlisted plain-http host i
   `@expo/fingerprint` and other build tools. Patterns come from the repository, not from users.
 
 Neither ships in the app, the services or the images. No action beyond Dependabot.
+
+## Round 2 (M96)
+
+A review of what landed after round 1, made on 18 November 2026 against `main` at `f31aa84`: in-app
+add-ons and their sandbox (with settings on every route since M66), sealed settings and configure
+pages, the Hardcover token and its cache, casting and the device authentication probe, Android 17's
+local network permission, SMB and SFTP, the web app's OPFS storage, share links (M85), the
+self-hosting admin page (M95) and the exported `CoverProvider` (M74). Same method and severities
+as round 1. Open checks are in [M96](milestones/m96.md#open-checks); what is planned is in
+[M104](milestones/m104.md).
+
+### Summary
+
+| #   | Severity | Area            | Finding                                                                     | Status   |
+| --- | -------- | --------------- | --------------------------------------------------------------------------- | -------- |
+| 23  | Medium   | In-app add-ons  | Add-on code could claim to run in the worker, then get settings in the page | Fixed    |
+| 24  | Medium   | Add-on links    | A link could move an installed add-on to another server by claiming its ID  | Fixed    |
+| 25  | Medium   | Android Auto    | The exported cover provider opened any file a synced cover address named    | Fixed    |
+| 26  | Medium   | Self-hosting    | Admin pages answered any host name: DNS rebinding reached `/health`         | Fixed    |
+| 27  | Medium   | Self-hosting    | One secrets volume: the internet-facing proxy could read `CONFIG_SECRET`    | Fixed    |
+| 28  | Low      | Self-hosting    | No limit on wrong admin tokens from one address                             | Fixed    |
+| 29  | Low      | Self-hosting    | Service ports on every address, even behind the bundled Caddy               | Fixed    |
+| 30  | Low      | Self-hosting    | A restore took a backup from a newer schema than the image knows            | Fixed    |
+| 31  | Low      | In-app add-ons  | A declared host can point at the home network; `Host` was passed through    | Partly   |
+| 32  | Low      | In-app add-ons  | A web add-on that claims `sandbox` was shown as having no network           | Fixed    |
+| 33  | Low      | In-app add-ons  | Sandbox fetches read the whole answer before the size check                 | Fixed    |
+| 34  | Low      | Add-on SDK      | SDK-sealed settings are not bound to the add-on that sealed them            | Planned  |
+| 35  | Low      | Share links     | A matched work's ID went into links without the add-on ID check             | Fixed    |
+| 36  | Low      | Add-on links    | `lelap://addon` fetches the manifest before asking                          | Decision |
+| 37  | Low      | Casting         | Media server and UPnP reader: no header limit; no deadline for the server   | Fixed    |
+| 38  | Low      | Casting         | The DTD refusal in the UPnP parser may do nothing on Android                | Fixed    |
+| 39  | Low      | Casting         | Discovery fetches the `LOCATION` of any answer, from any host               | Planned  |
+| 40  | Low      | Casting         | The media server listens on whatever network is active                      | Planned  |
+| 41  | Low      | SMB             | Signing is not required for logged-in sessions                              | Planned  |
+| 42  | Low      | Sync            | Synced part addresses are stored without a scheme check                     | Planned  |
+| 43  | Low      | Releases        | No software bill of materials                                               | Fixed    |
+| 44  | Info     | Google Cast     | Device authentication report-only, TLS unchecked                            | Planned  |
+| 45  | Info     | Hardcover       | Token sealed in the path, cache keyed per token                             | Checked  |
+| 46  | Info     | Configure pages | Sealing, return targets and headers of the catalog's pages                  | Checked  |
+| 47  | Info     | Web app         | OPFS names, tabs, secrets and the CSP                                       | Checked  |
+| 48  | Info     | Android         | Local network permission, SFTP host keys, logins, the rest of casting       | Checked  |
+| 49  | Info     | Dependencies    | `pnpm audit`: no known advisories                                           | Checked  |
+
+## 7. In-app add-ons
+
+### 23. Add-on code could claim the worker and get settings in the page (Medium, fixed)
+
+**Where:** `apps/app/src/sandbox/page.ts`, `apps/app/src/sandbox/index.ts`.
+**What:** Since M57 an in-app add-on runs in a worker, and the app hands settings (logins, tokens)
+only to a sandbox that said `isolated: true`. Before the worker said `started`, the page passed
+every worker message to the app. The add-on's own top-level code could post
+`{"t":"ready","isolated":true}`, then throw. The app keeps the first `ready`; the page saw the
+error, fell back to running the code in the page, and the app went on handing it settings. Page
+code has ways out that a worker lacks: a form post (the page CSP had no `form-action`, and
+Android's WebView doesn't ask about POST navigations) or WebRTC.
+**Fix:** The page holds worker messages until `started` and drops them, and anything later, when
+the code falls back to the page. The page CSP adds `form-action 'none'; base-uri 'none'`. Checked
+with a simulated worker: the hostile code now yields only `isolated: false`, and an add-on's early
+messages still arrive after `ready`.
+
+### 31. A declared host can point at the home network (Low, partly fixed)
+
+**Where:** `packages/core/src/addons/sandboxFetch.ts`, `local.ts`.
+**What:** Host rules check names. An add-on that declares `api.example` can make that name resolve
+to `192.168.1.1`; the app's fetch has no CORS, so the add-on could read a router or NAS page. It
+could also set `Host` and reach another site on an allowed address.
+**Fix:** `Host` and the other connection headers are dropped (tested). **Planned
+([M104](milestones/m104.md)):** refuse private, loopback and link-local addresses after DNS for
+declared hosts, in the native fetch, while keeping them for addresses the listener typed.
+
+### 32. A web add-on claiming a sandbox (Low, fixed)
+
+**Where:** `packages/core/src/addons/permissions.ts`.
+**What:** A web add-on's manifest could carry `sandbox`. The review sheet then said “runs on this
+device, in a sandbox, with no network at all” and left out that a service sees what you browse.
+No settings leaked: only bundled and file add-ons get code.
+**Fix:** The sandbox lines are for `lelap-local://` add-ons only. Tested.
+
+### 33. Sandbox fetches read in full first (Low, fixed)
+
+**Where:** `packages/core/src/addons/sandboxFetch.ts`.
+**What:** The 5 M character cap ran after `response.text()`.
+**Fix:** An answer whose `Content-Length` is over the cap is refused before it is read. A cap on
+parallel fetches per add-on is planned in [M104](milestones/m104.md).
+
+### Checked and fine
+
+- **Sandbox fetch:** `redirect: 'manual'` and `credentials: 'omit'`; redirects and opaque answers
+  refused; the answer's URL checked again; 20 s timeout including the body; only `content-type`,
+  `set-cookie` and `date` returned.
+- **Host rules:** http(s) only, no user info, plain http needs a port, `*.x` doesn't match `x`.
+- **WebView:** no file access, incognito, no cache, DOM storage off, one window, only `about:`
+  navigations, no Java interface but React Native's own. **Web:** `sandbox="allow-scripts"`, an
+  opaque origin, messages checked by `event.source` both ways, `<` escaped in inline literals.
+- **Worker lockdown:** fetch, XHR, sockets, `importScripts`, workers, caches and IndexedDB removed.
+- **Settings per route (M66):** each server has its own sandbox (`<url>#<root>`), settings have
+  `#settings`, and the plain sandbox gets none. Answers are filtered to the add-on's hosts.
+- **Stored settings and stream headers:** sealed with the device key, bound to the code's
+  SHA-256, wiped when unsealed or when the code changes; web add-ons can't set stream headers.
+- **Installing a file:** 1 MB cap, manifest read in a sandbox with no hosts, SHA-256 shown,
+  bundled IDs can't be taken.
+
+## 8. Add-on links, configure pages and share links
+
+### 24. A link could take over an installed add-on (Medium, fixed)
+
+**Where:** `apps/app/src/addonInstall.ts`, `packages/core/src/addons/repository.ts`.
+**What:** `lelap://addon?manifest=…` (and `/addon` on the web) is how a configure page hands back
+new settings. When the manifest's ID matched an installed add-on at another URL, the app offered
+“Update {name}?” and then moved the add-on, its books, source choices and unsent scrobbles to the
+new URL, without the review sheet. Any manifest can claim any ID, a bundled scrobbler's too, so a
+website could send listening history and stream lookups to its own server after one tap.
+**Fix:** The update path is taken only when both URLs are web addresses on the same origin, as a
+configure page's are. Otherwise Lelap says the add-on is added already and where it comes from,
+and changes nothing. A self-hosted add-on whose address changes host, port or scheme now has to
+be removed and added again, losing its books. **Planned ([M104](milestones/m104.md)):** a move
+the listener asks for in the app, and the review sheet in the update path when the new manifest
+asks for more.
+
+### 34. SDK-sealed settings not bound to the add-on (Low, planned)
+
+**Where:** `packages/sdk/src/config.ts`.
+**What:** `encodeConfig` seals with AES-GCM under a key from `configure.secret` but no associated
+data, so two add-ons sharing one secret accept each other's tokens. The catalog's own sealing
+(`services/catalog/src/scrobble/sealed.ts`) binds the add-on name already.
+**Planned:** an `e2.` format with the manifest ID as associated data, reading `e1.` as before
+([M104](milestones/m104.md)). It is the SDK's public format, so it gets its own release note.
+
+### 35. A matched work's ID in share links (Low, fixed)
+
+**Where:** `packages/core/src/placeLink.ts`.
+**What:** An add-on item's ID only goes into a share link when it is a plain `prefix:id`, since it
+can hold a server path or settings. The ID of a work the book was matched to comes from an
+add-on's catalog too, and skipped that check.
+**Fix:** Both get the same test. Tested with an ID holding a URL with a password.
+
+### 36. `lelap://addon` fetches before asking (Low, decision)
+
+**Where:** `apps/app/app/addon.tsx`, `apps/app/src/addonInstall.ts`.
+**What:** Opening the link fetches the manifest at once; the question comes after. A web page can
+make the app send one GET to a host it names, which tells that host the phone's address.
+**Decision:** Accept. The dialog needs the manifest's name and permissions, nothing is installed
+without a tap, and following a link to a web page tells its host the same.
+
+### Checked and fine
+
+- **Catalog configure pages (Hardcover, gPodder):** AES-256-GCM with a random IV and the add-on name
+  as associated data; drafts sealed apart and expiring after an hour; a secret of 32 characters or
+  more; `no-store`, `no-referrer` (header and meta), `frame-ancestors 'none'`, `form-action
+'self'`; passwords never put back into the form; the return target checked against
+  `lelap://addon` and the listed web app origins.
+- **SDK configure pages:** the same headers but `form-action`, on purpose: the form's answer is a
+  303 to `lelap://addon`, and Chrome applies `form-action` to redirects after a post.
+- **Sign-in:** the sign-in URL must be on the add-on's hosts.
+- **Share links (M85):** title and author capped at 300 characters, times at 7 digits, IDs only
+  `isbn:`, `asin:` and `ol:`, clips at 5 minutes; `/place` renders text only and opens no URL from
+  the link; “Open in the Lelap app” rebuilds the link from parsed values; play finds only the
+  listener's own copy, within a kids profile's shelf; Android registers only the `lelap` scheme.
+
+## 9. Android: casting, covers, network storage
+
+### 25. The exported cover provider opened any synced file (Medium, fixed)
+
+**Where:** `modules/audio/.../CoverProvider.kt`, `CarCovers.kt`, `packages/core/src/sync/ops.ts`.
+**What:** Android Auto gets local covers as `content://<package>.covers/<key>`, served by an
+exported provider with no permission. The key is a hash of a cover address the car lists, and
+the provider opened that address, `file://` or `content://`, whatever it was. Sync stored a
+book's or show's `coverUrl` from another device unchecked. A hostile device in the sync group (or
+one whose key leaked, see 7) could push a book whose cover is
+`file:///data/user/0/<package>/databases/<db>`; once it was on a car shelf, any app on the phone
+could compute the key and read Lelap's database.
+**Fix:** Sync keeps a cover from another device only when it is `http(s)`; the provider opens a
+`file:` cover only when the file it resolves to (canonical, so after `..`, `#`, `%2e` and links)
+has an image name, and `content:` covers only from other apps' providers, never Lelap's own. Both
+tested. Covers synced before the update stay in the database; the provider's check covers them.
+
+### 37. Header limits and a deadline for the media server (Low, fixed)
+
+**Where:** `modules/cast/.../MiniHttp.kt`, `MediaServer.kt`.
+**What:** While casting, the phone serves files on a random port. Header lines were capped at
+16 KB each but not in number, and a sender with one byte every 29 s could hold the six threads.
+The same reader parses UPnP answers during discovery.
+**Fix:** At most 100 header lines and 32 KB for both; the media server wants the request's head
+within 15 s (10 s per read). The UPnP client keeps its 5 s per read, and an SSDP answer with too
+many headers is skipped rather than ending the search. JVM tests added.
+
+### 38. DTDs in UPnP descriptions (Low, fixed)
+
+**Where:** `modules/cast/.../Upnp.kt`.
+**What:** `disallow-doctype-decl` is a Xerces feature; Android's parser may refuse to set it, and
+`runCatching` hid that. External entities aren't fetched there, but internal ones can expand.
+**Fix:** A description with `<!DOCTYPE` or `<!ENTITY` is refused before parsing, so the JVM test
+means the same on a phone.
+
+### 39, 40, 41. Discovery, the media server's network, SMB signing (Low, planned)
+
+- **39:** any device answering the SSDP search makes the phone GET its `LOCATION`, on any host,
+  `127.0.0.1` included (`Ssdp.kt`, `Discovery.kt`). Only the answer's sender should be fetched.
+- **40:** the media server takes the first address of the active network, which on mobile data
+  or a VPN is not the home network (`MediaServer.kt`). Each file still needs its 128-bit token.
+- **41:** smbj requires signing only when the server does (`SmbSession.kt`); someone in the
+  middle on the LAN could change listings and files. Required signing for logged-in sessions
+  (guests have no key) needs testing against real NAS boxes first.
+
+All three are in [M104](milestones/m104.md), where they can be tested on a phone with real devices.
+
+### 42. Synced part addresses (Low, planned)
+
+**Where:** `packages/core/src/sync/ops.ts` (`applyBook`).
+**What:** Finding 25 checks covers; a streamed book's part addresses from another device are
+stored as they come. They are only played, and a `file:` part would reach a cast receiver only
+behind its token, so the harm is small. Planned in [M104](milestones/m104.md) with a check of
+which schemes streamed parts may use.
+
+### 44. Google Cast device authentication (Info, planned)
+
+The Cast client accepts any certificate and runs device authentication report-only
+(`GoogleCast.kt`, `CastAuthProbe.kt`), as the brief records. Someone in the middle on the LAN
+sees the media addresses the phone sends, including phone-served WebDAV and Subsonic links. The
+probe runs on its own connection with a 5 s timeout and logs only a verdict. Enforcing it is
+[M78 Casting 4](milestones/m78.md), still planned.
+
+### 48. Checked and fine (Info)
+
+- **Media server:** a `SecureRandom` 128-bit token per file, matched exactly, so no path
+  traversal; only files the app published; GET and HEAD only; all entries cleared on stop; bad
+  ranges handled. Logins on the pass-through path stay on the same scheme, host and port.
+- **Cast and FCast framing:** 64 KB Cast messages, 32 KB FCast packets, bounds-checked lengths.
+- **Local network permission (Android 17):** declared in the cast and netfs manifests, asked on
+  SDK 37 and later whatever the target, and discovery and connecting refuse to start without it;
+  `localNetwork.ts` only decides the wording and when to ask.
+- **SFTP:** host keys trusted on first use, compared as SHA-256 in constant time; a changed key
+  stops before any login is sent. SMB is SMB 2 and 3 only.
+- **Logins:** SMB and SFTP passwords, keys and passphrases sealed (`sec1:`); `NetLogin` hides them
+  in `toString`; no log line prints a login.
+- **Remote names:** download names checked; folder covers saved as `folder-<hash>.<ext>`; folder
+  walks skip `.`, `..` and dot names, at most 5,000 folders 32 deep.
+- **Cover provider otherwise:** read-only, `query` and the writes do nothing, no URI grants.
+
+## 10. Hardcover and the web app
+
+### 45. Hardcover token (Info, checked)
+
+**Where:** `services/catalog/src/scrobble/`.
+
+- The token lives only in the sealed path segment (`/hardcover/v1.<AES-256-GCM>/…`), bound to the
+  add-on name, never in a query string, and reaches Hardcover only in `Authorization`.
+- The catalog's error log prints the message only; every answer has `no-referrer`.
+- Cache keys are `owner=<HMAC(CONFIG_SECRET, token)>`, so never the raw token, and per token:
+  one listener's want-to-read can't be served to another. Personal lists answer with
+  `cacheMaxAge: 0`; trending and book details are public data.
+- GraphQL goes through `variables`; list links are parsed against hardcover.app; private lists
+  are refused unless the listener owns them.
+- The web app refuses scrobbler settings, since it can't seal them (round 1, finding 6).
+
+### 47. Web app storage (Info, checked)
+
+- **OPFS names:** downloads are `001.mp3` and `cover.jpg` with a 1 to 5 character extension, book
+  IDs are local and cached covers are named by hash; OPFS also refuses `..`.
+- **Tabs:** a Web Lock lets one tab open the library at a time; chunks are written whole.
+- **Blob URLs:** exports revoked after 10 s, the audio one when the next is made; cover blob URLs
+  live for the session, in memory only.
+- **Secrets:** as round 1 decided (6), plain in the OPFS database behind the CSP.
+- **Service worker:** it caches cross-origin JSON and XML GETs without `Authorization`, Hardcover's
+  sealed-URL answers included, in this browser's own Cache Storage (300 entries), like the
+  database itself.
+- **CSP:** unchanged since round 1. `worker-src 'self' blob:` was there from the start and is now
+  listed in 8.
+
+## 11. Self-hosting
+
+### 26. DNS rebinding of the admin pages (Medium, fixed)
+
+**Where:** `docker/server/src/admin.ts`.
+**What:** A web page on a name of its own can point that name at `127.0.0.1` and then read the
+admin port as same-origin. The token keeps the pages closed, but `/health` answered without it.
+**Fix:** The pages answer only a `Host` that is an IP address, `localhost`, or a name listed in the
+new `ADMIN_HOSTS`; anything else gets 421, `/health` included. Docker's health check calls
+`127.0.0.1`. Tested.
+
+### 27. One secrets volume for every service (Medium, fixed)
+
+**Where:** `docker/compose.yml`.
+**What:** All services mounted the same `secrets` volume, so the proxy, which fetches whatever the
+internet asks, could read the catalog's `CONFIG_SECRET`, and every admin page shared one token.
+**Fix:** A volume per service. The catalog keeps the volume named `secrets`, so its
+`CONFIG_SECRET` survives the upgrade; `proxy-secrets`, `sync-secrets` and `updates-secrets` are
+new, with a new admin token each (`ADMIN_TOKEN` in `.env` still sets one for all). The README and
+backup guide say where each token is.
+
+### 28. Wrong admin tokens (Low, fixed)
+
+**Where:** `docker/server/src/admin.ts`.
+**What:** Each wrong token waited 500 ms, but nothing stopped many parallel guesses.
+**Fix:** After 10 wrong tokens in 15 minutes an address gets 429 until the window ends, even with
+the right token; asking without a token doesn't count. Memory is bounded at 10,000 addresses,
+the oldest dropped first. With `ADMIN_ALLOW_REMOTE`, someone with many IPv6 addresses gets 10
+tries per address; the 500 ms wait and the token's length remain.
+Where every caller looks like one address (Docker Desktop, rootless Docker), a stranger can lock
+the page for 15 minutes; that is the price of the limit. Tested.
+
+### 29. Service ports on every address (Low, fixed)
+
+**Where:** `docker/compose.yml`, `.env.example`.
+**What:** With `--profile https`, Caddy reaches the services over Docker's network, yet ports
+8080 to 8790 were still published on every address, plain http.
+**Fix:** `SERVICE_BIND=127.0.0.1` publishes them on loopback only. Unset, they stay on every
+address as before, so setups without the bundled Caddy keep working.
+
+### 30. Restoring a backup from a newer schema (Low, fixed)
+
+**Where:** `docker/server/src/backup.ts`, `syncDb.ts`, `syncMigrations.ts`.
+**What:** `restore` checked integrity and tables, not migrations; an older image would then run on
+a schema it doesn't know.
+**Fix:** The image's migrations are listed in one place; `verify` and `restore` refuse a database
+that has applied one the image doesn't know, and say to use that version. Tested.
+
+## 12. Releases and dependencies
+
+### 43. A software bill of materials (Low, fixed)
+
+**Where:** `.github/workflows/release.yml`, `ci.yml`.
+**What:** Releases came with SHA-256 sums and build provenance, but no list of what is inside.
+**Fix:** A new `sbom` job (no environment, no secrets, `contents: read`) writes
+`lelap-<version>-sbom.cdx.json` with pnpm's own `pnpm sbom`: CycloneDX 1.7, the app's production
+npm packages from the lockfile, about 700 of them. It refuses an empty file; `publish` attaches it
+to the GitHub release and lists it in `SHA256SUMS`. The Docker images get BuildKit's SBOM
+attestation (`sbom: true`), covering their Alpine and Node packages. CI writes the same SBOM on
+every pull request, so a tag doesn't find it broken. The Gradle libraries inside the APK are not
+in it yet: planned in [M104](milestones/m104.md). Only a real tag proves the job; it is an open
+check in M96.
+
+### 49. Dependencies (Info, checked)
+
+`pnpm audit` on 18 November 2026: no known vulnerabilities. Round 1's two advisories (19) are gone.
+The supply-chain settings in `pnpm-workspace.yaml` are unchanged.
