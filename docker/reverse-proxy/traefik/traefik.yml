@@ -1,0 +1,27 @@
+# Traefik's static configuration for Lelap: HTTPS with Let's Encrypt, routes from lelap.yml.
+# Replace you@example.org; see ../README.md.
+entryPoints:
+  web:
+    address: ':80'
+    http:
+      redirections:
+        entryPoint: { to: websecure, scheme: https }
+  websecure:
+    address: ':443'
+    http:
+      tls: { certResolver: letsencrypt }
+    # A sync push of about 13 MB on a slow connection can take longer than the 60 s default.
+    transport:
+      respondingTimeouts: { readTimeout: 120s }
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: you@example.org
+      storage: /etc/traefik/acme/acme.json
+      httpChallenge: { entryPoint: web }
+
+providers:
+  file:
+    filename: /etc/traefik/lelap.yml
+    watch: true

@@ -12,9 +12,14 @@ RUN pnpm install --frozen-lockfile --filter "@lelap/docker-server..." \
 FROM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5
 WORKDIR /app
 COPY --from=build /src/docker/server/dist/updates.mjs ./server.mjs
-RUN mkdir /data && chown node:node /data
-VOLUME /data
+RUN mkdir /data /secrets && chown node:node /data /secrets
+VOLUME /data /secrets
 ENV PORT=8790 UPDATES_DIR=/data NODE_ENV=production
-EXPOSE 8790
+EXPOSE 8790 9790
+# The admin page's port (docker/README.md): /health for this check, the rest behind ADMIN_TOKEN.
+# Secrets made on first start (ADMIN_TOKEN, CONFIG_SECRET) are kept in /secrets.
+ENV ADMIN_PORT=9790 SECRETS_DIR=/secrets
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:'+process.env.ADMIN_PORT+'/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 USER node
 CMD ["node", "server.mjs"]
