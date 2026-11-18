@@ -1,6 +1,6 @@
 import { type AddonHandlers, AddonError, createAddon, type Manifest } from '@lelap/sdk';
 
-import type { Sealer } from './sealed';
+import { MAX_SEALED, type Sealer } from './sealed';
 
 // A configurable add-on under its own path. The listener fills in `/configure`; the answer is a
 // manifest URL with their settings sealed into one path segment:
@@ -150,9 +150,6 @@ async function pickPage<C>(
     error ? 400 : 200,
   );
 }
-
-/** Sealed segments longer than this are refused when opened (see `sealed.ts`). */
-const MAX_SEALED = 4096;
 
 function installed(manifestUrl: string, name: string): Response {
   return page(

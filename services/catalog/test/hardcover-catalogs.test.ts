@@ -359,15 +359,45 @@ describe('Hardcover catalogs', () => {
     expect((await catalog(app, url, 'trending-month')).status).toBe(502);
   });
 
-  it('says which scope is missing while configuring', async () => {
+  it('sets up a token without read:lists with the trending rows only', async () => {
     const app = appWith(hardcover().fetch);
     const response = await postForm(
       app,
       '/hardcover/configure',
       new URLSearchParams({ token: NO_LISTS }),
     );
-    expect(response.status).toBe(400);
-    expect(await response.text()).toContain('lacks read:lists');
+    const html = await response.text();
+    expect(response.status).toBe(200);
+    expect(html).toContain('lacks read:lists');
+    expect(html).not.toContain('name="links"');
+    const { url } = await configure(app, NO_LISTS, { trending: ['all'] });
+    const manifest = (await (await get(app, url)).json()) as Manifest;
+    expect(manifest.catalogs.map((c) => c.id)).toEqual(['want-to-read', 'trending-all']);
+  });
+
+  it('does not take an error about an author for a refused token', async () => {
+    const server = hardcover();
+    const app = appWith(server.fetch);
+    const { url } = await configure(app, READER, { trending: ['month'] });
+    server.fail(200, {
+      errors: [{ message: "field 'author' not found in type: 'contributions'" }],
+    });
+    expect((await catalog(app, url, 'trending-month')).status).toBe(502);
+    server.fail(403, { error: 'You do not have access' });
+    expect((await catalog(app, url, 'trending-month')).status).toBe(401);
+    server.fail(200, {
+      errors: [{ message: 'Could not verify JWT', extensions: { code: 'invalid-jwt' } }],
+    });
+    expect((await catalog(app, url, 'trending-month')).status).toBe(401);
+  });
+
+  it('refuses a draft that is not one of its own', async () => {
+    const app = appWith(hardcover().fetch);
+    for (const draft of ['v1.abcde', 'v1.not-sealed-by-this-server-at-all', 'nonsense']) {
+      const response = await postForm(app, '/hardcover/configure', new URLSearchParams({ draft }));
+      expect(response.status).toBe(400);
+      expect(await response.text()).toContain('Start again');
+    }
   });
 
   it('shows the trending rows on links made before M76', async () => {

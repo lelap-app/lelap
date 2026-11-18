@@ -14,6 +14,7 @@ import {
   HARDCOVER_SITE,
   hardcoverClient,
   memoryCache,
+  MissingScope,
   NEW_TOKEN_URL,
   PREFIX,
   preview,
@@ -26,6 +27,7 @@ import {
   availableLists,
   catalogFor,
   DEFAULT_SHOWN,
+  NO_LISTS,
   pickFields,
   reviveShown,
   type Shown,
@@ -275,9 +277,15 @@ export function hardcoverAddon(
   const listsOf = async (config: HardcoverConfig) => {
     const gql = client(config);
     const user = await userOf(gql, config);
-    // Kept briefly: the choices page reads them again when its form comes back.
-    const available = await cachedFor(config)('lists', 600, () => availableLists(gql, user));
-    return { gql, user, available };
+    try {
+      // Kept briefly: the choices page reads them again when its form comes back.
+      const available = await cachedFor(config)('lists', 600, () => availableLists(gql, user));
+      return { gql, user, available, canReadLists: true };
+    } catch (error) {
+      // A token made for scrobbling alone still sets up, with the trending rows only.
+      if (!(error instanceof MissingScope)) throw error;
+      return { gql, user, available: NO_LISTS, canReadLists: false };
+    }
   };
   return {
     basePath: BASE_PATH,
@@ -298,7 +306,10 @@ export function hardcoverAddon(
     pick: {
       intro:
         'Choose the rows to show in Lelap. Each list is one row, in its own order. Everything here comes from Hardcover, read with your token only.',
-      fields: async (config) => pickFields((await listsOf(config)).available, config.shown),
+      fields: async (config) => {
+        const { available, canReadLists } = await listsOf(config);
+        return pickFields(available, config.shown, canReadLists);
+      },
       apply: async (config, form) => {
         const { gql, user, available } = await listsOf(config);
         const shown = await applyPicks(gql, user, available, form, config.shown);

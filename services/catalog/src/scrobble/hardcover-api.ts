@@ -24,6 +24,27 @@ const SET_UP_AGAIN = 'Hardcover did not accept the token; configure the add-on a
 
 export const refused = (message = SET_UP_AGAIN) => new AddonError(401, message);
 
+/** A token without a scope the request needs; still “set up again”, but the scope is known. */
+export class MissingScope extends AddonError {
+  constructor(readonly scope: string) {
+    super(
+      401,
+      `The Hardcover token lacks ${scope}; make a new token with it and configure the add-on again`,
+    );
+  }
+}
+
+/** Error codes from a body, in the shapes Hardcover's docs show and GraphQL's own. */
+function codesOf(body: { error?: unknown; errors?: unknown } | null): unknown[] {
+  const errors = Array.isArray(body?.errors) ? (body.errors as unknown[]) : [];
+  return [
+    body?.error,
+    ...errors.flatMap((e) =>
+      typeof e === 'string' ? [e] : [(e as { extensions?: { code?: unknown } })?.extensions?.code],
+    ),
+  ].filter(Boolean);
+}
+
 /** Hardcover's answer to a refused request as an `AddonError`; 401 means “set up again”. */
 async function failure(response: Response): Promise<AddonError> {
   const { status } = response;
@@ -32,19 +53,20 @@ async function failure(response: Response): Promise<AddonError> {
     errors?: unknown;
     scope?: unknown;
   } | null;
-  const codes = [body?.error, ...(Array.isArray(body?.errors) ? body.errors : [])];
+  const codes = codesOf(body);
   if (status === 401) return refused();
   if (status === 403) {
-    if (codes.includes('insufficient_scope')) {
-      const scope = typeof body?.scope === 'string' ? body.scope : 'a permission';
-      return refused(
-        `The Hardcover token lacks ${scope}; make a new token with it and configure the add-on again`,
-      );
+    const header = response.headers.get('WWW-Authenticate') ?? '';
+    if (codes.includes('insufficient_scope') || header.includes('insufficient_scope')) {
+      const scope =
+        typeof body?.scope === 'string' ? body.scope : (/scope="([^"]+)"/.exec(header)?.[1] ?? '');
+      return new MissingScope(scope || 'a permission');
     }
     // Too many top-level fields in one request: a bug here, not the listener's token.
     if (codes.includes('request_exceeds_capacity') || codes.includes('unsupported_operation'))
-      return new AddonError(502, `Hardcover refused the request (${String(codes.find(Boolean))})`);
-    return new AddonError(403, 'Hardcover did not allow this; the list may be private now');
+      return new AddonError(502, `Hardcover refused the request (${String(codes[0])})`);
+    // Any other refusal: as before M76, the listener sets the add-on up again.
+    return refused();
   }
   if (status === 408) return new AddonError(504, 'Hardcover took too long to answer');
   if (status === 429) return new AddonError(503, 'Hardcover asks to slow down');
@@ -68,11 +90,20 @@ export function hardcoverClient(fetch: FetchLike, token: string, userAgent: stri
       signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) throw await failure(response);
-    const body = (await response.json()) as { data?: T; errors?: { message?: string }[] };
+    const body = (await response.json()) as {
+      data?: T;
+      errors?: { message?: string; extensions?: { code?: unknown } }[];
+    };
     if (body.errors?.length || !body.data) {
       const message = body.errors?.[0]?.message ?? 'no data';
-      // Hasura answers an invalid token with a 200 and an error.
-      if (/jwt|auth|token/i.test(message)) throw refused();
+      const code = body.errors?.[0]?.extensions?.code;
+      // Hasura answers an invalid token with a 200 and an error. Not just /auth/: “author”.
+      if (
+        code === 'invalid-jwt' ||
+        code === 'invalid-headers' ||
+        /\bjwt\b|unauthori[sz]ed|invalid token|token (?:is )?expired/i.test(message)
+      )
+        throw refused();
       throw new AddonError(502, `Hardcover: ${message}`);
     }
     return body.data;

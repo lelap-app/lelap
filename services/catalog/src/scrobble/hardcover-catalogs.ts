@@ -93,11 +93,14 @@ const LIST_BY_SLUG = `query ListBySlug($user: citext!, $slug: String!) {
 
 export type Available = { mine: ListRef[]; followed: ListRef[]; featured: ListRef[] };
 
+export const NO_LISTS: Available = { mine: [], followed: [], featured: [] };
+
 const trimmed = (list: { id: number; name?: string | null }): ListRef => {
-  const name = (list.name ?? '').trim() || `List ${list.id}`;
+  // By code point, so an emoji is never cut in half.
+  const name = [...((list.name ?? '').trim() || `List ${list.id}`)];
   return {
     id: list.id,
-    name: name.length > NAME_LENGTH ? `${name.slice(0, NAME_LENGTH - 1)}…` : name,
+    name: name.length > NAME_LENGTH ? `${name.slice(0, NAME_LENGTH - 1).join('')}…` : name.join(''),
   };
 };
 
@@ -127,7 +130,11 @@ export function listLink(text: string): { user: string; slug: string } | null {
   if (url.hostname !== site.hostname && url.hostname !== `www.${site.hostname}`) return null;
   const match = /^\/@([^/]+)\/lists\/([^/]+)\/?$/.exec(url.pathname);
   if (!match?.[1] || !match[2]) return null;
-  return { user: decodeURIComponent(match[1]), slug: decodeURIComponent(match[2]) };
+  try {
+    return { user: decodeURIComponent(match[1]), slug: decodeURIComponent(match[2]) };
+  } catch {
+    return null;
+  }
 }
 
 /** A list by its link; it must be public or the listener's own. */
@@ -146,7 +153,11 @@ async function listByLink(gql: GraphQL, user: number, text: string): Promise<Lis
 const idOf = (list: ListRef) => String(list.id);
 
 /** The second settings page: which trending rows and lists to show. */
-export function pickFields(available: Available, shown: Shown | undefined): Field[] {
+export function pickFields(
+  available: Available,
+  shown: Shown | undefined,
+  canReadLists = true,
+): Field[] {
   const chosen = new Set((shown?.lists ?? []).map(idOf));
   // A new link starts with the listener's own lists ticked, up to the limit.
   const ownByDefault = new Set(available.mine.slice(0, MAX_LISTS).map(idOf));
@@ -164,12 +175,17 @@ export function pickFields(available: Available, shown: Shown | undefined): Fiel
     options: lists.map((l) => ({ value: idOf(l), label: l.name, checked: ticked(l) })),
   });
   const trending = shown?.trending ?? DEFAULT_SHOWN.trending;
-  return [
+  const fields: Field[] = [
     {
       name: 'trending',
       label: 'Trending on Hardcover',
       type: 'checkbox',
       required: false,
+      ...(canReadLists
+        ? {}
+        : {
+            hint: 'Your token lacks read:lists, so lists can’t be shown. Make one with it to add them.',
+          }),
       options: [
         { value: 'month', label: 'This month', checked: trending.includes('month') },
         { value: 'all', label: 'All time', checked: trending.includes('all') },
@@ -187,7 +203,12 @@ export function pickFields(available: Available, shown: Shown | undefined): Fiel
       placeholder: `${HARDCOVER_SITE}/@someone/lists/some-list`,
       hint: `Public lists, or your own. Separate several with spaces. Up to ${MAX_LISTS} lists in all.`,
     },
-  ].filter((f) => f.type !== 'checkbox' || (f.options?.length ?? 0) > 0) as Field[];
+  ];
+  return fields.filter(
+    (f) =>
+      (f.type !== 'checkbox' || (f.options?.length ?? 0) > 0) &&
+      (canReadLists || f.name !== 'links'),
+  );
 }
 
 /** The listener's picks as settings; throws an `AddonError` (400) with what to fix. */
