@@ -58,8 +58,9 @@ Open on a phone:
 ## From the review
 
 Fixed: the playback service's journal and queue, which keep file addresses with their login, are
-left out of Android backups; a form post from an add-on never follows a redirect, and an answer
-from another host after a redirect is not handed to the add-on; a username with letters like ü
+left out of Android backups; a form post from an add-on asks not to follow redirects (browsers
+honour it; whether Android's `fetch` does is open, below), and an answer from another host after a
+redirect is not handed to the add-on; a username with letters like ü
 works; a download that gets a JSON or XML message instead of the file fails instead of being kept;
 finishing a book tidies its older bookmarks even when the server has none for the last file; a
 failed `getBookmarks` no longer forgets the known ones; no place is reported for a book with a
@@ -67,9 +68,9 @@ file of unknown length; the browser's duration read gives up after 30 s.
 
 Left for later:
 
-- On Android, `fetch` follows redirects by itself, so a GET with the token in its address that a
-  server redirects elsewhere (an SSO proxy in front of it) reaches that host before the app refuses
-  the answer. Form posts, which Navidrome takes, don't have this.
+- On Android, `fetch` may follow redirects by itself, so a request with the token that a server
+  redirects elsewhere (an SSO proxy in front of it) could reach that host before the app refuses
+  the answer. Check on a phone with a server that redirects `/rest/` to another host.
 - Casting and downloads see no extension in a Subsonic address: receivers get `audio/mpeg` as the
   type for any file, and downloaded parts are named `.audio`. The extension is in the file's path.
 - A bookmark's time is the server's clock, compared with the phone's; a server clock running
