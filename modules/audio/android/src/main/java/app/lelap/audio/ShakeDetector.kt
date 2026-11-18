@@ -21,9 +21,12 @@ class ShakeDetector(private val clock: () -> Long) {
   private val peaks = ArrayDeque<Long>()
   private var lastShakeAt = Long.MIN_VALUE / 2
 
-  /** Returns true when this sample completes a shake. Values in m/s², gravity included. */
-  fun onSample(x: Float, y: Float, z: Float): Boolean {
-    val now = clock()
+  /**
+   * Returns true when this sample completes a shake. Values in m/s², gravity included. [atMs] is
+   * when the sensor measured it: batched samples arrive together, long after.
+   */
+  fun onSample(x: Float, y: Float, z: Float, atMs: Long = clock()): Boolean {
+    val now = atMs
     if (now - lastShakeAt < DEBOUNCE_MS) return false
     val jolt = sqrt(x * x + y * y + z * z) - GRAVITY
     if (jolt < THRESHOLD) return false

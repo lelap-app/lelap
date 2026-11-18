@@ -54,6 +54,8 @@ import { RowLabel, TextButton, Toggle } from '../src/components/TextButton';
 
 const SKIP_SECONDS = [10, 15, 30, 45, 60];
 const BEDTIME_MINUTES = [15, 30, 45, 60];
+// Percent of the normal volume while the bedtime timer runs.
+const BEDTIME_VOLUMES = [100, 80, 60, 40];
 const DAY_MINUTES = 24 * 60;
 // The bedtime window moves in half hours.
 const BEDTIME_STEP = 30;
@@ -746,7 +748,9 @@ export default function SettingsScreen() {
               <View className="flex-1 gap-1">
                 <Text className="text-base text-paper">{t('Start a sleep timer at bedtime')}</Text>
                 <Text className="text-sm text-muted">
-                  {t('When you press Play in this window, once a night.')}
+                  {t(
+                    'Once a night: when this window opens while you listen, or when you press Play in it. Works with the app closed.',
+                  )}
                 </Text>
               </View>
               <Toggle
@@ -785,9 +789,31 @@ export default function SettingsScreen() {
                     onPress={() => update('bedtimeChapter', true)}
                   />
                 </View>
+                <Text className="text-sm text-muted">{t('Volume until the timer ends')}</Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {BEDTIME_VOLUMES.map((v) => (
+                    <Choice
+                      key={v}
+                      label={v === 100 ? t('As it is') : `${v}%`}
+                      active={settings.bedtimeVolume === v}
+                      onPress={() => update('bedtimeVolume', v)}
+                    />
+                  ))}
+                </View>
               </>
             )}
           </View>
+        )}
+        {Platform.OS === 'android' && (
+          <Row
+            label={t('Shake for more time')}
+            detail={t('In the last five minutes of a sleep timer, shake the phone for ten more.')}
+          >
+            <Toggle
+              value={settings.shakeToExtend}
+              onValueChange={(v) => update('shakeToExtend', v)}
+            />
+          </Row>
         )}
 
         {BLUETOOTH && (

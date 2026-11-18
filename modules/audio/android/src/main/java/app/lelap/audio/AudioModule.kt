@@ -122,13 +122,14 @@ class AudioModule : Module() {
         putBoolean(Commands.EXTRA_DUCK, duck)
         putLong(Commands.KEY_SKIP_INTERVAL_MS, skipIntervalMs.toLong())
         putBoolean(Commands.KEY_SMART_REWIND, smartRewind)
-        // The sound switches come as one map: Expo functions take at most eight arguments.
+        // The switches come as one map: Expo functions take at most eight arguments.
         for (key in listOf(
           Commands.KEY_MONO, Commands.KEY_VOICE_EQ, Commands.KEY_VOLUME_BOOST,
           Commands.KEY_SKIP_SILENCE, Commands.KEY_EVEN_LOUDNESS,
         )) {
           putBoolean(key, sound[key] == true)
         }
+        putBoolean(Commands.KEY_SHAKE_TO_EXTEND, sound[Commands.KEY_SHAKE_TO_EXTEND] != false)
       }
       sendCommand(promise, Commands.SET_SETTINGS, args)
     }.runOnQueue(Queues.MAIN)
@@ -212,12 +213,34 @@ class AudioModule : Module() {
         .edit().putString(Commands.PREF_CAR_LIBRARY, snapshot).apply()
     }
 
-    // Same process: the service reads the window whenever playback starts. Null turns it off.
+    // Same process: the service reads the window whenever playback starts, and the alarm wakes it
+    // when the window opens. Null turns it off.
     AsyncFunction("setBedtime") { json: String? ->
       val bedtime = Bedtime.decode(json)
       val edit = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE).edit()
       if (bedtime == null) edit.remove(Commands.PREF_BEDTIME) else edit.putString(Commands.PREF_BEDTIME, bedtime.encode())
-      edit.apply()
+      // Written before the alarm reads it.
+      edit.commit()
+      BedtimeAlarm.schedule(context)
+    }
+
+    // Same process: where the timer last stopped playback, and where the listener last used the player.
+    AsyncFunction("getSleepPlace") {
+      val prefs = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE)
+      SleepPlace.decode(prefs.getString(Commands.PREF_SLEEP_PLACE, null))?.let {
+        mapOf(
+          "bookId" to it.bookId,
+          "stoppedMs" to it.stoppedMs.toDouble(),
+          "stoppedAt" to it.stoppedAt.toDouble(),
+          "usedMs" to it.usedMs?.toDouble(),
+          "usedAt" to it.usedAt?.toDouble(),
+        )
+      }
+    }
+
+    AsyncFunction("clearSleepPlace") {
+      context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE)
+        .edit().remove(Commands.PREF_SLEEP_PLACE).apply()
     }
 
     // Same process as the service: the log is read and cleared straight from its preferences.

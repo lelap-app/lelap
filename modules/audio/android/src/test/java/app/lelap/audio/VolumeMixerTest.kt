@@ -27,9 +27,18 @@ class VolumeMixerTest {
     assertEquals(0f, applied.last(), 1e-6f)
   }
 
+  @Test fun bedtimeVolumeMultipliesWithTheFade() {
+    mixer.bedtime = 0.6f
+    mixer.fade = 0.5f
+    assertEquals(0.3f, applied.last(), 1e-6f)
+    mixer.bedtime = 1f
+    assertEquals(0.5f, applied.last(), 1e-6f)
+  }
+
   @Test fun resetRestoresFullVolume() {
     mixer.duck = 0.2f
     mixer.fade = 0.3f
+    mixer.bedtime = 0.5f
     mixer.reset()
     assertEquals(1f, applied.last(), 1e-6f)
   }

@@ -380,6 +380,8 @@ export function switchProfile(id: string): Promise<void> {
     setProfileId(id);
     await audio.setSettings(getSettings(db, id));
     await applyBedtime(getSettings(db, id));
+    // Where the last listener fell asleep is theirs, not the next profile's.
+    await audio.clearSleepPlace().catch(() => {});
     const next = continueListening(db, id);
     // The lock screen follows the listener: their last book, or nothing. A book that can't load
     // here empties the player too, so headphones can't resume the last listener's book.

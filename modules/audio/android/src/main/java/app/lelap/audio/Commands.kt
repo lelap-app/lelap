@@ -39,6 +39,10 @@ object Commands {
   /** In [AUDIO_PREFS]: the [Bedtime] window the app set (absent when off), and the last night it started a timer. */
   const val PREF_BEDTIME = "bedtime"
   const val PREF_BEDTIME_NIGHT = "bedtimeNight"
+  /** In [AUDIO_PREFS]: the [SleepPlace] the timer last left, until the app offers it (M86). */
+  const val PREF_SLEEP_PLACE = "sleepPlace"
+  /** [BedtimeAlarm]'s broadcast to a running service: the bedtime window opens now. */
+  const val BEDTIME_NOW = "app.lelap.audio.BEDTIME_NOW"
   /** In [AUDIO_PREFS]: whether the app's diagnostics log is on, and the service's [Diagnostics] events. */
   const val PREF_DIAGNOSTICS = "diagnostics"
   const val PREF_DIAGNOSTIC_LOG = "diagnosticLog"
@@ -52,6 +56,8 @@ object Commands {
   /** The listener's defaults for skip silence and even loudness (M84); a book may set its own. */
   const val KEY_SKIP_SILENCE = "skipSilence"
   const val KEY_EVEN_LOUDNESS = "evenLoudness"
+  /** Shake the phone near the end of the sleep timer for more time; a setting since M86. */
+  const val KEY_SHAKE_TO_EXTEND = "shakeToExtend"
   const val KEY_DURATION_MS = "durationMs"
   /** A [SleepMode]'s wire name; minutes when missing. */
   const val KEY_SLEEP_MODE = "sleepMode"

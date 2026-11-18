@@ -12,16 +12,27 @@ Kotlin Expo module for Android playback.
 - `SleepTimer`: runs inside the service, freezes while you pause, and fades the player's own volume over the
   last 60 seconds, then pauses. It counts minutes, or listening time to the end of the chapter or
   episode (`SleepBoundary`), where an ExoPlayer message stops playback exactly. `ShakeDetector`
-  adds ten minutes on a shake in the timer's last five minutes.
+  adds ten minutes on a shake in the timer's last five minutes, when “Shake for more time” is on.
+  The accelerometer only runs then, batched by the sensor hub (200 ms) and timed by the samples'
+  own timestamps.
+- `SleepPlace` (M86): when the timer stops playback, the service keeps where and when, and where
+  and when the listener last used the player. Only the listener's own commands count: everything
+  that goes through the session's player (`SkippingPlayer`: the app, notification, lock screen,
+  headphones, watches, cars), the widget's skips, setting or extending the timer, and a shake.
+  The service's own moves (smart rewind, auto-advance, the timer's stop) use the players directly
+  and don't.
 - `ExpiringLinks`: a 403 or 410 from an audio host opens the item's own URL again, once, from the
   same byte, so an add-on's `/resolve/…` redirect hands out a fresh link.
 - `SoundChain` and `SoundProcessor`: mono, voice EQ (high-pass at 80 Hz, +4 dB around 3 kHz) and
   a +6 dB volume boost behind a peak limiter that never lets a sample past full scale. The
   processor sits in front of ExoPlayer's own audio processors and stays active for every PCM
   stream, so switching an effect ramps over 50 ms instead of reconfiguring the sink.
-- `Bedtime`: “start a sleep timer at bedtime”. The app writes the window to the service's
-  preferences; when Play falls inside it (the window may cross midnight), the service starts a
-  timer for minutes or to the end of the chapter, once per night.
+- `Bedtime`: the bedtime routine. The app writes the active profile's window to the service's
+  preferences; when Play falls inside it (the window may cross midnight), or when it opens while
+  playing (M86, `BedtimeAlarm`), the service starts a timer for minutes or to the end of the
+  chapter and plays at the routine's volume (`VolumeMixer`) until the timer ends, once per night.
+  `BedtimeAlarm` is an inexact `setAndAllowWhileIdle` alarm: no permission, a few minutes late at
+  most. It broadcasts to the running service only; with nothing playing there is nothing to do.
 - Intro and outro (M45): a podcast's `BookLoad` carries the seconds to skip. `SeekRules` starts
   an episode past its intro and keeps smart rewind out of it; a player message at the outro's
   start seeks to the end, so the episode is logged as played and Up Next goes on.

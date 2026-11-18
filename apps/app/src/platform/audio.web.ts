@@ -8,6 +8,7 @@ import type {
   PlayerSettings,
   PlayerState,
   ServiceAccounting,
+  SleepPlace,
   SleepTimerMode,
 } from '@lelap/audio';
 import {
@@ -37,6 +38,7 @@ export type {
   PlayerSettings,
   PlayerState,
   ServiceAccounting,
+  SleepPlace,
   SleepTimerMode,
 };
 
@@ -68,6 +70,7 @@ let settings: PlayerSettings = {
   volumeBoost: false,
   skipSilence: false,
   evenLoudness: false,
+  shakeToExtend: false,
 };
 
 /**
@@ -624,6 +627,13 @@ export async function setCarLibrary(library: CarLibrary): Promise<void> {
 export async function setBedtime(bedtime: Bedtime | null): Promise<void> {
   void bedtime;
 }
+
+// “Where did I fall asleep?” is Android only, like the bedtime routine.
+export async function getSleepPlace(): Promise<SleepPlace | null> {
+  return null;
+}
+
+export async function clearSleepPlace(): Promise<void> {}
 
 export async function takeFinished(): Promise<FinishedItem[]> {
   const list = finished;

@@ -32,6 +32,7 @@ import { PressScale } from './Motion';
 import { BookCover, coverUri } from './BookCover';
 import { BookmarksSheet } from './BookmarksSheet';
 import { CastSheet } from './CastSheet';
+import { SleepStopBanner } from './SleepStopBanner';
 import { ChaptersSheet } from './ChaptersSheet';
 import { COLORS, Icon, IconButton, type IconName } from './Icon';
 import { Scrubber, type ScrubMark } from './Scrubber';
@@ -199,6 +200,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
   const [scrubbing, setScrubbing] = useState(false);
   // `version` is the signal to re-read the setting.
   const skipSeconds = useMemo(() => getSettings(db, profileId).skipIntervalMs / 1000, [version]);
+  const shakeToExtend = useMemo(() => getSettings(db, profileId).shakeToExtend, [version]);
 
   const bookId = state.bookId;
   const sound = useSound(bookId);
@@ -350,6 +352,14 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
         )}
       </View>
       <HeadphoneBanner className="mt-2" />
+      {Platform.OS === 'android' && (
+        <SleepStopBanner
+          className="mt-2"
+          bookId={bookId}
+          positionMs={position}
+          playing={state.playing}
+        />
+      )}
     </>
   );
 
@@ -673,7 +683,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
             </View>
           )}
         </View>
-        {Platform.OS === 'android' && (
+        {Platform.OS === 'android' && shakeToExtend && (
           <Text className="pb-2 text-sm text-muted">
             {t('In the last five minutes, shake the phone for ten more.')}
           </Text>

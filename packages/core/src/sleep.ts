@@ -75,3 +75,60 @@ export function shouldRefreshLink(
   // MEDIA_ERR_NETWORK and MEDIA_ERR_SRC_NOT_SUPPORTED; aborts and decode errors are not links.
   return mediaErrorCode === 2 || mediaErrorCode === 4;
 }
+
+/**
+ * Where and when the sleep timer stopped playback, and where and when the listener last used the
+ * player before that (M86). Lelap can't know when someone fell asleep; the last touch is the last
+ * moment they surely were awake.
+ */
+export type SleepStop = {
+  bookId: string;
+  stoppedMs: number;
+  stoppedAt: number;
+  usedMs: number | null;
+  usedAt: number | null;
+};
+
+/** The choices after a stop, as whole-book places; the listener picks, nothing jumps by itself. */
+export type SleepStopChoices = {
+  /** Back to the last touch, with how long before the stop it was; null without one worth offering. */
+  lastUsed: { positionMs: number; at: number; beforeStopMs: number } | null;
+  /** A few minutes back from the stop. */
+  back: { minutes: number; positionMs: number }[];
+};
+
+/** The offer stands while the place is this close to where the timer stopped. */
+export const SLEEP_STOP_RANGE_MS = 2 * 60_000;
+/** A night's stop is offered for this long: the next morning, not next week. */
+export const SLEEP_STOP_KEEP_MS = 24 * 60 * 60_000;
+export const SLEEP_STOP_BACK_MINUTES = [5, 10, 15];
+/** A touch this close to the stop says nothing the quick choices don't. */
+const LAST_USED_MIN_MS = 60_000;
+
+/**
+ * What to offer for the book in the player after the timer stopped it: only for the same book,
+ * still about where it stopped (smart rewind moves back a few seconds; listening on moves past),
+ * and within a day. Null when there is nothing to offer.
+ */
+export function sleepStopChoices(
+  stop: SleepStop | null,
+  bookId: string,
+  bookPositionMs: number,
+  now: number,
+): SleepStopChoices | null {
+  if (!stop || stop.bookId !== bookId) return null;
+  if (now < stop.stoppedAt || now - stop.stoppedAt > SLEEP_STOP_KEEP_MS) return null;
+  if (Math.abs(bookPositionMs - stop.stoppedMs) > SLEEP_STOP_RANGE_MS) return null;
+  const used =
+    stop.usedMs !== null &&
+    stop.usedAt !== null &&
+    stop.usedMs < stop.stoppedMs &&
+    stop.stoppedAt - stop.usedAt >= LAST_USED_MIN_MS
+      ? { positionMs: stop.usedMs, at: stop.usedAt, beforeStopMs: stop.stoppedAt - stop.usedAt }
+      : null;
+  const back = SLEEP_STOP_BACK_MINUTES.filter((m) => stop.stoppedMs - m * 60_000 > 0).map(
+    (minutes) => ({ minutes, positionMs: stop.stoppedMs - minutes * 60_000 }),
+  );
+  if (!used && back.length === 0) return null;
+  return { lastUsed: used, back };
+}
