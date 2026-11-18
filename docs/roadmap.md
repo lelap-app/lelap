@@ -102,7 +102,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M90 Web app 3](milestones/m90.md)                   | Planned     |             | Offline downloads in the browser, a better installed app, desktop keys                                   |
 | [M91 iOS decision](milestones/m91.md)                | Done        |             | A decision on iOS: what an App Store app would mean for Lelap                                            |
 | [M92 Hardcover sign-in](milestones/m92.md)           | Planned     |             | Sign in to Hardcover instead of pasting a token                                                          |
-| [M93 Developer docs 2](milestones/m93.md)            | Planned     |             | A real guide to building an add-on, sample source files and shared page styling                          |
+| [M93 Developer docs 2](milestones/m93.md)            | Done        |           3 | A real guide to building an add-on, sample source files and shared page styling                          |
 | [M94 Tests against real servers](milestones/m94.md)  | Done        |           1 | WebDAV and S3 servers in CI, and an emulator smoke test of the app                                       |
 | [M95 Self-hosting 2](milestones/m95.md)              | Done        |           3 | One-command setup, a small admin page and backup guides                                                  |
 | [M96 Security review 2](milestones/m96.md)           | Planned     |             | A new audit of what has landed since M19                                                                 |
