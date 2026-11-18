@@ -56,6 +56,68 @@ export function learnDrain(learned: number | null, samples: BatterySample[]): nu
 }
 
 /**
+ * What is stored per device (M107): the drain learned from finished sessions, and the levels of
+ * the session still open. A session is folded into [learned] once, when it ends, so an app
+ * restart in the middle of one picks its levels up again instead of counting it a second time.
+ */
+export type DrainRecord = { learned: number | null; session: BatterySample[] };
+
+// A drop of one step takes up to 75 min at the slowest drain; a longer silence is another session.
+const SESSION_GAP_MS = 90 * 60_000;
+
+function isSample(value: unknown): value is BatterySample {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Number.isFinite((value as BatterySample).at) &&
+    Number.isFinite((value as BatterySample).level)
+  );
+}
+
+/** The stored record; before M107 the value was the learned drain alone. Unreadable is empty. */
+export function parseDrainRecord(value: string | null): DrainRecord {
+  const empty: DrainRecord = { learned: null, session: [] };
+  if (!value) return empty;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (typeof parsed === 'number') {
+      return { learned: Number.isFinite(parsed) && parsed > 0 ? parsed : null, session: [] };
+    }
+    if (typeof parsed !== 'object' || parsed === null) return empty;
+    const { learned, session } = parsed as { learned?: unknown; session?: unknown };
+    return {
+      learned:
+        typeof learned === 'number' && Number.isFinite(learned) && learned > 0 ? learned : null,
+      session: Array.isArray(session) ? session.filter(isSample) : [],
+    };
+  } catch {
+    return empty;
+  }
+}
+
+export function encodeDrainRecord(record: DrainRecord): string {
+  return JSON.stringify(record);
+}
+
+/** Ends the open session: its drain joins what was learned, and it is never counted again. */
+export function closeSession(record: DrainRecord): DrainRecord {
+  if (record.session.length === 0) return record;
+  return { learned: learnDrain(record.learned, record.session), session: [] };
+}
+
+/**
+ * A stored record read again after the app started: the open session goes on when its last level
+ * is recent and the battery did not rise since (charging); otherwise it ends here.
+ */
+export function resumeSession(record: DrainRecord, now: number, level: number | null): DrainRecord {
+  const last = record.session.at(-1);
+  if (!last) return record;
+  const recent = now - last.at >= 0 && now - last.at <= SESSION_GAP_MS;
+  const charged = level !== null && level > last.level;
+  return recent && !charged ? record : closeSession(record);
+}
+
+/**
  * Percent per hour: what the samples show between drops (or most of what this device showed
  * before, if that is faster), else what it showed before
  * ([learned]), else the rough measure since connection but never less than

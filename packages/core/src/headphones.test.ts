@@ -3,14 +3,18 @@ import { describe, expect, it } from 'vitest';
 import {
   ASSUMED_DRAIN_PER_HOUR,
   batteryLeftMs,
+  closeSession,
   drainPerHour,
+  encodeDrainRecord,
   headphoneWarning,
   isCar,
   learnDrain,
   markCar,
   measuredDrain,
   MIN_DRAIN_PER_HOUR,
+  parseDrainRecord,
   parseMarkedCars,
+  resumeSession,
 } from './headphones';
 
 const MIN = 60_000;
@@ -154,5 +158,51 @@ describe('marked cars', () => {
     expect(isCar({ id: 'x', car: true }, [])).toBe(true);
     expect(isCar({ id: 'AA:BB', car: false }, [kia])).toBe(true);
     expect(isCar({ id: 'CC:DD', car: false }, [kia])).toBe(false);
+  });
+});
+
+describe('a headphone session, counted once', () => {
+  // Three drops 40 min apart: 15 % per hour.
+  const session = [
+    { at: 0, level: 80 },
+    { at: 10 * MIN, level: 70 },
+    { at: 50 * MIN, level: 60 },
+    { at: 90 * MIN, level: 50 },
+  ];
+
+  it('reads the stored record, and the plain number stored before', () => {
+    expect(parseDrainRecord(null)).toEqual({ learned: null, session: [] });
+    expect(parseDrainRecord('12.5')).toEqual({ learned: 12.5, session: [] });
+    expect(parseDrainRecord('nonsense')).toEqual({ learned: null, session: [] });
+    expect(parseDrainRecord('-3')).toEqual({ learned: null, session: [] });
+    const record = { learned: 10, session };
+    expect(parseDrainRecord(encodeDrainRecord(record))).toEqual(record);
+    expect(
+      parseDrainRecord(JSON.stringify({ learned: 'x', session: [{ at: 1 }, ...session] })),
+    ).toEqual({ learned: null, session });
+  });
+
+  it('joins the learned drain when it ends, once', () => {
+    const closed = closeSession({ learned: 25, session });
+    expect(closed).toEqual({ learned: 20, session: [] });
+    // Closing again changes nothing.
+    expect(closeSession(closed)).toBe(closed);
+  });
+
+  it('goes on after an app restart in the middle', () => {
+    const record = { learned: 25, session };
+    expect(resumeSession(record, 100 * MIN, 50)).toBe(record);
+    // Going on, then ending, counts the session as once.
+    expect(closeSession(resumeSession(record, 100 * MIN, 50)).learned).toBe(20);
+  });
+
+  it('ends when the levels are old or the battery was charged', () => {
+    const record = { learned: 25, session };
+    expect(resumeSession(record, 90 * MIN + 2 * HOUR, 50)).toEqual({ learned: 20, session: [] });
+    expect(resumeSession(record, 100 * MIN, 90)).toEqual({ learned: 20, session: [] });
+    // A clock that went back is no proof of the same session either.
+    expect(resumeSession(record, 0, 50)).toEqual({ learned: 20, session: [] });
+    const empty = { learned: 25, session: [] };
+    expect(resumeSession(empty, 0, null)).toBe(empty);
   });
 });

@@ -1444,6 +1444,22 @@ class PlaybackService : MediaLibraryService() {
     )
   }
 
+  /**
+   * Lets the car app that asked read the covers of [nodes] through [CoverProvider], which isn't
+   * exported (M107). A grant lasts until the phone restarts; the provider still serves only
+   * covers of books the car lists.
+   */
+  private fun grantCovers(browser: MediaSession.ControllerInfo, nodes: List<CarNode>) {
+    val uris = CarCovers.grants(nodes.map { it.artworkUri }, CarCovers.authority(packageName), browser.packageName, packageName)
+    for (uri in uris) {
+      try {
+        grantUriPermission(browser.packageName, Uri.parse(uri), Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      } catch (e: SecurityException) {
+        Log.w(TAG, "Could not grant a cover to ${browser.packageName}", e)
+      }
+    }
+  }
+
   private inner class Callback : MediaLibrarySession.Callback {
     override fun onConnect(
       session: MediaSession,
@@ -1654,8 +1670,10 @@ class PlaybackService : MediaLibraryService() {
         ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
       val from = (page.toLong() * pageSize).coerceAtMost(nodes.size.toLong()).toInt()
       val to = (from.toLong() + pageSize).coerceAtMost(nodes.size.toLong()).toInt()
+      val shown = nodes.subList(from, to)
+      grantCovers(browser, shown)
       return Futures.immediateFuture(
-        LibraryResult.ofItemList(ImmutableList.copyOf(nodes.subList(from, to).map(::carItem)), params),
+        LibraryResult.ofItemList(ImmutableList.copyOf(shown.map(::carItem)), params),
       )
     }
 
@@ -1672,6 +1690,7 @@ class PlaybackService : MediaLibraryService() {
         CarCovers.authority(packageName),
       )
         ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
+      grantCovers(browser, listOf(node))
       return Futures.immediateFuture(LibraryResult.ofItem(carItem(node), null))
     }
 

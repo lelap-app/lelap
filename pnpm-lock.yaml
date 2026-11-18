@@ -287,6 +287,9 @@ importers:
       expo-router:
         specifier: ~58.0.30
         version: 58.0.30(a3fa340f7209116032dac43692ca4ba0)
+      expo-screen-orientation:
+        specifier: ~58.0.4
+        version: 58.0.4(6cbeb0b12c5f32e4aabaf5075ce9b7e1)
       expo-secure-store:
         specifier: ~58.0.2
         version: 58.0.2(6cbeb0b12c5f32e4aabaf5075ce9b7e1)
@@ -3994,6 +3997,12 @@ packages:
         optional: true
       react-server-dom-webpack:
         optional: true
+
+  expo-screen-orientation@58.0.4:
+    resolution: {integrity: sha512-PN3nGluAC6vBY7Zs9jA9guZrKth7ynVHZjZNJZhrJrV7X+6rlvpr7LzktTNJveb2HZJUU94FySkKGrWePkkE2A==}
+    peerDependencies:
+      expo: '*'
+      react-native: '*'
 
   expo-secure-store@58.0.2:
     resolution: {integrity: sha512-VupWWEuQF6IiQ06McSymtn7/tehs8ifThhFwAU4UK8poomZcaa2S0UVt/y7G2XozBdkI3xpiPSx+r0pS2zsuYQ==}
@@ -11066,6 +11075,20 @@ snapshots:
       - '@types/react'
       - '@types/react-dom'
       - react-native-webview
+      - supports-color
+
+  expo-screen-orientation@58.0.4(6cbeb0b12c5f32e4aabaf5075ce9b7e1):
+    dependencies:
+      expo: 58.0.25(9c3e799cd1ff1c859c09715cc0cffb27)
+      react-native: 0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@expo/dom-webview'
+      - '@expo/log-box'
+      - '@expo/metro-runtime'
+      - expo-router
+      - react-native-webview
+      - react-native-worklets
       - supports-color
 
   expo-secure-store@58.0.2(6cbeb0b12c5f32e4aabaf5075ce9b7e1):

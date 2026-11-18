@@ -116,7 +116,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M104 Security hardening 3](milestones/m104.md)      | Done        |          10 | What M96's audit left: LAN addresses for add-ons, discovery, SMB signing, SDK sealing                    |
 | [M105 App polish 3](milestones/m105.md)              | Planned     |             | What M80 left: suggestion covers, podcast badges, Plex library list, a Library that reads less           |
 | [M106 Speed and battery](milestones/m106.md)         | Planned     |             | Budgets for cold start, the Library's first draw, memory and battery, kept by the benchmark              |
-| [M107 Car and Bluetooth 3](milestones/m107.md)       | Planned     |             | Car mode sideways on phones, covers granted per car app, headphone drain counted once                    |
+| [M107 Car and Bluetooth 3](milestones/m107.md)       | Done        |           9 | Car mode sideways on phones, covers granted per car app, headphone drain counted once                    |
 | [M108 Themes](milestones/m108.md)                    | Planned     |             | Themes beyond the night theme, an accent colour, high contrast, and themes shared as a file              |
 | [M109 Series and reading order](milestones/m109.md)  | Done        |           7 | Reading order within a series, "Next in the series" when a book ends, missing volumes shown              |
 | [M110 Upkeep](milestones/m110.md)                    | Done        |           2 | First start leftovers, scan and play in the emulator test, developer setup fixes                         |
@@ -144,10 +144,6 @@ when it is planned.
   end, and list soundbites in the player; let the listener pick among alternate enclosures (a
   smaller file on mobile data) and check `podcast:integrity`; open a show's place on a map; show
   `podcast:value`. Sending value-for-value payments would move money and needs a decision first.
-- **Car and Bluetooth leftovers (from M74):** car mode sideways on phones, which needs the app's
-  portrait lock lifted for that screen (`expo-screen-orientation`); a cover provider that grants
-  each car app its covers instead of being exported; a headphone drain written once per session,
-  so an app restart mid-session doesn't count that session twice.
 - **Accessibility leftovers (from M83):** the web app ignores the browser's default text size, since
   react-native-web sets sizes in pixels; zooming works. Following it would mean reading the root
   font size and scaling text the way Android's font scale does. The accessibility check has gaps

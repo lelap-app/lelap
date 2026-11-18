@@ -2,7 +2,7 @@ import { chapterAt, getBook, getSettings, toBookPosition } from '@lelap/core';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { Image, Pressable, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
@@ -13,6 +13,7 @@ import { db } from '../src/db';
 import { HeadphoneBanner } from '../src/devices';
 import { formatClock } from '../src/format';
 import * as audio from '../src/platform/audio';
+import { useSideways } from '../src/platform/orientation';
 import { seekToBookPosition, useLibrary, usePlayerState } from '../src/player';
 import { profileId } from '../src/profile';
 
@@ -186,6 +187,8 @@ export default function CarMode() {
   // The screen stays on while car mode is open, like a navigation app's. Leaving before the
   // browser granted the wake lock throws on the web; there is nothing to release then.
   useKeepAwake(undefined, { suppressDeactivateWarnings: true });
+  // The rest of the app stays upright on phones; car mode may turn for a landscape holder.
+  useSideways();
   const [pressed, setPressed] = useState<SleepStep>('off');
   const bookId = state.bookId;
   const detail = useMemo(() => (bookId ? getBook(db, profileId, bookId) : null), [bookId, version]);
@@ -220,15 +223,21 @@ export default function CarMode() {
   const landscape = dims.width > dims.height;
   const shape = landscape ? 'landscape' : 'portrait';
   const height = dims.height - insets.top - insets.bottom;
-  // What is left after the header, the text and the buttons; the cover takes it, within reason.
-  // Portrait: the cover takes what the title and chapter leave of the middle, once measured, so
-  // a headphone warning or large system text never pushes the buttons off the screen.
+  // Sideways, the camera cut-out may be on either side.
+  const side = Math.max(insets.left, insets.right) + 24;
+  // Sideways (M107): the buttons keep a column of their own, the cover and chapter the rest.
+  const controlsWidth = Math.round(Math.min(440, Math.max(300, (dims.width - 2 * side) * 0.46)));
+  const pane = dims.width - 2 * side - controlsWidth - 40;
+  // The cover takes what the title and chapter leave of its area, once measured, so a headphone
+  // warning or large system text never pushes the buttons off the screen.
   const [middle, setMiddle] = useState<{ area: number; words: number } | null>(null);
-  const portraitRoom = middle ? middle.area - middle.words - 24 : height - 556;
+  const room = middle
+    ? middle.area - middle.words - (landscape ? 20 : 24)
+    : height - (landscape ? 160 : 556);
   const coverSize = Math.round(
     landscape
-      ? Math.max(96, Math.min(height - 24, dims.width * 0.36, 360))
-      : Math.max(64, Math.min(dims.width - 64, portraitRoom, 360)),
+      ? Math.max(96, Math.min(pane, room, 320))
+      : Math.max(64, Math.min(dims.width - 64, room, 360)),
   );
 
   const exit = (
@@ -254,8 +263,29 @@ export default function CarMode() {
     </Pressable>
   );
 
+  const cover = detail ? coverUri(detail.book) : null;
+  // At night the cover's colours tint the whole screen, faintly, so it isn't a black box. At 18 %
+  // even a white cover keeps the text at 5:1; by day the paper stays plain.
+  const backdrop =
+    cover && palette === NIGHT ? (
+      <Image
+        aria-hidden
+        source={{ uri: cover }}
+        blurRadius={60}
+        resizeMode="cover"
+        style={{
+          position: 'absolute',
+          // Past the edges, so the blur has no visible border.
+          top: -80,
+          bottom: -80,
+          start: -80,
+          end: -80,
+          opacity: 0.18,
+        }}
+      />
+    ) : null;
   const artwork = detail ? (
-    <BookCover uri={coverUri(detail.book)} title={detail.book.title} size={coverSize} />
+    <BookCover uri={cover} title={detail.book.title} size={coverSize} />
   ) : (
     <View
       aria-hidden
@@ -273,15 +303,15 @@ export default function CarMode() {
   );
 
   const words = (
-    <View className="gap-2" style={{ alignItems: landscape ? 'flex-start' : 'center' }}>
+    <View className="gap-2 items-center">
       <Text
         accessibilityRole="header"
-        numberOfLines={landscape ? 1 : 2}
+        numberOfLines={2}
         style={{
           color: palette.text,
           fontSize: 28,
           lineHeight: 34,
-          textAlign: landscape ? 'left' : 'center',
+          textAlign: 'center',
         }}
         className="font-bold"
       >
@@ -294,7 +324,7 @@ export default function CarMode() {
             color: chapter ? palette.accentText : palette.secondary,
             fontSize: 20,
             lineHeight: 26,
-            textAlign: landscape ? 'left' : 'center',
+            textAlign: 'center',
           }}
           className="font-semibold"
         >
@@ -328,8 +358,7 @@ export default function CarMode() {
 
   // A narrow screen (320 points, or large display size) shrinks the three round buttons to fit
   // side by side; at 320 the skips stay at 70, well above 48.
-  const side = Math.max(insets.left, insets.right) + 24;
-  const row = landscape ? dims.width - 2 * side - coverSize - 32 : dims.width - 2 * side;
+  const row = landscape ? controlsWidth : dims.width - 2 * side;
   const fit = Math.min(1, row / (PLAY_SIZE[shape] + 2 * SKIP_SIZE[shape] + 48));
   const playSize = Math.max(64, Math.round(PLAY_SIZE[shape] * fit));
   // Never under 48, even in a small split-screen window.
@@ -396,52 +425,61 @@ export default function CarMode() {
     </View>
   );
 
+  // The cover above the title, chapter and bar, sized to what they leave.
+  const nowPlaying = (
+    <View
+      className="flex-1 items-center justify-center"
+      style={{ gap: landscape ? 20 : 24 }}
+      onLayout={(e) => {
+        const area = e.nativeEvent.layout.height;
+        setMiddle((m) => (m?.area === area ? m : { area, words: m?.words ?? 0 }));
+      }}
+    >
+      {artwork}
+      <View
+        style={
+          landscape
+            ? { alignSelf: 'center', width: Math.min(pane, coverSize + 160) }
+            : { alignSelf: 'stretch' }
+        }
+        onLayout={(e) => {
+          const words = e.nativeEvent.layout.height;
+          setMiddle((m) => (m?.words === words ? m : { area: m?.area ?? 0, words }));
+        }}
+      >
+        {words}
+      </View>
+    </View>
+  );
+
   return (
     <View
       style={{
         flex: 1,
         backgroundColor: palette.background,
-        paddingTop: insets.top + 8,
+        paddingTop: insets.top + (landscape ? 16 : 8),
         paddingBottom: insets.bottom + 16,
-        // Sideways, the camera cut-out may be on either side.
         paddingHorizontal: side,
-        gap: 16,
+        overflow: 'hidden',
       }}
     >
+      {backdrop}
       {landscape ? (
-        <View className="flex-1 flex-row items-center gap-8">
-          {artwork}
-          <View className="flex-1 justify-center gap-4">
-            <View className="flex-row items-center gap-4">
-              <View className="flex-1">{words}</View>
-              {exit}
-            </View>
+        <View className="flex-1 flex-row" style={{ gap: 40 }}>
+          <View className="flex-1 gap-4">
             <HeadphoneBanner large />
-            {controls}
+            {nowPlaying}
+          </View>
+          <View style={{ width: controlsWidth }} className="gap-4">
+            <View className="flex-row justify-end">{exit}</View>
+            <View className="flex-1 justify-center">{controls}</View>
           </View>
         </View>
       ) : (
         <View className="flex-1 justify-between gap-6">
           <View className="flex-row justify-end">{exit}</View>
           <HeadphoneBanner large />
-          <View
-            className="flex-1 items-center justify-center gap-6"
-            onLayout={(e) => {
-              const area = e.nativeEvent.layout.height;
-              setMiddle((m) => (m?.area === area ? m : { area, words: m?.words ?? 0 }));
-            }}
-          >
-            {artwork}
-            <View
-              style={{ alignSelf: 'stretch' }}
-              onLayout={(e) => {
-                const words = e.nativeEvent.layout.height;
-                setMiddle((m) => (m?.words === words ? m : { area: m?.area ?? 0, words }));
-              }}
-            >
-              {words}
-            </View>
-          </View>
+          {nowPlaying}
           {controls}
         </View>
       )}
