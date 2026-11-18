@@ -75,7 +75,8 @@ The repository layout is in [`AGENTS.md`](../AGENTS.md#repository-map).
 - **Pairing:** a 12-character code (60 bits). Its scrypt output gives the server a lookup ID and a
   key that seals the group secret; the server keeps the blob ten minutes and hands it out once.
 - **What syncs:** places, finished and speed, bookmarks, streamed books, podcast subscriptions and
-  episode places, Up Next, playback settings, profiles. Not: local files, downloads, download
+  episode places, Up Next, playback settings, profiles, and which library books are which add-on
+  works (keyed on the book's location). Not: local files, downloads, download
   rules, add-on lists.
 - **Snapshots:** once a group's messages older than 30 days reach 1 MB, a device folds them,
   with the previous snapshot, into a sealed snapshot (the newest change per row) and the server

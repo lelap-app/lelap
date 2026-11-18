@@ -1,3 +1,4 @@
+import { idsFromTags } from '@lelap/sdk';
 import { z } from 'zod';
 
 import type { FileTags, ListedFile } from '../library/scan';
@@ -174,7 +175,15 @@ export const AudiobookshelfItem = z.object({
     coverPath: s,
     duration: n,
     metadata: z
-      .object({ title: s, subtitle: s, authorName: s, narratorName: s, seriesName: s })
+      .object({
+        title: s,
+        subtitle: s,
+        authorName: s,
+        narratorName: s,
+        seriesName: s,
+        isbn: s,
+        asin: s,
+      })
       .nullish(),
     chapters: z.array(z.object({ start: n, end: n, title: s })).nullish(),
     tracks: z.array(Track).nullish(),
@@ -351,6 +360,7 @@ export function audiobookshelfScan(
         albumArtist: meta?.authorName || null,
         coverPath: null,
         chapters: own,
+        ids: idsFromTags({ isbn: meta?.isbn, asin: meta?.asin }),
       });
     });
     partsOf.set(item.id, parts);

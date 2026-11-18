@@ -12,6 +12,7 @@ import {
 import { presentFiles } from './bookFiles';
 import { compareNatural } from './files';
 import { kidFilter } from '../kids';
+import { linkedMetaByKey } from './links';
 
 export type LibraryBook = {
   id: string;
@@ -39,6 +40,7 @@ function selectBooks(db: Db, profileId: string, where?: SQL): LibraryBook[] {
   const rows = db
     .select({
       id: books.id,
+      location: books.location,
       title: books.title,
       author: books.author,
       coverPath: books.coverPath,
@@ -61,12 +63,19 @@ function selectBooks(db: Db, profileId: string, where?: SQL): LibraryBook[] {
     .leftJoin(downloads, eq(downloads.bookId, books.id))
     .where(where)
     .all();
-  return rows.map(({ missingSince, downloadState, bookPositionMs, ...book }) => ({
-    ...book,
-    downloaded: downloadState === 'done',
-    bookPositionMs: bookPositionMs ?? 0,
-    missing: missingSince !== null,
-  }));
+  const linked = linkedMetaByKey(db);
+  return rows.map(({ missingSince, downloadState, bookPositionMs, location, ...book }) => {
+    // Matched with a catalog by hand: the work's title, author and cover replace the tags'.
+    const meta = linked.get(location);
+    return {
+      ...book,
+      ...(meta && { title: meta.title, author: meta.author ?? book.author }),
+      ...(meta?.cover && { coverPath: null, coverUrl: meta.cover }),
+      downloaded: downloadState === 'done',
+      bookPositionMs: bookPositionMs ?? 0,
+      missing: missingSince !== null,
+    };
+  });
 }
 
 const byRecent = (a: LibraryBook, b: LibraryBook) =>

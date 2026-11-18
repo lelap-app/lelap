@@ -303,3 +303,16 @@ describe('Jellyfin in the library', () => {
     expect(getBook(db, ME, dickens?.id ?? '')?.book.finishedAt).toBe(101);
   });
 });
+
+describe('ISBN and ASIN from Jellyfin', () => {
+  it('come from the provider IDs; the Audible plugins call the ASIN Audible', () => {
+    const scan = jellyfinScan(source, [
+      { Id: 'a', Name: 'Dune', ProviderIds: { Isbn: '9780441013593', Audible: 'B002V1OF70' } },
+      { Id: 'b', Name: 'Other', ProviderIds: { MusicBrainzAlbum: 'x' } },
+    ]);
+    expect([...scan.tags.values()].map((t) => t.ids)).toEqual([
+      ['isbn:9780441013593', 'asin:B002V1OF70'],
+      [],
+    ]);
+  });
+});

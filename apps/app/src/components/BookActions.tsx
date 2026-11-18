@@ -2,6 +2,7 @@ import {
   addToPlaylist,
   addToShelf,
   addToUpNext,
+  bookLinks,
   createPlaylist,
   getTags,
   type LibraryBook,
@@ -15,6 +16,7 @@ import {
   setFinished,
   setTags,
   shelfBookIds,
+  unlinkBook,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -98,6 +100,7 @@ export function BookActions({
     () => (book ? listPlaylists(db, profileId).filter((p) => p.rule === null) : []),
     [book],
   );
+  const linked = useMemo(() => (book ? bookLinks(db, book.id).length > 0 : false), [book]);
 
   if (!book) return null;
   const done = () => {
@@ -161,6 +164,26 @@ export function BookActions({
               label={t('Remove from this list')}
               onPress={() => {
                 removeFromPlaylist(db, profileId, listId, book.id, now());
+                done();
+              }}
+            />
+          )}
+          {book.source === 'local' && (
+            <Row
+              icon="search"
+              label={t('Match with catalog…')}
+              onPress={() => {
+                onClose();
+                router.push({ pathname: '/match', params: { bookId: book.id } });
+              }}
+            />
+          )}
+          {book.source === 'local' && linked && (
+            <Row
+              icon="close"
+              label={t('Unlink from catalog')}
+              onPress={() => {
+                unlinkBook(db, book.id, now());
                 done();
               }}
             />

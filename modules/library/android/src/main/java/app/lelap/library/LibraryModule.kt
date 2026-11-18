@@ -70,6 +70,7 @@ class LibraryModule : Module() {
           "albumArtist" to tags.albumArtist,
           "coverPath" to tags.coverPath,
           "chapters" to tags.chapters.map { mapOf("title" to it.title, "startMs" to it.startMs.toDouble()) },
+          "idTags" to tags.idTags,
         )
       }
     }
@@ -85,6 +86,7 @@ class LibraryModule : Module() {
           "albumArtist" to tags.albumArtist,
           "coverPath" to tags.coverPath,
           "chapters" to tags.chapters.map { mapOf("title" to it.title, "startMs" to it.startMs.toDouble()) },
+          "idTags" to tags.idTags,
         )
       }
     }

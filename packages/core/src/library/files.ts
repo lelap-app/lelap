@@ -19,6 +19,8 @@ export type ScannedFile = {
   albumArtist: string | null;
   coverPath: string | null;
   chapters: StoredChapter[];
+  /** ISBNs and ASINs from the tags (`isbn:…`, `asin:…`); absent when the reader can't tell. */
+  ids?: string[] | null;
 };
 
 export function isAudioFile(name: string): boolean {

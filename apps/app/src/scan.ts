@@ -21,6 +21,7 @@ import {
   scanFailureEvent,
   upsertRoot,
 } from '@lelap/core';
+import { idsFromTags } from '@lelap/sdk';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
@@ -72,9 +73,15 @@ async function listRoot(root: Root): Promise<ListedFile[]> {
 }
 
 async function tagsFor(root: Root, file: ListedFile, dir: string): Promise<FileTags> {
-  if (!root.remote) return readTags(file.uri, file.name, dir);
-  const access = fileAccess({ uri: file.uri, rootId: root.id });
-  return readRemoteTags(access.uri, access.headers, file.name, dir);
+  let read: FileTags & { idTags?: Record<string, string> };
+  if (!root.remote) read = await readTags(file.uri, file.name, dir);
+  else {
+    const access = fileAccess({ uri: file.uri, rootId: root.id });
+    read = await readRemoteTags(access.uri, access.headers, file.name, dir);
+  }
+  // The native reader gives ISBN and ASIN tags by name; the SDK checks and normalises them.
+  const { idTags, ...tags } = read;
+  return idTags ? { ...tags, ids: idsFromTags(idTags) } : tags;
 }
 
 /**
@@ -142,7 +149,8 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
       continue;
     }
 
-    const need = filesNeedingTags(db, listed);
+    // Android's reader gives ISBN and ASIN tags; the browser's reads only the duration.
+    const need = filesNeedingTags(db, listed, { readsIds: Platform.OS !== 'web' });
     const tags = new Map<string, FileTags>();
     for (const [i, file] of need.entries()) {
       onProgress(i, need.length);

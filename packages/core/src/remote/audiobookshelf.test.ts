@@ -380,3 +380,33 @@ describe('Audiobookshelf in the library', () => {
     expect(setAudiobookshelfKeyRefused(db, 'missing', true, 10)).toBe(false);
   });
 });
+
+describe('ISBN and ASIN from Audiobookshelf', () => {
+  it('come with each file, checked and normalised', () => {
+    const scan = audiobookshelfScan({ url: 'https://abs.example' }, [
+      {
+        id: 'li_dune',
+        media: {
+          metadata: {
+            title: 'Dune',
+            authorName: 'Frank Herbert',
+            isbn: '0-441-01359-7',
+            asin: 'b002v1of70',
+          },
+          tracks: [{ ino: '1', duration: 10, metadata: { filename: '01.mp3' } }],
+        },
+      },
+      {
+        id: 'li_bad',
+        media: {
+          metadata: { title: 'Bad', isbn: '123' },
+          tracks: [{ ino: '2', duration: 10, metadata: { filename: '01.mp3' } }],
+        },
+      },
+    ]);
+    expect([...scan.tags.values()].map((t) => t.ids)).toEqual([
+      ['isbn:9780441013593', 'asin:B002V1OF70'],
+      [],
+    ]);
+  });
+});

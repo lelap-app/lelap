@@ -36,7 +36,7 @@ requests don't conflict.
 apps/site       landing page for lelap.app (Astro, static)       → apps/site/AGENTS.md
 apps/app        Expo app for Android and web; M1 test screen for now
 packages/core   domain model, library logic, Drizzle schema, add-on client; sync later
-packages/sdk    add-on SDK: protocol v1 as zod schemas, createAddon(); MIT
+packages/sdk    add-on SDK: protocol v1 as zod schemas, createAddon(), the work matcher; MIT
 services/       Hono services on Cloudflare Workers: catalog (Catalog + LibriVox add-ons), proxy (feeds
                 and covers for the web app), sync (encrypted oplog, D1), updates (signed
                 over-the-air bundles from R2), template
@@ -49,7 +49,8 @@ modules/updater Kotlin Expo module: in-app APK updates through PackageInstaller
 modules/widget  Kotlin module: home screen widget and Quick Settings tile, no JavaScript API
 modules/bluetooth Kotlin Expo module: connected Bluetooth audio devices, battery, car detection
 modules/text    Kotlin Expo module: translated lines for notifications, widget and tile, kept for when closed
-examples/       add-on samples: plain Node, Python (stdlib), seasonal catalogs; tested in CI
+examples/       add-on samples: plain Node, Python (stdlib), seasonal catalogs, a source add-on
+                that maps its files to works; tested in CI
 docker/         Node entries, Dockerfiles and compose for self-hosting      → docker/README.md
 scripts/        release helpers for the tag workflow (Node, type stripping)
 docs/brief.md   decisions, architecture, stack, protocol, infrastructure

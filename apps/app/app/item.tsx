@@ -3,10 +3,14 @@ import {
   downloadSnapshot,
   findBookBySource,
   findStreamedBook,
+  findYourCopy,
   type FoundStream,
   getBook,
   getSourceChoice,
+  linkBook,
+  type LinkableWork,
   pickSource,
+  rejectLink,
   type SourceChoice,
   setSourceChoice,
   sourceLabel,
@@ -90,6 +94,8 @@ export default function ItemScreen() {
   const [picked, setPicked] = useState<SourceChoice | null>(null);
   const [allParts, setAllParts] = useState(false);
   const [starting, setStarting] = useState(false);
+  // The listener's own copy plays unless they pick an add-on's source instead.
+  const [ownPicked, setOwnPicked] = useState(true);
 
   const meta = useQuery(queries.meta(addons, type, id));
   // Wait for the meta: its external IDs reach add-ons that know the work by another ID.
@@ -113,22 +119,58 @@ export default function ItemScreen() {
     return [getSourceChoice(db, profileId, type, id), own ? bookSourceChoice(db, own) : null];
   }, [type, id, version]);
   const chosen = pickSource(found, [picked, ...remembered]);
-  const stream = found[chosen];
+
+  // The same book in the listener's own library, found on this device only (M56).
+  // `version` is the signal to re-read the database.
+  const work = useMemo((): LinkableWork | null => {
+    const m = meta.data?.meta;
+    if (!m) return null;
+    const position = Number.parseFloat(m.series?.[0]?.position ?? '');
+    return {
+      type,
+      id,
+      title: m.name,
+      author: m.author ?? null,
+      externalIds: m.externalIds,
+      series: Number.isInteger(position) ? position : null,
+    };
+  }, [meta.data, type, id]);
+  const yourCopy = useMemo(() => (work ? findYourCopy(db, work) : null), [work, version]);
+  const own = yourCopy && yourCopy.how !== 'offer' ? yourCopy : null;
+  const offer = yourCopy?.how === 'offer' ? yourCopy : null;
+  const playingOwn = own !== null && ownPicked;
+  const stream = playingOwn ? undefined : found[chosen];
 
   const choose = (f: FoundStream) => {
     const choice = { addonUrl: f.addon.url, sourceKey: f.stream.sourceKey };
+    setOwnPicked(false);
     setPicked(choice);
     setSourceChoice(db, profileId, type, id, choice, Date.now());
+  };
+  const confirm = (yes: boolean) => {
+    if (!work || !offer) return;
+    if (yes) linkBook(db, offer.bookId, work, Date.now());
+    else rejectLink(db, offer.bookId, work, Date.now());
+    setOwnPicked(true);
+    refresh();
+  };
+  const unlink = () => {
+    if (!work || !own) return;
+    rejectLink(db, own.bookId, work, Date.now());
+    refresh();
   };
 
   // The book in the library for the chosen recording, else for this item.
   // `version` is the signal to re-read the database.
   const sourceKey = stream?.stream.sourceKey;
+  const ownId = playingOwn ? own.bookId : null;
   const saved = useMemo(() => {
     const bookId =
-      (sourceKey ? findBookBySource(db, sourceKey) : null) ?? findStreamedBook(db, type, id);
+      ownId ??
+      (sourceKey ? findBookBySource(db, sourceKey) : null) ??
+      findStreamedBook(db, type, id);
     return bookId ? getBook(db, profileId, bookId) : null;
-  }, [type, id, sourceKey, version]);
+  }, [type, id, sourceKey, ownId, version]);
   // Offline, a downloaded book shows the metadata saved with its download.
   const snapshot = useMemo(() => (saved ? downloadSnapshot(db, saved.book.id) : null), [saved]);
   const item = meta.data?.meta ?? snapshot ?? undefined;
@@ -174,7 +216,8 @@ export default function ItemScreen() {
   const badges = useBookBadges(saved?.book, 220, item?.badges);
   const canPlay = (item !== undefined && stream !== undefined) || saved !== null;
   const looking = (meta.isPending || sources.isPending) && !saved;
-  const noAudio = !saved && sources.isSuccess && found.length === 0;
+  const noAudio = !saved && !own && sources.isSuccess && found.length === 0;
+  const sourceCount = found.length + (own ? 1 : 0);
   const language = item?.language ? languageName(item.language) : null;
   const playLabel =
     saved && saved.book.finishedAt === null && progress > 0
@@ -250,6 +293,38 @@ export default function ItemScreen() {
             </Text>
           </View>
 
+          {offer && (
+            <View className="gap-3 rounded-2xl bg-raised p-4">
+              <Text accessibilityRole="header" className="text-base font-semibold text-paper">
+                {t('In your library?')}
+              </Text>
+              <Text className="text-sm leading-5 text-soft">
+                {offer.author
+                  ? t('“{title}” by {author} looks like this book.', {
+                      title: offer.title,
+                      author: offer.author,
+                    })
+                  : t('“{title}” looks like this book.', { title: offer.title })}
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                <Pressable
+                  onPress={() => confirm(true)}
+                  accessibilityRole="button"
+                  className="min-h-12 justify-center rounded-full bg-amber px-4 active:opacity-80"
+                >
+                  <Text className="font-semibold text-ink">{t('Yes, use my copy')}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => confirm(false)}
+                  accessibilityRole="button"
+                  className="min-h-12 justify-center rounded-full border border-line px-4 active:opacity-80"
+                >
+                  <Text className="text-soft">{t('Not this one')}</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
           {noAudio ? (
             <NoAudio
               asked={sources.data?.asked.length ?? 0}
@@ -281,9 +356,11 @@ export default function ItemScreen() {
           )}
           {saved && (
             <Text className="-mt-3 text-center text-xs text-muted">
-              {saved.book.downloaded
-                ? t('In your library · plays offline')
-                : t('In your library · streams while online')}
+              {playingOwn
+                ? t('Your copy, from your own library')
+                : saved.book.downloaded
+                  ? t('In your library · plays offline')
+                  : t('In your library · streams while online')}
             </Text>
           )}
 
@@ -295,41 +372,38 @@ export default function ItemScreen() {
             />
           )}
 
-          {found.length > 0 && (
+          {sourceCount > 0 && (
             <View className="gap-2">
               <Text
                 accessibilityRole="header"
                 className="text-xs uppercase tracking-wider text-muted"
               >
-                {found.length === 1 ? t('Source') : t('{n} sources', { n: found.length })}
+                {sourceCount === 1 ? t('Source') : t('{n} sources', { n: sourceCount })}
               </Text>
-              {found.map((f, index) => {
-                const selected = index === chosen;
-                return (
-                  <Pressable
-                    key={`${f.addon.url} ${f.stream.sourceKey}`}
-                    onPress={() => choose(f)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: selected }}
-                    aria-checked={selected}
-                    className={`flex-row items-center gap-3 rounded-xl border px-3 py-3 ${selected ? 'border-amber bg-raised' : 'border-line'}`}
-                  >
-                    {selected ? (
-                      <Icon name="check" size={24} color={COLORS.amber} />
-                    ) : (
-                      <View className="m-[3px] h-[18px] w-[18px] rounded-full border-2 border-line" />
-                    )}
-                    <View className="flex-1">
-                      <Text numberOfLines={2} className={selected ? 'text-paper' : 'text-soft'}>
-                        {sourceLabel(f)}
-                      </Text>
-                      <Text numberOfLines={1} className="text-xs text-muted">
-                        {sourceDetails(f)}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
+              {own && (
+                <SourceRow
+                  selected={playingOwn}
+                  label={t('Your copy')}
+                  details={[own.title, own.author].filter(Boolean).join(' · ')}
+                  onPress={() => setOwnPicked(true)}
+                />
+              )}
+              {found.map((f, index) => (
+                <SourceRow
+                  key={`${f.addon.url} ${f.stream.sourceKey}`}
+                  selected={!playingOwn && index === chosen}
+                  label={sourceLabel(f)}
+                  details={sourceDetails(f)}
+                  onPress={() => choose(f)}
+                />
+              ))}
+              {own && (
+                <TextButton
+                  text={t('Not your copy? Unlink')}
+                  onPress={unlink}
+                  className="self-start"
+                />
+              )}
               {(sources.data?.failed.length ?? 0) > 0 && (
                 <Text className="text-xs text-muted">
                   {sources.data?.failed.join(', ')} did not answer.
@@ -403,6 +477,43 @@ export default function ItemScreen() {
         </View>
       )}
     </ScrollView>
+  );
+}
+
+/** One source to pick: the listener's own copy or an add-on's recording. */
+function SourceRow({
+  selected,
+  label,
+  details,
+  onPress,
+}: {
+  selected: boolean;
+  label: string;
+  details: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      aria-checked={selected}
+      className={`flex-row items-center gap-3 rounded-xl border px-3 py-3 ${selected ? 'border-amber bg-raised' : 'border-line'}`}
+    >
+      {selected ? (
+        <Icon name="check" size={24} color={COLORS.amber} />
+      ) : (
+        <View className="m-[3px] h-[18px] w-[18px] rounded-full border-2 border-line" />
+      )}
+      <View className="flex-1">
+        <Text numberOfLines={2} className={selected ? 'text-paper' : 'text-soft'}>
+          {label}
+        </Text>
+        <Text numberOfLines={1} className="text-xs text-muted">
+          {details}
+        </Text>
+      </View>
+    </Pressable>
   );
 }
 
