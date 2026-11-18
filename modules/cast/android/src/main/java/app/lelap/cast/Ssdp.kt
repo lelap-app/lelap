@@ -30,7 +30,12 @@ object Ssdp {
     val isAnswer = first.startsWith("HTTP/1.1 200") || first.startsWith("HTTP/1.0 200")
     val isNotify = first.startsWith("NOTIFY ")
     if (!isAnswer && !isNotify) return null
-    val headers = MiniHttp.readHeaders(input)
+    // Any device can send this: too many headers is an answer to skip, not the end of the search.
+    val headers = try {
+      MiniHttp.readHeaders(input)
+    } catch (e: java.io.IOException) {
+      return null
+    }
     if (isNotify && headers["nts"] != "ssdp:alive") return null
     val location = headers["location"]?.takeIf { it.startsWith("http://") } ?: return null
     return Response(location, headers["usn"], headers["st"] ?: headers["nt"], headers["server"])

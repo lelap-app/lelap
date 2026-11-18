@@ -56,7 +56,9 @@ describe('sync backups', () => {
     await sqliteStore(db).createGroup('e'.repeat(32), 'f'.repeat(64), 1);
     expect(() => restoreSync(file, copy)).toThrow('Stop sync first');
     db.close();
-    expect(restoreSync(file, copy, new Date('2026-11-18T11:00:00Z'))).toEqual({ groups: 3 });
+    expect(
+      restoreSync(file, copy, Object.keys(migrations), new Date('2026-11-18T11:00:00Z')),
+    ).toEqual({ groups: 3 });
     expect(existsSync(`${file}.replaced-2026-11-18T11-00-00`)).toBe(true);
     expect(existsSync(`${file}-wal`)).toBe(false);
     const restored = new DatabaseSync(file);
@@ -68,6 +70,19 @@ describe('sync backups', () => {
       seq: number;
     };
     expect(seq).toBe(RESTORE_SKIP + 4);
+  });
+
+  it('refuses a backup from a newer schema than this image knows', async () => {
+    const root = dir();
+    const newer = join(root, 'newer.db');
+    const db = await database(newer, 1);
+    db.prepare('INSERT INTO _migrations VALUES (?, ?)').run('0099_future.sql', 1);
+    db.close();
+    const known = Object.keys(migrations);
+    expect(verifySync(newer)).toEqual({ groups: 1 });
+    expect(() => verifySync(newer, known)).toThrow('newer Lelap (0099_future.sql)');
+    expect(() => restoreSync(join(root, 'sync.db'), newer, known)).toThrow('newer');
+    expect(existsSync(join(root, 'sync.db'))).toBe(false);
   });
 
   it('refuses files that are not a sync database', () => {

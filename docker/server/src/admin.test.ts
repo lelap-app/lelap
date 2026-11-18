@@ -4,7 +4,15 @@ import { createApp as catalogApp } from '../../../services/catalog/src/app';
 import { createApp as proxyApp } from '../../../services/proxy/src/app';
 import { createApp as syncApp } from '../../../services/sync/src/app';
 import { createApp as updatesApp } from '../../../services/updates/src/app';
-import { adminHandler, answers, isLocalAddress, type Status } from './admin';
+import {
+  adminHandler,
+  answers,
+  FAILURE_WINDOW_MS,
+  isAllowedHost,
+  isLocalAddress,
+  MAX_FAILURES,
+  type Status,
+} from './admin';
 import { memoryCache } from './memoryCache';
 
 const TOKEN = 'a-token-of-twenty-chars';
@@ -14,10 +22,11 @@ const status = async (): Promise<Status> => ({
   tables: [{ title: 'Sync groups', columns: ['Group', 'Size'], rows: [['abcd1234…', '1 KB']] }],
 });
 const health = async () => [{ name: 'Port 8789', ok: true, detail: 'Answers with 404' }];
-const get = (path: string, auth?: string) => ({
+const get = (path: string, auth?: string, host: string | null = '127.0.0.1:9789') => ({
   method: 'GET',
   path,
   authorization: auth ?? null,
+  host,
 });
 const basic = (password: string) => `Basic ${Buffer.from(`admin:${password}`).toString('base64')}`;
 
@@ -58,6 +67,43 @@ describe('admin page', () => {
     });
     expect((await open(get('/', `Bearer ${TOKEN}`), '8.8.8.8')).status).toBe(200);
     expect((await open(get('/'), '8.8.8.8')).status).toBe(401);
+  });
+
+  it('refuses host names other than localhost and listed ones (DNS rebinding)', async () => {
+    for (const host of ['rebind.example:9789', 'evil.localhost.example', null, '', 'a b']) {
+      expect((await handle(get('/health', undefined, host), '127.0.0.1')).status).toBe(421);
+      expect((await handle(get('/', `Bearer ${TOKEN}`, host), '127.0.0.1')).status).toBe(421);
+    }
+    for (const host of ['localhost:9789', 'LOCALHOST', '127.0.0.1', '[::1]:9789', '10.0.0.4']) {
+      expect(isAllowedHost(host)).toBe(true);
+    }
+    expect(isAllowedHost('admin.home.arpa:9789', ['admin.home.arpa'])).toBe(true);
+    expect(isAllowedHost('admin.home.arpa', [' Admin.Home.Arpa:9789 '])).toBe(true);
+    expect(isAllowedHost('other.home.arpa', ['admin.home.arpa'])).toBe(false);
+  });
+
+  it('stops answering an address after too many wrong tokens', async () => {
+    let clock = 0;
+    const limited = adminHandler({
+      service: 'sync',
+      token: TOKEN,
+      health,
+      status,
+      failDelayMs: 0,
+      now: () => clock,
+    });
+    for (let i = 0; i < MAX_FAILURES; i++) {
+      expect((await limited(get('/', 'Bearer wrong-token-of-twenty'), '10.0.0.9')).status).toBe(
+        401,
+      );
+    }
+    // Even the right token waits now, so guessing can't go on; other addresses are not affected.
+    expect((await limited(get('/', `Bearer ${TOKEN}`), '10.0.0.9')).status).toBe(429);
+    expect((await limited(get('/', `Bearer ${TOKEN}`), '10.0.0.8')).status).toBe(200);
+    // A browser asking without a token first doesn't count.
+    expect((await limited(get('/'), '10.0.0.8')).status).toBe(401);
+    clock += FAILURE_WINDOW_MS;
+    expect((await limited(get('/', `Bearer ${TOKEN}`), '10.0.0.9')).status).toBe(200);
   });
 
   it('is off without a token or with a short one, except for /health', async () => {

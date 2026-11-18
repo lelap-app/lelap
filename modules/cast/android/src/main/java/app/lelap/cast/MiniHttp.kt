@@ -17,6 +17,8 @@ class HttpResponse(val status: Int, val headers: Map<String, String>, val body: 
  */
 object MiniHttp {
   private const val MAX_BODY = 1 shl 20
+  const val MAX_HEADERS = 100
+  const val MAX_HEADER_BYTES = 32 * 1024
 
   fun request(
     method: String,
@@ -61,12 +63,20 @@ object MiniHttp {
     return HttpResponse(status, headers, body)
   }
 
-  /** Header names in lower case; the last of repeated headers wins. */
-  fun readHeaders(input: InputStream): Map<String, String> {
+  /**
+   * Header names in lower case; the last of repeated headers wins. At most [MAX_HEADERS] lines
+   * and [MAX_HEADER_BYTES] in all, and nothing past [deadline] (`System.nanoTime()`): anyone on
+   * the network can talk to the media server or answer discovery.
+   */
+  fun readHeaders(input: InputStream, deadline: Long = Long.MAX_VALUE): Map<String, String> {
     val headers = linkedMapOf<String, String>()
+    var lines = 0
+    var bytes = 0
     while (true) {
-      val line = readLine(input) ?: break
+      val line = readLine(input, deadline) ?: break
       if (line.isEmpty()) break
+      bytes += line.length
+      if (++lines > MAX_HEADERS || bytes > MAX_HEADER_BYTES) throw IOException("Too many headers")
       val colon = line.indexOf(':')
       if (colon > 0) headers[line.substring(0, colon).trim().lowercase()] = line.substring(colon + 1).trim()
     }
@@ -74,10 +84,11 @@ object MiniHttp {
   }
 
   /** One CRLF- or LF-terminated line, or null at the end of the stream. */
-  fun readLine(input: InputStream): String? {
+  fun readLine(input: InputStream, deadline: Long = Long.MAX_VALUE): String? {
     val buffer = ByteArrayOutputStream()
     while (true) {
       val b = input.read()
+      if (System.nanoTime() > deadline) throw IOException("Too slow")
       if (b < 0) return if (buffer.size() == 0) null else buffer.toString(Charsets.UTF_8.name())
       if (b == '\n'.code) break
       if (buffer.size() > 16_384) throw IOException("Header line too long")

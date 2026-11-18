@@ -210,11 +210,12 @@ export function placeOfBook(
     .orderBy(desc(workLinks.updatedAt))
     .get();
   // An add-on's item ID can hold a server's path or settings; only a plain `prefix:id` travels.
+  // A match's ID comes from an add-on's catalog too, so it gets the same test.
   const item =
     book.addonItem && CATALOG_ID.test(book.addonItem.id)
       ? { type: book.addonItem.type, id: book.addonItem.id }
       : null;
-  const work = link ? { type: link.type, id: link.id } : item;
+  const work = link && CATALOG_ID.test(link.id) ? { type: link.type, id: link.id } : item;
   const ids = normalizeIds([...fileIds, ...(link?.ids ?? [])]).filter((id) =>
     SHAREABLE_ID.test(id),
   );

@@ -28,8 +28,11 @@ export async function backupSync(file: string, target?: string, now = new Date()
   return to;
 }
 
-/** Throws unless `file` is an intact sync database. Never writes, so a read-only mount works. */
-export function verifySync(file: string): { groups: number } {
+/**
+ * Throws unless `file` is an intact sync database. Never writes, so a read-only mount works.
+ * With `known` (the image's migrations), also throws for a database from a newer image.
+ */
+export function verifySync(file: string, known?: readonly string[]): { groups: number } {
   if (!existsSync(file)) throw new Error(`${file} does not exist.`);
   // `immutable`: no locks and no -shm, even for a backup still in WAL mode.
   const db = new DatabaseSync(`file:${encodeURI(file)}?immutable=1`, { readOnly: true });
@@ -47,6 +50,16 @@ export function verifySync(file: string): { groups: number } {
     );
     for (const name of ['groups', 'messages', 'pairings', '_migrations']) {
       if (!tables.has(name)) throw new Error(`${file} is not a sync database: no ${name} table.`);
+    }
+    if (known) {
+      const newer = (db.prepare('SELECT name FROM _migrations').all() as { name: string }[])
+        .map((r) => r.name)
+        .filter((name) => !known.includes(name));
+      if (newer.length > 0) {
+        throw new Error(
+          `${file} comes from a newer Lelap (${newer.join(', ')}). Restore it with that version.`,
+        );
+      }
     }
     return db.prepare('SELECT COUNT(*) AS groups FROM groups').get() as { groups: number };
   } finally {
@@ -73,8 +86,13 @@ function ensureStopped(file: string): void {
  * Puts a backup in place of the sync database, with the sync server stopped. The database it
  * replaces stays next to it as `sync.db.replaced-<time>`.
  */
-export function restoreSync(file: string, source: string, now = new Date()): { groups: number } {
-  const checked = verifySync(source);
+export function restoreSync(
+  file: string,
+  source: string,
+  known?: readonly string[],
+  now = new Date(),
+): { groups: number } {
+  const checked = verifySync(source, known);
   mkdirSync(dirname(file), { recursive: true });
   if (existsSync(file)) ensureStopped(file);
   const incoming = `${file}.restoring`;

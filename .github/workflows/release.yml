@@ -96,6 +96,42 @@ jobs:
           # As long as the signed ones: the approval may come days after the tag.
           retention-days: 7
 
+  # A software bill of materials: the app's npm packages (APK and web app) from the lockfile, in
+  # CycloneDX. No environment and no secrets; `publish` attaches it to the GitHub release. The
+  # Docker images carry their own, made by BuildKit (`sbom: true` below).
+  sbom:
+    name: Software bill of materials
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          # Reads the lockfile only: nothing to install, nothing to cache.
+          package-manager-cache: false
+      - name: Write the SBOM
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          mkdir -p sbom
+          pnpm --filter @lelap/app sbom --lockfile-only --prod --sbom-format cyclonedx \
+            --sbom-type application --out "sbom/lelap-$VERSION-sbom.cdx.json"
+          # Refuse an empty or foreign file rather than attach it.
+          jq -e '.bomFormat == "CycloneDX" and (.components | length > 0)' "sbom/lelap-$VERSION-sbom.cdx.json" > /dev/null
+          jq '.components | length' "sbom/lelap-$VERSION-sbom.cdx.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: sbom/*.json
+          if-no-files-found: error
+          retention-days: 7
+
   # Signs the two direct APKs. Holds the keystore, so it uses no cache and installs no packages:
   # it only checks the SHA-256 the build job reported, checks alignment and signs.
   apk:
@@ -216,8 +252,8 @@ jobs:
     name: Publish to R2 and GitHub Releases
     # After the over-the-air job, whose result decides whether the APK is an update (see the
     # step `Is the APK an update?`). It also runs when that job fails or is skipped.
-    needs: [verify, apk, apk-fdroid, ota]
-    if: ${{ !cancelled() && needs.apk.result == 'success' && needs.apk-fdroid.result == 'success' }}
+    needs: [verify, sbom, apk, apk-fdroid, ota]
+    if: ${{ !cancelled() && needs.sbom.result == 'success' && needs.apk.result == 'success' && needs.apk-fdroid.result == 'success' }}
     runs-on: ubuntu-latest
     environment:
       name: release
@@ -239,9 +275,13 @@ jobs:
           pattern: apk-*
           merge-multiple: true
           path: out
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sbom
+          path: out
       - name: Checksums
         working-directory: out
-        run: sha256sum -- *.apk | tee SHA256SUMS
+        run: sha256sum -- *.apk *-sbom.cdx.json | tee SHA256SUMS
       - name: Write the release file
         env:
           CHANNEL: ${{ needs.verify.outputs.channel }}
@@ -304,6 +344,7 @@ jobs:
           if [ "$CHANNEL" = beta ]; then flags+=(--prerelease); fi
           gh release create "$GITHUB_REF_NAME" "out/lelap-$VERSION.apk" "out/lelap-$VERSION-armv7.apk" \
             "out/lelap-$VERSION-fdroid.apk" "out/lelap-$VERSION-fdroid-armv7.apk" out/SHA256SUMS out/release.json \
+            "out/lelap-$VERSION-sbom.cdx.json" \
             --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --title "Lelap $VERSION" "${flags[@]}"
 
   ota:
@@ -434,6 +475,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # An SBOM attestation next to each image, listing its Alpine and Node packages too.
+          sbom: true
           build-args: |
             LELAP_DOMAIN=${{ vars.LELAP_DOMAIN || 'lelap.app' }}
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2

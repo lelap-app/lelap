@@ -5,10 +5,11 @@ Two volumes hold what a self-hosted Lelap can't make again:
 | Volume      | What                                       | Lost means                                   |
 | ----------- | ------------------------------------------ | -------------------------------------------- |
 | `sync-data` | `sync.db`: sealed sync messages and groups | Every device pairs again; their data stays   |
-| `secrets`   | `admin_token`, `config_secret` (generated) | Listeners set up Hardcover and gPodder again |
+| `secrets`   | The catalog's `config_secret` (generated)  | Listeners set up Hardcover and gPodder again |
 
-Nothing else needs a backup: the catalog and proxy keep only a cache in memory, and the web app is
-built from the repository. The sync database is sealed: a backup holds no keys and nothing a
+Nothing else needs a backup: the catalog and proxy keep only a cache in memory, the web app is
+built from the repository, and the admin tokens in each service's secrets volume can be read
+again or replaced. The sync database is sealed: a backup holds no keys and nothing a
 reader of the file could decrypt, but keep it as private as the server.
 
 The commands below run in the `docker` folder, with the compose project as `docker compose up`
@@ -57,22 +58,24 @@ docker compose start sync
 `restore` checks the backup first (SQLite's integrity check, and that it is a sync database) and
 refuses anything else. It keeps the database it replaces as `/data/sync.db.replaced-<date>`;
 delete that once sync runs well. On start, sync applies any migrations the backup is missing, so
-a backup from an older version restores into a newer one.
+a backup from an older version restores into a newer one. A backup from a newer version is
+refused: restore it with that version's image.
 
 ## Back up the secrets
 
 They change only if you change them, so one copy is enough:
 
 ```sh
-docker compose exec sync cat /secrets/admin_token /secrets/config_secret
+docker compose exec catalog cat /secrets/config_secret
 ```
 
-Keep the two lines in your password manager. To restore them on a new server, put them in `.env`
-as `ADMIN_TOKEN=` and `CONFIG_SECRET=`: values in `.env` win over generated ones.
+Keep it in your password manager, with the admin token if you chose one in `.env`. To restore
+them on a new server, put them in `.env` as `CONFIG_SECRET=` and `ADMIN_TOKEN=`: values in `.env`
+win over generated ones.
 
 ## Move to a new server
 
 1. On the old server: back up the sync database and the secrets as above.
-2. On the new one: clone the repository, copy `.env` with the two secrets in it, and run
+2. On the new one: clone the repository, copy `.env` with `CONFIG_SECRET` in it, and run
    `docker compose up -d`.
 3. Restore the sync database as above, then point DNS at the new server.

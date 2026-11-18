@@ -1000,5 +1000,8 @@
   "Open the show": "Buka rancangan",
   "This episode is not on your shelf.": "Episod ini tiada di rak anda.",
   "This episode is not in your copy of the show’s feed yet.": "Episod ini belum ada dalam salinan suapan rancangan anda.",
-  "Refresh and play": "Muat semula dan main"
+  "Refresh and play": "Muat semula dan main",
+  "{name} is added already": "{name} sudah ditambah",
+  "It comes from {host}. Remove it first to add the one from {other}.": "Ia datang dari {host}. Buang dahulu untuk menambah yang dari {other}.",
+  "It runs on this device. Remove it first to add the one from {other}.": "Ia berjalan pada peranti ini. Buang dahulu untuk menambah yang dari {other}."
 }

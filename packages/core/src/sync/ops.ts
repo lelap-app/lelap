@@ -38,6 +38,11 @@ import { cleanChapters } from '../library/ownChapters';
 /** Where a profile's source choices live in `settings` (see addons/sources.ts). */
 const SOURCE_PREFIX = 'source:';
 
+// Covers from another device are web addresses. A file or content address would name something
+// on this phone, which the car's exported cover provider must never be pointed at.
+const webCover = (url: string | null): string | null =>
+  typeof url === 'string' && /^https?:\/\//i.test(url) ? url : null;
+
 /** A stored or received source choice, checked: it is only data. */
 function sourceChoiceOf(value: unknown): { addonUrl: string; sourceKey: string } | null {
   let parsed: unknown = value;
@@ -610,7 +615,7 @@ function ensurePodcast(
       feedUrl,
       title: info.title,
       author: info.author ?? null,
-      coverUrl: info.coverUrl,
+      coverUrl: webCover(info.coverUrl),
       updatedAt: 0,
     })
     .run();
@@ -631,7 +636,7 @@ function applyBook(db: Db, op: Extract<Op, { type: 'book' }>, newId: IdGenerator
       title: data.title,
       author: data.author,
       coverPath: null,
-      coverUrl: data.coverUrl,
+      coverUrl: webCover(data.coverUrl),
       addonItem: data.addonItem,
       durationMs: data.durationMs,
       addedAt: op.at,

@@ -70,6 +70,9 @@ class UpnpTest {
       <root><device><friendlyName>&x;</friendlyName></device></root>"""
     assertNull(Upnp.parseDescription(evil, "http://h/"))
     assertNull(Upnp.parseDescription("not xml", "http://h/"))
+    // Internal entities that expand (no SYSTEM): refused before parsing, on Android too.
+    val laughs = """<?xml version="1.0"?><!doctype r [<!ENTITY a "aaaa">]><root><device><friendlyName>&a;</friendlyName></device></root>"""
+    assertNull(Upnp.parseDescription(laughs, "http://h/"))
   }
 
   @Test

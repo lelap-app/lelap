@@ -57,6 +57,8 @@ object Ranges {
  * SMB and SFTP files are read from their server by the phone.
  * Audio still never touches Lelap's servers.
  */
+private const val HEAD_DEADLINE_NANOS = 15_000_000_000L
+
 class MediaServer(private val context: Context) {
   sealed class Source {
     data class Local(val uri: String) : Source()
@@ -133,10 +135,13 @@ class MediaServer(private val context: Context) {
   }
 
   private fun serve(client: Socket) {
-    client.soTimeout = 30_000
+    // The request's head in 10 s, so a slow sender can't hold one of the six threads for good.
+    client.soTimeout = 10_000
+    val deadline = System.nanoTime() + HEAD_DEADLINE_NANOS
     val input = client.getInputStream()
-    val request = MiniHttp.readLine(input) ?: return
-    val headers = MiniHttp.readHeaders(input)
+    val request = MiniHttp.readLine(input, deadline) ?: return
+    val headers = MiniHttp.readHeaders(input, deadline)
+    client.soTimeout = 30_000
     val parts = request.split(' ')
     val method = parts.getOrNull(0) ?: return
     val token = parts.getOrNull(1)?.trimStart('/')?.substringBefore('/') ?: return

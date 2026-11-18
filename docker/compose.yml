@@ -1,17 +1,20 @@
 # Lelap's services for self-hosting: `docker compose up -d` in this folder. Settings come from
 # `.env` next to this file (copy .env.example); without one, everything runs with defaults.
-# ADMIN_TOKEN and CONFIG_SECRET are made on first start and kept in the `secrets` volume.
+# ADMIN_TOKEN and CONFIG_SECRET are made on first start and kept in a secrets volume per service.
 # HTTPS on your own domain: `--profile https` adds Caddy in front. See README.md.
+# Service ports: SERVICE_BIND=127.0.0.1 keeps them on loopback, behind the bundled Caddy; unset,
+# they listen on every address.
 name: lelap
 
 x-service: &service
   restart: unless-stopped
-  volumes: ['secrets:/secrets']
-  # ADMIN_TOKEN empty: the one generated into the secrets volume.
+  # ADMIN_TOKEN empty: the one generated into the service's own secrets volume.
   environment: &environment
     ADMIN_TOKEN: ${ADMIN_TOKEN:-}
     # true: the admin page answers public addresses too (still with the token).
     ADMIN_ALLOW_REMOTE: ${ADMIN_ALLOW_REMOTE:-false}
+    # Names the admin pages answer besides IP addresses and localhost, comma-separated.
+    ADMIN_HOSTS: ${ADMIN_HOSTS:-}
 
 services:
   web:
@@ -23,7 +26,7 @@ services:
       dockerfile: docker/web.Dockerfile
       args:
         LELAP_DOMAIN: ${LELAP_DOMAIN:-localhost}
-    ports: ['8080:8080']
+    ports: ['${SERVICE_BIND:-}${SERVICE_BIND:+:}8080:8080']
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:8080/']
@@ -44,7 +47,10 @@ services:
       CONFIG_SECRET: ${CONFIG_SECRET:-}
       # A gPodder server on your own network: true lets the gPodder add-on reach private addresses.
       SCROBBLE_ALLOW_PRIVATE: ${SCROBBLE_ALLOW_PRIVATE:-false}
-    ports: ['8787:8787', '${ADMIN_BIND:-127.0.0.1}:9787:9787']
+    # Each service has its own secrets, so the internet-facing proxy can't read CONFIG_SECRET.
+    # The catalog keeps the volume named `secrets`, which holds CONFIG_SECRET from earlier setups.
+    volumes: ['secrets:/secrets']
+    ports: ['${SERVICE_BIND:-}${SERVICE_BIND:+:}8787:8787', '${ADMIN_BIND:-127.0.0.1}:9787:9787']
 
   proxy:
     <<: *service
@@ -55,7 +61,8 @@ services:
       ALLOW_ORIGIN: ${WEB_ORIGIN:-*}
       # Feeds on your own network: true lets the proxy reach private addresses. Keep it private then.
       PROXY_ALLOW_PRIVATE: ${PROXY_ALLOW_PRIVATE:-false}
-    ports: ['8788:8788', '${ADMIN_BIND:-127.0.0.1}:9788:9788']
+    volumes: ['proxy-secrets:/secrets']
+    ports: ['${SERVICE_BIND:-}${SERVICE_BIND:+:}8788:8788', '${ADMIN_BIND:-127.0.0.1}:9788:9788']
 
   sync:
     <<: *service
@@ -65,8 +72,8 @@ services:
       <<: *environment
       # Optional: delete sync groups no device synced with for this many days. Empty or 0: never.
       SYNC_IDLE_EXPIRY_DAYS: ${SYNC_IDLE_EXPIRY_DAYS:-}
-    volumes: ['secrets:/secrets', 'sync-data:/data']
-    ports: ['8789:8789', '${ADMIN_BIND:-127.0.0.1}:9789:9789']
+    volumes: ['sync-secrets:/secrets', 'sync-data:/data']
+    ports: ['${SERVICE_BIND:-}${SERVICE_BIND:+:}8789:8789', '${ADMIN_BIND:-127.0.0.1}:9789:9789']
 
   # Only for Android builds of your own (README.md): signed bundles from scripts/ota.mts.
   updates:
@@ -74,8 +81,8 @@ services:
     profiles: [updates]
     image: ghcr.io/lelap-app/updates:${LELAP_TAG:-latest}
     build: { context: .., dockerfile: docker/updates.Dockerfile }
-    volumes: ['secrets:/secrets', 'updates-data:/data:ro']
-    ports: ['8790:8790', '${ADMIN_BIND:-127.0.0.1}:9790:9790']
+    volumes: ['updates-secrets:/secrets', 'updates-data:/data:ro']
+    ports: ['${SERVICE_BIND:-}${SERVICE_BIND:+:}8790:8790', '${ADMIN_BIND:-127.0.0.1}:9790:9790']
 
   # HTTPS for listen., catalog., proxy. and sync.<LELAP_DOMAIN>, with certificates from Let's
   # Encrypt. Needs the four names in DNS and ports 80 and 443 free (reverse-proxy/README.md).
@@ -94,6 +101,9 @@ services:
 
 volumes:
   secrets:
+  proxy-secrets:
+  sync-secrets:
+  updates-secrets:
   sync-data:
   updates-data:
   caddy-data:

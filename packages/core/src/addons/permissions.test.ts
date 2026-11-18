@@ -35,6 +35,17 @@ describe('addonPermissions', () => {
     expect(list[0]?.text).toContain('New, Top');
   });
 
+  it('says a web add-on that claims a sandbox is still a service that sees what you browse', () => {
+    const claims = { ...manifest(['catalog']), sandbox: { hosts: [] } };
+    expect(
+      addonPermissions(claims, 'https://addon.example/manifest.json').map((p) => p.kind),
+    ).toEqual(['catalog', 'host']);
+    expect(addonPermissions(claims, 'lelap-local://a').map((p) => p.kind)).toEqual([
+      'catalog',
+      'sandbox',
+    ]);
+  });
+
   it('keeps it short for a plain https catalog', () => {
     const list = addonPermissions(manifest(['catalog']), 'https://addon.example/manifest.json');
     expect(list.map((p) => p.kind)).toEqual(['catalog', 'host']);

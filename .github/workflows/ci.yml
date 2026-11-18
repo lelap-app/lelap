@@ -37,6 +37,8 @@ jobs:
       - run: pnpm check
       - run: pnpm test
       - run: pnpm build
+      # The release attaches this SBOM (release.yml); a second here, so a tag never finds it broken.
+      - run: pnpm --filter @lelap/app sbom --lockfile-only --prod --sbom-format cyclonedx --sbom-type application --out "$RUNNER_TEMP/sbom.json"
 
   changes:
     name: Detect changes

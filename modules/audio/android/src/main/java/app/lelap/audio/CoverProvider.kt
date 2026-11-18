@@ -23,13 +23,17 @@ class CoverProvider : ContentProvider() {
     val cover = CarCovers.find(key, snapshot(context), journal(context))
       ?: throw FileNotFoundException(uri.toString())
     if (cover.startsWith("content://")) {
+      if (!CarCovers.servableDocument(cover, context.packageName)) throw FileNotFoundException(uri.toString())
       // A cover in a download folder the user picked; Lelap holds the grant, Auto does not.
       return context.contentResolver.openFileDescriptor(Uri.parse(cover), "r")
         ?: throw FileNotFoundException(uri.toString())
     }
     // `localFileUri` in packages/core writes the path as it is, without escaping.
     val raw = File(cover.removePrefix("file://"))
-    val file = if (raw.exists()) raw else File(Uri.parse(cover).path ?: throw FileNotFoundException(uri.toString()))
+    val file = (if (raw.exists()) raw else File(Uri.parse(cover).path ?: throw FileNotFoundException(uri.toString())))
+      .canonicalFile
+    // Checked on the file itself: an address can hide another name behind `#`, `%2e` or a link.
+    if (!CarCovers.servableFile(file.name)) throw FileNotFoundException(uri.toString())
     return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
   }
 

@@ -31,8 +31,11 @@ That one command:
   `proxy` and `sync`, on the ports above;
 - pulls the service images for `LELAP_TAG` (default `latest`), or builds them here when that tag
   is not published yet;
-- makes an admin token and the catalog's `CONFIG_SECRET` on first start and keeps them in the
-  `secrets` volume, so they stay the same across restarts and upgrades;
+- makes an admin token per service and the catalog's `CONFIG_SECRET` on first start and keeps
+  them in each service's own secrets volume (`secrets` for the catalog, `proxy-secrets`,
+  `sync-secrets`, `updates-secrets`), so they stay the same across restarts and upgrades and the
+  internet-facing proxy can't read the catalog's secret. Setups from before these volumes keep
+  `CONFIG_SECRET`; proxy, sync and updates make new admin tokens once;
 - checks each service's health every 30 s; `docker compose ps` shows it.
 
 The app finds its services by domain: `listen.`, `catalog.`, `proxy.` and `sync.<LELAP_DOMAIN>`,
@@ -61,12 +64,17 @@ It is protected two ways:
 
 1. **A token.** Every page except `/health` needs `ADMIN_TOKEN`: the browser asks for it (any user
    name, the token as password), or send `Authorization: Bearer <token>`. Without a token of 16
-   characters or more, the page is off; a wrong token waits half a second before it is refused.
-   Read the generated one with `docker compose exec sync cat /secrets/admin_token`.
+   characters or more, the page is off; a wrong token waits half a second before it is refused,
+   and after 10 wrong tokens an address is refused for 15 minutes, even with the right one.
+   Each service makes its own: read it with `docker compose exec sync cat /secrets/admin_token`
+   (or `catalog`, `proxy`, `updates`). `ADMIN_TOKEN` in `.env` sets one for all of them.
 2. **Local addresses only.** The compose file publishes the admin ports on `127.0.0.1`
    (`ADMIN_BIND`), so only the server itself reaches them. The pages also refuse callers outside
    loopback and private networks unless `ADMIN_ALLOW_REMOTE=true`. The reverse proxy examples
    never forward the admin ports.
+3. **Addresses, not names.** The pages answer only requests for an IP address or `localhost`, so a
+   website can't reach them through DNS rebinding (a name of its own that points at
+   `127.0.0.1`). To open them by a name of your own, list it in `ADMIN_HOSTS`.
 
 The token is the real boundary: other containers and machines on your private network count as
 local, so they need it too. The loopback binding is what keeps the pages off the internet; keep
@@ -92,7 +100,7 @@ Workers, and Cloudflare's dashboard shows the same.
 
 ## Back up
 
-Back up the `sync-data` and `secrets` volumes. Sync holds encrypted messages only, but losing it
+Back up the `sync-data` and `secrets` volumes (the catalog's). Sync holds encrypted messages only, but losing it
 means devices pair again; losing `CONFIG_SECRET` means listeners set up Hardcover and gPodder
 again. How, with a tested restore: [backup.md](backup.md).
 
@@ -102,7 +110,9 @@ The proxy refuses addresses on private networks (loopback, `10.x`, `192.168.x`, 
 on), also after DNS and redirects, so strangers can't use it to reach the services next to it. If
 your own feeds are on your network, set `PROXY_ALLOW_PRIVATE=true` and keep the proxy off the
 internet. The `web` image sends a Content-Security-Policy built for `LELAP_DOMAIN`; the services
-send no-sniff and sandbox headers. Rate limits belong in your reverse proxy; the nginx and Traefik
+send no-sniff and sandbox headers. With the bundled Caddy in front, set `SERVICE_BIND=127.0.0.1`
+so the service ports stay on the server and everything from outside goes through HTTPS; Caddy
+reaches the services over Docker's own network. Rate limits belong in your reverse proxy; the nginx and Traefik
 examples have them, Caddy needs a plugin for them.
 
 `updates` is only for Android builds of your own, so it starts only with

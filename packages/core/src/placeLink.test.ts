@@ -133,6 +133,25 @@ describe('a shared place', () => {
     expect(place?.ids).toEqual(['isbn:9780441172719', 'ol:OL893415W']);
     expect(place?.toMs).toBe(1_000 + CLIP_MAX_MS);
   });
+
+  it('leaves out a matched work whose ID is an address', () => {
+    const db = createTestDb();
+    scan(db, [scanned('Dune/01.mp3', { ids: ['isbn:0441172717'] })]);
+    db.insert(workLinks)
+      .values({
+        bookKey: `${ROOT}/Dune`,
+        workType: 'audiobook',
+        workId: 'x:https://user:secret@nas.home/books/dune',
+        state: 'linked',
+        ids: [],
+        meta: null,
+        updatedAt: 1,
+      })
+      .run();
+    const place = placeOfBook(db, idOf(db, `${ROOT}/Dune`), 1_000, 2_000);
+    expect(place?.work ?? null).toBeNull();
+    expect(JSON.stringify(place)).not.toContain('secret');
+  });
 });
 
 describe('finding the listener’s own copy', () => {

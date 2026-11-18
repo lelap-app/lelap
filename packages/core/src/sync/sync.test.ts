@@ -500,6 +500,46 @@ describe('sync between two devices', () => {
     expect(listSubscriptions(laptop, ME)[0]?.skipIntroMs).toBe(0);
   });
 
+  it('keeps only web covers from another device', () => {
+    const book = (key: string, coverUrl: string): Op => ({
+      type: 'book',
+      key,
+      at: 5,
+      data: {
+        title: 'Hostile',
+        author: null,
+        kind: 'file',
+        coverUrl,
+        addonItem: null,
+        durationMs: 1000,
+        parts: [],
+        chapters: [],
+      },
+    });
+    applyOps(
+      laptop,
+      [
+        book('m96:a', 'file:///data/user/0/app.lelap/databases/lelap.db'),
+        book('m96:b', 'content://app.lelap.fileprovider/x'),
+        book('m96:c', 'https://covers.example/c.jpg'),
+      ],
+      10,
+      newId,
+    );
+    const covers = Object.fromEntries(
+      laptop
+        .select({ location: books.location, coverUrl: books.coverUrl })
+        .from(books)
+        .all()
+        .map((b) => [b.location, b.coverUrl]),
+    );
+    expect(covers).toMatchObject({
+      'm96:a': null,
+      'm96:b': null,
+      'm96:c': 'https://covers.example/c.jpg',
+    });
+  });
+
   it('fills intro and outro only from the newest change that carries them', () => {
     const feedUrl = 'https://feeds.example/garden.xml';
     const { podcastId } = saveFeed(
