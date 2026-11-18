@@ -85,8 +85,9 @@ object IdTags {
   /** `Dune #1` from a name and a number such as `1` or `1/6`; the name alone without a number. */
   internal fun seriesText(name: String?, part: String?): String? {
     val clean = name?.replace("#", "")?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-    val number = part?.substringBefore('/')?.replace("#", "")?.replace(",", "")?.trim()
-      ?.takeIf { it.isNotEmpty() && it != "0" }
+    // A decimal comma (“1,5”) is a decimal point here, as commas part series in the text.
+    val number = part?.substringBefore('/')?.replace("#", "")?.replace(',', '.')?.trim()
+      ?.takeIf { it.isNotEmpty() }
     return if (number != null) "$clean #$number" else clean
   }
 

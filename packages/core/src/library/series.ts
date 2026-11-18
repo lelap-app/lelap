@@ -1,5 +1,5 @@
 import { createWorkIndex, matchStrength, splitAuthors } from '@lelap/sdk';
-import { and, eq, isNotNull, isNull, like, ne } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, like, ne } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import { bookFiles, books, settings } from '../schema';
@@ -24,8 +24,13 @@ export type SeriesBook = {
 };
 
 export type Series = {
-  /** Stable for the series' name; the series page and the listener's order are kept by it. */
+  /** The key of its name; the listener's order is kept by it. */
   key: string;
+  /**
+   * The keys of every name its books use, `key` among them. The series page and an order from
+   * another device find it by any of them, so a new spelling never loses it.
+   */
+  keys: string[];
   name: string;
   /** The author most of its books name. */
   author: string | null;
@@ -166,6 +171,20 @@ export function getSeriesOrder(db: Db, profileId: string, key: string): string[]
   return row ? cleanOrder(row.value) : [];
 }
 
+/** Every order the profile keeps, newest first, read at once. */
+function allOrders(db: Db, profileId: string): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const row of db
+    .select({ key: settings.key, value: settings.value })
+    .from(settings)
+    .where(and(eq(settings.profileId, profileId), like(settings.key, `${ORDER_PREFIX}%`)))
+    .orderBy(desc(settings.updatedAt))
+    .all()) {
+    out.set(row.key.slice(ORDER_PREFIX.length), cleanOrder(row.value));
+  }
+  return out;
+}
+
 /** A stored or received order, checked: it is only data. */
 export function cleanOrder(value: unknown): string[] {
   let parsed: unknown = value;
@@ -209,8 +228,19 @@ export const SERIES_ORDER_PREFIX = ORDER_PREFIX;
  * copy and a streamed one) is listed once, the copy played last or else the listener's own file.
  */
 export function listSeries(db: Db, profileId: string): Series[] {
+  return build(db, profileId).series;
+}
+
+function build(db: Db, profileId: string): { series: Series[]; all: Member[] } {
   const all = members(db, profileId);
-  if (all.length === 0) return [];
+  if (all.length === 0) return { series: [], all };
+  // The names each book gives, so a book's own two series are never joined through its twin.
+  const named = new Map<string, Set<string>>();
+  for (const m of all) {
+    const keys = named.get(m.book.id) ?? new Set<string>();
+    keys.add(m.nameKey);
+    named.set(m.book.id, keys);
+  }
 
   const { find, join } = joiner();
   const index = createWorkIndex(
@@ -228,7 +258,11 @@ export function listSeries(db: Db, profileId: string): Series[] {
       authors: splitAuthors(m.book.author),
       series: m.number,
     })) {
-      if (item.book.id !== m.book.id && item.number === m.number) join(m.nameKey, item.nameKey);
+      if (item.book.id === m.book.id || item.number !== m.number) continue;
+      if (named.get(m.book.id)?.has(item.nameKey) || named.get(item.book.id)?.has(m.nameKey)) {
+        continue;
+      }
+      join(m.nameKey, item.nameKey);
     }
   }
 
@@ -240,6 +274,7 @@ export function listSeries(db: Db, profileId: string): Series[] {
     else groups.set(root, [m]);
   }
 
+  const orders = allOrders(db, profileId);
   const out: Series[] = [];
   for (const list of groups.values()) {
     // The name most books use is the series' name; its key keeps the page and the order.
@@ -266,9 +301,12 @@ export function listSeries(db: Db, profileId: string): Series[] {
     const usual = kept
       .map(({ book, bookKey, position, number }) => ({ book, bookKey, position, number }))
       .sort(compareInSeries);
-    const order = getSeriesOrder(db, profileId, key);
+    const keys = [...new Set([key, ...list.map((m) => m.nameKey)])];
+    // The newest order kept under any of its names; an empty one is the usual order.
+    const order = [...orders].find(([k]) => keys.includes(k))?.[1] ?? [];
     out.push({
       key,
+      keys,
       name,
       author: mostCommon(usual.map((b) => splitAuthors(b.book.author)[0] ?? null)),
       books: order.length > 0 ? applyOrder(usual, order) : usual,
@@ -276,12 +314,18 @@ export function listSeries(db: Db, profileId: string): Series[] {
       ordered: order.length > 0,
     });
   }
-  return out.sort((a, b) => compareNatural(a.name, b.name));
+  return { series: out.sort((a, b) => compareNatural(a.name, b.name)), all };
 }
 
-/** One series by its key, or null when no book in the library names it now. */
+/** One series by the key of any of its names, or null when no book in the library names it. */
 export function getSeries(db: Db, profileId: string, key: string): Series | null {
-  return listSeries(db, profileId).find((s) => s.key === key) ?? null;
+  const series = listSeries(db, profileId);
+  return series.find((s) => s.key === key) ?? series.find((s) => s.keys.includes(key)) ?? null;
+}
+
+/** The series in the library a name means, such as a catalog work's. */
+export function findSeries(db: Db, profileId: string, name: string): Series | null {
+  return getSeries(db, profileId, seriesKey(name));
 }
 
 /** The series a book is in, its main series first. */
@@ -324,13 +368,14 @@ export type NextInSeries = {
 };
 
 export function nextInSeries(db: Db, profileId: string, bookId: string): NextInSeries | null {
+  const built = build(db, profileId);
   // The main series is the one the book names first.
-  const all = members(db, profileId).filter((m) => m.book.id === bookId);
-  const ranked = seriesOfBook(db, profileId, bookId).sort((a, b) => {
-    const rank = (s: Series) =>
-      Math.min(...all.filter((m) => seriesKey(s.name) === m.nameKey).map((m) => m.rank), 99);
-    return rank(a) - rank(b);
-  });
+  const own = built.all.filter((m) => m.book.id === bookId);
+  const rank = (s: Series) =>
+    Math.min(...own.filter((m) => s.keys.includes(m.nameKey)).map((m) => m.rank), 99);
+  const ranked = built.series
+    .filter((s) => s.books.some((b) => b.book.id === bookId))
+    .sort((a, b) => rank(a) - rank(b));
   const series = ranked[0];
   if (!series) return null;
   const at = series.books.findIndex((b) => b.book.id === bookId);

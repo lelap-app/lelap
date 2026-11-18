@@ -244,6 +244,43 @@ describe('series in the library', () => {
       ['Leviathan Wakes', 'local'],
       ['Caliban’s War', 'addon'],
     ]);
+    // Either name finds it, and an order kept under the other name (another device's) applies.
+    const other = seriesKey('The Expanse');
+    expect(other).not.toBe(expanse[0]?.key);
+    expect(getSeries(db, ME, other)?.name).toBe(expanse[0]?.name);
+    setSeriesOrder(
+      db,
+      ME,
+      other,
+      [...(expanse[0]?.books ?? [])].reverse().map((b) => b.bookKey),
+      9,
+    );
+    expect(getSeries(db, ME, other)?.books.map((b) => b.book.title)).toEqual([
+      'Caliban’s War',
+      'Leviathan Wakes',
+    ]);
+  });
+
+  it('keeps a book’s own two series apart when another copy names only one', () => {
+    const stream: Stream = { sourceKey: 'lv:9', name: 'LibriVox', url: 'https://a.example/9.mp3' };
+    addStreamedBook(db, {
+      addonUrl: 'https://addon.example/manifest.json',
+      meta: {
+        id: 'ol:9',
+        type: 'audiobook',
+        name: 'Dune',
+        author: 'Frank Herbert',
+        series: [{ name: 'Dune Chronicles', position: '1' }],
+      },
+      stream,
+      now: 5,
+      newId,
+    });
+    expect(listSeries(db, ME).map((s) => s.name)).toEqual([
+      'Dune',
+      'Dune Chronicles',
+      'The Expanse',
+    ]);
   });
 
   it('takes the series of a work matched by hand over the files’ tags', () => {

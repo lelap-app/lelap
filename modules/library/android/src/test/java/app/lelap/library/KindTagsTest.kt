@@ -139,7 +139,9 @@ class KindTagsTest {
   @Test
   fun writesTheSeriesAsServersDo() {
     assertEquals("Dune #1", IdTags.seriesText(" Dune ", "1/6"))
-    assertEquals("Dune", IdTags.seriesText("Dune", "0"))
+    assertEquals("Dune #0", IdTags.seriesText("Dune", "0"))
+    assertEquals("Dune #1.5", IdTags.seriesText("Dune", "1,5"))
+    assertEquals("Dune", IdTags.seriesText("Dune", " "))
     assertEquals("Dune #2", IdTags.seriesText("Dune #", "#2"))
     assertNull(IdTags.seriesText(" ", "2"))
   }

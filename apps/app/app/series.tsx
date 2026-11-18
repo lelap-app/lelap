@@ -210,14 +210,14 @@ export default function SeriesScreen() {
                 </View>
                 <IconButton
                   name="up"
-                  label={t('Move up')}
+                  label={t('Move {title} up', { title: entry.book.title })}
                   size={20}
                   color={at === 0 ? COLORS.line : COLORS.soft}
                   onPress={() => at > 0 && move(entry, -1)}
                 />
                 <IconButton
                   name="down"
-                  label={t('Move down')}
+                  label={t('Move {title} down', { title: entry.book.title })}
                   size={20}
                   color={at === count - 1 ? COLORS.line : COLORS.soft}
                   onPress={() => at < count - 1 && move(entry, 1)}

@@ -8,13 +8,12 @@ import {
   type FoundStream,
   getBook,
   getEditionChoice,
-  getSeries,
+  findSeries,
   getSourceChoice,
   linkBook,
   type LinkableWork,
   pickSource,
   rejectLink,
-  seriesKey,
   type SourceChoice,
   setEditionChoice,
   setSourceChoice,
@@ -167,7 +166,7 @@ export default function ItemScreen() {
   // The same series in the library (M109), by name, for a link to its page.
   const seriesName = meta.data?.meta.series?.[0]?.name;
   const inLibrary = useMemo(
-    () => (seriesName ? getSeries(db, profileId, seriesKey(seriesName)) : null),
+    () => (seriesName ? findSeries(db, profileId, seriesName) : null),
     [seriesName, version],
   );
   const yourCopy = useMemo(

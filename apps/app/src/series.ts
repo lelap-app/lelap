@@ -54,6 +54,6 @@ export function openSeriesOf(
 ): void {
   const all = seriesOfBook(db, profileId, bookId);
   const wanted = name ? seriesKey(name) : null;
-  const series = all.find((s) => s.key === wanted) ?? all[0];
+  const series = all.find((s) => wanted !== null && s.keys.includes(wanted)) ?? all[0];
   if (series) router.push({ pathname: '/series', params: { key: series.key } });
 }

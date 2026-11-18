@@ -1039,7 +1039,6 @@
   "Lori looked everywhere in your library.": "Lori sudah mencari di seluruh pustaka anda.",
   "Next in {series}": "Seterusnya dalam {series}",
   "No books in this series.": "Tiada buku dalam siri ini.",
-  "No number": "Tiada nombor",
   "No series yet.": "Belum ada siri.",
   "None of your add-ons lists book {n} of {series}.": "Tiada alat tambah anda yang menyenaraikan buku {n} {series}.",
   "Not found": "Tidak ditemui",
@@ -1048,5 +1047,7 @@
   "Order by number": "Susun ikut nombor",
   "Play next book": "Main buku seterusnya",
   "Series": "Siri",
-  "{n} finished": "{n} selesai didengar"
+  "{n} finished": "{n} selesai didengar",
+  "Move {title} up": "Alih {title} ke atas",
+  "Move {title} down": "Alih {title} ke bawah"
 }
