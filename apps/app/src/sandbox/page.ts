@@ -1,20 +1,20 @@
-// The page an in-app add-on runs in (M38). Its content policy allows inline scripts and nothing
-// else: no network, no frames, no storage beyond the page. The add-on reaches the outside only
-// through `lelap.fetch`, which asks the app, and the app fetches only from the hosts the add-on
-// declared. The bootstrap answers the same routes as a web add-on.
+// The page an in-app add-on runs in (M38). Its content policy allows inline scripts and a worker
+// made from them, and nothing else: no network, no frames, no storage beyond the page. The
+// add-on reaches the outside only through `lelap.fetch`, which asks the app, and the app fetches
+// only from the hosts the add-on declared. The bootstrap answers the same routes as a web add-on.
+//
+// Since M57 the add-on's code runs in a worker inside the page. A worker can't navigate, open a
+// window or add an element, so a server's settings, which reach `library` calls as `settings`,
+// can't leave in an address either. Where a worker can't start, the code runs in the page as
+// before and the app never hands it settings (`isolated: false`).
 
-const BOOTSTRAP = `
-(function () {
-  var post = function (m) {
-    var text = JSON.stringify(m);
-    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(text);
-    else window.parent.postMessage(text, '*');
-  };
+const ADDON_SIDE = `
+(function (post) {
   var pending = {};
   var seq = 0;
   var def = null;
-  window.addon = function (d) { def = d; };
-  window.lelap = {
+  self.addon = function (d) { def = d; };
+  self.lelap = {
     fetch: function (url, init) {
       return new Promise(function (resolve, reject) {
         var id = 'f' + (++seq);
@@ -47,7 +47,7 @@ const BOOTSTRAP = `
     }
     return p.length === 3 ? r : null;
   };
-  var handle = function (id, path) {
+  var handle = function (id, path, settings) {
     Promise.resolve().then(function () {
       if (!def) throw new Error('The file never called addon({...}).');
       var r = route(path);
@@ -55,6 +55,7 @@ const BOOTSTRAP = `
       if (r.resource === 'manifest') return { status: 200, body: def.manifest };
       var h = def[r.resource];
       if (typeof h !== 'function') return { status: 404, body: { error: 'Not found' } };
+      if (r.resource === 'library') r.settings = Object.freeze(settings || {});
       return Promise.resolve(h(r)).then(function (b) {
         return b == null ? { status: 404, body: { error: 'Not found' } } : { status: 200, body: b };
       });
@@ -64,9 +65,9 @@ const BOOTSTRAP = `
       post({ t: 'result', id: id, status: 500, body: { error: String((err && err.message) || err) } });
     });
   };
-  var onMessage = function (e) {
+  self.__lelapReceive = function (data) {
     var m;
-    try { m = JSON.parse(typeof e.data === 'string' ? e.data : ''); } catch (x) { return; }
+    try { m = JSON.parse(typeof data === 'string' ? data : ''); } catch (x) { return; }
     if (m.t === 'fetched') {
       var p = pending[m.id];
       if (!p) return;
@@ -81,22 +82,78 @@ const BOOTSTRAP = `
         json: function () { return Promise.resolve(JSON.parse(m.text)); }
       });
     } else if (m.t === 'call') {
-      handle(m.id, m.path);
+      handle(m.id, m.path, m.settings);
     }
   };
-  window.addEventListener('message', onMessage);
-  document.addEventListener('message', onMessage);
-  window.onerror = function (msg) { post({ t: 'log', message: String(msg) }); };
+  self.onerror = function (msg) { post({ t: 'log', message: String(msg) }); };
+})
+`;
+
+// The page's own script: starts the worker and passes messages both ways. `ADDON_SIDE_TEXT` and
+// `ADDON_CODE` are replaced with string literals.
+const PAGE_SIDE = `
+(function () {
+  var toApp = function (text) {
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(text);
+    else window.parent.postMessage(text, '*');
+  };
+  var ready = function (isolated) { toApp(JSON.stringify({ t: 'ready', isolated: isolated })); };
+  var addonSide = ADDON_SIDE_TEXT;
+  var code = ADDON_CODE;
+  var worker = null;
+  try {
+    worker = new Worker(URL.createObjectURL(new Blob([
+      addonSide + '(function (m) { self.postMessage(JSON.stringify(m)); });\\n' +
+      'self.onmessage = function (e) { self.__lelapReceive(e.data); };\\n' +
+      // After the add-on's code ran, or threw.
+      'setTimeout(function () { self.postMessage(JSON.stringify({ t: "started" })); }, 0);\\n' +
+      code
+    ], { type: 'text/javascript' })));
+  } catch (e) {
+    worker = null;
+  }
+  if (worker) {
+    var started = false;
+    worker.onmessage = function (e) {
+      if (typeof e.data !== 'string') return;
+      if (!started && e.data === '{"t":"started"}') { started = true; ready(true); return; }
+      toApp(e.data);
+    };
+  } else {
+    // No worker here: the add-on runs in the page, as before M57, and the app hands it no settings.
+    window.__lelapToApp = function (m) { toApp(JSON.stringify(m)); };
+    var run = function (text) {
+      var s = document.createElement('script');
+      s.textContent = text;
+      document.body.appendChild(s);
+    };
+    // Said first: the app takes the first word, and code in the page could claim otherwise.
+    ready(false);
+    run(addonSide + '(window.__lelapToApp);');
+    run(code);
+  }
+  var fromApp = function (e) {
+    if (typeof e.data !== 'string') return;
+    if (worker) worker.postMessage(e.data);
+    else if (window.__lelapReceive) window.__lelapReceive(e.data);
+  };
+  window.addEventListener('message', fromApp);
+  document.addEventListener('message', fromApp);
 })();
 `;
 
+// A JavaScript string inside an inline script: `<` is escaped so nothing closes the element.
+const literal = (text: string) => JSON.stringify(text).replace(/</g, '\\u003c');
+
 /** The add-on's code inside a closed page. */
 export function sandboxPage(code: string): string {
-  // The code can't close its own script element and escape into the page.
-  const safe = code.replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
+  // Functions as replacements, so `$&` and friends in the code stay as they are.
+  const page = PAGE_SIDE.replace('ADDON_SIDE_TEXT', () => literal(ADDON_SIDE)).replace(
+    'ADDON_CODE',
+    () => literal(code),
+  );
   return `<!doctype html><html><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'">
-</head><body><script>${BOOTSTRAP}</script><script>${safe}</script>
-<script>(window.ReactNativeWebView ? window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'ready' })) : window.parent.postMessage(JSON.stringify({ t: 'ready' }), '*'));</script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; worker-src blob:">
+</head><body><script>${page}</script>
 </body></html>`;
 }

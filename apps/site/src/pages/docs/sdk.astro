@@ -216,6 +216,7 @@ const toc: [string, string][] = [
   ['configure', 'Settings and sign-in'],
   ['health', 'Health'],
   ['badges', 'Badges on covers'],
+  ['library', 'Library sources inside the app'],
   ['errors', 'Errors'],
   ['validation', 'Validation'],
   ['testing', 'Testing'],
@@ -377,6 +378,18 @@ const toc: [string, string][] = [
     revision 4 ignore them. See <a href="/docs/protocol/#badges">Badges</a> for the fields.
   </p>
   <CodeBlock code={badges} />
+
+  <h2 id="library">Library sources inside the app</h2>
+  <p>
+    <code>createAddon</code> serves add-ons on the web. An add-on that lists the listener’s own
+    files as a library, with a login, is a single JavaScript file that runs inside the app instead:
+    see <a href="/docs/protocol/#library">Library sources</a>. The SDK still helps with it:{' '}
+    <code>LibraryResponse</code> and <code>SettingField</code> check what it sends,{' '}
+    <code>readSettings</code> checks a form as the app does, and <code>settingHosts</code> gives the
+    hosts a form grants. A stream from <code>createAddon</code> never carries <code>headers</code>:
+    the answer passes through the network, so the SDK refuses one that does, also with validation
+    off.
+  </p>
 
   <h2 id="errors">Errors</h2>
   <p>

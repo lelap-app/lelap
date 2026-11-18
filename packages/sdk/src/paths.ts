@@ -52,10 +52,15 @@ export function artworkPath(type: ContentType, id: string): string {
   return `artwork/${type}/${enc(id)}.json`;
 }
 
+/** Since revision 5: every file of the listener's library, from an add-on inside the app. */
+export function libraryPath(type: ContentType = 'audiobook'): string {
+  return `library/${type}/all.json`;
+}
+
 export type Route =
   | { resource: 'manifest' }
   | { resource: 'catalog'; type: ContentType; id: string; extra: Extra }
-  | { resource: 'meta' | 'stream' | 'artwork'; type: ContentType; id: string };
+  | { resource: 'meta' | 'stream' | 'artwork' | 'library'; type: ContentType; id: string };
 
 const isType = (value: string): value is ContentType =>
   (CONTENT_TYPES as readonly string[]).includes(value);
@@ -73,7 +78,10 @@ export function parseRoute(path: string): Route | null {
   if (!isType(type)) return null;
   if (resource === 'catalog') return { resource, type, id, extra: parseExtra(extra ?? '') };
   if (
-    (resource === 'meta' || resource === 'stream' || resource === 'artwork') &&
+    (resource === 'meta' ||
+      resource === 'stream' ||
+      resource === 'artwork' ||
+      resource === 'library') &&
     extra === undefined
   )
     return { resource, type, id };

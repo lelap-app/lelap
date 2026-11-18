@@ -3,6 +3,14 @@ import { describe, expect, it } from 'vitest';
 import {
   HealthResponse,
   isConfigurable,
+  LibraryResponse,
+  offersLibrary,
+  readSettings,
+  RequestHeaders,
+  settingHosts,
+  type SettingField,
+  StreamResponse,
+  WebStreamResponse,
   Manifest,
   Meta,
   MetaPreview,
@@ -198,5 +206,103 @@ describe('protocol revision 2', () => {
     expect(HealthResponse.safeParse({ status: 'ok' }).success).toBe(true);
     expect(HealthResponse.safeParse({ status: 'degraded', message: 'Slow' }).success).toBe(true);
     expect(HealthResponse.safeParse({ status: 'fine' }).success).toBe(false);
+  });
+});
+
+describe('revision 5: add-ons as library sources', () => {
+  const inApp: Manifest = {
+    ...base,
+    resources: ['library'],
+    sandbox: { hosts: [] },
+    settings: [
+      { key: 'url', label: 'Server address', type: 'url', required: true, host: true },
+      { key: 'user', label: 'User', type: 'text' },
+      { key: 'password', label: 'Password', type: 'password' },
+    ],
+  };
+
+  it('accepts settings and a library for an add-on inside the app', () => {
+    const parsed = Manifest.parse(inApp);
+    expect(parsed.settings).toHaveLength(3);
+    expect(offersLibrary(parsed)).toBe(true);
+  });
+
+  it('refuses settings and a library without a sandbox', () => {
+    const web = { ...inApp, sandbox: undefined };
+    expect(Manifest.safeParse(web).success).toBe(false);
+    expect(Manifest.safeParse({ ...web, settings: undefined }).success).toBe(false);
+    expect(Manifest.safeParse({ ...web, resources: ['catalog'] }).success).toBe(false);
+    expect(offersLibrary({ ...base, resources: ['library'] })).toBe(false);
+  });
+
+  it('refuses repeated keys and a host on a field that is not an address', () => {
+    const twice = { ...inApp, settings: [inApp.settings?.[1], inApp.settings?.[1]] };
+    expect(Manifest.safeParse(twice).success).toBe(false);
+    const hostOnText = { ...inApp, settings: [{ key: 'a', label: 'A', type: 'text', host: true }] };
+    expect(Manifest.safeParse(hostOnText).success).toBe(false);
+  });
+
+  it('checks what the listener typed', () => {
+    const fields = inApp.settings as SettingField[];
+    expect(readSettings(fields, { user: 'me' })).toEqual({ error: 'Server address is needed.' });
+    expect(readSettings(fields, { url: 'ftp://nas' })).toHaveProperty('error');
+    expect(readSettings(fields, { url: 'http://me:pw@nas' })).toHaveProperty('error');
+    expect(
+      readSettings(fields, { url: ' http://nas.local:8080/books ', password: ' pw ', other: 'x' }),
+    ).toEqual({ settings: { url: 'http://nas.local:8080/books', user: '', password: ' pw ' } });
+  });
+
+  it('lets the add-on reach only the hosts of address fields marked host', () => {
+    const fields: SettingField[] = [
+      { key: 'url', label: 'A', type: 'url', host: true },
+      { key: 'other', label: 'B', type: 'url' },
+    ];
+    expect(
+      settingHosts(fields, { url: 'http://NAS.local:8080/x', other: 'https://elsewhere.example' }),
+    ).toEqual(['nas.local:8080']);
+    expect(settingHosts(fields, { url: 'not an address' })).toEqual([]);
+  });
+
+  it('takes request headers with sane names and values only', () => {
+    expect(
+      RequestHeaders.safeParse({ Authorization: 'Basic YTpi', 'X-Api-Key': 'k' }).success,
+    ).toBe(true);
+    for (const bad of [
+      { Cookie: 'a=b' },
+      { host: 'evil.example' },
+      { Range: 'bytes=0-' },
+      { 'Bad Name': 'x' },
+      { Authorization: 'a\r\nX-Injected: 1' },
+    ]) {
+      expect(RequestHeaders.safeParse(bad).success).toBe(false);
+    }
+    const many = Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`X-${i}`, 'v']));
+    expect(RequestHeaders.safeParse(many).success).toBe(false);
+  });
+
+  it('keeps stream headers for add-ons inside the app and refuses them from web add-ons', () => {
+    const body = {
+      streams: [
+        { sourceKey: 'k', name: 'N', url: 'http://nas/1.mp3', headers: { Authorization: 'x' } },
+      ],
+    };
+    expect(StreamResponse.parse(body).streams[0]?.headers).toEqual({ Authorization: 'x' });
+    expect(WebStreamResponse.safeParse(body).success).toBe(false);
+    expect(
+      WebStreamResponse.safeParse({ streams: [{ ...body.streams[0], headers: undefined }] })
+        .success,
+    ).toBe(true);
+  });
+
+  it('reads a library listing and refuses paths that climb out of it', () => {
+    const file = { path: 'Author/Book/01.mp3', url: 'http://nas/Author/Book/01.mp3' };
+    const parsed = LibraryResponse.parse({
+      files: [{ ...file, size: 10, durationMs: 1000, ids: ['isbn:9780141036144'] }],
+      headers: { Authorization: 'Basic YTpi' },
+    });
+    expect(parsed.files[0]?.durationMs).toBe(1000);
+    for (const path of ['../etc/passwd', 'a//b.mp3', '/abs.mp3', 'a/./b.mp3']) {
+      expect(LibraryResponse.safeParse({ files: [{ ...file, path }] }).success).toBe(false);
+    }
   });
 });

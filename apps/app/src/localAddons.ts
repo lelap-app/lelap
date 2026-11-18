@@ -1,11 +1,11 @@
 import { t } from './i18n';
-import { installAddon, localAddonUrl, saveLocalAddonCode } from '@lelap/core';
+import { bundledAddon, installAddon, localAddonUrl, saveLocalAddonCode } from '@lelap/core';
 import { Manifest } from '@lelap/sdk';
 import * as Crypto from 'expo-crypto';
 
 import { reviewAddon } from './addonReview';
 import { db, newId } from './db';
-import { closeSandbox, previewManifest } from './sandbox';
+import { closeSandboxesOf, previewManifest } from './sandbox';
 
 const MAX_CODE_CHARS = 1_000_000;
 
@@ -29,8 +29,10 @@ export async function installAddonFile(sourceUrl: string): Promise<boolean> {
   if (!manifest.sandbox) {
     throw new Error(t('This file is not an in-app add-on: its manifest has no `sandbox` hosts.'));
   }
-  const sha256 = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, code);
   const url = localAddonUrl(manifest.id);
+  // A file can't take the place of an add-on that comes with the app, and with it its servers.
+  if (bundledAddon(url)) throw new Error(t('An add-on with this ID comes with Lelap already.'));
+  const sha256 = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, code);
   const accepted = await reviewAddon(
     manifest,
     url,
@@ -41,6 +43,6 @@ export async function installAddonFile(sourceUrl: string): Promise<boolean> {
   saveLocalAddonCode(db, { url, sourceUrl, code, sha256, now: Date.now() });
   installAddon(db, { url, manifest, now: Date.now(), newId });
   // A running sandbox of an older version restarts with the new code.
-  closeSandbox(url);
+  closeSandboxesOf(url);
   return true;
 }

@@ -28,7 +28,7 @@ import {
   type ScrobbleEvent,
   ScrobbleRequest,
   type StreamResponse,
-  StreamResponse as StreamResponseSchema,
+  WebStreamResponse,
   type ArtworkResponse,
   ArtworkResponse as ArtworkResponseSchema,
 } from './protocol';
@@ -270,11 +270,15 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
       }
       case 'stream': {
         if (!handlers.stream) break;
+        // A web add-on's answer passes through the network, so it never carries headers.
         const body = checked(
-          StreamResponseSchema,
+          WebStreamResponse as ZodType<StreamResponse>,
           await handlers.stream({ ...route, config, request }),
           validate,
         );
+        // Also with validation off: a login in a header must not leave as JSON.
+        if (body.streams.some((s) => s.headers !== undefined))
+          throw new Error('Only add-ons inside the app may send stream headers.');
         return json(body, 200, body.cacheMaxAge);
       }
     }

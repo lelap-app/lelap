@@ -18,6 +18,7 @@ import {
   localFileUri,
   trimOfBook,
   trimmedStart,
+  sharedHeaders,
 } from '@lelap/core';
 import {
   createContext,
@@ -189,7 +190,7 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
   const start = resumePoint(db, profileId, bookId);
   const trim = detail.book.source === 'feed' ? trimOfBook(db, profileId, bookId) : null;
   const now = Date.now();
-  const access = detail.files.map((f) => fileAccess(f, now));
+  const access = detail.files.map((f) => fileAccess({ ...f, bookId }, now));
   return {
     bookId,
     title: detail.book.title,
@@ -209,8 +210,9 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
     speed: detail.speed,
     pausedAt: detail.book.lastPlayedAt,
     handsOver: detail.book.source === 'feed',
-    // A book's files all come from one place, so one login covers them.
-    headers: access[0]?.headers ?? {},
+    // A book's files all come from one place, so one login covers them; files that would get
+    // different headers get none.
+    headers: sharedHeaders(access),
     // The player skips them, also for episodes Up Next or the car starts with the app closed.
     ...trim,
   };

@@ -63,7 +63,7 @@ export const PLAYER_EVENTS = [
 ] as const;
 export type PlayerEventName = (typeof PLAYER_EVENTS)[number];
 
-export const SOURCES = ['folder', 'webdav', 's3', 'jellyfin', 'audiobookshelf'] as const;
+export const SOURCES = ['folder', 'webdav', 's3', 'jellyfin', 'audiobookshelf', 'addon'] as const;
 export const ADDON_RESOURCES = [
   'manifest',
   'catalog',

@@ -9,6 +9,7 @@ import {
   planDownload,
   removeDownload,
   requestDownload,
+  sharedHeaders,
   type Settings,
 } from '@lelap/core';
 import type { Meta } from '@lelap/sdk';
@@ -65,7 +66,7 @@ export async function startDownload(bookId: string, meta: Meta | null): Promise<
   const plan = planDownload(db, bookId);
   requestDownload(db, plan, meta, Date.now());
   // Files on a server: S3 links signed now, WebDAV with its login (sent to that host only).
-  const access = plan.files.map((f) => fileAccess({ uri: f.url, rootId: f.rootId }));
+  const access = plan.files.map((f) => fileAccess({ uri: f.url, rootId: f.rootId, bookId }));
   await native.enqueue(
     {
       ...plan,
@@ -74,7 +75,7 @@ export async function startDownload(bookId: string, meta: Meta | null): Promise<
         name: f.name,
         size: f.size,
       })),
-      headers: access[0]?.headers ?? {},
+      headers: sharedHeaders(access),
     },
     currentRules(),
   );

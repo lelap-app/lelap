@@ -45,6 +45,7 @@ import { SELF_UPDATES } from '../src/platform/updater';
 import { fetchOtaUpdate, OTA_UPDATES, otaDescription } from '../src/ota';
 import { checkForUpdate, installUpdate } from '../src/updates';
 import { chooseFolder, scanLibrary } from '../src/scan';
+import { closeSandbox } from '../src/sandbox';
 import { Pill } from '../src/components/Pill';
 import { RowLabel, TextButton, Toggle } from '../src/components/TextButton';
 
@@ -388,7 +389,9 @@ export default function SettingsScreen() {
                           ? 'Jellyfin'
                           : s.remote?.type === 'audiobookshelf'
                             ? 'Audiobookshelf'
-                            : 'WebDAV'
+                            : s.remote?.type === 'addon'
+                              ? t('Add-on on this device')
+                              : 'WebDAV'
                 }
               >
                 {(s.needsLogin || (s.remote?.type === 'audiobookshelf' && s.remote.keyRefused)) && (
@@ -412,6 +415,9 @@ export default function SettingsScreen() {
                           style: 'destructive',
                           onPress: () => {
                             removeRemoteRoot(db, s.id);
+                            if (s.remote?.type === 'addon') {
+                              closeSandbox(`${s.remote.addonUrl}#${s.id}`);
+                            }
                             refresh();
                           },
                         },
@@ -424,7 +430,9 @@ export default function SettingsScreen() {
             ))}
             <Row
               label={t('Add a server')}
-              detail={t('WebDAV, an S3-compatible bucket, Jellyfin or Audiobookshelf.')}
+              detail={t(
+                'WebDAV, an S3-compatible bucket, Jellyfin, Audiobookshelf or an HTTP folder.',
+              )}
             >
               <TextButton text={t('Add')} onPress={() => router.push('/server')} />
             </Row>

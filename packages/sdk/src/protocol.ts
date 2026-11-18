@@ -10,15 +10,16 @@ export const PROTOCOL_VERSION = 1;
  * The newest revision of protocol 1 this SDK knows; manifests declare it as `protocolVersion`.
  * Revisions only add things, so an older app ignores what it does not know. Absent means 1.
  * 2 adds `behaviorHints` (a `/configure` page, sign-in) and `GET /health`; 3 adds `artwork`; 4
- * adds `badges` on items.
+ * adds `badges` on items; 5 adds `settings`, stream `headers` and the `library` resource for
+ * add-ons inside the app.
  */
-export const LATEST_PROTOCOL_VERSION = 4;
+export const LATEST_PROTOCOL_VERSION = 5;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
 export type ContentType = z.infer<typeof ContentType>;
 
-export const RESOURCES = ['catalog', 'meta', 'stream', 'scrobble', 'artwork'] as const;
+export const RESOURCES = ['catalog', 'meta', 'stream', 'scrobble', 'artwork', 'library'] as const;
 export const ResourceName = z.enum(RESOURCES);
 export type ResourceName = z.infer<typeof ResourceName>;
 
@@ -77,32 +78,133 @@ export const BehaviorHints = z.object({
 });
 export type BehaviorHints = z.infer<typeof BehaviorHints>;
 
-export const Manifest = z.object({
-  /** Reverse DNS, such as `org.example.myaddon`. */
-  id: z.string().min(3),
-  version: z.string().regex(/^\d+\.\d+\.\d+/, 'Use semantic versioning'),
-  protocol: z.literal(PROTOCOL_VERSION),
-  /** The protocol revision the add-on is written for; absent means 1. */
-  protocolVersion: z.number().int().min(1).optional(),
-  name: z.string().min(1),
-  description: z.string(),
-  logo: Url.optional(),
-  types: z.array(ContentType).min(1),
-  resources: z.array(ResourceDefinition).min(1),
-  /** Prefixes of the IDs this add-on answers `meta` and `stream` for. */
-  idPrefixes: z.array(z.string().min(1)).optional(),
-  catalogs: z.array(CatalogDefinition),
-  /** Protocol 1.1 spelling of `behaviorHints.configurable`; still read, so older add-ons work. */
-  configurable: z.boolean().optional(),
-  /** Since revision 2. Unknown hints are ignored. */
-  behaviorHints: BehaviorHints.optional(),
-  /**
-   * Since revision 3, for add-ons that run inside the app (a single JavaScript file) instead of on
-   * a server. `hosts` are the only places the app fetches for it, such as `192.168.1.20:8096` or
-   * `*.local`; nothing else is reachable.
-   */
-  sandbox: z.object({ hosts: z.array(z.string().min(1)).max(32) }).optional(),
-});
+// The app sets these itself, so an add-on can't: they would break playback or reach the app's
+// own cookies and proxies.
+const RESERVED_HEADERS = new Set([
+  'host',
+  'cookie',
+  'content-length',
+  'range',
+  'connection',
+  'transfer-encoding',
+  'te',
+  'upgrade',
+  'proxy-authorization',
+  'origin',
+  'referer',
+  'user-agent',
+  'accept-encoding',
+]);
+
+/**
+ * Since revision 5: request headers the app sends with audio, such as `Authorization`. Only add-ons
+ * inside the app may send them, since their answers never leave the phone; the app sends them
+ * only to the add-on's own hosts. At most 16, each value visible ASCII.
+ */
+export const RequestHeaders = z
+  .record(
+    z
+      .string()
+      .regex(/^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,64}$/, 'Not a header name')
+      .refine((name) => !RESERVED_HEADERS.has(name.toLowerCase()), 'The app sets this header'),
+    z
+      .string()
+      .max(4096)
+      .regex(/^[\t\x20-\x7e]*$/, 'Header values are visible ASCII'),
+  )
+  .refine((headers) => Object.keys(headers).length <= 16, 'At most 16 headers');
+export type RequestHeaders = z.infer<typeof RequestHeaders>;
+
+export const SETTING_TYPES = ['text', 'url', 'password'] as const;
+
+/**
+ * Since revision 5: one field of the form the app shows when the listener adds an add-on inside
+ * the app as a server, such as its address, a user name or a password. The values stay sealed on
+ * the phone and reach only that add-on's `library` calls.
+ */
+export const SettingField = z
+  .object({
+    /** The key in `settings`: a letter, then letters, digits or `_`. */
+    key: z
+      .string()
+      .regex(/^[A-Za-z][A-Za-z0-9_]{0,31}$/, 'Keys are a letter, then letters, digits or _'),
+    label: z.string().min(1).max(80),
+    /** `url` is an http or https address; `password` is hidden as it is typed. */
+    type: z.enum(SETTING_TYPES),
+    /** Fields are optional unless this is true. */
+    required: z.boolean().optional(),
+    placeholder: z.string().max(200).optional(),
+    /** A short line under the field. */
+    help: z.string().max(300).optional(),
+    /**
+     * For `url`: the add-on may reach this address's host for this server, as if it were in
+     * `sandbox.hosts`. The listener typed it, so the listener chose it.
+     */
+    host: z.boolean().optional(),
+  })
+  .refine((field) => field.host !== true || field.type === 'url', {
+    message: 'Only url fields can grant a host',
+    path: ['host'],
+  });
+export type SettingField = z.infer<typeof SettingField>;
+
+const resourceNames = (resources: ResourceDefinition[]) =>
+  resources.map((r) => (typeof r === 'string' ? r : r.name));
+
+export const Manifest = z
+  .object({
+    /** Reverse DNS, such as `org.example.myaddon`. */
+    id: z.string().min(3),
+    version: z.string().regex(/^\d+\.\d+\.\d+/, 'Use semantic versioning'),
+    protocol: z.literal(PROTOCOL_VERSION),
+    /** The protocol revision the add-on is written for; absent means 1. */
+    protocolVersion: z.number().int().min(1).optional(),
+    name: z.string().min(1),
+    description: z.string(),
+    logo: Url.optional(),
+    types: z.array(ContentType).min(1),
+    resources: z.array(ResourceDefinition).min(1),
+    /** Prefixes of the IDs this add-on answers `meta` and `stream` for. */
+    idPrefixes: z.array(z.string().min(1)).optional(),
+    catalogs: z.array(CatalogDefinition),
+    /** Protocol 1.1 spelling of `behaviorHints.configurable`; still read, so older add-ons work. */
+    configurable: z.boolean().optional(),
+    /** Since revision 2. Unknown hints are ignored. */
+    behaviorHints: BehaviorHints.optional(),
+    /**
+     * Since revision 3, for add-ons that run inside the app (a single JavaScript file) instead of on
+     * a server. `hosts` are the only places the app fetches for it, such as `192.168.1.20:8096` or
+     * `*.local`; nothing else is reachable.
+     */
+    sandbox: z.object({ hosts: z.array(z.string().min(1)).max(32) }).optional(),
+    /**
+     * Since revision 5, for add-ons inside the app only: the form the app shows when the listener
+     * adds the add-on as a server. The values reach its `library` calls as `settings`.
+     */
+    settings: z.array(SettingField).max(12).optional(),
+  })
+  .superRefine((manifest, context) => {
+    // Settings and libraries are for add-ons on the phone: a web add-on keeps its settings in its
+    // address (a configure page), and its answers pass through the network.
+    if (!manifest.sandbox && manifest.settings) {
+      context.addIssue({
+        code: 'custom',
+        path: ['settings'],
+        message: 'Only add-ons inside the app have settings',
+      });
+    }
+    if (!manifest.sandbox && resourceNames(manifest.resources).includes('library')) {
+      context.addIssue({
+        code: 'custom',
+        path: ['resources'],
+        message: 'Only add-ons inside the app list a library',
+      });
+    }
+    const keys = (manifest.settings ?? []).map((f) => f.key);
+    if (new Set(keys).size !== keys.length) {
+      context.addIssue({ code: 'custom', path: ['settings'], message: 'Setting keys must differ' });
+    }
+  });
 export type Manifest = z.infer<typeof Manifest>;
 
 /**
@@ -191,6 +293,12 @@ const StreamBase = z.object({
   bitrate: z.number().int().positive().optional(),
   size: z.number().int().nonnegative().optional(),
   downloadable: z.boolean().optional(),
+  /**
+   * Since revision 5, from add-ons inside the app only: sent with every request for this stream's
+   * audio, on the phone, and only to the add-on's own hosts. A web add-on's stream with headers is
+   * refused.
+   */
+  headers: RequestHeaders.optional(),
 });
 
 export const SingleFileStream = StreamBase.extend({
@@ -209,6 +317,12 @@ export type Stream = z.infer<typeof Stream>;
 
 const CacheMaxAge = z.number().int().nonnegative().optional();
 
+/** A stream as a web add-on may send it: without `headers`. */
+export const WebStream = Stream.refine((stream) => stream.headers === undefined, {
+  message: 'Only add-ons inside the app may send headers',
+  path: ['headers'],
+});
+
 export const CatalogResponse = z.object({
   metas: z.array(MetaPreview),
   cacheMaxAge: CacheMaxAge,
@@ -223,6 +337,62 @@ export const StreamResponse = z.object({
   cacheMaxAge: CacheMaxAge,
 });
 export type StreamResponse = z.infer<typeof StreamResponse>;
+
+/** What a web add-on may answer for streams: no stream carries `headers`. */
+export const WebStreamResponse = z.object({
+  streams: z.array(WebStream),
+  cacheMaxAge: CacheMaxAge,
+});
+
+// No empty, `.` or `..` segments: the path names a place in the library, never a way out of it.
+const LibraryPath = z
+  .string()
+  .min(1)
+  .max(1024)
+  .refine(
+    (path) => path.split('/').every((part) => part !== '' && part !== '.' && part !== '..'),
+    'Paths are folders and a file name, separated by /',
+  );
+
+/**
+ * Since revision 5: one file of the listener's library, as an add-on inside the app lists it. The
+ * app makes books from these as from a folder on the phone: a folder of audio files is a book, an
+ * audio file on its own is a book, and `cover.jpg` and friends in a folder are its cover.
+ */
+export const LibraryFile = z.object({
+  /** Folders and the file name with its extension, such as `Frances Hodgson Burnett/The Secret Garden/01.mp3`. */
+  path: LibraryPath,
+  url: Url,
+  size: z.number().int().nonnegative().optional(),
+  /** Unix time in milliseconds. A changed size or time makes the app read the file's tags again. */
+  modifiedAt: z.number().int().nonnegative().optional(),
+  /**
+   * The file's length. With it, the app takes the tags below as they are and doesn't read the
+   * file; without it, the app reads the tags from the file itself.
+   */
+  durationMs: Duration.optional(),
+  title: z.string().optional(),
+  /** The book's title. */
+  album: z.string().optional(),
+  artist: z.string().optional(),
+  /** The book's author. */
+  albumArtist: z.string().optional(),
+  chapters: z.array(Chapter).optional(),
+  /** `isbn:…`, `asin:…` and the like, so the app can link the book to its work. */
+  ids: z.array(z.string().min(3).max(128)).max(16).optional(),
+  /** A cover for the file's book, when it has none of its own. */
+  cover: Url.optional(),
+});
+export type LibraryFile = z.infer<typeof LibraryFile>;
+
+/** Since revision 5: `GET /library/audiobook/all.json`, every file of the listener's library. */
+export const LibraryResponse = z.object({
+  files: z.array(LibraryFile).max(50_000),
+  /** Sent with every request for these files on the phone, and only to the add-on's own hosts. */
+  headers: RequestHeaders.optional(),
+  cacheMaxAge: CacheMaxAge,
+});
+export type LibraryResponse = z.infer<typeof LibraryResponse>;
 
 /**
  * One picture of an item. The app picks the best square cover itself and draws any badges from the
@@ -373,4 +543,62 @@ export function supports(
   if (!types.includes(type)) return false;
   const prefixes = prefixesFor(manifest, resource);
   return prefixes === null || prefixes.some((prefix) => id.startsWith(prefix));
+}
+
+/** Whether the add-on lists a library the app can scan like a server (revision 5). */
+export function offersLibrary(manifest: Manifest): boolean {
+  return manifest.sandbox !== undefined && resourceNames(manifest.resources).includes('library');
+}
+
+/** The values of an add-on's settings form, by field key. */
+export type Settings = Record<string, string>;
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === 'http:' || url.protocol === 'https:') && !url.username && !url.password
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Checks what the listener typed into an add-on's settings form. Text and addresses are trimmed,
+ * passwords kept as typed, an optional field left empty is `''`, and keys the form doesn't have
+ * are dropped. Returns the values or the first problem, in words for the listener.
+ */
+export function readSettings(
+  fields: SettingField[],
+  input: Record<string, string | undefined>,
+): { settings: Settings } | { error: string } {
+  const settings: Settings = {};
+  for (const field of fields) {
+    const raw = input[field.key] ?? '';
+    const value = field.type === 'password' ? raw : raw.trim();
+    if (value.length > (field.type === 'password' ? 4096 : 2048)) {
+      return { error: `${field.label} is too long.` };
+    }
+    if (field.required && value === '') return { error: `${field.label} is needed.` };
+    if (field.type === 'url' && value !== '' && !isHttpUrl(value)) {
+      return { error: `${field.label}: an http:// or https:// address, without a login in it.` };
+    }
+    settings[field.key] = value;
+  }
+  return { settings };
+}
+
+/**
+ * The hosts the listener's settings let an add-on reach: those of `url` fields marked `host`,
+ * with their port when the address has one, such as `192.168.1.20:8080`.
+ */
+export function settingHosts(fields: SettingField[], settings: Settings): string[] {
+  const hosts = new Set<string>();
+  for (const field of fields) {
+    if (field.type !== 'url' || field.host !== true) continue;
+    const value = settings[field.key] ?? '';
+    if (isHttpUrl(value)) hosts.add(new URL(value).host.toLowerCase());
+  }
+  return [...hosts];
 }

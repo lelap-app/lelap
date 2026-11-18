@@ -3,8 +3,9 @@ import { and, eq, like, notInArray } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
-import { type AddonItemRef, bookFiles, books, chapters } from '../schema';
+import { type AddonItemRef, bookFiles, books, chapters, streamHeaders } from '../schema';
 import { recordDeletion } from '../sync/keys';
+import { saveStreamHeaders } from './streamHeaders';
 
 export type StreamedBookArgs = {
   addonUrl: string;
@@ -177,6 +178,9 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
       .where(and(eq(bookFiles.bookId, bookId), notInArray(bookFiles.location, locations)))
       .run();
 
+    // A login the stream asked for, kept apart and sealed; a stream without one clears it.
+    saveStreamHeaders(tx, bookId, addonUrl, stream.headers, now);
+
     const built = chaptersOf(meta, stream, parts);
     // Chapters found from silences stay until the add-on brings chapters of its own.
     tx.delete(chapters)
@@ -234,6 +238,7 @@ export function removeStreamedBook(db: Db, bookId: string, now = Date.now()): bo
     tx.delete(bookFiles)
       .where(and(eq(bookFiles.bookId, bookId), like(bookFiles.location, 'stream:%')))
       .run();
+    tx.delete(streamHeaders).where(eq(streamHeaders.bookId, bookId)).run();
     tx.delete(books).where(eq(books.id, bookId)).run();
     return true;
   });

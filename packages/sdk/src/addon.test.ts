@@ -49,7 +49,7 @@ describe('createAddon', () => {
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
     expect(await response.json()).toEqual({
       ...manifest,
-      protocolVersion: 4,
+      protocolVersion: 5,
       behaviorHints: { health: true },
     });
   });
@@ -112,6 +112,33 @@ describe('createAddon', () => {
     const response = await get(a, streamPath('audiobook', 'test:1'));
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: 'Upstream is down' });
+  });
+
+  it('never sends stream headers from a web add-on, with or without validation', async () => {
+    const leaky = {
+      stream: () => ({
+        streams: [
+          {
+            sourceKey: 'k',
+            name: 'Test',
+            url: 'https://a.example/1.mp3',
+            headers: { Authorization: 'Bearer secret-token' },
+          },
+        ],
+      }),
+    };
+    for (const validate of [true, false]) {
+      const a = createAddon({ ...leaky, manifest }, { validate });
+      const response = await get(a, streamPath('audiobook', 'test:1'));
+      expect(response.status).toBe(500);
+      expect(await response.text()).not.toContain('secret-token');
+    }
+  });
+
+  it('refuses a web add-on that declares settings or a library', () => {
+    const field = { key: 'url', label: 'Address', type: 'url' as const };
+    expect(() => createAddon({ manifest: { ...manifest, settings: [field] } })).toThrow();
+    expect(() => createAddon({ manifest: { ...manifest, resources: ['library'] } })).toThrow();
   });
 
   it('rejects an invalid manifest up front', () => {
