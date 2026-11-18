@@ -308,6 +308,16 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M30] gPodder (gpodder.net and Nextcloud gPodder Sync): play and pause an episode; AntennaPod on the same server continues there. ([m30](m30-follow-ups.md))
 - [ ] [M5] Podcast search needs `PODCASTINDEX_KEY` and `PODCASTINDEX_SECRET` on the catalog Worker; try trending and a search. ([m3](m3-follow-ups.md#3-not-verified))
 - [ ] [M30] Set `CONFIG_SECRET` on the catalog Worker; check the CORS preflight for `POST /scrobble` on the deployed catalog. ([m30](m30-follow-ups.md))
+- [ ] [M62] Synology over SMB: Add a server → SMB, `smb://<nas>/<share>/Audiobooks` with a DSM user: books appear with titles, covers (embedded and `cover.jpg`) and chapters. ([m62](m62-follow-ups.md#synology))
+- [ ] [M62] An SMB book plays, seeks far ahead at once, keeps its place, and plays on with the screen off and the app swiped away. ([m62](m62-follow-ups.md#play))
+- [ ] [M62] An SMB book downloads, also one that waits for Wi-Fi, and plays in airplane mode. ([m62](m62-follow-ups.md#download))
+- [ ] [M62] SFTP with a password: “Test connection” shows the host key, matching `ssh-keygen -l` of the server's key; Connect adds the books. ([m62](m62-follow-ups.md#sftp))
+- [ ] [M62] SFTP with a private key, pasted and picked as a file, with and without a passphrase. ([m62](m62-follow-ups.md#key))
+- [ ] [M62] Change an SFTP server's host key: the next scan keeps the books, Settings says the key changed, the books don't play and a download stops with the same message. ([m62](m62-follow-ups.md#changed))
+- [ ] [M62] Change an SMB share's password: Settings shows the refused login with Log in; logging in again keeps books and places. ([m62](m62-follow-ups.md#password))
+- [ ] [M62] Cast an SMB and an SFTP book to a UPnP speaker and a Chromecast; seeking works. ([m62](m62-follow-ups.md#cast))
+- [ ] [M62] A Windows 11 share with a Microsoft account, a local account, and `DOMAIN\name` on a domain; QNAP and Samba on a Raspberry Pi. ([m62](m62-follow-ups.md#windows))
+- [ ] [M62] The web app: Add a server → SMB or SFTP says it is in the Android app only. ([m62](m62-follow-ups.md#web))
 
 ### A second device for sync
 

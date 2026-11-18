@@ -5,6 +5,7 @@ import {
   audiobookshelfStream,
   jellyfinStream,
   listRoots,
+  netfsHeaders,
   parseS3Uri,
   presignGet,
   type RemoteSource,
@@ -25,11 +26,15 @@ export type FileAccess = { uri: string; headers: Record<string, string>; private
 
 function remoteOf(rootId: string | null): RemoteSource | null {
   if (!rootId) return null;
-  return listRoots(db).find((r) => r.id === rootId)?.remote ?? null;
+  const root = listRoots(db).find((r) => r.id === rootId);
+  // SMB and SFTP without their password would only make failed logins, which servers count.
+  if (root?.needsLogin && (root.remote?.type === 'smb' || root.remote?.type === 'sftp'))
+    return null;
+  return root?.remote ?? null;
 }
 
 /**
- * A file's playable address: a WebDAV file with its login as a header, an S3 object as a fresh
+ * A file's playable address: a WebDAV, SMB or SFTP file with its login as a header, an S3 object as a fresh
  * pre-signed link, a Jellyfin item with its token (a header on the phone; in the address in a
  * browser, whose audio element can't send headers), an Audiobookshelf track the same way with its
  * API key, a file from an add-on inside the app with the headers and query parameters it asked
@@ -52,6 +57,10 @@ export function fileAccess(
     return { uri: file.uri, headers: streamHeadersFor(db, file.bookId, file.uri, declaredHosts) };
   }
   if (remote?.type === 'webdav') return { uri: file.uri, headers: webdavHeaders(remote) };
+  // SMB and SFTP: the login travels as a header to native code; these addresses are never HTTP.
+  if (remote?.type === 'smb' || remote?.type === 'sftp') {
+    return { uri: file.uri, headers: netfsHeaders(remote) };
+  }
   if (remote?.type === 'jellyfin') return jellyfinStream(remote, file.uri, Platform.OS !== 'web');
   if (remote?.type === 'audiobookshelf') {
     return audiobookshelfStream(remote.token, file.uri, Platform.OS !== 'web');

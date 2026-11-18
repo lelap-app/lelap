@@ -21,6 +21,8 @@ dependencies {
   implementation project(':lelap-text')
   // Casting (M50): the session plays through the cast module's link while a receiver plays.
   implementation project(':lelap-cast')
+  // SMB and SFTP files (M62): a data source of their own, with the login as headers.
+  implementation project(':lelap-netfs')
   implementation "androidx.media3:media3-exoplayer:$media3Version"
   implementation "androidx.media3:media3-session:$media3Version"
   implementation "androidx.media3:media3-datasource:$media3Version"

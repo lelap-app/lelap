@@ -18,7 +18,7 @@ export type DiagnosticsApp = {
   androidApi: number | null;
 };
 
-type Source = 'folder' | 'webdav' | 's3' | 'jellyfin' | 'audiobookshelf' | 'addon';
+type Source = 'folder' | 'webdav' | 'smb' | 'sftp' | 's3' | 'jellyfin' | 'audiobookshelf' | 'addon';
 
 /** What a report says about the device, apart from the log. IDs are row IDs, never printed. */
 export type DiagnosticsContext = {

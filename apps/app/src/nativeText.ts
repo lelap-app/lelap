@@ -41,6 +41,27 @@ const nativeLines = (): Record<string, string> => ({
     'Some downloads stay where they are until their folder can be reached again.',
   ),
   Stop: t('Stop'),
+  // Downloads from SMB and SFTP servers (M62) that will not pass by trying again.
+  'The server refused the login. Log in again in Settings.': t(
+    'The server refused the login. Log in again in Settings.',
+  ),
+  'The server’s host key changed, so Lelap did not connect. If you changed it yourself, remove the server in Settings and add it again.':
+    t(
+      'The server’s host key changed, so Lelap did not connect. If you changed it yourself, remove the server in Settings and add it again.',
+    ),
+  'The server’s host key is not trusted yet. Add the server again.': t(
+    'The server’s host key is not trusted yet. Add the server again.',
+  ),
+  'The private key can’t be read. Check its passphrase.': t(
+    'The private key can’t be read. Check its passphrase.',
+  ),
+  'The file is no longer on the server.': t('The file is no longer on the server.'),
+  'The server does not let this login read the file.': t(
+    'The server does not let this login read the file.',
+  ),
+  'The server address is not valid.': t('The server address is not valid.'),
+  'The server did not answer within 30 s.': t('The server did not answer within 30 s.'),
+  'No answer from the server.': t('No answer from the server.'),
   // The home screen widget and the Quick Settings tile.
   'Nothing playing': t('Nothing playing'),
   'Open Lelap to pick a book': t('Open Lelap to pick a book'),
