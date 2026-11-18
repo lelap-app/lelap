@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
+import { formatTime } from '../src/format';
 import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { useLibrary } from '../src/player';
@@ -166,7 +167,7 @@ export default function SyncScreen() {
           <Text className="text-paper">
             {t('Syncing as {name}', { name: member.deviceName })}
             {member.lastSyncAt
-              ? ` · ${t('last {time}', { time: new Date(member.lastSyncAt).toLocaleTimeString() })}`
+              ? ` · ${t('last {time}', { time: formatTime(member.lastSyncAt) })}`
               : ''}
           </Text>
           <TextButton

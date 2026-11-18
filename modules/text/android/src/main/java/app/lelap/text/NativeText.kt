@@ -28,6 +28,9 @@ object NativeText {
 
   fun t(context: Context, english: String, vararg vars: Pair<String, Any>): String = get(context).t(english, *vars)
 
+  /** The lines [get] last read, English before; for threads without a Context, such as casting's. */
+  fun current(): NativeCatalog = cached ?: NativeCatalog.ENGLISH
+
   // Synchronized with channel(): the player, download workers and alerts call it from their own
   // threads, and each rewrites the one list of channels.
   @Synchronized fun save(context: Context, catalog: NativeCatalog) {

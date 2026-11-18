@@ -43,7 +43,7 @@ class AudioDevicesTest {
   fun forgetsDisconnectedDevices() {
     val devices = AudioDevices()
     devices.connect("a", "", null, null, 70)
-    assertEquals("Bluetooth device", devices.list.single().name)
+    assertEquals("", devices.list.single().name)
     assertTrue(devices.disconnect("a"))
     assertFalse(devices.disconnect("a"))
     assertTrue(devices.list.isEmpty())

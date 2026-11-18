@@ -86,7 +86,7 @@ export default function TranscriptScreen() {
         <ActivityIndicator color={COLORS.amber} className="pt-24" />
       ) : transcript.isError ? (
         <Text className="px-6 pt-24 text-center text-muted">
-          The transcript could not be read: {message(transcript.error)}
+          {t('The transcript could not be read: {error}', { error: message(transcript.error) })}
         </Text>
       ) : cues.length === 0 ? (
         <Text className="px-6 pt-24 text-center text-muted">{t('The transcript is empty.')}</Text>

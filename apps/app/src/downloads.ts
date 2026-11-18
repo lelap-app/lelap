@@ -234,10 +234,10 @@ export function DownloadSync() {
 }
 
 function waitingFor(rules: native.DownloadRules): string {
-  if (rules.wifiOnly && rules.chargingOnly) return 'Waiting for Wi-Fi and a charger';
-  if (rules.wifiOnly) return 'Waiting for Wi-Fi';
-  if (rules.chargingOnly) return 'Waiting for a charger';
-  return 'Waiting for a connection';
+  if (rules.wifiOnly && rules.chargingOnly) return t('Waiting for Wi-Fi and a charger');
+  if (rules.wifiOnly) return t('Waiting for Wi-Fi');
+  if (rules.chargingOnly) return t('Waiting for a charger');
+  return t('Waiting for a connection');
 }
 
 export type DownloadView = {
@@ -255,13 +255,16 @@ export function describeDownload(
 ): DownloadView {
   if (entry.state === 'done') {
     return {
-      label: entry.bytesTotal > 0 ? `Downloaded · ${formatBytes(entry.bytesTotal)}` : 'Downloaded',
+      label:
+        entry.bytesTotal > 0
+          ? `${t('Downloaded')} · ${formatBytes(entry.bytesTotal)}`
+          : t('Downloaded'),
       progress: null,
       failed: false,
     };
   }
   if (entry.state === 'failed') {
-    return { label: entry.error ?? 'The download failed.', progress: null, failed: true };
+    return { label: entry.error ?? t('The download failed.'), progress: null, failed: true };
   }
   if (status?.state === 'running') {
     const total = status.bytesTotal || entry.bytesTotal;
@@ -269,8 +272,8 @@ export function describeDownload(
     return {
       label:
         progress === null
-          ? `Downloading · ${formatBytes(status.bytesDone)}`
-          : `Downloading · ${Math.floor(progress * 100)} % of ${formatBytes(total)}`,
+          ? `${t('Downloading')} · ${formatBytes(status.bytesDone)}`
+          : `${t('Downloading')} · ${t('{percent} % of {size}', { percent: Math.floor(progress * 100), size: formatBytes(total) })}`,
       progress,
       failed: false,
     };

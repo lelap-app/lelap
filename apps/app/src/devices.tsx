@@ -29,7 +29,9 @@ const listeners = new Set<() => void>();
 const carListeners = new Set<(car: bluetooth.AudioDevice) => void>();
 let subscription: { remove: () => void } | null = null;
 
-function update(devices: bluetooth.AudioDevice[]) {
+function update(found: bluetooth.AudioDevice[]) {
+  // Android names some devices nothing; native code leaves the name empty for the app to fill.
+  const devices = found.map((d) => (d.name ? d : { ...d, name: t('Bluetooth device') }));
   const now = Date.now();
   const samples = new Map<string, BatterySample[]>();
   for (const d of devices) {
@@ -97,10 +99,14 @@ export function DeviceRunner() {
   useEffect(() => {
     if (!settings.carModeOffer) return;
     const offer = (car: bluetooth.AudioDevice) =>
-      showAlert(t('Car mode?'), `Connected to ${car.name}. Big buttons for the road.`, [
-        { text: t('Not now'), style: 'cancel' },
-        { text: t('Open car mode'), onPress: () => router.push('/car') },
-      ]);
+      showAlert(
+        t('Car mode?'),
+        t('Connected to {name}. Big buttons for the road.', { name: car.name }),
+        [
+          { text: t('Not now'), style: 'cancel' },
+          { text: t('Open car mode'), onPress: () => router.push('/car') },
+        ],
+      );
     carListeners.add(offer);
     return () => {
       carListeners.delete(offer);
@@ -124,10 +130,10 @@ export function useHeadphoneWarning(): { name: string; level: number; what: stri
   if (!state.bookId) return null;
   const speed = Math.max(0.5, state.speed);
   let needMs: number | null = null;
-  let what = 'the chapter';
+  let what = t('It may not last the chapter.');
   if (state.sleepTimerRemainingMs !== null) {
     needMs = state.sleepTimerRemainingMs;
-    what = 'the sleep timer';
+    what = t('It may not last the sleep timer.');
   } else if (detail && detail.chapters.length > 0) {
     const position = toBookPosition(detail.files, state.fileLocation ?? '', state.positionMs);
     const next = detail.chapters[chapterAt(detail.chapters, position) + 1];
@@ -155,8 +161,8 @@ export function HeadphoneBanner({ className = '' }: { className?: string }) {
     >
       <Icon name="headphones" size={20} color="#f7d9a0" />
       <Text className="flex-1 text-sm text-[#f7d9a0]">
-        {warning.name} at {warning.level}%.
-        {warning.what ? ` It may not last ${warning.what}.` : t(' Charge it soon.')}
+        {t('{name} at {level}%.', { name: warning.name, level: warning.level })}{' '}
+        {warning.what || t('Charge it soon.')}
       </Text>
     </View>
   );

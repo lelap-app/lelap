@@ -3,6 +3,7 @@ import { type EventSubscription, NativeModule, requireNativeModule } from 'expo'
 /** A connected Bluetooth audio device: headphones, a speaker or a car. */
 export type AudioDevice = {
   id: string;
+  /** Empty when Android knows no name; the app shows its own. */
   name: string;
   /** Percent; null when the device reports none. */
   battery: number | null;

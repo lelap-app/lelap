@@ -15,5 +15,7 @@ android {
 }
 
 dependencies {
+  // The profile's language for update errors (modules/text).
+  implementation project(':lelap-text')
   testImplementation 'junit:junit:4.13.2'
 }

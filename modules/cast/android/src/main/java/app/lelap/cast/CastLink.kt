@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.PowerManager
 import android.util.Log
+import app.lelap.text.NativeText
 import java.util.concurrent.Callable
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.ExecutionException
@@ -97,7 +98,7 @@ class CastLink private constructor(
   fun load(request: CastRequest, startMs: Long, autoplay: Boolean, speed: Float, done: (String?) -> Unit) {
     val queued = later {
       val r = renderer
-      if (r == null || closed) return@later done(NOT_CASTING)
+      if (r == null || closed) return@later done(NativeText.current().t("Not casting"))
       val failure = try {
         r.load(media(request), startMs, autoplay, speed)
         null
@@ -106,7 +107,7 @@ class CastLink private constructor(
       }
       done(failure)
     }
-    if (!queued) done(NOT_CASTING)
+    if (!queued) done(NativeText.current().t("Not casting"))
   }
 
   fun setVolume(level: Float) = run { it.setVolume(level.coerceIn(0f, 1f)) }
@@ -250,7 +251,6 @@ class CastLink private constructor(
   private fun server(): MediaServer = server ?: MediaServer(app).also { server = it }
 
   companion object {
-    private const val NOT_CASTING = "Not casting"
     private const val TAG = "LelapCast"
 
     /** The session running now, if any. */
@@ -261,6 +261,8 @@ class CastLink private constructor(
     /** Connects to [device], ending any session before. Blocks on the network; never on main. */
     fun open(context: Context, device: CastDevice): CastLink {
       current?.close()
+      // Loads the profile's lines for the receivers' threads, which have no Context.
+      NativeText.get(context)
       val link = CastLink(context, device)
       try {
         link.worker.submit(Callable { link.open() }).get()
@@ -275,5 +277,5 @@ class CastLink private constructor(
   }
 
   private fun message(e: Throwable): String =
-    if (e is CastException) e.message.orEmpty() else (e.message ?: "Casting failed")
+    if (e is CastException) e.message.orEmpty() else (e.message ?: NativeText.current().t("Casting failed"))
 }

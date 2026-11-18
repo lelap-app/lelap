@@ -61,6 +61,9 @@ t('No audio files in {name}.', { name: root.name });
 - Native Android text (Kotlin) looks lines up by the same English through `NativeText` in
   `modules/text`. List each such line in `src/nativeText.ts`; the app hands them over whenever the
   language changes, and native code keeps the last set for when the app is closed.
+- Dates and numbers: use `formatDate`, `formatTime`, `formatWeekday` and `formatBytes` from
+  `src/format.ts`, which write them in the profile's language through `Intl`, never a bare
+  `toLocaleDateString()`, which follows the phone.
 
 `pnpm --filter @lelap/app test` checks every catalog against the code, Kotlin included, and
 refreshes `template.json` (in CI it fails when the template is out of date). Add `--missing` to

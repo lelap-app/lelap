@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'r
 
 import { fetcher, SHOWN_TYPES } from './addons';
 import { db } from './db';
+import { t } from './i18n';
 import { canNotify, notify } from './platform/downloads';
 import { useLibrary } from './player';
 import { profileId } from './profile';
@@ -133,8 +134,8 @@ export async function refreshWanted(): Promise<void> {
   for (const work of news) {
     notify(
       `wanted:${work.type}:${work.id}`,
-      `Now playable: ${work.name}`,
-      work.author ?? 'A book you want to read has a source.',
+      t('Now playable: {title}', { title: work.name }),
+      work.author ?? t('A book you want to read has a source.'),
       `lelap://item?type=${encodeURIComponent(work.type)}&id=${encodeURIComponent(work.id)}`,
     );
   }

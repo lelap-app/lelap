@@ -1140,7 +1140,7 @@ class PlaybackService : MediaLibraryService() {
     session.player = SkippingPlayer(player)
     r.release()
     link?.closeInBackground(error)
-    castStart?.set(SessionResult(SessionError(SessionError.ERROR_UNKNOWN, error ?: "Casting stopped")))
+    castStart?.set(SessionResult(SessionError(SessionError.ERROR_UNKNOWN, error ?: NativeText.t(this, "Casting stopped"))))
     castStart = null
     handingOver = true
     if (player.mediaItemCount > 0) {

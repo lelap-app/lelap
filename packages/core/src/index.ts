@@ -46,3 +46,4 @@ export * from './library/hidden';
 export * from './library/music';
 export * from './library/musicSuggestions';
 export * from './chunkedFile';
+export * from './locale';

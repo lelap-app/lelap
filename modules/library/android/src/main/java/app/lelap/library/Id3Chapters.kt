@@ -38,9 +38,8 @@ object Id3Chapters {
       !tooMany
     }
     if (tooMany) return emptyList()
-    return found.sortedBy { it.first }.mapIndexed { i, (start, title) ->
-      Chapter(title?.takeIf { it.isNotBlank() } ?: "Chapter ${i + 1}", start)
-    }
+    // An untitled chapter stays empty: the app names it in the profile's language.
+    return found.sortedBy { it.first }.map { (start, title) -> Chapter(title?.takeIf { it.isNotBlank() } ?: "", start) }
   }
 
   private fun chapter(body: ByteArray, version: Int): Pair<Long, String?> {

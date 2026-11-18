@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.os.Build
+import app.lelap.text.NativeText
 
 /** PackageInstaller's answer: asks the user to confirm, or records why the install failed. */
 class InstallResultReceiver : BroadcastReceiver() {
@@ -21,7 +22,7 @@ class InstallResultReceiver : BroadcastReceiver() {
       }
       PackageInstaller.STATUS_SUCCESS -> UpdaterModule.lastError = null
       else -> UpdaterModule.lastError =
-        intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "The update was not installed."
+        intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: NativeText.t(context, "The update was not installed.")
     }
   }
 }

@@ -1,7 +1,7 @@
 // Checks every catalog in src/i18n/catalogs against the English text in the source, so a
 // contributed language gets clear messages in CI:
 // - the file is valid JSON with only text values and a `@language` name;
-// - every key is still used by the app, and keeps the English `{holes}`;
+// - every key is still used by the app, written once, and keeps the English `{holes}`;
 // - both forms of a plural are translated, or neither;
 // - native code (Kotlin) only uses lines listed in src/nativeText.ts, and uses every one;
 // - src/i18n/template.json lists every line (rewritten here outside CI).
@@ -23,9 +23,10 @@ const unquote = (quoted) => quoted.slice(1, -1).replace(/\\(.)/g, '$1');
 
 // t('…') and t("…"), also when the formatter put the text on its own line.
 const call = /\bt\(\s*('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g;
-// Plurals are written as `n === 1 ? t('1 book') : t('{n} books', { n })`.
+// Plurals are written as `n === 1 ? t('1 book') : t('{n} books', { n })`; the first call's
+// values may hold calls of their own, such as `{ size: formatBytes(bytes) }`.
 const plural =
-  /\bt\(\s*('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")[^()]*\)\s*:\s*t\(\s*('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g;
+  /\bt\(\s*('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")(?:[^()]|\([^()]*\))*\)\s*:\s*t\(\s*('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g;
 const used = new Set();
 const pairs = [];
 for (const file of [
@@ -99,6 +100,13 @@ for (const name of readdirSync(catalogs)
   if (typeof catalog !== 'object' || catalog === null || Array.isArray(catalog)) {
     report(file, null, 'The catalog must be one JSON object: { "English": "translation", … }');
     continue;
+  }
+  // JSON.parse keeps only the last of a key written twice, so look for them in the text.
+  const seen = new Set();
+  for (const m of readFileSync(file, 'utf8').matchAll(/^\s*("(?:[^"\\]|\\.)*")\s*:/gm)) {
+    const key = JSON.parse(m[1]);
+    if (seen.has(key)) report(file, key, 'Written twice in this file: keep one');
+    seen.add(key);
   }
   if (typeof catalog['@language'] !== 'string' || !catalog['@language'].trim())
     report(

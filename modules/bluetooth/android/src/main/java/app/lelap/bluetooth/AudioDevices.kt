@@ -8,6 +8,7 @@ private const val CLASS_HANDSFREE = 0x0408
 /** A connected Bluetooth audio device as the app sees it. */
 data class AudioDevice(
   val id: String,
+  /** Empty when Android knows none; the app names it in the profile's language. */
   val name: String,
   /** Percent, or null when the device reports none. */
   val battery: Int?,
@@ -27,7 +28,7 @@ class AudioDevices {
     val known = devices[id]
     devices[id] = AudioDevice(
       id = id,
-      name = name?.takeIf { it.isNotBlank() } ?: known?.name ?: "Bluetooth device",
+      name = name?.takeIf { it.isNotBlank() } ?: known?.name ?: "",
       battery = level(battery) ?: known?.battery,
       car = deviceClass == CLASS_CAR_AUDIO || deviceClass == CLASS_HANDSFREE,
     )

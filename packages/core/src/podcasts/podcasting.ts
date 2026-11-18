@@ -218,9 +218,13 @@ const seconds = (value: unknown): number | null => {
 
 /**
  * A JSON chapters file (`application/json+chapters`). Entries with `toc: false` only change the
- * artwork mid-chapter, so they are left out; the rest are sorted by start.
+ * artwork mid-chapter, so they are left out; the rest are sorted by start. An untitled one is named
+ * by [untitled], in the profile’s language.
  */
-export function parseChaptersFile(text: string): StoredChapter[] {
+export function parseChaptersFile(
+  text: string,
+  untitled = (n: number) => `Chapter ${n}`,
+): StoredChapter[] {
   let data: unknown;
   try {
     data = JSON.parse(text);
@@ -235,7 +239,7 @@ export function parseChaptersFile(text: string): StoredChapter[] {
     if (start === null) continue;
     const title = typeof entry.title === 'string' ? entry.title.trim() : '';
     chapters.push({
-      title: title || `Chapter ${chapters.length + 1}`,
+      title: title || untitled(chapters.length + 1),
       startMs: Math.round(start * 1000),
     });
   }

@@ -24,8 +24,8 @@ class Id3ChaptersTest {
   }
 
   @Test
-  fun namesUntitledChaptersByNumber() {
-    assertEquals(listOf(Chapter("Chapter 1", 0)), Id3Chapters.parse(id3(4, chap(4, "a", 0, 1, null))))
+  fun leavesUntitledChaptersForTheAppToName() {
+    assertEquals(listOf(Chapter("", 0)), Id3Chapters.parse(id3(4, chap(4, "a", 0, 1, null))))
   }
 
   @Test

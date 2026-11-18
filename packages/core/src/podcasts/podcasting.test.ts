@@ -116,6 +116,10 @@ describe('chapters files', () => {
     ]);
   });
 
+  it('names untitled chapters in the profile’s language', () => {
+    expect(parseChaptersFile(fixture('chapters.json'), (n) => `Bab ${n}`)[2]?.title).toBe('Bab 3');
+  });
+
   it('gives nothing for a file that is not a chapters file', () => {
     expect(parseChaptersFile('<html>')).toEqual([]);
     expect(parseChaptersFile('{"chapters": 3}')).toEqual([]);

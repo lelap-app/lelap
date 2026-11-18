@@ -87,8 +87,10 @@ export default function DownloadsScreen() {
             {storage.data && (
               <View className="gap-2">
                 <Text className="text-base text-soft">
-                  Lelap uses {formatBytes(used)} · {formatBytes(storage.data.freeBytes)} free on
-                  this phone
+                  {t('Lelap uses {used} · {free} free on this phone', {
+                    used: formatBytes(used),
+                    free: formatBytes(storage.data.freeBytes),
+                  })}
                 </Text>
                 <View className="h-2 flex-row overflow-hidden rounded-full bg-line">
                   <View

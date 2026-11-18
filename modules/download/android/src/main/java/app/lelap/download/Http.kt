@@ -1,5 +1,6 @@
 package app.lelap.download
 
+import app.lelap.text.NativeCatalog
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -16,13 +17,17 @@ private const val BUFFER_BYTES = 64 * 1024
 
 /** Downloads one file over HTTP, continuing a `.part` file left by an earlier run. */
 object Http {
-  /** Saves [url] as [name] in [folder]. [onBytes] gets the length of the part file so far. */
+  /**
+   * Saves [url] as [name] in [folder]. [onBytes] gets the length of the part file so far; [text]
+   * words the failures the listener sees.
+   */
   suspend fun fetch(
     url: String,
     folder: BookFolder,
     name: String,
     expectedSize: Long,
     headers: Map<String, String> = emptyMap(),
+    text: NativeCatalog = NativeCatalog.ENGLISH,
     onBytes: suspend (Long) -> Unit,
   ) {
     val part = name + PART_SUFFIX
@@ -30,19 +35,19 @@ object Http {
     var refreshed = false
     while (true) {
       val existing = folder.length(part) ?: 0L
-      val connection = open(url, existing, headers)
+      val connection = open(url, existing, headers, text)
       try {
         val code = connection.responseCode
         if (code in 200..299 && DownloadRules.isMessage(connection.contentType)) {
-          throw PermanentFailure("The server sent a message instead of the file.")
+          throw PermanentFailure(text.t("The server sent a message instead of the file."))
         }
         when (DownloadRules.decide(code, existing, connection.getHeaderField("Content-Range"), expectedSize, refreshed)) {
-          Resume.APPEND -> copy(connection, folder, part, append = true, start = existing, onBytes)
-          Resume.RESTART -> copy(connection, folder, part, append = false, start = 0L, onBytes)
+          Resume.APPEND -> copy(connection, folder, part, append = true, start = existing, text, onBytes)
+          Resume.RESTART -> copy(connection, folder, part, append = false, start = 0L, text, onBytes)
           Resume.COMPLETE -> Unit
           Resume.DISCARD -> {
             folder.delete(part)
-            if (discarded) throw IOException("The server does not continue downloads (HTTP $code).")
+            if (discarded) throw IOException(text.t("The server does not continue downloads (HTTP {status}).", "status" to code))
             discarded = true
             continue
           }
@@ -51,7 +56,7 @@ object Http {
             continue
           }
           Resume.RETRY -> throw IOException("HTTP $code")
-          Resume.FAIL -> throw PermanentFailure("The server answered HTTP $code.")
+          Resume.FAIL -> throw PermanentFailure(text.t("The server answered HTTP {status}.", "status" to code))
         }
       } finally {
         connection.disconnect()
@@ -62,12 +67,12 @@ object Http {
   }
 
   // Redirects by hand: HttpURLConnection does not follow them from http to https or back.
-  private fun open(url: String, existing: Long, headers: Map<String, String>): HttpURLConnection {
+  private fun open(url: String, existing: Long, headers: Map<String, String>, text: NativeCatalog): HttpURLConnection {
     val origin = URL(url)
     var current = origin
     repeat(MAX_REDIRECTS) {
       if (current.protocol != "https" && current.protocol != "http") {
-        throw PermanentFailure("Only web addresses can be downloaded.")
+        throw PermanentFailure(text.t("Only web addresses can be downloaded."))
       }
       val c = current.openConnection() as HttpURLConnection
       c.instanceFollowRedirects = false
@@ -84,12 +89,12 @@ object Http {
       if (code in 300..399 && code != 304) {
         val location = c.getHeaderField("Location")
         c.disconnect()
-        current = URL(current, location ?: throw PermanentFailure("HTTP $code without a location."))
+        current = URL(current, location ?: throw PermanentFailure(text.t("The server answered HTTP {status} without an address to go to.", "status" to code)))
       } else {
         return c
       }
     }
-    throw PermanentFailure("Too many redirects.")
+    throw PermanentFailure(text.t("The server sent the download through too many addresses."))
   }
 
   private suspend fun copy(
@@ -98,6 +103,7 @@ object Http {
     part: String,
     append: Boolean,
     start: Long,
+    text: NativeCatalog,
     onBytes: suspend (Long) -> Unit,
   ) {
     val length = connection.contentLengthLong
@@ -116,6 +122,6 @@ object Http {
       }
     }
     // A cut connection can look like a normal end; the next run continues from here.
-    if (length >= 0 && written < length) throw IOException("The connection closed early.")
+    if (length >= 0 && written < length) throw IOException(text.t("The connection closed early."))
   }
 }
