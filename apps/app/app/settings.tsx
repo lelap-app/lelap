@@ -1,4 +1,5 @@
 import {
+  DUCK_PERCENT,
   getSettings,
   hasBigLibrary,
   listRoots,
@@ -25,6 +26,7 @@ import { formatTimeOfDay } from '../src/format';
 import { BLUETOOTH } from '../src/platform/bluetooth';
 import { showAlert } from '../src/dialog';
 import { ImportSheet } from '../src/components/ImportSheet';
+import { LevelSlider } from '../src/components/LevelSlider';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { SHORTCUTS_SUPPORTED, showShortcuts } from '../src/shortcuts';
@@ -691,15 +693,42 @@ export default function SettingsScreen() {
             <TextButton text={t('Show')} onPress={showShortcuts} />
           </Row>
         )}
-        <Row
-          label={t('Duck on calls')}
-          detail={t('Lower the volume during calls instead of pausing.')}
-        >
-          <Toggle
-            value={settings.duckOnInterruption}
-            onValueChange={(v) => update('duckOnInterruption', v)}
-          />
-        </Row>
+        {/* The web has no calls to make way for. */}
+        {Platform.OS === 'android' && (
+          <View className="gap-3 border-b border-line py-4">
+            <View className="gap-1">
+              <Text className="text-base text-paper">{t('During calls')}</Text>
+              <Text className="text-sm text-muted">
+                {t(
+                  'Also for other short interruptions. After a pause, playback resumes when the call ends.',
+                )}
+              </Text>
+            </View>
+            <View className="flex-row flex-wrap gap-2">
+              <Choice
+                label={t('Pause')}
+                active={!settings.duckOnInterruption}
+                onPress={() => update('duckOnInterruption', false)}
+              />
+              <Choice
+                label={t('Lower the volume')}
+                active={settings.duckOnInterruption}
+                onPress={() => update('duckOnInterruption', true)}
+              />
+            </View>
+            {settings.duckOnInterruption && (
+              <LevelSlider
+                label={t('Volume during calls')}
+                value={settings.duckPercent}
+                min={DUCK_PERCENT.min}
+                max={DUCK_PERCENT.max}
+                step={DUCK_PERCENT.step}
+                format={(percent) => t('{percent} %', { percent })}
+                onChange={(percent) => update('duckPercent', percent)}
+              />
+            )}
+          </View>
+        )}
         <Row
           label={t('Smart rewind')}
           detail={t('Go back a few seconds when you resume after a pause.')}

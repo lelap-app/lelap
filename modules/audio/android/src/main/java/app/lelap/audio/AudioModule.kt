@@ -116,10 +116,11 @@ class AudioModule : Module() {
     }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("setSettings") {
-        duck: Boolean, skipIntervalMs: Double, smartRewind: Boolean,
+        duck: Boolean, duckLevel: Double, skipIntervalMs: Double, smartRewind: Boolean,
         sound: Map<String, Boolean>, promise: Promise ->
       val args = Bundle().apply {
         putBoolean(Commands.EXTRA_DUCK, duck)
+        putFloat(Commands.KEY_DUCK_LEVEL, duckLevel.toFloat())
         putLong(Commands.KEY_SKIP_INTERVAL_MS, skipIntervalMs.toLong())
         putBoolean(Commands.KEY_SMART_REWIND, smartRewind)
         // The switches come as one map: Expo functions take at most eight arguments.

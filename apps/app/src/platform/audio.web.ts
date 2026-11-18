@@ -63,6 +63,7 @@ let error: string | null = null;
 let pausedAt: number | null = null;
 let settings: PlayerSettings = {
   duckOnInterruption: true,
+  duckPercent: 20,
   skipIntervalMs: 30_000,
   smartRewind: true,
   mono: false,

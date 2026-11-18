@@ -6,9 +6,11 @@ Kotlin Expo module for Android playback.
   one item per file, which plays gaplessly. The session provides the notification, lock screen,
   headphone and Bluetooth controls.
 - `AudioFocus`: our own focus handling. ExoPlayer's pauses on phone calls; ours ducks transient
-  interruptions (calls, VoIP, navigation) when “duck on interruption” is on, and pauses otherwise.
-  Play pressed during a call gets focus only when the call ends (the call holds it with a lock);
-  with ducking on, the book plays quietly until then instead of waiting.
+  interruptions (calls, VoIP, navigation) to the listener's level (20–100 %, 20 % by default) when
+  set to lower the volume, and pauses calls otherwise; navigation always ducks. Play pressed during
+  a call gets focus only when the call ends (the call holds it with a lock); when lowering, the
+  book plays at that level until then instead of waiting. `VolumeMixer` multiplies the duck level
+  with the sleep timer fade.
 - `SleepTimer`: runs inside the service, freezes while you pause, and fades the player's own volume over the
   last 60 seconds, then pauses. It counts minutes, or listening time to the end of the chapter or
   episode (`SleepBoundary`), where an ExoPlayer message stops playback exactly. `ShakeDetector`

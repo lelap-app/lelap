@@ -9,6 +9,7 @@ describe('settings', () => {
   it('starts with the defaults', () => {
     expect(getSettings(createTestDb(), ME)).toEqual({
       duckOnInterruption: true,
+      duckPercent: 20,
       skipIntervalMs: 30_000,
       smartRewind: true,
       mono: false,
@@ -54,6 +55,38 @@ describe('settings', () => {
       .values({ profileId: ME, key: 'language', value: '"Bahasa Melayu"', updatedAt: 1 })
       .run();
     expect(getSettings(corrupt, ME).language).toBe('en');
+  });
+
+  it('reads the old call switch as a mode with the old 20 % level', () => {
+    const on = createTestDb();
+    on.insert(settings)
+      .values({ profileId: ME, key: 'duckOnInterruption', value: 'true', updatedAt: 1 })
+      .run();
+    expect(getSettings(on, ME)).toMatchObject({ duckOnInterruption: true, duckPercent: 20 });
+    const off = createTestDb();
+    off
+      .insert(settings)
+      .values({ profileId: ME, key: 'duckOnInterruption', value: 'false', updatedAt: 1 })
+      .run();
+    expect(getSettings(off, ME)).toMatchObject({ duckOnInterruption: false, duckPercent: 20 });
+  });
+
+  it('keeps the duck level apart from the mode, so pausing for a while keeps it', () => {
+    const db = createTestDb();
+    setSetting(db, ME, 'duckPercent', 60, 1);
+    setSetting(db, ME, 'duckOnInterruption', false, 2);
+    setSetting(db, ME, 'duckOnInterruption', true, 3);
+    expect(getSettings(db, ME).duckPercent).toBe(60);
+  });
+
+  it('takes duck levels from 20 to 100 % in steps of 10 only', () => {
+    expect(() => setSetting(createTestDb(), ME, 'duckPercent', 10, 1)).toThrow();
+    expect(() => setSetting(createTestDb(), ME, 'duckPercent', 25, 1)).toThrow();
+    for (const value of ['0.2', '110', '"60"']) {
+      const db = createTestDb();
+      db.insert(settings).values({ profileId: ME, key: 'duckPercent', value, updatedAt: 1 }).run();
+      expect(getSettings(db, ME).duckPercent).toBe(20);
+    }
   });
 
   it('falls back to the default for a corrupt value', () => {

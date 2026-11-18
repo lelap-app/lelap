@@ -57,6 +57,7 @@ function sourceChoiceOf(value: unknown): { addonUrl: string; sourceKey: string }
 /** Settings that follow the listener between devices; download rules stay with each device. */
 export const SYNCED_SETTINGS = [
   'duckOnInterruption',
+  'duckPercent',
   'skipIntervalMs',
   'smartRewind',
   'mono',

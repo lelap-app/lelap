@@ -4,8 +4,22 @@ import { z } from 'zod';
 import type { Db } from './db';
 import { settings } from './schema';
 
+/** The volume during calls when it is lowered, in percent of normal; 20 was the old fixed level. */
+export const DUCK_PERCENT = { min: 20, max: 100, step: 10, default: 20 } as const;
+
 export const SettingsSchema = z.object({
+  /**
+   * During calls (Android): true lowers the volume to `duckPercent`, false pauses until the call
+   * ends. The switch kept its key and meaning, so a stored “on” is lowering to 20 %.
+   */
   duckOnInterruption: z.boolean().default(true),
+  duckPercent: z
+    .number()
+    .int()
+    .min(DUCK_PERCENT.min)
+    .max(DUCK_PERCENT.max)
+    .multipleOf(DUCK_PERCENT.step)
+    .default(DUCK_PERCENT.default),
   skipIntervalMs: z.number().int().positive().default(30_000),
   smartRewind: z.boolean().default(true),
   /** Sound (M22), for every book: mono and voice EQ suit the listener's ears and follow them. */
