@@ -1,5 +1,5 @@
-// The demo library: made-up books for the landing page's screenshots, served by a tiny add-on
-// with drawn covers and silent audio. Nothing here comes from a real library or real files.
+// The demo library: made-up books for reference shots of the app, served by a tiny add-on with
+// drawn covers and silent audio. Nothing here comes from a real library or real files.
 
 // Cover colours, the same as the landing page's `--cover-*` tokens, and its amber.
 const C = {

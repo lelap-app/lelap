@@ -1,14 +1,14 @@
-// Makes the landing page's app screenshots from a demo library. See SKILL.md next to this file.
+// Makes reference shots of the real app from a demo library, to keep the landing page's drawn
+// mock-ups faithful. See SKILL.md next to this file.
 //
-//   node .claude/skills/site-screenshots/shoot.mjs [--reuse-export] [--lang en|ms] [--debug]
+//   node .claude/skills/site-screenshots/shoot.mjs [--reuse-export] [--lang en|ms] [--debug] [--out dir]
 //
 // It exports the web app pointed at a local demo add-on, serves both from one local port, drives a
-// headless Chrome with a fresh profile through the app, and writes WebP files to apps/site.
+// headless Chrome with a fresh profile through the app, and writes PNG files to the work folder.
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { extname, join, normalize, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -23,19 +23,21 @@ const { values: args } = parseArgs({
     debug: { type: 'boolean', default: false },
     port: { type: 'string', default: '8197' },
     work: { type: 'string', default: join(tmpdir(), 'lelap-site-screenshots') },
+    out: { type: 'string' },
   },
 });
 
 const ROOT = resolve(import.meta.dirname, '../../..');
 const APP = join(ROOT, 'apps/app');
 const SITE = join(ROOT, 'apps/site');
-const OUT = join(SITE, 'src/assets/screens');
 const WORK = resolve(args.work);
+// References only: the site draws its pictures, so these never go into the repository.
+const OUT = resolve(args.out ?? join(WORK, 'shots'));
 const WEB = join(WORK, 'web');
 const PORT = Number(args.port);
 const ORIGIN = `http://localhost:${PORT}`;
-// A phone in portrait at twice the density: 780 × 1688 pixels, from which the site makes its sizes.
-const PHONE = { width: 390, height: 844, scale: 2 };
+// A large phone in portrait (Pixel 10 Pro XL, 448 × 997 dp), the shape of the site's phone frame.
+const PHONE = { width: 448, height: 997, scale: 2 };
 const FONTS = {
   'space-grotesk.woff2':
     '@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2',
@@ -335,14 +337,13 @@ async function shootLanguage(browser, lang) {
   return shots;
 }
 
-// 6. WebP at the phone's full size; the site's <Picture> makes the smaller sizes and AVIF.
+// 6. PNG at the phone's full size, to compare with the site's mock-ups.
 async function save(lang, shots) {
-  const sharp = createRequire(join(SITE, 'package.json'))('sharp');
   await mkdir(OUT, { recursive: true });
   for (const [screen, png] of Object.entries(shots)) {
-    const file = join(OUT, `${screen}-${lang}.webp`);
-    await sharp(png).webp({ quality: 88, effort: 6 }).toFile(file);
-    log('wrote', file.slice(ROOT.length + 1), `${((await stat(file)).size / 1024).toFixed(0)} kB`);
+    const file = join(OUT, `${screen}-${lang}.png`);
+    await writeFile(file, png);
+    log('wrote', file, `${((await stat(file)).size / 1024).toFixed(0)} kB`);
   }
 }
 

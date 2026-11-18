@@ -27,6 +27,31 @@
   --code-bg: light-dark(#fdfbf7, #0a0b0d);
   --code-line: light-dark(#ddd5c5, #23262e);
   --shadow: light-dark(rgb(60 40 10 / 0.14), rgb(0 0 0 / 0.4));
+  /* The app's own colours (apps/app/tailwind.config.js), for the drawn phone screens. */
+  --app-night: #0d0e11;
+  --app-raised: #17191e;
+  --app-paper: #f4f1ea;
+  --app-soft: #c9c5bc;
+  --app-muted: #8d8a83;
+  --app-line: #33353b;
+  --app-amber: #f5b041;
+  --app-ink: #1a1305;
+  --app-ok: #6bd49a;
+  /* Drawn book covers in the phone screens. Muted so amber stays the only accent. */
+  --cover-navy: #22324f;
+  --cover-teal: #1f4746;
+  --cover-plum: #3f2a48;
+  --cover-forest: #2a4231;
+  --cover-wine: #57262c;
+  --cover-slate: #39404d;
+  --cover-ocean: #1e3a57;
+  --cover-olive: #48472a;
+  --cover-rose: #6a3a48;
+  --cover-sand: #d8cab0;
+  --cover-paper: #ebe3d3;
+  --cover-broth: #b5573a;
+  --cover-ink: #ede6d6;
+  --cover-ink-dark: #1d1a16;
   --font-display: 'Space Grotesk Variable', 'Inter Variable', system-ui, sans-serif;
   --font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;

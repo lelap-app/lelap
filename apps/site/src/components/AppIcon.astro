@@ -1,0 +1,80 @@
+---
+// The app's own icons (apps/app/src/components/Icon.tsx) for the drawn phone screens: a 24-unit
+// grid, 1.8 strokes with round caps, filled shapes only for play and pause. Sized in dp.
+interface Props {
+  name: keyof typeof icons;
+  /** In dp, as in the app. */
+  size?: number;
+  /** The number some icons carry, such as the skip interval. */
+  value?: string;
+}
+
+const stroke = (d: string) => `<path d="${d}" class="s"/>`;
+const skip = (forward: boolean, seconds: string) =>
+  `<path d="${forward ? 'M20 12a8 8 0 1 1-2.5-5.8' : 'M4 12a8 8 0 1 0 2.5-5.8'}" class="s thin"/>` +
+  `<path d="${forward ? 'M20 3v4h-4' : 'M4 3v4h4'}" class="s thin"/>` +
+  `<text x="12" y="15" text-anchor="middle" font-size="7" font-weight="600" fill="currentColor">${seconds}</text>`;
+
+const icons = {
+  play: () => '<path d="M8 5v14l11-7z" fill="currentColor"/>',
+  pause: () =>
+    '<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>',
+  skipBack: (v: string) => skip(false, v),
+  skipForward: (v: string) => skip(true, v),
+  previous: () => stroke('M6 5v14') + '<path d="M19 6v12l-9-6z" fill="currentColor"/>',
+  next: () => stroke('M18 5v14') + '<path d="M5 6v12l9-6z" fill="currentColor"/>',
+  down: () => stroke('m6 9 6 6 6-6'),
+  forward: () => stroke('m9 6 6 6-6 6'),
+  bookmark: () => stroke('M6 4h12v17l-6-4-6 4z'),
+  bookmarkAdd: () => stroke('M6 4h12v17l-6-4-6 4z') + stroke('M12 8v6M9 11h6'),
+  speed: () => stroke('M4.5 17a8.5 8.5 0 1 1 15 0') + stroke('m12 13 4-5'),
+  sound: () =>
+    stroke('M6 4v16M12 4v16M18 4v16') +
+    '<circle cx="6" cy="14" r="2" fill="currentColor"/><circle cx="12" cy="8" r="2" fill="currentColor"/><circle cx="18" cy="16" r="2" fill="currentColor"/>',
+  moon: () => stroke('M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z'),
+  chapters: () => stroke('M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01'),
+  stats: () => stroke('M5 20V11M12 20V5M19 20v-6M3 20h18'),
+  settings: () =>
+    stroke('M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12') +
+    '<circle cx="16" cy="6" r="2" class="s"/><circle cx="10" cy="12" r="2" class="s"/><circle cx="18" cy="18" r="2" class="s"/>',
+  home: () => stroke('M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z'),
+  discover: () => '<circle cx="12" cy="12" r="9" class="s"/>' + stroke('m15.5 8.5-2 5-5 2 2-5z'),
+  search: () => '<circle cx="11" cy="11" r="7" class="s"/>' + stroke('m20 20-3.5-3.5'),
+  podcast: () =>
+    '<circle cx="12" cy="11" r="2.5" class="s"/>' +
+    stroke('M12 14.5V21M7.8 15.5a6 6 0 1 1 8.4 0M5 18.3a9.5 9.5 0 1 1 14 0'),
+  library: () => stroke('M4 4h4v16H4zM10 4h4v16h-4z') + stroke('m16 5 3.5-1 2.5 15.5-3.5 1z'),
+} as const;
+
+const { name, size = 24, value = '30' } = Astro.props;
+---
+
+<svg
+  class="app-icon"
+  viewBox="0 0 24 24"
+  style={`--size: ${size}`}
+  aria-hidden="true"
+  set:html={icons[name](value)}
+/>
+
+<style>
+  .app-icon {
+    display: block;
+    flex: none;
+    width: calc(var(--size) * var(--dp));
+    height: calc(var(--size) * var(--dp));
+    font-family: var(--font-body);
+  }
+
+  .app-icon :global(.s) {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .app-icon :global(.thin) {
+    stroke-width: 1.6;
+  }
+</style>
