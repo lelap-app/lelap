@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # By hand, for the emulator smoke test on any branch.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -46,7 +48,6 @@ jobs:
       android: ${{ steps.filter.outputs.android }}
       apk: ${{ steps.filter.outputs.apk }}
       remote: ${{ steps.filter.outputs.remote }}
-      app: ${{ steps.filter.outputs.app }}
     steps:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
@@ -100,12 +101,6 @@ jobs:
               - 'packages/core/vitest.integration.config.ts'
               - 'scripts/test-servers.sh'
               - '.github/workflows/ci.yml'
-            # The app, for the emulator smoke test; it builds the release APK first.
-            app:
-              - 'modules/**'
-              - 'apps/app/**'
-              - 'scripts/emulator-smoke.sh'
-              - '.github/workflows/ci.yml'
 
   android-unit-tests:
     name: Android unit tests
@@ -148,9 +143,9 @@ jobs:
     needs: changes
     # The release build the tag workflow runs, for one CPU type. On main it also saves the pnpm and
     # Gradle caches the release workflow reads; nothing else writes them (M54). On pull requests
-    # that change the build setup it only checks that the build still works, and on those that
-    # change the app it builds the APK the emulator smoke test installs.
-    if: ${{ !cancelled() && (github.event_name == 'push' || needs.changes.outputs.apk == 'true' || needs.changes.outputs.app == 'true') }}
+    # that change the build setup it only checks that the build still works. Run by hand, it builds
+    # the APK for the emulator smoke test.
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.apk == 'true') }}
     runs-on: ubuntu-latest
     env:
       SKIP_INSTALL_SIMPLE_GIT_HOOKS: '1'
@@ -223,8 +218,8 @@ jobs:
     name: App on an emulator
     needs: [changes, apk]
     # The APK from the apk job, on an x86_64 emulator that runs its arm64 code through Android's
-    # translation. Whenever the apk job built one: on main, and on pull requests that touch the app
-    # or its build setup.
+    # translation. Whenever the apk job built one: on main, run by hand, and on pull requests that
+    # change the build setup. Other pull requests stay fast; run the workflow by hand to try one.
     if: ${{ !cancelled() && needs.apk.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
