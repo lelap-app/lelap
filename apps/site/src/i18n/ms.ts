@@ -32,11 +32,14 @@ export const ms: Record<string, string> = {
   'Bring your own files': 'Bawa fail anda sendiri',
   'Built for long listens.': 'Dibina untuk sesi mendengar yang panjang.',
   'Can I write my own add-on?': 'Bolehkah saya menulis alat tambah sendiri?',
+  'Car mode shows a large cover and five big buttons. Android Auto shows the covers saved on your phone.':
+    'Mod kereta memaparkan kulit buku yang besar dan lima butang besar. Android Auto memaparkan kulit buku yang disimpan pada telefon anda.',
   'Cast to the living room': 'Hantar ke ruang tamu',
   Catalogs: 'Katalog',
   'Chapter {n}': 'Bab {n}',
 
   'Chapters where there were none': 'Bab untuk buku tanpa bab',
+  'Clearer voices': 'Suara yang lebih jelas',
   'Coming after the first stable release. F-Droid builds Lelap from source and, when the result matches ours, ships the same signed APK, so you can switch between F-Droid and the direct download without reinstalling.':
     'Akan tiba selepas keluaran stabil pertama. F-Droid membina Lelap daripada kod sumber dan, apabila hasilnya sepadan dengan binaan kami, mengedarkan APK bertandatangan yang sama, jadi anda boleh bertukar antara F-Droid dan muat turun terus tanpa memasang semula.',
   'Coming soon': 'Akan datang',
@@ -104,6 +107,7 @@ export const ms: Record<string, string> = {
   'Lower the volume instead of stopping when a call comes in. Your choice, on Android.':
     'Perlahankan bunyi dan bukannya berhenti apabila panggilan masuk. Pilihan anda, di Android.',
   Metadata: 'Metadata',
+  'Made for the car': 'Dibuat untuk kereta',
   'Minutes or end of chapter. Fades out over the last minute, rewinds a little so you can find your place, and a shake buys you ten more.':
     'Ikut minit atau hingga hujung bab. Bunyi beransur perlahan pada minit terakhir, diundur sedikit supaya anda mudah mencari tempat anda, dan goncang telefon untuk sepuluh minit lagi.',
   'No account': 'Tanpa akaun',
@@ -200,10 +204,14 @@ export const ms: Record<string, string> = {
   'Theme: dark': 'Tema: gelap',
   'Theme: follows the system': 'Tema: ikut sistem',
   'Theme: light': 'Tema: cerah',
+  'Time listened today, this week and this year, your streaks and the books you finished. Share your year as an image, made on your phone.':
+    'Masa mendengar hari ini, minggu ini dan tahun ini, rentetan anda dan buku yang anda habiskan. Kongsi tahun anda sebagai imej, dibuat pada telefon anda.',
   'Trending, new, your shelves': 'Sohor kini, baharu, rak anda',
   'Try the Android beta': 'Cuba beta Android',
   'Until the first stable release, use the <code>beta</code> tag of each image.':
     'Sehingga keluaran stabil pertama, gunakan tag <code>beta</code> bagi setiap imej.',
+  'Voice boost brings soft and loud words closer together. On Android, skip silence shortens long pauses and shows the time it saved, and even loudness keeps every book at one level. Set per book or per show.':
+    'Penguat suara merapatkan perkataan yang perlahan dan yang kuat. Pada Android, langkau senyap memendekkan jeda yang panjang dan menunjukkan masa yang dijimatkan, dan kenyaringan sekata mengekalkan setiap buku pada satu tahap. Tetapkan bagi setiap buku atau setiap rancangan.',
   'We ship the .apk directly so releases don’t wait on store review. The app checks for updates itself, or you can follow releases with Obtainium.':
     'Kami mengedarkan .apk secara terus supaya keluaran tidak perlu menunggu semakan gedung aplikasi. Aplikasi menyemak kemas kini sendiri, atau anda boleh mengikuti keluaran dengan Obtainium.',
   'Web app': 'Aplikasi web',
@@ -226,6 +234,7 @@ export const ms: Record<string, string> = {
   'Your own files': 'Fail anda sendiri',
   'Your phone talks to add-ons and their sources directly. We never see what you play.':
     'Telefon anda berhubung terus dengan alat tambah dan sumbernya. Kami tidak pernah melihat apa yang anda mainkan.',
+  'Your year in sound': 'Setahun anda mendengar',
   'Your server, your bucket': 'Pelayan anda, baldi anda',
   'fades out': 'beransur senyap',
   '{name} does not host, index or link to any content. Add-ons are made and run by third parties.':
