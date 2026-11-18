@@ -49,6 +49,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M2] A book from the `Audiobooks` folder plays; `dumpsys media_session` shows PLAYING with title and a moving position. ([README](../apps/app/README.md#m2-device-checklist))
 - [x] [M12] Icons render crisp in the tab bar, Player, mini player, Up Next and headers (screenshots). ([m12](m12-follow-ups.md)) **Passed 2026-11-17**.
 - [ ] [M54] The release APK holds one CPU type: `adb shell getprop ro.product.cpu.abilist` names it first, `adb shell dumpsys package app.lelap | grep -E 'primaryCpuAbi|versionCode'` shows it and its versionCode ends in 2 (arm64) or 1 (32-bit), and the app starts and plays. ([m54](m54-follow-ups.md#on-a-phone))
+- [ ] [M54] Animations (player sheet, tab switches, mini player) feel as smooth as in 0.1.0-beta.4 now that Reanimated builds without ThinLTO. ([m54](m54-follow-ups.md#on-a-phone))
 
 ### A2. Playback core
 

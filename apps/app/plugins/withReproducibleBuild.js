@@ -6,10 +6,12 @@
 //   module with C++ (Reanimated, Screens, Expo modules) records source paths relative to the
 //   repository and Gradle's cache, not this machine's folders, so a build in another folder gives
 //   the same bytes. Without it the libraries' build IDs differ between folders (M54);
+// - the embedded update manifest, which expo-updates stamps with a random ID and the build time,
+//   gets an ID from its contents and the time of the release commit (or SOURCE_DATE_EPOCH), so
+//   two builds of one commit are the same bytes. Since M54 in the direct build too: the `ota` job
+//   dates a tag's bundle with the same commit time, so the APK still skips the bundle it carries;
 // - with EXPO_PUBLIC_LELAP_DISTRIBUTION=fdroid, no REQUEST_INSTALL_PACKAGES: that build never
-//   installs updates itself (see src/config.ts). Its embedded update manifest, which expo-updates
-//   stamps with a random ID and the build time, gets an ID from its contents and the time of the
-//   release commit (or SOURCE_DATE_EPOCH), so two builds of one commit are the same bytes.
+//   installs updates itself (see src/config.ts).
 const {
   withAndroidManifest,
   withAppBuildGradle,
@@ -42,6 +44,15 @@ def lelapMapPaths = { sub ->
         ${maps('        ')}
         android.defaultConfig.externalNativeBuild.cmake.cFlags(*maps)
         android.defaultConfig.externalNativeBuild.cmake.cppFlags(*maps)
+        // Reanimated adds -flto=thin to release builds, and ThinLTO names symbols after a hash
+        // that depends on the build folder, so F-Droid's rebuild could not match. Its CMakeLists
+        // appends that flag to CMAKE_CXX_FLAGS; the per-config flags come after it on the
+        // command line, so this keeps CMake's defaults (-O2 -g -DNDEBUG) and turns LTO off.
+        if (sub.path == ':react-native-reanimated') {
+            // Android's Gradle plugin builds release native code as RelWithDebInfo.
+            android.defaultConfig.externalNativeBuild.cmake.arguments(
+                '-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g -DNDEBUG -fno-lto')
+        }
     }
 }
 // React Native's root plugin has some projects evaluated before this runs.
@@ -51,7 +62,7 @@ subprojects { sub ->
 `;
 
 const FIXED_MANIFEST = `
-// lelap: fixed embedded update manifest for the F-Droid build (plugins/withReproducibleBuild.js)
+// lelap: fixed embedded update manifest (plugins/withReproducibleBuild.js)
 tasks.configureEach { task ->
     if (task.name ==~ /create.*ReleaseUpdatesResources/) {
         task.doLast {
@@ -103,13 +114,13 @@ module.exports = function withReproducibleBuild(config) {
     }
     return mod;
   });
+  config = withAppBuildGradle(config, (mod) => {
+    if (!mod.modResults.contents.includes('fixed embedded update manifest')) {
+      mod.modResults.contents += FIXED_MANIFEST;
+    }
+    return mod;
+  });
   if (process.env.EXPO_PUBLIC_LELAP_DISTRIBUTION === 'fdroid') {
-    config = withAppBuildGradle(config, (mod) => {
-      if (!mod.modResults.contents.includes('fixed embedded update manifest')) {
-        mod.modResults.contents += FIXED_MANIFEST;
-      }
-      return mod;
-    });
     config = withAndroidManifest(config, (mod) => {
       const manifest = mod.modResults.manifest;
       manifest.$['xmlns:tools'] = 'http://schemas.android.com/tools';
