@@ -1090,6 +1090,7 @@ class PlaybackService : MediaLibraryService() {
       coverUri = book.coverUri,
       durationMs = file.durationMs,
       headers = book.headers,
+      viaPhone = book.privateUris,
     )
   }
 

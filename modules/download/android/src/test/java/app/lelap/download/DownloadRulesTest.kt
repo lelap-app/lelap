@@ -5,6 +5,14 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class DownloadRulesTest {
+  @Test fun `takes a JSON or XML answer for a message, not a file`() {
+    assertEquals(true, DownloadRules.isMessage("application/json; charset=utf-8"))
+    assertEquals(true, DownloadRules.isMessage("text/xml"))
+    assertEquals(false, DownloadRules.isMessage("audio/mpeg"))
+    assertEquals(false, DownloadRules.isMessage("application/octet-stream"))
+    assertEquals(false, DownloadRules.isMessage(null))
+  }
+
   @Test fun `parses Content-Range`() {
     assertEquals(100L, DownloadRules.contentRangeStart("bytes 100-199/200"))
     assertEquals(200L, DownloadRules.contentRangeTotal("bytes 100-199/200"))

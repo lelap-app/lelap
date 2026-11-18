@@ -2,7 +2,7 @@
 
 Types, zod schemas and a request handler for [Lelap](https://github.com/lelap-app/lelap) add-ons.
 An add-on is a stateless HTTP service that answers with JSON: catalogs, metadata and audio sources
-for the Lelap player. The SDK speaks protocol v1, revision 5, so your code is a manifest and a
+for the Lelap player. The SDK speaks protocol v1, revision 6, so your code is a manifest and a
 handler for each resource.
 
 ```sh
@@ -63,8 +63,10 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
 - **Library sources inside the app** (revision 5): `SettingField`, `readSettings` and
   `settingHosts` for the form a listener fills in, `LibraryResponse` and `LibraryFile` for the
   listing, `RequestHeaders` for a login sent with the audio, `offersLibrary`. Web add-ons never send
-  headers: `WebStream` refuses them, and `createAddon` never serves them.
-- **Paths:** `catalogPath`, `metaPath`, `streamPath`, `libraryPath`, `parseRoute`, `encodeExtra`,
+  headers: `WebStream` refuses them, and `createAddon` never serves them. Revision 6 adds
+  `QueryParams` for a login the app adds to the address, a file's `downloadUrl` and `place`, and
+  `PlaceReport` with `offersPlaces` for add-ons that save the listener's place on their server.
+- **Paths:** `catalogPath`, `metaPath`, `streamPath`, `libraryPath`, `placePath`, `parseRoute`, `encodeExtra`,
   `parseExtra`.
 - **Helpers:** `supports`, `prefixesFor`, `hasParts`, `isConfigurable`, `needsConfiguration`,
   `offersHealth`, `encodeConfig`, `decodeConfig`, `CORS_HEADERS`, `PROTOCOL_VERSION`,

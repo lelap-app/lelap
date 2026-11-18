@@ -5,6 +5,9 @@ import {
   isConfigurable,
   LibraryResponse,
   offersLibrary,
+  offersPlaces,
+  PlaceReport,
+  QueryParams,
   readSettings,
   RequestHeaders,
   settingHosts,
@@ -305,5 +308,53 @@ describe('revision 5: add-ons as library sources', () => {
     for (const path of ['../etc/passwd', 'a//b.mp3', '/abs.mp3', 'a/./b.mp3']) {
       expect(LibraryResponse.safeParse({ files: [{ ...file, path }] }).success).toBe(false);
     }
+  });
+});
+
+describe('revision 6: places and logins in the address', () => {
+  const inApp: Manifest = {
+    ...base,
+    protocolVersion: 6,
+    resources: ['library', 'place'],
+    sandbox: { hosts: [] },
+  };
+
+  it('keeps places for add-ons inside the app only', () => {
+    expect(offersPlaces(Manifest.parse(inApp))).toBe(true);
+    expect(offersPlaces(Manifest.parse({ ...inApp, resources: ['library'] }))).toBe(false);
+    const web = { ...inApp, sandbox: undefined, resources: ['place'] };
+    expect(Manifest.safeParse(web).success).toBe(false);
+  });
+
+  it('reads a listing with a query, download addresses and places', () => {
+    const parsed = LibraryResponse.parse({
+      files: [
+        {
+          path: 'Author/Book/01.mp3',
+          url: 'http://nas:4533/rest/stream?id=a',
+          downloadUrl: 'http://nas:4533/rest/download?id=a',
+          place: { positionMs: 1500, at: 1_700_000_000_000 },
+        },
+      ],
+      query: { u: 'me', t: '0123456789abcdef0123456789abcdef', s: 'abc' },
+    });
+    expect(parsed.query).toEqual({ u: 'me', t: '0123456789abcdef0123456789abcdef', s: 'abc' });
+    expect(parsed.files[0]?.place?.positionMs).toBe(1500);
+  });
+
+  it('takes query parameters with sane names and values only', () => {
+    expect(QueryParams.safeParse({ u: 'jürgen' }).success).toBe(true);
+    for (const bad of [{ 'a b': 'x' }, { a: 'x\ny' }, { a: 'x\u007f' }]) {
+      expect(QueryParams.safeParse(bad).success).toBe(false);
+    }
+    const many = Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`p${i}`, 'v']));
+    expect(QueryParams.safeParse(many).success).toBe(false);
+  });
+
+  it('describes a place report', () => {
+    const file = { path: 'A/B/01.mp3', url: 'http://nas/rest/stream?id=a' };
+    const report = { file, files: [file], positionMs: 5, at: 1, finished: false };
+    expect(PlaceReport.safeParse(report).success).toBe(true);
+    expect(PlaceReport.safeParse({ ...report, positionMs: -1 }).success).toBe(false);
   });
 });

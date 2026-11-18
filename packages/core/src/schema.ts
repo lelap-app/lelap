@@ -105,6 +105,11 @@ export type RemoteSource =
        * again.
        */
       codeSha?: string;
+      /**
+       * The profile that added the server, whose places are kept with it when the add-on keeps
+       * places (revision 6). Absent before M58: the first profile.
+       */
+      profileId?: string;
     };
 
 export const libraryRoots = sqliteTable('library_roots', {
@@ -174,6 +179,8 @@ export const bookFiles = sqliteTable(
     bookId: text('book_id').references(() => books.id, { onDelete: 'set null' }),
     idx: integer('idx').notNull(),
     uri: text('uri').notNull(),
+    /** Where a server's file downloads from, when not from `uri` (a Subsonic `download` address). */
+    downloadUri: text('download_uri'),
     relPath: text('rel_path').notNull(),
     name: text('name').notNull(),
     size: integer('size').notNull(),

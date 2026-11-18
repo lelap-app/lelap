@@ -439,7 +439,7 @@ export default function SettingsScreen() {
             <Row
               label={t('Add a server')}
               detail={t(
-                'WebDAV, an S3-compatible bucket, Jellyfin, Audiobookshelf or an HTTP folder.',
+                'WebDAV, an S3-compatible bucket, Jellyfin, Audiobookshelf, an HTTP folder or a Subsonic server such as Navidrome.',
               )}
             >
               <TextButton text={t('Add')} onPress={() => router.push('/server')} />

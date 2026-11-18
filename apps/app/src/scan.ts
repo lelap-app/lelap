@@ -34,6 +34,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
 import { codeFingerprint, listAddonLibrary, sourceManifest } from './addonSources';
+import { forgetAddonPlaceParts } from './addonPlaces';
 import { forgetAudiobookshelfParts, withKey } from './audiobookshelf';
 import { db, newId } from './db';
 import { logDiagnostic } from './diagnostics';
@@ -174,7 +175,8 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
     for (const [i, file] of need.entries()) {
       onProgress(i, need.length);
       try {
-        tags.set(file.location, await tagsFor(root, file, dir()));
+        // The browser keeps no covers folder (asking for one throws) and reads only durations.
+        tags.set(file.location, await tagsFor(root, file, Platform.OS === 'web' ? '' : dir()));
       } catch {
         // Unreadable now; stored with empty tags and tried again on the next scan.
       }
@@ -200,7 +202,17 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
       now: Date.now(),
       newId,
     });
-    if (fromAddon) setRemoteCovers(db, root.id, fromAddon.covers, Date.now());
+    if (fromAddon) {
+      setRemoteCovers(db, root.id, fromAddon.covers, Date.now());
+      // A server's places (revision 6), for the profile that added it; the newest place wins.
+      const remote = root.remote?.type === 'addon' ? root.remote : null;
+      const profile =
+        remote?.profileId && getProfile(db, remote.profileId)
+          ? remote.profileId
+          : DEFAULT_PROFILE_ID;
+      applyRemotePlaces(db, profile, fromAddon.places, Date.now());
+      forgetAddonPlaceParts();
+    }
     added += result.added;
     missing += result.missing;
   }
@@ -298,8 +310,12 @@ async function scanAddonSource(
   });
   const login = addonLogin(remote);
   const headers = response.headers ?? {};
-  if (JSON.stringify(login.headers) !== JSON.stringify(headers)) {
-    updateRemoteRoot(db, root.id, withAddonLogin(remote, { ...login, headers }), Date.now());
+  const query = response.query ?? {};
+  if (
+    JSON.stringify(login.headers) !== JSON.stringify(headers) ||
+    JSON.stringify(login.query) !== JSON.stringify(query)
+  ) {
+    updateRemoteRoot(db, root.id, withAddonLogin(remote, { ...login, headers, query }), Date.now());
   }
   return addonLibraryScan(root.location, response, addonSourceHosts(manifest, remote.settings));
 }

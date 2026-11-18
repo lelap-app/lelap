@@ -19,6 +19,11 @@ export type BookLoad = {
   handsOver?: boolean;
   /** Sent with every request for this book's files: the login of a WebDAV server. */
   headers?: Record<string, string>;
+  /**
+   * The files' addresses carry a login (a Subsonic token): a cast receiver gets them through the
+   * phone, never the address itself.
+   */
+  privateUris?: boolean;
   /** A podcast's intro and outro to skip (M45): from the first file's start, the last's end. */
   skipIntroMs?: number;
   skipOutroMs?: number;

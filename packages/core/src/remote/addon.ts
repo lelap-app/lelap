@@ -2,6 +2,8 @@ import {
   type LibraryResponse,
   type Manifest,
   normalizeIds,
+  type PlaceReport,
+  type QueryParams,
   type RequestHeaders,
   settingHosts,
   type Settings,
@@ -10,6 +12,7 @@ import {
 import { hostAllowed } from '../addons/local';
 import type { FileTags, ListedFile } from '../library/scan';
 import type { RemoteSource } from '../schema';
+import type { RemotePlace } from './jellyfin';
 
 // An add-on inside the app used as a library source (M57). Its settings and the headers it asks
 // for stay on the phone, sealed like a server's password, and go only to its own hosts: those in
@@ -17,10 +20,13 @@ import type { RemoteSource } from '../schema';
 
 export type AddonSource = Extract<RemoteSource, { type: 'addon' }>;
 
-/** What is sealed: the password fields and the headers the library last asked for. */
-export type AddonLogin = { passwords: Settings; headers: RequestHeaders };
+/**
+ * What is sealed: the password fields, and the headers and query parameters the library last asked
+ * for (a Subsonic server's token is in the address).
+ */
+export type AddonLogin = { passwords: Settings; headers: RequestHeaders; query: QueryParams };
 
-const EMPTY_LOGIN: AddonLogin = { passwords: {}, headers: {} };
+const EMPTY_LOGIN: AddonLogin = { passwords: {}, headers: {}, query: {} };
 
 export const addonRootLocation = (key: string) => `addon-source:${key}`;
 
@@ -35,8 +41,16 @@ const strings = (value: unknown): Record<string, string> =>
 export function addonLogin(remote: AddonSource): AddonLogin {
   if (!remote.secret) return EMPTY_LOGIN;
   try {
-    const parsed = JSON.parse(remote.secret) as { passwords?: unknown; headers?: unknown };
-    return { passwords: strings(parsed.passwords), headers: strings(parsed.headers) };
+    const parsed = JSON.parse(remote.secret) as {
+      passwords?: unknown;
+      headers?: unknown;
+      query?: unknown;
+    };
+    return {
+      passwords: strings(parsed.passwords),
+      headers: strings(parsed.headers),
+      query: strings(parsed.query),
+    };
   } catch {
     return EMPTY_LOGIN;
   }
@@ -63,8 +77,11 @@ export function addonSource(args: {
   key: string;
   settings: Settings;
   headers?: RequestHeaders;
+  query?: QueryParams;
   /** The installed file's fingerprint; leave it out for a bundled add-on. */
   codeSha?: string;
+  /** The profile whose places are kept with the server, for an add-on that keeps them. */
+  profileId?: string;
 }): AddonSource {
   const fields = args.manifest.settings ?? [];
   const secret = new Set(fields.filter((f) => f.type === 'password').map((f) => f.key));
@@ -82,8 +99,9 @@ export function addonSource(args: {
     key: args.key,
     name: host ? `${args.manifest.name} · ${host}` : args.manifest.name,
     settings: plain,
-    secret: JSON.stringify({ passwords, headers: args.headers ?? {} }),
+    secret: JSON.stringify({ passwords, headers: args.headers ?? {}, query: args.query ?? {} }),
     ...(args.codeSha ? { codeSha: args.codeSha } : {}),
+    ...(args.profileId ? { profileId: args.profileId } : {}),
   };
 }
 
@@ -113,6 +131,18 @@ export function headersFor(
 }
 
 /**
+ * `url` with the login's query parameters added, when it goes to one of the add-on's hosts; as it
+ * is otherwise. Parameters the address already has are replaced, so a stored address can't pin
+ * another login.
+ */
+export function withQuery(url: string, query: Record<string, string>, hosts: string[]): string {
+  if (Object.keys(query).length === 0 || !hostAllowed(url, hosts)) return url;
+  const parsed = new URL(url);
+  for (const [name, value] of Object.entries(query)) parsed.searchParams.set(name, value);
+  return parsed.href;
+}
+
+/**
  * The one set of headers that plays a book's files. The player and the downloader send one set
  * for the whole book, so when its files don't all get the same headers, none are sent.
  */
@@ -134,6 +164,8 @@ export type AddonScan = {
   covers: Map<string, string>;
   /** Files and covers left out because they point at a host the add-on may not reach. */
   refused: number;
+  /** The listener's places as the source keeps them, by file location (revision 6). */
+  places: RemotePlace[];
 };
 
 /**
@@ -149,6 +181,7 @@ export function addonLibraryScan(
   const listed: ListedFile[] = [];
   const tags = new Map<string, FileTags>();
   const covers = new Map<string, string>();
+  const places: RemotePlace[] = [];
   const seen = new Set<string>();
   let refused = 0;
   for (const file of response.files) {
@@ -156,6 +189,9 @@ export function addonLibraryScan(
       refused++;
       continue;
     }
+    // A download address elsewhere would get the login too; the file then downloads from `url`.
+    const downloadUri =
+      file.downloadUrl && hostAllowed(file.downloadUrl, hosts) ? file.downloadUrl : null;
     const location = `${rootLocation}/${file.path}`;
     if (seen.has(location)) continue;
     seen.add(location);
@@ -167,7 +203,16 @@ export function addonLibraryScan(
       size: file.size ?? 0,
       modifiedAt: file.modifiedAt ?? 0,
       uri: file.url,
+      ...(downloadUri ? { downloadUri } : {}),
     });
+    if (file.place) {
+      places.push({
+        fileLocation: location,
+        positionMs: file.place.positionMs,
+        played: file.place.played === true,
+        at: file.place.at,
+      });
+    }
     if (file.durationMs !== undefined) {
       tags.set(location, {
         durationMs: file.durationMs,
@@ -190,5 +235,34 @@ export function addonLibraryScan(
       covers.set(location, file.cover);
     }
   }
-  return { listed, tags, covers, refused };
+  return { listed, tags, covers, refused, places };
+}
+
+/**
+ * What the add-on's `place` handler gets when the listener is at `positionMs` in the book's file
+ * at `location` (revision 6): that file and every file of the book, by the path the library listed
+ * them under and the address without the login. Null when the files are not this server's.
+ */
+export function addonPlaceReport(
+  rootLocation: string,
+  files: { location: string; uri: string }[],
+  at: { location: string; positionMs: number; when: number; finished: boolean },
+): PlaceReport | null {
+  const prefix = `${rootLocation}/`;
+  const listed = files.flatMap((f) =>
+    f.location.startsWith(prefix)
+      ? [{ location: f.location, path: f.location.slice(prefix.length), url: f.uri }]
+      : [],
+  );
+  if (listed.length === 0 || listed.length !== files.length) return null;
+  const current = listed.find((f) => f.location === at.location);
+  if (!current) return null;
+  const strip = (f: { path: string; url: string }) => ({ path: f.path, url: f.url });
+  return {
+    file: strip(current),
+    files: listed.map(strip),
+    positionMs: Math.max(0, Math.round(at.positionMs)),
+    at: at.when,
+    finished: at.finished,
+  };
 }

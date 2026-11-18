@@ -1,0 +1,48 @@
+{
+  "subsonic-response": {
+    "status": "ok",
+    "version": "1.16.1",
+    "type": "navidrome",
+    "serverVersion": "0.64.2 (10114574)",
+    "openSubsonic": true,
+    "albumList2": {
+      "album": [
+        {
+          "id": "3AZzjKPpcyIel8Cr3m8u2R",
+          "name": "The Quiet Town",
+          "artist": "Ada Writer",
+          "artistId": "5OBk9TlJPzbVSb9v1hNLv6",
+          "coverArt": "al-3AZzjKPpcyIel8Cr3m8u2R_bd2eb69e6468af6c",
+          "songCount": 2,
+          "duration": 5,
+          "created": "2026-11-18T01:28:01.54604589Z",
+          "genre": "Audiobook",
+          "userRating": 0,
+          "genres": [
+            {
+              "name": "Audiobook"
+            }
+          ],
+          "musicBrainzId": "",
+          "isCompilation": false,
+          "sortName": "quiet town",
+          "discTitles": [],
+          "originalReleaseDate": {},
+          "releaseDate": {},
+          "releaseTypes": [],
+          "recordLabels": [],
+          "moods": [],
+          "artists": [
+            {
+              "id": "5OBk9TlJPzbVSb9v1hNLv6",
+              "name": "Ada Writer"
+            }
+          ],
+          "displayArtist": "Ada Writer",
+          "explicitStatus": "",
+          "version": ""
+        }
+      ]
+    }
+  }
+}

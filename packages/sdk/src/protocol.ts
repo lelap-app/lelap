@@ -11,15 +11,24 @@ export const PROTOCOL_VERSION = 1;
  * Revisions only add things, so an older app ignores what it does not know. Absent means 1.
  * 2 adds `behaviorHints` (a `/configure` page, sign-in) and `GET /health`; 3 adds `artwork`; 4
  * adds `badges` on items; 5 adds `settings`, stream `headers` and the `library` resource for
- * add-ons inside the app.
+ * add-ons inside the app; 6 adds a library's sealed `query`, a file's `downloadUrl` and `place`, and
+ * the `place` resource, for add-ons inside the app.
  */
-export const LATEST_PROTOCOL_VERSION = 5;
+export const LATEST_PROTOCOL_VERSION = 6;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
 export type ContentType = z.infer<typeof ContentType>;
 
-export const RESOURCES = ['catalog', 'meta', 'stream', 'scrobble', 'artwork', 'library'] as const;
+export const RESOURCES = [
+  'catalog',
+  'meta',
+  'stream',
+  'scrobble',
+  'artwork',
+  'library',
+  'place',
+] as const;
 export const ResourceName = z.enum(RESOURCES);
 export type ResourceName = z.infer<typeof ResourceName>;
 
@@ -115,6 +124,26 @@ export const RequestHeaders = z
   .refine((headers) => Object.keys(headers).length <= 16, 'At most 16 headers');
 export type RequestHeaders = z.infer<typeof RequestHeaders>;
 
+/**
+ * Since revision 6: query parameters the app adds to the address of every file and download of a
+ * library (a folder's `cover.jpg` too), for servers that take a login only there, such as the
+ * Subsonic API. Sealed like headers, never stored in a file's address, and added only on the
+ * add-on's own hosts. A file's `cover` is shown as it is, without them. At most 16.
+ */
+export const QueryParams = z
+  .record(
+    z.string().regex(/^[A-Za-z0-9_.~-]{1,64}$/, 'Not a query parameter name'),
+    z
+      .string()
+      .max(1024)
+      .refine(
+        (value) => [...value].every((c) => c.charCodeAt(0) >= 0x20 && c.charCodeAt(0) !== 0x7f),
+        'Query values have no control characters',
+      ),
+  )
+  .refine((query) => Object.keys(query).length <= 16, 'At most 16 query parameters');
+export type QueryParams = z.infer<typeof QueryParams>;
+
 export const SETTING_TYPES = ['text', 'url', 'password'] as const;
 
 /**
@@ -198,6 +227,13 @@ export const Manifest = z
         code: 'custom',
         path: ['resources'],
         message: 'Only add-ons inside the app list a library',
+      });
+    }
+    if (!manifest.sandbox && resourceNames(manifest.resources).includes('place')) {
+      context.addIssue({
+        code: 'custom',
+        path: ['resources'],
+        message: 'Only add-ons inside the app keep places',
       });
     }
     const keys = (manifest.settings ?? []).map((f) => f.key);
@@ -355,6 +391,19 @@ const LibraryPath = z
   );
 
 /**
+ * Since revision 6: where the listener is in one file, as the source keeps it (a server's bookmark).
+ * The app takes the newest place of a book, its own or the source's.
+ */
+export const LibraryPlace = z.object({
+  positionMs: Duration,
+  /** When the place was saved, as Unix time in milliseconds. */
+  at: z.number().int().nonnegative(),
+  /** The file was played to its end. */
+  played: z.boolean().optional(),
+});
+export type LibraryPlace = z.infer<typeof LibraryPlace>;
+
+/**
  * Since revision 5: one file of the listener's library, as an add-on inside the app lists it. The
  * app makes books from these as from a folder on the phone: a folder of audio files is a book, an
  * audio file on its own is a book, and `cover.jpg` and friends in a folder are its cover.
@@ -382,6 +431,13 @@ export const LibraryFile = z.object({
   ids: z.array(z.string().min(3).max(128)).max(16).optional(),
   /** A cover for the file's book, when it has none of its own. */
   cover: Url.optional(),
+  /**
+   * Since revision 6: where the app downloads the file from, when not from `url`, such as a
+   * server's download address next to its streaming one. On the add-on's own hosts only.
+   */
+  downloadUrl: Url.optional(),
+  /** Since revision 6: the listener's place in this file as the source keeps it. */
+  place: LibraryPlace.optional(),
 });
 export type LibraryFile = z.infer<typeof LibraryFile>;
 
@@ -390,9 +446,32 @@ export const LibraryResponse = z.object({
   files: z.array(LibraryFile).max(50_000),
   /** Sent with every request for these files on the phone, and only to the add-on's own hosts. */
   headers: RequestHeaders.optional(),
+  /** Since revision 6: added to every address of these files, only on the add-on's own hosts. */
+  query: QueryParams.optional(),
   cacheMaxAge: CacheMaxAge,
 });
 export type LibraryResponse = z.infer<typeof LibraryResponse>;
+
+const PlaceFile = z.object({ path: LibraryPath, url: Url });
+
+/**
+ * Since revision 6, for add-ons with the `place` resource: what the app hands the add-on's `place`
+ * handler, next to `settings`, when the listener's place in one of its library's books moves. The
+ * app sends one at start and pause, about every five minutes while playing, and at the end.
+ */
+export const PlaceReport = z.object({
+  /** The file the listener is in, as the library listed it (its address without `query`). */
+  file: PlaceFile,
+  /** Every file of the book, in order, so the add-on can tidy places it kept for the others. */
+  files: z.array(PlaceFile).max(5000),
+  /** Where the listener is in `file`. */
+  positionMs: Duration,
+  /** When, as Unix time in milliseconds. */
+  at: z.number().int().nonnegative(),
+  /** The listener reached the end of the book. */
+  finished: z.boolean(),
+});
+export type PlaceReport = z.infer<typeof PlaceReport>;
 
 /**
  * One picture of an item. The app picks the best square cover itself and draws any badges from the
@@ -548,6 +627,11 @@ export function supports(
 /** Whether the add-on lists a library the app can scan like a server (revision 5). */
 export function offersLibrary(manifest: Manifest): boolean {
   return manifest.sandbox !== undefined && resourceNames(manifest.resources).includes('library');
+}
+
+/** Whether the add-on keeps the listener's places with its library's source (revision 6). */
+export function offersPlaces(manifest: Manifest): boolean {
+  return offersLibrary(manifest) && resourceNames(manifest.resources).includes('place');
 }
 
 /** The values of an add-on's settings form, by field key. */

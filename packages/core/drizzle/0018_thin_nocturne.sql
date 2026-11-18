@@ -1,0 +1,1 @@
+ALTER TABLE `book_files` ADD `download_uri` text;
