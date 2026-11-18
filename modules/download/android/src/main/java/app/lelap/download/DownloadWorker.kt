@@ -78,7 +78,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
           if (Netfs.handles(file.url)) {
             NetDownload.fetch(file.url, folder, file.name, file.size, job.headers, { Messages.describe(applicationContext, it) }, progress)
           } else {
-            Http.fetch(file.url, folder, file.name, file.size, job.headers, progress)
+            Http.fetch(file.url, folder, file.name, file.size, job.headers, NativeText.get(applicationContext), progress)
           }
           finished += folder.length(file.name) ?: 0L
         }
@@ -102,13 +102,13 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
       } catch (e: CancellationException) {
         throw e
       } catch (e: PermanentFailure) {
-        Downloads.writeError(dir, e.message ?: "The download failed.")
+        Downloads.writeError(dir, e.message ?: NativeText.t(applicationContext, "The download failed."))
         Result.failure()
       } catch (e: RuntimeException) {
         // The Storage Access Framework throws these when a card goes or a permission is withdrawn.
         if (e is CancellationException) throw e
         if (runAttemptCount + 1 >= MAX_ATTEMPTS) {
-          Downloads.writeError(dir, "The download kept failing: ${e.message ?: "storage error"}")
+          Downloads.writeError(dir, keptFailing(e))
           Result.failure()
         } else {
           Result.retry()
@@ -119,7 +119,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
           Downloads.writeError(dir, noLocalNetworkText())
           Result.failure()
         } else if (runAttemptCount + 1 >= MAX_ATTEMPTS) {
-          Downloads.writeError(dir, "The download kept failing: ${e.message ?: "network error"}")
+          Downloads.writeError(dir, keptFailing(e))
           Result.failure()
         } else {
           Result.retry()
@@ -130,6 +130,10 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
   private fun noLocalNetwork(job: DownloadJob): Boolean =
     LocalNetwork.blocks(Build.VERSION.SDK_INT, job.localNetwork, LocalNetwork.granted(applicationContext))
+
+  private fun keptFailing(e: Exception): String = e.message?.let {
+    NativeText.t(applicationContext, "The download kept failing: {reason}", "reason" to it)
+  } ?: NativeText.t(applicationContext, "The download failed.")
 
   private fun noLocalNetworkText(): String = NativeText.t(
     applicationContext,

@@ -67,6 +67,42 @@ const nativeLines = (): Record<string, string> => ({
     t(
       'Lelap can’t reach this server on your home network: “nearby devices” is off. Download again to allow it.',
     ),
+  // Downloads over the web, and app updates (M72).
+  'The download failed.': t('The download failed.'),
+  'The download kept failing: {reason}': t('The download kept failing: {reason}'),
+  'The server sent a message instead of the file.': t(
+    'The server sent a message instead of the file.',
+  ),
+  'The server does not continue downloads (HTTP {status}).': t(
+    'The server does not continue downloads (HTTP {status}).',
+  ),
+  'The server answered HTTP {status}.': t('The server answered HTTP {status}.'),
+  'Only web addresses can be downloaded.': t('Only web addresses can be downloaded.'),
+  'The server answered HTTP {status} without an address to go to.': t(
+    'The server answered HTTP {status} without an address to go to.',
+  ),
+  'The server sent the download through too many addresses.': t(
+    'The server sent the download through too many addresses.',
+  ),
+  'The connection closed early.': t('The connection closed early.'),
+  'The download does not match the release. Try again.': t(
+    'The download does not match the release. Try again.',
+  ),
+  'Updates come only over https.': t('Updates come only over https.'),
+  'The update was not installed.': t('The update was not installed.'),
+  // Casting (M72).
+  'Lost the connection to {name}': t('Lost the connection to {name}'),
+  '{name} did not start its media player': t('{name} did not start its media player'),
+  '{name} did not answer': t('{name} did not answer'),
+  '{name} could not play this file': t('{name} could not play this file'),
+  '{name} cannot play media': t('{name} cannot play media'),
+  'Connect the phone to the same Wi-Fi as the speaker': t(
+    'Connect the phone to the same Wi-Fi as the speaker',
+  ),
+  'That speaker is no longer on the network': t('That speaker is no longer on the network'),
+  'Not casting': t('Not casting'),
+  'Casting failed': t('Casting failed'),
+  'Casting stopped': t('Casting stopped'),
   // The home screen widget and the Quick Settings tile.
   'Nothing playing': t('Nothing playing'),
   'Open Lelap to pick a book': t('Open Lelap to pick a book'),

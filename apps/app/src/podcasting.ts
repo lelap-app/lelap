@@ -12,6 +12,7 @@ import { Platform } from 'react-native';
 
 import { proxyBase } from './config';
 import { db, newId } from './db';
+import { chapterName } from './format';
 import { profileId } from './profile';
 
 const FETCH_TIMEOUT_MS = 20_000;
@@ -41,7 +42,7 @@ async function fetchChapters(bookId: string): Promise<boolean> {
   const url = episodeDetail(db, bookId)?.extras?.chaptersUrl;
   if (!url || (getBook(db, profileId, bookId)?.chapters.length ?? 0) > 0) return false;
   try {
-    const chapters = parseChaptersFile(await fetchText(url));
+    const chapters = parseChaptersFile(await fetchText(url), chapterName);
     return saveEpisodeChapters(db, bookId, chapters, Date.now(), newId);
   } catch {
     // No chapters is fine: the episode plays as one stretch, as before.

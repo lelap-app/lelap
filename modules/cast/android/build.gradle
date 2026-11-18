@@ -19,6 +19,8 @@ android {
 dependencies {
   // Files on SMB and SFTP servers (M62).
   implementation project(':lelap-netfs')
+  // The profile's language for casting errors (modules/text).
+  implementation project(':lelap-text')
   testImplementation 'junit:junit:4.13.2'
   // Android's org.json is a stub in JVM unit tests.
   testImplementation 'org.json:json:20240303'

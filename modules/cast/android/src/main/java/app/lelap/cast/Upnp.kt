@@ -1,5 +1,6 @@
 package app.lelap.cast
 
+import app.lelap.text.NativeText
 import java.io.StringReader
 import java.net.URI
 import java.util.Locale
@@ -228,7 +229,7 @@ object Upnp {
 
 /** AVTransport and RenderingControl of one renderer. */
 class UpnpRenderer(private val device: CastDevice) : Renderer {
-  private val transport = device.avTransportUrl ?: throw CastException("${device.name} cannot play media")
+  private val transport = device.avTransportUrl ?: throw CastException(NativeText.current().t("{name} cannot play media", "name" to device.name))
   private val ends = EndWatch()
   private var media: CastMedia? = null
 

@@ -42,7 +42,7 @@ import { queries, useAddons } from '../src/addons';
 import { BookCover } from '../src/components/BookCover';
 import { db, newId } from '../src/db';
 import { startDownload } from '../src/downloads';
-import { formatClock, formatDuration, formatLeft } from '../src/format';
+import { formatClock, formatDate, formatDuration, formatLeft } from '../src/format';
 import * as audio from '../src/platform/audio';
 import { reloadBook, useLibrary } from '../src/player';
 import {
@@ -155,7 +155,7 @@ function episodeStatus(e: EpisodeItem): string {
       : soundbites === 1
         ? t('1 soundbite')
         : t('{n} soundbites', { n: soundbites }),
-    e.publishedAt ? new Date(e.publishedAt).toLocaleDateString() : null,
+    e.publishedAt ? formatDate(e.publishedAt) : null,
     e.finished
       ? t('Played')
       : e.positionMs > 0 && e.durationMs > 0

@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
 import { distribution } from './config';
+import { formatDate } from './format';
 import { db } from './db';
 import { profileId } from './profile';
 
@@ -57,7 +58,7 @@ export function fetchOtaUpdate(): Promise<OtaResult> {
 export function otaDescription(): string | null {
   if (!OTA_UPDATES) return null;
   if (Updates.isEmbeddedLaunch) return t('Running the version that came with this install.');
-  const date = Updates.createdAt?.toLocaleDateString() ?? '';
+  const date = Updates.createdAt ? formatDate(Updates.createdAt.getTime()) : '';
   const id = Updates.updateId?.slice(0, 8) ?? '?';
   return date
     ? t('Running update {id} from {date}.', { id, date })

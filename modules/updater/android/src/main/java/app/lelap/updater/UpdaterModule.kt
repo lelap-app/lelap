@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import app.lelap.text.NativeText
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
@@ -64,7 +65,7 @@ class UpdaterModule : Module() {
       download(url, apk, size.toLong())
       if (!Checksum.matches(apk, sha256, size.toLong())) {
         apk.delete()
-        throw UpdateException("The download does not match the release. Try again.")
+        throw UpdateException(NativeText.t(context, "The download does not match the release. Try again."))
       }
       lastError = null
       startInstall(apk)
@@ -74,7 +75,7 @@ class UpdaterModule : Module() {
   private fun download(url: String, target: File, size: Long) {
     var current = URL(url)
     repeat(MAX_REDIRECTS) {
-      if (current.protocol != "https") throw UpdateException("Updates come only over https.")
+      if (current.protocol != "https") throw UpdateException(NativeText.t(context, "Updates come only over https."))
       val c = current.openConnection() as HttpURLConnection
       c.instanceFollowRedirects = false
       c.connectTimeout = 30_000
@@ -82,22 +83,22 @@ class UpdaterModule : Module() {
       try {
         val code = c.responseCode
         if (code in 300..399) {
-          current = URL(current, c.getHeaderField("Location") ?: throw IOException("HTTP $code"))
+          current = URL(current, c.getHeaderField("Location") ?: throw UpdateException(NativeText.t(context, "The server answered HTTP {status} without an address to go to.", "status" to code)))
           return@repeat
         }
-        if (code != 200) throw UpdateException("The download answered HTTP $code.")
+        if (code != 200) throw UpdateException(NativeText.t(context, "The server answered HTTP {status}.", "status" to code))
         try {
           c.inputStream.use { input -> target.outputStream().use { Checksum.copyLimited(input, it, size) } }
         } catch (e: IOException) {
           target.delete()
-          throw UpdateException(e.message ?: "The download failed.")
+          throw UpdateException(e.message ?: NativeText.t(context, "The download failed."))
         }
         return
       } finally {
         c.disconnect()
       }
     }
-    throw UpdateException("Too many redirects.")
+    throw UpdateException(NativeText.t(context, "The server sent the download through too many addresses."))
   }
 
   private fun startInstall(apk: File) {

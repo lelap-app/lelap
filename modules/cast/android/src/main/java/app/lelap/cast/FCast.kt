@@ -1,5 +1,6 @@
 package app.lelap.cast
 
+import app.lelap.text.NativeText
 import java.io.BufferedOutputStream
 import java.io.DataInputStream
 import java.io.IOException
@@ -103,12 +104,12 @@ class FCastRenderer(private val device: CastDevice, private val onLost: (String)
             updatedAt = System.currentTimeMillis()
           }
           FCastProtocol.VOLUME_UPDATE -> if (body != null) synchronized(lock) { volume = body.optDouble("volume").toFloat() }
-          FCastProtocol.PLAYBACK_ERROR -> synchronized(lock) { error = body?.optString("message") ?: "${device.name} could not play this file" }
+          FCastProtocol.PLAYBACK_ERROR -> synchronized(lock) { error = body?.optString("message") ?: NativeText.current().t("{name} could not play this file", "name" to device.name) }
         }
       }
     } catch (e: IOException) {
       val wasClosed = synchronized(lock) { closed.also { closed = true } }
-      if (!wasClosed) onLost("Lost the connection to ${device.name}")
+      if (!wasClosed) onLost(NativeText.current().t("Lost the connection to {name}", "name" to device.name))
     }
   }
 

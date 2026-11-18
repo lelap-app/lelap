@@ -34,7 +34,7 @@ import { badgeWords, useBookBadges, useMetaBadges } from '../src/components/Cove
 import { DownloadButton } from '../src/components/DownloadButton';
 import { db } from '../src/db';
 import { startDownload } from '../src/downloads';
-import { formatClock, formatDuration } from '../src/format';
+import { formatClock, formatDuration, locale } from '../src/format';
 import { playBook, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { TextButton } from '../src/components/TextButton';
@@ -73,10 +73,10 @@ const sourceDetails = (found: FoundStream) => {
 
 const addonCount = (n: number) => (n === 1 ? t('1 add-on') : t('{n} add-ons', { n }));
 
-/** A language's English name; some engines lack `Intl.DisplayNames`, so fall back to the code. */
+/** A language's name in the profile's; some engines lack `Intl.DisplayNames`, so fall back to the code. */
 function languageName(code: string): string {
   try {
-    return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code;
+    return new Intl.DisplayNames([locale()], { type: 'language' }).of(code) ?? code;
   } catch {
     return code;
   }
@@ -409,7 +409,7 @@ export default function ItemScreen() {
               )}
               {(sources.data?.failed.length ?? 0) > 0 && (
                 <Text className="text-xs text-muted">
-                  {sources.data?.failed.join(', ')} did not answer.
+                  {t('{names} did not answer.', { names: sources.data?.failed.join(', ') ?? '' })}
                 </Text>
               )}
             </View>
@@ -540,8 +540,13 @@ function NoAudio({
       <Text className="text-center text-sm leading-5 text-soft">
         {asked === 0
           ? t('None of your add-ons has audio for books like this one.')
-          : `Asked ${addonCount(asked)}${failed.length > 0 ? `, ${answered} answered` : ''}; none has a recording.`}{' '}
-        An add-on that knows this work, such as one for your own server, can add it.
+          : failed.length > 0
+            ? t('Asked {addons}, {n} answered; none has a recording.', {
+                addons: addonCount(asked),
+                n: answered,
+              })
+            : t('Asked {addons}; none has a recording.', { addons: addonCount(asked) })}{' '}
+        {t('An add-on that knows this work, such as one for your own server, can add it.')}
       </Text>
       <Pressable
         onPress={onAddons}

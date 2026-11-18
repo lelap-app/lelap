@@ -1,6 +1,7 @@
 package app.lelap.cast
 
 import android.annotation.SuppressLint
+import app.lelap.text.NativeText
 import java.io.BufferedOutputStream
 import java.io.DataInputStream
 import java.io.IOException
@@ -187,7 +188,7 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
       }
     } catch (e: IOException) {
       val wasClosed = synchronized(lock) { closed.also { closed = true; lock.notifyAll() } }
-      if (!wasClosed) onLost("Lost the connection to ${device.name}")
+      if (!wasClosed) onLost(NativeText.current().t("Lost the connection to {name}", "name" to device.name))
     }
   }
 
@@ -240,10 +241,10 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
     synchronized(lock) {
       while (app == null && !closed) {
         val left = deadline - System.currentTimeMillis()
-        if (left <= 0) throw CastException("${device.name} did not start its media player")
+        if (left <= 0) throw CastException(NativeText.current().t("{name} did not start its media player", "name" to device.name))
         lock.wait(left)
       }
-      return app ?: throw CastException("Lost the connection to ${device.name}")
+      return app ?: throw CastException(NativeText.current().t("Lost the connection to {name}", "name" to device.name))
     }
   }
 
@@ -261,7 +262,7 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
     synchronized(lock) {
       while (loadedRequest == id && loadError == null && !closed) {
         val left = deadline - System.currentTimeMillis()
-        if (left <= 0) throw CastException("${device.name} did not answer")
+        if (left <= 0) throw CastException(NativeText.current().t("{name} did not answer", "name" to device.name))
         lock.wait(left)
       }
       loadError?.let { throw CastException(it) }
@@ -298,7 +299,7 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
       polledAt = tick
       (tick - aliveAt > LIVENESS_MS && !closed && !lostReported).also { if (it) lostReported = true }
     }
-    if (silent) onLost("Lost the connection to ${device.name}")
+    if (silent) onLost(NativeText.current().t("Lost the connection to {name}", "name" to device.name))
     val app = synchronized(lock) { app }
     if (app != null) runCatching { sendRequest(app.transportId, CastJson.MEDIA, JSONObject().put("type", "GET_STATUS")) }
     val now = System.currentTimeMillis()

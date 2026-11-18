@@ -9,11 +9,11 @@ import { COLORS, IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { Sheet } from '../src/components/Sheet';
 import { db } from '../src/db';
+import { formatWeekday } from '../src/format';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 
 const GOALS = [0, 6, 12, 24, 36, 52];
-const WEEKDAY = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 /** “3 h 20 min”, “45 min”, “under 1 min”, “0 min”. */
 function hours(ms: number): string {
@@ -101,7 +101,7 @@ export default function StatsScreen() {
         >
           {stats.week.map((d, index) => {
             const [y, m, day] = d.day.split('-').map(Number);
-            const weekday = WEEKDAY[new Date(y ?? 1970, (m ?? 1) - 1, day ?? 1).getDay()];
+            const weekday = formatWeekday(new Date(y ?? 1970, (m ?? 1) - 1, day ?? 1));
             const today = index === stats.week.length - 1;
             return (
               <View key={d.day} className="flex-1 items-center gap-1">

@@ -9,7 +9,8 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@lelap/netfs": "workspace:*"
+    "@lelap/netfs": "workspace:*",
+    "@lelap/text": "workspace:*"
   },
   "peerDependencies": {
     "expo": "*"

@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Uri
 import android.provider.OpenableColumns
 import app.lelap.netfs.Netfs
+import app.lelap.text.NativeText
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -74,7 +75,7 @@ class MediaServer(private val context: Context) {
   @Synchronized
   fun start(): String {
     base?.let { return it }
-    val address = lanAddress() ?: throw CastException("Connect the phone to the same Wi-Fi as the speaker")
+    val address = lanAddress() ?: throw CastException(NativeText.current().t("Connect the phone to the same Wi-Fi as the speaker"))
     val socket = ServerSocket(0, 16, address)
     server = socket
     Thread({ accept(socket) }, "lelap-cast-accept").apply { isDaemon = true }.start()

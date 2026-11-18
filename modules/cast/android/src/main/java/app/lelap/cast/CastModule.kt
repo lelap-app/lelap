@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import app.lelap.netfs.LocalNetwork
+import app.lelap.text.NativeText
 import expo.modules.interfaces.permissions.PermissionsResponseListener
 import expo.modules.interfaces.permissions.PermissionsStatus
 import expo.modules.kotlin.Promise
@@ -89,7 +90,7 @@ class CastModule : Module() {
         Log.w(Discovery.TAG, "connect refused: no local network access")
         throw LocalNetworkDeniedException()
       }
-      val target = discovery().device(deviceId) ?: throw CastFailedException("That speaker is no longer on the network")
+      val target = discovery().device(deviceId) ?: throw CastFailedException(NativeText.t(context, "That speaker is no longer on the network"))
       val link = try {
         CastLink.open(context, target)
       } catch (e: CastException) {
