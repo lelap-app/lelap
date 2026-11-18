@@ -35,6 +35,10 @@ export type ConfigurableAddon<C> = {
   intro: string;
   /** A link under the intro, such as the service's page for making a token. */
   introLink?: { href: string; label: string };
+  /** Numbered steps under the link, such as how to make and copy the token. */
+  steps?: string[];
+  /** A small note under the steps. */
+  stepsNote?: string;
   fields: Field[];
   /** The manifest for one listener's settings, when their catalogs depend on them. */
   manifestFor?: (config: C) => Manifest;
@@ -68,11 +72,14 @@ main{max-width:34rem;margin:0 auto;padding:2rem 1rem}
 label{display:block;margin:1rem 0 .25rem;font-weight:600}
 input,select{box-sizing:border-box;width:100%;padding:.6rem;border-radius:.5rem;border:1px solid #3a3644;background:#1e1b26;color:inherit;font:inherit}
 small,.muted{color:#a59fb0}
-button,.check{display:flex;gap:.5rem;align-items:center;margin:.35rem 0;font-weight:400}
+.check{display:flex;gap:.5rem;align-items:center;margin:.35rem 0;font-weight:400}
+a{color:#f5b041;text-underline-offset:.15em}
 .check input{width:auto;margin:0}
 fieldset{border:0;padding:0;margin:1rem 0 0}
 legend{font-weight:600;padding:0}
-.button{display:inline-block;margin-top:1.25rem;padding:.6rem 1rem;border:0;border-radius:999px;background:#f5b041;color:#14121a;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+.button,button[type=submit]{display:inline-block;margin-top:1.25rem;min-height:2.75rem;padding:.6rem 1rem;border:0;border-radius:999px;background:#f5b041;color:#14121a;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+.button:focus-visible,button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #f5b041;outline-offset:2px}
+ol{padding-left:1.25rem}li{margin:.35rem 0}
 code{word-break:break-all;background:#1e1b26;padding:.15rem .3rem;border-radius:.25rem}
 .error{color:#ff8a80}
 </style></head><body><main>${body}</main></body></html>`;
@@ -115,11 +122,16 @@ function inputs(fields: Field[]): string {
 
 function form<C>(addon: ConfigurableAddon<C>, action: string, error?: string): Response {
   const link = addon.introLink
-    ? `<p><a href="${escape(addon.introLink.href)}" rel="noreferrer" target="_blank">${escape(addon.introLink.label)}</a></p>`
+    ? `<p><a${addon.steps ? ' class="button"' : ''} href="${escape(addon.introLink.href)}" rel="noreferrer" target="_blank">${escape(addon.introLink.label)}</a></p>`
+    : '';
+  const steps = addon.steps
+    ? `<ol>${addon.steps.map((step) => `<li>${escape(step)}</li>`).join('')}</ol>${
+        addon.stepsNote ? `<p class="muted">${escape(addon.stepsNote)}</p>` : ''
+      }`
     : '';
   return page(
     `${addon.manifest.name} for Lelap`,
-    `<h1>${escape(addon.manifest.name)}</h1><p>${escape(addon.intro)}</p>${link}${
+    `<h1>${escape(addon.manifest.name)}</h1><p>${escape(addon.intro)}</p>${link}${steps}${
       error ? `<p class="error">${escape(error)}</p>` : ''
     }<form method="post" action="${escape(action)}">${inputs(addon.fields)}<button type="submit">${
       addon.pick ? 'Next' : 'Make my add-on link'
