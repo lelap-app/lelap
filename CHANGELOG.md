@@ -2,6 +2,130 @@
 
 What changed in each Lelap release, newest first.
 
+## 0.1.0-beta.9 (2026-11-18)
+
+This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t
+bring it to older APKs. The app offers the APK as usual. At first start the app’s database gets
+a table for chapters you edit yourself. Add-ons on Android now make their requests through a new
+client in the app, which keeps them away from your home network unless you typed the address.
+
+### New
+
+- A first start for a new device: a welcome, then where your books are (a folder on this phone, a
+  server, or the free books already there; on the web, another device with Lelap), then Lelap’s
+  own optional add-ons. Every step has Skip, and it never shows again for that profile. A device
+  that already has books never sees it, nor does a kids profile. (#174)
+- Edit chapters for any book: rename them, change where one starts (typed, or Now for where you
+  are), add and remove. Your chapters are kept per profile, survive a rescan and sync to your
+  other devices. Reset brings back the book’s own. (#175)
+- Bookmark notes can be changed at any time, and Library → Bookmarks lists every book’s bookmarks,
+  newest first. A tap plays from there. (#175)
+- Share a place, a bookmark or the last 30 seconds as a link, in a book or a podcast episode. The
+  link names the book or the show and episode, never a file path or the audio; whoever opens it
+  plays their own copy, or is offered the book in the catalog or the show to follow. An episode
+  isn’t shared when its feed address has a login, a query or what looks like a key. (#175, #182)
+- During calls, in Settings → Playback (Android): Pause, or Lower the volume to a level from 20 to
+  100 %. 20 % is the default and the old level. (#185)
+- The bedtime timer can turn the volume down to 80, 60 or 40 % for the night, and now also starts
+  when bedtime begins while a book is playing (Android). (#181)
+- After the sleep timer stops, the player offers “Back to when you last used it”, with the clock
+  time, or 5, 10 or 15 min back. Nothing jumps by itself (Android). (#181)
+- Podcasts: the player shows each chapter’s picture from the episode’s chapters file, and an
+  episode with soundbites gets a Soundbites button. A soundbite plays from its start and pauses
+  at its end. (#182)
+- A long press on the elapsed time zooms the scrubber to the ten minutes around where you are.
+  Marks, snapping and TalkBack’s swipes work inside it; tap the note over the bar to zoom out.
+  (#186)
+- Web app: P and N move between chapters, B adds a bookmark (with Undo), and 1 to 5 open the tabs.
+  The installed web app has Library, Search, Podcasts and Downloads in its icon’s menu, its window
+  names the book, and Settings has Install Lelap where the browser offers it. (#187)
+
+### Improved
+
+- Find chapters starts at once when you ask for it. It waits only when the battery really is low,
+  and then carries on from where it stopped. The sheet and the notification show how far it is
+  through the book. (#175)
+- Shake for more time is a setting in Settings → Playback, on by default. (#181)
+- Web downloads wait while the browser is offline and carry on when it is back; a connection that
+  drops mid-file is retried. A book that won’t fit says “Not enough space” with what it needs and
+  what is left. Downloads asks the browser to keep its storage and says whether it does. Server
+  logins go with web downloads, as on Android. (#187)
+- A cover you chose with Match with catalog… is kept on the phone, so it shows offline. (#186)
+- Saving in the web app is faster. (#186)
+- On a narrow phone the player’s tools wrap into rows and their labels no longer end in “…”; the
+  playback buttons shrink to fit. (#186)
+- Accessibility: every screen has a heading, errors are read out when they appear, buttons keep
+  their name while they show a spinner, text fields are at least 48 points tall, and dimmed items
+  still have readable contrast. A profile’s initial is dark on amber, teal and rose. Car mode fits
+  a 320-point screen, and the handoff banner works at large text sizes. (#190)
+- Empty screens say what to do: Home points to the Library, an empty Library offers a folder, a
+  server and the free books, and Podcasts offers a search. (#174)
+- An add-on on Android can’t reach addresses on your home network, unless you typed that address
+  yourself (as for Subsonic, Plex or Emby). Each add-on has at most six requests open at a time.
+  (#191)
+- An add-on update that asks for more, such as a new kind of access, plain http or new hosts,
+  shows the review sheet again. A `lelap://addon` link can only move an installed add-on to a new
+  address on the same server. (#183, #191)
+- SMB requires signing for logged-in sessions; guest logins are unchanged. (#191)
+- Casting: the phone serves your files to a speaker only over Wi-Fi or Ethernet, also with a VPN
+  on, and fetches only from the address that answered discovery. Speaker descriptions with a DTD
+  are refused. (#183, #191)
+- Android Auto’s cover provider opens only image files, and covers synced from another device must
+  be web addresses. A book streamed from another device is added only with web addresses. (#183,
+  #191)
+
+### Fixed
+
+- Find chapters no longer sits on “Waiting for enough battery.” with a full battery. (#175)
+- A podcast cover that fails to load shows the title’s letter instead of an empty tile, and a
+  chapter picture that fails falls back to the episode’s cover. (#186)
+- Leaving car mode early no longer fails in the web app, and the web tab bar no longer cuts off
+  its labels. (#190)
+
+### Self-hosting and add-on developers
+
+- Sync: no D1 migration, and the sync Worker hasn’t changed.
+- `docker compose up -d` in `docker/` now starts the web app, catalog, proxy and sync with health
+  checks, and makes `ADMIN_TOKEN` and `CONFIG_SECRET` on first start. `updates` is behind
+  `--profile updates`, and `--profile https` adds Caddy. Settings are in `docker/.env.example`.
+  (#176)
+- Each service has an admin page on its own port (9787 to 9790), behind a token, on
+  `127.0.0.1` only, and answering only IP addresses, `localhost` and `ADMIN_HOSTS`. Ten wrong
+  tokens lock an address out for 15 minutes. `SERVICE_BIND` keeps the service ports on loopback.
+  (#176, #183, #191)
+- Upgrade note: each service now has its own secrets volume. The catalog keeps the existing
+  one, so Hardcover and gPodder set-ups keep working; proxy, sync and updates get new admin tokens
+  unless `ADMIN_TOKEN` is set in `.env`. (#183)
+- `node sync-db.mjs` in the sync image backs up, verifies and restores the sync database; guide in
+  `docker/backup.md`. Reverse proxy examples for Caddy, nginx and Traefik are in
+  `docker/reverse-proxy/`. (#176)
+- Shared place links open in the Android app through App Links when the web build has
+  `LELAP_ANDROID_CERT_SHA256`. (#187)
+- Each release now has an SBOM, `lelap-<version>-sbom.cdx.json`, with the app’s npm packages and
+  the Android libraries, and the Docker images have SBOM attestations. (#183, #191)
+- `@lelap/sdk` 0.5.0 is on npm with protocol revision 9. (#172)
+- Coming with the next SDK release (0.6, not on npm yet): settings are sealed as `e2.` tokens
+  bound to the add-on’s manifest ID, so two add-ons sharing a secret can’t read each other’s.
+  `e1.` tokens still open. (#191)
+- Your first add-on, a step-by-step guide at `/docs/guide/`, with its code as a tested sample in
+  `examples/guide-addon`. (#179)
+- Protocol: no new revision. On Android, a declared host that resolves to a private, loopback or
+  link-local address is refused, and each add-on has six requests in flight at most. (#191)
+
+### Known issues
+
+- None of this beta has been tried on a phone yet. The new add-on client on Android is tested only
+  in code: Subsonic, Plex, Emby and other servers on your home network haven’t been tried through
+  add-ons on a phone. (#191)
+- SMB now requires signing for logged-in sessions. A Samba server that maps a login to its guest
+  account may stop working. (#191)
+- Casting, TalkBack and the During calls slider are untested on a phone. (#183, #185, #190, #191)
+- Shared place links open in the web app; opening them in the Android app isn’t switched on yet.
+  (#187)
+- Bedtime volume, Back to when you last used it, Edit chapters and Find chapters starting at once
+  are tested only in code. (#175, #181)
+- Some new Bahasa Melayu lines haven’t been checked by a native speaker.
+
 ## 0.1.0-beta.8 (2026-11-18)
 
 This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t

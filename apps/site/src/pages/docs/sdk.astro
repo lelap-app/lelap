@@ -321,7 +321,7 @@ const toc: [string, string][] = [
   <p>
     Give <code>createAddon</code> a <code>configure</code> option and the SDK serves a settings form
     at <code>/configure</code>, turns what the listener chose into a token in the add-on’s URL (
-    <code>/e2.…/manifest.json</code>), sends them back to the app, and hands every handler the
+    <code>/e1.…/manifest.json</code>), sends them back to the app, and hands every handler the
     result as <code>config</code>. Nothing is stored on a server, yours or ours.
   </p>
   <CodeBlock code={configure} />
@@ -333,11 +333,12 @@ const toc: [string, string][] = [
     </li>
     <li>
       With <code>secret</code>, the token is encrypted with AES-GCM and only your add-on can read
-      it; <code>password</code> fields need one. Since SDK 0.6 the manifest's <code>id</code> is
-      sealed in too (<code>e2.…</code>), so of two add-ons sharing a secret, neither accepts the
-      other's tokens; URLs with <code>e1.…</code> from earlier versions keep working. Without, the
-      token is only encoded (<code>p1.…</code>), so anyone with the URL can read it. Changing the
-      secret makes every configured URL unreadable; those requests answer <code>403</code>.
+      it; <code>password</code> fields need one. The next SDK version (0.6, not on npm yet) seals
+      the manifest's <code>id</code> in too (<code>e2.…</code>), so of two add-ons sharing a secret,
+      neither accepts the other's tokens; URLs with <code>e1.…</code> from earlier versions keep
+      working. Without, the token is only encoded (<code>p1.…</code>), so anyone with the URL can
+      read it. Changing the secret makes every configured URL unreadable; those requests answer{' '}
+      <code>403</code>.
     </li>
     <li>
       With a required field, the bare manifest says <code>configurationRequired</code> and resources
