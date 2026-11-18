@@ -2,6 +2,7 @@ import { and, asc, eq } from 'drizzle-orm';
 
 import type { Db } from './db';
 import type { IdGenerator } from './ids';
+import { listeningStatus } from './library/byProgress';
 import { type LibraryBook, listAllBooks } from './library/queries';
 import { bookTags, playlists, type SmartRule } from './schema';
 import { isShelf } from './kids';
@@ -82,15 +83,7 @@ export function matchesRule(book: LibraryBook, tags: string[], rule: SmartRule):
   ) {
     return false;
   }
-  if (rule.status) {
-    const status =
-      book.finishedAt !== null
-        ? 'finished'
-        : book.bookPositionMs > 0 || book.lastPlayedAt !== null
-          ? 'inProgress'
-          : 'notStarted';
-    if (status !== rule.status) return false;
-  }
+  if (rule.status && listeningStatus(book) !== rule.status) return false;
   return !book.missing;
 }
 

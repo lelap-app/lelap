@@ -1,17 +1,20 @@
 import {
   continueListening,
   createPlaylist,
+  getSettings,
+  groupByProgress,
   hiddenCount,
   hideBooks,
   isKidsProfile,
   type LibraryBook,
-  type LibrarySort,
   listBooks,
+  type ListeningStatus,
   listPlaylistsWithCounts,
   listTags,
   localRoot,
   markNotMusic,
   musicSuggestions,
+  setSetting,
   showInLibrary,
   SMART_PRESETS,
   type SmartRule,
@@ -50,20 +53,66 @@ import { LOCAL_FOLDERS } from '../../src/platform/library';
 import { chooseFolder, scanLibrary } from '../../src/scan';
 import { Pill } from '../../src/components/Pill';
 
-const bookKeyOf = (book: LibraryBook) => book.id;
+/** `progress` is the grouped view (M79); Title and Author are flat lists. */
+type LibraryView = 'progress' | 'title' | 'author';
 
-const sorts = (): { key: LibrarySort; label: string }[] => [
-  { key: 'recent', label: t('Recent') },
+const views = (): { key: LibraryView; label: string }[] => [
+  { key: 'progress', label: t('Progress') },
   { key: 'title', label: t('Title') },
   { key: 'author', label: t('Author') },
 ];
+
+/** A group's title above its books, in the grouped view. */
+type GroupHeader = { group: ListeningStatus; count: number };
+type Row = LibraryBook | GroupHeader;
+
+const isHeader = (row: Row): row is GroupHeader => 'group' in row;
+const rowKeyOf = (row: Row) => (isHeader(row) ? `group:${row.group}` : row.id);
+
+const groupTitle = (header: GroupHeader) =>
+  header.group === 'inProgress'
+    ? t('In progress ({n})', { n: header.count })
+    : header.group === 'notStarted'
+      ? t('Not started ({n})', { n: header.count })
+      : t('Finished ({n})', { n: header.count });
+
+function GroupTitle({
+  header,
+  open,
+  onToggle,
+}: {
+  header: GroupHeader;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  if (header.group !== 'finished') {
+    return (
+      <Text accessibilityRole="header" className="px-4 pb-1 pt-4 text-sm font-semibold text-soft">
+        {groupTitle(header)}
+      </Text>
+    );
+  }
+  // The only group that folds away; TalkBack and the web hear whether it is open.
+  return (
+    <Pressable
+      onPress={onToggle}
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open }}
+      aria-expanded={open}
+      className="mt-2 min-h-12 flex-row items-center justify-between px-4 active:bg-raised"
+    >
+      <Text className="text-sm font-semibold text-soft">{groupTitle(header)}</Text>
+      <Icon name={open ? 'up' : 'down'} size={20} color={COLORS.soft} />
+    </Pressable>
+  );
+}
 
 export default function LibraryScreen() {
   const network = useNetworkState();
   const { version, refresh } = useLibrary();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [sort, setSort] = useState<LibrarySort>('recent');
+  const [view, setView] = useState<LibraryView>('progress');
   const [scanning, setScanning] = useState<{ done: number; total: number } | null>(null);
   const [lostFolder, setLostFolder] = useState(false);
   // The Hidden view (M77): only the books this profile hid, to bring back.
@@ -71,10 +120,40 @@ export default function LibraryScreen() {
 
   // `version` is the signal to re-read the database.
   const root = useMemo(() => localRoot(db), [version]);
+  const grouped = view === 'progress' && !showHidden;
+  // The Hidden view stays one flat list; in the grouped view each group sorts itself.
   const books = useMemo(
-    () => listBooks(db, profileId, sort, showHidden ? 'hidden' : 'visible'),
-    [sort, version, showHidden],
+    () =>
+      listBooks(
+        db,
+        profileId,
+        view === 'progress' ? 'recent' : view,
+        showHidden ? 'hidden' : 'visible',
+      ),
+    [view, version, showHidden],
   );
+  // Read again on `version`, so switching profiles shows the new listener's choice.
+  const [toggled, setToggled] = useState(0);
+  const finishedOpen = useMemo(
+    () => getSettings(db, profileId).libraryFinishedOpen,
+    [version, toggled],
+  );
+  const toggleFinished = useCallback(() => {
+    setSetting(db, profileId, 'libraryFinishedOpen', !finishedOpen, Date.now());
+    setToggled((n) => n + 1);
+  }, [finishedOpen]);
+  const rows = useMemo<Row[]>(() => {
+    if (!grouped) return books;
+    const groups = groupByProgress(books);
+    const list: Row[] = [];
+    for (const group of ['inProgress', 'notStarted', 'finished'] as const) {
+      const members = groups[group];
+      if (members.length === 0) continue;
+      list.push({ group, count: members.length });
+      if (group !== 'finished' || finishedOpen) list.push(...members);
+    }
+    return list;
+  }, [books, grouped, finishedOpen]);
   // A kids profile counts only what its Hidden view can show.
   const hiddenTotal = useMemo(
     () =>
@@ -222,17 +301,20 @@ export default function LibraryScreen() {
 
   // Stable, so a refresh redraws only the rows whose book changed (BookRow is memoised).
   const offline = network.isConnected === false;
-  const renderBook = useCallback(
-    ({ item }: { item: LibraryBook }) => (
-      <BookRow
-        book={item}
-        onOpen={openRow}
-        onLongPress={showActions}
-        swipe={showHidden ? showSwipe : hideSwipe}
-        unavailable={offline && item.source !== 'local' && !item.downloaded}
-      />
-    ),
-    [openRow, showActions, offline, showHidden, showSwipe, hideSwipe],
+  const renderRow = useCallback(
+    ({ item }: { item: Row }) =>
+      isHeader(item) ? (
+        <GroupTitle header={item} open={finishedOpen} onToggle={toggleFinished} />
+      ) : (
+        <BookRow
+          book={item}
+          onOpen={openRow}
+          onLongPress={showActions}
+          swipe={showHidden ? showSwipe : hideSwipe}
+          unavailable={offline && item.source !== 'local' && !item.downloaded}
+        />
+      ),
+    [openRow, showActions, offline, showHidden, showSwipe, hideSwipe, finishedOpen, toggleFinished],
   );
 
   if (!root && books.length === 0 && hiddenTotal === 0 && !showHidden) {
@@ -299,8 +381,8 @@ export default function LibraryScreen() {
       {/* Rows grow with the system text size, so there is no fixed height to give getItemLayout.
           A smaller window than the default 21 screens keeps 10,000 books light to scroll. */}
       <FlatList
-        data={books}
-        keyExtractor={bookKeyOf}
+        data={rows}
+        keyExtractor={rowKeyOf}
         initialNumToRender={12}
         maxToRenderPerBatch={12}
         windowSize={9}
@@ -416,15 +498,15 @@ export default function LibraryScreen() {
               </ScrollView>
             )}
             <View className="flex-row flex-wrap gap-2 px-4">
-              {sorts().map((s) => (
+              {views().map((s) => (
                 <Pill
                   key={s.key}
-                  onPress={() => setSort(s.key)}
-                  accessibilityState={{ selected: sort === s.key }}
-                  aria-selected={sort === s.key}
-                  className={`rounded-full border px-3 py-1 ${sort === s.key ? 'border-amber bg-amber' : 'border-line'}`}
+                  onPress={() => setView(s.key)}
+                  accessibilityState={{ selected: view === s.key }}
+                  aria-selected={view === s.key}
+                  className={`rounded-full border px-3 py-1 ${view === s.key ? 'border-amber bg-amber' : 'border-line'}`}
                 >
-                  <Text className={sort === s.key ? 'text-ink' : 'text-soft'}>{s.label}</Text>
+                  <Text className={view === s.key ? 'text-ink' : 'text-soft'}>{s.label}</Text>
                 </Pill>
               ))}
               {(hiddenTotal > 0 || showHidden) && (
@@ -464,7 +546,7 @@ export default function LibraryScreen() {
             />
           ) : undefined
         }
-        renderItem={renderBook}
+        renderItem={renderRow}
       />
       <Sheet visible={choosingList} title={t('New list')} onClose={() => setChoosingList(false)}>
         <ScrollView>

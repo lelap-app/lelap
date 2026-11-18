@@ -5,6 +5,7 @@ import { bigScan } from '../test/bigScan';
 import { seedBigLibrary } from '../src/bigLibrary';
 import { carShelves } from '../src/car';
 import { listDownloads } from '../src/downloads';
+import { groupByProgress } from '../src/library/byProgress';
 import { continueListening, listBooks } from '../src/library/queries';
 import { groupIntoBooks } from '../src/library/group';
 import { applyScan, filesNeedingTags, upsertRoot } from '../src/library/scan';
@@ -42,13 +43,15 @@ describe('10,000 books, 500 podcasts', () => {
 
   it('Library screen', () => {
     measure('Library screen: books, continue, lists, tags', () => {
-      listBooks(db, ME, 'recent');
+      groupByProgress(listBooks(db, ME, 'recent'));
       continueListening(db, ME);
       listPlaylistsWithCounts(db, ME);
       listTags(db, ME);
     });
     measure('  listBooks by recent', () => listBooks(db, ME, 'recent'));
     measure('  listBooks by title', () => listBooks(db, ME, 'title'));
+    const all = listBooks(db, ME, 'recent');
+    measure('  groupByProgress', () => groupByProgress(all));
     measure('  playlist counts', () => listPlaylistsWithCounts(db, ME));
   });
 
