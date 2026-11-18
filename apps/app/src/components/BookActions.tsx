@@ -30,6 +30,7 @@ import { db, newId } from '../db';
 import { showAlert } from '../dialog';
 import { deleteDownload, startDownload } from '../downloads';
 import { profileId } from '../profile';
+import { scrobblesFor, trackAbandoned, trackMarkedFinished } from '../scrobble';
 import { COLORS, Icon, type IconName } from './Icon';
 import { Sheet } from './Sheet';
 import { TextButton } from './TextButton';
@@ -108,6 +109,8 @@ export function BookActions({
   );
   const linked = useMemo(() => (book ? bookLinks(db, book.id).length > 0 : false), [book]);
   const hidden = useMemo(() => (book ? isHidden(db, profileId, book.id) : false), [book]);
+  // Stop reading means something only to a tracker that hears about this book (M66).
+  const tracked = useMemo(() => (book ? scrobblesFor(book.id, profileId) : false), [book]);
 
   if (!book) return null;
   const done = () => {
@@ -144,10 +147,26 @@ export function BookActions({
             icon="check"
             label={book.finishedAt === null ? t('Mark as finished') : t('Mark as not finished')}
             onPress={() => {
-              setFinished(db, profileId, book.id, book.finishedAt === null, now());
+              const finishing = book.finishedAt === null;
+              setFinished(db, profileId, book.id, finishing, now());
+              if (finishing) trackMarkedFinished(book.id, profileId);
               done();
             }}
           />
+          {tracked && book.finishedAt === null && book.bookPositionMs > 0 && (
+            <Row
+              icon="close"
+              label={t('Stop reading')}
+              onPress={() => {
+                trackAbandoned(book.id, profileId);
+                showAlert(
+                  t('Stop reading'),
+                  t('Your reading trackers now show this book as not finished.'),
+                );
+                done();
+              }}
+            />
+          )}
           <Row
             icon="queue"
             label={t('Add to Up Next')}

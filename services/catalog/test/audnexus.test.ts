@@ -1,9 +1,9 @@
 import { Meta, MetaResponse } from '@lelap/sdk';
 import { describe, expect, it } from 'vitest';
 
-import { asinOf, createAudnexus } from '../src/audnexus';
+import { asinOf, createAudnexus, regionsFor } from '../src/audnexus';
 import { createCatalogAddon } from '../src/catalog/addon';
-import { audioAsin } from '../src/openlibrary';
+import { audioAsin, audioEditions, fetchEditions } from '../src/openlibrary';
 import { createUpstream, type FetchLike, type ResponseCache, TTL } from '../src/upstream';
 import { fakeFetch, fixture, path, platform } from './helpers';
 
@@ -62,12 +62,46 @@ describe('audioAsin', () => {
       [path('/works/OL21745884W/editions.json'), fixture('openlibrary-editions-OL21745884W.json')],
     ]);
     const upstream = createUpstream(platform(fetch), 'Lelap/1 (test)');
-    expect(await audioAsin(upstream, 'OL21745884W')).toBe('B08GB58KD5');
+    expect(audioAsin(await fetchEditions(upstream, 'OL21745884W'))).toBe('B08GB58KD5');
   });
 
   it('finds nothing without editions', async () => {
     const upstream = createUpstream(platform(fakeFetch([])), 'Lelap/1 (test)');
-    expect(await audioAsin(upstream, 'OL1W')).toBeNull();
+    expect(audioAsin(await fetchEditions(upstream, 'OL1W'))).toBeNull();
+  });
+});
+
+describe('audioEditions', () => {
+  it('lists the audio editions with their publisher, narrators and own IDs', async () => {
+    const fetch = fakeFetch([
+      [path('/works/OL21745884W/editions.json'), fixture('openlibrary-editions-OL21745884W.json')],
+    ]);
+    const upstream = createUpstream(platform(fetch), 'Lelap/1 (test)');
+    const editions = audioEditions(await fetchEditions(upstream, 'OL21745884W'));
+    expect(editions).toEqual([
+      {
+        key: 'OL57487091M',
+        name: 'Audible Studios, 2021',
+        year: 2021,
+        publisher: 'Audible Studios',
+        narrators: ['Ray Porter'],
+        language: 'eng',
+        cover: 'https://covers.openlibrary.org/b/id/14837125-L.jpg',
+        externalIds: { asin: 'B08GB58KD5' },
+      },
+      {
+        key: 'OL32436340M',
+        name: 'Audible Studios on Brilliance Audio, 2021',
+        year: 2021,
+        publisher: 'Audible Studios on Brilliance Audio',
+        cover: 'https://covers.openlibrary.org/b/id/11471446-L.jpg',
+        externalIds: { isbn: '9781713630296' },
+      },
+    ]);
+    // Every one fits the protocol.
+    expect(
+      Meta.parse({ id: 'ol:OL21745884W', type: 'audiobook', name: 'P', editions }).editions,
+    ).toHaveLength(2);
   });
 });
 
@@ -94,6 +128,22 @@ describe('asin: meta', () => {
       { title: 'Prologue: A Silence of Three Parts', startMs: 42_662 },
     ]);
     expect(meta.description).not.toMatch(/<[a-z]/i);
+  });
+
+  it('asks the UK store when the US one lacks the ASIN', async () => {
+    const uk = (u: URL) => u.searchParams.get('region') === 'uk';
+    const fetch = fakeFetch([
+      [(u) => uk(u) && u.pathname === `/books/${ASIN}`, fixture(`audnexus-book-${ASIN}.json`)],
+      [
+        (u) => uk(u) && u.pathname === `/books/${ASIN}/chapters`,
+        fixture(`audnexus-chapters-${ASIN}.json`),
+      ],
+    ]);
+    const { status, body } = await addonWith(fetch)(`meta/audiobook/asin:${ASIN}.json`);
+    expect(status).toBe(200);
+    expect(MetaResponse.parse(body).meta.chapters?.length).toBeGreaterThan(0);
+    expect(regionsFor('ger')).toEqual(['de']);
+    expect(regionsFor(undefined)).toEqual(['us', 'uk']);
   });
 
   it('answers 404 for an ASIN Audnexus does not know', async () => {

@@ -5,8 +5,8 @@
 //
 // Since M57 the add-on's code runs in a worker inside the page. A worker can't navigate, open a
 // window or add an element, so a server's settings, which reach `library`, `place` and `signin`
-// calls (and since M61 a scrobbler's `scrobble` calls) as `settings`, can't leave in an address
-// either. Where a worker can't start, the code runs in the
+// calls (since M61 a scrobbler's `scrobble` calls, and since M66 every call of an add-on set up
+// with settings) as `settings`, can't leave in an address either. Where a worker can't start, the code runs in the
 // page as before and the app never hands it settings (`isolated: false`).
 
 const ADDON_SIDE = `
@@ -48,7 +48,7 @@ const ADDON_SIDE = `
     }
     return p.length === 3 ? r : null;
   };
-  var handle = function (id, path, settings, place, signin, events) {
+  var handle = function (id, path, settings, place, signin, events, library) {
     Promise.resolve().then(function () {
       if (!def) throw new Error('The file never called addon({...}).');
       var r = route(path);
@@ -56,11 +56,10 @@ const ADDON_SIDE = `
       if (r.resource === 'manifest') return { status: 200, body: def.manifest };
       var h = def[r.resource];
       if (typeof h !== 'function') return { status: 404, body: { error: 'Not found' } };
-      if (r.resource === 'library' || r.resource === 'place' || r.resource === 'signin' ||
-          r.resource === 'scrobble') {
-        r.settings = Object.freeze(settings || {});
-      }
+      // Revision 9: every call gets the settings the app hands it, as library calls always did.
+      r.settings = Object.freeze(settings || {});
       if (r.resource === 'scrobble') r.events = events || [];
+      if (r.resource === 'library') r.library = Object.freeze(library || {});
       if (r.resource === 'place') r.place = place || null;
       if (r.resource === 'signin') r.signin = signin || {};
       return Promise.resolve(h(r)).then(function (b) {
@@ -72,7 +71,10 @@ const ADDON_SIDE = `
       // An error may name its status, such as 401 for a login to enter again.
       var status = err && typeof err.status === 'number' && err.status >= 400 && err.status < 600
         ? err.status : 500;
-      post({ t: 'result', id: id, status: status, body: { error: String((err && err.message) || err) } });
+      var body = { error: String((err && err.message) || err) };
+      // A wait the add-on asks for, in seconds, such as from its service's Retry-After.
+      if (err && typeof err.retryAfter === 'number' && err.retryAfter >= 0) body.retryAfter = err.retryAfter;
+      post({ t: 'result', id: id, status: status, body: body });
     });
   };
   self.__lelapReceive = function (data) {
@@ -92,7 +94,7 @@ const ADDON_SIDE = `
         json: function () { return Promise.resolve(JSON.parse(m.text)); }
       });
     } else if (m.t === 'call') {
-      handle(m.id, m.path, m.settings, m.place, m.signin, m.events);
+      handle(m.id, m.path, m.settings, m.place, m.signin, m.events, m.library);
     }
   };
   self.onerror = function (msg) { post({ t: 'log', message: String(msg) }); };

@@ -73,8 +73,14 @@ export const downloadsBase: string = (
 export const sourceUrl: string =
   process.env.EXPO_PUBLIC_LELAP_SOURCE_URL || 'https://github.com/lelap-app/lelap';
 
+/**
+ * How a service can reach whoever builds this app, such as an e-mail address; Open Library asks
+ * clients that send many requests for one. Left out when the build sets none.
+ */
+const contact = process.env.EXPO_PUBLIC_LELAP_CONTACT?.trim() ?? '';
+
 /** The User-Agent scrobblers inside the app send where a User-Agent can be set (not in a browser). */
-export const clientName = `Lelap/1 (+${sourceUrl})`;
+export const clientName = `Lelap/1 (+${sourceUrl}${contact ? `; ${contact}` : ''})`;
 
 /**
  * Development builds only: a stand-in for a scrobbler's service, such as a local server playing

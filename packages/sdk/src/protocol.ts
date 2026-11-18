@@ -15,9 +15,11 @@ export const PROTOCOL_VERSION = 1;
  * the `place` resource, for add-ons inside the app; 7 adds `signin` settings and the `signin`
  * resource (a code the listener enters on a website) and a library's `webQuery`, for add-ons inside
  * the app; 8 lets an add-on inside the app with `settings` and `scrobble` but no `library` be set up
- * under Settings → Add-ons, its settings reaching its `scrobble` calls.
+ * under Settings → Add-ons, its settings reaching its `scrobble` calls; 9 adds `editions` on a meta,
+ * `resumed` on a scrobble event and `next` for a library listed in pages, and hands the settings of
+ * an add-on inside the app without `library` to every one of its calls.
  */
-export const LATEST_PROTOCOL_VERSION = 8;
+export const LATEST_PROTOCOL_VERSION = 9;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
@@ -153,7 +155,7 @@ export const SETTING_TYPES = ['text', 'url', 'password', 'signin'] as const;
 /**
  * Since revision 5: one field of the form the app shows when the listener adds an add-on inside
  * the app as a server, such as its address, a user name or a password. The values stay sealed on
- * the phone and reach only that add-on's `library` calls.
+ * the phone and reach only that add-on's calls (see `Manifest.settings`).
  */
 export const SettingField = z
   .object({
@@ -218,7 +220,9 @@ export const Manifest = z
      * Since revision 5, for add-ons inside the app only: the form the app shows when the listener
      * adds the add-on as a server. The values reach its `library` calls as `settings`. Since
      * revision 8, an add-on with `scrobble` and no `library` is set up with this form under
-     * Settings → Add-ons instead, and the values reach its `scrobble` calls.
+     * Settings → Add-ons instead, and the values reach its `scrobble` calls. Since revision 9,
+     * every add-on with settings and no `library` is set up there, and the values reach all of its
+     * calls: `catalog`, `meta`, `stream`, `artwork` and `scrobble`.
      */
     settings: z.array(SettingField).max(12).optional(),
   })
@@ -313,6 +317,28 @@ export type Episode = z.infer<typeof Episode>;
 export const Series = z.object({ name: z.string().min(1), position: z.string().optional() });
 export type Series = z.infer<typeof Series>;
 
+/**
+ * Since revision 9: one edition of a work, such as an audiobook from one publisher with one
+ * narrator. The item page lists them and lets the listener choose one; the app then shows its
+ * cover, year and narrators, and asks add-ons for audio by its `externalIds` too.
+ */
+export const Edition = z.object({
+  /** Stable within the item, such as an Open Library edition key or an ASIN; the app keeps the choice by it. */
+  key: z.string().min(1).max(256),
+  /** What sets it apart, such as `Blackstone Audio, 2010`. */
+  name: z.string().min(1).max(200),
+  year: z.number().int().optional(),
+  narrators: z.array(z.string()).max(20).optional(),
+  publisher: z.string().max(200).optional(),
+  /** BCP 47 or ISO 639 code. */
+  language: z.string().optional(),
+  cover: Url.optional(),
+  durationMs: Duration.optional(),
+  /** This edition's own IDs, such as `{ asin: 'B002UZMLXM', isbn: '9781441709530' }`. */
+  externalIds: z.record(z.string(), z.string()).optional(),
+});
+export type Edition = z.infer<typeof Edition>;
+
 export const Meta = MetaPreview.extend({
   narrators: z.array(z.string()).optional(),
   /** Main series first. */
@@ -332,6 +358,11 @@ export const Meta = MetaPreview.extend({
   link: Url.optional(),
   /** A podcast's RSS feed. The app subscribes to it and reads it directly. */
   feed: Url.optional(),
+  /**
+   * Since revision 9: the work's editions, the one the meta describes first. At most 100. A list
+   * that does not fit is dropped, not the item: the item page works without it.
+   */
+  editions: z.array(Edition).max(100).optional().catch(undefined),
 });
 export type Meta = z.infer<typeof Meta>;
 
@@ -481,6 +512,13 @@ export const LibraryResponse = z.object({
    * Sealed like `query`, on the add-on's own hosts only.
    */
   webQuery: QueryParams.optional(),
+  /**
+   * Since revision 9: there are more files. The app asks `library` again with this value as
+   * `args.library.cursor` and adds the next page's files to these, up to 1,000 pages. `headers`,
+   * `query` and `webQuery` come from the first page. An app before revision 9 ignores it and
+   * keeps the first page, so put the most useful files there.
+   */
+  next: z.string().min(1).max(1024).optional(),
   cacheMaxAge: CacheMaxAge,
 });
 export type LibraryResponse = z.infer<typeof LibraryResponse>;
@@ -587,6 +625,12 @@ export const ScrobbleEvent = z.object({
   positionMs: Duration.optional(),
   /** Where this listening session started, for `progress`, `pause` and `finish`. */
   sessionStartMs: Duration.optional(),
+  /**
+   * Since revision 9, on `start`: the listener carries on with a book begun before, rather than
+   * starting it. A tracker that moves books to “Currently reading” can leave these alone, so
+   * listening again to the end of a finished book doesn't move it back.
+   */
+  resumed: z.boolean().optional(),
   /** For `rate`: 0.5 to 5 stars in steps of 0.5. */
   rating: z.number().min(0.5).max(5).multipleOf(0.5).optional(),
 });
@@ -690,7 +734,19 @@ export function offersLibrary(manifest: Manifest): boolean {
   return manifest.sandbox !== undefined && resourceNames(manifest.resources).includes('library');
 }
 
-/** Whether the add-on keeps the listener's places with its library's source (revision 6). */
+/**
+ * Whether the add-on is set up with its settings under Settings → Add-ons, its settings reaching
+ * every call (revision 9): inside the app, with `settings`, no `library`. A library add-on's
+ * settings belong to each server instead.
+ */
+export function setUpWithSettings(manifest: Manifest): boolean {
+  return (
+    manifest.sandbox !== undefined &&
+    (manifest.settings ?? []).length > 0 &&
+    !resourceNames(manifest.resources).includes('library')
+  );
+}
+
 /**
  * Whether the add-on is a scrobbler inside the app that is set up with its settings (revision 8):
  * `scrobble` and `settings`, no `library`.
@@ -705,6 +761,7 @@ export function scrobblesWithSettings(manifest: Manifest): boolean {
   );
 }
 
+/** Whether the add-on keeps the listener's places with its library's source (revision 6). */
 export function offersPlaces(manifest: Manifest): boolean {
   return offersLibrary(manifest) && resourceNames(manifest.resources).includes('place');
 }

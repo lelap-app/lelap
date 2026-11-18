@@ -13,7 +13,7 @@ import {
   LATEST_PROTOCOL_VERSION,
   needsConfiguration,
   protocolVersionOf,
-  scrobblesWithSettings,
+  setUpWithSettings,
 } from '@lelap/sdk';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -96,7 +96,7 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
   const newer = protocolVersionOf(addon.manifest) > LATEST_PROTOCOL_VERSION;
   // Settings sealed on another phone or for other code can't be opened here; events wait for them.
   const settingsAgain =
-    scrobblersWork && scrobblesWithSettings(addon.manifest) && scrobblerForm(addon.url).again;
+    scrobblersWork && setUpWithSettings(addon.manifest) && scrobblerForm(addon.url).again;
   return (
     <View className="gap-1 border-b border-line py-4">
       <View className="flex-row items-center gap-3">
@@ -114,7 +114,7 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
             <Text className="text-sm text-amber">{t('Configure')}</Text>
           </Pressable>
         )}
-        {scrobblesWithSettings(addon.manifest) && (
+        {setUpWithSettings(addon.manifest) && (
           <Pressable
             onPress={() => openScrobbler(router, addon.url)}
             accessibilityRole="button"

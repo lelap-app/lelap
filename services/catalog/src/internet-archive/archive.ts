@@ -223,6 +223,16 @@ function rank(file: ArchiveFile): number {
 
 export type AudioFile = StreamPart & { name: string; title: string };
 
+const BITRATE = /[ _.-]?(\d{2,3}) ?kb(?:ps)?(?=\.[^./]+$)/i;
+
+/** A file name without a bitrate before its extension: `ep01_128kb.mp3` → `ep01.mp3`. */
+export function stemOf(name: string): string {
+  return name.replace(BITRATE, '').toLowerCase();
+}
+
+/** The bitrate a name carries, such as 64 for `ep01_64kb.mp3`; lower streams better. */
+const kbOf = (name: string) => Number(BITRATE.exec(name)?.[1] ?? 1000);
+
 /**
  * One MP3 per recording, in play order. Each upload can have several MP3 copies (64 kb, VBR),
  * all pointing at the same `original`; series often mix bitrates, so pick per recording.
@@ -241,14 +251,22 @@ export function audioFiles(item: Item): AudioFile[] {
     return current;
   };
 
-  const best = new Map<ArchiveFile, ArchiveFile>();
+  // Keyed by the root's name without a bitrate, so `ep01_128kb.mp3` and `ep01_64kb.mp3`, uploaded
+  // apart, are one recording.
+  const best = new Map<string, [ArchiveFile, ArchiveFile]>();
   for (const file of item.files.filter(isMp3)) {
     const root = rootOf(file);
-    const chosen = best.get(root);
-    if (!chosen || rank(file) < rank(chosen)) best.set(root, file);
+    const key = stemOf(root.name);
+    const chosen = best.get(key)?.[1];
+    if (
+      !chosen ||
+      rank(file) < rank(chosen) ||
+      (rank(file) === rank(chosen) && kbOf(file.name) < kbOf(chosen.name))
+    )
+      best.set(key, [root, file]);
   }
 
-  const recordings = [...best.entries()];
+  const recordings = [...best.values()];
   const tracks = new Map(
     recordings.map(([root, file]) => [file, trackNumber(file.track) ?? trackNumber(root.track)]),
   );
@@ -286,17 +304,32 @@ export function titleFromName(name: string): string {
 }
 
 /**
- * The broadcast date old-time radio files carry in their names, `49-06-10` or `490610`, as
- * 19yy. Undefined when there is none or it is not a real date.
+ * The broadcast date old-time radio files carry in their names, `49-06-10` or `490610`.
+ * Undefined when there is none or it is not a real date. The century comes from `hints`: never
+ * after the upload (`before`), the nearest to the item's own `year`, else 19yy from 1920 (when
+ * radio began) and 20yy below that, so a recreation from 2005 isn't dated 1905.
  */
-export function airDateOf(name: string): Date | undefined {
+export function airDateOf(
+  name: string,
+  hints: { year?: number | undefined; before?: number | undefined } = {},
+): Date | undefined {
   const match =
     name.match(/(?:^|[^0-9])(\d{2})-(\d{2})-(\d{2})(?![0-9])/) ??
     name.match(/(?:^|[_ ])(\d{2})(\d{2})(\d{2})(?=[_ .])/);
   if (!match) return undefined;
   const [year, month, day] = [match[1], match[2], match[3]].map(Number) as [number, number, number];
-  const date = new Date(Date.UTC(1900 + year, month - 1, day, 12));
-  return date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? date : undefined;
+  const dates = [1900, 2000].flatMap((century) => {
+    const date = new Date(Date.UTC(century + year, month - 1, day, 12));
+    const real = date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+    const past = date.getTime() <= (hints.before ?? Date.now());
+    return real && past ? [date] : [];
+  });
+  const { year: near } = hints;
+  if (near)
+    return dates.sort(
+      (a, b) => Math.abs(a.getUTCFullYear() - near) - Math.abs(b.getUTCFullYear() - near),
+    )[0];
+  return dates.find((date) => date.getUTCFullYear() >= 1920) ?? dates[0];
 }
 
 const IGNORED_SUBJECTS = new Set(['old time radio', 'otr', 'radio', 'audio', 'audiobook']);
@@ -416,7 +449,11 @@ export function toFeed(item: Item, self: string): string | null {
   if (!name) return null;
   const { identifier } = item.metadata;
   const files = audioFiles(item);
-  const airDates = files.map((file) => airDateOf(file.name));
+  const hints = {
+    year: yearOf(item.metadata.year) ?? yearOf(item.metadata.date),
+    before: uploadedAt(item) || undefined,
+  };
+  const airDates = files.map((file) => airDateOf(file.name, hints));
   const dated = airDates.every((date) => date !== undefined);
   // Without an upload date, the start of 2000 keeps the order without dating episodes to 1970.
   const base = uploadedAt(item) || Date.UTC(2000, 0, 1);

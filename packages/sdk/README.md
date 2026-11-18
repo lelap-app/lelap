@@ -2,7 +2,7 @@
 
 Types, zod schemas and a request handler for [Lelap](https://github.com/lelap-app/lelap) add-ons.
 An add-on is a stateless HTTP service that answers with JSON: catalogs, metadata and audio sources
-for the Lelap player. The SDK speaks protocol v1, revision 7, so your code is a manifest and a
+for the Lelap player. The SDK speaks protocol v1, revision 9, so your code is a manifest and a
 handler for each resource.
 
 ```sh
@@ -39,7 +39,8 @@ export const addon = createAddon({
 
 `createAddon` routes `/manifest.json`, `/catalog/…`, `/meta/…` and `/stream/…`, adds CORS and
 caching headers, answers `OPTIONS`, and checks every answer against the protocol's schemas. Throw
-`AddonError(status, message)` for a JSON error; return `null` from `meta` for a 404.
+`AddonError(status, message)` for a JSON error, with `{ retryAfter }` in seconds to send
+`Retry-After`; return `null` from `meta` for a 404.
 
 ## What's inside
 
@@ -51,7 +52,8 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
   mounts several add-ons under one host.
 - **Settings and sign-in:** `createAddon({ configure: { fields, secret, check } })` serves a form at
   `/configure` and puts the listener's settings, encrypted, into the add-on's URL; handlers get them
-  as `config`. Nothing is stored on a server.
+  as `config`. Nothing is stored on a server. The pages say who runs them (“This page is run by
+  {host}, not by Lelap.”) and use `PAGE_STYLE`, the stylesheet Lelap's own configure pages share.
 - **Health:** every add-on answers `GET /health`; pass a `health` handler to report `degraded` or
   `down`.
 - **Matching files to works:** `createWorkIndex(entries)` indexes your files by ID, title and
@@ -66,6 +68,10 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
   headers: `WebStream` refuses them, and `createAddon` never serves them. Revision 6 adds
   `QueryParams` for a login the app adds to the address, a file's `downloadUrl` and `place`, and
   `PlaceReport` with `offersPlaces` for add-ons that save the listener's place on their server.
+- **Revision 9:** `Edition` for a meta's `editions`, which the item page lets the listener choose
+  from; `resumed` on a `start` that carries on with a book; `next` on a `LibraryResponse` for a
+  library in pages; and `setUpWithSettings`, for an add-on inside the app whose settings reach every
+  call.
 - **Paths:** `catalogPath`, `metaPath`, `streamPath`, `libraryPath`, `placePath`, `parseRoute`, `encodeExtra`,
   `parseExtra`.
 - **Helpers:** `supports`, `prefixesFor`, `hasParts`, `isConfigurable`, `needsConfiguration`,

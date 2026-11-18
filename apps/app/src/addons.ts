@@ -29,6 +29,7 @@ import { logAddonFailure } from './diagnostics';
 import { profileId } from './profile';
 import { playBook, useLibrary } from './player';
 import { callLocalAddon } from './sandbox';
+import { callWithSettings } from './scrobblers';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,11 +40,14 @@ export const queryClient = new QueryClient({
 /** What each add-on's requests did during this run, for Settings → Add-ons. Kept in memory only. */
 export const addonHealth = new HealthTracker(logAddonFailure);
 
-// Add-ons that run inside the app answer through their sandbox; all others over the network.
+// Add-ons that run inside the app answer through their sandbox; all others over the network. One
+// set up with settings (revision 9) gets them on every call.
 const route: Fetcher = async (url, init) => {
   const local = splitLocalUrl(url);
   if (!local) return fetch(url, init);
-  const { status, body } = await callLocalAddon(local.manifestUrl, local.path);
+  const { status, body } =
+    (await callWithSettings(local.manifestUrl, local.path)) ??
+    (await callLocalAddon(local.manifestUrl, local.path));
   return { ok: status >= 200 && status < 300, status, json: async () => body };
 };
 

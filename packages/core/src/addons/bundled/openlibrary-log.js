@@ -28,11 +28,24 @@ const ACCOUNT_ERRORS = {
   ia_account_not_verified: 'archive.org asks you to verify your account first.',
 };
 
-/** An error with the status the app's outbox reads: 401 asks to set up again, 5xx retries. */
-function failure(status, message) {
+/**
+ * An error with the status the app's outbox reads: 401 asks to set up again, 5xx retries.
+ * `retryAfter` (seconds) is how long Open Library asked to wait; the outbox waits at least that.
+ */
+function failure(status, message, retryAfter) {
   const error = new Error(message);
   error.status = status;
+  if (retryAfter) error.retryAfter = retryAfter;
   return error;
+}
+
+/** Seconds from a `Retry-After` header, in seconds or as a date; null when there is none. */
+function retryAfterOf(response) {
+  const value = (response.headers && response.headers.get('retry-after')) || '';
+  if (/^\d+$/.test(value.trim())) return Math.min(Number(value.trim()), 24 * 60 * 60);
+  const date = Date.parse(value);
+  if (Number.isNaN(date)) return null;
+  return Math.max(0, Math.min(Math.round((date - Date.now()) / 1000), 24 * 60 * 60));
 }
 
 /** The Open Library work an item is, from its `ol:` ID or its `ol` external ID; never guessed. */
@@ -45,7 +58,8 @@ function workOf(item) {
 
 /**
  * The shelf each work ends on: the last start or finish per work, oldest first. Progress, pauses,
- * abandons and ratings don't move a book on Open Library.
+ * abandons and ratings don't move a book on Open Library, nor does a start that carries on with a
+ * book begun before (`resumed`): the first start put it on the shelf, and a finished book stays read.
  */
 function shelvesFor(events) {
   const shelves = new Map();
@@ -53,6 +67,7 @@ function shelvesFor(events) {
   for (const event of sorted) {
     if (!event.item || event.item.type !== 'audiobook') continue;
     if (event.event !== 'start' && event.event !== 'finish') continue;
+    if (event.event === 'start' && event.resumed === true) continue;
     const work = workOf(event.item);
     if (!work) continue;
     shelves.set(work, event.event === 'finish' ? SHELF.alreadyRead : SHELF.currentlyReading);
@@ -76,8 +91,8 @@ function connection(settings) {
 
 const busy = (response) =>
   response.status === 429
-    ? failure(503, 'Open Library asks to slow down.')
-    : failure(502, `Open Library answered ${response.status}.`);
+    ? failure(503, 'Open Library asks to slow down.', retryAfterOf(response))
+    : failure(502, `Open Library answered ${response.status}.`, retryAfterOf(response));
 
 async function login(c) {
   // The JSON login takes S3 keys only; Open Library refuses passwords there.
@@ -157,7 +172,7 @@ addon({
     id: 'app.lelap.openlibrary-log',
     version: '1.0.0',
     protocol: 1,
-    protocolVersion: 8,
+    protocolVersion: 9,
     name: 'Open Library reading log',
     description:
       'Puts the books you start on Currently reading and the ones you finish on Already read in your Open Library reading log.',

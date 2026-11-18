@@ -21,7 +21,7 @@ const SESSION = '%2Fpeople%2Freader%2C2026-11-18T09%3A00%3A00%2C1a2b3%24c4d5e6f7
 
 type Init = { method?: string; headers?: Record<string, string>; body?: string };
 type Call = { url: string; method: string; headers: Record<string, string>; body: string };
-type Reply = { status: number; body?: string; setCookie?: string };
+type Reply = { status: number; body?: string; setCookie?: string; retryAfter?: string };
 type Handlers = { manifest: unknown; scrobble: (args: unknown) => Promise<unknown> };
 
 /**
@@ -83,7 +83,11 @@ function load(server: (call: Call) => Reply, hosts = ['openlibrary.org']) {
           status: reply.status,
           headers: {
             get: (name: string) =>
-              name.toLowerCase() === 'set-cookie' ? (reply.setCookie ?? null) : null,
+              name.toLowerCase() === 'set-cookie'
+                ? (reply.setCookie ?? null)
+                : name.toLowerCase() === 'retry-after'
+                  ? (reply.retryAfter ?? null)
+                  : null,
           },
           text: async () => reply.body ?? '',
         };
@@ -111,6 +115,12 @@ function load(server: (call: Call) => Reply, hosts = ['openlibrary.org']) {
     });
   return { run, calls, waits };
 }
+
+const failure = (promise: Promise<unknown>) =>
+  promise.then(
+    () => null,
+    (error: { status?: number; retryAfter?: number }) => error,
+  );
 
 const status = (promise: Promise<unknown>) =>
   promise.then(
@@ -187,6 +197,17 @@ describe('Open Library reading log', () => {
     const sent = JSON.stringify(calls);
     for (const leak of ['Walden', 'Thoreau', '1763370000', '600000', 'evt-', 'positionMs'])
       expect(sent).not.toContain(leak);
+  });
+
+  it('leaves a book where it is when the listener carries on with it', async () => {
+    const { run, calls } = load(openLibrary());
+    await run([event({ event: 'start', resumed: true })]);
+    expect(calls).toHaveLength(0);
+    await run([
+      event({ event: 'finish' }),
+      event({ event: 'start', resumed: true, at: Date.UTC(2026, 10, 18) }),
+    ]);
+    expect(shelfOf(shelves(calls)[0])).toBe('3');
   });
 
   it('does not sign in for progress, pauses, abandons or ratings', async () => {
@@ -277,6 +298,12 @@ describe('Open Library reading log', () => {
   it('retries later when Open Library is busy, and skips a work it refuses', async () => {
     const busy = load(openLibrary({ shelf: () => ({ status: 429 }) }));
     expect(await status(busy.run([event({ event: 'start' })]))).toBe(503);
+    // Its Retry-After goes on to the app's outbox.
+    const waiting = load(openLibrary({ shelf: () => ({ status: 429, retryAfter: '120' }) }));
+    expect(await failure(waiting.run([event({ event: 'start' })]))).toMatchObject({
+      status: 503,
+      retryAfter: 120,
+    });
 
     const picky = load(
       openLibrary({

@@ -1,4 +1,4 @@
-import type { Manifest, Settings } from '@lelap/sdk';
+import { type Manifest, settingHosts, type Settings } from '@lelap/sdk';
 import { eq } from 'drizzle-orm';
 
 import type { Db } from '../db';
@@ -103,8 +103,8 @@ export function removeAddonSettings(db: Db, url: string): void {
 }
 
 /**
- * What a scrobbler's sandbox gets: the hosts in its manifest and its settings, plus `client` (the
- * User-Agent to send). `server` is a development build's stand-in for the add-on's service; only
+ * What a scrobbler's sandbox gets: the hosts in its manifest and those of its `url` settings marked
+ * `host`, and its settings, plus `client` (the User-Agent to send). `server` is a development build's stand-in for the add-on's service; only
  * then does the sandbox reach one more host, the stand-in's, with its port.
  */
 export function scrobblerCall(
@@ -112,7 +112,10 @@ export function scrobblerCall(
   settings: Settings,
   extra: { client: string; server?: string | null },
 ): { hosts: string[]; settings: Settings } {
-  const hosts = [...(manifest.sandbox?.hosts ?? [])];
+  const hosts = [
+    ...(manifest.sandbox?.hosts ?? []),
+    ...settingHosts(manifest.settings ?? [], settings),
+  ];
   const out: Settings = { ...settings, client: extra.client };
   if (extra.server) {
     try {

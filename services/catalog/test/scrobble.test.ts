@@ -317,6 +317,30 @@ describe('Hardcover', () => {
     expect(state.read).toMatchObject({ finished_at: '2026-11-18', progress_seconds: 3600 });
   });
 
+  it('leaves a read book read when the listener carries on, and reads it again on a fresh start', async () => {
+    const { fetch, state } = hardcover();
+    const app = appWith(fetch);
+    const { url } = await configure(app, '/hardcover', { token: TOKEN });
+    const item = {
+      type: 'audiobook' as const,
+      name: 'Walden',
+      externalIds: { isbn: '9780141036144' },
+    };
+    await post(app, url, [event({ event: 'finish', item, positionMs: 3_600_000 })]);
+    expect(state.userBook?.status_id).toBe(3);
+    const updates = state.updates.length;
+    await post(app, url, [
+      event({ event: 'start', item, resumed: true, at: Date.UTC(2026, 10, 18) }),
+    ]);
+    await post(app, url, [event({ event: 'progress', item, at: Date.UTC(2026, 10, 18, 1) })]);
+    expect(state.userBook?.status_id).toBe(3);
+    expect(state.updates.length).toBe(updates);
+    await post(app, url, [
+      event({ event: 'start', item, positionMs: 0, at: Date.UTC(2026, 10, 19) }),
+    ]);
+    expect(state.userBook?.status_id).toBe(2);
+  });
+
   it('finds a book by title when it has no ISBN, and rates it', async () => {
     const { fetch, state } = hardcover();
     const app = appWith(fetch);
@@ -342,7 +366,13 @@ describe('Hardcover', () => {
       event({ event: 'start', item, at: 1 }),
       event({ event: 'rate', item, at: 2, rating: 3 }),
     ]);
-    expect(kept.map((e) => e.event).sort()).toEqual(['pause', 'rate']);
+    // A fresh start then a pause stays a start, so a read book is read again.
+    expect(kept.map((e) => e.event).sort()).toEqual(['rate', 'start']);
+    const resumed = latestPerItem([
+      event({ event: 'start', item, at: 1, resumed: true }),
+      event({ event: 'pause', item, at: 2 }),
+    ]);
+    expect(resumed.map((e) => e.event)).toEqual(['pause']);
   });
 
   it('reads Typesense hits as text or JSON', () => {

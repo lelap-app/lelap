@@ -45,6 +45,14 @@ function codesOf(body: { error?: unknown; errors?: unknown } | null): unknown[] 
   ].filter(Boolean);
 }
 
+/** Seconds from a `Retry-After` header (seconds or a date), at most a day; null without one. */
+export function retryAfter(value: string | null, now = Date.now()): number | null {
+  const text = (value ?? '').trim();
+  if (/^\d+$/.test(text)) return Math.min(Number(text), 86_400);
+  const at = Date.parse(text);
+  return Number.isNaN(at) ? null : Math.max(0, Math.min(Math.round((at - now) / 1000), 86_400));
+}
+
 /** Hardcover's answer to a refused request as an `AddonError`; 401 means “set up again”. */
 async function failure(response: Response): Promise<AddonError> {
   const { status } = response;
@@ -69,8 +77,11 @@ async function failure(response: Response): Promise<AddonError> {
     return refused();
   }
   if (status === 408) return new AddonError(504, 'Hardcover took too long to answer');
-  if (status === 429) return new AddonError(503, 'Hardcover asks to slow down');
-  if (status === 503) return new AddonError(503, 'Hardcover is briefly unavailable');
+  // Hardcover's wait goes on to the app, whose outbox then waits at least as long.
+  const wait = retryAfter(response.headers.get('Retry-After'));
+  const later = wait === null ? {} : { retryAfter: wait };
+  if (status === 429) return new AddonError(503, 'Hardcover asks to slow down', later);
+  if (status === 503) return new AddonError(503, 'Hardcover is briefly unavailable', later);
   return new AddonError(502, `Hardcover answered ${status}`);
 }
 
@@ -115,9 +126,25 @@ export type TokenCache = <T>(what: string, ttl: number, load: () => Promise<T>) 
 
 const encoder = new TextEncoder();
 
-async function sha256(text: string): Promise<string> {
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(text)));
-  return [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
+const hex = (bytes: ArrayBuffer) =>
+  [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+/**
+ * The cache's name for a token: an HMAC keyed with the server's `CONFIG_SECRET`, so a key can't be
+ * read back as a token, and a guessed token can't be checked against a key without the secret.
+ * Without a secret the add-on can't be configured; a plain hash then keeps the cache working.
+ */
+export async function cacheOwner(token: string, secret?: string): Promise<string> {
+  const text = encoder.encode(`lelap hardcover cache v2\n${token}`);
+  if (!secret) return hex(await crypto.subtle.digest('SHA-256', text));
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  return hex(await crypto.subtle.sign('HMAC', key, text));
 }
 
 /** A small cache in memory, for a server without the Workers Cache API (Docker). */
@@ -149,11 +176,11 @@ export function memoryCache(limit = 500): ResponseCache {
 }
 
 /**
- * Answers keyed on a hash of the token, never the token itself, so a cache key can't be read
- * back as a token and one listener's private lists are never another's answer.
+ * Answers keyed on an HMAC of the token (`cacheOwner`), never the token itself, so one listener's
+ * private lists are never another's answer.
  */
-export function tokenCache(cache: ResponseCache, token: string): TokenCache {
-  const owner = sha256(`lelap hardcover cache v1\n${token}`);
+export function tokenCache(cache: ResponseCache, token: string, secret?: string): TokenCache {
+  const owner = cacheOwner(token, secret);
   return async (what, ttl, load) => {
     const key = `${HARDCOVER_API}?owner=${await owner}&what=${encodeURIComponent(what)}`;
     const hit = await cache.match(key).catch(() => undefined);

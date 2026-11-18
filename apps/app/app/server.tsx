@@ -409,6 +409,8 @@ export default function ServerScreen() {
         manifest: chosen.manifest,
         sandboxId,
         settings: read.settings,
+        // The first page is enough to check the login; the scan lists the rest.
+        maxPages: 1,
       });
       const remote = addonSource({
         addonUrl: chosen.url,

@@ -83,8 +83,38 @@ function cleanChapters(list: z.infer<typeof ChapterList>['chapters'], durationMs
   return ordered ? chapters : [];
 }
 
+/** Audible stores Audnexus can ask; `us` is its default. */
+export const REGIONS = ['us', 'uk', 'au', 'ca', 'in', 'de', 'fr', 'it', 'es', 'jp'] as const;
+export type Region = (typeof REGIONS)[number];
+
+/**
+ * Where to look for an ASIN, from its edition's language (ISO 639-2 as Open Library gives it, or
+ * BCP 47): English in the English-speaking stores, others in their own, else the US and UK.
+ */
+export function regionsFor(language: string | undefined): Region[] {
+  const code = (language ?? '').toLowerCase().split('-')[0] ?? '';
+  const byLanguage: Record<string, Region[]> = {
+    eng: ['us', 'uk', 'au', 'ca', 'in'],
+    en: ['us', 'uk', 'au', 'ca', 'in'],
+    ger: ['de'],
+    deu: ['de'],
+    de: ['de'],
+    fre: ['fr', 'ca'],
+    fra: ['fr', 'ca'],
+    fr: ['fr', 'ca'],
+    ita: ['it'],
+    it: ['it'],
+    spa: ['es', 'us'],
+    es: ['es', 'us'],
+    jpn: ['jp'],
+    ja: ['jp'],
+  };
+  return byLanguage[code] ?? ['us', 'uk'];
+}
+
 export type Audnexus = {
-  details: (asin: string) => Promise<Details>;
+  /** Asks each region in turn until one has the ASIN; `us` alone by default. */
+  details: (asin: string, regions?: readonly Region[]) => Promise<Details>;
   /** Adds narrators, series, length and chapters to a meta with an ASIN; never throws. */
   enrich: (meta: Meta) => Promise<{ meta: Meta; failed: boolean }>;
   /** A whole meta for an `asin:` ID. */
@@ -106,14 +136,25 @@ export function createAudnexus(upstream: Upstream): Audnexus {
     }
   };
 
-  const details = async (asin: string): Promise<Details> => {
+  const details = async (asin: string, regions: readonly Region[] = ['us']): Promise<Details> => {
+    let found: Details = { status: 'missing' };
+    for (const region of regions) {
+      found = await inRegion(asin, region);
+      if (found.status !== 'missing') return found;
+    }
+    return found;
+  };
+
+  const inRegion = async (asin: string, region: Region): Promise<Details> => {
     if (!ASIN.test(asin) || upstream.now() < pausedUntil) {
       return { status: ASIN.test(asin) ? 'failed' : 'missing' };
     }
     const base = `${AUDNEXUS}/books/${asin}`;
+    // `us` is Audnexus's default; leaving it out keeps the cache keys from before regions.
+    const query = region === 'us' ? '' : `?region=${region}`;
     const [bookResult, chaptersResult] = await Promise.allSettled([
-      get(base),
-      get(`${base}/chapters`),
+      get(`${base}${query}`),
+      get(`${base}/chapters${query}`),
     ]);
     if (bookResult.status === 'rejected' && chaptersResult.status === 'rejected')
       return { status: 'failed' };
@@ -143,7 +184,8 @@ export function createAudnexus(upstream: Upstream): Audnexus {
     async enrich(meta) {
       const asin = meta.externalIds?.asin;
       if (!asin) return { meta, failed: false };
-      const found = await details(asin);
+      const edition = meta.editions?.find((e) => e.externalIds?.asin === asin);
+      const found = await details(asin, regionsFor(edition?.language ?? meta.language));
       if (found.status !== 'ok') return { meta, failed: found.status === 'failed' };
       const enriched: Meta = { ...meta };
       const narrators = found.book ? names(found.book.narrators) : [];
@@ -160,7 +202,7 @@ export function createAudnexus(upstream: Upstream): Audnexus {
     async meta(id) {
       const asin = asinOf(id);
       if (!asin) return { meta: null, failed: false };
-      const found = await details(asin);
+      const found = await details(asin, regionsFor(undefined));
       if (found.status !== 'ok' || !found.book)
         return { meta: null, failed: found.status === 'failed' };
       const { book } = found;

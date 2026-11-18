@@ -14,6 +14,7 @@ import {
   settings,
 } from '../schema';
 import { type Fetcher, fetchManifest, type InstalledAddon } from './client';
+import { pruneStreamHeaders } from './streamHeaders';
 
 /** Installed add-ons in the user's order. Rows whose stored manifest no longer parses are skipped. */
 export function listAddons(db: Db): InstalledAddon[] {
@@ -187,6 +188,12 @@ export async function syncAddons(
     ...defaults.filter((url) => !removed.has(url) && !builtin.has(url)),
     ...installed.map((a) => a.url),
   ];
+  // Run on every start, so rows a device left behind with foreign keys off don't stay.
+  try {
+    pruneStreamHeaders(db);
+  } catch {
+    // Tidying only: the add-ons still sync.
+  }
   const failed: string[] = [];
   // In order, so defaults keep their configured order on first start.
   for (const url of urls) {

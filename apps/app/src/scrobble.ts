@@ -15,6 +15,7 @@ import {
   toBookPosition,
   type TrackedEvent,
 } from '@lelap/core';
+import { wantsScrobble } from '@lelap/sdk';
 
 import { db, newId } from './db';
 import * as audio from './platform/audio';
@@ -79,6 +80,31 @@ export function trackPlayerState(state: audio.PlayerState, profile: string): voi
 export function trackFinished(bookId: string, at: number, profile: string): void {
   const durationMs = getBook(db, profile, bookId)?.book.durationMs ?? 0;
   enqueue([tracker.finished(bookId, at, durationMs)], profile);
+}
+
+/**
+ * “Mark as finished” in a book's menu: the add-ons hear `finish`, as when the player reaches the
+ * end, so a reading log moves the book to read.
+ */
+export function trackMarkedFinished(bookId: string, profile: string): void {
+  const durationMs = getBook(db, profile, bookId)?.book.durationMs ?? 0;
+  enqueue([{ event: 'finish', bookId, at: Date.now(), positionMs: durationMs }], profile);
+}
+
+/** “Stop reading” in a book's menu: the add-ons hear `abandon`, such as Did not finish. */
+export function trackAbandoned(bookId: string, profile: string): void {
+  const positionMs = getBook(db, profile, bookId)?.book.bookPositionMs ?? 0;
+  enqueue([{ event: 'abandon', bookId, at: Date.now(), positionMs }], profile);
+}
+
+/** Whether any add-on this profile sees hears about this book, so a menu can offer Stop reading. */
+export function scrobblesFor(bookId: string, profile: string): boolean {
+  const tracked = { event: 'abandon' as const, bookId, at: Date.now(), positionMs: 0 };
+  const event = scrobbleEventFor(db, tracked);
+  return (
+    event !== null &&
+    addonsFor(profile).some((a) => wantsScrobble(a.manifest, event.item.type, event.item.id))
+  );
 }
 
 let folding: Promise<boolean> | null = null;
