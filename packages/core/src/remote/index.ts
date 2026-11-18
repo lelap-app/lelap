@@ -59,7 +59,19 @@ export {
   listAudiobookshelfLibraries,
   reportAudiobookshelfProgress,
 } from './audiobookshelf';
-export { applyRemotePlaces, setRemoteCovers } from './places';
+export { applyRemotePlaces, setRemoteCovers, setServerChapters } from './places';
+export {
+  duePlaces,
+  forgetPlaces,
+  nextPlaceDue,
+  type PendingPlace,
+  placeDone,
+  placeFailed,
+  placeOwner,
+  placeToSend,
+  queuePlace,
+  startsBeforePlace,
+} from './outbox';
 export {
   type AddonLogin,
   type AddonScan,

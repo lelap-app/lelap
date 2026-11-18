@@ -50,6 +50,17 @@ class DownloadJobTest {
     assertNull(DownloadJob.decode(job.copy(bookId = "..").encode()))
   }
 
+  @Test fun `drops the login once done, unless the book was started again`() {
+    val dir = java.nio.file.Files.createTempDirectory("job").toFile()
+    val withLogin = job.copy(headers = mapOf("X-Lelap-Netfs" to "secret"), revision = "r2")
+    Downloads.writeJob(dir, withLogin)
+    Downloads.dropLogin(dir, "r1")
+    assertEquals(withLogin, Downloads.readJob(dir))
+    Downloads.dropLogin(dir, "r2")
+    assertEquals(withLogin.copy(headers = emptyMap()), Downloads.readJob(dir))
+    dir.deleteRecursively()
+  }
+
   @Test fun `refuses duplicate names, empty jobs and broken JSON`() {
     val twice = job.copy(files = listOf(job.files[0], job.files[0]))
     assertNull(DownloadJob.decode(twice.encode()))

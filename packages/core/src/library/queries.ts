@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, type SQL } from 'dr
 
 import type { Db } from '../db';
 import {
+  bookFiles,
   books,
   chapters,
   downloads,
@@ -169,6 +170,10 @@ export type BookDetail = {
   /** The chapters were found from silences on this device, and the listener may remove them. */
   foundChapters: boolean;
   speed: number;
+  /** From the first file's tags: a narrator tag, or what a server says (M65). */
+  narrator: string | null;
+  /** The book's series as a server names it, such as `Dune #1` (M65). */
+  series: string | null;
 };
 
 export function getBook(db: Db, profileId: string, bookId: string): BookDetail | null {
@@ -186,12 +191,23 @@ export function getBook(db: Db, profileId: string, bookId: string): BookDetail |
     .where(eq(chapters.bookId, bookId))
     .orderBy(asc(chapters.idx))
     .all();
+  const first = db
+    .select({ kindTags: bookFiles.kindTags })
+    .from(bookFiles)
+    .where(and(eq(bookFiles.bookId, bookId), isNull(bookFiles.missingSince)))
+    .orderBy(asc(bookFiles.idx))
+    .limit(1)
+    .get();
+  // A song's composer is no narrator.
+  const music = first?.kindTags?.mediaKind === 'music';
   return {
     book,
     files: presentFiles(db, bookId),
     chapters: list.map(({ title, startMs }) => ({ title, startMs })),
     foundChapters: list.length > 0 && list.every((c) => c.found),
     speed: entry?.speed ?? 1,
+    narrator: (!music && first?.kindTags?.narrator?.trim()) || null,
+    series: first?.kindTags?.series?.trim() || null,
   };
 }
 

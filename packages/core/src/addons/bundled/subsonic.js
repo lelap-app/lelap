@@ -35,7 +35,13 @@ const BY_TYPE = {
 // What this server's sandbox learnt on its last listing: which songs have a bookmark, and whether
 // the server takes form posts. Each server has a sandbox of its own, so nothing here is shared.
 let known = new Set();
+// Whether `known` came from the server since this sandbox started.
+let marksRead = false;
 const formPost = new Map();
+// How far the server's clock runs ahead of the phone's, from its answers' Date header; bookmark
+// times are the server's, places are compared with the phone's.
+let skew = 0;
+const SKEW_MIN_MS = 60_000;
 
 // MD5 (RFC 1321), which the Subsonic token needs; a worker has no MD5 of its own.
 const K = Array.from({ length: 64 }, (_, i) => Math.floor(Math.abs(Math.sin(i + 1)) * 2 ** 32));
@@ -143,6 +149,12 @@ function problem(error) {
 // Errors name the problem, never an address: an address could carry the token.
 async function answer(response) {
   if (!response.ok) throw new Error(`The server answered HTTP ${response.status}.`);
+  const date = Date.parse((response.headers && response.headers.get('date')) || '');
+  if (Number.isFinite(date)) {
+    // The header counts whole seconds; a small difference is left alone.
+    const ahead = date - Date.now();
+    skew = Math.abs(ahead) >= SKEW_MIN_MS ? ahead : 0;
+  }
   let body;
   try {
     body = JSON.parse(await response.text());
@@ -252,7 +264,8 @@ async function bookmarks(s) {
     const marks = new Map();
     for (const mark of list(reply.bookmarks && reply.bookmarks.bookmark)) {
       const id = mark && mark.entry && mark.entry.id;
-      const at = Date.parse(mark.changed || mark.created || '');
+      // In the phone's time, so a server clock running ahead doesn't make an old bookmark win.
+      const at = Date.parse(mark.changed || mark.created || '') - skew;
       const position = Math.round(Number(mark.position));
       if (!id || !Number.isFinite(at) || at < 0 || !(position >= 0)) continue;
       marks.set(String(id), { positionMs: position, at });
@@ -404,7 +417,10 @@ async function library(settings) {
   const songs = genre ? await songsByGenre(s, genre, folder) : await songsInFolder(s, folder);
   const marks = await bookmarks(s);
   // Without an answer, the bookmarks known from before stay known.
-  if (marks) known = new Set(marks.keys());
+  if (marks) {
+    known = new Set(marks.keys());
+    marksRead = true;
+  }
   return { files: filesOf(s, songs, marks || new Map()), query: login(s) };
 }
 
@@ -425,6 +441,14 @@ async function place(settings, report) {
   if (!formPost.has(s.base)) {
     s.formPost = (await extensions(s)).has('formPost');
     formPost.set(s.base, s.formPost);
+  }
+  // It also reads which songs have a bookmark, so the book's older ones are tidied now.
+  if (!marksRead) {
+    const marks = await bookmarks(s);
+    if (marks) {
+      known = new Set(marks.keys());
+      marksRead = true;
+    }
   }
   if (report.finished) {
     // Some servers answer an error when there was no bookmark; the others are tidied anyway.

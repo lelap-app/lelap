@@ -3,9 +3,9 @@ import { z } from 'zod';
 
 import type { FileTags, ListedFile } from '../library/scan';
 import { isAudioFile } from '../library/files';
-import type { RemoteSource, StoredChapter } from '../schema';
+import type { KindTags, RemoteSource, StoredChapter } from '../schema';
 import { failure, type Fetch, RemoteError } from './http';
-import type { RemotePlace } from './jellyfin';
+import { lastSegment, type RemotePlace } from './jellyfin';
 
 /**
  * An Audiobookshelf server used as a library, signed in with an API key (Audiobookshelf 2.26 and
@@ -258,6 +258,8 @@ export type AudiobookshelfScan = {
   /** Cover image URLs by the book's location. */
   covers: Map<string, string>;
   places: RemotePlace[];
+  /** The whole book's chapters, by the location of a book of several files (`setServerChapters`). */
+  chapters: Map<string, StoredChapter[]>;
 };
 
 type Part = { location: string; startMs: number; durationMs: number };
@@ -316,6 +318,7 @@ export function audiobookshelfScan(
   const listed: ListedFile[] = [];
   const tags = new Map<string, FileTags>();
   const covers = new Map<string, string>();
+  const chapters = new Map<string, StoredChapter[]>();
   const partsOf = new Map<string, Part[]>();
 
   for (const item of items) {
@@ -323,10 +326,24 @@ export function audiobookshelfScan(
     if (item.isMissing || tracks.length === 0) continue;
     const meta = item.media.metadata;
     const itemId = encodeURIComponent(item.id);
+    // Without a title the book is named after its folder on the server, not its item ID.
+    const title = meta?.title?.trim() || lastSegment(item.path) || null;
     const bookChapters = (item.media.chapters ?? []).map((c, i) => ({
       title: c.title?.trim() || `Chapter ${i + 1}`,
       startMs: ms(c.start),
     }));
+    if (tracks.length > 1 && bookChapters.length > 0) {
+      chapters.set(`${root}/${item.id}`, bookChapters);
+    }
+    const kindTags: KindTags = {
+      genre: null,
+      isrc: null,
+      track: null,
+      year: null,
+      narrator: meta?.narratorName?.trim() || null,
+      mediaKind: 'audiobook',
+      series: meta?.seriesName?.trim() || null,
+    };
     const parts: Part[] = [];
     let offset = 0;
     tracks.forEach((track, i) => {
@@ -334,9 +351,11 @@ export function audiobookshelfScan(
       const durationMs = ms(track.duration);
       offset = startMs + durationMs;
       const file = track.metadata?.filename ?? track.title ?? `${track.ino}`;
-      const name = isAudioFile(file)
-        ? file
-        : `${file}.${track.metadata?.ext?.replace('.', '') || 'mp3'}`;
+      const ext = track.metadata?.ext?.replace('.', '') || 'mp3';
+      const withExt = isAudioFile(file) || file.endsWith(`.${ext}`) ? file : `${file}.${ext}`;
+      // Audiobookshelf lists only audio; an extension Lelap doesn't know would drop the track,
+      // while the player reads the format from the file itself.
+      const name = isAudioFile(withExt) ? withExt : `${withExt}.mp3`;
       const location = `${root}/${item.id}/${track.ino}`;
       parts.push({ location, startMs, durationMs });
       listed.push({
@@ -349,18 +368,19 @@ export function audiobookshelfScan(
       });
       // A one-file book keeps every chapter. In a book of several files, chapters inside a file
       // would split it into a book per file, so each file is a chapter named after the one it
-      // starts in.
+      // starts in, and `setServerChapters` puts the whole book's chapters on it after the scan.
       const own: StoredChapter[] = tracks.length === 1 ? bookChapters : [];
       const startsIn = [...bookChapters].reverse().find((c) => c.startMs <= startMs + 1000);
       tags.set(location, {
         durationMs,
-        title: tracks.length === 1 ? (meta?.title ?? null) : (startsIn?.title ?? null),
-        album: meta?.title ?? null,
+        title: tracks.length === 1 ? title : (startsIn?.title ?? null),
+        album: title,
         artist: null,
         albumArtist: meta?.authorName || null,
         coverPath: null,
         chapters: own,
         ids: idsFromTags({ isbn: meta?.isbn, asin: meta?.asin }),
+        kindTags,
       });
     });
     partsOf.set(item.id, parts);
@@ -372,7 +392,7 @@ export function audiobookshelfScan(
     const parts = !p.episodeId ? partsOf.get(p.libraryItemId) : undefined;
     return parts ? placesOf(p, parts) : [];
   });
-  return { listed, tags, covers, places };
+  return { listed, tags, covers, places, chapters };
 }
 
 /**

@@ -1,10 +1,18 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import type { Db } from '../db';
+import type { IdGenerator } from '../ids';
 import { presentFiles } from '../library/bookFiles';
 import { setFinished } from '../library/queries';
 import { saveProgress } from '../progress';
-import { bookFiles, books, libraryEntries, progress } from '../schema';
+import {
+  bookFiles,
+  books,
+  chapters,
+  libraryEntries,
+  progress,
+  type StoredChapter,
+} from '../schema';
 import type { RemotePlace } from './jellyfin';
 
 /** Sets the cover address of a server's books, by book location; books with a saved cover keep it. */
@@ -25,6 +33,61 @@ export function setRemoteCovers(
     if (!url || url === row.coverUrl) continue;
     db.update(books).set({ coverUrl: url, updatedAt: now }).where(eq(books.id, row.id)).run();
   }
+}
+
+/**
+ * Gives a server's books the chapters the server keeps for the whole book, by book location, such
+ * as Audiobookshelf's for a book of several files (M65): the files carry none of their own, so a
+ * scan makes one chapter of each. Chapters found from silences give way too. Returns how many
+ * books changed.
+ */
+export function setServerChapters(
+  db: Db,
+  rootId: string,
+  list: Map<string, StoredChapter[]>,
+  now: number,
+  newId: IdGenerator,
+): number {
+  if (list.size === 0) return 0;
+  const rows = db
+    .select({ id: books.id, location: books.location })
+    .from(books)
+    .where(and(eq(books.rootId, rootId), inArray(books.location, [...list.keys()])))
+    .all();
+  let changed = 0;
+  for (const row of rows) {
+    const wanted = list.get(row.location) ?? [];
+    if (wanted.length === 0) continue;
+    const stored = db
+      .select({ title: chapters.title, startMs: chapters.startMs, found: chapters.found })
+      .from(chapters)
+      .where(eq(chapters.bookId, row.id))
+      .orderBy(asc(chapters.idx))
+      .all();
+    const same =
+      stored.length === wanted.length &&
+      stored.every(
+        (c, i) => !c.found && c.title === wanted[i]?.title && c.startMs === wanted[i]?.startMs,
+      );
+    if (same) continue;
+    db.transaction((tx) => {
+      tx.delete(chapters).where(eq(chapters.bookId, row.id)).run();
+      tx.insert(chapters)
+        .values(
+          wanted.map((c, idx) => ({
+            id: newId(),
+            bookId: row.id,
+            idx,
+            title: c.title,
+            startMs: c.startMs,
+            updatedAt: now,
+          })),
+        )
+        .run();
+    });
+    changed++;
+  }
+  return changed;
 }
 
 /**

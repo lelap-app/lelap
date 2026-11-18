@@ -20,7 +20,7 @@ import { bundledAddon, bundledAddons } from './index';
 
 const dir = new URL('./', import.meta.url);
 
-type Reply = { status: number; body: string; type?: string };
+type Reply = { status: number; body: string; type?: string; date?: string };
 type Init = { method?: string; headers?: Record<string, string>; body?: string };
 type Handlers = {
   manifest: unknown;
@@ -53,7 +53,10 @@ function load(
         return {
           ok: reply.status >= 200 && reply.status < 300,
           status: reply.status,
-          headers: { get: () => reply.type ?? 'text/html' },
+          headers: {
+            get: (name: string) =>
+              name.toLowerCase() === 'date' ? (reply.date ?? null) : (reply.type ?? 'text/html'),
+          },
           text: async () => reply.body,
         };
       },
@@ -219,11 +222,20 @@ describe('Subsonic', () => {
   type Call = { method: string; params: URLSearchParams; post: boolean; url: string };
 
   /** A Subsonic server from the recorded answers, checking every token it gets. */
-  function navidrome(options: { openSubsonic?: boolean; password?: string } = {}) {
+  function navidrome(
+    options: { openSubsonic?: boolean; password?: string; clockAheadMs?: number } = {},
+  ) {
     const calls: Call[] = [];
     const salts = new Set<string>();
     const bookmarks = new Map<string, number>();
-    const json = (body: string): Reply => ({ status: 200, type: 'application/json', body });
+    const json = (body: string): Reply => ({
+      status: 200,
+      type: 'application/json',
+      body,
+      ...(options.clockAheadMs === undefined
+        ? {}
+        : { date: new Date(Date.now() + options.clockAheadMs).toUTCString() }),
+    });
     const server = (url: string, _headers: Record<string, string>, init: Init): Reply => {
       const address = new URL(url);
       const method = address.pathname.replace(/^.*\/rest\//, '');
@@ -411,6 +423,43 @@ describe('Subsonic', () => {
     expect(saved?.url).not.toContain('?');
     expect([...nd.bookmarks]).toEqual([['6OBZNgINrkxkmI2U4zOkfC', 700]]);
   });
+
+  it('tidies the book’s older bookmarks in a sandbox that never listed the library', async () => {
+    const nd = navidrome();
+    const stream = (id: string) =>
+      `http://nas.local:4533/rest/stream?id=${id}&format=raw&v=1.16.1&c=lelap`;
+    const book = [
+      {
+        path: 'Ada Writer/The Quiet Town/001 Chapter 1.mp3',
+        url: stream('6OBZNgINrkxkmI2U4zOkfC'),
+      },
+      {
+        path: 'Ada Writer/The Quiet Town/002 Chapter 2.mp3',
+        url: stream('4u80kfxwui4N7DyyzPd2G1'),
+      },
+    ];
+    await run(login, nd.server).place({
+      file: book[0],
+      files: book,
+      positionMs: 700,
+      at: 5,
+      finished: false,
+    });
+    const deleted = nd.calls.filter((c) => c.method === 'deleteBookmark');
+    expect(deleted.map((c) => c.params.get('id'))).toEqual(['4u80kfxwui4N7DyyzPd2G1']);
+  });
+
+  it('puts bookmark times on the phone’s clock when the server’s runs ahead', async () => {
+    const hour = 60 * 60 * 1000;
+    const result = await run(login, navidrome({ clockAheadMs: hour }).server).list();
+    const at = result.files[1]?.place?.at ?? 0;
+    // The Date header counts whole seconds.
+    expect(Math.abs(at - (Date.parse('2026-11-18T01:39:08.863180346Z') - hour))).toBeLessThan(
+      2_000,
+    );
+    const close = await run(login, navidrome({ clockAheadMs: 20_000 }).server).list();
+    expect(close.files[1]?.place?.at).toBe(Date.parse('2026-11-18T01:39:08.863180346Z'));
+  });
 });
 
 // Answers recorded from Emby Server 4.10.2 in Docker, with an “Audiobooks” library (two books
@@ -428,10 +477,16 @@ describe('Emby', () => {
   type Call = { method: string; path: string; url: string; headers: Record<string, string> };
 
   /** An Emby server from the recorded answers, checking the login on every call. */
-  function server(options: { password?: string } = {}) {
+  function server(options: { password?: string; nameOrderSkips?: string } = {}) {
     const calls: Call[] = [];
     const saved = new Map<string, unknown>();
     const json = (body: string): Reply => ({ status: 200, type: 'application/json', body });
+    // A listing by name that lost an item between pages, with the count Emby gave.
+    const skipping = (body: string): string => {
+      const all = JSON.parse(body) as { Items: { Id: string }[]; TotalRecordCount: number };
+      const Items = all.Items.filter((i) => i.Id !== options.nameOrderSkips);
+      return JSON.stringify({ ...all, Items: [...Items, Items[0]] });
+    };
     const answer = (url: string, headers: Record<string, string>, init: Init): Reply => {
       const address = new URL(url);
       const path = address.pathname.replace(/^\/emby/, '');
@@ -450,7 +505,8 @@ describe('Emby', () => {
       if (path === '/Users' && token === API_KEY) return json(emby('Users'));
       if (path === `/Users/${USER}/Views`) return json(emby('Views'));
       if (path === `/Users/${USER}/Items` && address.searchParams.get('ParentId') === '3') {
-        return json(emby('Items-3'));
+        const byName = address.searchParams.get('SortBy') === 'SortName';
+        return json(byName && options.nameOrderSkips ? skipping(emby('Items-3')) : emby('Items-3'));
       }
       if (path === `/Users/${USER}/Items` && address.searchParams.has('Ids')) {
         return json(emby('Items-folders'));
@@ -482,6 +538,23 @@ describe('Emby', () => {
     user: 'lelap',
     password: 'test-pass',
   };
+
+  it('lists again in the order items were added when a page by name lost one', async () => {
+    const skips = server({ nameOrderSkips: '10' });
+    const result = await run(login, skips.answer).list();
+    expect(result.files.map((f) => f.path)).toContain(
+      'Frances Hodgson Burnett/The Secret Garden/002 Chapter 2.mp3',
+    );
+    const listings = skips.calls.filter((c) => new URL(c.url).searchParams.get('ParentId'));
+    expect(listings.map((c) => new URL(c.url).searchParams.get('SortBy'))).toEqual([
+      'SortName',
+      'DateCreated,SortName',
+    ]);
+    // A complete listing is asked for once.
+    const whole = server();
+    await run(login, whole.answer).list();
+    expect(whole.calls.filter((c) => new URL(c.url).searchParams.get('ParentId'))).toHaveLength(1);
+  });
 
   it('lists audiobook libraries as books, with the token as a header and for the browser', async () => {
     const recorded = server();
@@ -628,7 +701,13 @@ describe('Plex', () => {
 
   /** plex.tv and the server from the hand-written answers; `home` false: away from home. */
   function world(
-    options: { approved?: boolean; home?: boolean; machine?: string; plexTv?: boolean } = {},
+    options: {
+      approved?: boolean;
+      home?: boolean;
+      machine?: string;
+      plexTv?: boolean;
+      pages?: number;
+    } = {},
   ) {
     const calls: Call[] = [];
     const saved: { path: string; params: URLSearchParams }[] = [];
@@ -669,6 +748,25 @@ describe('Plex', () => {
         return { status: 401, body: '' };
       }
       if (address.pathname === '/library/sections') return json(plex('sections'));
+      if (address.pathname === '/library/sections/2/all' && options.pages) {
+        // A library of `pages` full pages, with the recorded tracks on the first one.
+        const start = Number(address.searchParams.get('X-Plex-Container-Start'));
+        const recorded = JSON.parse(plex('tracks-2')) as {
+          MediaContainer: { Metadata: unknown[] };
+        };
+        const own = start === 0 ? recorded.MediaContainer.Metadata : [];
+        const filler = Array.from({ length: 500 - own.length }, (_, i) => ({
+          ratingKey: `f${start + i}`,
+          parentRatingKey: `fp${start}`,
+          title: 'Filler',
+          Media: [{ Part: [{ key: `/library/parts/9${start + i}/1/file.mp3`, file: 'f.mp3' }] }],
+        }));
+        return json(
+          JSON.stringify({
+            MediaContainer: { totalSize: options.pages * 500, Metadata: [...own, ...filler] },
+          }),
+        );
+      }
       if (address.pathname === '/library/sections/2/all') return json(plex('tracks-2'));
       if (address.pathname === '/:/progress' || address.pathname === '/:/scrobble') {
         saved.push({ path: address.pathname, params: address.searchParams });
@@ -919,6 +1017,24 @@ describe('Plex', () => {
       finished: false,
     });
     expect(tv.saved.map((s) => s.params.get('key'))).toEqual(['112']);
+  });
+
+  it('stops looking at the page that has the track, so a large library saves in time', async () => {
+    const source = await signedIn(world().answer);
+    const big = world({ pages: 3 });
+    const file = {
+      path: 'Frances Hodgson Burnett/The Secret Garden/002 Chapter 2.mp3',
+      url: `${HOME}/library/parts/312/1763434800/file.mp3`,
+    };
+    await run(source.values, big.answer).place({
+      file,
+      files: [file],
+      positionMs: 2000,
+      at: 5,
+      finished: false,
+    });
+    expect(big.saved.map((s) => s.params.get('key'))).toEqual(['112']);
+    expect(big.calls.filter((c) => c.url.includes('/library/sections/2/all'))).toHaveLength(1);
   });
 
   it('saves a place through the address away when the book was listed at home', async () => {
