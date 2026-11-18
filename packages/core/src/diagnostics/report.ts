@@ -175,6 +175,18 @@ const MEDIA_ERRORS: Record<number, string> = {
   4: 'MEDIA_ERR_SRC_NOT_SUPPORTED',
 };
 
+/** NsdManager's `FAILURE_*` codes, and the two the cast module adds for calls that went nowhere. */
+const NSD_ERRORS: Record<number, string> = {
+  [-2]: 'NO_ANSWER (-2)',
+  [-1]: 'THREW (-1)',
+  0: 'FAILURE_INTERNAL_ERROR (0)',
+  3: 'FAILURE_ALREADY_ACTIVE (3)',
+  4: 'FAILURE_MAX_LIMIT (4)',
+  5: 'FAILURE_OPERATION_NOT_RUNNING (5)',
+  6: 'FAILURE_BAD_PARAMETERS (6)',
+  7: 'FAILURE_PERMISSION_DENIED (7)',
+};
+
 /** Why the web refused `play()`, as the code the web player records. */
 export const PLAY_REFUSED: Record<string, number> = {
   NotAllowedError: 1,
@@ -254,6 +266,11 @@ function eventLine(event: DiagnosticEvent, names: Pseudonyms): string {
     case 'sync':
       if (event.reason) parts.push(event.reason);
       if (event.status !== undefined) parts.push(`HTTP ${event.status}`);
+      break;
+    case 'cast':
+      parts.push(event.kind);
+      if (event.code !== undefined) parts.push(NSD_ERRORS[event.code] ?? `code ${event.code}`);
+      if (event.count !== undefined) parts.push(`×${event.count}`);
       break;
     case 'app':
       if (event.name) parts.push(event.name);

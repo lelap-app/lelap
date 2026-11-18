@@ -102,7 +102,7 @@ export default function DiagnosticsScreen() {
           <Text className="text-base text-paper">{label}</Text>
           <Text className="text-sm text-muted">
             {t(
-              'Errors, player events, failed downloads and scans, and add-on and sync trouble. The newest {n} events; turning it off deletes them.',
+              'Errors, player events, failed downloads and scans, add-on and sync trouble, and what the search for speakers and TVs found. The newest {n} events; turning it off deletes them.',
               { n: DIAGNOSTICS_LIMIT },
             )}
           </Text>

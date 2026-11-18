@@ -3,7 +3,10 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'r
 
 import {
   addDevicesListener,
+  addDiscoveryListener,
   type CastDevice,
+  type DiscoveryReport,
+  isLocalNetworkDenied,
   listDevices,
   localNetworkAccess,
   type LocalNetworkAccess,
@@ -22,6 +25,18 @@ import { Sheet } from './Sheet';
 
 /** How long a search finds nothing before the sheet says so; most devices answer in a few seconds. */
 const QUIET_AFTER_MS = 12_000;
+
+/** NsdManager's FAILURE_PERMISSION_DENIED, which the cast module also reports without access. */
+const NO_LOCAL_NETWORK = 7;
+
+/** `startDiscovery()` itself rejected; -1 is the cast module's code for a call that threw. */
+const START_THREW: DiscoveryReport = {
+  searching: false,
+  problem: 'start-failed',
+  code: -1,
+  found: 0,
+  added: 0,
+};
 
 const KIND: Record<CastDevice['kind'], string> = {
   upnp: 'UPnP',
@@ -59,6 +74,7 @@ export function CastSheet({
   // Bumped by "Search again"; `quiet` is set when a search has found nothing for a while.
   const [search, setSearch] = useState(0);
   const [quiet, setQuiet] = useState(false);
+  const [report, setReport] = useState<DiscoveryReport | null>(null);
 
   // Android 17 asks before an app reaches the Wi-Fi's devices; the sheet explains first.
   useEffect(() => {
@@ -80,13 +96,22 @@ export function CastSheet({
   useEffect(() => {
     if (!visible || access !== 'granted') return;
     const subscription = addDevicesListener(setDevices);
+    const reports = addDiscoveryListener((next) => {
+      // Android said no after all: show the explanation again instead of a failed search.
+      if (next.problem === 'start-failed' && next.code === NO_LOCAL_NETWORK) {
+        void localNetworkAccess().then(setAccess);
+      }
+      setReport(next);
+    });
+    setReport(null);
     void listDevices().then(setDevices);
-    void startDiscovery();
+    void startDiscovery().catch(() => setReport(START_THREW));
     setQuiet(false);
     const timer = setTimeout(() => setQuiet(true), QUIET_AFTER_MS);
     return () => {
       clearTimeout(timer);
       subscription.remove();
+      reports.remove();
       void stopDiscovery();
     };
   }, [visible, access, search]);
@@ -99,12 +124,22 @@ export function CastSheet({
     try {
       await startCasting(device, book);
       onClose();
-    } catch {
-      // useCasting carries the message.
+    } catch (e) {
+      // useCasting carries the message; a missing permission brings back the explanation.
+      if (isLocalNetworkDenied(e)) setAccess(await localNetworkAccess());
     } finally {
       setConnecting(null);
     }
   };
+
+  const startFailed = report?.problem === 'start-failed' ? report.code : null;
+  const unreachable =
+    report !== null &&
+    report.problem !== null &&
+    report.problem !== 'start-failed' &&
+    devices.length === 0
+      ? report.found
+      : 0;
 
   const volume = casting.volume;
   const changeVolume = (delta: number) => {
@@ -200,9 +235,32 @@ export function CastSheet({
               </Pressable>
             );
           })}
-          {quiet && devices.length === 0 ? (
+          {startFailed !== null ? (
+            <View className="gap-3 py-3">
+              <Text className="text-paper">
+                {t(
+                  'Lelap couldn’t start looking for Google Cast and FCast devices (code {code}).',
+                  {
+                    code: startFailed,
+                  },
+                )}
+              </Text>
+              <View className="flex-row">
+                <Chip label={t('Search again')} onPress={() => setSearch((n) => n + 1)} />
+              </View>
+            </View>
+          ) : quiet && devices.length === 0 ? (
             <View className="gap-3 py-3">
               <Text className="text-paper">{t('No speakers or TVs found on this Wi-Fi.')}</Text>
+              {unreachable > 0 && (
+                <Text className="text-sm text-muted">
+                  {unreachable === 1
+                    ? t('Lelap found 1 Google Cast or FCast device but couldn’t reach it.')
+                    : t('Lelap found {n} Google Cast or FCast devices but couldn’t reach them.', {
+                        n: unreachable,
+                      })}
+                </Text>
+              )}
               <Text className="text-sm text-muted">
                 {t(
                   'Check that the speaker or TV is on and on the same Wi-Fi as this phone. Guest networks, some mesh and office networks, and a VPN on the phone stop devices from seeing each other.',

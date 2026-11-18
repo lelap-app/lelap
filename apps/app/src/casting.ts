@@ -1,21 +1,45 @@
 import * as local from '@lelap/audio';
 import type { BookLoad } from '@lelap/audio';
 import * as cast from '@lelap/cast';
-import type { CastDevice, LocalNetworkAccess } from '@lelap/cast';
+import type { CastDevice, DiscoveryReport, LocalNetworkAccess } from '@lelap/cast';
+import { castEvent } from '@lelap/core';
 import { useSyncExternalStore } from 'react';
+
+import { isDiagnosticsOn, logDiagnostic } from './diagnostics';
 
 // Casting on Android (M26, M50). The app connects to a receiver here; the playback service then
 // makes the receiver its media session's player, so the player screen, the notification, the lock
 // screen, headphones and Android Auto all control it, the sleep timer pauses it and Up Next goes
 // on there. This file only follows which receiver plays, its volume and why a session ended.
 
-export type { CastDevice, LocalNetworkAccess };
+export type { CastDevice, DiscoveryReport, LocalNetworkAccess };
 
 export const CASTING_SUPPORTED = true;
 export const startDiscovery = cast.startDiscovery;
-export const stopDiscovery = cast.stopDiscovery;
 export const listDevices = cast.devices;
 export const addDevicesListener = cast.addDevicesListener;
+export const addDiscoveryListener = cast.addDiscoveryListener;
+
+/** Ends the search and moves what it did into the diagnostics log (kinds, codes, counts). */
+export async function stopDiscovery(): Promise<void> {
+  await cast.stopDiscovery();
+  // Taken even with the log off, so the module's list never grows.
+  const events = await cast.takeDiagnostics().catch(() => []);
+  if (!isDiagnosticsOn()) return;
+  for (const raw of events) {
+    const parsed = castEvent(raw);
+    if (parsed) logDiagnostic(parsed.event, parsed.at);
+  }
+}
+
+/** A `connect()` refused because Android 17's local network access is off. */
+export function isLocalNetworkDenied(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { code?: unknown }).code === cast.LOCAL_NETWORK_DENIED
+  );
+}
 export const localNetworkAccess = cast.localNetworkAccess;
 export const requestLocalNetworkAccess = cast.requestLocalNetworkAccess;
 
@@ -74,7 +98,9 @@ export async function startCasting(device: CastDevice, book: BookLoad): Promise<
     update({ device });
     await local.castTo();
   } catch (e) {
-    update({ device: null, error: e instanceof Error ? e.message : String(e) });
+    // Without local network access the sheet shows its explanation instead of an error line.
+    const error = isLocalNetworkDenied(e) ? null : e instanceof Error ? e.message : String(e);
+    update({ device: null, error });
     await cast.disconnect().catch(() => {});
     throw e;
   }

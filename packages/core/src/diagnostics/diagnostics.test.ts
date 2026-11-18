@@ -17,7 +17,7 @@ import {
   syncFailureEvent,
 } from './build';
 import { addonResource, classifyError } from './classify';
-import { DiagnosticEvent, playerEvent } from './events';
+import { castEvent, DiagnosticEvent, playerEvent } from './events';
 import {
   DIAGNOSTICS_LIMIT,
   diagnosticsOn,
@@ -361,6 +361,39 @@ describe('diagnostics export', () => {
     expect(text).toContain('under 1 h ago  download  failed');
     expect(text).toContain('downloads  0 done, 0 waiting, 1 failed');
     expect(addon).toBeDefined();
+  });
+
+  it('lists cast discovery events by kind, code and count', () => {
+    const { db } = seededDb();
+    setDiagnosticsOn(db, true, NOW);
+    const raw = [
+      { at: NOW - 5, what: 'start-failed', kind: 'cast', code: 7, count: 1 },
+      { at: NOW - 4, what: 'started', kind: 'cast', code: null, count: 1 },
+      { at: NOW - 3, what: 'found', kind: 'cast', code: null, count: 2 },
+      { at: NOW - 2, what: 'resolve-failed', kind: 'fcast', code: -1, count: 1 },
+      { at: NOW - 1, what: 'added', kind: 'cast', code: null, count: 2 },
+    ];
+    for (const event of raw) {
+      const parsed = castEvent(event);
+      expect(parsed).not.toBeNull();
+      if (parsed) recordDiagnostic(db, parsed.event, parsed.at);
+    }
+    const text = exportOf(db);
+    expectClean(text);
+    expect(text).toContain('cast  start-failed  cast  FAILURE_PERMISSION_DENIED (7)');
+    expect(text).toContain('cast  started  cast');
+    expect(text).toContain('cast  found  cast  ×2');
+    expect(text).toContain('cast  resolve-failed  fcast  THREW (-1)');
+    expect(text).toContain('cast  added  cast  ×2');
+  });
+
+  it('refuses cast events that carry a name or an address', () => {
+    expect(castEvent({ at: NOW, what: 'found', kind: SECRETS.title })).toBeNull();
+    expect(castEvent({ at: NOW, what: SECRETS.webdavUrl, kind: 'cast' })).toBeNull();
+    expect(
+      DiagnosticEvent.safeParse({ area: 'cast', what: 'added', kind: 'cast', host: '192.168.1.5' })
+        .success,
+    ).toBe(false);
   });
 
   it('numbers items per export, not by their IDs', () => {

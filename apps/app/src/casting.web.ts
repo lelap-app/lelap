@@ -1,9 +1,13 @@
 import { t } from './i18n';
-import type { CastDevice } from '@lelap/cast';
+import type { CastDevice, DiscoveryReport } from '@lelap/cast';
 
 // The web app does not cast (yet); the player shows no Cast tool there.
 
-export type { CastDevice };
+export type { CastDevice, DiscoveryReport };
+export const addDiscoveryListener: (listener: (report: DiscoveryReport) => void) => {
+  remove: () => void;
+} = () => ({ remove: () => {} });
+export const isLocalNetworkDenied: (error: unknown) => boolean = () => false;
 export type Casting = { device: CastDevice | null; volume: number | null; error: string | null };
 
 export const CASTING_SUPPORTED = false;
