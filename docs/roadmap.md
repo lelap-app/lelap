@@ -80,7 +80,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M67 Web app 2](milestones/m67.md)                   | Done        |           9 | Faster saves, covers from servers and steadier media keys in the web app                                 |
 | [M68 Sync fixes](milestones/m68.md)                  | Done        |           5 | Quieter scans, the source choice synced, and sturdier snapshots and expiry                               |
 | [M69 Casting 3](milestones/m69.md)                   | Done        |           9 | Outro skipping, smart rewind and measured timings on receivers, Cast device authentication               |
-| [M70 Release upkeep](milestones/m70.md)              | Done        |           6 | Smaller OTA updates, a pinned signing toolchain, F-Droid update checks and other pipeline fixes          |
+| [M70 Release upkeep](milestones/m70.md)              | Done        |           5 | Smaller OTA updates, a pinned signing toolchain, F-Droid update checks and other pipeline fixes          |
 | [M71 App polish](milestones/m71.md)                  | Done        |          13 | Small fixes on Home, the Library, the Player and Settings, left from earlier reviews                     |
 | [M72 Languages 2](milestones/m72.md)                 | Done        |           7 | Native errors, made-up chapter titles, dates and numbers in the profile’s language                       |
 | [M73 Landing page polish](milestones/m73.md)         | Done        |           2 | Theme switch announcements, one shared hidden class, narrow screens and escaped holes                    |
@@ -99,9 +99,8 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M86 Sleep 2](milestones/m86.md)                     | Planned     |             | Shake to extend the timer, a bedtime routine and back to where you fell asleep                           |
 | [M87 Stats and year in sound](milestones/m87.md)     | Done        |           7 | Listening time, finished books and a year overview, worked out on the phone                              |
 | [M88 Podcasts 4](milestones/m88.md)                  | Planned     |             | Transcripts while listening, chapter images, soundbite clips and alternate files                         |
-| [M89 Wear OS](milestones/m89.md)                     | Planned     |             | Control playback from the watch, and maybe play downloads on it                                          |
 | [M90 Web app 3](milestones/m90.md)                   | Planned     |             | Offline downloads in the browser, a better installed app, desktop keys                                   |
-| [M91 iOS decision](milestones/m91.md)                | Planned     |             | A decision on iOS: what an App Store app would mean for Lelap                                            |
+| [M91 iOS decision](milestones/m91.md)                | Done        |             | A decision on iOS: what an App Store app would mean for Lelap                                            |
 | [M92 Hardcover sign-in](milestones/m92.md)           | Planned     |             | Sign in to Hardcover instead of pasting a token                                                          |
 | [M93 Developer docs 2](milestones/m93.md)            | Planned     |             | A real guide to building an add-on, sample source files and shared page styling                          |
 | [M94 Tests against real servers](milestones/m94.md)  | Done        |           1 | WebDAV and S3 servers in CI, and an emulator smoke test of the app                                       |
@@ -123,6 +122,10 @@ far.
 
 Ideas without a number or a place in the order yet. One becomes a milestone, with its own file,
 when it is planned.
+
+- **Wear OS:** control playback from the watch (tile and app: play, pause, skip, the sleep timer),
+  and maybe play downloads on it. Was M89; set aside on 2026-11-18 until there is a watch to test
+  on.
 
 - **Scan and play on the emulator (left from M94):** the emulator smoke test stops at the empty
   Library. Scanning a pushed folder and playing a file needs the folder picker driven, or a
