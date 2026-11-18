@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:podcast="https://podcastindex.org/namespace/1.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Garden Hour</title>
+    <link>https://example.org/garden-hour</link>
+    <description>Weekly questions from allotments and balconies.</description>
+    <language>en-gb</language>
+    <itunes:author>Rosa Fern</itunes:author>
+    <itunes:image href="https://img.example.org/garden-hour.jpg"/>
+    <podcast:guid>5f0e2d6a-7c1b-5e1a-9d3e-000000000075</podcast:guid>
+    <podcast:location geo="geo:51.4769,-0.2950" osm="R2589212">Kew, London</podcast:location>
+    <podcast:value type="lightning" method="keysend" suggested="0.00000005000">
+      <podcast:valueRecipient name="Rosa Fern" type="node" address="02d5c1bf8b940dc9cadca86d1b0a3c37fbe39cee4c7e839e33bef9174531d27f52" split="95"/>
+      <podcast:valueRecipient name="Hosting" type="node" address="03ae9f91a0cb8ff43840e3c322c4c61f019d8c1c3cea15a25cfc425ac605e61a4a" split="5" fee="true"/>
+      <podcast:valueRecipient name="No address" type="node" split="10"/>
+    </podcast:value>
+    <item>
+      <title>Why tomatoes split</title>
+      <guid isPermaLink="false">garden-hour-42</guid>
+      <pubDate>Sat, 14 Nov 2026 07:00:00 GMT</pubDate>
+      <itunes:duration>41:20</itunes:duration>
+      <enclosure url="https://cdn.example.org/gh42.mp3" type="audio/mpeg" length="39680000"/>
+      <podcast:soundbite startTime="1234.5" duration="42.25">Watering after a dry spell</podcast:soundbite>
+      <podcast:soundbite startTime="73" duration="60"/>
+      <podcast:soundbite startTime="soon" duration="30">Not a time</podcast:soundbite>
+      <podcast:soundbite startTime="300" duration="0">No length</podcast:soundbite>
+      <podcast:location geo="geo:53.4084,-2.9916">Liverpool allotments</podcast:location>
+      <podcast:value type="lightning" method="keysend">
+        <podcast:valueRecipient name="Guest" type="node" address="0330fc4e2c0c4a3b7a5f4dc7e8d1f8f7a9e6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1" split="50"/>
+      </podcast:value>
+    </item>
+    <item>
+      <title>Leeks in winter (video)</title>
+      <guid isPermaLink="false">garden-hour-41</guid>
+      <pubDate>Sat, 07 Nov 2026 07:00:00 GMT</pubDate>
+      <enclosure url="https://cdn.example.org/gh41.mp4" type="video/mp4" length="512000000"/>
+      <podcast:alternateEnclosure type="audio/aac" length="24000000" bitrate="64000" title="Small">
+        <podcast:source uri="ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"/>
+        <podcast:source uri="https://cdn.example.org/gh41-small.aac"/>
+      </podcast:alternateEnclosure>
+      <podcast:alternateEnclosure type="audio/mpeg" length="48000000" bitrate="128000" default="true">
+        <podcast:source uri="https://cdn.example.org/gh41.mp3"/>
+      </podcast:alternateEnclosure>
+      <podcast:alternateEnclosure type="video/mp4" length="128000000" height="480">
+        <podcast:source uri="https://cdn.example.org/gh41-480.mp4"/>
+      </podcast:alternateEnclosure>
+    </item>
+    <item>
+      <title>Seed swap special</title>
+      <guid isPermaLink="false">garden-hour-40</guid>
+      <pubDate>Sat, 31 Oct 2026 07:00:00 GMT</pubDate>
+      <podcast:alternateEnclosure type="audio/opus" length="12000000">
+        <podcast:source uri="https://cdn.example.org/gh40.opus"/>
+        <podcast:integrity type="sri" value="sha384-ExVqijgYHm15PqQqdXfW95x+Rs6C+d6E/ICxyQOeFevnxNLR/wtJNrNYTjIysUBo"/>
+      </podcast:alternateEnclosure>
+    </item>
+    <item>
+      <title>Notes only</title>
+      <guid isPermaLink="false">garden-hour-notes</guid>
+      <podcast:alternateEnclosure type="audio/mpeg">
+        <podcast:source uri="ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"/>
+      </podcast:alternateEnclosure>
+    </item>
+  </channel>
+</rss>

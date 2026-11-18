@@ -804,5 +804,10 @@
   "Search again": "Cari semula",
   "Lelap couldn’t start looking for Google Cast and FCast devices (code {code}).": "Lelap tidak dapat mula mencari peranti Google Cast dan FCast (kod {code}).",
   "Lelap found 1 Google Cast or FCast device but couldn’t reach it.": "Lelap menjumpai 1 peranti Google Cast atau FCast tetapi tidak dapat menghubunginya.",
-  "Lelap found {n} Google Cast or FCast devices but couldn’t reach them.": "Lelap menjumpai {n} peranti Google Cast atau FCast tetapi tidak dapat menghubunginya."
+  "Lelap found {n} Google Cast or FCast devices but couldn’t reach them.": "Lelap menjumpai {n} peranti Google Cast atau FCast tetapi tidak dapat menghubunginya.",
+  "1 soundbite": "1 petikan audio",
+  "{n} soundbites": "{n} petikan audio",
+  "Soundbite: {title} ({time})": "Petikan audio: {title} ({time})",
+  "Soundbite at {time}": "Petikan audio pada {time}",
+  "Place: {name}": "Tempat: {name}"
 }

@@ -59,7 +59,9 @@ function reasonFor(status: number | null, name: ErrorName, message: string): Rea
   if (
     name === 'SyntaxError' ||
     name === 'ZodError' ||
-    /JSON|parse|unexpected token|malformed|invalid xml/i.test(message)
+    /JSON|parse|unexpected token|malformed|invalid xml|not readable xml|not an RSS or Atom/i.test(
+      message,
+    )
   ) {
     return 'unreadable';
   }

@@ -167,6 +167,20 @@ export const DiagnosticEvent = z.discriminatedUnion('area', [
     reason: Reason.optional(),
     fatal: z.boolean().optional(),
   }),
+  /**
+   * The podcast refresh (M75). `refreshed` sums up one run: how many feeds it asked and how many
+   * failed; `background` marks a run Android started. `feed-failed` is one feed, by row ID.
+   */
+  z.strictObject({
+    area: z.literal('podcast'),
+    what: z.enum(['refreshed', 'feed-failed']),
+    background: z.boolean().optional(),
+    count: Count.optional(),
+    failed: Count.optional(),
+    podcast: Ref.optional(),
+    reason: Reason.optional(),
+    status: Status.optional(),
+  }),
 ]);
 export type DiagnosticEvent = z.infer<typeof DiagnosticEvent>;
 

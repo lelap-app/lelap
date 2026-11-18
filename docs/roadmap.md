@@ -85,7 +85,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M72 Languages 2](milestones/m72.md)                 | Planned     |             | Native errors, made-up chapter titles, dates and numbers in the profile’s language                      |
 | [M73 Landing page polish](milestones/m73.md)         | Done        |           2 | Theme switch announcements, one shared hidden class, narrow screens and escaped holes                   |
 | [M74 Car and widget 2](milestones/m74.md)            | Planned     |             | Covers from servers in the widget and the car, a list of your cars, a better battery estimate           |
-| [M75 Podcasts 3](milestones/m75.md)                  | Planned     |             | More Podcasting 2.0 tags, Atom content and logging from the background refresh                          |
+| [M75 Podcasts 3](milestones/m75.md)                  | In progress |           4 | More Podcasting 2.0 tags, Atom content and logging from the background refresh                          |
 | [M76 Hardcover catalogs](milestones/m76.md)          | Done        |           8 | Trending books, featured lists and your own Hardcover lists as catalogs, on your own token              |
 | [M77 Hide from library](milestones/m77.md)           | Done        |          15 | Hide items from the library and bring them back; suggestions to hide what looks like music              |
 
@@ -106,6 +106,10 @@ when it is planned.
   CI job can cover S3 with MinIO.
 - **Developer setup:** Babel's cache hides edits to existing `.sql` migrations (start Expo with
   `--clear`), and `.claude/launch.json` assumes `~/.nvm/nvm.sh` (from M2's review).
+- **More from Podcasting 2.0 tags (left from M75):** play a soundbite as a clip that stops at its
+  end, and list soundbites in the player; let the listener pick among alternate enclosures (a
+  smaller file on mobile data) and check `podcast:integrity`; open a show's place on a map; show
+  `podcast:value`. Sending value-for-value payments would move money and needs a decision first.
 - **Themes and community looks:** themes for the app beyond the night theme, community skins and
   community players. The M9 avatars and the night theme are the start.
 

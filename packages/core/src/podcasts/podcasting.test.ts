@@ -85,6 +85,9 @@ describe('Podcasting 2.0 feed tags', () => {
       transcripts: [],
       persons: [],
       seasonName: null,
+      soundbites: [],
+      location: null,
+      value: [],
     });
   });
 

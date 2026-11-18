@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <title>Garden Hour</title>
+  <subtitle type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml">Questions from <em>allotments</em> &amp; balconies.</div></subtitle>
+  <id>urn:uuid:7a1c3e52-0d1b-4a8e-9a0e-000000000075</id>
+  <updated>2026-11-14T07:00:00Z</updated>
+  <link href="https://example.org/garden-hour"/>
+  <author><name>Rosa Fern</name></author>
+  <entry>
+    <title>Why tomatoes split</title>
+    <id>tag:example.org,2026:garden-hour/42</id>
+    <published>2026-11-14T07:00:00Z</published>
+    <content type="xhtml">
+      <div xmlns="http://www.w3.org/1999/xhtml">
+        <p>Rosa answers <strong>three</strong> questions about <a href="https://example.org/tomatoes">tomatoes</a>.</p>
+        <ul><li>Watering &amp; splitting</li><li>Which &lt;varieties&gt; hold up</li></ul>
+      </div>
+    </content>
+    <summary>A short summary that the content beats.</summary>
+    <link rel="enclosure" type="audio/mpeg" length="39680000" href="https://cdn.example.org/gh42.mp3"/>
+    <podcast:soundbite startTime="73" duration="60">Splitting after rain</podcast:soundbite>
+  </entry>
+  <entry>
+    <title>Leeks in winter</title>
+    <id>tag:example.org,2026:garden-hour/41</id>
+    <updated>2026-11-07T07:00:00Z</updated>
+    <summary type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><p>Leeks, <em>slowly</em>.</p></div></summary>
+    <link rel="enclosure" type="video/mp4" href="https://cdn.example.org/gh41.mp4"/>
+    <podcast:alternateEnclosure type="audio/mpeg" length="48000000">
+      <podcast:source uri="https://cdn.example.org/gh41.mp3"/>
+    </podcast:alternateEnclosure>
+  </entry>
+</feed>

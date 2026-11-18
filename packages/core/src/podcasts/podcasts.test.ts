@@ -86,7 +86,15 @@ describe('RSS', () => {
       url: 'https://cdn.example.org/ep1.mp3?a=1&b=2',
       mime: 'audio/mpeg',
       size: 1000,
-      extras: { chaptersUrl: null, transcripts: [], persons: [], seasonName: null },
+      extras: {
+        chaptersUrl: null,
+        transcripts: [],
+        persons: [],
+        seasonName: null,
+        soundbites: [],
+        location: null,
+        value: [],
+      },
     });
   });
 
@@ -134,6 +142,9 @@ describe('Atom', () => {
           transcripts: [],
           persons: [],
           seasonName: null,
+          soundbites: [],
+          location: null,
+          value: [],
         },
       },
       expect.objectContaining({
