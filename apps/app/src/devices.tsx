@@ -1,15 +1,19 @@
 import {
   type BatterySample,
   chapterAt,
+  closeSession,
   deviceValue,
+  type DrainRecord,
+  encodeDrainRecord,
   getBook,
   getSettings,
   headphoneWarning,
   isCar,
-  learnDrain,
   markCar,
   type MarkedCar,
+  parseDrainRecord,
   parseMarkedCars,
+  resumeSession,
   setDeviceValue,
   type Settings,
   toBookPosition,
@@ -27,8 +31,9 @@ import { useLibrary, usePlayerState } from './player';
 import { profileId } from './profile';
 
 // Connected Bluetooth audio devices (M33), followed only while the headphone battery warning or
-// the car mode offer is on. Levels are kept per device while it stays connected, to measure drain;
+// the car mode offer is on. Levels are kept per device while a book plays, to measure drain;
 // the drain measured is kept on this device per headphones (M74), and so are the marked cars.
+// The levels of the session still open are stored too, and folded in once when it ends (M107).
 
 type Snapshot = {
   /** With `car` true for a marked car too. */
@@ -41,9 +46,21 @@ type Snapshot = {
 const CARS_KEY = 'bluetoothCars';
 const drainKey = (id: string) => `headphoneDrain:${id}`;
 
-function storedDrain(id: string): number | null {
-  const value = Number(deviceValue(db, drainKey(id)));
-  return Number.isFinite(value) && value > 0 ? value : null;
+// Each device's stored record, read once per connection.
+const records = new Map<string, DrainRecord>();
+
+function saveRecord(id: string, record: DrainRecord, now: number): void {
+  records.set(id, record);
+  setDeviceValue(db, drainKey(id), encodeDrainRecord(record), now);
+}
+
+/** The record for a device that just connected: its open session goes on or ends here. */
+function connectRecord(id: string, level: number | null, now: number): DrainRecord {
+  const stored = records.get(id) ?? parseDrainRecord(deviceValue(db, drainKey(id)));
+  const record = resumeSession(stored, now, level);
+  if (record !== stored) saveRecord(id, record, now);
+  else records.set(id, record);
+  return record;
 }
 
 let snapshot: Snapshot = { devices: [], samples: new Map(), learned: new Map() };
@@ -66,7 +83,17 @@ let listening = false;
 function setListening(playing: boolean): void {
   if (playing === listening) return;
   listening = playing;
-  if (!playing) snapshot = { ...snapshot, samples: new Map() };
+  if (!playing) {
+    const now = Date.now();
+    const learned = new Map(snapshot.learned);
+    for (const [id, record] of records) {
+      if (record.session.length === 0) continue;
+      const closed = closeSession(record);
+      saveRecord(id, closed, now);
+      if (learned.has(id)) learned.set(id, closed.learned);
+    }
+    snapshot = { ...snapshot, samples: new Map(), learned };
+  }
   update(reported);
 }
 
@@ -76,10 +103,18 @@ function update(found: bluetooth.AudioDevice[]) {
   const now = Date.now();
   const marked = markedCars();
   const devices = reported.map((d) => (isCar(d, marked) ? { ...d, car: true } : d));
+  const known = new Set(snapshot.devices.map((d) => d.id));
   const samples = new Map<string, BatterySample[]>();
   const learned = new Map<string, number | null>();
   for (const d of devices) {
-    const before = snapshot.samples.get(d.id) ?? [];
+    let before = snapshot.samples.get(d.id) ?? [];
+    let earlier = snapshot.learned.get(d.id) ?? null;
+    if (!known.has(d.id) && !d.car) {
+      // Connected, or the app started mid-session: carry on with what was stored.
+      const record = connectRecord(d.id, d.battery, now);
+      before = record.session;
+      earlier = record.learned;
+    }
     const last = before.at(-1);
     const next =
       listening && d.battery !== null && last?.level !== d.battery
@@ -87,19 +122,12 @@ function update(found: bluetooth.AudioDevice[]) {
         : before;
     // Up to 20 h of steps of ten, so a whole session's drain can be measured.
     samples.set(d.id, next.slice(-40));
-    const earlier = snapshot.learned.has(d.id)
-      ? (snapshot.learned.get(d.id) ?? null)
-      : storedDrain(d.id);
     learned.set(d.id, earlier);
     if (next !== before && !d.car) {
-      // Each new level updates what this session teaches, on top of earlier sessions.
-      const taught = learnDrain(earlier, next);
-      if (taught !== null && taught !== earlier) {
-        setDeviceValue(db, drainKey(d.id), String(taught), now);
-      }
+      // Stored as the open session; it joins the learned drain once, when it ends.
+      saveRecord(d.id, { learned: earlier, session: next.slice(-40) }, now);
     }
   }
-  const known = new Set(snapshot.devices.map((d) => d.id));
   const arrived = devices.filter((d) => d.car && !known.has(d.id));
   snapshot = { devices, samples, learned };
   for (const listener of listeners) listener();

@@ -43,8 +43,8 @@ and on the web from one codebase, and every server piece can be self-hosted with
   copy. Shows a podcast's chapter pictures and soundbites.
 - Casts to Sonos, DLNA, Google Cast and FCast speakers without Google's SDK, with the lock screen,
   headphones and sleep timer controlling the speaker.
-- Has a car mode with a large cover and big buttons, and works in Android Auto with the covers on
-  your phone.
+- Has a car mode with a large cover and big buttons, upright or sideways in a holder, and works in
+  Android Auto with the covers on your phone.
 - Works with TalkBack and at the largest text size, and uses the width of tablets and laptops.
 - Profiles for a household, and the app in English and Bahasa Melayu.
 

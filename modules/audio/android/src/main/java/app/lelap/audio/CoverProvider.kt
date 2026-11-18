@@ -10,8 +10,8 @@ import java.io.File
 import java.io.FileNotFoundException
 
 /**
- * Read-only covers for Android Auto's browse lists (M74); see [CarCovers]. Exported, since Auto
- * runs in its own process, but it only opens covers of books the car lists at that moment.
+ * Read-only covers for Android Auto's browse lists (M74); see [CarCovers]. Not exported: the car
+ * app reads through a grant per cover (M107), and even then only covers of books listed now.
  */
 class CoverProvider : ContentProvider() {
   override fun onCreate(): Boolean = true

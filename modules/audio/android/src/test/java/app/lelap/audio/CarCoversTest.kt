@@ -60,6 +60,20 @@ class CarCoversTest {
     assertEquals("image/jpeg", CarCovers.mimeType(null))
   }
 
+  @Test fun `a car app is granted the provider covers it lists, once each`() {
+    val local = CarCovers.artworkUri(file, "app.lelap.covers")
+    val other = CarCovers.artworkUri(picked, "app.lelap.covers")
+    val listed = listOf(local, "https://img/a.jpg", null, other, local, "content://other.app/x.jpg")
+    val auto = "com.google.android.projection.gearhead"
+    assertEquals(listOf(local, other), CarCovers.grants(listed, "app.lelap.covers", auto, "app.lelap"))
+    // Lelap itself, and a controller Android doesn't name, get nothing.
+    assertTrue(CarCovers.grants(listed, "app.lelap.covers", "app.lelap", "app.lelap").isEmpty())
+    assertTrue(CarCovers.grants(listed, "app.lelap.covers", "", "app.lelap").isEmpty())
+    assertTrue(
+      CarCovers.grants(listed, "app.lelap.covers", "android.media.session.MediaController", "app.lelap").isEmpty(),
+    )
+  }
+
   @Test fun `a web cover is never served by the provider`() {
     val snapshot = CarSnapshot(onPhone = listOf(load("a", "https://img/a.jpg")))
     assertNull(CarCovers.find(CarCovers.key("https://img/a.jpg"), snapshot, null))

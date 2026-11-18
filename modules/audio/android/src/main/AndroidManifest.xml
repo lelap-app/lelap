@@ -17,11 +17,13 @@
         <action android:name="android.media.browse.MediaBrowserService" />
       </intent-filter>
     </service>
-    <!-- Covers saved on the phone, for Android Auto's lists; read-only, see CarCovers.kt. -->
+    <!-- Covers saved on the phone, for Android Auto's lists; read-only, see CarCovers.kt. Not
+         exported: each car app gets read access to the covers it lists (M107). -->
     <provider
       android:name="app.lelap.audio.CoverProvider"
       android:authorities="${applicationId}.covers"
-      android:exported="true" />
+      android:exported="false"
+      android:grantUriPermissions="true" />
     <!-- Lets headphone and Bluetooth Play restart playback after the app and service are gone. -->
     <receiver android:name="androidx.media3.session.MediaButtonReceiver" android:exported="true">
       <intent-filter>
