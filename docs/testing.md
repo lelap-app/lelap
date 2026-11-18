@@ -185,6 +185,7 @@ offline, the background engine, sync on one device, and UI features.
 - [x] [M12] Player buttons carry names for TalkBack (Back 30 seconds, Play, Next chapter, …) in `uiautomator dump`. ([m12](m12-follow-ups.md)) **Passed 2026-11-17**: speed button now says Speed, 1× (#66).
 - [ ] [M9] Install the web app from Chrome on the phone: `listen.lelap.app` → Add to home screen. ([README](../apps/app/README.md#checks-after-m9-2026-11-16))
 - [ ] [M29] Expired link, playback and download: an add-on on the laptop (`adb reverse`) whose `/resolve/…` link answers 403 after a minute; playback continues, the download resumes, a link that keeps failing errors after one retry. ([m29](m29-follow-ups.md#phone-checks))
+- [ ] [M56] `uiautomator dump` on a work page with an offer: the “In your library?” card and both buttons are named, “Your copy” is a radio button with its checked state. ([m56](m56-follow-ups.md#talkback))
 
 ## B. Checks that need the user
 
@@ -263,6 +264,11 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M41] An Audiobookshelf book plays, seeks and downloads, also a download that waits for Wi-Fi. ([m41](m41-follow-ups.md#m41-follow-ups))
 - [ ] [M41] Audiobookshelf places both ways: pause in Lelap, the web player resumes there; play on in the web player, then play in Lelap, it starts there; finished books both ways. ([m41](m41-follow-ups.md#m41-follow-ups))
 - [ ] [M41] Cast an Audiobookshelf book to Chromecast and a UPnP renderer. ([m41](m41-follow-ups.md#m41-follow-ups))
+- [ ] [M56] A WebDAV book tagged Dune by Frank Herbert in a folder named `hb-01`: Discover → Dune offers “In your library?”; after “Yes, use my copy” “Your copy” is listed first and plays from its place. ([m56](m56-follow-ups.md#offer))
+- [ ] [M56] A book with an ISBN or ASIN tag, or an Audiobookshelf book with one set: its Catalog page shows “Your copy” without asking. ([m56](m56-follow-ups.md#isbn))
+- [ ] [M56] The first scan after the update reads every phone folder and WebDAV file once more for ISBNs; it finishes on a big library, and the next scan reads nothing. ([m56](m56-follow-ups.md#rescan))
+- [ ] [M56] Match with catalog… on a book that matches nothing: the book takes the work’s title, author and cover and plays from its page; Unlink from catalog brings its own title back. ([m56](m56-follow-ups.md#manual))
+- [ ] [M56] “Not your copy? Unlink” on a work page: add-on sources come back and the book isn’t offered again, also on the work’s `asin:` page. ([m56](m56-follow-ups.md#unlink))
 - [ ] [M30] Hardcover with a real token: Currently reading with progress after a few minutes, Read with today's date after finishing, the Want to read row. ([m30](m30-follow-ups.md))
 - [ ] [M30] Hardcover events from an offline session arrive with their own times once back online. ([m30](m30-follow-ups.md))
 - [ ] [M51] Hardcover gets start, progress and pause for 15 minutes heard with the app closed, and nothing twice after opening and closing the app; casting time counts too. ([m51](m51-follow-ups.md#checks-on-a-phone))
@@ -283,6 +289,7 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M45] A show's Skip intro and Skip outro reach the other device with the next sync. ([m45](m45-follow-ups.md#intro-outro))
 - [ ] [M52] With over 1 MB of sync messages older than 30 days, the next sync writes a snapshot; a newly paired device gets the whole library. ([m52](m52-follow-ups.md#2-checks))
 - [ ] [M52] An app from before M52 that missed a snapshot shows HTTP 410 in Diagnostics, keeps its library, and syncs again after updating. ([m52](m52-follow-ups.md#2-checks))
+- [ ] [M56] A link made on one phone shows on the other’s work page once both scanned the same server. ([m56](m56-follow-ups.md#sync))
 
 ### SD card
 

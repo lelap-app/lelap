@@ -103,8 +103,16 @@ export function upsertRoot(
   return id;
 }
 
-/** Audio files that are new or changed since they were last read, so their tags need reading. */
-export function filesNeedingTags(db: Db, listed: ListedFile[]): ListedFile[] {
+/**
+ * Audio files that are new or changed since they were last read, so their tags need reading.
+ * `readsIds`: the reader gives ISBN and ASIN tags, so files read before it did (M56) are read once
+ * more.
+ */
+export function filesNeedingTags(
+  db: Db,
+  listed: ListedFile[],
+  { readsIds = false }: { readsIds?: boolean } = {},
+): ListedFile[] {
   const audio = withoutDownloads(listed).filter((f) => isAudioFile(f.name));
   if (audio.length === 0) return [];
   const stored = new Map(
@@ -114,6 +122,7 @@ export function filesNeedingTags(db: Db, listed: ListedFile[]): ListedFile[] {
         size: bookFiles.size,
         modifiedAt: bookFiles.modifiedAt,
         durationMs: bookFiles.durationMs,
+        ids: bookFiles.ids,
       })
       .from(bookFiles)
       .all()
@@ -122,7 +131,13 @@ export function filesNeedingTags(db: Db, listed: ListedFile[]): ListedFile[] {
   return audio.filter((f) => {
     const s = stored.get(f.location);
     // Duration 0 means the last read failed or found nothing; try again.
-    return !s || s.size !== f.size || s.modifiedAt !== f.modifiedAt || s.durationMs === 0;
+    return (
+      !s ||
+      s.size !== f.size ||
+      s.modifiedAt !== f.modifiedAt ||
+      s.durationMs === 0 ||
+      (readsIds && s.ids === null)
+    );
   });
 }
 

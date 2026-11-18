@@ -1,4 +1,11 @@
-import { createWorkIndex, type Meta, normalizeIds, splitAuthors, type WorkInfo } from '@lelap/sdk';
+import {
+  createWorkIndex,
+  type Meta,
+  normalizeIds,
+  splitAuthors,
+  titleKey,
+  type WorkInfo,
+} from '@lelap/sdk';
 import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
 
 import { workIds } from '../addons/sources';
@@ -92,13 +99,17 @@ function workInfo(db: Db, candidates: Candidate[]): (WorkInfo & { item: Candidat
     if (known?.tagged !== false) {
       return [{ item: book, ids, title: book.title, authors: splitAuthors(book.author) }];
     }
-    const names = [{ item: book, ids, title: book.title, authors: splitAuthors(book.author) }];
+    // A number in the whole name (“02 - Dune”) still tells the series apart in each half.
+    const series = titleKey(book.title).number;
+    const names = [
+      { item: book, ids, series, title: book.title, authors: splitAuthors(book.author) },
+    ];
     const [left, right, ...rest] = book.title.split(/\s+[-–—]\s+/);
     if (left && right && rest.length === 0) {
       names.push(
-        { item: book, ids, title: right, authors: [left] },
-        { item: book, ids, title: left, authors: [right] },
-        { item: book, ids, title: right, authors: splitAuthors(book.author) },
+        { item: book, ids, series, title: right, authors: [left] },
+        { item: book, ids, series, title: left, authors: [right] },
+        { item: book, ids, series, title: right, authors: splitAuthors(book.author) },
       );
     }
     return names;
@@ -126,10 +137,19 @@ export function findYourCopy(db: Db, work: LinkableWork): YourCopy | null {
   const linked = present.find((b) => said.get(b.location) === 'linked');
   if (linked) return copy(linked, 'linked');
 
+  // A book linked to another work is that work; it is neither offered nor linked here.
+  const elsewhere = new Set(
+    db
+      .select({ bookKey: workLinks.bookKey })
+      .from(workLinks)
+      .where(eq(workLinks.state, 'linked'))
+      .all()
+      .map((l) => l.bookKey),
+  );
   const index = createWorkIndex(
     workInfo(
       db,
-      present.filter((b) => !said.has(b.location)),
+      present.filter((b) => !said.has(b.location) && !elsewhere.has(b.location)),
     ),
   );
   const [best] = index.find({

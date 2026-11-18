@@ -149,7 +149,8 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
       continue;
     }
 
-    const need = filesNeedingTags(db, listed);
+    // Android's reader gives ISBN and ASIN tags; the browser's reads only the duration.
+    const need = filesNeedingTags(db, listed, { readsIds: Platform.OS !== 'web' });
     const tags = new Map<string, FileTags>();
     for (const [i, file] of need.entries()) {
       onProgress(i, need.length);

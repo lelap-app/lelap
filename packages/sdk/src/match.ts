@@ -31,7 +31,7 @@ const LEADING_NUMBER = /^\s*(\d{1,3})\s*[-–—._)]\s+/;
 export type TitleKey = {
   /** The whole title, folded, without edition notes, series number or leading article. */
   full: string;
-  /** The same without a subtitle (after `:`, `;` or ` - `). */
+  /** The same without a subtitle (after `:` or `;`). */
   main: string;
   /** The series number the title carried, if any. */
   number: number | null;
@@ -64,7 +64,8 @@ export function titleKey(title: string): TitleKey {
     take(n);
     return '';
   });
-  const main = text.split(/[:;]| [-–—] /)[0] ?? text;
+  // Not at “ - ”: folder names use it for “Series - Title”, and the series alone is no title.
+  const main = text.split(/[:;]/)[0] ?? text;
   return { full: withoutArticle(fold(text)), main: withoutArticle(fold(main)), number };
 }
 
@@ -80,6 +81,8 @@ const PARTICLES = new Set(['de', 'van', 'von', 'le', 'la', 'du', 'da', 'di', 'de
 export function splitAuthors(text: string | null | undefined): string[] {
   if (!text) return [];
   const parts = text
+    // A narrator in the artist tag is not an author.
+    .replace(/[,;(]?\s*\b(read|narrated|performed)\s+by\b.*$/i, '')
     .split(/\s*(?:;|&|\/|\band\b|\bog\b|\bund\b|\bet\b|\by\b)\s*/i)
     .flatMap((part) => {
       const commas = part.split(',').map((p) => p.trim());
@@ -97,7 +100,6 @@ function isLastFirst(last: string, first: string): boolean {
   const firstWords = first.split(/\s+/).filter(Boolean);
   if (lastWords.length === 0 || firstWords.length === 0 || firstWords.length > 3) return false;
   if (lastWords.length === 1) return true;
-  if (firstWords.some((w) => /^\p{L}\.?$/u.test(w))) return true;
   return PARTICLES.has(lastWords[0] ?? '');
 }
 
@@ -251,9 +253,17 @@ function sameTitle(work: WorkInfo, book: WorkInfo): boolean {
   if (!work.title || !book.title) return false;
   const a = titleKey(work.title);
   const b = titleKey(book.title);
-  // A title that folds to nothing, or to a lone number, says too little to go on.
-  if (a.main.length < 2 || b.main.length < 2 || /^\d+$/.test(a.main)) return false;
-  const titles = a.full === b.full || a.main === b.full || a.full === b.main || a.main === b.main;
+  // A title that folds to nothing says too little to go on.
+  if (a.main.length < 2 || b.main.length < 2) return false;
+  // “01” is a track, not a title; “1984” is a title.
+  if (/^\d+$/.test(a.full) || /^\d+$/.test(b.full)) {
+    if (a.full !== b.full || a.full.length < 3) return false;
+  }
+  // A subtitle may be left out on one side, never differ: “Mistborn: The Final Empire” is not
+  // “Mistborn: The Well of Ascension”.
+  const plain = (k: TitleKey) => k.main === k.full;
+  const titles =
+    a.full === b.full || (plain(b) && a.main === b.full) || (plain(a) && a.full === b.main);
   if (!titles) return false;
   const left = work.series ?? a.number;
   const right = book.series ?? b.number;

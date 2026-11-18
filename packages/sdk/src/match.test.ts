@@ -233,3 +233,33 @@ describe('lookupWork', () => {
     expect(await lookupWork('librivox:dune', { fetch })).toBeNull();
   });
 });
+
+describe('false matches from the review', () => {
+  const by = (title: string, author = 'Brandon Sanderson') => ({ title, authors: [author] });
+
+  it('keeps books of one series with different subtitles apart', () => {
+    expect(
+      matchStrength(by('Mistborn: The Well of Ascension'), by('Mistborn: The Final Empire')),
+    ).toBeNull();
+    expect(matchStrength(by('Warriors: Fire and Ice'), by('Warriors - Into the Wild'))).toBeNull();
+    expect(
+      matchStrength(by('Dune', 'Frank Herbert'), by('Dune - Part Two', 'Frank Herbert')),
+    ).toBeNull();
+    // A subtitle left out on one side still matches.
+    expect(matchStrength(by('Mistborn: The Final Empire'), by('Mistborn'))).toBe('title');
+  });
+
+  it('matches a title that is a number when both agree', () => {
+    expect(matchStrength(by('1984', 'George Orwell'), by('1984', 'Orwell, George'))).toBe('title');
+    expect(matchStrength(by('1984', 'George Orwell'), by('1985', 'George Orwell'))).toBeNull();
+  });
+
+  it('reads authors with initials and narrators right', () => {
+    expect(splitAuthors('Terry Pratchett, J. K. Smith')).toEqual([
+      'Terry Pratchett',
+      'J. K. Smith',
+    ]);
+    expect(splitAuthors('Frank Herbert, read by Scott Brick')).toEqual(['Frank Herbert']);
+    expect(splitAuthors('Frank Herbert (narrated by Simon Vance)')).toEqual(['Frank Herbert']);
+  });
+});

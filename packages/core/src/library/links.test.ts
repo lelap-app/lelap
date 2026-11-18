@@ -20,7 +20,7 @@ import {
   unlinkBook,
 } from './links';
 import { getBook, listBooks } from './queries';
-import { applyScan, splitScanned, upsertRoot } from './scan';
+import { applyScan, filesNeedingTags, splitScanned, upsertRoot } from './scan';
 
 let n = 0;
 const newId = () => `id-${String(++n).padStart(6, '0')}`;
@@ -256,5 +256,38 @@ describe('matching stays on the device', () => {
         /\bfetch\b|XMLHttpRequest|WebSocket|\basync\b|\bawait\b|from '\.\.\/addons\/client'/,
       );
     }
+  });
+});
+
+describe('review cases', () => {
+  it('keeps the series number of a folder name in each half', () => {
+    const db = createTestDb();
+    scan(db, [scanned('Frank Herbert - 02 - Dune Messiah/01.mp3'), scanned('02 - Dune/01.mp3')]);
+    expect(findYourCopy(db, { ...dune, series: 1 })).toBeNull();
+    expect(findYourCopy(db, { ...dune, series: 2 })).toBeNull();
+  });
+
+  it('leaves a book linked to another work out', () => {
+    const db = createTestDb();
+    scan(db, [
+      scanned('Dune/01.mp3', {
+        album: 'Dune',
+        albumArtist: 'Frank Herbert',
+        ids: ['isbn:0441013597'],
+      }),
+    ]);
+    linkBook(db, idOf(db, 'Dune'), { type: 'audiobook', id: 'ol:OL9W' }, 1);
+    expect(findYourCopy(db, { ...dune, externalIds: { isbn: '9780441013593' } })).toBeNull();
+  });
+
+  it('reads files from before M56 once more for their IDs', () => {
+    const db = createTestDb();
+    const files = [scanned('Dune/01.mp3', { album: 'Dune' })];
+    scan(db, files);
+    const { listed } = splitScanned(files);
+    expect(filesNeedingTags(db, listed)).toEqual([]);
+    expect(filesNeedingTags(db, listed, { readsIds: true })).toHaveLength(1);
+    scan(db, [scanned('Dune/01.mp3', { album: 'Dune', ids: [] })]);
+    expect(filesNeedingTags(db, listed, { readsIds: true })).toEqual([]);
   });
 });

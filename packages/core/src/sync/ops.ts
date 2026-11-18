@@ -1,3 +1,4 @@
+import { normalizeIds } from '@lelap/sdk';
 import { and, asc, eq, gt, inArray } from 'drizzle-orm';
 
 import type { Db } from '../db';
@@ -829,7 +830,7 @@ function applyLink(db: Db, op: Extract<Op, { type: 'link' }>): void {
   if (!isText(book) || !isText(workType, 64) || !isText(workId, 512)) return;
   if (state !== 'linked' && state !== 'rejected') return;
   const cleanIds = Array.isArray(ids)
-    ? ids.filter((id): id is string => isText(id, 512)).slice(0, 50)
+    ? normalizeIds(ids.filter((id): id is string => isText(id, 512)).slice(0, 50))
     : [];
   const cleanMeta: LinkedMeta | null =
     meta && typeof meta === 'object' && isText(meta.title, 1000)
