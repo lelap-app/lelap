@@ -135,6 +135,8 @@ describe('configure pages', () => {
     );
     expect(html).toContain('<ol><li>');
     expect(html).toContain('hc_pat_');
+    // Pages without a script keep the policy that allows none.
+    expect(response.headers.get('content-security-policy')).not.toContain('script-src');
   });
 
   it('says so without a CONFIG_SECRET', async () => {
@@ -255,6 +257,9 @@ describe('Hardcover', () => {
     expect(good.response.status).toBe(200);
     expect(good.url).toMatch(/^https:\/\/addons\.example\/hardcover\/v1\.[\w-]+\/manifest\.json$/);
     expect(good.html).not.toContain('test-token');
+    // The link copies on a tap, through one inline script under a nonce.
+    expect(good.html).toMatch(/<script nonce="[a-f0-9]{32}">/);
+    expect(good.html).toContain('id="link"');
     // One tap back into the app, which asks before adding it.
     expect(good.html).toContain(`href="lelap://addon?manifest=${encodeURIComponent(good.url)}"`);
   });

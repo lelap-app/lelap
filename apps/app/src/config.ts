@@ -32,6 +32,25 @@ export const hostedAddons: { id: 'hardcover' | 'gpodder'; base: string }[] = [
   { id: 'gpodder', base: `https://catalog.${domain}/gpodder` },
 ];
 
+const ownOrigins = new Set(
+  [...defaultAddons, ...hostedAddons.map((h) => h.base)].flatMap((url) => {
+    try {
+      return [new URL(url).origin];
+    } catch {
+      return [];
+    }
+  }),
+);
+
+/** Whether an add-on is one of Lelap's own, served from our catalog host (or the configured ones). */
+export function isOwnAddon(url: string): boolean {
+  try {
+    return ownOrigins.has(new URL(url).origin);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The feed and cover proxy for the web app (never audio). Browsers can't read most RSS feeds
  * across origins; the Android app fetches them directly.

@@ -6,6 +6,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { t } from './i18n';
 import { COLORS, Icon, type IconName } from './components/Icon';
 import { Sheet } from './components/Sheet';
+import { isOwnAddon } from './config';
 
 // The sheet shown before an add-on is installed, and from its menu later: what it can do, in plain
 // words, with what deserves a second look in amber. Add-ons are run by others; this is the moment
@@ -99,7 +100,9 @@ export function AddonReviewHost() {
         </View>
         {note !== undefined && <Text className="pb-2 text-xs text-muted">{note}</Text>}
         <Text className="pb-4 text-xs text-muted">
-          {t('Add-ons are made by their authors, not by Lelap. Only add ones you trust.')}
+          {isOwnAddon(url)
+            ? t('This add-on is made by Lelap.')
+            : t('Add-ons are made by their authors, not by Lelap. Only add ones you trust.')}
         </Text>
         <View className="flex-row justify-end gap-2 pb-2">
           <Pressable

@@ -4,11 +4,16 @@ import { type Manifest, needsConfiguration } from '@lelap/sdk';
 import { Linking } from 'react-native';
 
 import { configurePageUrl, fetcher } from './addons';
+import { isOwnAddon } from './config';
 import { db, newId } from './db';
 import { reviewAddon } from './addonReview';
 import { showAlert } from './dialog';
 
-const trust = () => t('Add-ons are run by their authors, not by Lelap. Only add ones you trust.');
+// Our own add-ons say so; anyone else's gets the reminder to trust its author.
+const trust = (url: string) =>
+  isOwnAddon(url)
+    ? t('This add-on is made by Lelap.')
+    : t('Add-ons are run by their authors, not by Lelap. Only add ones you trust.');
 
 const host = (url: string) => /^https?:\/\/([^/?#]+)/i.exec(url)?.[1] ?? url;
 
@@ -35,7 +40,7 @@ export async function confirmAddon(manifestUrl: string): Promise<'added' | 'canc
     if (needsConfiguration(manifest)) {
       showAlert(
         t('{name} needs settings', { name: manifest.name }),
-        `${t('Set it up on its own page, then come back to Lelap.')}\n\n${trust()}`,
+        `${t('Set it up on its own page, then come back to Lelap.')}\n\n${trust(manifestUrl)}`,
         [
           cancel,
           {
@@ -54,7 +59,7 @@ export async function confirmAddon(manifestUrl: string): Promise<'added' | 'canc
     if (existing && existing.url !== manifestUrl) {
       showAlert(
         t('Update {name}?', { name: manifest.name }),
-        `${t('Lelap will use the new settings from {host}. Books you play from it stay in your library.', { host: host(manifestUrl) })}\n\n${trust()}`,
+        `${t('Lelap will use the new settings from {host}. Books you play from it stay in your library.', { host: host(manifestUrl) })}\n\n${trust(manifestUrl)}`,
         [
           cancel,
           {
