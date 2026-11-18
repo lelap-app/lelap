@@ -42,7 +42,9 @@ The app finds its services by domain: `listen.`, `catalog.`, `proxy.` and `sync.
 over HTTPS. With those four names in DNS, `docker compose --profile https up -d` adds Caddy in
 front with certificates from Let's Encrypt; or put your own reverse proxy in front. Both are in
 [`reverse-proxy/`](reverse-proxy/README.md). Android builds for your domain need
-`EXPO_PUBLIC_LELAP_DOMAIN` set when they are built.
+`EXPO_PUBLIC_LELAP_DOMAIN` set when they are built. To have shared place links open those builds
+directly, set `LELAP_ANDROID_CERT_SHA256` to the SHA-256 fingerprint of the certificate that signs
+them (several, comma-separated); the web app then serves `/.well-known/assetlinks.json`.
 
 Upgrade with `git pull`, then `docker compose pull && docker compose up -d`; the web app is
 rebuilt whenever the checkout changed, which takes a few minutes. Every setting is in

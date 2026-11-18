@@ -26,6 +26,7 @@ services:
       dockerfile: docker/web.Dockerfile
       args:
         LELAP_DOMAIN: ${LELAP_DOMAIN:-localhost}
+        LELAP_ANDROID_CERT_SHA256: ${LELAP_ANDROID_CERT_SHA256:-}
     ports: ['${SERVICE_BIND:-}${SERVICE_BIND:+:}8080:8080']
     restart: unless-stopped
     healthcheck:

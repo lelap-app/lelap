@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { chapterAt, mediaSpan, toBookPosition, toFilePosition } from './timeline';
+import { chapterAt, chapterJump, mediaSpan, toBookPosition, toFilePosition } from './timeline';
 
 const files = [
   { location: 'a', durationMs: 1000 },
@@ -87,5 +87,22 @@ describe('mediaSpan', () => {
 
   it('is the whole book when the chapters run past the files', () => {
     expect(mediaSpan(chapters, 100_000, 160_000)).toEqual({ startMs: 0, lengthMs: 100_000 });
+  });
+});
+
+describe('chapterJump', () => {
+  const chapters = [{ startMs: 0 }, { startMs: 60_000 }, { startMs: 120_000 }];
+
+  it('goes to the next chapter, or nowhere from the last', () => {
+    expect(chapterJump(chapters, 70_000, true)).toBe(120_000);
+    expect(chapterJump(chapters, 130_000, true)).toBeNull();
+    expect(chapterJump([], 5_000, true)).toBeNull();
+  });
+
+  it('restarts the chapter playing, or goes to the one before near its start', () => {
+    expect(chapterJump(chapters, 70_000, false)).toBe(60_000);
+    expect(chapterJump(chapters, 61_000, false)).toBe(0);
+    expect(chapterJump(chapters, 1_000, false)).toBe(0);
+    expect(chapterJump([], 50_000, false)).toBe(0);
   });
 });

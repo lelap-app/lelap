@@ -61,6 +61,18 @@ export const partFileName = (idx: number, url: string, name?: string) =>
 
 export const coverFileName = (url: string) => `cover${extensionOf(url, '.jpg')}`;
 
+/** Kept free beside a download, for the database and covers: 2 % of it, and at least 20 MB. */
+const ROOM_MARGIN_BYTES = 20_000_000;
+
+/**
+ * Whether a download of this size fits in the space left. A book whose add-on gave no sizes (0)
+ * is let through: the worker finds out as it goes.
+ */
+export function hasRoomFor(bytesNeeded: number, freeBytes: number): boolean {
+  if (bytesNeeded <= 0) return true;
+  return bytesNeeded + Math.max(ROOM_MARGIN_BYTES, bytesNeeded * 0.02) <= freeBytes;
+}
+
 /** The parts and cover to download for a streamed book. */
 export function planDownload(db: Db, bookId: string): DownloadPlan {
   const book = db.select().from(books).where(eq(books.id, bookId)).get();

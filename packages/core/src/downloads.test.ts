@@ -10,6 +10,7 @@ import {
   coverFileName,
   downloadSnapshot,
   getDownload,
+  hasRoomFor,
   listDownloads,
   localFileUri,
   type NativeDownloadStatus,
@@ -62,6 +63,19 @@ const status = (bookId: string, extra: Partial<NativeDownloadStatus>): NativeDow
   cover: null,
   error: null,
   ...extra,
+});
+
+describe('hasRoomFor', () => {
+  it('keeps a margin of 20 MB, or 2 % of a big download', () => {
+    expect(hasRoomFor(100_000_000, 121_000_000)).toBe(true);
+    expect(hasRoomFor(100_000_000, 119_000_000)).toBe(false);
+    expect(hasRoomFor(2_000_000_000, 2_030_000_000)).toBe(false);
+    expect(hasRoomFor(2_000_000_000, 2_041_000_000)).toBe(true);
+  });
+
+  it('lets a download without sizes through', () => {
+    expect(hasRoomFor(0, 0)).toBe(true);
+  });
 });
 
 describe('file names', () => {

@@ -7,10 +7,13 @@
 // headers, built from the same configuration as the app, and the same headers as a Caddy snippet
 // when LELAP_CADDY_HEADERS names a file (the Docker image).
 //
+// It writes the Android App Links file for shared places when LELAP_ANDROID_CERT_SHA256 names the
+// signing certificates (see writeAssetLinks).
+//
 // Last, it writes the service worker (`web/sw.js` with the list of files to cache) and the
 // script that registers it, after the renames so the cached paths are the served ones.
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 import { defaultAddons, downloadsBase, proxyBase, syncBase } from '../src/config.ts';
@@ -127,6 +130,47 @@ function writeHeaders(dir) {
   }
 }
 
+/**
+ * `/.well-known/assetlinks.json` lets Android open this host's `/place` links in the app (M90).
+ * LELAP_ANDROID_CERT_SHA256 lists the SHA-256 fingerprints of the certificates that sign the APKs,
+ * comma-separated; a fork or self-hoster sets its own, and without it there is no file. The file
+ * lives in `well-known/`, since GitHub artifacts leave out hidden folders; the host serves it at
+ * the real path (`_redirects` here, `docker/Caddyfile` for the image).
+ */
+function writeAssetLinks(dir) {
+  const fingerprints = (process.env.LELAP_ANDROID_CERT_SHA256 ?? '')
+    .split(',')
+    .map((f) => f.trim().toUpperCase())
+    .filter((f) => f !== '');
+  if (fingerprints.length === 0) return 0;
+  for (const f of fingerprints) {
+    if (!/^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(f))
+      throw new Error(`LELAP_ANDROID_CERT_SHA256: not a SHA-256 fingerprint: ${f}`);
+  }
+  const app = JSON.parse(readFileSync(new URL('../app.json', import.meta.url), 'utf8'));
+  const links = [
+    {
+      relation: ['delegate_permission/common.handle_all_urls'],
+      target: {
+        namespace: 'android_app',
+        package_name: app.expo.android.package,
+        sha256_cert_fingerprints: fingerprints,
+      },
+    },
+  ];
+  mkdirSync(join(dir, 'well-known'), { recursive: true });
+  writeFileSync(
+    join(dir, 'well-known', 'assetlinks.json'),
+    `${JSON.stringify(links, null, 2)}
+`,
+  );
+  writeFileSync(
+    join(dir, '_redirects'),
+    '/.well-known/assetlinks.json /well-known/assetlinks.json 200\n',
+  );
+  return fingerprints.length;
+}
+
 /** Every file of the export, as the URL paths the browser asks for. */
 function listFiles(dir) {
   return readdirSync(dir).flatMap((name) => {
@@ -136,7 +180,7 @@ function listFiles(dir) {
 }
 
 // Not part of the shell: headers for the host, source maps, and the worker itself.
-const NOT_SHELL = /(^\/_headers$|^\/_redirects$|^\/sw\.js$|\.map$)/;
+const NOT_SHELL = /(^\/_headers$|^\/_redirects$|^\/sw\.js$|^\/well-known\/|\.map$)/;
 
 function writeServiceWorker(dir) {
   const files = listFiles(dir)
@@ -175,5 +219,8 @@ renameFolders(root);
 addInstallLinks(root);
 writeHeaders(root);
 console.log(`fix-web-export: rewrote references in ${rewrite(root)} files`);
+const certificates = writeAssetLinks(root);
+if (certificates > 0)
+  console.log(`fix-web-export: App Links for ${certificates} signing certificate(s)`);
 const worker = writeServiceWorker(root);
 console.log(`fix-web-export: service worker ${worker.build} caches ${worker.files} files`);

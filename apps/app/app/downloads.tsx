@@ -2,7 +2,7 @@ import { type DownloadEntry, getSettings, listDownloads } from '@lelap/core';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
@@ -10,6 +10,7 @@ import { showAlert } from '../src/dialog';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { MiniPlayer } from '../src/components/MiniPlayer';
+import { TextButton } from '../src/components/TextButton';
 import { db } from '../src/db';
 import {
   deleteDownload,
@@ -34,6 +35,13 @@ export default function DownloadsScreen() {
   const storage = useQuery({
     queryKey: ['storage', version, entries.length],
     queryFn: () => native.storage(),
+    networkMode: 'always',
+  });
+  // Whether the browser keeps its storage when the disk runs low; Android always does.
+  const kept = useQuery({
+    queryKey: ['storage-kept', version],
+    queryFn: native.storageKept,
+    networkMode: 'always',
   });
 
   const act = (task: () => Promise<void>) =>
@@ -87,10 +95,15 @@ export default function DownloadsScreen() {
             {storage.data && (
               <View className="gap-2">
                 <Text className="text-base text-soft">
-                  {t('Lelap uses {used} · {free} free on this phone', {
-                    used: formatBytes(used),
-                    free: formatBytes(storage.data.freeBytes),
-                  })}
+                  {Platform.OS === 'web'
+                    ? t('Lelap uses {used} · {free} free in this browser', {
+                        used: formatBytes(used),
+                        free: formatBytes(storage.data.freeBytes),
+                      })
+                    : t('Lelap uses {used} · {free} free on this phone', {
+                        used: formatBytes(used),
+                        free: formatBytes(storage.data.freeBytes),
+                      })}
                 </Text>
                 <View className="h-2 flex-row overflow-hidden rounded-full bg-line">
                   <View
@@ -102,15 +115,34 @@ export default function DownloadsScreen() {
                 </View>
               </View>
             )}
-            <Text className="text-sm text-muted">
-              {[
-                settings.downloadOnWifiOnly ? t('Only on Wi-Fi') : t('On Wi-Fi and mobile data'),
-                settings.downloadWhileChargingOnly ? t('only while charging') : null,
-              ]
-                .filter(Boolean)
-                .join(', ')}
-              . Change this in Settings.
-            </Text>
+            {native.RULES_APPLY ? (
+              <Text className="text-sm text-muted">
+                {`${[
+                  settings.downloadOnWifiOnly ? t('Only on Wi-Fi') : t('On Wi-Fi and mobile data'),
+                  settings.downloadWhileChargingOnly ? t('only while charging') : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}. ${t('Change this in Settings.')}`}
+              </Text>
+            ) : kept.data === false ? (
+              <View className="flex-row items-center gap-4">
+                <Text className="flex-1 text-sm text-muted">
+                  {t(
+                    'The browser may clear downloads when its disk runs low. Ask it to keep them, or install Lelap.',
+                  )}
+                </Text>
+                <TextButton
+                  text={t('Keep')}
+                  onPress={() => void native.keepStorage().then(() => kept.refetch())}
+                />
+              </View>
+            ) : kept.data ? (
+              <Text className="text-sm text-muted">
+                {t(
+                  'Downloads stay in this browser until you remove them. They download while Lelap is open.',
+                )}
+              </Text>
+            ) : null}
           </View>
         }
         ListEmptyComponent={

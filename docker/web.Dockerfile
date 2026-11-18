@@ -3,11 +3,15 @@
 # Built once on the runner's own CPU: the output is static files, the same for every platform.
 FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS build
 ARG LELAP_DOMAIN=lelap.app
+# The APK signing certificates' SHA-256 fingerprints, comma-separated: shared place links then
+# open the Android app. Empty for none.
+ARG LELAP_ANDROID_CERT_SHA256=
 WORKDIR /src
 RUN corepack enable
 COPY . .
 RUN pnpm install --frozen-lockfile --filter "@lelap/app..." \
   && EXPO_PUBLIC_LELAP_DOMAIN=$LELAP_DOMAIN LELAP_CADDY_HEADERS=/src/headers.caddy \
+    LELAP_ANDROID_CERT_SHA256=$LELAP_ANDROID_CERT_SHA256 \
     pnpm --filter @lelap/app build \
   && rm apps/app/dist-web/_headers
 

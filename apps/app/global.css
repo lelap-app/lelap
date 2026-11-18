@@ -1,3 +1,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* The browser's thin blue focus ring is hard to see on the dark theme; keyboard focus gets the
+   amber instead (web only, M90). */
+:focus-visible {
+  outline: 2px solid #f5b041;
+  outline-offset: 2px;
+}

@@ -24,7 +24,21 @@ export function stepSpeed(current: number, faster: boolean): number {
   return next ?? current;
 }
 
-export type Shortcut = 'playPause' | 'back' | 'forward' | 'slower' | 'faster' | 'search' | 'help';
+export type Shortcut =
+  | 'playPause'
+  | 'back'
+  | 'forward'
+  | 'previousChapter'
+  | 'nextChapter'
+  | 'slower'
+  | 'faster'
+  | 'bookmark'
+  | 'home'
+  | 'discover'
+  | 'search'
+  | 'podcasts'
+  | 'library'
+  | 'help';
 
 /**
  * What has focus when the key goes down: text takes every key, a control its own. `slider`
@@ -45,9 +59,16 @@ export const SHORTCUTS: readonly { action: Shortcut; keys: readonly string[] }[]
   { action: 'playPause', keys: ['Space', 'K'] },
   { action: 'back', keys: ['←', 'J'] },
   { action: 'forward', keys: ['→', 'L'] },
+  { action: 'previousChapter', keys: ['P'] },
+  { action: 'nextChapter', keys: ['N'] },
   { action: 'slower', keys: ['<'] },
   { action: 'faster', keys: ['>'] },
-  { action: 'search', keys: ['/'] },
+  { action: 'bookmark', keys: ['B'] },
+  { action: 'home', keys: ['1'] },
+  { action: 'discover', keys: ['2'] },
+  { action: 'search', keys: ['/', '3'] },
+  { action: 'podcasts', keys: ['4'] },
+  { action: 'library', keys: ['5'] },
   { action: 'help', keys: ['?'] },
 ];
 
@@ -61,8 +82,20 @@ const KEYS: Record<string, Shortcut> = {
   ArrowRight: 'forward',
   l: 'forward',
   L: 'forward',
+  p: 'previousChapter',
+  P: 'previousChapter',
+  n: 'nextChapter',
+  N: 'nextChapter',
   '<': 'slower',
   '>': 'faster',
+  b: 'bookmark',
+  B: 'bookmark',
+  // The tabs in the order they show.
+  '1': 'home',
+  '2': 'discover',
+  '3': 'search',
+  '4': 'podcasts',
+  '5': 'library',
   '/': 'search',
   '?': 'help',
 };
