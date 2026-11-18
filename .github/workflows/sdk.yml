@@ -86,9 +86,12 @@ jobs:
       - name: Pack
         working-directory: packages/sdk
         run: pnpm pack --pack-destination "$RUNNER_TEMP"
+      # npm tries trusted publishing (OIDC, `id-token: write` above) before any token; 0.4.0 went
+      # out that way with NPM_TOKEN empty, which also hides setup-node's placeholder token. The
+      # line goes once the maintainer has confirmed the trusted publisher and turned off token
+      # publishing (docs/milestones/m70.md).
       - name: Publish
         env:
-          # Empty once trusted publishing is set up; npm then authenticates through OIDC.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ needs.check.outputs.version }}
         run: |

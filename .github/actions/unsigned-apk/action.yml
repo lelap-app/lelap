@@ -60,13 +60,16 @@ runs:
     - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
       with:
         cache-disabled: true
+    # Gradle's dependencies come from the packages in the lockfile, the native modules' build
+    # files and the config plugins; a change to any of them starts a new Gradle cache.
     - id: keys
       shell: bash
       env:
         LOCK: ${{ hashFiles('pnpm-lock.yaml') }}
+        GRADLE: ${{ hashFiles('pnpm-lock.yaml', 'modules/*/android/build.gradle', 'apps/app/plugins/**') }}
       run: |
         echo "pnpm=apk-pnpm-$RUNNER_OS-$LOCK" >> "$GITHUB_OUTPUT"
-        echo "gradle=apk-gradle-$RUNNER_OS-$LOCK" >> "$GITHUB_OUTPUT"
+        echo "gradle=apk-gradle-$RUNNER_OS-$GRADLE" >> "$GITHUB_OUTPUT"
     - id: store
       shell: bash
       run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"

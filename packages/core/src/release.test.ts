@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   type AbiChooser,
   abiVersionCode,
+  apkUpdateNeeded,
   apkName,
   channelOf,
   formatVersion,
@@ -171,5 +172,42 @@ describe('one APK per CPU type', () => {
     const beta = split('1.3.0-beta.1');
     expect(pickUpdate(1, 'beta', stable, beta, arm32Phone)?.version).toBe('1.3.0-beta.1');
     expect(pickUpdate(1, 'stable', stable, beta, arm32Phone)?.version).toBe('1.2.0');
+  });
+});
+
+describe('JavaScript-only releases', () => {
+  const published = (runtime?: string) => ({
+    ...ReleaseInfo.parse({
+      version: '0.2.0',
+      versionCode: 200_992,
+      url: 'https://dl.example.org/apk/lelap-0.2.0.apk',
+      sha256: 'a'.repeat(64),
+      size: 1,
+      publishedAt: '2026-11-18T00:00:00.000Z',
+    }),
+    ...(runtime ? { runtime } : {}),
+  });
+
+  it('keeps the published APK when only JavaScript changed and the bundle went out', () => {
+    expect(apkUpdateNeeded(published('abc'), 'abc', true)).toBe(false);
+  });
+
+  it('publishes the APK for a new native build', () => {
+    expect(apkUpdateNeeded(published('abc'), 'def', true)).toBe(true);
+  });
+
+  it('publishes the APK when the over-the-air bundle did not go out', () => {
+    expect(apkUpdateNeeded(published('abc'), 'abc', false)).toBe(true);
+  });
+
+  it('publishes the APK when there is nothing to compare with', () => {
+    expect(apkUpdateNeeded(published(), 'abc', true)).toBe(true);
+    expect(apkUpdateNeeded(null, 'abc', true)).toBe(true);
+    expect(apkUpdateNeeded({ runtime: 'abc' }, 'abc', true)).toBe(true);
+    expect(apkUpdateNeeded(published('abc'), '', true)).toBe(true);
+  });
+
+  it('lets apps from before the runtime field read the file', () => {
+    expect(ReleaseInfo.safeParse(published('abc')).success).toBe(true);
   });
 });
