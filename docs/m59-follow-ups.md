@@ -72,3 +72,22 @@ Open in a browser:
 - A Plex place saved after the app restarts makes the add-on list the libraries again first, to
   find the track; for a large library that may run past the 20 s a place report may take.
 - Emby's API key reaches every user's library; the form says the password is the better choice.
+
+## From the review
+
+Fixed: a server shared by a friend never gets the account's token, also when plex.tv can't be
+reached (the sign-in keeps the server's own token for that), and a token plex.tv refuses asks for
+a new sign-in; a place report uses the server found by the last listing, tries the address the
+file came from first and may take 60 s; tracks are found by their path on the server, so a place
+saves through either address; signing in again keeps the client ID, so plex.tv lists Lelap once;
+an add-on that doesn't come with the app can't fill in address fields that grant hosts; the sign-in
+runs with the add-on's declared hosts only, opens a page only on them, gives the code at least a
+minute and survives two failed checks; an Emby item without a length leaves its tags to the app.
+
+Left for later:
+
+- The identity check runs before listing, not before each stream: an address in the form that
+  later answers as another server still gets the stream header, as with any typed address.
+- Emby's paging is sorted by name only; items with the same sort name could in theory move between
+  pages of a very large library (repeats are dropped, gaps are not).
+- A sign-in result that arrives while the listener edits the server's addresses replaces them.

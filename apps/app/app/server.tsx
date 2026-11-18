@@ -1,4 +1,5 @@
 import {
+  addonSettings,
   addonSource,
   addRemoteRoot,
   type AudiobookshelfLibrary,
@@ -465,9 +466,14 @@ export default function ServerScreen() {
                 manifest={chosenSource.manifest}
                 sandboxId={checkSandbox}
                 values={values}
+                {...(addonRoot ? { known: addonSettings(addonRoot) } : {})}
                 onDone={(result) =>
                   setValues((current) =>
-                    applySignin(chosenSource.manifest.settings ?? [], current, result, locked),
+                    applySignin(chosenSource.manifest.settings ?? [], current, result, {
+                      sealedOnly: locked,
+                      // Only add-ons that come with the app fill in addresses it may reach.
+                      hosts: chosenSource.bundled,
+                    }),
                   )
                 }
               />

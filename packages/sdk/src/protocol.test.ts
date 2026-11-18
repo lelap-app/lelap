@@ -403,15 +403,18 @@ describe('revision 7: signing in through a website, and a query for the browser'
   it('puts only the form’s own fields from a sign-in into the form', () => {
     const fields = inApp.settings ?? [];
     const result = { settings: { account: 'tok', url: 'https://a.plex.direct:32400', other: 'x' } };
-    expect(applySignin(fields, { url: '' }, result)).toEqual({
+    expect(applySignin(fields, { url: '' }, result, { hosts: true })).toEqual({
       account: 'tok',
       url: 'https://a.plex.direct:32400',
     });
     // Logging in again changes the sealed value only.
-    expect(applySignin(fields, { url: 'http://nas:32400' }, result, true)).toEqual({
-      account: 'tok',
-      url: 'http://nas:32400',
+    const again = applySignin(fields, { url: 'http://nas:32400' }, result, {
+      sealedOnly: true,
+      hosts: true,
     });
+    expect(again).toEqual({ account: 'tok', url: 'http://nas:32400' });
+    // An add-on that doesn't come with the app can't pick its own hosts.
+    expect(applySignin(fields, { url: '' }, result)).toEqual({ account: 'tok', url: '' });
   });
 
   it('reads a listing with headers and a query for the browser', () => {

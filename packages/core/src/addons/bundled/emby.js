@@ -342,13 +342,18 @@ function filesOf(s, items, pictures) {
         downloadUrl: `${s.base}/Items/${id}/Download`,
         ...(Number.isSafeInteger(item.Size) && item.Size >= 0 ? { size: item.Size } : {}),
         ...(Number.isFinite(created) && created >= 0 ? { modifiedAt: created } : {}),
-        durationMs: msOf(item.RunTimeTicks),
-        title: item.Name || undefined,
-        album: title || undefined,
-        artist: list(item.Artists).join(', ') || undefined,
-        albumArtist: author || undefined,
-        ...(chapters.length > 0 ? { chapters } : {}),
-        ...(ids.length > 0 ? { ids } : {}),
+        // Without a length from Emby, the app reads the file's tags itself.
+        ...(msOf(item.RunTimeTicks) > 0
+          ? {
+              durationMs: msOf(item.RunTimeTicks),
+              title: item.Name || undefined,
+              album: title || undefined,
+              artist: list(item.Artists).join(', ') || undefined,
+              albumArtist: author || undefined,
+              ...(chapters.length > 0 ? { chapters } : {}),
+              ...(ids.length > 0 ? { ids } : {}),
+            }
+          : {}),
         ...(place ? { place } : {}),
       });
     });

@@ -14,6 +14,8 @@ import { sandboxPage } from './page';
 const CALL_TIMEOUT_MS = 20_000;
 // A library listing may take many requests, such as one per album on a Subsonic server.
 const LIBRARY_TIMEOUT_MS = 120_000;
+// A place report may first have to find the server, at home or away, or list it again.
+const PLACE_TIMEOUT_MS = 60_000;
 const FETCH_TIMEOUT_MS = 20_000;
 const MAX_RESPONSE_CHARS = 5_000_000;
 
@@ -272,7 +274,10 @@ export async function callAddonPlace(args: {
   settings: Settings;
   place: PlaceReport;
 }): Promise<{ status: number; body: unknown }> {
-  return call(serverBox(args), placePath(), args.settings, { place: args.place });
+  return call(serverBox(args), placePath(), args.settings, {
+    place: args.place,
+    timeoutMs: PLACE_TIMEOUT_MS,
+  });
 }
 
 /**

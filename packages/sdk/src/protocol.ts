@@ -766,19 +766,23 @@ export function offersSignin(manifest: Manifest): boolean {
 /**
  * The form's values after a sign-in: those the add-on's `SigninResult` gave, for the form's own
  * fields only. With `sealedOnly`, such as when the listener logs in again to a server already
- * added, only the `signin` and password fields change.
+ * added, only the `signin` and password fields change. Address fields that grant a host are filled
+ * only with `hosts`, which the app gives the add-ons that come with it: any other add-on could
+ * otherwise pick its own hosts, which the listener never typed.
  */
 export function applySignin(
   fields: SettingField[],
   current: Settings,
   result: SigninResult,
-  sealedOnly = false,
+  options: { sealedOnly?: boolean; hosts?: boolean } = {},
 ): Settings {
   const next: Settings = { ...current };
   for (const field of fields) {
     const value = result.settings?.[field.key];
     if (value === undefined) continue;
-    if (sealedOnly && field.type !== 'signin' && field.type !== 'password') continue;
+    const sealed = field.type === 'signin' || field.type === 'password';
+    if (options.sealedOnly === true && !sealed) continue;
+    if (field.host === true && options.hosts !== true) continue;
     next[field.key] = value;
   }
   return next;

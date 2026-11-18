@@ -1,4 +1,4 @@
-import { addonSourceHosts } from '@lelap/core';
+import { hostAllowed } from '@lelap/core';
 import {
   type Manifest,
   type SettingField,
@@ -20,8 +20,12 @@ import { COLORS } from './Icon';
 // a page, the listener enters the code there on any device, and the add-on hands back what it
 // keeps. The app asks it every few seconds until then.
 
-// The add-on's own expiry counts if it is sooner.
+// The add-on's own expiry counts if it is sooner, but never less than a minute: the phone's clock
+// and the website's may differ.
 const MAX_WAIT_MS = 30 * 60_000;
+const MIN_WAIT_MS = 60_000;
+// A check that fails once, such as on a moment without network, doesn't end the sign-in.
+const MAX_FAILURES = 3;
 
 function said(body: unknown, status: number): string {
   if (typeof body === 'object' && body !== null && 'error' in body) return String(body.error);
@@ -42,6 +46,7 @@ export function AddonSignin({
   manifest,
   sandboxId,
   values,
+  known = {},
   onDone,
 }: {
   field: SettingField;
@@ -49,13 +54,17 @@ export function AddonSignin({
   manifest: Manifest;
   sandboxId: string;
   values: Settings;
+  /** The sealed values of a server already added, so signing in again keeps what it can. */
+  known?: Settings;
   onDone: (result: SigninResult) => void;
 }) {
   const [pending, setPending] = useState<SigninStart | null>(null);
   const [busy, setBusy] = useState(false);
   // The form's values at the time of each check, without starting the checks again.
-  const latest = useRef(values);
-  latest.current = values;
+  const latest = useRef({ ...known, ...values });
+  latest.current = { ...known, ...values };
+  // Only the add-on's declared hosts: the sign-in needs no address from the form.
+  const hosts = manifest.sandbox?.hosts ?? [];
   const done = useRef(onDone);
   done.current = onDone;
   const signedIn = (values[field.key] ?? '') !== '';
@@ -64,7 +73,7 @@ export function AddonSignin({
     const { status, body } = await callAddonSignin({
       addonUrl,
       sandboxId,
-      hosts: addonSourceHosts(manifest, latest.current),
+      hosts,
       settings: latest.current,
       step,
       ...(state === undefined ? {} : { state }),
@@ -77,7 +86,10 @@ export function AddonSignin({
     setBusy(true);
     try {
       const parsed = SigninStartSchema.safeParse(await call('start'));
-      if (!parsed.success) throw new Error(t('The add-on’s sign-in is not valid.'));
+      // The page to open is on one of the add-on's declared hosts, never anywhere it likes.
+      if (!parsed.success || !hostAllowed(parsed.data.url, hosts)) {
+        throw new Error(t('The add-on’s sign-in is not valid.'));
+      }
       setPending(parsed.data);
     } catch (error) {
       showAlert(t('Could not sign in'), error instanceof Error ? error.message : String(error));
@@ -89,8 +101,13 @@ export function AddonSignin({
   useEffect(() => {
     if (!pending) return;
     let stopped = false;
-    const until = Math.min(pending.expiresAt ?? Infinity, Date.now() + MAX_WAIT_MS);
+    const now = Date.now();
+    const until = Math.min(
+      Math.max(pending.expiresAt ?? Infinity, now + MIN_WAIT_MS),
+      now + MAX_WAIT_MS,
+    );
     const every = (pending.interval ?? 5) * 1000;
+    let failures = 0;
     let timer: ReturnType<typeof setTimeout>;
     const check = async () => {
       if (stopped) return;
@@ -108,8 +125,13 @@ export function AddonSignin({
           done.current(parsed.data);
           return;
         }
+        failures = 0;
       } catch (error) {
         if (stopped) return;
+        if (++failures < MAX_FAILURES) {
+          timer = setTimeout(() => void check(), every);
+          return;
+        }
         setPending(null);
         showAlert(t('Could not sign in'), error instanceof Error ? error.message : String(error));
         return;

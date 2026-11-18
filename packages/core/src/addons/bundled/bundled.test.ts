@@ -713,7 +713,7 @@ describe('Plex', () => {
     const source = run({}, answer);
     const start = SigninStart.parse(await source.signin('start'));
     const result = SigninResult.parse(await source.signin('check', start.state));
-    Object.assign(source.values, applySignin(fields, source.values, result));
+    Object.assign(source.values, applySignin(fields, source.values, result, { hosts: true }));
     return source;
   }
 
@@ -731,7 +731,13 @@ describe('Plex', () => {
     tv.approve();
     const result = SigninResult.parse(await source.signin('check', start.state));
     const account = JSON.parse(result.settings?.account ?? '{}') as Record<string, string>;
-    expect(account).toEqual({ client: expect.any(String), token: ACCOUNT, machine: MACHINE });
+    expect(account).toEqual({
+      client: expect.any(String),
+      token: ACCOUNT,
+      machine: MACHINE,
+      server: SERVER,
+      owned: true,
+    });
     // The owned server, at home over https and away, never through the relay.
     expect(result.settings).toMatchObject({ server: 'Shelf', url: HOME, remote: AWAY });
     // One client ID for the whole sign-in, and nothing asked but plex.tv.
@@ -825,11 +831,39 @@ describe('Plex', () => {
     expect(tokens).toEqual([]);
   });
 
-  it('lists at home with the account’s token when plex.tv can’t be reached', async () => {
+  it('lists at home with the server’s token from the sign-in when plex.tv can’t be reached', async () => {
     const source = await signedIn(world().answer);
-    const result = await run(source.values, world({ plexTv: false }).answer).list();
-    expect(result.headers).toEqual({ 'X-Plex-Token': ACCOUNT });
+    const offline = world({ plexTv: false });
+    const result = await run(source.values, offline.answer).list();
+    expect(result.headers).toEqual({ 'X-Plex-Token': SERVER });
     expect(result.files).toHaveLength(4);
+    expect(
+      offline.calls.some(
+        (c) => c.headers['X-Plex-Token'] === ACCOUNT && c.url.includes('plex.direct'),
+      ),
+    ).toBe(false);
+  });
+
+  it('never sends the account’s token to a server someone else shares', async () => {
+    const source = await signedIn(world().answer);
+    const account = JSON.parse(source.values.account ?? '{}') as Record<string, unknown>;
+    // A friend's server with no token of its own kept, and plex.tv out of reach.
+    const shared = JSON.stringify({ ...account, owned: undefined, server: undefined });
+    const offline = world({ plexTv: false });
+    await expect(run({ ...source.values, account: shared }, offline.answer).list()).rejects.toThrow(
+      'plex.tv did not answer.',
+    );
+    const onServer = offline.calls.filter((c) => !c.url.startsWith('https://plex.tv/'));
+    expect(onServer.every((c) => c.headers['X-Plex-Token'] !== ACCOUNT)).toBe(true);
+  });
+
+  it('asks for a new sign-in when plex.tv refuses the token', async () => {
+    const source = await signedIn(world().answer);
+    const account = JSON.parse(source.values.account ?? '{}') as Record<string, unknown>;
+    const revoked = JSON.stringify({ ...account, token: 'revoked' });
+    await expect(
+      run({ ...source.values, account: revoked }, world().answer).list(),
+    ).rejects.toThrow('plex.tv refused the sign-in. Sign in again.');
   });
 
   it('takes the libraries named, and names the music libraries there are when one is not', async () => {
@@ -853,8 +887,11 @@ describe('Plex', () => {
     const [first, second] = result.files;
     const file = (f: typeof first) => ({ path: f?.path ?? '', url: f?.url ?? '' });
     const book = [file(first), file(second)];
+    tv.calls.length = 0;
     await source.place({ file: book[0], files: book, positionMs: 1200, at: 5, finished: false });
     await source.place({ file: book[1], files: book, positionMs: 5015, at: 9, finished: true });
+    // The server found by the listing is used again: no plex.tv, no identity check.
+    expect(tv.calls.map((c) => new URL(c.url).pathname)).toEqual(['/:/progress', '/:/scrobble']);
     expect(tv.saved.map((s) => [s.path, Object.fromEntries(s.params)])).toEqual([
       [
         '/:/progress',
@@ -879,5 +916,22 @@ describe('Plex', () => {
       finished: false,
     });
     expect(tv.saved.map((s) => s.params.get('key'))).toEqual(['112']);
+  });
+
+  it('saves a place through the address away when the book was listed at home', async () => {
+    const source = await signedIn(world().answer);
+    const away = world({ home: false });
+    const file = {
+      path: 'Frances Hodgson Burnett/The Secret Garden/002 Chapter 2.mp3',
+      url: `${HOME}/library/parts/312/1763434800/file.mp3`,
+    };
+    await run(source.values, away.answer).place({
+      file,
+      files: [file],
+      positionMs: 2000,
+      at: 5,
+      finished: false,
+    });
+    expect(away.saved.map((s) => s.params.get('key'))).toEqual(['112']);
   });
 });

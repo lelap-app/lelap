@@ -22,9 +22,11 @@ const BY_CONTAINER = { mp4: 'm4b', mpeg: 'mp3', oga: 'ogg' };
 // Music libraries used for audiobooks are found by name when the listener names none.
 const BOOKISH = /audio ?books?|h(ö|oe)rb(ü|ue)cher|livres audio|buku audio|book/i;
 
-// Tracks by the address of their file, from this server's last listing, so a place can be saved
-// on the track. Each server has a sandbox of its own, so nothing here is shared.
+// Tracks by the path of their file on the server, from this server's last listing, so a place can
+// be saved on the track whichever of its addresses answers; and the last address that answered.
+// Each server has a sandbox of its own, so nothing here is shared.
 const tracks = new Map();
+let connected = null;
 
 const enc = encodeURIComponent;
 const queryOf = (params) =>
@@ -65,7 +67,9 @@ function plexHeaders(client, token) {
 // Errors name the problem, never an address: an address could carry the token.
 async function json(response, who) {
   if (response.status === 401 || response.status === 403) {
-    throw new Error(`${who} refused the sign-in. Sign in again.`);
+    const error = new Error(`${who} refused the sign-in. Sign in again.`);
+    error.refused = true;
+    throw error;
   }
   if (!response.ok) throw new Error(`${who} answered HTTP ${response.status}.`);
   const text = await response.text();
@@ -188,9 +192,18 @@ async function signinCheck(settings, signin) {
     );
   }
   const { local, away } = addressesOf(server);
+  // The server's own token is kept too, for when plex.tv can't be asked; a server shared by a
+  // friend never gets the account's token.
+  const account = {
+    client: state.client,
+    token,
+    machine: server.clientIdentifier,
+    ...(server.accessToken ? { server: String(server.accessToken) } : {}),
+    ...(server.owned ? { owned: true } : {}),
+  };
   return {
     settings: {
-      account: JSON.stringify({ client: state.client, token, machine: server.clientIdentifier }),
+      account: JSON.stringify(account),
       server: String(server.name || ''),
       ...(local ? { url: local } : {}),
       ...(away ? { remote: away } : {}),
@@ -198,24 +211,30 @@ async function signinCheck(settings, signin) {
   };
 }
 
-/** The server's token, and its ID to check addresses against; the account's when plex.tv can't say. */
+/**
+ * The server's token, and its ID to check addresses against. When plex.tv can't be reached, such
+ * as at home without internet, the token kept from the sign-in; the account's own token only for
+ * the listener's own server.
+ */
 async function serverLogin(settings, account) {
+  let found = null;
   try {
-    const server = pickServer(
-      await servers(account.client, account.token),
-      settings.server,
-      account.machine,
-    );
-    if (server) {
-      return {
-        token: String(server.accessToken || account.token),
-        machine: String(server.clientIdentifier),
-      };
-    }
-  } catch {
-    // Offline from plex.tv, such as at home without internet: the server takes the account's token.
+    found = await servers(account.client, account.token);
+  } catch (error) {
+    // plex.tv no longer takes the token: the listener signs in again.
+    if (error && error.refused) throw error;
   }
-  return { token: account.token, machine: account.machine || null };
+  if (found) {
+    const server = pickServer(found, settings.server, account.machine);
+    if (!server) throw new Error('plex.tv no longer lists this server. Sign in again.');
+    const own = server.owned === true;
+    const token = server.accessToken || (own ? account.token : '');
+    if (!token) throw new Error('plex.tv gave no token for this server. Sign in again.');
+    return { token: String(token), machine: String(server.clientIdentifier) };
+  }
+  const token = account.server || (account.owned ? account.token : '');
+  if (!token) throw new Error('plex.tv did not answer. Try again later.');
+  return { token, machine: account.machine || null };
 }
 
 const baseOf = (address) => {
@@ -223,9 +242,14 @@ const baseOf = (address) => {
   return url ? url.origin : null;
 };
 
-/** The first of the server's addresses that answers as that server; it gets no token before. */
-async function reachable(settings, account, login) {
-  const bases = [settings.url, settings.remote].map(baseOf).filter(Boolean);
+/**
+ * The first of the server's addresses that answers as that server; it gets no token before.
+ * `first` is tried first, such as the address a file was listed from.
+ */
+async function reachable(settings, account, login, first) {
+  const bases = [...new Set([first, settings.url, settings.remote].map(baseOf).filter(Boolean))]
+    // Only the form's addresses.
+    .filter((base) => base === baseOf(settings.url) || base === baseOf(settings.remote));
   if (bases.length === 0) throw new Error('Sign in again: Lelap has no address for the server.');
   let last = null;
   for (const base of bases) {
@@ -257,12 +281,16 @@ const pms = async (s, path, params = {}) => {
   );
 };
 
-async function connect(settings) {
+async function connect(settings, first) {
   const account = accountOf(settings);
   if (!account) throw new Error('Sign in with Plex first.');
   const login = await serverLogin(settings, account);
-  const base = await reachable(settings, account, login);
-  return { base, client: account.client, token: login.token };
+  const base = await reachable(settings, account, login, first);
+  connected = {
+    key: JSON.stringify([settings.account, settings.url, settings.remote, settings.server]),
+    s: { base, client: account.client, token: login.token },
+  };
+  return connected.s;
 }
 
 /** The music libraries to take books from: those named, or those named like audiobooks. */
@@ -414,7 +442,7 @@ function filesOf(s, found) {
       const url = part && partAddress(s, part);
       const suffix = part && suffixOf(track, part);
       if (!url || !suffix || files.length >= MAX_FILES) return;
-      tracks.set(url, String(track.ratingKey));
+      tracks.set(String(part.key), String(track.ratingKey));
       const number = String(i + 1).padStart(3, '0');
       const name = track.title ? `${number} ${clean(track.title, '')}` : number;
       const added = Math.round(Number(track.updatedAt || track.addedAt) * 1000);
@@ -467,15 +495,13 @@ const LIBRARY = 'com.plexapp.plugins.library';
 
 /** Saves the listener's place as the track's view offset, or marks it played at the end. */
 async function place(settings, report) {
-  const s = await connect(settings);
-  const address = (() => {
-    try {
-      const url = new URL(report.file.url);
-      return `${url.origin}${url.pathname}`;
-    } catch {
-      return '';
-    }
-  })();
+  const url = httpUrl(report.file.url);
+  if (!url) return { saved: false };
+  // The connection of the last listing or report, while the form is the same; else the address
+  // the file was listed from first, so a report doesn't wait on the other one.
+  const key = JSON.stringify([settings.account, settings.url, settings.remote, settings.server]);
+  const s = connected && connected.key === key ? connected.s : await connect(settings, url.origin);
+  const address = url.pathname;
   // A sandbox started after the last listing, such as after the app restarted, lists again.
   if (!tracks.has(address)) {
     const sections = await sectionsOf(s, settings.libraries);
@@ -493,10 +519,18 @@ async function place(settings, report) {
       ? {}
       : { time: String(Math.max(0, Math.round(report.positionMs))), state: 'stopped' }),
   };
-  const response = await lelap.fetch(
-    `${s.base}${report.finished ? '/:/scrobble' : '/:/progress'}?${queryOf(params)}`,
-    { headers: plexHeaders(s.client, s.token) },
-  );
+  let response;
+  try {
+    response = await lelap.fetch(
+      `${s.base}${report.finished ? '/:/scrobble' : '/:/progress'}?${queryOf(params)}`,
+      { headers: plexHeaders(s.client, s.token) },
+    );
+  } catch (error) {
+    // The next report looks for the server again.
+    connected = null;
+    throw error;
+  }
+  if (!response.ok) connected = null;
   if (response.status === 401 || response.status === 403) {
     throw new Error('The Plex server refused the sign-in. Sign in again.');
   }

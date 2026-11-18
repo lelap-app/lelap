@@ -1546,15 +1546,17 @@ const toc: [string, string][] = [
     </li>
     <li>
       An answer with <code>settings</code> fills in the form by field key: the <code>signin</code>{' '}
-      field’s value is whatever the add-on keeps (a token), and other fields may be filled too, such
-      as a server address. The listener sees the address fields and can change them before
-      connecting; only addresses in the form become hosts, as for typed ones. When the listener logs
-      in again to a server already added, only the sealed fields change.
+      field’s value is whatever the add-on keeps (a token), and other fields may be filled too. An
+      address field marked <code>host</code> is filled only for add-ons that come with the app, such
+      as Plex with the server’s addresses; for any other add-on the listener types the address, so
+      it can’t choose its own hosts. When the listener logs in again to a server already added, only
+      the sealed fields change.
     </li>
     <li>
       Both calls get <code>args.settings</code> with the form so far, in the server’s own sandbox,
-      reaching only <code>sandbox.hosts</code> (for Plex, <code>plex.tv:443</code>) and the
-      addresses in the form. There is no HTTP route for them; only the sandbox calls them.
+      reaching only <code>sandbox.hosts</code> (for Plex, <code>plex.tv:443</code>). The page in{' '}
+      <code>url</code> must be on one of those hosts too. There is no HTTP route for them; only the
+      sandbox calls them.
     </li>
   </ul>
   <CodeBlock code={signinStart} label={signinPath('start')} />
