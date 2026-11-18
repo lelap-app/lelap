@@ -3,6 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { html } from '../src/i18n';
 import { ms } from '../src/i18n/ms';
 import { site } from '../src/site';
 
@@ -14,9 +15,9 @@ const files = (dir: string): string[] =>
     return /\.(astro|ts)$/.test(name) ? [path] : [];
   });
 
-// t(lang, '…') and t(lang, "…"), also when the formatter put the text on its own line.
-const literal = /\bt\(\s*lang\s*,\s*('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g;
-const anyCall = /\bt\(\s*lang\s*,\s*([^\s,)]+)/g;
+// t(lang, '…') and t(lang, "…"), also when the formatter put the text on its own line; html(lang, …) the same.
+const literal = /\b(?:t|html)\(\s*lang\s*,\s*('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g;
+const anyCall = /\b(?:t|html)\(\s*lang\s*,\s*([^\s,)]+)/g;
 // Texts that live in site.ts and reach t() through a variable.
 const fromSite: Record<string, string> = {
   'site.tagline': site.tagline,
@@ -66,5 +67,12 @@ describe('Malay catalog', () => {
     const tags = (s: string) => [...s.matchAll(/<\/?(\w+)/g)].map((m) => m[1]).join(',');
     const differ = Object.entries(ms).filter(([key, line]) => tags(key) !== tags(line));
     expect(differ.map(([key]) => key)).toEqual([]);
+  });
+});
+
+describe('html()', () => {
+  it('keeps the line’s tags and escapes what fills the holes', () => {
+    const out = html('en', '<b>Get</b> <a href="{info}">it</a>', { info: 'x"><script>&' });
+    expect(out).toBe('<b>Get</b> <a href="x&quot;&gt;&lt;script&gt;&amp;">it</a>');
   });
 });
