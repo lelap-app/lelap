@@ -136,6 +136,7 @@ export function SoundRow({
 function useSilenceSaved(bookId: string | null, visible: boolean, on: boolean): number {
   const [saved, setSaved] = useState(0);
   useEffect(() => {
+    setSaved(0);
     if (!bookId || !visible || Platform.OS !== 'android') return;
     let live = true;
     const read = () =>

@@ -35,6 +35,8 @@ export type BookLoad = {
    * follows the listener's default in `PlayerSettings`.
    */
   sound?: Partial<Record<'voiceEq' | 'skipSilence' | 'evenLoudness', boolean>>;
+  /** Only an update of the book already loaded: the service ignores it for any other book. */
+  onlyIfLoaded?: boolean;
 };
 
 /** A book or episode that played to its end, possibly with the app closed. */
@@ -223,9 +225,8 @@ export function setSettings(settings: PlayerSettings): Promise<void> {
  * Hands the loaded book new settings that apply at its live place, such as its own sound (M84);
  * the service treats it as a load of the book it already has. Another book is left alone.
  */
-export async function updateBook(book: BookLoad): Promise<void> {
-  const state = await native.getState();
-  if (state.bookId === book.bookId) await native.load(JSON.stringify(book), false);
+export function updateBook(book: BookLoad): Promise<void> {
+  return native.load(JSON.stringify({ ...book, onlyIfLoaded: true }), false);
 }
 
 /** Listening time skip silence saved in a book on this phone (M84). */

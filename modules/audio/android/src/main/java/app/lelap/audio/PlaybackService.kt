@@ -121,8 +121,8 @@ class PlaybackService : MediaLibraryService() {
 
   private val handler = Handler(Looper.getMainLooper())
   private val sound = SoundChain()
-  private val silence = SilenceRules.processor()
-  private val soundProcessor = SoundProcessor(sound, silence)
+  private val silence = SilenceTally(SilenceRules.processor())
+  private val soundChain = SoundAudioProcessorChain(SoundProcessor(sound, silence), silence)
   // The listener's voice boost, skip silence and even loudness (M84); a book may set its own.
   private var soundDefaults = SoundChoice()
   private val silencePrefs by lazy { getSharedPreferences(Commands.SILENCE_PREFS, MODE_PRIVATE) }
@@ -251,7 +251,7 @@ class PlaybackService : MediaLibraryService() {
       .setUserAgent("Lelap")
       // archive.org redirects downloads to mirror hosts, sometimes across protocols.
       .setAllowCrossProtocolRedirects(true)
-    player = ExoPlayer.Builder(this, SoundRenderersFactory(this, soundProcessor, silence))
+    player = ExoPlayer.Builder(this, SoundRenderersFactory(this, soundChain))
       .setMediaSourceFactory(
         DefaultMediaSourceFactory(withBookHeaders(NetDataSource.Factory(DefaultDataSource.Factory(this, http))))
           .setLoadErrorHandlingPolicy(
@@ -336,7 +336,8 @@ class PlaybackService : MediaLibraryService() {
       override fun onTimelineChanged(timeline: Timeline, reason: Int) = placeOutro()
 
       override fun onTracksChanged(tracks: Tracks) {
-        sound.replayGainDb = replayGainOf(tracks) ?: Float.NaN
+        // A load passes through no tracks at all; the next part's tracks decide.
+        if (!tracks.isEmpty) sound.replayGainDb = replayGainOf(tracks) ?: Float.NaN
       }
 
       override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -440,7 +441,7 @@ class PlaybackService : MediaLibraryService() {
   /** Adds what skip silence left out since the last call to [bookId]'s time saved. */
   private fun bankSilence(bookId: String?) {
     if (!::player.isInitialized) return
-    val skippedUs = soundProcessor.takeSkippedUs()
+    val skippedUs = silence.takeSkippedUs()
     if (bookId == null || skippedUs <= 0L) return
     savings.add(bookId, skippedUs, player.playbackParameters.speed)
     silencePrefs.edit().putString(Commands.SILENCE_KEY, savings.encode()).apply()
@@ -533,6 +534,8 @@ class PlaybackService : MediaLibraryService() {
       if (autoplay) active.play()
       return
     }
+    // The service moved on to another book by itself since the app asked.
+    if (load.onlyIfLoaded) return
     if (!autoplay) player.pause()
     keepEarlierPlace(playlist.bookId)
     account()

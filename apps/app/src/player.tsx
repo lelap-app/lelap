@@ -218,6 +218,20 @@ export function updateSound(bookId: string): Promise<void> {
 }
 
 /**
+ * After a sync brought changes: the listener's sound defaults and the loaded book's own sound
+ * reach the player now, not at the next load.
+ */
+export function applySyncedSound(): Promise<void> {
+  return enqueue(async () => {
+    if (playerProfile() !== profileId) return;
+    await audio.setSettings(getSettings(db, profileId));
+    const { bookId } = await audio.getState();
+    const book = bookId ? bookLoad(bookId) : null;
+    if (book) await audio.updateBook(book);
+  });
+}
+
+/**
  * Sends Up Next and the car's books to the service again, after their files moved or went, so
  * nothing it starts by itself reads deleted files.
  */

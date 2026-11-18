@@ -111,7 +111,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M98 Developer verification](milestones/m98.md)      | Planned     |             | Google's developer verification for sideloaded apps                                                      |
 | [M99 Languages 3](milestones/m99.md)                 | Planned     |             | Media3's own notification texts, saved English chapter names, raw native error details                   |
 | [M100 Server sources 3](milestones/m100.md)          | Planned     |             | Places sent while the app is closed, and Plex addresses that follow the server                           |
-| [M101 Better sound 2](milestones/m101.md)            | Planned     |             | Skip silence and even loudness on the web, and silence found before the gain                             |
+| [M101 Better sound 2](milestones/m101.md)            | Planned     |             | Skip silence and even loudness on the web, and steadier skip silence accounting                          |
 
 <!-- milestones:end -->
 

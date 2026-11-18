@@ -60,6 +60,8 @@ data class BookLoad(
   val startPositionMs: Long,
   val pausedAt: Long? = null,
   val handsOver: Boolean = false,
+  /** Only an update of the book already loaded (M84): any other book is left playing. */
+  val onlyIfLoaded: Boolean = false,
 )
 
 /**
@@ -171,6 +173,7 @@ object PositionJournal {
       root.getLong("startPositionMs"),
       if (root.isNull("pausedAt")) null else root.getLong("pausedAt"),
       root.optBoolean("handsOver", false),
+      root.optBoolean("onlyIfLoaded", false),
     )
   } catch (e: JSONException) {
     null
