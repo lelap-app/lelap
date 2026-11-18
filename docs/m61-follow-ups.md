@@ -46,6 +46,28 @@ Open on a phone, with the maintainer's own archive.org account (nothing here cre
 - <a id="librivox"></a>A book from the LibriVox add-on outside the Catalog has no Open Library ID:
   nothing is sent.
 
+## Security review fixes
+
+- Add-ons inside the app no longer follow redirects, on any platform and for every in-app add-on
+  (HTTP folder, Subsonic, Emby, Plex, files installed by hand, the reading log). React Native's own
+  fetch followed them on Android, 307s with a posted login included; the sandbox now fetches with
+  `expo/fetch` and `redirect: 'manual'` (OkHttp with redirects off, checked in its source), and any
+  3xx, or a browser's hidden redirect, is an error. Logic and tests in
+  `packages/core/src/addons/sandboxFetch.ts`.
+- Nothing is kept where the phone's key store fails: setting up says so, and keys found unsealed
+  are wiped and asked for again. Both keys are sealed, the access key too.
+- A host in `sandbox.hosts` without a port is reached over https only; `name:80` allows plain
+  http. Addresses typed into a server's form always carry their port, so HTTP folder and the
+  other library sources are unaffected.
+
+On a phone:
+
+- <a id="redirects"></a>HTTP folder, Subsonic, Emby and Plex still scan and keep places with
+  redirects no longer followed (an nginx folder without a trailing slash answers 301; HTTP folder
+  adds the slash itself).
+- <a id="keystore"></a>The reading log's set-up works with `expo/fetch` and receives
+  `set-cookie` through it.
+
 ## Left for later
 
 From the review:

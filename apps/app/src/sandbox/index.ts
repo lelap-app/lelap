@@ -1,5 +1,12 @@
 import { t } from '../i18n';
-import { bundledAddon, getLocalAddonCode, hostAllowed, listAddons } from '@lelap/core';
+import {
+  bundledAddon,
+  getLocalAddonCode,
+  listAddons,
+  type ManualFetch,
+  sandboxFetch,
+  type SandboxFetchInit,
+} from '@lelap/core';
 import {
   libraryPath,
   type PlaceReport,
@@ -9,6 +16,8 @@ import {
   type Settings,
   signinPath,
 } from '@lelap/sdk';
+
+import { fetch as expoFetch } from 'expo/fetch';
 
 import { db } from '../db';
 import { sandboxPage } from './page';
@@ -104,51 +113,17 @@ export function attachSandbox(key: string, post: (message: string) => void): voi
   for (const box of boxes.values()) if (box.key === key) box.post = post;
 }
 
-async function fetchFor(box: Box, id: string, url: string, init: RequestInit | undefined) {
-  const reply = (m: Record<string, unknown>) =>
-    box.post?.(JSON.stringify({ t: 'fetched', id, ...m }));
-  if (!hostAllowed(url, box.hosts)) {
-    reply({
-      error: `Not allowed: this add-on may only reach ${box.hosts.join(', ') || 'nothing'}.`,
-    });
-    return;
-  }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      method: init?.method ?? 'GET',
-      ...(init?.headers ? { headers: init.headers } : {}),
-      ...(typeof init?.body === 'string' ? { body: init.body } : {}),
-      signal: controller.signal,
-      // Never the app's own cookies or credentials.
-      credentials: 'omit',
-      // A redirect would carry a posted body, such as a login, to wherever it points.
-      ...(init?.method && init.method !== 'GET' ? { redirect: 'error' as const } : {}),
-    });
-    // An answer from another host, after a redirect, is not handed to the add-on.
-    if (response.url && !hostAllowed(response.url, box.hosts)) {
-      throw new Error('Not allowed: the server sent this add-on to another host.');
-    }
-    const text = await response.text();
-    if (text.length > MAX_RESPONSE_CHARS) throw new Error(t('The answer was too large.'));
-    const type = response.headers.get('content-type');
-    // A login's cookie, for an add-on that signs in with one (M61). Only on Android: a browser
-    // never shows it to a page, and the app's own cookies are never sent (`credentials: 'omit'`).
-    const cookie = response.headers.get('set-cookie');
-    reply({
-      status: response.status,
-      text,
-      headers: {
-        ...(type ? { 'content-type': type } : {}),
-        ...(cookie ? { 'set-cookie': cookie } : {}),
-      },
-    });
-  } catch (error) {
-    reply({ error: error instanceof Error ? error.message : String(error) });
-  } finally {
-    clearTimeout(timer);
-  }
+// `expo/fetch` honours `redirect: 'manual'` on Android (OkHttp with redirects off); React
+// Native's own fetch follows every redirect, posted body and headers included.
+const manualFetch: ManualFetch = (url, init) => expoFetch(url, init);
+
+async function fetchFor(box: Box, id: string, url: string, init: SandboxFetchInit | undefined) {
+  const reply = await sandboxFetch(manualFetch, url, init, box.hosts, {
+    timeoutMs: FETCH_TIMEOUT_MS,
+    maxChars: MAX_RESPONSE_CHARS,
+    tooLarge: t('The answer was too large.'),
+  });
+  box.post?.(JSON.stringify({ t: 'fetched', id, ...reply }));
 }
 
 /** A message from a sandbox, as the host component received it. */
@@ -162,7 +137,7 @@ export function sandboxMessage(key: string, data: string): void {
     status?: number;
     body?: unknown;
     url?: string;
-    init?: RequestInit;
+    init?: SandboxFetchInit;
   };
   try {
     m = JSON.parse(data) as typeof m;

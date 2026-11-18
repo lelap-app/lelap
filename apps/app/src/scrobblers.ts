@@ -1,10 +1,13 @@
 import {
   bundledAddons,
+  CannotSealError,
   installAddon,
   listAddons,
   loadAddonSettings,
   saveAddonSettings,
   scrobblerCall,
+  scrobblerStandIn,
+  secretBox,
   splitLocalUrl,
 } from '@lelap/core';
 import {
@@ -17,7 +20,7 @@ import {
 import { Platform } from 'react-native';
 
 import { codeFingerprint, sourceManifest } from './addonSources';
-import { clientName, scrobblerStandIn } from './config';
+import { clientName, scrobblerStandInSetting } from './config';
 import { db, newId } from './db';
 import { t } from './i18n';
 import { callAddonScrobble } from './sandbox';
@@ -25,6 +28,11 @@ import { callAddonScrobble } from './sandbox';
 // Scrobblers inside the app (M61, protocol revision 8), such as the Open Library reading log: set
 // up with their settings under Settings → Add-ons, kept sealed on this device, and handed their
 // events in a sandbox of their own instead of over HTTP.
+
+const CANNOT_SEAL = () =>
+  t(
+    'This phone’s key store isn’t working, so Lelap can’t keep the keys safe and didn’t save them. Restart the phone and try again.',
+  );
 
 /** Bundled scrobblers the listener can set up. */
 export function bundledScrobblers(): { url: string; manifest: Manifest }[] {
@@ -45,7 +53,7 @@ const answer = (status: number, body: unknown) =>
 async function call(url: string, manifest: Manifest, settings: Settings, events: ScrobbleEvent[]) {
   const { hosts, settings: given } = scrobblerCall(manifest, settings, {
     client: clientName,
-    server: scrobblerStandIn,
+    server: scrobblerStandIn(process.env.NODE_ENV, scrobblerStandInSetting),
   });
   return callAddonScrobble({
     addonUrl: url,
@@ -79,17 +87,13 @@ export async function postLocalScrobble(url: string, body: string): Promise<Resp
   return answer(result.status, result.body);
 }
 
-/** The settings a scrobbler has here, opened, to fill its form; passwords are left empty. */
+/**
+ * Whether the scrobbler's settings must be entered again (another phone, other code). The form
+ * always starts empty: every field is sealed and never shown again.
+ */
 export function scrobblerForm(url: string): { values: Settings; again: boolean } {
   const stored = loadAddonSettings(db, url, codeFingerprint(url));
-  if (stored.state === 'none') return { values: {}, again: false };
-  const manifest = sourceManifest(url);
-  const plain: Settings = {};
-  for (const field of manifest?.settings ?? []) {
-    if (field.type !== 'password' && field.type !== 'signin')
-      plain[field.key] = stored.settings[field.key] ?? '';
-  }
-  return { values: plain, again: stored.state === 'again' };
+  return { values: {}, again: stored.state === 'again' };
 }
 
 /**
@@ -100,6 +104,8 @@ export async function setUpScrobbler(url: string, settings: Settings): Promise<v
   const manifest = sourceManifest(url);
   if (!manifest || !scrobblesWithSettings(manifest))
     throw new Error(t('This add-on is not on this device.'));
+  // Checked first, so keys that couldn't be kept are never sent either.
+  if (!secretBox().sealing) throw new Error(CANNOT_SEAL());
   const result = await call(url, manifest, settings, []);
   if (result.status !== 200) {
     const said =
@@ -108,13 +114,18 @@ export async function setUpScrobbler(url: string, settings: Settings): Promise<v
         : null;
     throw new Error(said ?? t('The add-on answered {status}.', { status: result.status }));
   }
-  saveAddonSettings(db, {
-    url,
-    manifest,
-    settings,
-    codeSha: codeFingerprint(url),
-    now: Date.now(),
-  });
+  try {
+    saveAddonSettings(db, {
+      url,
+      manifest,
+      settings,
+      codeSha: codeFingerprint(url),
+      now: Date.now(),
+    });
+  } catch (error) {
+    if (error instanceof CannotSealError) throw new Error(CANNOT_SEAL(), { cause: error });
+    throw error;
+  }
   if (!listAddons(db).some((a) => a.url === url))
     installAddon(db, { url, manifest, now: Date.now(), newId });
 }

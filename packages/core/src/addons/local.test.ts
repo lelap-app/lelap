@@ -12,7 +12,12 @@ describe('local add-ons', () => {
     expect(hostAllowed('http://192.168.1.20:8096/Items', hosts)).toBe(true);
     expect(hostAllowed('http://192.168.1.20/Items', hosts)).toBe(false);
     expect(hostAllowed('https://nas.local/books', hosts)).toBe(true);
-    expect(hostAllowed('http://shelf.home.arpa/x', hosts)).toBe(true);
+    expect(hostAllowed('https://shelf.home.arpa/x', hosts)).toBe(true);
+    // Without a port, a host is https only; with one, http too (a typed LAN address).
+    expect(hostAllowed('http://shelf.home.arpa/x', hosts)).toBe(false);
+    expect(hostAllowed('http://nas.local/books', hosts)).toBe(false);
+    expect(hostAllowed('http://openlibrary.org/account/login', ['openlibrary.org'])).toBe(false);
+    expect(hostAllowed('http://nas.local:80/books', ['nas.local:80'])).toBe(true);
     expect(hostAllowed('http://home.arpa/x', hosts)).toBe(false);
     expect(hostAllowed('http://evil.example/?nas.local', hosts)).toBe(false);
     expect(hostAllowed('file:///etc/passwd', hosts)).toBe(false);

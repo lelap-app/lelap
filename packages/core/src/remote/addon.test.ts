@@ -144,7 +144,7 @@ describe('an add-on as a library source', () => {
           album: 'Dune',
           albumArtist: 'Frank Herbert',
           ids: ['ISBN:978-0-441-17271-9'],
-          cover: 'http://covers.example/dune.jpg',
+          cover: 'https://covers.example/dune.jpg',
         },
         {
           path: 'Herbert/Dune/02.mp3',
