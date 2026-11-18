@@ -12,7 +12,8 @@ package='app.lelap'
 mkdir -p "$out"
 work="$(mktemp -d)"
 
-tools="${ANDROID_HOME:?ANDROID_HOME is not set}/build-tools/$(ls -1 "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+# The newest release of the build tools, not a preview.
+tools="${ANDROID_HOME:?ANDROID_HOME is not set}/build-tools/$(ls -1 "$ANDROID_HOME/build-tools" | grep -E '^[0-9.]+$' | sort -V | tail -n 1)"
 
 # An unsigned APK won't install. This key exists for one run and signs nothing that ships.
 keytool -genkeypair -keystore "$work/smoke.jks" -storepass smoke-test -keypass smoke-test \
@@ -48,6 +49,15 @@ if [ "$(adb shell getprop ro.kernel.qemu | tr -d '\r')" != 1 ] &&
   echo '::error::Not an emulator. With a phone attached too, set ANDROID_SERIAL.' >&2
   exit 1
 fi
+# The same device for every later call, even if a phone is plugged in meanwhile.
+ANDROID_SERIAL="${ANDROID_SERIAL:-$(adb get-serialno)}"
+export ANDROID_SERIAL
+# The APK is arm64 only; an x86_64 image runs it only with Android's ARM translation.
+abis="$(adb shell getprop ro.product.cpu.abilist)"
+if ! grep -q arm64-v8a <<< "$abis"; then
+  echo "::error::This emulator image cannot run arm64 code (it runs $abis)." >&2
+  exit 1
+fi
 # Until the package manager answers, an install fails at random on a fresh emulator.
 retry 30 adb shell pm path android > /dev/null
 adb uninstall "$package" > /dev/null 2>&1 || true
@@ -58,6 +68,8 @@ adb logcat -c
 
 # The screen's text, as the accessibility tree has it.
 screen() {
+  # Never an earlier screen: a failed dump may leave the last file in place.
+  adb shell rm -f /sdcard/window.xml > /dev/null 2>&1 || true
   adb shell uiautomator dump /sdcard/window.xml > /dev/null 2>&1 &&
     adb shell cat /sdcard/window.xml 2>/dev/null
 }
@@ -70,7 +82,7 @@ alive() {
 # Lelap's own “isn't responding” dialog is left alone, so the test fails on it.
 dismiss_system_anr() {
   local xml="$1" bounds
-  grep -q "System UI isn.t responding" <<< "$xml" || return 0
+  grep -Eq 'System UI isn.{1,6}t responding' <<< "$xml" || return 0
   bounds="$(grep -o 'text="Wait"[^>]*bounds="[^"]*"' <<< "$xml" | grep -o '\[[0-9,]*\]\[[0-9,]*\]' || true)"
   [ -n "$bounds" ] || return 0
   read -r x1 y1 x2 y2 <<< "$(tr '[],' '   ' <<< "$bounds")"
@@ -97,12 +109,16 @@ wait_for_text() {
   return 1
 }
 
+# Logs are read whole before grep: with pipefail, grep -q leaving early would fail the pipe.
 crashed() {
-  if adb logcat -d -b crash | grep -q "Process: $package"; then
+  local log
+  log="$(adb logcat -d -b crash)"
+  if grep -q "Process: $package" <<< "$log"; then
     echo "::error::The app crashed; see crash.txt" >&2
     return 0
   fi
-  if adb logcat -d -s ReactNativeJS:E | grep -qi 'fatal'; then
+  log="$(adb logcat -d -s ReactNativeJS:E)"
+  if grep -qi 'fatal' <<< "$log"; then
     echo "::error::A fatal JavaScript error; see logcat.txt" >&2
     return 0
   fi

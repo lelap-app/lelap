@@ -20,11 +20,12 @@ down() {
   docker rm --force --volumes "$webdav_name" "$s3_name" > /dev/null 2>&1 || true
 }
 
+# With --fail as [fail], for a health URL that answers 503 until ready; without it any answer will
+# do, a 401 included.
 wait_for() {
-  local what="$1" url="$2"
+  local what="$1" url="$2" fail="${3:-}"
   for _ in $(seq 1 60); do
-    # Any HTTP answer will do, a 401 included: the server is listening.
-    if curl --silent --output /dev/null --max-time 2 "$url"; then return 0; fi
+    if curl --silent $fail --output /dev/null --max-time 2 "$url"; then return 0; fi
     sleep 1
   done
   echo "::error::$what did not start within 60 s" >&2
@@ -41,7 +42,7 @@ up() {
     --env MINIO_ROOT_USER=lelap-test --env MINIO_ROOT_PASSWORD=s3-test-password \
     --tmpfs /data "$S3_IMAGE" server /data > /dev/null
   wait_for WebDAV "http://127.0.0.1:$webdav_port/"
-  wait_for S3 "http://127.0.0.1:$s3_port/minio/health/ready"
+  wait_for S3 "http://127.0.0.1:$s3_port/minio/health/ready" --fail
   echo "WebDAV on http://127.0.0.1:$webdav_port/, S3 on http://127.0.0.1:$s3_port"
 }
 

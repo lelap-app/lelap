@@ -129,9 +129,10 @@ GitHub Actions in a public repository:
   filter when a new native module or test location appears.
 - `remote-integration` runs `packages/core/integration` against rclone's WebDAV server and MinIO in
   Docker (locally: `scripts/test-servers.sh up` first), on `main` and on pull requests that touch
-  the remote code. `emulator-smoke` installs the `apk` job's APK on an emulator and opens the
-  Library (`scripts/emulator-smoke.sh`), on `main` and on pull requests that touch `modules/` or
-  `apps/app`.
+  the remote code, the library code it uses, the lockfile, the tests or `ci.yml`. `emulator-smoke`
+  installs the `apk` job's APK on an emulator and opens the Library (`scripts/emulator-smoke.sh`)
+  whenever that job runs: on `main` and on pull requests that touch `modules/`, `apps/app`, the
+  build setup or `ci.yml`.
 - Deploy jobs use GitHub environments (`web` for the site and services, `release` for signed
   builds) so secrets never reach pull requests from forks.
 - `release.yml` runs on `v*` tags: unsigned APKs per distribution and CPU type built with caches

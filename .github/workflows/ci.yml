@@ -93,6 +93,9 @@ jobs:
             # The remote code, for the tests against real WebDAV and S3 servers.
             remote:
               - 'packages/core/src/remote/**'
+              - 'packages/core/src/library/**'
+              - 'packages/core/src/podcasts/xml.ts'
+              - 'pnpm-lock.yaml'
               - 'packages/core/integration/**'
               - 'packages/core/vitest.integration.config.ts'
               - 'scripts/test-servers.sh'
@@ -220,8 +223,9 @@ jobs:
     name: App on an emulator
     needs: [changes, apk]
     # The APK from the apk job, on an x86_64 emulator that runs its arm64 code through Android's
-    # translation. On main and on pull requests that touch the app.
-    if: ${{ !cancelled() && needs.apk.result == 'success' && (github.event_name == 'push' || needs.changes.outputs.app == 'true') }}
+    # translation. Whenever the apk job built one: on main, and on pull requests that touch the app
+    # or its build setup.
+    if: ${{ !cancelled() && needs.apk.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -237,7 +241,8 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      # A second try on the same emulator before the job fails: a first boot is sometimes slow.
+      # A second try on the same emulator before the job fails: a first boot is sometimes slow. A
+      # pass on the second try leaves a warning, so a crash now and then still shows.
       - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 34
@@ -245,7 +250,7 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-boot-timeout: 600
-          script: bash scripts/emulator-smoke.sh apk/*.apk smoke || bash scripts/emulator-smoke.sh apk/*.apk smoke-retry
+          script: bash scripts/emulator-smoke.sh apk/*.apk smoke || { echo '::warning::The first try failed; see smoke/ in the emulator-smoke artifact.' && bash scripts/emulator-smoke.sh apk/*.apk smoke-retry; }
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
