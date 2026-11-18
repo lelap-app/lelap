@@ -269,6 +269,24 @@ export const chapters = sqliteTable(
   (t) => [index('chapters_book_idx').on(t.bookId, t.idx)],
 );
 
+/**
+ * A listener's own chapters for a book (M85), edited by hand, in place of the book's. Kept by the
+ * book's synced name, so they survive rescans and reach the listener's other devices. `chapters`
+ * null: back to the book's own, kept as a row so the change syncs.
+ */
+export const ownChapters = sqliteTable(
+  'own_chapters',
+  {
+    profileId: text('profile_id')
+      .notNull()
+      .references(() => profiles.id),
+    bookKey: text('book_key').notNull(),
+    chapters: text('chapters', { mode: 'json' }).$type<StoredChapter[]>(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.bookKey] })],
+);
+
 export const libraryEntries = sqliteTable(
   'library_entries',
   {

@@ -59,6 +59,11 @@ export const proxyBase: string = (
   process.env.EXPO_PUBLIC_LELAP_PROXY || `https://proxy.${domain}`
 ).replace(/\/$/, '');
 
+/** The web app. Shared places (M85) link to it, so a link opens for anyone, with or without the app. */
+export const webBase: string = (
+  process.env.EXPO_PUBLIC_LELAP_WEB || `https://listen.${domain}`
+).replace(/\/$/, '');
+
 /** The encrypted sync server. It stores sealed messages and never sees keys or plaintext. */
 export const syncBase: string = (
   process.env.EXPO_PUBLIC_LELAP_SYNC || `https://sync.${domain}`

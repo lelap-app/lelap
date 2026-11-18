@@ -15,6 +15,7 @@ import { compareNatural } from './files';
 import { kidFilter } from '../kids';
 import { linkedMetaByKey } from './links';
 import { notHidden, onlyHidden } from './hidden';
+import { bookChapters, getOwnChapters } from './ownChapters';
 
 export type LibraryBook = {
   id: string;
@@ -167,6 +168,8 @@ export type BookDetail = {
   book: LibraryBook;
   files: ReturnType<typeof presentFiles>;
   chapters: StoredChapter[];
+  /** The chapters are the listener's own, edited by hand (M85), and may be reset. */
+  ownChapters: boolean;
   /** The chapters were found from silences on this device, and the listener may remove them. */
   foundChapters: boolean;
   speed: number;
@@ -185,12 +188,8 @@ export function getBook(db: Db, profileId: string, bookId: string): BookDetail |
     .from(libraryEntries)
     .where(and(eq(libraryEntries.profileId, profileId), eq(libraryEntries.bookId, bookId)))
     .get();
-  const list = db
-    .select({ title: chapters.title, startMs: chapters.startMs, found: chapters.found })
-    .from(chapters)
-    .where(eq(chapters.bookId, bookId))
-    .orderBy(asc(chapters.idx))
-    .all();
+  const list = bookChapters(db, bookId);
+  const own = getOwnChapters(db, profileId, bookId);
   const first = db
     .select({ kindTags: bookFiles.kindTags })
     .from(bookFiles)
@@ -203,8 +202,9 @@ export function getBook(db: Db, profileId: string, bookId: string): BookDetail |
   return {
     book,
     files: presentFiles(db, bookId),
-    chapters: list.map(({ title, startMs }) => ({ title, startMs })),
-    foundChapters: list.length > 0 && list.every((c) => c.found),
+    chapters: own ?? list.map(({ title, startMs }) => ({ title, startMs })),
+    ownChapters: own !== null,
+    foundChapters: own === null && list.length > 0 && list.every((c) => c.found),
     speed: entry?.speed ?? 1,
     narrator: (!music && first?.kindTags?.narrator?.trim()) || null,
     series: first?.kindTags?.series?.trim() || null,

@@ -1,7 +1,8 @@
 import { and, asc, eq, isNull } from 'drizzle-orm';
 
 import type { Db } from '../db';
-import { bookFiles, books, chapters } from '../schema';
+import { bookFiles, books } from '../schema';
+import { bookChapters, chaptersOf } from './ownChapters';
 import { chapterAt } from './timeline';
 
 /** The files of a book that are on disk, in play order. */
@@ -36,14 +37,18 @@ export function regroupedBook(db: Db, bookId: string, fileLocation: string): str
   return file?.bookId ?? null;
 }
 
-/** The title of the chapter at a place in the book; null for a book with one chapter or none. */
-export function chapterTitleAt(db: Db, bookId: string, bookPositionMs: number): string | null {
-  const list = db
-    .select({ title: chapters.title, startMs: chapters.startMs })
-    .from(chapters)
-    .where(eq(chapters.bookId, bookId))
-    .orderBy(asc(chapters.idx))
-    .all();
+/**
+ * The title of the chapter at a place in the book; null for a book with one chapter or none.
+ * With `profileId`, that profile's own chapters (M85) count when it has them.
+ */
+export function chapterTitleAt(
+  db: Db,
+  bookId: string,
+  bookPositionMs: number,
+  profileId?: string,
+): string | null {
+  const list =
+    profileId === undefined ? bookChapters(db, bookId) : chaptersOf(db, profileId, bookId);
   if (list.length < 2) return null;
   return list[chapterAt(list, bookPositionMs)]?.title ?? null;
 }

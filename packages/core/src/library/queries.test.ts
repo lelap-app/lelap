@@ -86,6 +86,7 @@ describe('library queries', () => {
         }),
       ],
       chapters: [],
+      ownChapters: false,
       foundChapters: false,
       speed: 1.25,
       narrator: null,

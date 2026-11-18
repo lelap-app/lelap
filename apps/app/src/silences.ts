@@ -51,7 +51,9 @@ export async function findChapters(bookId: string): Promise<void> {
   if (!files) return;
   await library.findSilences({
     bookId,
+    title: detail?.book.title ?? '',
     files,
+    durationsMs: detail?.files.map((f) => Math.max(0, f.durationMs)) ?? [],
     thresholdDb: SILENCE_RULES.thresholdDb,
     minSilenceMs: SILENCE_RULES.minSilenceMs,
   });

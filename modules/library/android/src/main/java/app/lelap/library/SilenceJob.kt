@@ -16,6 +16,10 @@ data class SilenceJob(
    * run in `job.json` and writes nothing into the new scan's folder.
    */
   val run: String? = null,
+  /** For the notification (M85); older jobs have none. */
+  val title: String? = null,
+  /** Each file's stored length, 0 when unknown, for how far the scan is through the book (M85). */
+  val durationsMs: List<Long> = emptyList(),
 ) {
   fun encode(): String = JSONObject()
     .put("bookId", bookId)
@@ -23,12 +27,30 @@ data class SilenceJob(
     .put("thresholdDb", thresholdDb)
     .put("minSilenceMs", minSilenceMs)
     .put("run", run)
+    .put("title", title)
+    .put("durationsMs", JSONArray(durationsMs))
     .toString()
+
+  /**
+   * How far [progress] is through the book, from 0 to 1: by the stored lengths when every file has
+   * one, else by whole files.
+   */
+  fun fractionDone(progress: SilenceProgress): Double {
+    if (files.isEmpty()) return 0.0
+    val byLength = durationsMs.size == files.size && durationsMs.all { it > 0 }
+    val fraction = if (byLength) {
+      (durationsMs.take(progress.fileIndex).sum() + progress.positionMs).toDouble() / durationsMs.sum()
+    } else {
+      progress.fileIndex.toDouble() / files.size
+    }
+    return fraction.coerceIn(0.0, 1.0)
+  }
 
   fun sameRun(token: String?): Boolean = run == token
 
   companion object {
     private val SAFE_ID = Regex("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+    private const val MAX_TITLE = 200
 
     /** Book IDs name a folder; they must stay inside the scans folder. */
     fun isSafeId(id: String) = SAFE_ID.matches(id) && !id.contains("..")
@@ -44,6 +66,10 @@ data class SilenceJob(
         minSilenceMs = o.getLong("minSilenceMs"),
         // JavaScript's job has none; enqueue gives it one.
         run = if (o.isNull("run")) null else o.getString("run"),
+        title = if (o.isNull("title")) null else o.optString("title").takeIf { it.isNotBlank() }?.take(MAX_TITLE),
+        durationsMs = o.optJSONArray("durationsMs")?.let { a ->
+          List(a.length()) { a.optLong(it).coerceAtLeast(0L) }
+        } ?: emptyList(),
       )
       job.takeIf {
         isSafeId(it.bookId) && it.files.isNotEmpty() &&

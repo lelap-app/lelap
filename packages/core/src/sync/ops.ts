@@ -17,6 +17,7 @@ import {
   episodes,
   hiddenBooks,
   libraryEntries,
+  ownChapters,
   listeningLog,
   playlists,
   scrobbleOutbox,
@@ -32,6 +33,7 @@ import {
 } from '../schema';
 import { bookIdForKey, bookKey, parseEpisodeKey, recordDeletion, type TombstoneKind } from './keys';
 import { type SoundOverrides, syncedOverrides } from '../sound';
+import { cleanChapters } from '../library/ownChapters';
 
 /** Where a profile's source choices live in `settings` (see addons/sources.ts). */
 const SOURCE_PREFIX = 'source:';
@@ -193,6 +195,18 @@ export type Op =
       key: string;
       at: number;
       data: { hidden: boolean; notMusic: boolean };
+    }
+  | {
+      /**
+       * A profile's own chapters for a book (M85), or null for the book's own again. Older
+       * devices skip it.
+       */
+      type: 'chapters';
+      profile: string;
+      /** The book's synced name, as for tags. */
+      key: string;
+      at: number;
+      data: { chapters: { title: string; startMs: number }[] | null };
     }
   | {
       /** The source a profile picked for an add-on work (M15). Since M68; older devices skip it. */
@@ -476,6 +490,18 @@ export function collectOps(db: Db, since: number): Op[] {
       data: { hidden: h.hidden, notMusic: h.notMusic },
     });
   }
+  for (const c of db.select().from(ownChapters).where(gt(ownChapters.updatedAt, since)).all()) {
+    // A streamed book travels along, so the other device can make it first.
+    const bookId = bookIdForKey(db, c.bookKey);
+    if (bookId) key(bookId);
+    ops.push({
+      type: 'chapters',
+      profile: c.profileId,
+      key: c.bookKey,
+      at: c.updatedAt,
+      data: { chapters: c.chapters },
+    });
+  }
   for (const p of db.select().from(playlists).where(gt(playlists.updatedAt, since)).all()) {
     // Items are already keys; naming them here sends along streamed books the other device lacks.
     for (const item of p.items) {
@@ -547,6 +573,7 @@ const ORDER: Record<Op['type'], number> = {
   setting: 3,
   tags: 3,
   hidden: 3,
+  chapters: 3,
   playlist: 3,
   link: 3,
   source: 3,
@@ -904,6 +931,9 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
         case 'hidden':
           applyHidden(tx, op, now);
           break;
+        case 'chapters':
+          applyOwnChapters(tx, op, now);
+          break;
         case 'source':
           applySource(tx, op, now);
           break;
@@ -971,6 +1001,41 @@ function applyHidden(db: Db, op: Extract<Op, { type: 'hidden' }>, now: number): 
   db.insert(hiddenBooks)
     .values({ profileId: op.profile, bookKey: op.key, ...row })
     .onConflictDoUpdate({ target: [hiddenBooks.profileId, hiddenBooks.bookKey], set: row })
+    .run();
+}
+
+/**
+ * Another device's chapters for a book, checked: it is only data. Kept by the book's name even
+ * when the book isn't here yet; cleaned without a length, since this device may not know it.
+ */
+function applyOwnChapters(db: Db, op: Extract<Op, { type: 'chapters' }>, now: number): void {
+  if (typeof op.data !== 'object' || op.data === null) return;
+  if (!isText(op.key) || !isText(op.profile, 256)) return;
+  if (typeof op.at !== 'number' || !Number.isFinite(op.at)) return;
+  const list: unknown = op.data.chapters;
+  if (list !== null && !Array.isArray(list)) return;
+  if (!ensureProfile(db, op.profile, now)) return;
+  const where = and(eq(ownChapters.profileId, op.profile), eq(ownChapters.bookKey, op.key));
+  const local = db
+    .select({ updatedAt: ownChapters.updatedAt })
+    .from(ownChapters)
+    .where(where)
+    .get();
+  if (local && local.updatedAt >= op.at) return;
+  const clean =
+    list === null
+      ? null
+      : cleanChapters(
+          list.filter(
+            (c): c is { title: unknown; startMs: unknown } => typeof c === 'object' && c !== null,
+          ),
+          0,
+          (n) => String(n),
+        );
+  const row = { chapters: clean, updatedAt: op.at };
+  db.insert(ownChapters)
+    .values({ profileId: op.profile, bookKey: op.key, ...row })
+    .onConflictDoUpdate({ target: [ownChapters.profileId, ownChapters.bookKey], set: row })
     .run();
 }
 
@@ -1115,6 +1180,7 @@ function applyDelete(db: Db, op: Extract<Op, { type: 'delete' }>): void {
         upNext,
         bookTags,
         hiddenBooks,
+        ownChapters,
         playlists,
         listeningLog,
         scrobbleOutbox,

@@ -13,6 +13,8 @@ export * from './library/scan';
 export { chapterTitleAt, regroupedBook } from './library/bookFiles';
 export * from './bookmarks';
 export * from './library/queries';
+export * from './library/ownChapters';
+export * from './placeLink';
 export * from './library/byProgress';
 export * from './settings';
 export * from './sound';

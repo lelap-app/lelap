@@ -1,0 +1,186 @@
+import { getBook, parseTime, setOwnChapters, toBookPosition } from '@lelap/core';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { FlatList, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { COLORS, IconButton } from '../src/components/Icon';
+import { TextButton } from '../src/components/TextButton';
+import { db } from '../src/db';
+import { showAlert } from '../src/dialog';
+import { formatClock } from '../src/format';
+import { t } from '../src/i18n';
+import { READABLE } from '../src/layout';
+import { updateChapters, useLibrary, usePlayerState } from '../src/player';
+import { profileId } from '../src/profile';
+
+type Row = {
+  key: number;
+  title: string;
+  /** The start as typed. */
+  time: string;
+  /** The start it had, kept to the millisecond while its text is unchanged. */
+  startMs: number | null;
+};
+
+let nextKey = 0;
+const row = (title: string, startMs: number): Row => ({
+  key: ++nextKey,
+  title,
+  time: formatClock(startMs),
+  startMs,
+});
+
+const startOf = (r: Row): number | null =>
+  r.startMs !== null && r.time === formatClock(r.startMs) ? r.startMs : parseTime(r.time);
+
+/**
+ * Edit a book's chapters (M85): rename, move, add and remove. What is saved becomes the
+ * listener's own chapters, synced and kept across rescans; Reset in the chapters sheet goes back.
+ */
+export default function EditChaptersScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const state = usePlayerState();
+  const { refresh } = useLibrary();
+  const { book: bookId = '' } = useLocalSearchParams<{ book?: string }>();
+  const detail = useMemo(() => getBook(db, profileId, bookId), [bookId]);
+  const [rows, setRows] = useState<Row[]>(() =>
+    (detail?.chapters ?? []).map((c) => row(c.title, c.startMs)),
+  );
+  // Where the player is in this book, for a chapter that starts here.
+  const here =
+    detail && state.bookId === bookId && state.fileLocation
+      ? toBookPosition(detail.files, state.fileLocation, state.positionMs)
+      : null;
+
+  if (!detail) {
+    return (
+      <View
+        style={{ paddingTop: insets.top }}
+        className="flex-1 items-center justify-center bg-night"
+      >
+        <Text className="text-soft">{t('This book is no longer in the library.')}</Text>
+      </View>
+    );
+  }
+
+  const change = (key: number, set: Partial<Row>) =>
+    setRows((list) => list.map((r) => (r.key === key ? { ...r, ...set } : r)));
+
+  const add = () => {
+    const last = rows.at(-1);
+    const at = here ?? (last ? (startOf(last) ?? 0) + 60_000 : 0);
+    // A streamed book's length may not be known yet; then nothing caps the start.
+    const end = detail.book.durationMs > 0 ? detail.book.durationMs - 1 : at;
+    setRows((list) => [...list, row('', Math.min(at, end))]);
+  };
+
+  const save = () => {
+    const bad = rows.find((r) => startOf(r) === null);
+    if (bad) {
+      showAlert(
+        t('That time is not one Lelap can read'),
+        t('Type a time such as 2:14:30, 14:30 or 90 (minutes).'),
+      );
+      return;
+    }
+    setOwnChapters(
+      db,
+      profileId,
+      bookId,
+      rows.map((r) => ({ title: r.title, startMs: startOf(r) ?? 0 })),
+      detail.book.durationMs,
+      (n) => t('Chapter {n}', { n }),
+      Date.now(),
+    );
+    refresh();
+    // A playing book gets them too: the lock screen title and a chapter timer follow them.
+    void updateChapters(bookId).catch(() => {});
+    router.back();
+  };
+
+  return (
+    <View className="flex-1 bg-night">
+      <FlatList
+        data={rows}
+        keyExtractor={(r) => String(r.key)}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingTop: insets.top + 8,
+          paddingBottom: insets.bottom + 24,
+          paddingHorizontal: 16,
+          ...READABLE,
+        }}
+        ListHeaderComponent={
+          <View className="gap-2 pb-4">
+            <View className="-ms-2 flex-row items-center justify-between">
+              <IconButton
+                name="back"
+                label={t('Back')}
+                color={COLORS.soft}
+                onPress={() => router.back()}
+              />
+              <TextButton text={t('Save')} onPress={save} strong />
+            </View>
+            <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
+              {t('Edit chapters')}
+            </Text>
+            <Text numberOfLines={2} className="text-soft">
+              {detail.book.title}
+            </Text>
+            <Text className="text-sm text-muted">
+              {t(
+                'Rename a chapter, change where it starts, or add and remove chapters. They become your own chapters for this book, on your other devices too, and stay when the library is scanned again.',
+              )}
+            </Text>
+          </View>
+        }
+        ListEmptyComponent={<Text className="py-4 text-muted">{t('No chapters.')}</Text>}
+        renderItem={({ item, index }) => (
+          <View className="flex-row items-center gap-2 border-b border-line py-2">
+            <TextInput
+              value={item.title}
+              onChangeText={(title) => change(item.key, { title })}
+              placeholder={t('Chapter {n}', { n: index + 1 })}
+              accessibilityLabel={t('Name of chapter {n}', { n: index + 1 })}
+              placeholderTextColor={COLORS.muted}
+              className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+            />
+            <TextInput
+              value={item.time}
+              onChangeText={(time) => change(item.key, { time })}
+              accessibilityLabel={t('Start of chapter {n}', { n: index + 1 })}
+              keyboardType="numbers-and-punctuation"
+              className={`min-h-12 w-24 rounded-lg border px-3 py-2 text-paper ${startOf(item) === null ? 'border-danger' : 'border-line'}`}
+            />
+            {here !== null && (
+              <TextButton
+                text={t('Now')}
+                accessibilityLabel={t('Start chapter {n} here', { n: index + 1 })}
+                onPress={() => change(item.key, { time: formatClock(here), startMs: here })}
+              />
+            )}
+            <IconButton
+              name="close"
+              label={t('Remove chapter {n}', { n: index + 1 })}
+              color={COLORS.muted}
+              onPress={() => setRows((list) => list.filter((r) => r.key !== item.key))}
+            />
+          </View>
+        )}
+        ListFooterComponent={
+          <View className="flex-row flex-wrap items-center justify-between gap-2 pt-3">
+            <TextButton
+              text={here !== null ? t('Add a chapter here') : t('Add a chapter')}
+              onPress={add}
+            />
+            <Text className="text-xs text-muted">
+              {t('Chapters are put in order of their start when saved.')}
+            </Text>
+          </View>
+        }
+      />
+    </View>
+  );
+}
