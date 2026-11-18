@@ -19,6 +19,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test:integration": "pnpm --filter @lelap/core test:integration",
     "roadmap": "node scripts/roadmap.mts",
     "checks": "node scripts/roadmap.mts checks",
     "roadmap:status": "node scripts/roadmap.mts status"

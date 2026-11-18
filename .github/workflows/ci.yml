@@ -45,6 +45,8 @@ jobs:
     outputs:
       android: ${{ steps.filter.outputs.android }}
       apk: ${{ steps.filter.outputs.apk }}
+      remote: ${{ steps.filter.outputs.remote }}
+      app: ${{ steps.filter.outputs.app }}
     steps:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
@@ -88,6 +90,19 @@ jobs:
               - '.github/actions/**'
               - '.github/workflows/ci.yml'
               - '.github/workflows/release.yml'
+            # The remote code, for the tests against real WebDAV and S3 servers.
+            remote:
+              - 'packages/core/src/remote/**'
+              - 'packages/core/integration/**'
+              - 'packages/core/vitest.integration.config.ts'
+              - 'scripts/test-servers.sh'
+              - '.github/workflows/ci.yml'
+            # The app, for the emulator smoke test; it builds the release APK first.
+            app:
+              - 'modules/**'
+              - 'apps/app/**'
+              - 'scripts/emulator-smoke.sh'
+              - '.github/workflows/ci.yml'
 
   android-unit-tests:
     name: Android unit tests
@@ -130,8 +145,9 @@ jobs:
     needs: changes
     # The release build the tag workflow runs, for one CPU type. On main it also saves the pnpm and
     # Gradle caches the release workflow reads; nothing else writes them (M54). On pull requests
-    # that change the build setup it only checks that the build still works.
-    if: ${{ !cancelled() && (github.event_name == 'push' || needs.changes.outputs.apk == 'true') }}
+    # that change the build setup it only checks that the build still works, and on those that
+    # change the app it builds the APK the emulator smoke test installs.
+    if: ${{ !cancelled() && (github.event_name == 'push' || needs.changes.outputs.apk == 'true' || needs.changes.outputs.app == 'true') }}
     runs-on: ubuntu-latest
     env:
       SKIP_INSTALL_SIMPLE_GIT_HOOKS: '1'
@@ -150,6 +166,12 @@ jobs:
         env:
           NAME: ${{ steps.apk.outputs.name }}
         run: ls -l "out/$NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned-apk
+          path: out/${{ steps.apk.outputs.name }}
+          if-no-files-found: error
+          retention-days: 3
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.apk.outputs.pnpm-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -165,3 +187,69 @@ jobs:
             !~/.gradle/caches/modules-2/gc.properties
             ~/.gradle/wrapper/dists
           key: ${{ steps.apk.outputs.gradle-key }}
+
+  remote-integration:
+    name: Remote code against real servers
+    needs: changes
+    # rclone's WebDAV server and MinIO in Docker, started by the same script as on a laptop: both
+    # images need a command, which service containers can't take. On main and on pull requests
+    # that touch the remote code.
+    if: ${{ !cancelled() && (github.event_name == 'push' || needs.changes.outputs.remote == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SKIP_INSTALL_SIMPLE_GIT_HOOKS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: bash scripts/test-servers.sh up
+      - run: pnpm test:integration
+      - if: failure()
+        run: |
+          docker logs lelap-test-webdav
+          docker logs lelap-test-s3
+
+  emulator-smoke:
+    name: App on an emulator
+    needs: [changes, apk]
+    # The APK from the apk job, on an x86_64 emulator that runs its arm64 code through Android's
+    # translation. On main and on pull requests that touch the app.
+    if: ${{ !cancelled() && needs.apk.result == 'success' && (github.event_name == 'push' || needs.changes.outputs.app == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: unsigned-apk
+          path: apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # A second try on the same emulator before the job fails: a first boot is sometimes slow.
+      - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-boot-timeout: 600
+          script: bash scripts/emulator-smoke.sh apk/*.apk smoke || bash scripts/emulator-smoke.sh apk/*.apk smoke-retry
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: emulator-smoke
+          path: smoke*/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -74,6 +74,7 @@ Node 24 (`.nvmrc`) and pnpm via Corepack (`corepack enable`). Run from the root:
 | Build everything      | `pnpm build`                      |
 | Type-check everything | `pnpm check`                      |
 | Test                  | `pnpm test`                       |
+| Remote server tests   | `pnpm test:integration`           |
 | Library timings (M43) | `pnpm --filter @lelap/core bench` |
 | Lint                  | `pnpm lint`                       |
 | Roadmap table         | `pnpm roadmap` (`--check` in CI)  |
@@ -126,6 +127,11 @@ GitHub Actions in a public repository:
 - The `android-unit-tests` job in `ci.yml` runs the Kotlin JVM unit tests on pushes to `main` and on
   pull requests that touch `modules/`, the app manifest files or the lockfile. Extend its path
   filter when a new native module or test location appears.
+- `remote-integration` runs `packages/core/integration` against rclone's WebDAV server and MinIO in
+  Docker (locally: `scripts/test-servers.sh up` first), on `main` and on pull requests that touch
+  the remote code. `emulator-smoke` installs the `apk` job's APK on an emulator and opens the
+  Library (`scripts/emulator-smoke.sh`), on `main` and on pull requests that touch `modules/` or
+  `apps/app`.
 - Deploy jobs use GitHub environments (`web` for the site and services, `release` for signed
   builds) so secrets never reach pull requests from forks.
 - `release.yml` runs on `v*` tags: unsigned APKs per distribution and CPU type built with caches

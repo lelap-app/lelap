@@ -104,7 +104,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M91 iOS decision](milestones/m91.md)                | Planned     |             | A decision on iOS: what an App Store app would mean for Lelap                                            |
 | [M92 Hardcover sign-in](milestones/m92.md)           | Planned     |             | Sign in to Hardcover instead of pasting a token                                                          |
 | [M93 Developer docs 2](milestones/m93.md)            | Planned     |             | A real guide to building an add-on, sample source files and shared page styling                          |
-| [M94 Tests against real servers](milestones/m94.md)  | Planned     |             | WebDAV and S3 servers in CI, and an emulator smoke test of the app                                       |
+| [M94 Tests against real servers](milestones/m94.md)  | In progress |             | WebDAV and S3 servers in CI, and an emulator smoke test of the app                                       |
 | [M95 Self-hosting 2](milestones/m95.md)              | Planned     |             | One-command setup, a small admin page and backup guides                                                  |
 | [M96 Security review 2](milestones/m96.md)           | Planned     |             | A new audit of what has landed since M19                                                                 |
 | [M97 Landing page 3](milestones/m97.md)              | Planned     |             | Real app screenshots with made-up books, a changelog page and help                                       |
@@ -124,11 +124,9 @@ far.
 Ideas without a number or a place in the order yet. One becomes a milestone, with its own file,
 when it is planned.
 
-- **WebDAV and S3 integration tests in CI:** a small WebDAV server (for example `rclone serve webdav`)
-  as a service container, with `checkWebdav` and `listWebdav` run against it over real HTTP, so
-  the WebDAV code is tested against a real server on every pull request, not only stand-ins.
-  One-off checks against Nextcloud 35 and MinIO (S3) in Docker passed on 2026-11-17; the same
-  CI job can cover S3 with MinIO.
+- **Scan and play on the emulator (left from M94):** the emulator smoke test stops at the empty
+  Library. Scanning a pushed folder and playing a file needs the folder picker driven, or a
+  debug-only way to add a folder, and a check in logcat that playback started.
 - **Developer setup:** Babel's cache hides edits to existing `.sql` migrations (start Expo with
   `--clear`), and `.claude/launch.json` assumes `~/.nvm/nvm.sh` (from M2's review).
 - **More from Podcasting 2.0 tags (left from M75):** play a soundbite as a clip that stops at its
