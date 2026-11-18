@@ -42,6 +42,7 @@ jobs:
       pull-requests: read
     outputs:
       android: ${{ steps.filter.outputs.android }}
+      apk: ${{ steps.filter.outputs.apk }}
     steps:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
@@ -61,6 +62,30 @@ jobs:
               - 'scripts/unsigned-apk.sh'
               - 'scripts/release.mts'
               - 'packages/core/src/release.ts'
+            # The build setup only: Kotlin and TypeScript changes alone don't run the release build.
+            apk:
+              - 'apps/app/plugins/**'
+              - 'apps/app/app.json'
+              - 'apps/app/app.config.js'
+              - 'apps/app/package.json'
+              - 'apps/app/metro.config.js'
+              - 'apps/app/babel.config.js'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'modules/**/*.gradle'
+              - 'modules/**/*.gradle.kts'
+              - 'modules/**/gradle.properties'
+              - 'apps/app/**/*.gradle'
+              - 'apps/app/**/*.gradle.kts'
+              - 'apps/app/**/gradle.properties'
+              - 'scripts/android-sdk.sh'
+              - 'scripts/unsigned-apk.sh'
+              - 'scripts/release.mts'
+              - 'scripts/sign-apks.sh'
+              - 'scripts/verify-fdroid-apk.sh'
+              - '.github/actions/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/release.yml'
 
   android-unit-tests:
     name: Android unit tests
@@ -103,8 +128,8 @@ jobs:
     needs: changes
     # The release build the tag workflow runs, for one CPU type. On main it also saves the pnpm and
     # Gradle caches the release workflow reads; nothing else writes them (M54). On pull requests
-    # that touch native code it only checks that the build still works.
-    if: ${{ !cancelled() && (github.event_name == 'push' || needs.changes.outputs.android == 'true') }}
+    # that change the build setup it only checks that the build still works.
+    if: ${{ !cancelled() && (github.event_name == 'push' || needs.changes.outputs.apk == 'true') }}
     runs-on: ubuntu-latest
     env:
       SKIP_INSTALL_SIMPLE_GIT_HOOKS: '1'
