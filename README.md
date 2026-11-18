@@ -13,9 +13,12 @@ and on the web from one codebase, and every server piece can be self-hosted with
 
 ## What it does
 
-- Plays audiobooks and podcasts in the background, with the screen off and through calls.
+- Plays audiobooks and podcasts in the background, with the screen off. On Android a call pauses
+  it or lowers the volume to a level you choose.
 - Downloads for offline listening, and works fully in airplane mode.
-- Remembers speed per book, rewinds smartly after pauses, and fades out with the sleep timer.
+- Remembers speed per book, rewinds smartly after pauses, and fades out with the sleep timer. On
+  Android a bedtime routine can turn the volume down, and after the timer the player offers to go
+  back to when you last used it.
 - Boosts voices, and on Android skips silence (showing the time saved) and keeps loudness even,
   per book or per show.
 - Opens the library in three groups: in progress, not started and finished.
@@ -35,7 +38,9 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Downloads to an SD card if you like (Android), and lists your own copy first on a book's
   catalog page.
 - Finds chapters at the long silences of a book without any (Android), and skips a podcast's
-  intro and outro.
+  intro and outro. You can edit any book's chapters.
+- Shares a place, a bookmark or the last 30 seconds as a link; whoever opens it plays their own
+  copy. Shows a podcast's chapter pictures and soundbites.
 - Casts to Sonos, DLNA, Google Cast and FCast speakers without Google's SDK, with the lock screen,
   headphones and sleep timer controlling the speaker.
 - Has a car mode with a large cover and big buttons, and works in Android Auto with the covers on
@@ -88,8 +93,8 @@ A pre-commit hook runs ESLint and Prettier on staged files. It is installed by `
 
 GitHub Actions deploys from `main`: the landing page and the web app to Cloudflare Pages, and the
 catalog, proxy and updates services to Cloudflare Workers (sync to staging). A `v*` tag builds the
-signed APKs, publishes them to GitHub Releases and the downloads host with an over-the-air bundle
-and the Docker images, and deploys sync to production. Setup is in
+signed APKs, publishes them to GitHub Releases and the downloads host with an over-the-air bundle,
+an SBOM and the Docker images, and deploys sync to production. Setup is in
 [`apps/site/README.md`](apps/site/README.md) and [`services/README.md`](services/README.md);
 self-hosting with Docker in [`docker/README.md`](docker/README.md).
 
