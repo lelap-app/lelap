@@ -13,6 +13,8 @@ object Commands {
   /** Casting (M50): play the loaded book on the receiver the cast module connected, or hand back. */
   const val START_CAST = "app.lelap.audio.START_CAST"
   const val STOP_CAST = "app.lelap.audio.STOP_CAST"
+  /** M51: count what was heard up to now, so the app can merge it for the right profile. */
+  const val SETTLE_ACCOUNTING = "app.lelap.audio.SETTLE_ACCOUNTING"
   /** With [STOP_CAST]: play on here after the hand-back; missing means as the receiver was. */
   const val KEY_RESUME = "resume"
   const val KEY_QUEUE_JSON = "queue"

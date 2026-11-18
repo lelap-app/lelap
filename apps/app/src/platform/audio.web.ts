@@ -7,6 +7,7 @@ import type {
   PlayerDiagnostic,
   PlayerSettings,
   PlayerState,
+  ServiceAccounting,
   SleepTimerMode,
 } from '@lelap/audio';
 import {
@@ -32,6 +33,7 @@ export type {
   PlayerDiagnostic,
   PlayerSettings,
   PlayerState,
+  ServiceAccounting,
   SleepTimerMode,
 };
 
@@ -558,6 +560,20 @@ export async function setQueue(next: BookLoad[]): Promise<void> {
 // The web player runs inside the app, which saves every place itself; there is no car here.
 export async function takeEarlierPlaces(): Promise<JournalEntry[]> {
   return [];
+}
+
+// Only while the tab is open, so the app counts listening and scrobble sessions itself.
+export const countsInService = false;
+
+export async function takeAccounting(): Promise<ServiceAccounting> {
+  return { epoch: '', records: [] };
+}
+
+export async function settleAccounting(): Promise<void> {}
+
+export async function ackAccounting(epoch: string, through: number): Promise<void> {
+  void epoch;
+  void through;
 }
 
 export async function setCarLibrary(library: CarLibrary): Promise<void> {
