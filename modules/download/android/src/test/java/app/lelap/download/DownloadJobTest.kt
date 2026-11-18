@@ -22,11 +22,15 @@ class DownloadJobTest {
     assertEquals(job.copy(cover = null), DownloadJob.decode(job.copy(cover = null).encode()))
     val onCard = job.copy(location = "content://com.android.externalstorage.documents/tree/1A2B-3C4D%3A", revision = "r1")
     assertEquals(onCard, DownloadJob.decode(onCard.encode()))
+    val onLan = job.copy(localNetwork = true)
+    assertEquals(onLan, DownloadJob.decode(onLan.encode()))
   }
 
   @Test fun `a job from before chosen folders is in private storage`() {
     val json = """{"bookId":"b1","title":"T","files":[{"url":"https://x/1.mp3","name":"001.mp3","size":5}],"cover":null,"rules":{"wifiOnly":false,"chargingOnly":true}}"""
     assertNull(DownloadJob.decode(json)?.location)
+    // Jobs from before Android 17's local network check are treated as on the internet.
+    assertFalse(DownloadJob.decode(json)!!.localNetwork)
   }
 
   @Test fun `reads the plan JavaScript sends`() {

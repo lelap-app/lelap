@@ -35,13 +35,21 @@ import { ChaptersSheet } from './ChaptersSheet';
 import { COLORS, Icon, IconButton, type IconName } from './Icon';
 import { Scrubber, type ScrubMark } from './Scrubber';
 import { Sheet } from './Sheet';
+import { TextButton } from './TextButton';
 import { soundActive, SoundSheet, useSoundSettings } from './SoundSheet';
 import { CASTING_SUPPORTED, useCasting } from '../casting';
 import { db, newId } from '../db';
 import { HeadphoneBanner } from '../devices';
 import { formatClock, formatLeft } from '../format';
 import * as audio from '../platform/audio';
-import { reloadBook, seekToBookPosition, useLibrary, usePlayerState } from '../player';
+import { askLocalNetwork, useLocalNetworkCause } from '../localNetwork';
+import {
+  reloadBook,
+  seekToBookPosition,
+  streamsFromLocalNetwork,
+  useLibrary,
+  usePlayerState,
+} from '../player';
 import { transcriptOf } from '../podcasting';
 import { canFindChapters, findChapters, stopFindingChapters, useSilenceScans } from '../silences';
 import { profileId } from '../profile';
@@ -176,6 +184,10 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
   const skipSeconds = useMemo(() => getSettings(db, profileId).skipIntervalMs / 1000, [version]);
 
   const bookId = state.bookId;
+  // Android 17: a stream from a server at home fails without local network access; say so.
+  const localNetworkCause = useLocalNetworkCause(
+    state.error !== null && bookId !== null && streamsFromLocalNetwork(bookId),
+  );
   // `version` is the signal to re-read the database.
   const detail = useMemo(() => (bookId ? getBook(db, profileId, bookId) : null), [bookId, version]);
   const bookmarks = useMemo(
@@ -421,6 +433,19 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
       )}
       {state.error !== null && (
         <Text className="pb-2 text-center text-sm text-danger">{state.error}</Text>
+      )}
+      {localNetworkCause !== null && bookId !== null && (
+        <View className="items-center gap-2 pb-2">
+          <Text className="text-center text-sm text-soft">{localNetworkCause}</Text>
+          <TextButton
+            text={t('Allow')}
+            onPress={() =>
+              void askLocalNetwork(true).then(async (ok) => {
+                if (ok) await reloadBook(bookId, true);
+              })
+            }
+          />
+        </View>
       )}
 
       <View className="flex-row">

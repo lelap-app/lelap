@@ -1,3 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <uses-permission android:name="android.permission.INTERNET" />
+  <!-- Android 17: SMB, SFTP and other library servers on the home network. Asked at run time with
+       an explanation (LocalNetwork.kt); it is enforced at target 36 too. -->
+  <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
 </manifest>

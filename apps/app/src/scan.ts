@@ -30,6 +30,7 @@ import {
   listS3,
   listWebdav,
   scanFailureEvent,
+  scanNeedsAccess,
   setNetServerRefused,
   updateRemoteRoot,
   upsertRoot,
@@ -53,6 +54,7 @@ import {
   readRemoteTags,
   readTags,
 } from './platform/library';
+import { currentLocalNetworkAccess, isLocalServer, markNeedsLocalNetwork } from './localNetwork';
 import { listNetServer } from './netServers';
 import { copyTo, NETFS_ERRORS } from './platform/netfs';
 import { fileAccess } from './remote';
@@ -224,6 +226,7 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
   let added = 0;
   let missing = 0;
   let lostLocal = false;
+  const lanAccess = await currentLocalNetworkAccess();
 
   const failed = (root: Root) => (error: unknown) => {
     logDiagnostic(scanFailureEvent(root.id, root.remote, error));
@@ -231,6 +234,14 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
   };
 
   for (const root of roots) {
+    // Android 17 without local network access: a server at home is skipped, not tried, and marked
+    // so Settings can ask. Its books stay as they are.
+    const skip = root.remote ? scanNeedsAccess(isLocalServer(root.remote), lanAccess) : false;
+    markNeedsLocalNetwork(root.id, skip);
+    if (skip) {
+      logDiagnostic(scanFailureEvent(root.id, root.remote, null, 'permission'));
+      continue;
+    }
     if (root.remote?.type === 'jellyfin') {
       const result = await scanJellyfin(root, root.remote).catch(failed(root));
       added += result?.added ?? 0;

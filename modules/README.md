@@ -10,7 +10,8 @@ Native Kotlin modules for the Expo app:
   opt-in, with the nearby devices permission.
 
 - `netfs`: SMB 2 and 3 (smbj) and SFTP (sshj) servers: the folder walk, a Media3 data source that
-  reads at any offset, and shared connections for the player, downloads, tags and casting.
+  reads at any offset, and shared connections for the player, downloads, tags and casting. Also
+  `LocalNetwork`, Android 17's local network permission check, shared by casting and downloads.
 
 - `cast`: casting with open protocols only: UPnP for Sonos and DLNA, our own Cast v2 client for
   Google Cast speakers, FCast; a small LAN server for files on the phone. No Google Cast SDK.

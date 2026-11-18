@@ -80,3 +80,14 @@ export {
   withAddonLogin,
   withQuery,
 } from './addon';
+export {
+  hostOf,
+  isLocalAddress,
+  isLocalHost,
+  isLocalRemote,
+  type LocalNetworkAccess,
+  localNetworkCause,
+  localNetworkStep,
+  remoteAddresses,
+  scanNeedsAccess,
+} from './localNetwork';

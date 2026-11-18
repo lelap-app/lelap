@@ -62,6 +62,11 @@ const nativeLines = (): Record<string, string> => ({
   'The server address is not valid.': t('The server address is not valid.'),
   'The server did not answer within 30 s.': t('The server did not answer within 30 s.'),
   'No answer from the server.': t('No answer from the server.'),
+  // Android 17: a download from a server at home without local network access.
+  'Lelap can’t reach this server on your home network: “nearby devices” is off. Download again to allow it.':
+    t(
+      'Lelap can’t reach this server on your home network: “nearby devices” is off. Download again to allow it.',
+    ),
   // The home screen widget and the Quick Settings tile.
   'Nothing playing': t('Nothing playing'),
   'Open Lelap to pick a book': t('Open Lelap to pick a book'),

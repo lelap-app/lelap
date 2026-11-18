@@ -11,6 +11,6 @@
   <uses-permission android:name="android.permission.WAKE_LOCK" />
   <!-- Android 17: discovery, receivers and the file server are on the local network. Asked at run
        time, with an explanation, on every Android 17 device: it is enforced at target 36 too
-       (LocalNetwork.kt). -->
+       (LocalNetwork.kt in modules/netfs). -->
   <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
 </manifest>

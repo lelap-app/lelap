@@ -8,6 +8,8 @@ export type DownloadJob = {
   cover: { url: string; name: string } | null;
   /** Sent to the files' own host only: the login of a WebDAV server. */
   headers?: Record<string, string>;
+  /** The files are on the local network: on Android 17 the worker fails at once without access. */
+  localNetwork?: boolean;
 };
 
 /** When downloads may run. */
