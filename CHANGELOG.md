@@ -2,6 +2,107 @@
 
 What changed in each Lelap release, newest first.
 
+## 0.1.0-beta.8 (2026-11-18)
+
+This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t
+bring it. The app offers it as usual. At first start the app’s database gets a table for places
+waiting to reach your servers, and room for each book’s and show’s sound choices. The Android app
+now shares saved covers with Android Auto.
+
+### New
+
+- Better sound, in Player → Sound. Voice boost brings soft and loud words closer together. Skip
+  silence shortens pauses longer than 0.4 s, and the sheet shows the time it saved, such as
+  “12 min saved in this book”. Even loudness keeps books at one level, using the volume tags in
+  the files when they have them. Choose them for one book or one show, or keep the defaults from
+  Settings → Playback; your choices sync like speed does. Skip silence and even loudness are on
+  Android only; the web app has voice boost. A speaker you cast to plays without them. (#169)
+- Stats: time listened today, this week, this year and in all, with bars for the last 7 days and
+  the last 8 weeks. Your current and longest streak, and the books you finished this year. (#168)
+- Year in sound: per year, the time, the days you listened, the books you finished, your longest
+  streak, your busiest day and a bar per month. Share it as an image, drawn on your phone; nothing
+  else leaves it. (#168)
+- A book’s page lists its audio editions when there are two or more. Choose one to see its cover,
+  year and narrators, and add-ons look for audio by that edition. The choice stays on this device.
+  (#170)
+- “Stop reading” in a book’s menu tells your trackers you stopped; Hardcover shows it as Did not
+  finish. “Mark as finished” now tells your trackers too. (#170)
+- Your cars: with “Offer car mode in the car” on, Settings lists your connected Bluetooth audio
+  devices. Mark one as a car if it reports itself as headphones. (#165)
+
+### Improved
+
+- Car mode looks like the player: a large cover, the title in large type, the chapter below it,
+  and round buttons for back, play and forward. It turns light when the phone is in light mode,
+  and the cover shrinks so a warning or large text never pushes a button off the screen. (#165)
+- Android Auto shows the covers saved on your phone. (#165)
+- The widget’s back and forward buttons work with nothing loaded: they load the last book at its
+  place. With no book at all, they are hidden. (#165)
+- Places for Jellyfin, Audiobookshelf, Subsonic, Plex and Emby wait on the phone until the server
+  answers, and go out when the app starts or comes back to the front. Only the latest place per
+  book is kept. (#164)
+- Audiobookshelf narrators and series, and Jellyfin narrators, show under the title in the
+  player. An Audiobookshelf book made of several files gets the server’s chapters for the whole
+  book. (#164)
+- Dates and numbers follow the profile’s language with the phone’s region: English on a Danish
+  phone writes 18/11/2026. Durations such as “3 h 12 min left” are translated too. (#163)
+- More of the app speaks the profile’s language: errors from downloads, casting and app updates,
+  untitled chapters (“Bab 3” in Malay), a Bluetooth device without a name, the headphone battery
+  banner, the car mode offer and download states. (#163)
+- The headphone battery estimate counts drain only while a book plays and remembers it per
+  device, so earbuds that last long get a fairer estimate. (#165)
+- Lelap’s own add-ons, such as Hardcover, say “This add-on is made by Lelap.” instead of the
+  warning for add-ons from others. On their setup pages a tap copies the add-on link. (#157)
+- Open Library and Hardcover can ask Lelap to wait before sending again, and it does. (#170)
+- Audnexus is asked in the stores that fit the edition’s language. The Internet Archive shows one
+  recording uploaded at two bitrates once, and dates broadcasts from the 2000s in the right
+  century. (#170)
+- An Audiobookshelf track with an unusual file extension is kept, and a book without a title is
+  named after its folder. (#164)
+
+### Fixed
+
+- Hardcover’s choices page keeps your ticks and typed links when it shows an error. (#170)
+- Carrying on with a book no longer moves it back to Currently reading on Open Library or
+  Hardcover, and playing the end of a finished book leaves it read there. (#170)
+- A place is no longer sent at 0 when playback starts, before the player moves to the saved
+  place. (#164)
+- When the profile that added a server is deleted, places still go out to the server. (#164)
+- Subsonic: bookmark times are corrected when the server’s clock is off, and a big library may
+  take up to 10 min to list instead of failing after 2. Plex finds a book’s place faster after a
+  restart, and Emby no longer loses items from a long library. (#164)
+- A sign-in no longer overwrites a field you changed while it ran. When a book on an SMB, SFTP or
+  Audiobookshelf server fails to play, a refused login shows in Settings straight away. (#164)
+- After a download is complete, its job file no longer keeps the server login or SFTP key. (#164)
+
+### Self-hosting and add-on developers
+
+- Sync: no D1 migration, and the sync service hasn’t changed.
+- Protocol revision 9: a meta’s `editions`, `resumed` on a `start` event, `next` for a library in
+  pages (up to 1,000 pages and 200,000 files), and settings on every call for an add-on inside the
+  app with settings and no library. Backward compatible both ways. (#170)
+- `@lelap/sdk`: a minor release (0.5.0) is waiting as a changeset with revision 9, `Edition`,
+  `setUpWithSettings`, `AddonError`’s `{ retryAfter }` and `PAGE_STYLE`. Configure pages now say
+  “This page is run by {host}, not by Lelap.” The matcher patch from beta 7 is still waiting too.
+  npm still has 0.4.0 until the SDK is released. (#170)
+- The Hardcover choices page seals its drafts apart from add-on links, with an hour’s expiry. The
+  token cache key is now an HMAC keyed with `CONFIG_SECRET`. (#170)
+- The Android app exports a read-only content provider at `<package>.covers` for Android Auto. It
+  serves only covers of books the car already lists, by hash, never by path. (#165)
+- The WebDAV and S3 code is now tested against real servers in CI, and an emulator test starts the
+  app on `main`. (#167)
+
+### Known issues
+
+- None of this beta has been tried on a phone yet: better sound, stats, car mode, Android Auto
+  covers, the widget, the server place queue, editions and the translated lines are tested only
+  in code and in the web preview. (#163, #164, #165, #168, #169, #170)
+- Casting receivers are only partly tested: discovery and casting to a Google Cast speaker
+  worked on beta 7; the other kinds of speaker haven’t been tried with this beta.
+- Find chapters can stay on “Waiting for enough battery.” for a long time before it starts, even
+  with a full battery.
+- Some new Bahasa Melayu lines haven’t been checked by a native speaker.
+
 ## 0.1.0-beta.7 (2026-11-18)
 
 This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t

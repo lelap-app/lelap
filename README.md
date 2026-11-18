@@ -16,7 +16,11 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Plays audiobooks and podcasts in the background, with the screen off and through calls.
 - Downloads for offline listening, and works fully in airplane mode.
 - Remembers speed per book, rewinds smartly after pauses, and fades out with the sleep timer.
+- Boosts voices, and on Android skips silence (showing the time saved) and keeps loudness even,
+  per book or per show.
 - Opens the library in three groups: in progress, not started and finished.
+- Shows your listening: time today, this week and this year, streaks, finished books and a year
+  in sound to share as an image.
 - Organises with tags, playlists, smart lists and one Up Next queue. Hides what you don't want in
   the library, and points out files that look like music.
 - Syncs progress between devices with a pairing code. No account, end-to-end encrypted.
@@ -33,7 +37,9 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Finds chapters at the long silences of a book without any (Android), and skips a podcast's
   intro and outro.
 - Casts to Sonos, DLNA, Google Cast and FCast speakers without Google's SDK, with the lock screen,
-  headphones and sleep timer controlling the speaker; works in Android Auto.
+  headphones and sleep timer controlling the speaker.
+- Has a car mode with a large cover and big buttons, and works in Android Auto with the covers on
+  your phone.
 - Works with TalkBack and at the largest text size, and uses the width of tablets and laptops.
 - Profiles for a household, and the app in English and Bahasa Melayu.
 

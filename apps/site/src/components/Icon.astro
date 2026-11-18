@@ -33,6 +33,9 @@ const paths = {
   screens:
     '<rect x="2" y="5" width="14" height="10" rx="1.5"/><path d="M6 19h6"/><rect x="18" y="8" width="4" height="11" rx="1"/>',
   access: '<circle cx="12" cy="4.5" r="1.5"/><path d="M5 8.5l7 1.5 7-1.5M12 10v4l-3 6M12 14l3 6"/>',
+  wave: '<path d="M3 12h2M7 8v8M11 4v16M15 7v10M19 10v4"/>',
+  chart: '<path d="M4 20h16"/><path d="M7 16v-4M12 16V6M17 16v-7"/>',
+  car: '<path d="M5 17h14v-5l-2-5H7l-2 5z"/><path d="M5 12h14"/><circle cx="8" cy="17" r="1.5"/><circle cx="16" cy="17" r="1.5"/>',
 } as const;
 
 export type IconName = keyof typeof paths;
