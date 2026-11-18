@@ -6,6 +6,9 @@ const path = require('node:path');
 
 module.exports = ({ config }) => {
   const domain = process.env.EXPO_PUBLIC_LELAP_DOMAIN || 'lelap.app';
+  // Shared places (M85) link to the web app's `/place`; with App Links (M90) Android opens them in
+  // the app. The web app serves the matching assetlinks.json (scripts/fix-web-export.mjs).
+  const web = new URL(process.env.EXPO_PUBLIC_LELAP_WEB || `https://listen.${domain}`);
   const base = (process.env.EXPO_PUBLIC_LELAP_UPDATES || `https://updates.${domain}`).replace(
     /\/$/,
     '',
@@ -20,6 +23,28 @@ module.exports = ({ config }) => {
   const signed = !fdroid && existsSync(path.resolve(__dirname, certificate));
   return {
     ...config,
+    android: {
+      ...config.android,
+      intentFilters: [
+        ...(config.android?.intentFilters ?? []),
+        ...(web.protocol === 'https:'
+          ? [
+              {
+                action: 'VIEW',
+                autoVerify: true,
+                data: [
+                  {
+                    scheme: 'https',
+                    host: web.hostname,
+                    pathPrefix: `${web.pathname.replace(/\/$/, '')}/place`,
+                  },
+                ],
+                category: ['BROWSABLE', 'DEFAULT'],
+              },
+            ]
+          : []),
+      ],
+    },
     plugins: [
       ...(config.plugins ?? []),
       './plugins/withReproducibleBuild',

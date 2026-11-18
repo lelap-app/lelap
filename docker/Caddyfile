@@ -2,6 +2,8 @@
 :8080 {
 	root * /srv
 	encode zstd gzip
+	# App Links (M90): the build keeps the file out of a hidden folder.
+	rewrite /.well-known/assetlinks.json /well-known/assetlinks.json
 	try_files {path} /index.html
 	file_server
 	import headers.caddy

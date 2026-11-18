@@ -29,6 +29,7 @@ import { ImportSheet } from '../src/components/ImportSheet';
 import { LevelSlider } from '../src/components/LevelSlider';
 import { COLORS, IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
+import { useInstall } from '../src/installed';
 import { SHORTCUTS_SUPPORTED, showShortcuts } from '../src/shortcuts';
 import { soundOptions, SoundRow } from '../src/components/SoundSheet';
 import { db } from '../src/db';
@@ -281,6 +282,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const wide = useWide();
+  const install = useInstall();
   const [settings, setSettings] = useState(() => getSettings(db, profileId));
   const me = activeProfile();
   const [scanning, setScanning] = useState(false);
@@ -382,6 +384,17 @@ export default function SettingsScreen() {
             ))}
           </View>
         </View>
+
+        {install && (
+          <Row
+            label={t('Install Lelap')}
+            detail={t(
+              'Lelap gets its own window and icon, opens without the browser and starts without a connection.',
+            )}
+          >
+            <TextButton text={t('Install')} onPress={() => void install()} />
+          </Row>
+        )}
 
         {LOCAL_FOLDERS && (
           <>
@@ -590,7 +603,11 @@ export default function SettingsScreen() {
         <DownloadFolderRow />
         <Row
           label={t('Downloads and storage')}
-          detail={t('What is on the phone and how much space it takes.')}
+          detail={
+            Platform.OS === 'web'
+              ? t('What is kept in this browser and how much space it takes.')
+              : t('What is on the phone and how much space it takes.')
+          }
         >
           <TextButton text={t('Open')} onPress={() => router.push('/downloads')} />
         </Row>
@@ -688,7 +705,9 @@ export default function SettingsScreen() {
         {SHORTCUTS_SUPPORTED && (
           <Row
             label={t('Keyboard shortcuts')}
-            detail={t('Play, pause, skip and change speed from the keyboard. Press ? anywhere.')}
+            detail={t(
+              'Play, skip, chapters, bookmarks, speed and the tabs from the keyboard. Press ? anywhere.',
+            )}
           >
             <TextButton text={t('Show')} onPress={showShortcuts} />
           </Row>

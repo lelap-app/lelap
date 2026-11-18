@@ -12,12 +12,45 @@ import * as opfs from './opfs';
 export type { DownloadJob, DownloadLocation, DownloadRules, DownloadStatus, StorageInfo };
 
 // Web downloads run in the page with fetch and write to OPFS: they stop when the tab closes and
-// continue from the finished parts when it opens again. Wi-Fi and charging rules don't apply;
-// browsers don't say reliably whether a connection is metered.
+// continue from the finished parts when it opens again, and wait while the browser is offline.
+// Wi-Fi and charging rules don't apply; browsers don't say reliably whether a connection is
+// metered.
+
+export const RULES_APPLY = false;
+
+/**
+ * Asks the browser to keep its storage under pressure instead of clearing it. Chrome decides by
+ * itself (an installed app gets it); Firefox asks the listener.
+ */
+export async function keepStorage(): Promise<boolean> {
+  try {
+    return (await navigator.storage.persisted()) || (await navigator.storage.persist());
+  } catch {
+    return false;
+  }
+}
+
+export async function storageKept(): Promise<boolean> {
+  try {
+    return await navigator.storage.persisted();
+  } catch {
+    return false;
+  }
+}
+
+const offline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+
+// A fetch whose connection went away can hang instead of failing: stop the downloads, so they
+// show as waiting and start again from their finished files once the browser is back online.
+if (typeof window !== 'undefined') {
+  window.addEventListener('offline', () => {
+    for (const state of running.values()) state.controller.abort();
+  });
+}
 
 const JOB_FILE = 'job.json';
 
-type Running = { bytesDone: number; controller: AbortController };
+type Running = { bytesDone: number; controller: AbortController; received: boolean };
 const running = new Map<string, Running>();
 const errors = new Map<string, string>();
 
@@ -49,8 +82,9 @@ async function fetchTo(
   path: string,
   signal: AbortSignal,
   onBytes: (n: number) => void,
+  headers?: Record<string, string>,
 ) {
-  const response = await fetch(url, { signal });
+  const response = await fetch(url, { signal, ...(headers ? { headers } : {}) });
   if (!response.ok || !response.body)
     throw new Error(t('The server answered HTTP {status}.', { status: response.status }));
   const part = `${path}.part`;
@@ -80,7 +114,7 @@ async function fetchTo(
 
 async function run(job: DownloadJob): Promise<void> {
   const dir = bookDir(job.bookId);
-  const state: Running = { bytesDone: 0, controller: new AbortController() };
+  const state: Running = { bytesDone: 0, controller: new AbortController(), received: false };
   running.set(job.bookId, state);
   errors.delete(job.bookId);
   try {
@@ -91,9 +125,16 @@ async function run(job: DownloadJob): Promise<void> {
         finished += (await opfs.readFile(path)).size;
         continue;
       }
-      await fetchTo(file.url, path, state.controller.signal, (n) => {
-        state.bytesDone = finished + n;
-      });
+      await fetchTo(
+        file.url,
+        path,
+        state.controller.signal,
+        (n) => {
+          state.bytesDone = finished + n;
+          state.received = true;
+        },
+        job.headers,
+      );
       finished += (await opfs.readFile(path)).size;
     }
     if (job.cover && !(await opfs.exists(`${dir}/${job.cover.name}`))) {
@@ -105,20 +146,26 @@ async function run(job: DownloadJob): Promise<void> {
       ).catch(() => {});
     }
   } catch (error) {
-    if (!state.controller.signal.aborted) {
-      // Most often a missing CORS header: the browser may play the file but not save it.
-      errors.set(
-        job.bookId,
-        error instanceof TypeError
-          ? 'The browser could not save this file; the source does not allow it.'
-          : error instanceof Error
-            ? error.message
-            : String(error),
-      );
+    // Offline, it waits and carries on with the next status poll once the connection is back. A
+    // network error after data came in is a dropped connection, not CORS: the next poll retries.
+    const dropped = error instanceof TypeError && state.received;
+    if (!state.controller.signal.aborted && !offline() && !dropped) {
+      errors.set(job.bookId, failure(error));
     }
   } finally {
     if (running.get(job.bookId) === state) running.delete(job.bookId);
   }
+}
+
+function failure(error: unknown): string {
+  if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+    return t('The browser’s storage is full. Remove a download to make room.');
+  }
+  // Most often a missing CORS header: the browser may play the file but not save it.
+  if (error instanceof TypeError) {
+    return t('The browser could not save this file; the source does not allow it.');
+  }
+  return error instanceof Error ? error.message : String(error);
 }
 
 export async function enqueue(job: DownloadJob): Promise<void> {
@@ -150,11 +197,12 @@ export async function statuses(): Promise<DownloadStatus[]> {
     }
     const active = running.get(bookId);
     const done = files.length === job.files.length && !active;
-    if (!done && !active && !errors.has(bookId)) void run(job);
+    const waiting = !done && !active && offline();
+    if (!done && !active && !waiting && !errors.has(bookId)) void run(job);
     const error = errors.get(bookId) ?? null;
     result.push({
       bookId,
-      state: done ? 'done' : error ? 'failed' : 'running',
+      state: done ? 'done' : error ? 'failed' : waiting ? 'waiting' : 'running',
       bytesDone: active?.bytesDone ?? bytes,
       bytesTotal: job.files.reduce((sum, f) => sum + f.size, 0),
       files,

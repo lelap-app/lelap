@@ -25,6 +25,7 @@ import { PlayerProvider, useLibrary } from '../src/player';
 import { BadgeSourceProvider } from '../src/components/CoverBadges';
 import { HandoffBanner } from '../src/components/HandoffBanner';
 import { PlayerPane } from '../src/components/PlayerPane';
+import { InstalledAppHost } from '../src/installed';
 import { ShortcutsHost } from '../src/shortcuts';
 import { PodcastSync } from '../src/podcasts';
 import { ClipStop } from '../src/clips';
@@ -126,6 +127,7 @@ export default function RootLayout() {
           </View>
         </BadgeSourceProvider>
         <ShortcutsHost key={language} />
+        <InstalledAppHost />
         <HandoffBanner />
         <DialogHost />
         <AddonReviewHost />

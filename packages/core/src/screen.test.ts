@@ -76,6 +76,12 @@ describe('shortcutFor', () => {
     expect(shortcutFor(press('>'))).toBe('faster');
     expect(shortcutFor(press('/'))).toBe('search');
     expect(shortcutFor(press('?'))).toBe('help');
+    expect(shortcutFor(press('p'))).toBe('previousChapter');
+    expect(shortcutFor(press('N'))).toBe('nextChapter');
+    expect(shortcutFor(press('b'))).toBe('bookmark');
+    expect(shortcutFor(press('1'))).toBe('home');
+    expect(shortcutFor(press('3'))).toBe('search');
+    expect(shortcutFor(press('5'))).toBe('library');
     expect(shortcutFor(press('x'))).toBeNull();
   });
 

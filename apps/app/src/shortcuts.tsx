@@ -1,4 +1,8 @@
 import {
+  addBookmark,
+  chapterJump,
+  deleteBookmark,
+  getBook,
   getSettings,
   type KeyTarget,
   setSpeed,
@@ -6,16 +10,19 @@ import {
   SHORTCUTS,
   shortcutFor,
   stepSpeed,
+  toBookPosition,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
-import { type RefObject, useEffect, useState } from 'react';
+import { type RefObject, useCallback, useEffect, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 
 import { Sheet } from './components/Sheet';
-import { db } from './db';
+import { UndoBar, type UndoNotice } from './components/UndoBar';
+import { db, newId } from './db';
+import { formatClock } from './format';
 import { t } from './i18n';
 import * as audio from './platform/audio';
-import { useLibrary } from './player';
+import { seekToBookPosition, useLibrary } from './player';
 import { profileId } from './profile';
 
 // Keyboard shortcuts for the web app. Android has its media keys through the media session.
@@ -56,12 +63,26 @@ const label = (action: Shortcut, skipSeconds: number): string => {
       return t('Back {n} seconds', { n: skipSeconds });
     case 'forward':
       return t('Forward {n} seconds', { n: skipSeconds });
+    case 'previousChapter':
+      return t('Previous chapter');
+    case 'nextChapter':
+      return t('Next chapter');
     case 'slower':
       return t('Slower');
     case 'faster':
       return t('Faster');
+    case 'bookmark':
+      return t('Add bookmark');
+    case 'home':
+      return t('Home');
+    case 'discover':
+      return t('Discover');
     case 'search':
       return t('Search');
+    case 'podcasts':
+      return t('Podcasts');
+    case 'library':
+      return t('Library');
     case 'help':
       return t('Show these shortcuts');
   }
@@ -116,12 +137,59 @@ async function playPause(): Promise<void> {
   await (state.playing ? audio.pause() : audio.play());
 }
 
+/** The book playing and where in it, on the whole-book timeline. */
+async function playingPlace() {
+  const state = await audio.getState();
+  if (!state.bookId || !state.fileLocation) return null;
+  const detail = getBook(db, profileId, state.bookId);
+  if (!detail) return null;
+  const position = toBookPosition(detail.files, state.fileLocation, state.positionMs);
+  return { state, detail, position };
+}
+
+async function jumpChapter(forward: boolean): Promise<void> {
+  const place = await playingPlace();
+  if (!place) return;
+  const to = chapterJump(place.detail.chapters, place.position, forward);
+  if (to !== null) await seekToBookPosition(place.detail.book.id, to);
+}
+
+/** Adds a bookmark where the book is; the notice it returns can take it back. */
+async function bookmarkHere(refresh: () => void): Promise<UndoNotice | null> {
+  const place = await playingPlace();
+  if (!place?.state.fileLocation) return null;
+  const id = addBookmark(db, profileId, newId, {
+    bookId: place.detail.book.id,
+    fileLocation: place.state.fileLocation,
+    filePositionMs: place.state.positionMs,
+    note: null,
+    now: Date.now(),
+  });
+  refresh();
+  return {
+    text: t('Bookmark added at {time}', { time: formatClock(place.position) }),
+    undo: () => {
+      deleteBookmark(db, profileId, id, Date.now());
+      refresh();
+    },
+  };
+}
+
+const TABS = {
+  home: '/',
+  discover: '/discover',
+  podcasts: '/podcasts',
+  library: '/library',
+} as const;
+
 /** Listens for shortcuts in the web app and shows their list on `?`. Renders nothing elsewhere. */
 export function ShortcutsHost() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [notice, setNotice] = useState<UndoNotice | null>(null);
+  const clearNotice = useCallback(() => setNotice(null), []);
   // Renders again on the library's signal, so a new skip interval shows while the list is open.
-  useLibrary();
+  const { refresh } = useLibrary();
 
   useEffect(() => {
     if (!SHORTCUTS_SUPPORTED) return;
@@ -150,6 +218,19 @@ export function ShortcutsHost() {
         case 'forward':
           void audio.skip(true);
           break;
+        case 'previousChapter':
+        case 'nextChapter':
+          void jumpChapter(action === 'nextChapter');
+          break;
+        case 'bookmark':
+          void bookmarkHere(refresh).then((added) => added && setNotice(added));
+          break;
+        case 'home':
+        case 'discover':
+        case 'podcasts':
+        case 'library':
+          router.navigate(TABS[action]);
+          break;
         case 'slower':
         case 'faster':
           changeSpeed(action === 'faster');
@@ -172,32 +253,35 @@ export function ShortcutsHost() {
       listListeners.delete(show);
       document.removeEventListener('keydown', onKey);
     };
-  }, [router]);
+  }, [router, refresh]);
 
   if (!SHORTCUTS_SUPPORTED) return null;
   const skipSeconds = getSettings(db, profileId).skipIntervalMs / 1000;
   return (
-    <Sheet visible={open} title={t('Keyboard shortcuts')} onClose={() => setOpen(false)}>
-      <View accessibilityRole="list" className="pb-2">
-        {SHORTCUTS.map(({ action, keys }) => (
-          <View
-            key={action}
-            className="min-h-12 flex-row items-center justify-between gap-4 border-b border-line"
-          >
-            <Text className="flex-1 text-base text-paper">{label(action, skipSeconds)}</Text>
-            <View className="flex-row gap-2">
-              {keys.map((key) => (
-                <Text
-                  key={key}
-                  className="min-w-8 rounded-md border border-line bg-night px-2 py-1 text-center font-mono text-sm text-soft"
-                >
-                  {key === 'Space' ? t('Space') : key}
-                </Text>
-              ))}
+    <>
+      <UndoBar notice={notice} onDone={clearNotice} />
+      <Sheet visible={open} title={t('Keyboard shortcuts')} onClose={() => setOpen(false)}>
+        <View accessibilityRole="list" className="pb-2">
+          {SHORTCUTS.map(({ action, keys }) => (
+            <View
+              key={action}
+              className="min-h-12 flex-row items-center justify-between gap-4 border-b border-line"
+            >
+              <Text className="flex-1 text-base text-paper">{label(action, skipSeconds)}</Text>
+              <View className="flex-row gap-2">
+                {keys.map((key) => (
+                  <Text
+                    key={key}
+                    className="min-w-8 rounded-md border border-line bg-night px-2 py-1 text-center font-mono text-sm text-soft"
+                  >
+                    {key === 'Space' ? t('Space') : key}
+                  </Text>
+                ))}
+              </View>
             </View>
-          </View>
-        ))}
-      </View>
-    </Sheet>
+          ))}
+        </View>
+      </Sheet>
+    </>
   );
 }

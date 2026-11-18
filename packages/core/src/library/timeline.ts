@@ -58,3 +58,23 @@ export function mediaSpan(
   if (end <= start) return { startMs: 0, lengthMs: Math.max(0, totalMs) };
   return { startMs: start, lengthMs: end - start };
 }
+
+/** Within this much of a chapter's start, “previous chapter” goes to the one before. */
+export const CHAPTER_RESTART_MS = 3_000;
+
+/**
+ * Where the previous or next chapter button goes from a whole-book position: back restarts the
+ * chapter playing unless it has only just begun; forward goes to the next one, or nowhere (null).
+ */
+export function chapterJump(
+  chapters: { startMs: number }[],
+  bookPositionMs: number,
+  forward: boolean,
+): number | null {
+  const current = chapterAt(chapters, bookPositionMs);
+  if (forward) return chapters[current + 1]?.startMs ?? null;
+  const start = chapters[current]?.startMs ?? 0;
+  return bookPositionMs - start > CHAPTER_RESTART_MS
+    ? start
+    : (chapters[current - 1]?.startMs ?? 0);
+}

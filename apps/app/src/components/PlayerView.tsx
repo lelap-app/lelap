@@ -1,6 +1,7 @@
 import {
   addBookmark,
   chapterAt,
+  chapterJump,
   deleteBookmark,
   getBook,
   getSettings,
@@ -62,8 +63,6 @@ import { canFindChapters, findChapters, stopFindingChapters, useSilenceScans } f
 import { profileId } from '../profile';
 
 const SLEEP_MINUTES = [5, 15, 30, 45, 60];
-// ⏮ goes to the start of the chapter, or to the previous one when pressed within this time.
-const RESTART_WINDOW_MS = 3_000;
 
 function Control({
   icon,
@@ -311,15 +310,10 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
   };
 
   const seek = (bookPositionMs: number) => void seekToBookPosition(bookId, bookPositionMs);
-  const previousChapter = () =>
-    seek(
-      position - chapterStart > RESTART_WINDOW_MS
-        ? chapterStart
-        : (chapters[current - 1]?.startMs ?? 0),
-    );
+  const previousChapter = () => seek(chapterJump(chapters, position, false) ?? 0);
   const nextChapter = () => {
-    const next = chapters[current + 1];
-    if (next) seek(next.startMs);
+    const next = chapterJump(chapters, position, true);
+    if (next !== null) seek(next);
   };
 
   const changeSpeed = (speed: number) => {

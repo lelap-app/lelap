@@ -5,6 +5,7 @@ import {
   downloadFailureEvent,
   getDownload,
   getSettings,
+  hasRoomFor,
   isLocalAddress,
   listDownloads,
   planDownload,
@@ -71,6 +72,30 @@ export async function startDownload(
 ): Promise<void> {
   const first = listDownloads(db).length === 0;
   const plan = planDownload(db, bookId);
+  // A browser's quota is often a few gigabytes: a book that can't fit isn't started.
+  if (!native.RULES_APPLY) {
+    const room = await native.storage().catch(() => null);
+    // Downloads still running take their share too; their written parts count twice, to be safe.
+    const pending = listDownloads(db)
+      .filter((d) => d.state === 'queued' && d.bookId !== bookId)
+      .reduce((sum, d) => sum + d.bytesTotal, 0);
+    const free = Math.max(0, (room?.freeBytes ?? 0) - pending);
+    if (room && !hasRoomFor(plan.bytesTotal, free)) {
+      if (ask) {
+        showAlert(
+          t('Not enough space'),
+          t('{title} needs {size}, and this browser has {free} left for Lelap.', {
+            title: plan.title,
+            size: formatBytes(plan.bytesTotal),
+            free: formatBytes(free),
+          }),
+        );
+      }
+      return;
+    }
+    // So the browser doesn't clear the downloads when its disk runs low.
+    void native.keepStorage();
+  }
   // Files on a server: S3 links signed now, WebDAV with its login (sent to that host only).
   const access = plan.files.map((f) => fileAccess({ uri: f.url, rootId: f.rootId, bookId }));
   // Android 17: a server at home needs local network access, asked for now; without it the
@@ -148,6 +173,8 @@ export function useDownloadStatuses(): Map<string, native.DownloadStatus> {
   const query = useQuery({
     queryKey: DOWNLOADS_KEY,
     queryFn: () => syncDownloads(refresh),
+    // Local work: it keeps polling while the browser is offline, so downloads show as waiting.
+    networkMode: 'always',
     refetchInterval: (q) => {
       const states = [...(q.state.data?.values() ?? [])].map((s) => s.state);
       if (states.includes('running')) return POLL_RUNNING_MS;
@@ -164,6 +191,7 @@ export function useDownloadStatuses(): Map<string, native.DownloadStatus> {
 export function useDownloadLocation(): native.DownloadLocation | undefined {
   const query = useQuery({
     queryKey: LOCATION_KEY,
+    networkMode: 'always',
     queryFn: async () => {
       const location = await native.location();
       void queryClient.invalidateQueries({ queryKey: DOWNLOADS_KEY });
@@ -234,6 +262,7 @@ export function DownloadSync() {
 }
 
 function waitingFor(rules: native.DownloadRules): string {
+  if (!native.RULES_APPLY) return t('Waiting for a connection');
   if (rules.wifiOnly && rules.chargingOnly) return t('Waiting for Wi-Fi and a charger');
   if (rules.wifiOnly) return t('Waiting for Wi-Fi');
   if (rules.chargingOnly) return t('Waiting for a charger');

@@ -99,7 +99,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M86 Sleep 2](milestones/m86.md)                     | Done        |          14 | Shake for more time as a setting, a bedtime routine with its volume, back to when you last used it       |
 | [M87 Stats and year in sound](milestones/m87.md)     | Done        |           7 | Listening time, finished books and a year overview, worked out on the phone                              |
 | [M88 Podcasts 4](milestones/m88.md)                  | Done        |           8 | Chapter images, soundbites in the player, clips that stop at their end, shared places in episodes        |
-| [M90 Web app 3](milestones/m90.md)                   | Planned     |             | Offline downloads in the browser, a better installed app, desktop keys                                   |
+| [M90 Web app 3](milestones/m90.md)                   | Done        |           9 | Offline downloads in the browser, a better installed app, desktop keys                                   |
 | [M91 iOS decision](milestones/m91.md)                | Done        |             | A decision on iOS: what an App Store app would mean for Lelap                                            |
 | [M92 Hardcover sign-in](milestones/m92.md)           | Planned     |             | Sign in to Hardcover instead of pasting a token                                                          |
 | [M93 Developer docs 2](milestones/m93.md)            | Done        |           3 | A real guide to building an add-on, sample source files and shared page styling                          |
