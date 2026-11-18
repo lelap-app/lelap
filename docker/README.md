@@ -42,3 +42,9 @@ bundles come from the same place. Builds need your own code-signing certificate;
 
 Back up the `sync-data` volume: it holds encrypted messages only, but losing it means devices
 pair again.
+
+`sync` keeps every group until you say otherwise. Set `SYNC_IDLE_EXPIRY_DAYS` (for example `730`
+for 2 years, as lelap.app does) and it deletes groups no device has sent changes to for that many
+days, checked at start and once a day. Empty or `0` means never. The devices keep their data and
+can pair again. The log itself stays small without a setting: devices replace old messages with
+a sealed snapshot.

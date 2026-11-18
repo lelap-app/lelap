@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createTestDb } from '../../test/db';
+import { fakeSyncServer } from '../../test/syncServer';
 import { addStreamedBook } from '../addons/streamed';
 import { addBookmark, deleteBookmark, listBookmarks } from '../bookmarks';
 import type { Db } from '../db';
@@ -32,9 +33,7 @@ import { saveProgress } from '../progress';
 import { books, settings } from '../schema';
 import { getSettings, setSetting } from '../settings';
 import { addToUpNext, listUpNext } from '../upNext';
-import { type PulledMessage, type SyncClient, SyncError } from './client';
 import {
-  authHash,
   authToken,
   fromBase64Url,
   newPairingCode,
@@ -64,41 +63,7 @@ const random = (n: number) => new Uint8Array(randomBytes(n));
 let n = 0;
 const newId = () => `id-${String(++n).padStart(6, '0')}`;
 
-/** The server's behaviour, in memory: groups, an append-only log, single-use pairings. */
-function fakeServer(): SyncClient & { stored: () => string[] } {
-  const groups = new Map<string, { authHash: string; log: PulledMessage[] }>();
-  const pairings = new Map<string, string>();
-  const group = (id: string, token: string) => {
-    const g = groups.get(id);
-    if (!g || g.authHash !== authHash(token)) throw new SyncError(403, 'Not allowed.');
-    return g;
-  };
-  let seq = 0;
-  return {
-    createGroup: async (id, hash) => void groups.set(id, { authHash: hash, log: [] }),
-    push: async (id, token, device, messages) => {
-      const g = group(id, token);
-      for (const data of messages) g.log.push({ seq: ++seq, device, data });
-    },
-    pull: async (id, token, after, limit) => {
-      const messages = group(id, token)
-        .log.filter((m) => m.seq > after)
-        .slice(0, limit);
-      return { messages, last: messages.at(-1)?.seq ?? after };
-    },
-    leave: async (id, token) => {
-      group(id, token);
-      groups.delete(id);
-    },
-    putPairing: async (lookup, blob) => void pairings.set(lookup, blob),
-    takePairing: async (lookup) => {
-      const blob = pairings.get(lookup) ?? null;
-      pairings.delete(lookup);
-      return blob;
-    },
-    stored: () => [...groups.values()].flatMap((g) => g.log.map((m) => m.data)),
-  };
-}
+const fakeServer = () => fakeSyncServer();
 
 const meta: Meta = {
   id: 'librivox:garden',

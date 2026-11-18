@@ -39,6 +39,9 @@ services:
 
   sync:
     image: ghcr.io/lelap-app/sync:latest
+    environment:
+      # Optional: delete sync groups no device pushed to for this many days. Empty or 0: never.
+      SYNC_IDLE_EXPIRY_DAYS: ${SYNC_IDLE_EXPIRY_DAYS:-}
     volumes: ['sync-data:/data']
     ports: ['8789:8789']
     restart: unless-stopped

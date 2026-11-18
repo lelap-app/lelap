@@ -271,6 +271,8 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M22] Mono and voice clarity changed on another device reach the player at the next start; boost does not. ([m22](m22-follow-ups.md))
 - [ ] [M34] After an import, sync sends tags, marks, places and subscriptions to a second device. ([m34](m34-follow-ups.md))
 - [ ] [M45] A show's Skip intro and Skip outro reach the other device with the next sync. ([m45](m45-follow-ups.md#intro-outro))
+- [ ] [M52] With over 1 MB of sync messages older than 30 days, the next sync writes a snapshot; a newly paired device gets the whole library. ([m52](m52-follow-ups.md#2-checks))
+- [ ] [M52] An app from before M52 that missed a snapshot shows HTTP 410 in Diagnostics, keeps its library, and syncs again after updating. ([m52](m52-follow-ups.md#2-checks))
 
 ### Over days and nights
 
@@ -296,6 +298,8 @@ offline, the background engine, sync on one device, and UI features.
 - [ ] [M28] Screenshots for the F-Droid listing. ([m28](m28-follow-ups.md))
 - [ ] [M20] Validate npm trusted publishing with 0.2.1 before 2026-11-19 10:08 UTC, then lock publishing to 2FA. ([m20](m20-follow-ups.md#left-to-do))
 - [ ] [M7] Staging deploy of sync against real D1 (`sync-staging.lelap.app`). ([m7](m7-follow-ups.md#2-checks))
+- [ ] [M52] Set `SYNC_IDLE_EXPIRY_DAYS` = `730` in the `release` environment; after the staging deploy, groups have `last_push_at` and the cron trigger shows. ([m52](m52-follow-ups.md#1-setup-before-it-is-live))
+- [ ] [M52] Docker sync with `SYNC_IDLE_EXPIRY_DAYS=1` deletes a group untouched for a day at the next start. ([m52](m52-follow-ups.md#2-checks))
 - [ ] [M8] Docker images build; [M19] `curl -I` on the web image shows the CSP and other headers. ([m19](m19-follow-ups.md#2-checks-elsewhere))
 - [ ] [M19] `curl -I https://listen.lelap.app/` shows the headers from `_headers`. ([m19](m19-follow-ups.md#2-checks-elsewhere))
 

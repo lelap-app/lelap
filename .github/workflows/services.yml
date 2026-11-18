@@ -158,6 +158,8 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: services/sync
+          # Unset idle expiry means groups never expire (M52).
           command: >-
             deploy --env staging
             ${{ vars.SYNC_STAGING_DOMAIN && format('--domain {0}', vars.SYNC_STAGING_DOMAIN) || '' }}
+            ${{ vars.SYNC_STAGING_IDLE_EXPIRY_DAYS && format('--var SYNC_IDLE_EXPIRY_DAYS:{0}', vars.SYNC_STAGING_IDLE_EXPIRY_DAYS) || '' }}

@@ -436,6 +436,9 @@ const ORDER: Record<Op['type'], number> = {
   delete: 4,
 };
 
+/** Whether this version knows how to apply an operation; newer devices may send other types. */
+export const knownOp = (op: { type: string }): op is Op => Object.hasOwn(ORDER, op.type);
+
 function ensureProfile(db: Db, id: string, now: number): boolean {
   if (db.select({ id: profiles.id }).from(profiles).where(eq(profiles.id, id)).get()) return true;
   db.insert(profiles).values({ id, name: 'Listener', createdAt: now, updatedAt: 0 }).run();

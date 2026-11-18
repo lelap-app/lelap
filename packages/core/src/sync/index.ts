@@ -2,6 +2,7 @@ export * from './client';
 export {
   authHash,
   authToken,
+  deriveKeys,
   fromBase64Url,
   newPairingCode,
   normalizeCode,
@@ -14,3 +15,4 @@ export {
 export * from './engine';
 export { bookIdForKey, bookKey, episodeKey } from './keys';
 export { applyOps, collectOps, type Handoff, type Op, SYNCED_SETTINGS } from './ops';
+export { type SnapshotEntry, snapshotReducer } from './snapshot';

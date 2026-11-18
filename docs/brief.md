@@ -27,6 +27,7 @@ it untrue. What gets built when is in [`roadmap.md`](roadmap.md).
 | Chapters             | From tags, feeds and Audnexus; for books with none, found on the device from long silences      | Silence chapters are a fallback for books that have no marks at all (M45). Android only, decoded in a background worker that stops on a low battery; a browser decodes a whole file into memory at once, gigabytes for a long book, so the web leaves it out. Found chapters stay on the device that found them and are never synced. |
 | Recommendations      | Worked out on the device per profile, only from catalog pages Home already loads                | No request carries listening history, finished titles or the library (M46). Suggestion tiles ask add-ons for no artwork or sources; what they send is in [M46](milestones/m46.md#requests).                                                                                                                                           |
 | Intro and outro      | Seconds to skip per show, per profile, synced with the subscription                             | Set once for a podcast (M45) and applied by the player itself, so episodes that Up Next or the car starts with the app closed skip them too.                                                                                                                                                                                          |
+| Idle sync groups     | Expire after a set time without a push: 2 years on lelap.app, never by default when self-hosted | A group nobody uses should not stay on our server forever (security audit, finding 18). It is the sync service's `SYNC_IDLE_EXPIRY_DAYS` setting, so self-hosters choose; devices keep their data and can pair again (M52).                                                                                                           |
 
 ## Principles
 
@@ -76,6 +77,13 @@ The repository layout is in [`AGENTS.md`](../AGENTS.md#repository-map).
 - **What syncs:** places, finished and speed, bookmarks, streamed books, podcast subscriptions and
   episode places, Up Next, playback settings, profiles. Not: local files, downloads, download
   rules, add-on lists.
+- **Snapshots:** once a group's messages older than 30 days reach 1 MB, a device folds them,
+  with the previous snapshot, into a sealed snapshot (the newest change per row) and the server
+  drops the messages it covers. New devices start from the snapshot. Messages younger than 30
+  days stay, so an app from before snapshots that syncs monthly keeps working; one further behind
+  is stopped with “Update Lelap” rather than missing changes (M52).
+- **Idle groups:** the sync service deletes groups no device has pushed to for
+  `SYNC_IDLE_EXPIRY_DAYS` days, when set (see Decisions).
 - **Journal times:** the playback journal carries when the place last moved, not when it was
   written, so a stale place loaded on one device never outranks a newer one from another.
 

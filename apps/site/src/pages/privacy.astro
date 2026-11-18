@@ -36,6 +36,11 @@ import { site } from '../site';
         stops it.
       </li>
       <li>
+        Our sync server deletes a sync group when none of its devices has sent changes for 2 years.
+        Your devices keep their data; you can start sync again. A server you host yourself keeps
+        groups unless you set a time.
+      </li>
+      <li>
         On Android, the sync key and the passwords for your own servers are encrypted with a key
         kept in the phone’s Android Keystore, and they are left out of backups. After restoring a
         backup on a new phone, you pair sync and enter those passwords again.
