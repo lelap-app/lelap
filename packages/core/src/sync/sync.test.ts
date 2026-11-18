@@ -442,7 +442,8 @@ describe('sync between two devices', () => {
     expect(Math.max(...pushes)).toBeLessThanOrEqual(50);
     await syncNow(laptop, server, random, 110, newId);
     expect(listPlaylists(laptop, ME)).toHaveLength(60);
-  });
+    // About 6 MB to encrypt, send and read back: seconds on a CI runner, so more than the default.
+  }, 30_000);
 
   it('packs messages by size and count, leaving out a change too large to send', () => {
     const setting = (i: number, size = 1000): Op => ({
