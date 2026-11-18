@@ -746,5 +746,6 @@
   "Set up": "Sediakan",
   "Set up {name}": "Sediakan {name}",
   "Settings for {name}": "Tetapan untuk {name}",
-  "This works in the Android app only: it signs in with a cookie, which a browser keeps from the page.": "Ini hanya berfungsi dalam aplikasi Android: ia log masuk dengan kuki, yang disembunyikan oleh pelayar daripada halaman."
+  "This works in the Android app only: it signs in with a cookie, which a browser keeps from the page.": "Ini hanya berfungsi dalam aplikasi Android: ia log masuk dengan kuki, yang disembunyikan oleh pelayar daripada halaman.",
+  "This phone’s key store isn’t working, so Lelap can’t keep the keys safe and didn’t save them. Restart the phone and try again.": "Stor kunci telefon ini tidak berfungsi, jadi Lelap tidak dapat menyimpan kunci dengan selamat dan tidak menyimpannya. Mulakan semula telefon dan cuba lagi."
 }

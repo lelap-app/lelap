@@ -3,12 +3,13 @@ import { eq } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import { scrobblerSettings } from '../schema';
-import { secretBox } from '../secrets';
+import { isSealed, secretBox } from '../secrets';
 
 // The settings of a scrobbler inside the app (M61, protocol revision 8), such as the Open Library
-// reading log's archive.org keys. They live in a table of their own on this device, password
-// fields sealed with the device's key like a server's password, and reach only that add-on's
-// `scrobble` calls. Nothing here is synced, exported or written to diagnostics.
+// reading log's archive.org keys. They live in a table of their own on this device, every field
+// sealed with the device's key (an access key is half a login), and reach only that add-on's
+// `scrobble` calls. Nothing here is synced, exported or written to diagnostics, and nothing is
+// written at all where the device can't seal it.
 
 const strings = (value: unknown): Settings =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -25,7 +26,14 @@ function parse(text: string): Settings {
   }
 }
 
-/** Keeps a scrobbler's settings, sealing its password fields. */
+/** Thrown when the device has no key store to seal with; nothing was kept. */
+export class CannotSealError extends Error {
+  constructor() {
+    super('This device can’t seal the settings, so they were not kept.');
+  }
+}
+
+/** Keeps a scrobbler's settings, every field sealed; throws `CannotSealError` without a key store. */
 export function saveAddonSettings(
   db: Db,
   args: {
@@ -37,16 +45,16 @@ export function saveAddonSettings(
     now: number;
   },
 ): void {
-  const plain: Settings = {};
-  const secret: Settings = {};
-  for (const field of args.manifest.settings ?? []) {
-    const value = args.settings[field.key] ?? '';
-    if (field.type === 'password' || field.type === 'signin') secret[field.key] = value;
-    else plain[field.key] = value;
-  }
+  const box = secretBox();
+  // Without a key store the values would land in the database as they are, and in backups.
+  if (!box.sealing) throw new CannotSealError();
+  const values: Settings = {};
+  for (const field of args.manifest.settings ?? [])
+    values[field.key] = args.settings[field.key] ?? '';
   const row = {
-    settings: JSON.stringify(plain),
-    secret: secretBox().seal(JSON.stringify(secret)),
+    // Kept empty: every field is sealed.
+    settings: '{}',
+    secret: box.seal(JSON.stringify(values)),
     codeSha: args.codeSha,
     updatedAt: args.now,
   };
@@ -58,8 +66,11 @@ export function saveAddonSettings(
 
 export type StoredAddonSettings =
   | { state: 'none' }
-  /** A backup restored on another phone, or another file under the add-on's ID: enter them again. */
-  | { state: 'again'; settings: Settings }
+  /**
+   * Enter them again: a backup restored on another phone, another file under the add-on's ID, or
+   * values that were never sealed (they are wiped).
+   */
+  | { state: 'again' }
   | { state: 'ok'; settings: Settings };
 
 /**
@@ -73,11 +84,18 @@ export function loadAddonSettings(
 ): StoredAddonSettings {
   const row = db.select().from(scrobblerSettings).where(eq(scrobblerSettings.url, url)).get();
   if (!row) return { state: 'none' };
-  const plain = parse(row.settings);
+  if (!isSealed(row.secret) || row.settings !== '{}') {
+    // Whatever was kept unsealed goes, so it can't sit in the database or a backup.
+    if (row.secret !== '' || row.settings !== '{}')
+      db.update(scrobblerSettings)
+        .set({ settings: '{}', secret: '' })
+        .where(eq(scrobblerSettings.url, url))
+        .run();
+    return { state: 'again' };
+  }
   const opened = secretBox().open(row.secret);
-  if (opened === null || (row.codeSha ?? null) !== codeSha)
-    return { state: 'again', settings: plain };
-  return { state: 'ok', settings: { ...plain, ...parse(opened) } };
+  if (opened === null || (row.codeSha ?? null) !== codeSha) return { state: 'again' };
+  return { state: 'ok', settings: parse(opened) };
 }
 
 export function removeAddonSettings(db: Db, url: string): void {
@@ -87,7 +105,7 @@ export function removeAddonSettings(db: Db, url: string): void {
 /**
  * What a scrobbler's sandbox gets: the hosts in its manifest and its settings, plus `client` (the
  * User-Agent to send). `server` is a development build's stand-in for the add-on's service; only
- * then does the sandbox reach one more host, the stand-in's.
+ * then does the sandbox reach one more host, the stand-in's, with its port.
  */
 export function scrobblerCall(
   manifest: Manifest,
@@ -100,7 +118,8 @@ export function scrobblerCall(
     try {
       const url = new URL(extra.server);
       if (url.protocol === 'http:' || url.protocol === 'https:') {
-        hosts.push(url.host);
+        const port = url.port || (url.protocol === 'https:' ? '443' : '80');
+        hosts.push(`${url.hostname}:${port}`);
         out.server = url.origin;
       }
     } catch {
@@ -108,4 +127,15 @@ export function scrobblerCall(
     }
   }
   return { hosts, settings: out };
+}
+
+/**
+ * The stand-in a build points scrobblers at: only outside production, so a release build never
+ * sends a listener's keys anywhere but the add-on's own hosts.
+ */
+export function scrobblerStandIn(
+  nodeEnv: string | undefined,
+  value: string | undefined,
+): string | null {
+  return nodeEnv !== 'production' && value ? value : null;
 }

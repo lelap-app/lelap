@@ -1286,13 +1286,13 @@ const toc: [string, string][] = [
   <p>
     Since revision 8, an add-on inside the app with <code>scrobble</code> and <code>settings</code>{' '}
     but no <code>library</code> is set up under Settings → Add-ons, with the form its{' '}
-    <code>settings</code> describe. The values stay sealed on the phone as a library source’s do,
-    never synced, exported or in diagnostics. Instead of <code>POST /scrobble</code>, the app calls{' '}
-    <code>{scrobblePath()}</code> in the add-on’s own sandbox, and the handler gets{' '}
-    <code>args.events</code> and <code>args.settings</code>. Throw an error with a{' '}
-    <code>status</code> to answer it: <code>401</code> when the listener has to set the add-on up
-    again, a <code>5xx</code> to be tried later. The Open Library reading log, which comes with the
-    app, is one.
+    <code>settings</code> describe. Every value, text fields too, is sealed on the phone, and
+    nothing is kept where the phone has no key store; never synced, exported or in diagnostics.
+    Instead of <code>POST /scrobble</code>, the app calls <code>{scrobblePath()}</code> in the
+    add-on’s own sandbox, and the handler gets <code>args.events</code> and{' '}
+    <code>args.settings</code>. Throw an error with a <code>status</code> to answer it:{' '}
+    <code>401</code> when the listener has to set the add-on up again, a <code>5xx</code> to be
+    tried later. The Open Library reading log, which comes with the app, is one.
   </p>
 
   <h2 id="versions">Versions</h2>
@@ -1432,9 +1432,11 @@ const toc: [string, string][] = [
     </li>
     <li>
       The manifest declares <code>sandbox.hosts</code>, such as <code>192.168.1.20:8096</code>,{' '}
-      <code>nas.local</code> or <code>*.home.arpa</code>. The code runs with no network of its own;{' '}
-      <code>lelap.fetch(url, init)</code> asks the app, which fetches only from those hosts, without
-      the app's cookies, and refuses everything else.
+      <code>nas.local</code> or <code>*.home.arpa</code>; a host without a port is reached over
+      https only, so write <code>nas.local:80</code> for plain http. The code runs with no network
+      of its own; <code>lelap.fetch(url, init)</code> asks the app, which fetches only from those
+      hosts, without the app's cookies and without following redirects (a redirect is an error), and
+      refuses everything else.
     </li>
     <li>
       Limits: 20 seconds per call and per fetch, 5 MB per answer, 1 MB of code. Audio URLs it

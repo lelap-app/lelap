@@ -50,8 +50,7 @@ export const clientName = `Lelap/1 (+${sourceUrl})`;
 
 /**
  * Development builds only: a stand-in for a scrobbler's service, such as a local server playing
- * Open Library, which its sandbox may then reach too. Release builds ignore it.
+ * Open Library. `scrobblerStandIn()` in core drops it in production builds.
  */
-export const scrobblerStandIn: string | null =
-  (process.env.NODE_ENV !== 'production' && process.env.EXPO_PUBLIC_LELAP_SCROBBLER_STAND_IN) ||
-  null;
+export const scrobblerStandInSetting: string | undefined =
+  process.env.EXPO_PUBLIC_LELAP_SCROBBLER_STAND_IN;

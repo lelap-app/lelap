@@ -28,7 +28,8 @@ export function splitLocalUrl(url: string): { manifestUrl: string; path: string 
 
 /**
  * Whether a sandboxed add-on may fetch `url`: http(s) only, to a declared host. A host is
- * `name`, `name:port`, or `*.suffix` for any name under it (not the suffix itself).
+ * `name`, `name:port`, or `*.suffix` for any name under it (not the suffix itself); one without a
+ * port is reached over https only.
  */
 export function hostAllowed(url: string, hosts: string[]): boolean {
   let parsed: URL;
@@ -48,6 +49,9 @@ export function hostAllowed(url: string, hosts: string[]): boolean {
       ? [e.slice(0, e.indexOf(']') + 1), e.slice(e.indexOf(']') + 2) || null]
       : [e.split(':')[0] ?? '', e.split(':')[1] ?? null];
     if (wantPort !== null && wantPort !== port) return false;
+    // A host without a port is https only: plain http needs its port written out, as an address
+    // typed into a server's form always has.
+    if (wantPort === null && parsed.protocol !== 'https:') return false;
     if (pattern.startsWith('*.'))
       return name.endsWith(pattern.slice(1)) && name !== pattern.slice(2);
     return name === pattern;
