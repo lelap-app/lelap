@@ -24,6 +24,7 @@ module.exports = ({ config }) => {
       ...(config.plugins ?? []),
       './plugins/withReproducibleBuild',
       './plugins/withArchitectures',
+      './plugins/withPackaging',
     ],
     // A new native build gets a new runtime; JavaScript-only releases reach older APKs of it.
     runtimeVersion: { policy: 'fingerprint' },

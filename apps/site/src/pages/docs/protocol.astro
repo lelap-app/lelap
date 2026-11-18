@@ -9,6 +9,7 @@ import {
   PlaceReport,
   PROTOCOL_VERSION,
   ScrobbleRequest,
+  scrobblePath,
   SigninResult,
   SigninStart,
   StreamResponse,
@@ -188,6 +189,7 @@ GET /library/audiobook/all.json             → { "files": LibraryFile[] }  (rev
 place/audiobook/all.json                    ← PlaceReport          (revision 6, inside the app only)
 signin/audiobook/start.json                 → SigninStart          (revision 7, inside the app only)
 signin/audiobook/check.json                 → SigninResult         (revision 7, inside the app only)
+scrobble/audiobook/all.json                 ← { events, settings } (revision 8, inside the app only)
 GET /configure                              → your settings page  (HTML)
 `;
 
@@ -1277,7 +1279,20 @@ const toc: [string, string][] = [
   <CodeBlock code={scrobbleExample} label="POST /scrobble" />
   <p>
     The SDK validates the body and calls your <code>scrobble</code> handler with the events. See{' '}
-    <a href="/docs/scrobbling/">Scrobbling</a> for the first-party Hardcover and gPodder add-ons.
+    <a href="/docs/scrobbling/">Scrobbling</a> for the first-party Hardcover, gPodder and Open
+    Library reading log add-ons.
+  </p>
+  <h3 id="scrobble-settings">Scrobblers inside the app with settings</h3>
+  <p>
+    Since revision 8, an add-on inside the app with <code>scrobble</code> and <code>settings</code>{' '}
+    but no <code>library</code> is set up under Settings → Add-ons, with the form its{' '}
+    <code>settings</code> describe. Every value, text fields too, is sealed on the phone, and
+    nothing is kept where the phone has no key store; never synced, exported or in diagnostics.
+    Instead of <code>POST /scrobble</code>, the app calls <code>{scrobblePath()}</code> in the
+    add-on’s own sandbox, and the handler gets <code>args.events</code> and{' '}
+    <code>args.settings</code>. Throw an error with a <code>status</code> to answer it:{' '}
+    <code>401</code> when the listener has to set the add-on up again, a <code>5xx</code> to be
+    tried later. The Open Library reading log, which comes with the app, is one.
   </p>
 
   <h2 id="versions">Versions</h2>
@@ -1299,8 +1314,9 @@ const toc: [string, string][] = [
     <code>downloadUrl</code> and <code>place</code>, and <a href="#places">places</a>; an app before
     revision 6 refuses a manifest that lists <code>place</code>. Revision 7 adds a library’s{' '}
     <code>webQuery</code> and <a href="#signin">signing in through a website</a>; an app before
-    revision 7 refuses a manifest that lists <code>signin</code>. When an add-on declares a newer
-    revision than the app knows, Settings → Add-ons says so.
+    revision 7 refuses a manifest that lists <code>signin</code>. Revision 8 adds{' '}
+    <a href="#scrobble-settings">scrobblers inside the app with settings</a>. When an add-on
+    declares a newer revision than the app knows, Settings → Add-ons says so.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />
@@ -1416,9 +1432,11 @@ const toc: [string, string][] = [
     </li>
     <li>
       The manifest declares <code>sandbox.hosts</code>, such as <code>192.168.1.20:8096</code>,{' '}
-      <code>nas.local</code> or <code>*.home.arpa</code>. The code runs with no network of its own;{' '}
-      <code>lelap.fetch(url, init)</code> asks the app, which fetches only from those hosts, without
-      the app's cookies, and refuses everything else.
+      <code>nas.local</code> or <code>*.home.arpa</code>; a host without a port is reached over
+      https only, so write <code>nas.local:80</code> for plain http. The code runs with no network
+      of its own; <code>lelap.fetch(url, init)</code> asks the app, which fetches only from those
+      hosts, without the app's cookies and without following redirects (a redirect is an error), and
+      refuses everything else.
     </li>
     <li>
       Limits: 20 seconds per call and per fetch, 5 MB per answer, 1 MB of code. Audio URLs it

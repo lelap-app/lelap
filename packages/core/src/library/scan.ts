@@ -17,6 +17,7 @@ import {
 import { addonRootLocation } from '../remote/addon';
 import { audiobookshelfRootLocation } from '../remote/audiobookshelf';
 import { jellyfinRootLocation } from '../remote/jellyfin';
+import { netName, netRootLocation } from '../remote/netfs';
 import { isSealed, secretBox } from '../secrets';
 import { presentFiles } from './bookFiles';
 import { buildChapters } from './chapters';
@@ -480,20 +481,20 @@ export function localRoot(db: Db) {
 }
 
 const secretOf = (remote: RemoteSource) =>
-  remote.type === 'webdav'
+  remote.type === 'webdav' || remote.type === 'smb'
     ? remote.password
     : remote.type === 'jellyfin' || remote.type === 'audiobookshelf'
       ? remote.token
-      : remote.type === 'addon'
+      : remote.type === 'addon' || remote.type === 'sftp'
         ? remote.secret
         : remote.secretAccessKey;
 
 const withSecret = (remote: RemoteSource, secret: string): RemoteSource =>
-  remote.type === 'webdav'
+  remote.type === 'webdav' || remote.type === 'smb'
     ? { ...remote, password: secret }
     : remote.type === 'jellyfin' || remote.type === 'audiobookshelf'
       ? { ...remote, token: secret }
-      : remote.type === 'addon'
+      : remote.type === 'addon' || remote.type === 'sftp'
         ? { ...remote, secret }
         : { ...remote, secretAccessKey: secret };
 
@@ -554,6 +555,31 @@ export function setAudiobookshelfKeyRefused(
   return true;
 }
 
+/**
+ * Marks an SMB or SFTP server whose login or host key the last scan was refused for, or clears the
+ * mark once a scan worked; Settings shows it. The sealed login is left as it is. Returns whether
+ * anything changed.
+ */
+export function setNetServerRefused(
+  db: Db,
+  rootId: string,
+  refused: 'login' | 'host-key' | null,
+  now: number,
+): boolean {
+  const row = db.select().from(libraryRoots).where(eq(libraryRoots.id, rootId)).get();
+  const remote = row?.remote;
+  if (remote?.type !== 'smb' && remote?.type !== 'sftp') return false;
+  if ((remote.refused ?? null) === refused) return false;
+  if (remote.type === 'smb' && refused === 'host-key') return false;
+  const rest = { ...remote };
+  delete rest.refused;
+  db.update(libraryRoots)
+    .set({ remote: refused ? ({ ...rest, refused } as RemoteSource) : rest, updatedAt: now })
+    .where(eq(libraryRoots.id, rootId))
+    .run();
+  return true;
+}
+
 /** Changes a server's settings, such as a password entered again; its books stay. */
 export function updateRemoteRoot(db: Db, rootId: string, remote: RemoteSource, now: number): void {
   db.update(libraryRoots)
@@ -569,6 +595,7 @@ export function updateRemoteRoot(db: Db, rootId: string, remote: RemoteSource, n
 /** A server's display name: its host and folder, or bucket and prefix. */
 export function remoteName(remote: RemoteSource): string {
   if (remote.type === 'addon') return remote.name;
+  if (remote.type === 'smb' || remote.type === 'sftp') return netName(remote);
   if (remote.type === 's3') return `${remote.bucket}${remote.prefix ? `/${remote.prefix}` : ''}`;
   if (remote.type === 'jellyfin') {
     return `${remote.username}@${jellyfinRootLocation(remote.url).slice('jellyfin:'.length)}`;
@@ -585,16 +612,17 @@ export function remoteName(remote: RemoteSource): string {
   }
 }
 
-/** Where a server's books live: `webdav:…`, `s3:…`, `jellyfin:…` or `audiobookshelf:…`. */
+/** Where a server's books live: `webdav:…`, `smb:…`, `sftp:…`, `s3:…`, `jellyfin:…` and so on. */
 export function remoteLocation(remote: RemoteSource): string {
   if (remote.type === 'addon') return addonRootLocation(remote.key);
+  if (remote.type === 'smb' || remote.type === 'sftp') return netRootLocation(remote);
   if (remote.type === 's3') return `s3:${remote.bucket}/${remote.prefix}`;
   if (remote.type === 'jellyfin') return jellyfinRootLocation(remote.url);
   if (remote.type === 'audiobookshelf') return audiobookshelfRootLocation(remote.url);
   return `webdav:${remoteName(remote)}`;
 }
 
-/** Adds a WebDAV, S3, Jellyfin, Audiobookshelf or add-on server as a library root; returns its ID. */
+/** Adds a server, a bucket or an add-on's library as a library root; returns its ID. */
 export function addRemoteRoot(
   db: Db,
   remote: RemoteSource,

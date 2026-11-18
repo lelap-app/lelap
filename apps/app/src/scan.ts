@@ -25,6 +25,7 @@ import {
   listS3,
   listWebdav,
   scanFailureEvent,
+  setNetServerRefused,
   updateRemoteRoot,
   upsertRoot,
   withAddonLogin,
@@ -46,6 +47,8 @@ import {
   readRemoteTags,
   readTags,
 } from './platform/library';
+import { listNetServer } from './netServers';
+import { copyTo, NETFS_ERRORS } from './platform/netfs';
 import { fileAccess } from './remote';
 
 export type ScanResult = { added: number; missing: number } | { error: 'permission' | 'no-folder' };
@@ -75,6 +78,11 @@ type Root = ReturnType<typeof listRoots>[number];
 async function listRoot(root: Root): Promise<ListedFile[]> {
   if (!root.remote) return listTree(root.uri);
   if (root.remote.type === 'webdav') return listWebdav((u, i) => fetch(u, i), root.remote);
+  if (root.remote.type === 'smb' || root.remote.type === 'sftp') {
+    if (root.needsLogin)
+      throw new Error(t('The password for {name} is needed again.', { name: root.name }));
+    return listNetServer(root.remote);
+  }
   if (root.remote.type === 'jellyfin') throw new Error('Jellyfin is scanned by scanJellyfin.');
   if (root.remote.type === 'audiobookshelf') {
     throw new Error('Audiobookshelf is scanned by scanAudiobookshelf.');
@@ -96,8 +104,8 @@ async function tagsFor(root: Root, file: ListedFile, dir: string): Promise<FileT
 }
 
 /**
- * A WebDAV or S3 folder's cover, downloaded once per version of the image. Null on the web, which
- * keeps no covers folder.
+ * A WebDAV, SMB, SFTP or S3 folder's cover, downloaded once per version of the image. Null on the
+ * web, which keeps no covers folder.
  */
 async function fetchFolderCover(root: Root, file: ListedFile): Promise<string | null> {
   if (Platform.OS === 'web') return null;
@@ -111,7 +119,11 @@ async function fetchFolderCover(root: Root, file: ListedFile): Promise<string | 
   if (part.exists) part.delete();
   const access = fileAccess({ uri: file.uri, rootId: root.id });
   try {
-    await File.downloadFileAsync(access.uri, part, { headers: access.headers });
+    if (root.remote?.type === 'smb' || root.remote?.type === 'sftp') {
+      await copyTo(access.uri, access.headers, pathOf(part));
+    } else {
+      await File.downloadFileAsync(access.uri, part, { headers: access.headers });
+    }
     part.move(target);
   } catch (error) {
     if (part.exists) part.delete();
@@ -123,7 +135,7 @@ async function fetchFolderCover(root: Root, file: ListedFile): Promise<string | 
 async function run(onProgress: (done: number, total: number) => void): Promise<ScanResult> {
   const roots = listRoots(db);
   if (roots.length === 0) return { error: 'no-folder' };
-  // Only folder and WebDAV or S3 scans keep covers on the device; the web build has no such
+  // Only folder, WebDAV, SMB, SFTP and S3 scans keep covers on the device; the web build has no such
   // folder, and Jellyfin and Audiobookshelf scans don't need one.
   let covers: string | null = null;
   const dir = () => (covers ??= coverDir());
@@ -162,6 +174,11 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
     } catch (error) {
       const lost = !root.remote && isCode(error, FOLDER_UNAVAILABLE);
       if (lost) lostLocal = true;
+      // A refused login or a changed host key shows in Settings until a scan works again.
+      if (isCode(error, NETFS_ERRORS.login)) setNetServerRefused(db, root.id, 'login', Date.now());
+      if (isCode(error, NETFS_ERRORS.hostKeyChanged)) {
+        setNetServerRefused(db, root.id, 'host-key', Date.now());
+      }
       logDiagnostic(scanFailureEvent(root.id, root.remote, error, lost ? 'permission' : undefined));
       // A server that is down or refuses keeps its books as they are until the next scan.
       continue;
@@ -202,6 +219,7 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
       now: Date.now(),
       newId,
     });
+    setNetServerRefused(db, root.id, null, Date.now());
     if (fromAddon) {
       setRemoteCovers(db, root.id, fromAddon.covers, Date.now());
       // A server's places (revision 6), for the profile that added it; the newest place wins.

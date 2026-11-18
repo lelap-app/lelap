@@ -2,6 +2,25 @@ export { basicAuth, type Fetch as RemoteFetch, RemoteError } from './http';
 export { listS3, objectUrl, parseS3Uri, presignGet, type S3Source } from './s3';
 export { checkWebdav, listWebdav, webdavHeaders, type WebdavSource } from './webdav';
 export {
+  DEFAULT_PORT as NETFS_DEFAULT_PORT,
+  isNetfsUri,
+  type NetAddress,
+  type NetEntry,
+  NETFS_LOGIN_HEADER,
+  netfsHeaders,
+  netfsListed,
+  netfsLogin,
+  type NetfsScheme,
+  type NetfsSource,
+  netName,
+  netRootLocation,
+  netRootUri,
+  parseNetAddress,
+  type SftpSecret,
+  sftpSecret,
+  sftpSecretJson,
+} from './netfs';
+export {
   JELLYFIN_CLIENT,
   type JellyfinItem,
   type JellyfinLibrary,

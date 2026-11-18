@@ -23,6 +23,7 @@ export const SHARED_TABLES = [
   'removed_addons',
   'local_addon_code',
   'stream_headers',
+  'addon_settings',
   'downloads',
   'podcasts',
   'episodes',
@@ -50,12 +51,33 @@ export const profiles = sqliteTable('profiles', {
 });
 
 /**
- * A WebDAV server, an S3 bucket, a Jellyfin or Audiobookshelf server, or an add-on inside the app
- * that lists a library (M57), used as a library folder. Kept on this device, never synced.
- * Jellyfin keeps a token, not the password; Audiobookshelf an API key.
+ * A WebDAV, SMB or SFTP server, an S3 bucket, a Jellyfin or Audiobookshelf server, or an add-on
+ * inside the app that lists a library (M57), used as a library folder. Kept on this device, never
+ * synced. Jellyfin keeps a token, not the password; Audiobookshelf an API key.
  */
 export type RemoteSource =
   | { type: 'webdav'; url: string; username: string; password: string }
+  /** A Windows share or a NAS over SMB 2 or 3 (M62): `smb://host/share/folder`. Android only. */
+  | {
+      type: 'smb';
+      url: string;
+      username: string;
+      password: string;
+      /** The last scan was refused: the login, so Settings asks for it again. */
+      refused?: 'login';
+    }
+  | {
+      /** A folder over SSH (M62): `sftp://host:port/folder`. Android only. */
+      type: 'sftp';
+      url: string;
+      username: string;
+      /** The server's key as `SHA256:…`, trusted when the server was added; a different one is refused. */
+      hostKey: string;
+      /** JSON of the password, or the private key and its passphrase; sealed. */
+      secret: string;
+      /** The last scan was refused: the login, or the server showed another host key. */
+      refused?: 'login' | 'host-key';
+    }
   | {
       type: 'jellyfin';
       url: string;
@@ -323,6 +345,22 @@ export const localAddonCode = sqliteTable('local_addon_code', {
   code: text('code').notNull(),
   /** SHA-256 of `code`, shown at install so a listener can compare it with the author's. */
   sha256: text('sha256').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+/**
+ * The settings of a scrobbler inside the app (M61, protocol revision 8), such as the Open Library
+ * reading log's archive.org keys. Every field is sealed with the device's key. On this
+ * device only: never synced, exported or in diagnostics.
+ */
+export const scrobblerSettings = sqliteTable('addon_settings', {
+  url: text('url').primaryKey(),
+  /** Always `{}`: every field is sealed in `secret`. */
+  settings: text('settings').notNull(),
+  /** All fields as JSON, sealed; never written where the device can't seal. */
+  secret: text('secret').notNull(),
+  /** The installed file's fingerprint the settings were entered for; null for a bundled add-on. */
+  codeSha: text('code_sha'),
   updatedAt: integer('updated_at').notNull(),
 });
 

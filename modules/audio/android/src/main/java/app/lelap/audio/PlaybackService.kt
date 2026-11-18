@@ -36,6 +36,9 @@ import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.PlayerMessage
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import app.lelap.netfs.NetDataSource
+import app.lelap.netfs.NetFailure
+import app.lelap.netfs.Netfs
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.session.CommandButton
@@ -139,6 +142,8 @@ class PlaybackService : MediaLibraryService() {
     ResolvingDataSource.Factory(upstream) { spec ->
       val uri = spec.uri.toString()
       val headers = headersByUri[uri] ?: return@Factory spec
+      // SMB and SFTP have no redirects; the login only ever reaches native code.
+      if (Netfs.handles(uri)) return@Factory spec.withAdditionalHeaders(headers)
       val resolved = resolvedUris[uri]
         ?: runCatching { LoginRedirects.resolve(uri, headers) }.getOrNull()?.also { resolvedUris[uri] = it }
         // Unreachable now: as before, the login goes with the file's own address.
@@ -224,7 +229,7 @@ class PlaybackService : MediaLibraryService() {
       .setAllowCrossProtocolRedirects(true)
     player = ExoPlayer.Builder(this, SoundRenderersFactory(this, SoundProcessor(sound)))
       .setMediaSourceFactory(
-        DefaultMediaSourceFactory(withBookHeaders(DefaultDataSource.Factory(this, http)))
+        DefaultMediaSourceFactory(withBookHeaders(NetDataSource.Factory(DefaultDataSource.Factory(this, http))))
           .setLoadErrorHandlingPolicy(
             ExpiringLinkPolicy { status -> handler.post { note(Diagnostics.LINK_REFRESHED, status = status) } },
           ),
@@ -1346,6 +1351,11 @@ private class ExpiringLinkPolicy(
   private val onRefresh: (Int) -> Unit,
 ) : DefaultLoadErrorHandlingPolicy() {
   override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
+    // A refused SMB or SFTP login or a changed host key stays so; each retry is another login
+    // attempt, which can get the phone blocked by the server.
+    val refused = generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }
+      .filterIsInstance<NetFailure>().firstOrNull()?.kind?.permanent == true
+    if (refused) return C.TIME_UNSET
     val code = generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }
       .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
       .firstOrNull()?.responseCode

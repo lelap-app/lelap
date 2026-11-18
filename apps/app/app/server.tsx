@@ -10,11 +10,17 @@ import {
   listJellyfinLibraries,
   listRoots,
   listS3,
+  netfsHeaders,
+  netRootUri,
+  parseNetAddress,
   RemoteError,
   type RemoteSource,
+  sftpSecretJson,
   signInJellyfin,
   updateRemoteRoot,
 } from '@lelap/core';
+import * as DocumentPicker from 'expo-document-picker';
+import { File } from 'expo-file-system';
 import { applySignin, offersPlaces, readSettings, type Settings } from '@lelap/sdk';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -46,24 +52,35 @@ import {
 } from '../src/addonSources';
 import { closeSandbox } from '../src/sandbox';
 import { AddonSignin } from '../src/components/AddonSignin';
+import { TextButton } from '../src/components/TextButton';
+import { netServerReason } from '../src/netServers';
+import {
+  check as checkNetServer,
+  type HostKey,
+  hostKey as askHostKey,
+  NETFS,
+} from '../src/platform/netfs';
 
-type BuiltIn = 'webdav' | 's3' | 'jellyfin' | 'audiobookshelf';
+type BuiltIn = 'webdav' | 'smb' | 'sftp' | 's3' | 'jellyfin' | 'audiobookshelf';
 /** A built-in kind, or an add-on inside the app by its manifest URL (M57). */
 type Kind = BuiltIn | `addon:${string}`;
 
 const KIND_LABEL: Record<BuiltIn, string> = {
   webdav: 'WebDAV',
+  smb: 'SMB',
+  sftp: 'SFTP',
   s3: t('S3-compatible'),
   jellyfin: 'Jellyfin',
   audiobookshelf: 'Audiobookshelf',
 };
 
-const BUILT_IN: BuiltIn[] = ['webdav', 's3', 'jellyfin', 'audiobookshelf'];
+const BUILT_IN: BuiltIn[] = ['webdav', 'smb', 'sftp', 's3', 'jellyfin', 'audiobookshelf'];
 
 const addonKind = (url: string): Kind => `addon:${url}`;
 
 /** Why a server could not be reached, with what a browser adds to it. */
 function reason(error: unknown, label: string): string {
+  if (label === 'SMB' || label === 'SFTP') return netServerReason(error);
   const message = error instanceof Error ? error.message : String(error);
   if (Platform.OS === 'web' && error instanceof RemoteError && error.status === 0) {
     return `${message}\n\nIn the browser the ${label} server must allow this site (CORS headers), and an http:// server can't be reached from an https:// page. The Android app has neither limit.`;
@@ -109,12 +126,15 @@ function Field({
   secret = false,
   locked = false,
   hint,
+  multiline = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   secret?: boolean;
+  /** A pasted private key. */
+  multiline?: boolean;
   /** Shown but not editable: the server's place when only the login is entered again. */
   locked?: boolean;
   hint?: string;
@@ -133,7 +153,9 @@ function Field({
         autoCorrect={false}
         secureTextEntry={secret}
         editable={!locked}
-        className={`rounded-lg border border-line px-3 py-2 ${locked ? 'text-muted' : 'text-paper'}`}
+        multiline={multiline}
+        {...(multiline ? { numberOfLines: 4, textAlignVertical: 'top' as const } : {})}
+        className={`rounded-lg border border-line px-3 py-2 ${locked ? 'text-muted' : 'text-paper'} ${multiline ? 'min-h-24 font-mono text-xs' : ''}`}
       />
       {hint && <Text className="text-xs text-muted">{hint}</Text>}
     </View>
@@ -149,6 +171,8 @@ export default function ServerScreen() {
   const { root: rootId } = useLocalSearchParams<{ root?: string }>();
   const [existing] = useState(() => listRoots(db).find((r) => r.id === rootId)?.remote ?? null);
   const dav = existing?.type === 'webdav' ? existing : null;
+  const smb = existing?.type === 'smb' ? existing : null;
+  const sftp = existing?.type === 'sftp' ? existing : null;
   const s3 = existing?.type === 's3' ? existing : null;
   const jf = existing?.type === 'jellyfin' ? existing : null;
   const abs = existing?.type === 'audiobookshelf' ? existing : null;
@@ -179,8 +203,18 @@ export default function ServerScreen() {
     [kinds, serverKey],
   );
   const [busy, setBusy] = useState(false);
-  const [url, setUrlValue] = useState(dav?.url ?? jf?.url ?? abs?.url ?? '');
-  const [username, setUsernameValue] = useState(dav?.username ?? jf?.username ?? '');
+  const [url, setUrlValue] = useState(
+    dav?.url ?? smb?.url ?? sftp?.url ?? jf?.url ?? abs?.url ?? '',
+  );
+  const [username, setUsernameValue] = useState(
+    dav?.username ?? smb?.username ?? sftp?.username ?? jf?.username ?? '',
+  );
+  // SFTP: the server's key, shown before any login is sent; the one stored when logging in again.
+  const [hostKey, setHostKey] = useState<HostKey | null>(
+    sftp ? { fingerprint: sftp.hostKey, algorithm: '' } : null,
+  );
+  const [privateKey, setPrivateKey] = useState('');
+  const [passphrase, setPassphrase] = useState('');
   const [password, setPasswordValue] = useState('');
   // Jellyfin: signed in after "Test connection", then the libraries to take books from.
   const [deviceId] = useState(() => jf?.deviceId ?? newId());
@@ -196,6 +230,7 @@ export default function ServerScreen() {
     setUrlValue(v);
     setSignedIn(null);
     setAbsSignedIn(null);
+    setHostKey(null);
   };
   const setUsername = (v: string) => {
     setUsernameValue(v);
@@ -255,41 +290,91 @@ export default function ServerScreen() {
     }
   };
 
+  const testSftp = async () => {
+    setBusy(true);
+    try {
+      // Only the handshake: no login goes to a server whose key is not yet trusted.
+      const uri = netRootUri({
+        type: 'sftp',
+        url: url.trim(),
+        username: '',
+        hostKey: '',
+        secret: '',
+      });
+      setHostKey(await askHostKey(uri));
+    } catch (error) {
+      showAlert(t('Could not connect'), netServerReason(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pickKeyFile = async () => {
+    const picked = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
+    const asset = picked.canceled ? null : picked.assets[0];
+    if (!asset) return;
+    const copy = new File(asset.uri);
+    try {
+      setPrivateKey((await copy.text()).trim());
+    } catch (error) {
+      showAlert(t('Could not read the file'), error instanceof Error ? error.message : '');
+    } finally {
+      // The picker's copy of the key does not stay in the cache.
+      if (copy.exists) copy.delete();
+    }
+  };
+
   const source = (): RemoteSource =>
     kind === 'webdav'
       ? { type: 'webdav', url: url.trim(), username: username.trim(), password }
-      : kind === 'jellyfin'
-        ? {
-            type: 'jellyfin',
-            url: url.trim(),
-            username: username.trim(),
-            userId: signedIn?.userId ?? '',
-            deviceId,
-            token: signedIn?.token ?? '',
-            libraryIds: [...picked].filter((id) => signedIn?.libraries.some((l) => l.id === id)),
-            profileId: jf?.profileId ?? profileId,
-          }
-        : kind === 'audiobookshelf'
+      : kind === 'smb'
+        ? { type: 'smb', url: url.trim(), username: username.trim(), password }
+        : kind === 'sftp'
           ? {
-              type: 'audiobookshelf',
+              type: 'sftp',
               url: url.trim(),
-              username: absSignedIn?.username ?? '',
-              userId: absSignedIn?.userId ?? '',
-              token: apiKey.trim(),
-              libraryIds: [...picked].filter((id) =>
-                absSignedIn?.libraries.some((l) => l.id === id),
-              ),
-              profileId: abs?.profileId ?? profileId,
+              username: username.trim(),
+              hostKey: hostKey?.fingerprint ?? '',
+              secret: sftpSecretJson({
+                ...(password ? { password } : {}),
+                ...(privateKey.trim() ? { privateKey: `${privateKey.trim()}\n` } : {}),
+                ...(privateKey.trim() && passphrase ? { passphrase } : {}),
+              }),
             }
-          : {
-              type: 's3',
-              endpoint: endpoint.trim(),
-              region: region.trim() || 'auto',
-              bucket: bucket.trim(),
-              prefix: prefix.trim().replace(/^\/+/, ''),
-              accessKeyId: accessKeyId.trim(),
-              secretAccessKey,
-            };
+          : kind === 'jellyfin'
+            ? {
+                type: 'jellyfin',
+                url: url.trim(),
+                username: username.trim(),
+                userId: signedIn?.userId ?? '',
+                deviceId,
+                token: signedIn?.token ?? '',
+                libraryIds: [...picked].filter((id) =>
+                  signedIn?.libraries.some((l) => l.id === id),
+                ),
+                profileId: jf?.profileId ?? profileId,
+              }
+            : kind === 'audiobookshelf'
+              ? {
+                  type: 'audiobookshelf',
+                  url: url.trim(),
+                  username: absSignedIn?.username ?? '',
+                  userId: absSignedIn?.userId ?? '',
+                  token: apiKey.trim(),
+                  libraryIds: [...picked].filter((id) =>
+                    absSignedIn?.libraries.some((l) => l.id === id),
+                  ),
+                  profileId: abs?.profileId ?? profileId,
+                }
+              : {
+                  type: 's3',
+                  endpoint: endpoint.trim(),
+                  region: region.trim() || 'auto',
+                  bucket: bucket.trim(),
+                  prefix: prefix.trim().replace(/^\/+/, ''),
+                  accessKeyId: accessKeyId.trim(),
+                  secretAccessKey,
+                };
 
   const connectAddon = async (chosen: SourceKind) => {
     const read = readSettings(chosen.manifest.settings ?? [], values);
@@ -351,6 +436,10 @@ export default function ServerScreen() {
       // One request checks the address and the login before anything is saved: the WebDAV
       // folder entered, or the bucket's listing. Jellyfin was checked by "Test connection".
       if (remote.type === 'webdav') await checkWebdav((u, i) => fetch(u, i), remote);
+      // SMB and SFTP: the folder entered, with the login and (SFTP) the key just shown.
+      if (remote.type === 'smb' || remote.type === 'sftp') {
+        await checkNetServer(netRootUri(remote), netfsHeaders(remote));
+      }
       const files =
         remote.type === 's3' ? await listS3((u, i) => fetch(u, i), remote, Date.now()) : null;
       if (existing && rootId) updateRemoteRoot(db, rootId, remote, Date.now());
@@ -361,7 +450,7 @@ export default function ServerScreen() {
         t('Connected'),
         files
           ? t('{n} files found. Books appear as the scan reads them.', { n: files.length })
-          : remote.type === 'webdav'
+          : remote.type === 'webdav' || remote.type === 'smb' || remote.type === 'sftp'
             ? t('Books appear as the scan reads the folders.')
             : t('Books appear as the scan reads the libraries.'),
       );
@@ -379,15 +468,24 @@ export default function ServerScreen() {
       )
     : kind === 'webdav'
       ? /^https?:\/\//.test(url.trim())
-      : kind === 'jellyfin'
-        ? /^https?:\/\//.test(url.trim()) && username.trim() !== ''
-        : kind === 'audiobookshelf'
-          ? /^https?:\/\//.test(url.trim()) && apiKey.trim() !== ''
-          : /^https?:\/\//.test(endpoint.trim()) &&
-            bucket.trim() !== '' &&
-            accessKeyId.trim() !== '';
-  // Jellyfin and Audiobookshelf connect in two steps: test the login, then pick libraries.
-  const testing = (kind === 'jellyfin' && !signedIn) || (kind === 'audiobookshelf' && !absSignedIn);
+      : kind === 'smb' || kind === 'sftp'
+        ? NETFS &&
+          parseNetAddress(url)?.scheme === kind &&
+          (kind === 'smb' ||
+            (username.trim() !== '' && (password !== '' || privateKey.trim() !== '')))
+        : kind === 'jellyfin'
+          ? /^https?:\/\//.test(url.trim()) && username.trim() !== ''
+          : kind === 'audiobookshelf'
+            ? /^https?:\/\//.test(url.trim()) && apiKey.trim() !== ''
+            : /^https?:\/\//.test(endpoint.trim()) &&
+              bucket.trim() !== '' &&
+              accessKeyId.trim() !== '';
+  // Jellyfin and Audiobookshelf connect in two steps: test the login, then pick libraries. SFTP
+  // first shows the server's key.
+  const testing =
+    (kind === 'jellyfin' && !signedIn) ||
+    (kind === 'audiobookshelf' && !absSignedIn) ||
+    (kind === 'sftp' && !hostKey);
   const canConnect =
     ready &&
     (kind === 'jellyfin'
@@ -614,6 +712,92 @@ export default function ServerScreen() {
             </Text>
           )}
         </>
+      ) : (kind === 'smb' || kind === 'sftp') && !NETFS ? (
+        <Text className="text-muted">
+          {t(
+            'SMB and SFTP servers are in the Android app only: a browser can’t open these connections.',
+          )}
+        </Text>
+      ) : kind === 'smb' ? (
+        <>
+          <Field
+            label={t('Share address')}
+            locked={locked}
+            value={url}
+            onChange={setUrl}
+            placeholder={'smb://nas.local/Audiobooks'}
+            hint={t(
+              'The computer or NAS, the share and, if you like, a folder in it. Windows shares, Synology, QNAP and Samba work; SMB 1 does not.',
+            )}
+          />
+          <Field
+            label={t('Username')}
+            value={username}
+            onChange={setUsername}
+            hint={t('DOMAIN\\name for a Windows domain. Leave it empty for a guest share.')}
+          />
+          <Field label={t('Password')} value={password} onChange={setPassword} secret />
+        </>
+      ) : kind === 'sftp' ? (
+        <>
+          <Field
+            label={t('Folder address')}
+            locked={locked}
+            value={url}
+            onChange={setUrl}
+            placeholder={'sftp://nas.local/volume1/Audiobooks'}
+            hint={t('The server, its port if it is not 22, and the folder’s full path.')}
+          />
+          <Field label={t('Username')} value={username} onChange={setUsername} />
+          <Field
+            label={t('Password')}
+            value={password}
+            onChange={setPassword}
+            secret
+            hint={t('Or a private key below.')}
+          />
+          <Field
+            label={t('Private key (optional)')}
+            value={privateKey}
+            onChange={setPrivateKey}
+            multiline
+            placeholder={'-----BEGIN OPENSSH PRIVATE KEY-----'}
+            hint={t('Paste it, or choose the key file. OpenSSH and PEM keys work.')}
+          />
+          <TextButton
+            text={t('Choose a key file')}
+            onPress={() => void pickKeyFile()}
+            className="self-start"
+          />
+          {privateKey.trim() !== '' && (
+            <Field
+              label={t('Key passphrase')}
+              value={passphrase}
+              onChange={setPassphrase}
+              secret
+              hint={t('Only if the key has one.')}
+            />
+          )}
+          {hostKey && (
+            <View className="gap-1 rounded-lg border border-line p-3">
+              <Text className="text-sm text-soft">
+                {locked ? t('Trusted host key') : t('The server’s host key')}
+              </Text>
+              <Text selectable className="font-mono text-xs text-paper">
+                {hostKey.algorithm
+                  ? `${hostKey.algorithm} ${hostKey.fingerprint}`
+                  : hostKey.fingerprint}
+              </Text>
+              <Text className="text-xs text-muted">
+                {locked
+                  ? t('Lelap refuses to connect if the server shows a different key.')
+                  : t(
+                      'Check that it matches the server’s own, for example with ssh-keygen -l on the server. Connect trusts this key, and Lelap then refuses any other.',
+                    )}
+              </Text>
+            </View>
+          )}
+        </>
       ) : kind === 'webdav' ? (
         <>
           <Field
@@ -688,7 +872,9 @@ export default function ServerScreen() {
           void (testing
             ? kind === 'audiobookshelf'
               ? testAudiobookshelf()
-              : testJellyfin()
+              : kind === 'sftp'
+                ? testSftp()
+                : testJellyfin()
             : connect())
         }
         accessibilityRole="button"

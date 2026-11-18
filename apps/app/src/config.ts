@@ -40,3 +40,17 @@ export const syncBase: string = (
 export const downloadsBase: string = (
   process.env.EXPO_PUBLIC_LELAP_DOWNLOADS || `https://dl.${domain}`
 ).replace(/\/$/, '');
+
+/** Where Lelap's source lives; it names the app to services the add-ons inside it talk to. */
+export const sourceUrl: string =
+  process.env.EXPO_PUBLIC_LELAP_SOURCE_URL || 'https://github.com/lelap-app/lelap';
+
+/** The User-Agent scrobblers inside the app send where a User-Agent can be set (not in a browser). */
+export const clientName = `Lelap/1 (+${sourceUrl})`;
+
+/**
+ * Development builds only: a stand-in for a scrobbler's service, such as a local server playing
+ * Open Library. `scrobblerStandIn()` in core drops it in production builds.
+ */
+export const scrobblerStandInSetting: string | undefined =
+  process.env.EXPO_PUBLIC_LELAP_SCROBBLER_STAND_IN;

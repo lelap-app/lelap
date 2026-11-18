@@ -17,6 +17,8 @@ android {
 // No Google Cast SDK and no Play services: the protocols are spoken here, so the one build also
 // suits F-Droid.
 dependencies {
+  // Files on SMB and SFTP servers (M62).
+  implementation project(':lelap-netfs')
   testImplementation 'junit:junit:4.13.2'
   // Android's org.json is a stub in JVM unit tests.
   testImplementation 'org.json:json:20240303'

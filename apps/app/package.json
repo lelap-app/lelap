@@ -17,6 +17,7 @@
     "@lelap/core": "workspace:*",
     "@lelap/download": "workspace:*",
     "@lelap/library": "workspace:*",
+    "@lelap/netfs": "workspace:*",
     "@lelap/sdk": "workspace:*",
     "@lelap/text": "workspace:*",
     "@lelap/updater": "workspace:*",

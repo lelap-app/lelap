@@ -3,8 +3,11 @@ package app.lelap.library
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaDataSource
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import app.lelap.netfs.NetBytes
+import app.lelap.netfs.Netfs
 import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
@@ -28,6 +31,7 @@ data class Tags(
 class TagReader(private val context: Context) {
   /** A file on a WebDAV server or behind a pre-signed S3 link; chapters through Range requests. */
   fun readRemote(url: String, headers: Map<String, String>, name: String, coverDir: File): Tags {
+    if (Netfs.handles(url)) return readNet(url, headers, name, coverDir)
     val retriever = MediaMetadataRetriever()
     try {
       retriever.setDataSource(url, headers)
@@ -52,6 +56,44 @@ class TagReader(private val context: Context) {
       retriever.release()
     }
   }
+
+  /**
+   * A file on an SMB or SFTP server (M62): Android's reader and our parsers share one connection
+   * and one block cache, read at the offsets they ask for.
+   */
+  private fun readNet(url: String, headers: Map<String, String>, name: String, coverDir: File): Tags =
+    Netfs.open(url, headers).use { opened ->
+      val bytes = NetBytes(opened.file)
+      val retriever = MediaMetadataRetriever()
+      try {
+        retriever.setDataSource(object : MediaDataSource() {
+          override fun readAt(position: Long, buffer: ByteArray, offset: Int, size: Int): Int {
+            if (position >= bytes.size) return -1
+            val read = bytes.read(position, size)
+            System.arraycopy(read, 0, buffer, offset, read.size)
+            return read.size
+          }
+
+          override fun getSize(): Long = bytes.size
+
+          override fun close() = Unit
+        })
+        fun tag(key: Int) = retriever.extractMetadata(key)?.trim()?.takeIf { it.isNotEmpty() }
+        val cover = retriever.embeddedPicture?.let { saveCover(it, Uri.parse(url), coverDir) }
+        Tags(
+          durationMs = tag(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L,
+          title = tag(MediaMetadataRetriever.METADATA_KEY_TITLE),
+          album = tag(MediaMetadataRetriever.METADATA_KEY_ALBUM),
+          artist = tag(MediaMetadataRetriever.METADATA_KEY_ARTIST),
+          albumArtist = tag(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST),
+          coverPath = cover,
+          chapters = runCatching { parseChapters(name, bytes::read, bytes.size) }.getOrDefault(emptyList()),
+          idTags = runCatching { IdTags.parse(name, bytes::read, bytes.size) }.getOrDefault(emptyMap()),
+        )
+      } finally {
+        retriever.release()
+      }
+    }
 
   fun read(uri: Uri, name: String, coverDir: File): Tags {
     val retriever = MediaMetadataRetriever()

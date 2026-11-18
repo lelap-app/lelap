@@ -10,11 +10,12 @@ const catalog = `catalog.${site.domain}`;
   toc={[
     ['how', 'How it works'],
     ['hardcover', 'Hardcover'],
+    ['open-library', 'Open Library reading log'],
     ['gpodder', 'gPodder sync'],
     ['privacy', 'Tokens and privacy'],
     ['self-hosting', 'Self-hosting'],
   ]}
-  description={`Report what you listen to in ${site.name} to Hardcover and to gPodder-compatible servers.`}
+  description={`Report what you listen to in ${site.name} to Hardcover, your Open Library reading log and gPodder-compatible servers.`}
 >
   <h1>Scrobbling</h1>
   <p class="lead">
@@ -57,6 +58,39 @@ const catalog = `catalog.${site.domain}`;
     Books are matched by ISBN or Audible ASIN when the add-on that lists them knows one, and
     otherwise by title and author. Books Hardcover doesn’t know are skipped. Hardcover tokens expire
     after a while; when yours does, make a new link the same way and replace the add-on.
+  </p>
+
+  <h2 id="open-library">Open Library reading log</h2>
+  <p>
+    <a href="https://openlibrary.org">Open Library</a> keeps a reading log for every account. With
+    this add-on, a book you start listening to goes on <strong>Currently reading</strong>, and moves
+    to <strong>Already read</strong> when you finish it. Only the book and the shelf are sent: no
+    times, no progress, no ratings.
+  </p>
+  <ol>
+    <li>
+      Open Library has no API tokens; apps sign in with your archive.org S3 keys instead of your
+      password. Signed in with the account you use on Open Library, open{' '}
+      <a href="https://archive.org/account/s3.php">archive.org/account/s3.php</a> and copy the
+      access key and the secret key.
+    </li>
+    <li>
+      In {site.name}, open Settings → Add-ons. Under Comes with {site.name}, choose Set up next to
+      Open Library reading log, paste both keys and choose Check and save.
+    </li>
+  </ol>
+  <p>
+    The add-on runs inside the app, in a sandbox that can reach only openlibrary.org. The keys stay
+    on your phone, sealed with its key store, and are never synced, exported or sent anywhere else;
+    no {site.name} server sees them. Books from the Catalog are Open Library works already. Books
+    from other add-ons count when the add-on gives their Open Library work ID; all others, your own
+    files among them, are skipped rather than guessed. The keys also work for the rest of
+    archive.org, such as uploads. To stop the add-on, remove it, or make new keys on the same
+    archive.org page.
+  </p>
+  <p>
+    It works in the Android app only. Open Library signs apps in with a cookie, and a browser never
+    shows a page the cookie, so the web app offers the add-on but can’t set it up.
   </p>
 
   <h2 id="gpodder">gPodder sync</h2>

@@ -385,22 +385,35 @@ export default function SettingsScreen() {
                       : t('Password needed: it is not in backups.')
                     : s.remote?.type === 'audiobookshelf' && s.remote.keyRefused
                       ? t('Audiobookshelf refused the API key. Change it to keep syncing.')
-                      : s.remote?.type === 'addon' &&
-                          !sameAddonCode(s.remote, codeFingerprint(s.remote.addonUrl))
-                        ? t('The add-on changed. Log in again to use it.')
-                        : s.remote?.type === 's3'
-                          ? t('S3 bucket')
-                          : s.remote?.type === 'jellyfin'
-                            ? 'Jellyfin'
-                            : s.remote?.type === 'audiobookshelf'
-                              ? 'Audiobookshelf'
-                              : s.remote?.type === 'addon'
-                                ? t('Add-on on this device')
-                                : 'WebDAV'
+                      : s.remote?.type === 'sftp' && s.remote.refused === 'host-key'
+                        ? t(
+                            'The server’s host key changed, so Lelap did not connect. If you changed it yourself, remove the server in Settings and add it again.',
+                          )
+                        : (s.remote?.type === 'smb' || s.remote?.type === 'sftp') &&
+                            s.remote.refused === 'login'
+                          ? t('The server refused the login. Log in again in Settings.')
+                          : s.remote?.type === 'addon' &&
+                              !sameAddonCode(s.remote, codeFingerprint(s.remote.addonUrl))
+                            ? t('The add-on changed. Log in again to use it.')
+                            : s.remote?.type === 's3'
+                              ? t('S3 bucket')
+                              : s.remote?.type === 'smb'
+                                ? t('SMB share')
+                                : s.remote?.type === 'sftp'
+                                  ? t('SFTP folder')
+                                  : s.remote?.type === 'jellyfin'
+                                    ? 'Jellyfin'
+                                    : s.remote?.type === 'audiobookshelf'
+                                      ? 'Audiobookshelf'
+                                      : s.remote?.type === 'addon'
+                                        ? t('Add-on on this device')
+                                        : 'WebDAV'
                 }
               >
                 {(s.needsLogin ||
                   (s.remote?.type === 'audiobookshelf' && s.remote.keyRefused) ||
+                  ((s.remote?.type === 'smb' || s.remote?.type === 'sftp') &&
+                    s.remote.refused === 'login') ||
                   (s.remote?.type === 'addon' &&
                     !sameAddonCode(s.remote, codeFingerprint(s.remote.addonUrl)))) && (
                   <TextButton

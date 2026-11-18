@@ -14,9 +14,10 @@ export const PROTOCOL_VERSION = 1;
  * add-ons inside the app; 6 adds a library's sealed `query`, a file's `downloadUrl` and `place`, and
  * the `place` resource, for add-ons inside the app; 7 adds `signin` settings and the `signin`
  * resource (a code the listener enters on a website) and a library's `webQuery`, for add-ons inside
- * the app.
+ * the app; 8 lets an add-on inside the app with `settings` and `scrobble` but no `library` be set up
+ * under Settings → Add-ons, its settings reaching its `scrobble` calls.
  */
-export const LATEST_PROTOCOL_VERSION = 7;
+export const LATEST_PROTOCOL_VERSION = 8;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
@@ -215,7 +216,9 @@ export const Manifest = z
     sandbox: z.object({ hosts: z.array(z.string().min(1)).max(32) }).optional(),
     /**
      * Since revision 5, for add-ons inside the app only: the form the app shows when the listener
-     * adds the add-on as a server. The values reach its `library` calls as `settings`.
+     * adds the add-on as a server. The values reach its `library` calls as `settings`. Since
+     * revision 8, an add-on with `scrobble` and no `library` is set up with this form under
+     * Settings → Add-ons instead, and the values reach its `scrobble` calls.
      */
     settings: z.array(SettingField).max(12).optional(),
   })
@@ -687,6 +690,20 @@ export function offersLibrary(manifest: Manifest): boolean {
 }
 
 /** Whether the add-on keeps the listener's places with its library's source (revision 6). */
+/**
+ * Whether the add-on is a scrobbler inside the app that is set up with its settings (revision 8):
+ * `scrobble` and `settings`, no `library`.
+ */
+export function scrobblesWithSettings(manifest: Manifest): boolean {
+  const names = resourceNames(manifest.resources);
+  return (
+    manifest.sandbox !== undefined &&
+    (manifest.settings ?? []).length > 0 &&
+    names.includes('scrobble') &&
+    !names.includes('library')
+  );
+}
+
 export function offersPlaces(manifest: Manifest): boolean {
   return offersLibrary(manifest) && resourceNames(manifest.resources).includes('place');
 }

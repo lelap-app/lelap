@@ -7,6 +7,7 @@ import {
   metaPath,
   parseExtra,
   parseRoute,
+  scrobblePath,
   signinPath,
   streamPath,
 } from './paths';
@@ -32,6 +33,10 @@ describe('paths', () => {
     expect(signinPath('start')).toBe('signin/audiobook/start.json');
     expect(signinPath('check')).toBe('signin/audiobook/check.json');
     expect(parseRoute(signinPath('check'))).toBeNull();
+  });
+
+  it('names the in-app scrobble call', () => {
+    expect(scrobblePath()).toBe('scrobble/audiobook/all.json');
   });
 
   it('drops empty extras and sorts keys', () => {

@@ -5,7 +5,8 @@
 //
 // Since M57 the add-on's code runs in a worker inside the page. A worker can't navigate, open a
 // window or add an element, so a server's settings, which reach `library`, `place` and `signin`
-// calls as `settings`, can't leave in an address either. Where a worker can't start, the code runs in the
+// calls (and since M61 a scrobbler's `scrobble` calls) as `settings`, can't leave in an address
+// either. Where a worker can't start, the code runs in the
 // page as before and the app never hands it settings (`isolated: false`).
 
 const ADDON_SIDE = `
@@ -47,7 +48,7 @@ const ADDON_SIDE = `
     }
     return p.length === 3 ? r : null;
   };
-  var handle = function (id, path, settings, place, signin) {
+  var handle = function (id, path, settings, place, signin, events) {
     Promise.resolve().then(function () {
       if (!def) throw new Error('The file never called addon({...}).');
       var r = route(path);
@@ -55,9 +56,11 @@ const ADDON_SIDE = `
       if (r.resource === 'manifest') return { status: 200, body: def.manifest };
       var h = def[r.resource];
       if (typeof h !== 'function') return { status: 404, body: { error: 'Not found' } };
-      if (r.resource === 'library' || r.resource === 'place' || r.resource === 'signin') {
+      if (r.resource === 'library' || r.resource === 'place' || r.resource === 'signin' ||
+          r.resource === 'scrobble') {
         r.settings = Object.freeze(settings || {});
       }
+      if (r.resource === 'scrobble') r.events = events || [];
       if (r.resource === 'place') r.place = place || null;
       if (r.resource === 'signin') r.signin = signin || {};
       return Promise.resolve(h(r)).then(function (b) {
@@ -66,7 +69,10 @@ const ADDON_SIDE = `
     }).then(function (res) {
       post({ t: 'result', id: id, status: res.status, body: res.body });
     }, function (err) {
-      post({ t: 'result', id: id, status: 500, body: { error: String((err && err.message) || err) } });
+      // An error may name its status, such as 401 for a login to enter again.
+      var status = err && typeof err.status === 'number' && err.status >= 400 && err.status < 600
+        ? err.status : 500;
+      post({ t: 'result', id: id, status: status, body: { error: String((err && err.message) || err) } });
     });
   };
   self.__lelapReceive = function (data) {
@@ -86,7 +92,7 @@ const ADDON_SIDE = `
         json: function () { return Promise.resolve(JSON.parse(m.text)); }
       });
     } else if (m.t === 'call') {
-      handle(m.id, m.path, m.settings, m.place, m.signin);
+      handle(m.id, m.path, m.settings, m.place, m.signin, m.events);
     }
   };
   self.onerror = function (msg) { post({ t: 'log', message: String(msg) }); };

@@ -1,6 +1,23 @@
 import { t } from '../i18n';
-import { bundledAddon, getLocalAddonCode, hostAllowed, listAddons } from '@lelap/core';
-import { libraryPath, type PlaceReport, placePath, type Settings, signinPath } from '@lelap/sdk';
+import {
+  bundledAddon,
+  getLocalAddonCode,
+  listAddons,
+  type ManualFetch,
+  sandboxFetch,
+  type SandboxFetchInit,
+} from '@lelap/core';
+import {
+  libraryPath,
+  type PlaceReport,
+  placePath,
+  type ScrobbleEvent,
+  scrobblePath,
+  type Settings,
+  signinPath,
+} from '@lelap/sdk';
+
+import { fetch as expoFetch } from 'expo/fetch';
 
 import { db } from '../db';
 import { sandboxPage } from './page';
@@ -96,41 +113,17 @@ export function attachSandbox(key: string, post: (message: string) => void): voi
   for (const box of boxes.values()) if (box.key === key) box.post = post;
 }
 
-async function fetchFor(box: Box, id: string, url: string, init: RequestInit | undefined) {
-  const reply = (m: Record<string, unknown>) =>
-    box.post?.(JSON.stringify({ t: 'fetched', id, ...m }));
-  if (!hostAllowed(url, box.hosts)) {
-    reply({
-      error: `Not allowed: this add-on may only reach ${box.hosts.join(', ') || 'nothing'}.`,
-    });
-    return;
-  }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      method: init?.method ?? 'GET',
-      ...(init?.headers ? { headers: init.headers } : {}),
-      ...(typeof init?.body === 'string' ? { body: init.body } : {}),
-      signal: controller.signal,
-      // Never the app's own cookies or credentials.
-      credentials: 'omit',
-      // A redirect would carry a posted body, such as a login, to wherever it points.
-      ...(init?.method && init.method !== 'GET' ? { redirect: 'error' as const } : {}),
-    });
-    // An answer from another host, after a redirect, is not handed to the add-on.
-    if (response.url && !hostAllowed(response.url, box.hosts)) {
-      throw new Error('Not allowed: the server sent this add-on to another host.');
-    }
-    const text = await response.text();
-    if (text.length > MAX_RESPONSE_CHARS) throw new Error(t('The answer was too large.'));
-    const type = response.headers.get('content-type');
-    reply({ status: response.status, text, headers: type ? { 'content-type': type } : {} });
-  } catch (error) {
-    reply({ error: error instanceof Error ? error.message : String(error) });
-  } finally {
-    clearTimeout(timer);
-  }
+// `expo/fetch` honours `redirect: 'manual'` on Android (OkHttp with redirects off); React
+// Native's own fetch follows every redirect, posted body and headers included.
+const manualFetch: ManualFetch = (url, init) => expoFetch(url, init);
+
+async function fetchFor(box: Box, id: string, url: string, init: SandboxFetchInit | undefined) {
+  const reply = await sandboxFetch(manualFetch, url, init, box.hosts, {
+    timeoutMs: FETCH_TIMEOUT_MS,
+    maxChars: MAX_RESPONSE_CHARS,
+    tooLarge: t('The answer was too large.'),
+  });
+  box.post?.(JSON.stringify({ t: 'fetched', id, ...reply }));
 }
 
 /** A message from a sandbox, as the host component received it. */
@@ -144,7 +137,7 @@ export function sandboxMessage(key: string, data: string): void {
     status?: number;
     body?: unknown;
     url?: string;
-    init?: RequestInit;
+    init?: SandboxFetchInit;
   };
   try {
     m = JSON.parse(data) as typeof m;
@@ -188,7 +181,12 @@ async function call(
   box: Box,
   path: string,
   settings?: Settings,
-  extra: { place?: PlaceReport; signin?: { state?: string }; timeoutMs?: number } = {},
+  extra: {
+    place?: PlaceReport;
+    signin?: { state?: string };
+    events?: ScrobbleEvent[];
+    timeoutMs?: number;
+  } = {},
 ): Promise<{ status: number; body: unknown }> {
   if (!box.ready || !box.post) {
     await new Promise<void>((resolve, reject) => {
@@ -221,6 +219,7 @@ async function call(
         ...(settings ? { settings } : {}),
         ...(extra.place ? { place: extra.place } : {}),
         ...(extra.signin ? { signin: extra.signin } : {}),
+        ...(extra.events ? { events: extra.events } : {}),
       }),
     );
   });
@@ -296,6 +295,24 @@ export async function callAddonSignin(args: {
   return call(serverBox(args), signinPath(args.step), args.settings, {
     signin: args.state === undefined ? {} : { state: args.state },
   });
+}
+
+/**
+ * Hands a scrobbler inside the app (revision 8) a batch of events with its settings, in a sandbox
+ * of its own that reaches only `hosts`. No events is the check made when it is set up.
+ */
+export async function callAddonScrobble(args: {
+  addonUrl: string;
+  hosts: string[];
+  settings: Settings;
+  events: ScrobbleEvent[];
+}): Promise<{ status: number; body: unknown }> {
+  return call(
+    serverBox({ addonUrl: args.addonUrl, sandboxId: 'scrobble', hosts: args.hosts }),
+    scrobblePath(),
+    args.settings,
+    { events: args.events, timeoutMs: PLACE_TIMEOUT_MS },
+  );
 }
 
 /** Runs code that isn't installed yet, with no network, to read its manifest. */
