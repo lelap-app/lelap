@@ -53,7 +53,7 @@ export function createApp(platform: Platform, env: Env): Hono {
   const onError = (error: unknown) =>
     console.error(error instanceof Error ? error.message : 'Scrobble add-on failed');
   const hardcover = mountConfigurable(
-    { ...hardcoverAddon(platform.fetch, agent), onError },
+    { ...hardcoverAddon(platform.fetch, agent, platform.cache), onError },
     createSealer(env.CONFIG_SECRET, 'hardcover'),
   );
   const gpodder = mountConfigurable(

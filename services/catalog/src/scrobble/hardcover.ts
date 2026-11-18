@@ -2,74 +2,77 @@ import {
   AddonError,
   type Manifest,
   type Meta,
-  type MetaPreview,
   type ScrobbleEvent,
   type ScrobbleItem,
 } from '@lelap/sdk';
 
-import type { FetchLike } from '../upstream';
+import { type FetchLike, type ResponseCache, TTL } from '../upstream';
+import {
+  type Book,
+  editionIds,
+  type GraphQL,
+  HARDCOVER_SITE,
+  hardcoverClient,
+  memoryCache,
+  NEW_TOKEN_URL,
+  PREFIX,
+  preview,
+  refused,
+  SCOPES,
+  tokenCache,
+} from './hardcover-api';
+import {
+  applyPicks,
+  availableLists,
+  catalogFor,
+  DEFAULT_SHOWN,
+  pickFields,
+  reviveShown,
+  type Shown,
+  shownCatalogs,
+} from './hardcover-catalogs';
 import type { ConfigurableAddon } from './mount';
 
 // Hardcover (hardcover.app), a reading tracker with a GraphQL API. Listening moves a book to
 // "Currently reading" with its progress, a finished book to "Read", an abandoned one to "Did not
-// finish". The "Want to read" shelf comes back as a catalog for Home. The listener's API token
-// lives only in their sealed add-on URL.
+// finish". The "Want to read" shelf, trending books and the listener's chosen lists come back as
+// catalogs (M76). The listener's API token lives only in their sealed add-on URL.
 
+export { HARDCOVER_API, PREFIX } from './hardcover-api';
 export const BASE_PATH = '/hardcover';
-export const HARDCOVER_API = 'https://api.hardcover.app/v1/graphql';
-export const PREFIX = 'hardcover:';
 
 /** Hardcover's reading statuses. */
 export const STATUS = { wantToRead: 1, reading: 2, read: 3, didNotFinish: 5 } as const;
 
-export type HardcoverConfig = { token: string };
+/** `shown` is missing in links made before M76. */
+export type HardcoverConfig = { token: string; shown?: Shown };
+
+const WANT_TO_READ_CATALOG = {
+  type: 'audiobook',
+  id: 'want-to-read',
+  name: 'Want to read',
+  shelf: 'want-to-read',
+} as const;
 
 export const hardcoverManifest: Manifest = {
   id: 'app.lelap.hardcover',
-  version: '1.0.0',
+  version: '1.1.0',
   protocol: 1,
   name: 'Hardcover',
   description:
-    'Keeps your Hardcover shelves up to date as you listen, and shows your Want to read shelf on Home.',
+    'Keeps your Hardcover shelves up to date as you listen, and shows your Want to read shelf, trending books and your lists. Book data from Hardcover.',
   types: ['audiobook'],
   resources: ['catalog', { name: 'meta', idPrefixes: [PREFIX] }, 'scrobble'],
   idPrefixes: [PREFIX],
-  catalogs: [
-    { type: 'audiobook', id: 'want-to-read', name: 'Want to read', shelf: 'want-to-read' },
-  ],
+  catalogs: [WANT_TO_READ_CATALOG],
   configurable: true,
 };
 
-type GraphQL = <T>(query: string, variables?: Record<string, unknown>) => Promise<T>;
-
-/** A GraphQL client for one listener. Never logs or echoes the token. */
-export function hardcoverClient(fetch: FetchLike, token: string, userAgent: string): GraphQL {
-  const authorization = /^bearer /i.test(token) ? token : `Bearer ${token}`;
-  return async <T>(query: string, variables: Record<string, unknown> = {}) => {
-    const response = await fetch(HARDCOVER_API, {
-      method: 'POST',
-      headers: {
-        authorization,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'User-Agent': userAgent,
-      },
-      body: JSON.stringify({ query, variables }),
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (response.status === 401 || response.status === 403)
-      throw new AddonError(401, 'Hardcover did not accept the token; configure the add-on again');
-    if (response.status === 429) throw new AddonError(503, 'Hardcover asks to slow down');
-    if (!response.ok) throw new AddonError(502, `Hardcover answered ${response.status}`);
-    const body = (await response.json()) as { data?: T; errors?: { message?: string }[] };
-    if (body.errors?.length || !body.data) {
-      const message = body.errors?.[0]?.message ?? 'no data';
-      // Hasura answers an invalid token with a 200 and an error.
-      if (/jwt|auth|token/i.test(message))
-        throw new AddonError(401, 'Hardcover did not accept the token; configure the add-on again');
-      throw new AddonError(502, `Hardcover: ${message}`);
-    }
-    return body.data;
+/** One listener's manifest: Want to read, then the trending rows and lists they chose. */
+export function manifestFor(config: HardcoverConfig): Manifest {
+  return {
+    ...hardcoverManifest,
+    catalogs: [WANT_TO_READ_CATALOG, ...shownCatalogs(config.shown ?? DEFAULT_SHOWN)],
   };
 }
 
@@ -84,7 +87,11 @@ const WANT_TO_READ = `query WantToRead($user: Int!, $status: Int!) {
 const BOOK = `query Book($id: Int!) {
   books(where: { id: { _eq: $id } }, limit: 1) {
     id title description release_year slug image { url } contributions { author { name } }
-    editions(where: { _or: [{ isbn_13: { _is_null: false } }, { asin: { _is_null: false } }] }, limit: 5) { isbn_13 asin }
+    editions(
+      where: { _or: [{ isbn_13: { _is_null: false } }, { isbn_10: { _is_null: false } }, { asin: { _is_null: false } }] }
+      order_by: { users_count: desc }
+      limit: 20
+    ) { isbn_10 isbn_13 asin reading_format_id }
   }
 }`;
 
@@ -119,47 +126,13 @@ const UPDATE_READ = `mutation UpdateRead($id: Int!, $object: DatesReadInput!) {
   update_user_book_read(id: $id, object: $object) { id error }
 }`;
 
-type Book = {
-  id: number;
-  title: string;
-  description?: string | null;
-  release_year?: number | null;
-  slug?: string | null;
-  image?: { url?: string | null } | null;
-  contributions?: { author?: { name?: string | null } | null }[] | null;
-  editions?: { isbn_13?: string | null; asin?: string | null }[] | null;
-};
-
-const authorOf = (book: Book) =>
-  (book.contributions ?? [])
-    .map((c) => c.author?.name)
-    .filter((n): n is string => Boolean(n))
-    .join(', ') || undefined;
-
-const httpsUrl = (url?: string | null) => (url && /^https?:\/\//.test(url) ? url : undefined);
-
-function preview(book: Book): MetaPreview {
-  const author = authorOf(book);
-  const cover = httpsUrl(book.image?.url);
-  return {
-    id: `${PREFIX}${book.id}`,
-    type: 'audiobook',
-    name: book.title || 'Untitled',
-    ...(author ? { author } : {}),
-    ...(cover ? { cover } : {}),
-    ...(book.description ? { description: book.description } : {}),
-    ...(book.release_year ? { year: book.release_year } : {}),
-  };
-}
-
 /** A UTC date as Hardcover's date fields take it. */
 const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
 async function currentUser(gql: GraphQL): Promise<number> {
   const data = await gql<{ me: { id: number }[] | { id: number } }>(ME);
   const me = Array.isArray(data.me) ? data.me[0] : data.me;
-  if (!me)
-    throw new AddonError(401, 'Hardcover did not accept the token; configure the add-on again');
+  if (!me) throw refused();
   return me.id;
 }
 
@@ -291,13 +264,27 @@ export function latestPerItem(events: ScrobbleEvent[]): ScrobbleEvent[] {
 export function hardcoverAddon(
   fetch: FetchLike,
   userAgent: string,
+  /** The Workers Cache API; without one (Docker), answers are kept in memory. */
+  cache: ResponseCache = memoryCache(),
 ): Omit<ConfigurableAddon<HardcoverConfig>, 'onError'> {
   const client = (config: HardcoverConfig) => hardcoverClient(fetch, config.token, userAgent);
+  const cachedFor = (config: HardcoverConfig) => tokenCache(cache, config.token);
+  // A token belongs to one account for good, so its user ID can be kept for a day.
+  const userOf = (gql: GraphQL, config: HardcoverConfig) =>
+    cachedFor(config)('me', TTL.item, () => currentUser(gql));
+  const listsOf = async (config: HardcoverConfig) => {
+    const gql = client(config);
+    const user = await userOf(gql, config);
+    // Kept briefly: the choices page reads them again when its form comes back.
+    const available = await cachedFor(config)('lists', 600, () => availableLists(gql, user));
+    return { gql, user, available };
+  };
   return {
     basePath: BASE_PATH,
     manifest: hardcoverManifest,
-    intro:
-      'Paste your Hardcover API token (hardcover.app → Settings → Hardcover API). Lelap then moves books to Currently reading, Read or Did not finish as you listen, and shows your Want to read shelf on Home.',
+    manifestFor,
+    intro: `Paste your Hardcover API token (hardcover.app → Settings → Hardcover API). It needs these permissions: ${SCOPES.join(', ')}. Tokens made before August 2026 have them all. Lelap then moves books to Currently reading, Read or Did not finish as you listen, and shows your Want to read shelf, trending books and the lists you choose.`,
+    introLink: { href: NEW_TOKEN_URL, label: 'Make a token with these permissions' },
     fields: [{ name: 'token', label: 'API token', type: 'password', placeholder: 'Bearer eyJ…' }],
     parse: (form) => {
       const token = (form.token ?? '').trim();
@@ -308,14 +295,28 @@ export function hardcoverAddon(
     check: async (config) => {
       await currentUser(client(config));
     },
+    pick: {
+      intro:
+        'Choose the rows to show in Lelap. Each list is one row, in its own order. Everything here comes from Hardcover, read with your token only.',
+      fields: async (config) => pickFields((await listsOf(config)).available, config.shown),
+      apply: async (config, form) => {
+        const { gql, user, available } = await listsOf(config);
+        const shown = await applyPicks(gql, user, available, form, config.shown);
+        return { token: config.token, shown };
+      },
+    },
     revive: (value) => {
-      const token = (value as { token?: unknown } | null)?.token;
-      return typeof token === 'string' && token.length > 0 ? { token } : null;
+      const raw = value as { token?: unknown; shown?: unknown } | null;
+      const token = raw?.token;
+      if (typeof token !== 'string' || token.length === 0) return null;
+      return raw?.shown === undefined ? { token } : { token, shown: reviveShown(raw.shown) };
     },
     handlers: (config) => ({
-      catalog: async () => {
+      catalog: async ({ id }) => {
         const gql = client(config);
-        const user = await currentUser(gql);
+        const shown = catalogFor(id, gql, cachedFor(config));
+        if (shown) return shown;
+        const user = await userOf(gql, config);
         const data = await gql<{ user_books: { book: Book | null }[] }>(WANT_TO_READ, {
           user,
           status: STATUS.wantToRead,
@@ -329,26 +330,25 @@ export function hardcoverAddon(
       meta: async ({ id }) => {
         const bookId = Number(id.slice(PREFIX.length));
         if (!Number.isInteger(bookId) || bookId <= 0) return null;
-        const data = await client(config)<{ books: Book[] }>(BOOK, { id: bookId });
-        const book = data.books[0];
+        const gql = client(config);
+        const book = await cachedFor(config)(`book:${bookId}`, TTL.item, async () => {
+          const data = await gql<{ books: Book[] }>(BOOK, { id: bookId });
+          return data.books[0] ?? null;
+        });
         if (!book) return null;
-        const externalIds: Record<string, string> = {};
-        for (const edition of book.editions ?? []) {
-          if (edition.isbn_13) externalIds.isbn ??= edition.isbn_13;
-          if (edition.asin) externalIds.asin ??= edition.asin;
-        }
+        const externalIds = editionIds(book.editions ?? []);
         const meta: Meta = {
           ...preview(book),
           ...(Object.keys(externalIds).length > 0 ? { externalIds } : {}),
           ...(book.slug
-            ? { link: `https://hardcover.app/books/${encodeURIComponent(book.slug)}` }
+            ? { link: `${HARDCOVER_SITE}/books/${encodeURIComponent(book.slug)}` }
             : {}),
         };
         return { meta, cacheMaxAge: 3600 };
       },
       scrobble: async ({ events }) => {
         const gql = client(config);
-        const user = await currentUser(gql);
+        const user = await userOf(gql, config);
         for (const event of latestPerItem(events)) {
           if (event.item.type !== 'audiobook') continue;
           const book = await findBook(gql, event.item);
