@@ -28,6 +28,7 @@ export const SHARED_TABLES = [
   'sync_state',
   'tombstones',
   'diagnostics',
+  'work_links',
 ] as const;
 
 export type StoredChapter = { title: string; startMs: number };
@@ -163,6 +164,11 @@ export const bookFiles = sqliteTable(
     albumArtist: text('album_artist'),
     coverPath: text('cover_path'),
     chaptersJson: text('chapters_json', { mode: 'json' }).$type<StoredChapter[]>().notNull(),
+    /**
+     * ISBNs and ASINs from the file's tags or the server's metadata, normalised (`isbn:978…`).
+     * Null for files last read before M56.
+     */
+    ids: text('ids', { mode: 'json' }).$type<string[]>(),
     missingSince: integer('missing_since'),
     /** Absolute path of a streamed part's downloaded copy. */
     downloadPath: text('download_path'),
@@ -522,6 +528,35 @@ export const tombstones = sqliteTable(
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [primaryKey({ columns: [t.kind, t.key, t.profileId] })],
+);
+
+/** What a library book shows instead of its tags once it was matched with a catalog by hand. */
+export type LinkedMeta = { title: string; author: string | null; cover: string | null };
+
+/**
+ * A library book and an add-on work it is, or is not (M56). Keyed on the book's location
+ * (`webdav:host/path`), which is the same on every device, so it syncs and outlives a rescan.
+ * `rejected` remembers a “no” or an unlink, so the page doesn't offer or link it again.
+ */
+export const workLinks = sqliteTable(
+  'work_links',
+  {
+    bookKey: text('book_key').notNull(),
+    workType: text('work_type').notNull(),
+    workId: text('work_id').notNull(),
+    state: text('state', { enum: ['linked', 'rejected'] }).notNull(),
+    /** Every ID the work is known by (its own and `externalIds`), normalised. */
+    ids: text('ids', { mode: 'json' }).$type<string[]>().notNull(),
+    /** Set by Match with catalog…: the work's title, author and cover. */
+    meta: text('meta', { mode: 'json' }).$type<LinkedMeta>(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.bookKey, t.workType, t.workId] }),
+    // A work's page looks up its links; every Library list reads the linked titles.
+    index('work_links_work_idx').on(t.workType, t.workId),
+    index('work_links_state_idx').on(t.state),
+  ],
 );
 
 /**

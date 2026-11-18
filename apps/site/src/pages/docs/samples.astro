@@ -79,9 +79,10 @@ const toc: [string, string][] = [
 >
   <h1>Samples</h1>
   <p class="lead">
-    Four small add-ons, each runnable and tested in the repository. The first three serve the same
+    Five small add-ons, each runnable and tested in the repository. The first three serve the same
     two public-domain LibriVox recordings with one catalog, meta and streams; pick the one closest
-    to your stack and replace the data with your own source.
+    to your stack and replace the data with your own source. The last answers other add-ons’ book
+    pages from its files, and has <a href="/docs/mapping-files/">a page of its own</a>.
   </p>
   <div class="table-wrap">
     <table class="table">
@@ -138,6 +139,19 @@ const toc: [string, string][] = [
           <td>
             <a href={tree('examples/seasonal-catalogs')}>
               <code>examples/seasonal-catalogs</code>
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <a href="/docs/mapping-files/#sample">Source for book pages</a>
+          </td>
+          <td>
+            Node 20+, <code>@lelap/sdk</code>
+          </td>
+          <td>
+            <a href={tree('examples/source-addon')}>
+              <code>examples/source-addon</code>
             </a>
           </td>
         </tr>

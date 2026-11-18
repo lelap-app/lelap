@@ -697,5 +697,22 @@
   "Moving downloads": "Memindahkan muat turun",
   "Moving downloads stopped: {reason}": "Pemindahan muat turun terhenti: {reason}",
   "There is not enough space in the new folder.": "Ruang dalam folder baharu tidak mencukupi.",
-  "Some downloads stay where they are until their folder can be reached again.": "Sesetengah muat turun kekal di tempatnya sehingga folder mereka dapat dicapai semula."
+  "Some downloads stay where they are until their folder can be reached again.": "Sesetengah muat turun kekal di tempatnya sehingga folder mereka dapat dicapai semula.",
+  "In your library?": "Dalam pustaka anda?",
+  "“{title}” by {author} looks like this book.": "“{title}” oleh {author} kelihatan seperti buku ini.",
+  "“{title}” looks like this book.": "“{title}” kelihatan seperti buku ini.",
+  "Yes, use my copy": "Ya, guna salinan saya",
+  "Not this one": "Bukan yang ini",
+  "Your copy": "Salinan anda",
+  "Your copy, from your own library": "Salinan anda, daripada pustaka anda sendiri",
+  "Not your copy? Unlink": "Bukan salinan anda? Nyahpaut",
+  "Match with catalog…": "Padankan dengan katalog…",
+  "Match with catalog": "Padankan dengan katalog",
+  "Unlink from catalog": "Nyahpaut daripada katalog",
+  "Pick the book “{title}” is. It then shows that book’s title, author and cover, and plays from its page. Your files stay as they are.": "Pilih buku yang sepadan dengan “{title}”. Ia kemudian menunjukkan tajuk, pengarang dan kulit buku itu, dan dimainkan dari halamannya. Fail anda kekal seperti sedia ada.",
+  "this book": "buku ini",
+  "Title or author": "Tajuk atau pengarang",
+  "Search the catalogs": "Cari dalam katalog",
+  "The search goes to your add-ons when you send it.": "Carian dihantar kepada alat tambah anda apabila anda menghantarnya.",
+  "Nothing found. Try fewer words.": "Tiada apa-apa ditemui. Cuba kurangkan perkataan."
 }

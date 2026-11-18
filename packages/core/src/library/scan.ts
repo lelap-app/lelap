@@ -1,3 +1,4 @@
+import { normalizeIds } from '@lelap/sdk';
 import { and, eq, isNull } from 'drizzle-orm';
 
 import type { Db } from '../db';
@@ -23,7 +24,7 @@ import { groupIntoBooks, withoutDownloads } from './group';
 import { toBookPosition } from './timeline';
 
 type TagKey =
-  'durationMs' | 'title' | 'album' | 'artist' | 'albumArtist' | 'coverPath' | 'chapters';
+  'durationMs' | 'title' | 'album' | 'artist' | 'albumArtist' | 'coverPath' | 'chapters' | 'ids';
 
 /** A file as listed from the folder, before its tags are read. */
 export type ListedFile = Omit<ScannedFile, TagKey>;
@@ -54,6 +55,7 @@ export function splitScanned(files: ScannedFile[]): {
     albumArtist,
     coverPath,
     chapters: c,
+    ids,
     ...rest
   } of files) {
     listed.push(rest);
@@ -65,6 +67,7 @@ export function splitScanned(files: ScannedFile[]): {
       albumArtist,
       coverPath,
       chapters: c,
+      ...(ids !== undefined ? { ids } : {}),
     });
   }
   return { listed, tags };
@@ -178,6 +181,7 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
               albumArtist: stored.albumArtist,
               coverPath: stored.coverPath,
               chapters: stored.chaptersJson,
+              ids: stored.ids,
             }
           : NO_TAGS);
       scanned.push({ ...file, ...fileTags });
@@ -195,6 +199,7 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
         albumArtist: fileTags.albumArtist,
         coverPath: fileTags.coverPath,
         chaptersJson: fileTags.chapters,
+        ids: fileTags.ids == null ? null : normalizeIds(fileTags.ids),
         missingSince: null,
         updatedAt: now,
       };
@@ -402,6 +407,7 @@ function sameFile(
     stored.artist === row.artist &&
     stored.albumArtist === row.albumArtist &&
     stored.coverPath === row.coverPath &&
+    JSON.stringify(stored.ids) === JSON.stringify(row.ids) &&
     sameChapters(stored.chaptersJson, row.chaptersJson)
   );
 }

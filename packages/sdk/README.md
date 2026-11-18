@@ -54,6 +54,12 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
   as `config`. Nothing is stored on a server.
 - **Health:** every add-on answers `GET /health`; pass a `health` handler to report `degraded` or
   `down`.
+- **Matching files to works:** `createWorkIndex(entries)` indexes your files by ID, title and
+  author, and `find(work)` returns those that are a work: a shared ISBN or ASIN first, else the
+  same title and author after normalising. `idsFromTags` reads ISBNs and ASINs from tags;
+  `lookupWork(id)` turns an `ol:`, `isbn:` or `asin:` ID into what the index needs. The same code
+  Lelap uses for the listener's own library; see
+  [Mapping your files to works](https://lelap.app/docs/mapping-files/).
 - **Paths:** `catalogPath`, `metaPath`, `streamPath`, `parseRoute`, `encodeExtra`, `parseExtra`.
 - **Helpers:** `supports`, `prefixesFor`, `hasParts`, `isConfigurable`, `needsConfiguration`,
   `offersHealth`, `encodeConfig`, `decodeConfig`, `CORS_HEADERS`, `PROTOCOL_VERSION`,

@@ -7,6 +7,7 @@ import { isPlaceholderFeed } from '../podcasts/placeholder';
 import { episodeBook } from '../podcasts/repository';
 import {
   type AddonItemRef,
+  type LinkedMeta,
   bookFiles,
   bookmarks,
   books,
@@ -25,6 +26,7 @@ import {
   subscriptions,
   tombstones,
   upNext,
+  workLinks,
 } from '../schema';
 import { bookIdForKey, bookKey, parseEpisodeKey, recordDeletion, type TombstoneKind } from './keys';
 
@@ -137,6 +139,21 @@ export type Op =
         pinHash?: string | null;
         kids?: boolean;
         hiddenAddons?: string[];
+      };
+    }
+  | {
+      /** A library book is, or is not, an add-on work (M56). Since M56; older devices skip it. */
+      type: 'link';
+      /** `<book location>\n<work type>\n<work ID>`. */
+      key: string;
+      at: number;
+      data: {
+        book: string;
+        workType: string;
+        workId: string;
+        state: 'linked' | 'rejected';
+        ids: string[];
+        meta: LinkedMeta | null;
       };
     }
   | { type: 'delete'; kind: TombstoneKind; profile: string; key: string; at: number };
@@ -391,6 +408,21 @@ export function collectOps(db: Db, since: number): Op[] {
       data: { name: p.name, rule: p.rule, items: p.items, createdAt: p.createdAt },
     });
   }
+  for (const l of db.select().from(workLinks).where(gt(workLinks.updatedAt, since)).all()) {
+    ops.push({
+      type: 'link',
+      key: `${l.bookKey}\n${l.workType}\n${l.workId}`,
+      at: l.updatedAt,
+      data: {
+        book: l.bookKey,
+        workType: l.workType,
+        workId: l.workId,
+        state: l.state,
+        ids: l.ids,
+        meta: l.meta,
+      },
+    });
+  }
   for (const t of db.select().from(tombstones).where(gt(tombstones.updatedAt, since)).all()) {
     ops.push({ type: 'delete', kind: t.kind, profile: t.profileId, key: t.key, at: t.deletedAt });
   }
@@ -433,6 +465,7 @@ const ORDER: Record<Op['type'], number> = {
   setting: 3,
   tags: 3,
   playlist: 3,
+  link: 3,
   delete: 4,
 };
 
@@ -774,6 +807,9 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
             .run();
           break;
         }
+        case 'link':
+          applyLink(tx, op);
+          break;
         case 'delete':
           applyDelete(tx, op);
           break;
@@ -781,6 +817,43 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
     }
   });
   return handoffs;
+}
+
+const isText = (value: unknown, max = 2048): value is string =>
+  typeof value === 'string' && value.length > 0 && value.length <= max;
+
+/** Another device's link, checked field by field: it is only data, and the newest one wins. */
+function applyLink(db: Db, op: Extract<Op, { type: 'link' }>): void {
+  if (typeof op.data !== 'object' || op.data === null) return;
+  const { book, workType, workId, state, ids, meta } = op.data;
+  if (!isText(book) || !isText(workType, 64) || !isText(workId, 512)) return;
+  if (state !== 'linked' && state !== 'rejected') return;
+  const cleanIds = Array.isArray(ids)
+    ? ids.filter((id): id is string => isText(id, 512)).slice(0, 50)
+    : [];
+  const cleanMeta: LinkedMeta | null =
+    meta && typeof meta === 'object' && isText(meta.title, 1000)
+      ? {
+          title: meta.title,
+          author: isText(meta.author, 1000) ? meta.author : null,
+          cover: isText(meta.cover) && /^https?:\/\//.test(meta.cover) ? meta.cover : null,
+        }
+      : null;
+  const where = and(
+    eq(workLinks.bookKey, book),
+    eq(workLinks.workType, workType),
+    eq(workLinks.workId, workId),
+  );
+  const local = db.select({ updatedAt: workLinks.updatedAt }).from(workLinks).where(where).get();
+  if (local && local.updatedAt >= op.at) return;
+  const row = { state, ids: cleanIds, meta: cleanMeta, updatedAt: op.at };
+  db.insert(workLinks)
+    .values({ bookKey: book, workType, workId, ...row })
+    .onConflictDoUpdate({
+      target: [workLinks.bookKey, workLinks.workType, workLinks.workId],
+      set: row,
+    })
+    .run();
 }
 
 function applyDelete(db: Db, op: Extract<Op, { type: 'delete' }>): void {

@@ -1,0 +1,220 @@
+---
+import CodeBlock from '../../components/CodeBlock.astro';
+import Docs from '../../layouts/Docs.astro';
+import { site } from '../../site';
+
+// The sample is shown from its own tested source, read at build time.
+import sourceAddon from '../../../../../examples/source-addon/addon.mjs?raw';
+import sourceServer from '../../../../../examples/source-addon/server.mjs?raw';
+
+const tree = (path: string) => `${site.repoUrl}/tree/main/${path}`;
+
+const indexExample = `
+import { createWorkIndex, idsFromTags, lookupWork, splitAuthors } from '@lelap/sdk';
+
+const index = createWorkIndex(
+  files.map((file) => ({
+    item: file,
+    title: file.tags.album,
+    authors: splitAuthors(file.tags.artist),
+    ids: idsFromTags(file.tags), // ISBN, ASIN, AUDIBLE_ASIN, ----:com.apple.iTunes:ASIN …
+  })),
+);
+
+// In your stream handler:
+const work = await lookupWork(id); // isbn:/asin: as they are; ol: from Open Library
+const matches = work ? index.find(work) : []; // [{ item, strength: 'id' | 'title' }]
+`;
+
+const run = `
+cd examples/source-addon
+pnpm test            # Vitest, with Open Library answered by the test
+`;
+
+const fromNpm = `
+npm pkg delete dependencies.@lelap/sdk devDependencies.vitest
+npm install @lelap/sdk
+node server.mjs      # http://localhost:8787/manifest.json
+`;
+---
+
+<Docs
+  title="Mapping your files to works"
+  description={`How a source add-on, and ${site.name} itself, finds which of your files a book page is about.`}
+  toc={[
+    ['ids', 'What you are asked for'],
+    ['rules', 'Matching rules'],
+    ['sdk', 'The matcher in the SDK'],
+    ['sample', 'A sample source add-on'],
+    ['app', 'Your own storage in the app'],
+  ]}
+>
+  <h1>Mapping your files to works</h1>
+  <p class="lead">
+    A book’s page in {site.name} shows a work from a catalog add-on, such as an Open Library work.
+    If your add-on has audio for it, it has to know which of its files that work is. The SDK carries
+    the same matcher {site.name} uses for the listener’s own library.
+  </p>
+
+  <h2 id="ids">What you are asked for</h2>
+  <p>
+    {site.name} asks every add-on with a <code>stream</code> resource once per page, with the first
+    of the work’s IDs the add-on declares: the work’s own ID, then its <code>externalIds</code> as{' '}
+    <code>prefix:value</code>. A work from the Catalog add-on is <code>ol:OL893415W</code>, often
+    with <code>asin:…</code>; Hardcover adds <code>isbn:…</code>. Declare the prefixes you can
+    answer on the resource:
+  </p>
+  <CodeBlock
+    code={`resources: [{ name: 'stream', types: ['audiobook'], idPrefixes: ['ol:', 'isbn:', 'asin:'] }]`}
+    label="manifest"
+  />
+  <p>
+    An add-on that declares <code>ol:</code> is asked with the Open Library ID even when the work
+    also has an ASIN, so it must find its files from the work itself, not only from IDs it already
+    knows. No files is an empty <code>streams</code> list, never an error.
+  </p>
+
+  <h2 id="rules">Matching rules</h2>
+  <ul>
+    <li>
+      <strong>IDs first.</strong> The same ISBN (ISBN-10 and ISBN-13 are the same number) or ASIN on
+      both sides is the work. These are safe to use without asking anyone.
+    </li>
+    <li>
+      <strong>Then title and author.</strong> Both are compared after folding case, accents and
+      punctuation, dropping a leading article, notes such as “(Unabridged)” and a subtitle, and
+      reading “Herbert, Frank” as Frank Herbert. Both sides need an author: a title alone matches
+      nothing.
+    </li>
+    <li>
+      <strong>People, not words.</strong> Authors match on the surname, and on the first given
+      name’s initial when both have one, so Stephen King is not Owen King.
+    </li>
+    <li>
+      <strong>Series numbers.</strong> “Harry Potter, Book 2”, “(Dune, #1)” and a folder named “03 -
+      The Dragon Reborn” carry a number that is set apart. Two different numbers are two books.
+    </li>
+    <li>
+      <strong>Editions.</strong> A file with its own ISBN where the work has another is likely a
+      different edition; it still matches by title, after the others.
+    </li>
+  </ul>
+  <p>
+    A title match is a good guess, not a fact: {site.name} asks the listener before it uses one.
+    Your add-on’s answers are listed as sources the listener picks from, so a title match there is
+    fine; keep your tags right and IDs do the work.
+  </p>
+
+  <h2 id="sdk">The matcher in the SDK</h2>
+  <p>
+    All of it is in <code>@lelap/sdk</code> (MIT). Everything but <code>lookupWork</code> is pure:
+    no requests, no state.
+  </p>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Function</th>
+          <th scope="col">What it does</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <code>createWorkIndex(entries)</code>
+          </td>
+          <td>
+            An index of your items by ID and title. <code>find(work)</code> returns the items that
+            share an ID, else those with the same title and author; <code>byId(id)</code> looks up
+            one ID.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>matchStrength(work, book)</code>
+          </td>
+          <td>
+            <code>'id'</code>, <code>'title'</code> or <code>null</code> for one pair.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>idsFromTags(tags)</code>
+          </td>
+          <td>
+            ISBNs and ASINs from tags by name in any spelling, checked and normalised (ISBNs as 13
+            digits).
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>lookupWork(id, options)</code>
+          </td>
+          <td>
+            What a work ID stands for: <code>isbn:</code> and <code>asin:</code> as they are, an{' '}
+            <code>ol:</code> work’s title, authors and edition IDs from Open Library. Runs on your
+            server.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>titleKey</code>, <code>authorKey</code>, <code>sameAuthor</code>,{' '}
+            <code>splitAuthors</code>, <code>normalizeId</code>
+          </td>
+          <td>The pieces, for an index of your own.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <CodeBlock code={indexExample} label="Your add-on" />
+
+  <h2 id="sample">A sample source add-on</h2>
+  <p>
+    <a href={tree('examples/source-addon')}>
+      <code>examples/source-addon</code>
+    </a>{' '}
+    is plain Node with the SDK: a file list with tags, an index built from it, and a{' '}
+    <code>stream</code> handler. It answers the Catalog add-on’s pages for its two books, one by the
+    ISBN in its tags and one by title and author, with no code beyond the file list.
+  </p>
+  <details>
+    <summary>
+      <code>examples/source-addon/addon.mjs</code>
+    </summary>
+    <CodeBlock code={sourceAddon} />
+  </details>
+  <CodeBlock code={sourceServer} label="examples/source-addon/server.mjs" />
+  <CodeBlock code={run} label="Terminal" />
+  <p>
+    In the repository the sample uses the SDK’s TypeScript source, which only its tests can load.
+    Copy the folder out to run it with Node:
+  </p>
+  <CodeBlock code={fromNpm} label="Terminal" />
+
+  <h2 id="app">Your own storage in the app</h2>
+  <p>
+    For a folder on the phone, WebDAV, S3, Jellyfin and Audiobookshelf, {site.name} does this
+    mapping itself, with the same rules, on the device. No request leaves the phone for it, so no
+    add-on and no server learns what is in the library.
+  </p>
+  <ul>
+    <li>
+      ISBNs and ASINs come from the files’ tags (ID3 <code>TXXX</code> and MP4 freeform items),
+      Audiobookshelf’s book details and Jellyfin’s provider IDs. A shared one links the book on its
+      own.
+    </li>
+    <li>
+      The same title and author shows <strong>In your library?</strong> on the book’s page, for one
+      tap. Folder and file names count only for files without tags.
+    </li>
+    <li>
+      A confirmed link is remembered and syncs with the book’s location, such as{' '}
+      <code>webdav:host/path</code>. The listener’s copy is listed first and plays; place, Up Next
+      and stats are the library book’s.
+    </li>
+    <li>
+      <strong>Match with catalog…</strong> on a library book searches the catalogs by hand and takes
+      the work’s title, author and cover. Unlinking is one tap, on either side.
+    </li>
+  </ul>
+</Docs>

@@ -1,3 +1,4 @@
+import { idsFromTags } from '@lelap/sdk';
 import { z } from 'zod';
 
 import type { FileTags, ListedFile } from '../library/scan';
@@ -157,6 +158,7 @@ export const JellyfinItem = z.object({
   People: z.array(z.object({ Name: s, Type: s, Role: s })).nullish(),
   Chapters: z.array(z.object({ Name: s, StartPositionTicks: n })).nullish(),
   MediaSources: z.array(z.object({ Size: n, Container: s })).nullish(),
+  ProviderIds: z.record(z.string(), z.string().nullish()).nullish(),
   UserData: z
     .object({ PlaybackPositionTicks: n, Played: z.boolean().nullish(), LastPlayedDate: s })
     .nullish(),
@@ -165,7 +167,7 @@ export type JellyfinItem = z.infer<typeof JellyfinItem>;
 
 const ItemPage = z.object({ Items: z.array(JellyfinItem), TotalRecordCount: n });
 
-const ITEM_FIELDS = 'Path,Chapters,People,MediaSources,DateCreated,ParentId';
+const ITEM_FIELDS = 'Path,Chapters,People,MediaSources,DateCreated,ParentId,ProviderIds';
 
 /** Every audio item in the picked libraries, with chapters, people and the user's place. */
 export async function listJellyfinItems(
@@ -265,6 +267,15 @@ export type JellyfinScan = {
   places: RemotePlace[];
 };
 
+/** ISBNs and ASINs among an item's provider IDs; the Audible plugins keep the ASIN as `Audible`. */
+function providerIds(ids: JellyfinItem['ProviderIds']): string[] {
+  const named: Record<string, string | null | undefined> = {};
+  for (const [key, value] of Object.entries(ids ?? {})) {
+    named[key.toLowerCase() === 'audible' ? 'asin' : key] = value;
+  }
+  return idsFromTags(named);
+}
+
 /**
  * Turns Jellyfin items into the same files and tags a folder scan gives, so the same rules make
  * books: items of one album (music) or one folder (books) form one book.
@@ -308,6 +319,7 @@ export function jellyfinScan(
       albumArtist: authors.join(', ') || null,
       coverPath: null,
       chapters,
+      ids: providerIds(item.ProviderIds),
     });
     const cover = item.ImageTags?.Primary
       ? item.Id

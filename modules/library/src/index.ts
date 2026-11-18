@@ -12,18 +12,21 @@ export type PickedFolder = {
 /** Error code when the folder can no longer be read (permission revoked, storage gone). */
 export const FOLDER_UNAVAILABLE = 'ERR_LELAP_PERMISSION';
 
+/** Tags as the native reader gives them: ISBN and ASIN tags by name, not yet checked. */
+export type NativeTags = Omit<FileTags, 'ids'> & { idTags?: Record<string, string> };
+
 type LelapLibraryModule = {
   pickFolder(): Promise<PickedFolder | null>;
   hasPermission(uri: string): Promise<boolean>;
   listTree(uri: string): Promise<ListedFile[]>;
-  readTags(uri: string, name: string, coverDir: string): Promise<FileTags>;
+  readTags(uri: string, name: string, coverDir: string): Promise<NativeTags>;
   readImage(uri: string, coverDir: string): Promise<string | null>;
   readRemoteTags(
     url: string,
     headers: Record<string, string>,
     name: string,
     coverDir: string,
-  ): Promise<FileTags>;
+  ): Promise<NativeTags>;
   findSilences(jobJson: string): Promise<void>;
   silenceStatuses(): Promise<SilenceStatus[]>;
   removeSilences(bookId: string): Promise<void>;
@@ -59,7 +62,7 @@ export function listTree(uri: string): Promise<ListedFile[]> {
  * Tags, duration, embedded cover (saved as a small JPEG in `coverDir`) and chapters of an audio
  * file. `coverDir` is a plain file path, not a `file://` URI.
  */
-export function readTags(uri: string, name: string, coverDir: string): Promise<FileTags> {
+export function readTags(uri: string, name: string, coverDir: string): Promise<NativeTags> {
   return native.readTags(uri, name, coverDir);
 }
 
@@ -74,7 +77,7 @@ export function readRemoteTags(
   headers: Record<string, string>,
   name: string,
   coverDir: string,
-): Promise<FileTags> {
+): Promise<NativeTags> {
   return native.readRemoteTags(url, headers, name, coverDir);
 }
 
