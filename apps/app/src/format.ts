@@ -10,7 +10,7 @@ const device = (() => {
   }
 })();
 
-/** The tag dates and numbers are written in: the profile's language, not the phone's. */
+/** The tag dates and numbers are written in: the profile's language with the phone's region. */
 export const locale = (): string => localeTag(currentLanguage(), device);
 
 /** `1:02:03` or `2:03`. */

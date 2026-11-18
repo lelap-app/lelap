@@ -1,13 +1,18 @@
 // Dates and numbers in the profile's language rather than the phone's (M72), through `Intl`.
 
 /**
- * The BCP 47 tag to format with for a profile in [language]. A phone set to the same language
- * keeps its own region (English on an en-GB phone writes 18/11/2026); otherwise the language
- * alone, as its catalog file is named.
+ * The BCP 47 tag to format with for a profile in [language]: the language with the phone's
+ * region, whatever the phone's language (`en-DK` on a Danish phone), so dates keep the region's
+ * order while month and weekday names follow the profile. A language with its own region keeps
+ * it; without a region on the phone, the language alone.
  */
 export function localeTag(language: string, device: string | null | undefined): string {
-  if (!language.includes('-') && device?.toLowerCase().startsWith(`${language.toLowerCase()}-`))
-    return device;
+  if (language.includes('-')) return language;
+  for (const part of device?.split(/[-_]/).slice(1) ?? []) {
+    // A one-letter subtag starts extensions such as `-u-ca-…`, which hold no region.
+    if (part.length === 1) break;
+    if (/^([A-Za-z]{2}|\d{3})$/.test(part)) return `${language}-${part.toUpperCase()}`;
+  }
   return language;
 }
 

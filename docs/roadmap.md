@@ -82,7 +82,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M69 Casting 3](milestones/m69.md)                   | Done        |           9 | Outro skipping, smart rewind and measured timings on receivers, Cast device authentication               |
 | [M70 Release upkeep](milestones/m70.md)              | Done        |           6 | Smaller OTA updates, a pinned signing toolchain, F-Droid update checks and other pipeline fixes          |
 | [M71 App polish](milestones/m71.md)                  | Done        |          13 | Small fixes on Home, the Library, the Player and Settings, left from earlier reviews                     |
-| [M72 Languages 2](milestones/m72.md)                 | Done        |           6 | Native errors, made-up chapter titles, dates and numbers in the profile’s language                       |
+| [M72 Languages 2](milestones/m72.md)                 | Done        |           7 | Native errors, made-up chapter titles, dates and numbers in the profile’s language                       |
 | [M73 Landing page polish](milestones/m73.md)         | Done        |           2 | Theme switch announcements, one shared hidden class, narrow screens and escaped holes                    |
 | [M74 Car and widget 2](milestones/m74.md)            | Planned     |             | Covers from servers in the widget and the car, a list of your cars, a better battery estimate            |
 | [M75 Podcasts 3](milestones/m75.md)                  | Done        |           4 | More Podcasting 2.0 tags, Atom content and logging from the background refresh                           |

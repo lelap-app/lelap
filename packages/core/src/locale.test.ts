@@ -5,15 +5,27 @@ import { dateText, localeTag, numberText, timeText, weekdayText } from './locale
 const evening = new Date(2026, 10, 18, 21, 5, 12);
 
 describe('locale', () => {
-  it('keeps the phone’s region only for the same language', () => {
+  it('pairs the profile’s language with the phone’s region', () => {
+    expect(localeTag('en', 'da-DK')).toBe('en-DK');
+    expect(localeTag('ms', 'da-DK')).toBe('ms-DK');
     expect(localeTag('en', 'en-GB')).toBe('en-GB');
-    expect(localeTag('ms', 'en-GB')).toBe('ms');
     expect(localeTag('ms', 'ms-MY')).toBe('ms-MY');
+    expect(localeTag('en', 'zh-Hant-TW')).toBe('en-TW');
+    expect(localeTag('en', 'es-419')).toBe('en-419');
+    // No region on the phone: the language alone.
+    expect(localeTag('en', 'da')).toBe('en');
+    expect(localeTag('en', 'da-u-ca-gregory')).toBe('en');
     expect(localeTag('en', undefined)).toBe('en');
     // A catalog with its own region wins over the phone's.
     expect(localeTag('pt-BR', 'pt-PT')).toBe('pt-BR');
-    // `en` is not a prefix of `enx`.
-    expect(localeTag('en', 'enx-US')).toBe('en');
+  });
+
+  it('keeps the region’s date order', () => {
+    const day = evening.getTime();
+    // An English profile on a Danish phone: day first, never the US order.
+    expect(dateText(day, localeTag('en', 'da-DK'))).toBe('18/11/2026');
+    expect(dateText(day, localeTag('ms', 'ms-MY'))).toBe('18/11/2026');
+    expect(weekdayText(evening, localeTag('ms', 'da-DK'))).toBe('Rab');
   });
 
   it('writes dates and times in English and Malay', () => {
