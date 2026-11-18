@@ -18,8 +18,12 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Remembers speed per book, rewinds smartly after pauses, and fades out with the sleep timer.
 - Organises with tags, playlists, smart lists and one Up Next queue.
 - Syncs progress between devices with a pairing code. No account, end-to-end encrypted.
-- Plays from your own files and folders, your own WebDAV, S3-compatible, Jellyfin or
-  Audiobookshelf server, and add-ons: LibriVox, Open Library, Podcast Index, RSS feeds, or add-ons you write yourself.
+- Plays from your own files and folders; your own WebDAV, S3-compatible, Jellyfin, Emby, Plex,
+  Navidrome (or other Subsonic) or Audiobookshelf server; SMB and SFTP shares on Android; and
+  add-ons: LibriVox, Open Library, Podcast Index, RSS feeds, the Internet Archive, or add-ons you
+  write yourself.
+- Downloads to an SD card if you like (Android), and lists your own copy first on a book's
+  catalog page.
 - Finds chapters at the long silences of a book without any (Android), and skips a podcast's
   intro and outro.
 - Casts to Sonos, DLNA, Google Cast and FCast speakers without Google's SDK, with the lock screen,
