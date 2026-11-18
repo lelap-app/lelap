@@ -15,9 +15,10 @@ keystore made for the run:
   APK onto the unsigned one it came from and it verified: signing adds nothing but the signature
   block, which is what F-Droid's server checks.
 - **Rebuild in the same folder:** byte-identical (F-Droid arm64, same SHA-256 twice).
-- **Rebuild in another folder** (what `scripts/verify-fdroid-apk.sh` does, and what F-Droid's
-  server does): does not match yet. See “Reproducible in another folder” below; with the fixes in
-  this pull request, one library is left: Reanimated's.
+- **Rebuild in another folder:** byte-identical, for all four. `scripts/verify-fdroid-apk.sh`
+  rebuilt both F-Droid APKs in fresh clones with the recipe's commands and `apksigcopier compare`
+  matched our signed APKs (arm64 and 32-bit); both direct APKs rebuilt in another clone matched
+  with `cmp`. That needed the fixes under “Reproducible in another folder” below.
 
 `actionlint` passes on both workflows; every new action is pinned to a full SHA. Covered by tests:
 per-CPU versionCodes above every earlier release, file names, old release files still read, the
@@ -49,9 +50,12 @@ the same version twice, nothing for a CPU the release lacks (core, Vitest); the 
   mattered before M54 too. `plugins/withReproducibleBuild.js` now, for the app and every library
   module: maps the repository, Gradle's cache and the NDK to fixed prefixes (both spellings of
   macOS paths under `/private`), and names the compile folder `.` (CMake's is
-  `.cxx/RelWithDebInfo/<hash of absolute paths>`). After that only `libreanimated.so` differs:
-  Reanimated compiles with ThinLTO (`-flto=thin`, its own CMakeLists), which names promoted
-  symbols after a hash of each module, and that hash still depends on the folder.
+  `.cxx/RelWithDebInfo/<hash of absolute paths>`). Reanimated compiles with ThinLTO (`-flto=thin`, its own CMakeLists), which names symbols after a
+  hash that depends on the folder, so the plugin turns LTO off for that one module
+  (`-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g -DNDEBUG -fno-lto`: CMake's defaults plus
+  `-fno-lto`, which comes after Reanimated's flag on the command line). Cost: `libreanimated.so`
+  grows from 1.67 to 2.08 MB on arm64 (about 0.4 MB more per APK, uncompressed). Animation speed
+  is not measured; a check on a phone is below.
 - **F-Droid:** two `Builds` entries per version, each with its versionCode, `-PreactNativeArchitectures`
   and `binary:` URL; `VercodeOperation` makes both from the base code.
 
@@ -74,17 +78,13 @@ the same version twice, nothing for a CPU the release lacks (core, Vitest); the 
   arm64 APK; the next release reaches it again.
 - With an M54 build: a 64-bit phone is offered the arm64 APK; a 32-bit-only phone (Android Go)
   the `-armv7` one, and after installing it is not offered the same version again.
+- Animations (player sheet, tab switches, the mini player) feel as smooth as in 0.1.0-beta.4,
+  now that Reanimated is built without ThinLTO.
 - `adb shell dumpsys package app.lelap | grep -E 'primaryCpuAbi|versionCode'` shows one CPU type
   and a versionCode ending in 2 (arm64) or 1 (32-bit).
 - The direct APK and the F-Droid APK of the same CPU type install over each other.
 
 ## Known limits
-
-- **F-Droid can't reproduce `libreanimated.so` from another folder** (see above), so F-Droid's
-  rebuild would not match our APK yet. Ways out, for the maintainer: build Reanimated without
-  ThinLTO in release builds (a patch or a CMake argument; small speed cost in animations, if
-  any), or build in CI at the folder F-Droid uses. Check with
-  `scripts/verify-fdroid-apk.sh` on Linux after a tag either way.
 
 - **Apps from before M54 on 32-bit-only phones** read only the top-level fields, so they download
   the arm64 APK, which Android refuses to install (`INSTALL_FAILED_NO_MATCHING_ABIS`), and are
