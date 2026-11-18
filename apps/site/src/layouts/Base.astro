@@ -105,11 +105,20 @@ const english = lang === 'en' ? undefined : 'en';
           const button = document.querySelector('[data-theme-switch]');
           if (!button) return;
           const label = button.querySelector('[data-theme-label]');
+          const tip = button.querySelector('[data-theme-tip]');
+          const status = document.querySelector('[data-theme-status]');
           const show = () => {
-            label.textContent = button.dataset[theme];
+            label.textContent = tip.textContent = button.dataset[theme];
           };
           show();
           button.hidden = false;
+          // Another tab changed the theme: follow it, quietly.
+          addEventListener('storage', (e) => {
+            if (e.key !== 'lelap-theme' && e.key !== null) return;
+            theme = themes.includes(e.newValue) ? e.newValue : 'system';
+            apply();
+            show();
+          });
           button.addEventListener('click', () => {
             // The first click always changes what you see: system, its opposite, then its own.
             const order = matchMedia('(prefers-color-scheme: dark)').matches
@@ -124,6 +133,8 @@ const english = lang === 'en' ? undefined : 'en';
             }
             apply();
             show();
+            // A focused button whose name changes is not always read out; the live region is.
+            status.textContent = button.dataset[theme];
           });
         });
       })();
@@ -207,13 +218,18 @@ const english = lang === 'en' ? undefined : 'en';
           <span class="visually-hidden" data-theme-label>
             {t(lang, 'Theme: follows the system')}
           </span>
+          {/* For mouse and keyboard users; screen readers have the label above. */}
+          <span class="tip" aria-hidden="true" data-theme-tip>
+            {t(lang, 'Theme: follows the system')}
+          </span>
         </button>
-        <a class="btn btn-sm btn-outline" href={site.repoUrl}>
+        <span class="visually-hidden" aria-live="polite" data-theme-status />
+        <a class="btn btn-sm btn-outline github" href={site.repoUrl} aria-label="GitHub">
           <Icon name="code" size={18} />
-          GitHub
+          <span class="github-name">GitHub</span>
         </a>
         {site.released && (
-          <a class="btn btn-sm btn-primary" href={site.appUrl}>
+          <a class="btn btn-sm btn-primary start" href={site.appUrl}>
             {t(lang, 'Start listening')}
           </a>
         )}
@@ -293,9 +309,11 @@ const english = lang === 'en' ? undefined : 'en';
     font-size: 15px;
   }
 
-  /* The page is short enough to scroll on phones; one header row beats a wrapped menu. */
+  /* The page is short enough to scroll on phones; one header row beats a wrapped menu. The app
+     link is the hero’s first button and in the footer, so it leaves the header too. */
   @media (max-width: 640px) {
-    .primary {
+    .primary,
+    .start {
       display: none;
     }
 
@@ -378,17 +396,37 @@ const english = lang === 'en' ? undefined : 'en';
     display: flex;
   }
 
-  .visually-hidden {
+  /* Below the switch, right-aligned so it stays on screen; shown at once, nothing moves. */
+  .tip {
+    display: none;
     position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--surface-float);
+    color: var(--fg);
+    font-size: 13px;
+    font-weight: 500;
     white-space: nowrap;
+    pointer-events: none;
   }
 
-  /* Phones: “BM” or “EN” keeps the header on one row; the name says both, for voice control. */
-  @media (max-width: 420px) {
+  .theme-switch:focus-visible .tip {
+    display: block;
+  }
+
+  @media (hover: hover) {
+    .theme-switch:hover .tip {
+      display: block;
+    }
+  }
+
+  /* Phones: “BM” or “EN” keeps the header on one row; the link’s aria-label says both, for voice
+     control, so the long name can go. */
+  @media (max-width: 500px) {
     .site-header {
       column-gap: 12px;
     }
@@ -402,12 +440,21 @@ const english = lang === 'en' ? undefined : 'en';
     }
 
     .lang-name {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
+      display: none;
+    }
+  }
+
+  /* Narrower than a 375 px phone: GitHub keeps its icon and its name (aria-label), so the header
+     stays on one row down to 320 px. */
+  @media (max-width: 374px) {
+    .github {
+      width: 44px;
+      padding: 0;
+      justify-content: center;
+    }
+
+    .github-name {
+      display: none;
     }
   }
 

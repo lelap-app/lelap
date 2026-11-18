@@ -45,7 +45,7 @@ const contrast = (a: string, b: string) => {
 };
 
 const page = ['bg', 'bg-raised', 'surface', 'surface-2', 'surface-float', 'code-bg'];
-// [text, backgrounds, minimum]. Amber also draws focus rings, which need 3:1; 4.5 covers that.
+// [colour, backgrounds, minimum]. Amber also draws focus rings, which need 3:1; 4.5 covers that.
 const pairs: [string, string[], number][] = [
   ['fg', [...page, 'accent-tint'], 4.5],
   ['fg-soft', [...page, 'accent-tint'], 4.5],
@@ -53,6 +53,8 @@ const pairs: [string, string[], number][] = [
   ['accent', [...page, 'accent-tint'], 4.5],
   ['accent-hover', [...page, 'accent-tint'], 4.5],
   ['accent-ink', ['accent-fill', 'accent-fill-hover'], 4.5],
+  // Control borders are not text: WCAG 1.4.11 asks 3:1 against what is around them.
+  ['field-line', page, 3],
 ];
 
 const files = (dir: string): string[] =>

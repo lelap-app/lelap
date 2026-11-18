@@ -19,3 +19,24 @@ export function t(lang: Lang, text: string, vars?: Record<string, string | numbe
     key in vars ? String(vars[key]) : hole,
   );
 }
+
+const entities: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+/** t() for lines that go into set:html: the line keeps its own tags, the holes are escaped. */
+export function html(lang: Lang, text: string, vars?: Record<string, string | number>): string {
+  const escaped =
+    vars &&
+    Object.fromEntries(
+      Object.entries(vars).map(([key, value]) => [
+        key,
+        String(value).replace(/[&<>"']/g, (c) => entities[c] ?? c),
+      ]),
+    );
+  return t(lang, text, escaped);
+}

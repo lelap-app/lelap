@@ -6,7 +6,7 @@ import Lori from './Lori.astro';
 import CatalogMockup from './CatalogMockup.astro';
 import PhoneMockup from './PhoneMockup.astro';
 import { site } from '../site';
-import { t, type Lang } from '../i18n';
+import { html, t, type Lang } from '../i18n';
 
 interface Props {
   lang: Lang;
@@ -15,7 +15,6 @@ interface Props {
 const { lang } = Astro.props;
 // Links to English-only pages carry hreflang on pages in other languages.
 const english = lang === 'en' ? undefined : 'en';
-const docsLang = english ? ` hreflang="${english}"` : '';
 
 const features: { icon: IconName; title: string; text: string }[] = [
   {
@@ -246,13 +245,17 @@ const compose = `services:
               </a>
             )}
             <a
-              class:list={['btn btn-lg', site.beta ? 'btn-outline' : 'btn-primary']}
+              class:list={['btn btn-lg', site.beta ? 'btn-outline cta-more' : 'btn-primary']}
               href={site.repoUrl}
             >
               <Icon name="code" size={18} strokeWidth={2} />
               {t(lang, 'Follow on GitHub')}
             </a>
-            <a class="btn btn-lg btn-outline" href={site.briefUrl} hreflang={english}>
+            <a
+              class:list={['btn btn-lg btn-outline', site.beta && 'cta-more']}
+              href={site.briefUrl}
+              hreflang={english}
+            >
               {t(lang, 'Read the plan')}
             </a>
           </>
@@ -286,7 +289,7 @@ const compose = `services:
             <span class="eyebrow">{t(lang, 'How it works')}</span>
             <h2
               class="h2"
-              set:html={t(
+              set:html={html(
                 lang,
                 'The app plays. <span class="nowrap">Add-ons</span> bring the library.',
               )}
@@ -351,10 +354,9 @@ const compose = `services:
   "types": ["audiobook"]
 }`}</code></pre>
           <p
-            set:html={t(
+            set:html={html(
               lang,
-              'Paste an add-on’s address and you’re done. Settings live on the add-on’s own page; the app only remembers the URL. <a href="/docs/"{docs}>Build your own</a>.',
-              { docs: docsLang },
+              'Paste an add-on’s address and you’re done. Settings live on the add-on’s own page; the app only remembers the URL. <a href="/docs/" hreflang="en">Build your own</a>.',
             )}
           />
         </div>
@@ -376,7 +378,7 @@ const compose = `services:
           </summary>
           <p
             class="lori-bubble"
-            set:html={t(
+            set:html={html(
               lang,
               'Hi, I’m Lori, a slow loris. <em>Lelap</em> is Indonesian for deep, peaceful sleep, which I’m very good at. I’m from Indonesia too, and I keep your place while you drift off.',
             )}
@@ -484,7 +486,7 @@ const compose = `services:
             <Icon name="shield" size={22} />
             {site.released ? (
               <p
-                set:html={t(
+                set:html={html(
                   lang,
                   '<b>Checking the file?</b> <a href="{info}">latest.json</a> lists the version, size and SHA-256 of the current APKs, 64-bit and 32-bit, and each GitHub release carries the same files with a build attestation and a <code>SHA256SUMS</code> list. Compare with <code>sha256sum</code>, or run <code>gh attestation verify</code> against the repository.',
                   { info: site.releaseInfoUrl },
@@ -492,7 +494,7 @@ const compose = `services:
               />
             ) : site.beta ? (
               <p
-                set:html={t(
+                set:html={html(
                   lang,
                   '<b>Checking the file?</b> <a href="{info}">beta.json</a> lists the version, size and SHA-256 of the current beta APKs, 64-bit and 32-bit, and each GitHub pre-release carries the same files with a build attestation.',
                   { info: site.betaInfoUrl },
@@ -500,7 +502,7 @@ const compose = `services:
               />
             ) : (
               <p
-                set:html={t(
+                set:html={html(
                   lang,
                   '<b>For people who verify:</b> each release will publish the APK’s SHA-256 in <code>latest.json</code> on {host} and on GitHub, with a build attestation, so you can check the file before you install it.',
                   { host: site.downloadsHost },
@@ -579,7 +581,7 @@ const compose = `services:
       {!site.released && (
         <p
           class="muted small"
-          set:html={t(
+          set:html={html(
             lang,
             'Until the first stable release, use the <code>beta</code> tag of each image.',
           )}
@@ -704,10 +706,9 @@ const compose = `services:
       <details>
         <summary>{t(lang, 'Can I write my own add-on?')}</summary>
         <p
-          set:html={t(
+          set:html={html(
             lang,
-            'Yes. An add-on is a small HTTP service that returns JSON. The <a href="/docs/"{docs}>add-on docs</a> cover the protocol and the SDK, which is on npm as <code>@lelap/sdk</code>.',
-            { docs: docsLang },
+            'Yes. An add-on is a small HTTP service that returns JSON. The <a href="/docs/" hreflang="en">add-on docs</a> cover the protocol and the SDK, which is on npm as <code>@lelap/sdk</code>.',
           )}
         />
       </details>
@@ -776,8 +777,10 @@ const compose = `services:
     gap: 24px;
   }
 
+  /* min-width: 0 lets the mock-up shrink below its 340 px on a 320 px screen; the same for .how-visual. */
   .hero-visual {
     flex: 0 1 340px;
+    min-width: 0;
     margin-inline: auto;
   }
 
@@ -837,6 +840,13 @@ const compose = `services:
     gap: 12px;
   }
 
+  /* Phones in the beta: the beta button alone, so it isn't crowded; GitHub stays in the header. */
+  @media (max-width: 560px) {
+    .cta-more {
+      display: none;
+    }
+  }
+
   .checks {
     margin: 8px 0 0;
     padding: 0;
@@ -879,6 +889,7 @@ const compose = `services:
 
   .how-visual {
     flex: 0 1 340px;
+    min-width: 0;
     margin-inline: auto;
   }
 

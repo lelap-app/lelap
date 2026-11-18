@@ -138,8 +138,8 @@ export const ms: Record<string, string> = {
   'Open source, works offline, no account.': 'Sumber terbuka, berfungsi luar talian, tanpa akaun.',
   'Open {host}': 'Buka {host}',
   'Optional:': 'Pilihan:',
-  'Paste an add-on’s address and you’re done. Settings live on the add-on’s own page; the app only remembers the URL. <a href="/docs/"{docs}>Build your own</a>.':
-    'Tampal alamat alat tambah dan selesai. Tetapan berada di halaman alat tambah itu sendiri; aplikasi hanya mengingati URL. <a href="/docs/"{docs}>Bina alat tambah anda sendiri</a> (panduan dalam bahasa Inggeris).',
+  'Paste an add-on’s address and you’re done. Settings live on the add-on’s own page; the app only remembers the URL. <a href="/docs/" hreflang="en">Build your own</a>.':
+    'Tampal alamat alat tambah dan selesai. Tetapan berada di halaman alat tambah itu sendiri; aplikasi hanya mengingati URL. <a href="/docs/" hreflang="en">Bina alat tambah anda sendiri</a> (panduan dalam bahasa Inggeris).',
   'Phone, tablet or laptop': 'Telefon, tablet atau komputer riba',
   'Pick up on your laptop where you stopped on your phone. Pair devices with a code; sync is end-to-end encrypted.':
     'Sambung di komputer riba dari tempat anda berhenti di telefon. Gandingkan peranti dengan kod; segerak disulitkan hujung ke hujung.',
@@ -216,8 +216,8 @@ export const ms: Record<string, string> = {
   'Why isn’t it on Google Play?': 'Mengapa ia tiada di Google Play?',
   'Works fully offline': 'Berfungsi sepenuhnya luar talian',
   'Works with a screen reader': 'Berfungsi dengan pembaca skrin',
-  'Yes. An add-on is a small HTTP service that returns JSON. The <a href="/docs/"{docs}>add-on docs</a> cover the protocol and the SDK, which is on npm as <code>@lelap/sdk</code>.':
-    'Ya. Alat tambah ialah perkhidmatan HTTP kecil yang memulangkan JSON. <a href="/docs/"{docs}>Dokumentasi alat tambah</a> (dalam bahasa Inggeris) merangkumi protokol dan SDK, yang ada di npm sebagai <code>@lelap/sdk</code>.',
+  'Yes. An add-on is a small HTTP service that returns JSON. The <a href="/docs/" hreflang="en">add-on docs</a> cover the protocol and the SDK, which is on npm as <code>@lelap/sdk</code>.':
+    'Ya. Alat tambah ialah perkhidmatan HTTP kecil yang memulangkan JSON. <a href="/docs/" hreflang="en">Dokumentasi alat tambah</a> (dalam bahasa Inggeris) merangkumi protokol dan SDK, yang ada di npm sebagai <code>@lelap/sdk</code>.',
   'Yes. The code is open source, and the hosted web app at {host} is free to use.':
     'Ya. Kodnya sumber terbuka, dan aplikasi web yang dihoskan di {host} percuma untuk digunakan.',
   'Your library': 'Pustaka anda',
