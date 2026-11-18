@@ -1,7 +1,13 @@
 package app.lelap.audio
 
+import androidx.media3.session.SessionResult
+
 /** Custom session commands and extras shared by [PlaybackService] and [AudioModule]. */
 object Commands {
+  /** Why a custom command failed, for JavaScript; null when it succeeded. */
+  fun failure(resultCode: Int?, message: String?, fallback: String): String? =
+    if (resultCode == SessionResult.RESULT_SUCCESS) null else message?.takeIf { it.isNotBlank() } ?: fallback
+
   const val SET_SETTINGS = "app.lelap.audio.SET_SETTINGS"
   const val START_SLEEP_TIMER = "app.lelap.audio.START_SLEEP_TIMER"
   const val CANCEL_SLEEP_TIMER = "app.lelap.audio.CANCEL_SLEEP_TIMER"
@@ -51,6 +57,8 @@ object Commands {
   /** SharedPreferences file and key of the position journal, read by the app in-process. */
   const val JOURNAL_PREFS = "lelap_journal"
   const val JOURNAL_KEY = "journal"
+  /** The book of [JOURNAL_KEY]'s place, written once per load (or change), not with every tick. */
+  const val JOURNAL_PLAYLIST_KEY = "journalPlaylist"
   /** Places of books the service replaced by itself (Up Next, Android Auto), oldest first. */
   const val EARLIER_KEY = "earlier"
 

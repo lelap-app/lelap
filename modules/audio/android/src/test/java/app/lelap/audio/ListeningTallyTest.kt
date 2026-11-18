@@ -108,10 +108,42 @@ class ListeningTallyTest {
       t.observe(log, heard(at), at, at)
       at += 10_000
     }
-    assertEquals(listOf("start" to 0L, "progress" to 300_000L, "progress" to 600_000L), log.events())
+    // The second progress replaced the first, which nobody had taken yet.
+    assertEquals(listOf("start" to 0L, "progress" to 600_000L), log.events())
     val progress = log.records.filterIsInstance<SessionEvent>()[1]
     assertEquals("book-1/0.mp3", progress.startLocation)
     assertEquals(0L, progress.startPositionMs)
+  }
+
+  @Test
+  fun aProgressAlreadyTakenStays() {
+    val log = log()
+    val t = tally()
+    var at = 0L
+    while (at <= 300_000L) {
+      t.observe(log, heard(at), at, at)
+      at += 10_000
+    }
+    log.take()
+    while (at <= 600_000L) {
+      t.observe(log, heard(at), at, at)
+      at += 10_000
+    }
+    assertEquals(listOf("start" to 0L, "progress" to 300_000L, "progress" to 600_000L), log.events())
+  }
+
+  @Test
+  fun weeksWithTheAppClosedKeepOneTotalPerBookAndDay() {
+    val log = log()
+    val t = tally()
+    var at = 0L
+    // 30 hours of one book on one day, with a progress event every 5 minutes in between.
+    while (at <= 30 * 3_600_000L) {
+      t.observe(log, heard(at), at, at)
+      at += 10_000
+    }
+    assertEquals(listOf(30 * 3_600_000L), log.listened().map { it.ms })
+    assertEquals(listOf("start" to 0L, "progress" to 30 * 3_600_000L), log.events())
   }
 
   @Test
@@ -213,7 +245,8 @@ class ListeningTallyTest {
   fun aLongAbsenceDropsProgressBeforeListening() {
     val log = log()
     log.addListening("book-1", "T", day, 1_000)
-    repeat(AccountingLog.MAX_RECORDS + 10) { log.addEvent("progress", "book-1", it.toLong(), "f", 0, null) }
+    // Progress of as many sessions; one session's progress replaces its own earlier one.
+    repeat(AccountingLog.MAX_RECORDS + 10) { log.addEvent("progress", "book-1", it.toLong(), "f", 0, "f" to it.toLong()) }
     assertEquals(AccountingLog.MAX_RECORDS, log.records.size)
     assertTrue(log.records.first() is Listened)
   }

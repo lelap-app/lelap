@@ -29,8 +29,22 @@ data class BookPlaylist(
   val privateUris: Boolean = false,
 )
 
-/** The last known place. Mirrors `JournalEntry` in `@lelap/core`. */
-data class JournalEntry(val bookId: String, val fileLocation: String, val filePositionMs: Long, val savedAt: Long)
+/**
+ * The last known place. Mirrors `JournalEntry` in `@lelap/core`; [pausedAt], the service's own
+ * extra, is when playback last paused (null while it plays), so smart rewind measures the pause
+ * itself rather than the time the place last moved.
+ */
+data class JournalEntry(
+  val bookId: String,
+  val fileLocation: String,
+  val filePositionMs: Long,
+  val savedAt: Long,
+  val pausedAt: Long? = null,
+) {
+  /** Where the pause before resuming from this entry began, for smart rewind. */
+  val pauseStartedAt: Long
+    get() = pausedAt ?: savedAt
+}
 
 /**
  * [pausedAt] is when the place was saved, for smart rewind on the first Play after loading.
@@ -50,7 +64,7 @@ data class BookLoad(
  * into the app's database when it next starts.
  */
 object PositionJournal {
-  enum class Event { TICK, PAUSE, ITEM_CHANGE, SEEK, TASK_REMOVED, DESTROY }
+  enum class Event { TICK, PAUSE, ITEM_CHANGE, SEEK, SPEED, TASK_REMOVED, DESTROY }
 
   const val TICK_INTERVAL_MS = 10_000L
 
@@ -58,57 +72,88 @@ object PositionJournal {
    * The entry for the item that is playing, or null when the player no longer holds [playlist]'s
    * file at [index] (another controller replaced the items), so no wrong place is recorded.
    */
-  fun entryFor(playlist: BookPlaylist?, index: Int, mediaId: String?, positionMs: Long, now: Long): JournalEntry? {
+  fun entryFor(
+    playlist: BookPlaylist?,
+    index: Int,
+    mediaId: String?,
+    positionMs: Long,
+    now: Long,
+    pausedAt: Long? = null,
+  ): JournalEntry? {
     val file = playlist?.files?.getOrNull(index) ?: return null
     if (file.location != mediaId) return null
-    return JournalEntry(playlist.bookId, file.location, positionMs.coerceAtLeast(0L), now)
+    return JournalEntry(playlist.bookId, file.location, positionMs.coerceAtLeast(0L), now, pausedAt)
   }
 
   /** Whether [load] is the book the player already holds, which must keep its live position. */
   fun isSameBook(current: BookPlaylist?, mediaItemCount: Int, load: BookLoad): Boolean =
     current != null && mediaItemCount > 0 && current.bookId == load.playlist.bookId
 
-  fun encode(entry: JournalEntry, playlist: BookPlaylist): String = JSONObject()
-    .put(
-      "entry",
-      JSONObject()
-        .put("bookId", entry.bookId)
-        .put("fileLocation", entry.fileLocation)
-        .put("filePositionMs", entry.filePositionMs)
-        .put("savedAt", entry.savedAt),
-    )
-    .put("playlist", encodePlaylist(playlist))
-    .toString()
+  /**
+   * Whether the same book comes with other file addresses (a download finished, was removed or
+   * moved), so the player must switch to them at its live place.
+   */
+  fun filesChanged(current: BookPlaylist, next: BookPlaylist): Boolean =
+    current.files.map { it.uri } != next.files.map { it.uri } || current.headers != next.headers
 
-  fun decode(json: String): Pair<JournalEntry, BookPlaylist>? = try {
-    val root = JSONObject(json)
-    val e = root.getJSONObject("entry")
-    JournalEntry(e.getString("bookId"), e.getString("fileLocation"), e.getLong("filePositionMs"), e.getLong("savedAt")) to
-      decodePlaylist(root.getJSONObject("playlist"))
+  /** [playlist] at the speed the player plays now, which any controller may have changed. */
+  fun withSpeed(playlist: BookPlaylist, speed: Float): BookPlaylist {
+    val live = speed.coerceIn(0.5f, 3f)
+    return if (playlist.speed == live) playlist else playlist.copy(speed = live)
+  }
+
+  /** The place alone; the playlist has its own key and is written only when it changes. */
+  fun encodeEntry(entry: JournalEntry): String = entryJson(entry).toString()
+
+  fun encodePlaylist(playlist: BookPlaylist): String = playlistJson(playlist).toString()
+
+  /** The place in [json], also in the older form that carried the playlist inside. */
+  fun decodeEntry(json: String?): JournalEntry? = try {
+    val root = JSONObject(json ?: throw JSONException("No journal"))
+    decodeEntryJson(root.optJSONObject("entry") ?: root)
   } catch (e: JSONException) {
     null
   }
+
+  /**
+   * The place and the book it belongs to; null when either is missing or they name different
+   * books. The older form carries its playlist inside [entryJson].
+   */
+  fun decode(entryJson: String?, playlistJson: String?): Pair<JournalEntry, BookPlaylist>? = try {
+    val root = JSONObject(entryJson ?: throw JSONException("No journal"))
+    val entry = decodeEntryJson(root.optJSONObject("entry") ?: root)
+    val playlist = decodePlaylist(
+      root.optJSONObject("playlist") ?: JSONObject(playlistJson ?: throw JSONException("No playlist")),
+    )
+    if (playlist.bookId == entry.bookId) entry to playlist else null
+  } catch (e: JSONException) {
+    null
+  }
+
+  private fun entryJson(entry: JournalEntry): JSONObject = JSONObject()
+    .put("bookId", entry.bookId)
+    .put("fileLocation", entry.fileLocation)
+    .put("filePositionMs", entry.filePositionMs)
+    .put("savedAt", entry.savedAt)
+    .put("pausedAt", entry.pausedAt ?: JSONObject.NULL)
+
+  private fun decodeEntryJson(e: JSONObject) = JournalEntry(
+    e.getString("bookId"),
+    e.getString("fileLocation"),
+    e.getLong("filePositionMs"),
+    e.getLong("savedAt"),
+    if (!e.has("pausedAt") || e.isNull("pausedAt")) null else e.getLong("pausedAt"),
+  )
 
   /** Keeps the last [max] places, so the app can fold each in when it next starts. */
   fun appendEarlier(json: String?, entry: JournalEntry, max: Int = 20): String =
     encodeEntries((decodeEntries(json).filter { it.bookId != entry.bookId } + entry).takeLast(max))
 
-  fun encodeEntries(list: List<JournalEntry>): String = JSONArray(
-    list.map {
-      JSONObject()
-        .put("bookId", it.bookId)
-        .put("fileLocation", it.fileLocation)
-        .put("filePositionMs", it.filePositionMs)
-        .put("savedAt", it.savedAt)
-    },
-  ).toString()
+  fun encodeEntries(list: List<JournalEntry>): String = JSONArray(list.map(::entryJson)).toString()
 
   fun decodeEntries(json: String?): List<JournalEntry> = try {
     val array = JSONArray(json ?: "[]")
-    List(array.length()) {
-      val e = array.getJSONObject(it)
-      JournalEntry(e.getString("bookId"), e.getString("fileLocation"), e.getLong("filePositionMs"), e.getLong("savedAt"))
-    }
+    List(array.length()) { decodeEntryJson(array.getJSONObject(it)) }
   } catch (e: JSONException) {
     emptyList()
   }
@@ -129,14 +174,14 @@ object PositionJournal {
   }
 
   /** The inverse of [decodeLoad], for keeping the queue across a restart of the service. */
-  fun encodeLoad(load: BookLoad): String = encodePlaylist(load.playlist)
+  fun encodeLoad(load: BookLoad): String = playlistJson(load.playlist)
     .put("startIndex", load.startIndex)
     .put("startPositionMs", load.startPositionMs)
     .put("pausedAt", load.pausedAt ?: JSONObject.NULL)
     .put("handsOver", load.handsOver)
     .toString()
 
-  private fun encodePlaylist(p: BookPlaylist): JSONObject = JSONObject()
+  private fun playlistJson(p: BookPlaylist): JSONObject = JSONObject()
     .put("bookId", p.bookId)
     .put("title", p.title)
     .put("author", p.author ?: JSONObject.NULL)

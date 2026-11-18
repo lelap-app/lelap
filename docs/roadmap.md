@@ -73,7 +73,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M60 Internet Archive](milestones/m60.md)            | Done        |           5 | A hosted add-on for public-domain audio on archive.org beyond LibriVox                                  |
 | [M61 Open Library reading log](milestones/m61.md)    | Done        |           8 | A scrobble add-on marking books read or reading on Open Library                                         |
 | [M62 SMB and SFTP](milestones/m62.md)                | Done        |          11 | Built-in sources for NAS shares and plain servers, on Android                                           |
-| [M63 Playback fixes](milestones/m63.md)              | Planned     |             | Small fixes in the playback service and the player, left from earlier reviews                           |
+| [M63 Playback fixes](milestones/m63.md)              | Done        |          10 | Small fixes in the playback service and the player, left from earlier reviews                           |
 | [M64 Library fixes](milestones/m64.md)               | Planned     |             | Folder scans, tags, downloads and matching: small fixes left from earlier reviews                       |
 | [M65 Server sources 2](milestones/m65.md)            | Planned     |             | Outboxes, narrators and series, and steadier places for the media servers                               |
 | [M66 Add-on protocol 3](milestones/m66.md)           | Planned     |             | Editions, settings for every route, paging, more scrobble events and upkeep of first-party add-ons      |

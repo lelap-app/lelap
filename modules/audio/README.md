@@ -37,7 +37,13 @@ Kotlin Expo module for Android playback.
   until the app merges it (`takeAccounting`, then `ackAccounting`); records handed out never
   change, so each is merged once. The app does not count on Android
   ([M51](../../docs/milestones/m51.md)).
+- `PositionJournal`: the place, written at every pause, seek and 10 s tick, with the time it moved
+  and the time playback paused; the book (files, chapters, live speed) under its own key, written
+  only when it changes. The app folds the place in when it starts; headphones resume from both.
+  Loading the loaded book again keeps its live place and takes new chapters, intro and outro, or
+  other file addresses (M63).
 - `AudioModule`: the JavaScript bridge (`src/index.ts`), a `MediaController` on the main thread.
+  Every custom command's promise settles with the service's answer.
 
 Unit tests for the pure parts run on the JVM:
 

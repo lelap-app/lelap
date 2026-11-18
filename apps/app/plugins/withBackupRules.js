@@ -20,6 +20,9 @@ const EXCLUDES = [
   '<exclude domain="database" path="androidx.work.workdb-shm"/>',
   '<exclude domain="sharedpref" path="lelap_journal.xml"/>',
   '<exclude domain="sharedpref" path="lelap_audio.xml"/>',
+  // The service's listening log (M51): restored apart from the database, its record numbers
+  // could repeat ones the database already merged.
+  '<exclude domain="sharedpref" path="lelap_accounting.xml"/>',
 ];
 
 const lines = (indent) => EXCLUDES.map((line) => `${indent}${line}`).join('\n');

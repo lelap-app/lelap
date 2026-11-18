@@ -16,14 +16,16 @@ object SeekRules {
   }
 
   /**
-   * Where a podcast episode starts (M45): past the intro while the place is still inside it,
-   * else the place less [rewindMs], never back into the intro. Mirrors `trimmedStart` in
-   * `@lelap/core`. Only the first file has an intro.
+   * Where a podcast episode starts (M45): past the intro from the episode's start, else the place
+   * less [rewindMs], never back into the intro once past it. A place inside the intro stays: the
+   * listener went back there. Mirrors `trimmedStart` in `@lelap/core`. Only the first file has an
+   * intro.
    */
   fun trimmedStart(index: Int, positionMs: Long, rewindMs: Long, introMs: Long): Long {
     val intro = if (index == 0) introMs.coerceAtLeast(0L) else 0L
-    if (positionMs < intro) return intro
-    return (positionMs - rewindMs.coerceAtLeast(0L)).coerceAtLeast(intro)
+    if (positionMs <= 0L) return intro
+    val floor = if (positionMs >= intro) intro else 0L
+    return (positionMs - rewindMs.coerceAtLeast(0L)).coerceAtLeast(floor)
   }
 
   /** [resumePosition], then past a podcast's intro. */

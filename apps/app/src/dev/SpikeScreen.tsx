@@ -130,7 +130,8 @@ export function SpikeScreen() {
       <Text style={styles.title}>{state.bookTitle ?? 'No book loaded'}</Text>
       {loaded && (
         <Text style={styles.text}>
-          Part {state.partIndex + 1} / {state.partCount}: {state.partTitle}
+          Part {state.partIndex + 1} / {state.partCount}
+          {state.partTitle ? `, chapter: ${state.partTitle}` : ''}
         </Text>
       )}
       <Text style={styles.text}>

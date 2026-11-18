@@ -7,9 +7,10 @@
 export const TRIM_STEPS_S = [0, 15, 30, 45, 60, 90] as const;
 
 /**
- * Where an episode starts: past the intro when the place is still inside it (a new episode, or
- * one played to its end and started again), otherwise the place minus smart rewind, which never
- * goes back into the intro once the place is past it. Only the first file has an intro.
+ * Where an episode starts: past the intro from the episode's start (a new episode, or one started
+ * again), otherwise the place minus smart rewind, which never goes back into the intro once the
+ * place is past it. A place inside the intro stays there: the listener went back to hear it. Only
+ * the first file has an intro.
  */
 export function trimmedStart(
   index: number,
@@ -18,8 +19,9 @@ export function trimmedStart(
   introMs: number,
 ): number {
   const intro = index === 0 ? Math.max(0, introMs) : 0;
-  if (positionMs < intro) return intro;
-  return Math.max(intro, positionMs - Math.max(0, rewindMs));
+  if (positionMs <= 0) return intro;
+  const floor = positionMs >= intro ? intro : 0;
+  return Math.max(floor, positionMs - Math.max(0, rewindMs));
 }
 
 /**

@@ -118,11 +118,16 @@ class PlaybackService : MediaLibraryService() {
   private val sound = SoundChain()
   private val prefs by lazy { getSharedPreferences(Commands.AUDIO_PREFS, MODE_PRIVATE) }
   private val journalPrefs by lazy { getSharedPreferences(Commands.JOURNAL_PREFS, MODE_PRIVATE) }
+  // The playlist last written beside the journal's place; ticks write the place alone.
+  private var journaledPlaylist: BookPlaylist? = null
 
   /** The loaded book, kept for the journal and playback resumption. */
   private var current: BookPlaylist? = null
     set(value) {
+      val sameFiles = value != null && field?.files == value.files && field?.headers == value.headers
       field = value
+      // A new speed, chapters or intro keep the files' resolved addresses.
+      if (sameFiles) return
       // Only this book's own files get its server's login, never another host.
       headersByUri = value?.takeIf { it.headers.isNotEmpty() }
         ?.let { book -> book.files.associate { file -> file.uri to book.headers } }
@@ -319,7 +324,12 @@ class PlaybackService : MediaLibraryService() {
       }
 
       override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
-        if (remote == null) account()
+        if (remote == null) {
+          account()
+          // Any controller may change the speed; resuming from the journal must use the new one.
+          current?.let { current = PositionJournal.withSpeed(it, playbackParameters.speed) }
+          writeJournal(PositionJournal.Event.SPEED)
+        }
         if (sleepBoundaryMs != null) publishExtras()
       }
 
@@ -428,12 +438,21 @@ class PlaybackService : MediaLibraryService() {
     val playlist = load.playlist
     currentHandsOver = load.handsOver
     // The book that is already loaded keeps its live place, which is newer than any saved one.
-    if (PositionJournal.isSameBook(current, player.mediaItemCount, load)) {
-      // A changed intro or outro for the show applies to the episode that is loaded.
-      val loaded = current
-      if (loaded != null && (loaded.introMs != playlist.introMs || loaded.outroMs != playlist.outroMs)) {
-        current = loaded.copy(introMs = playlist.introMs, outroMs = playlist.outroMs)
+    val loaded = current
+    if (loaded != null && PositionJournal.isSameBook(loaded, player.mediaItemCount, load)) {
+      if (PositionJournal.filesChanged(loaded, playlist)) {
+        switchFiles(load, autoplay)
+        return
+      }
+      // A changed intro or outro for the show, or chapters found from silences, apply to the
+      // book that is loaded, at its live place.
+      if (loaded.introMs != playlist.introMs || loaded.outroMs != playlist.outroMs || loaded.chapters != playlist.chapters) {
+        current = loaded.copy(introMs = playlist.introMs, outroMs = playlist.outroMs, chapters = playlist.chapters)
         placeOutro()
+        updateChapterTitle()
+        // A chapter timer moves to the end of the chapter playing now.
+        if (sleepBoundaryMs != null) placeBoundary()
+        writeJournal(PositionJournal.Event.ITEM_CHANGE)
       }
       if (autoplay) active.play()
       return
@@ -469,6 +488,32 @@ class PlaybackService : MediaLibraryService() {
   }
 
   /**
+   * The loaded book's files have other addresses now (a download finished, was removed or moved
+   * to another folder): it plays on from them at its live place, so nothing reads deleted files.
+   */
+  private fun switchFiles(load: BookLoad, autoplay: Boolean) {
+    val p = active
+    val live = load.playlist.files.indexOfFirst { it.location == p.currentMediaItem?.mediaId }
+    val index = if (live >= 0) live else load.startIndex.coerceIn(0, load.playlist.files.lastIndex)
+    val position = if (live >= 0) p.currentPosition else load.startPositionMs.coerceAtLeast(0L)
+    val play = autoplay || p.playWhenReady
+    // The live speed: a controller may have changed it since the app last saved it.
+    val playlist = PositionJournal.withSpeed(load.playlist, current?.speed ?: load.playlist.speed)
+    current = playlist
+    val items = mediaItems(playlist)
+    player.setMediaItems(items, index, position)
+    val r = remote
+    if (r == null) {
+      player.prepare()
+      if (play) player.play()
+    } else {
+      r.setBook(items, timelineDurations(), index, position, playlist.speed, play)
+    }
+    placeBoundary()
+    writeJournal(PositionJournal.Event.ITEM_CHANGE)
+  }
+
+  /**
    * Before the service replaces the book by itself (Up Next, Android Auto), keeps its place in a
    * list the app folds in, since the journal only holds the book that plays now.
    */
@@ -476,18 +521,34 @@ class PlaybackService : MediaLibraryService() {
     val playing = current ?: return
     if (playing.bookId == nextBookId) return
     writeJournal(PositionJournal.Event.ITEM_CHANGE)
-    val (entry, _) = journalPrefs.getString(Commands.JOURNAL_KEY, null)?.let(PositionJournal::decode) ?: return
+    val entry = PositionJournal.decodeEntry(journalPrefs.getString(Commands.JOURNAL_KEY, null)) ?: return
     if (entry.bookId != playing.bookId) return
     journalPrefs.edit()
       .putString(Commands.EARLIER_KEY, PositionJournal.appendEarlier(journalPrefs.getString(Commands.EARLIER_KEY, null), entry))
       .apply()
   }
 
+  /**
+   * Another profile is listening and has nothing loaded: headphones and the car must not resume
+   * the last profile's book. Its place stays, for the app to fold into that profile.
+   */
+  private fun forgetJournaledBook() {
+    val entry = PositionJournal.decodeEntry(journalPrefs.getString(Commands.JOURNAL_KEY, null))
+    val editor = journalPrefs.edit().remove(Commands.JOURNAL_PLAYLIST_KEY)
+    // Rewritten alone: the older form carried its playlist inside the place.
+    entry?.let { editor.putString(Commands.JOURNAL_KEY, PositionJournal.encodeEntry(it)) }
+    editor.apply()
+    journaledPlaylist = null
+  }
+
   private fun carSnapshot(): CarSnapshot = CarLibrary.decode(prefs.getString(Commands.PREF_CAR_LIBRARY, null))
 
-  private fun journalLoad(): BookLoad? = journalPrefs.getString(Commands.JOURNAL_KEY, null)
-    ?.let(PositionJournal::decode)
-    ?.let { (entry, playlist) -> CarLibrary.journalLoad(entry, playlist) }
+  private fun journaled(): Pair<JournalEntry, BookPlaylist>? = PositionJournal.decode(
+    journalPrefs.getString(Commands.JOURNAL_KEY, null),
+    journalPrefs.getString(Commands.JOURNAL_PLAYLIST_KEY, null),
+  )
+
+  private fun journalLoad(): BookLoad? = journaled()?.let { (entry, playlist) -> CarLibrary.journalLoad(entry, playlist) }
 
   private fun carItem(node: CarNode): MediaItem = MediaItem.Builder()
     .setMediaId(node.id)
@@ -642,6 +703,18 @@ class PlaybackService : MediaLibraryService() {
       return commands.buildUpon().addAll(*skipCommands).build()
     }
 
+    val increments = SkipIncrements()
+
+    override fun addListener(listener: Player.Listener) {
+      super.addListener(listener)
+      increments.add(listener)
+    }
+
+    override fun removeListener(listener: Player.Listener) {
+      super.removeListener(listener)
+      increments.remove(listener)
+    }
+
     override fun isCommandAvailable(command: Int) = availableCommands.contains(command)
     override fun seekToPrevious() = skipBy(-skipIntervalMs)
     override fun seekToNext() = skipBy(skipIntervalMs)
@@ -663,11 +736,17 @@ class PlaybackService : MediaLibraryService() {
       p.currentMediaItem?.mediaId,
       p.currentPosition,
       placeChangedAt,
+      pausedAt,
     ) ?: return
     // Every write restarts the 10 s tick, so writes are never more than 10 s apart while playing.
     handler.removeCallbacks(journalTicker)
     if (p.isPlaying) handler.postDelayed(journalTicker, PositionJournal.TICK_INTERVAL_MS)
-    val editor = journalPrefs.edit().putString(Commands.JOURNAL_KEY, PositionJournal.encode(entry, playlist))
+    val editor = journalPrefs.edit().putString(Commands.JOURNAL_KEY, PositionJournal.encodeEntry(entry))
+    // The book only when it changed (a load, a speed, new chapters), not with every tick.
+    if (playlist != journaledPlaylist) {
+      editor.putString(Commands.JOURNAL_PLAYLIST_KEY, PositionJournal.encodePlaylist(playlist))
+      journaledPlaylist = playlist
+    }
     // The process may die right after these two; write them synchronously.
     if (event == PositionJournal.Event.TASK_REMOVED || event == PositionJournal.Event.DESTROY) editor.commit() else editor.apply()
   }
@@ -962,6 +1041,13 @@ class PlaybackService : MediaLibraryService() {
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) = onItemTransition(reason)
 
+    // The speed asked for, also when the receiver refused it: the phone plays at it after the hand-back.
+    override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+      val speed = remote?.requestedSpeed ?: playbackParameters.speed
+      current?.let { current = PositionJournal.withSpeed(it, speed) }
+      writeJournal(PositionJournal.Event.SPEED)
+    }
+
     override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) =
       onDiscontinuity(oldPosition, newPosition, reason)
 
@@ -1202,7 +1288,11 @@ class PlaybackService : MediaLibraryService() {
           val duck = args.getBoolean(Commands.EXTRA_DUCK, true)
           rules.duckOnInterruption = duck
           focus.duckOnInterruption = duck
-          skipIntervalMs = args.getLong(Commands.KEY_SKIP_INTERVAL_MS, 30_000L).coerceIn(5_000L, 300_000L)
+          val interval = args.getLong(Commands.KEY_SKIP_INTERVAL_MS, 30_000L).coerceIn(5_000L, 300_000L)
+          if (interval != skipIntervalMs) {
+            skipIntervalMs = interval
+            (session.player as? SkippingPlayer)?.increments?.announce(interval)
+          }
           smartRewind = args.getBoolean(Commands.KEY_SMART_REWIND, true)
           sound.mono = args.getBoolean(Commands.KEY_MONO, false)
           sound.voiceEq = args.getBoolean(Commands.KEY_VOICE_EQ, false)
@@ -1234,6 +1324,7 @@ class PlaybackService : MediaLibraryService() {
           cancelSleepTimer()
           player.clearMediaItems()
           current = null
+          forgetJournaledBook()
         }
         Commands.SET_QUEUE -> {
           val json = args.getString(Commands.KEY_QUEUE_JSON).orEmpty()
@@ -1246,10 +1337,14 @@ class PlaybackService : MediaLibraryService() {
           endRemote(resume = if (args.containsKey(Commands.KEY_RESUME)) args.getBoolean(Commands.KEY_RESUME) else null)
         Commands.LOAD_BOOK -> {
           val load = PositionJournal.decodeLoad(args.getString(Commands.KEY_BOOK_JSON).orEmpty())
-            ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
+            ?: return Futures.immediateFuture(
+              SessionResult(SessionError(SessionError.ERROR_BAD_VALUE, "The player could not read this book")),
+            )
           loadBook(load, args.getBoolean(Commands.KEY_AUTOPLAY, false))
         }
-        else -> return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
+        else -> return Futures.immediateFuture(
+          SessionResult(SessionError(SessionError.ERROR_NOT_SUPPORTED, "Unknown command ${customCommand.customAction}")),
+        )
       }
       publishExtras()
       // The widget's skip buttons say the skip interval.
@@ -1279,7 +1374,7 @@ class PlaybackService : MediaLibraryService() {
       controller: MediaSession.ControllerInfo,
       isForPlayback: Boolean,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
-      val (entry, playlist) = journalPrefs.getString(Commands.JOURNAL_KEY, null)?.let(PositionJournal::decode)
+      val (entry, playlist) = journaled()
         ?: return Futures.immediateFailedFuture(UnsupportedOperationException("Nothing to resume"))
       val index = playlist.files.indexOfFirst { it.location == entry.fileLocation }
       if (index < 0) return Futures.immediateFailedFuture(UnsupportedOperationException("Journal file not in its book"))
@@ -1290,7 +1385,7 @@ class PlaybackService : MediaLibraryService() {
       current = playlist
       player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
       pausedAt = null
-      val start = SeekRules.startPosition(index, entry.filePositionMs, entry.savedAt, System.currentTimeMillis(), smartRewind, playlist.introMs)
+      val start = SeekRules.startPosition(index, entry.filePositionMs, entry.pauseStartedAt, System.currentTimeMillis(), smartRewind, playlist.introMs)
       return Futures.immediateFuture(MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, start))
     }
 
