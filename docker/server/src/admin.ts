@@ -125,6 +125,37 @@ export function isAllowedHost(host: string | null, names: readonly string[] = []
   });
 }
 
+/**
+ * The key wrong tokens are counted under: the address itself, except an IPv6 caller with
+ * `remote` on, who is counted per /64, the block one home or server gets, since one machine can
+ * pick a new address in it for every guess. An IPv4-mapped address counts as IPv4.
+ */
+export function failureKey(address: string, remote: boolean): string {
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address)?.[1];
+  if (mapped) return mapped;
+  if (!remote || isIP(address) !== 6) return address;
+  const groups = ipv6Groups(address.split('%')[0] ?? '');
+  return groups ? `${groups.slice(0, 4).join(':')}::/64` : address;
+}
+
+/** The eight groups of an IPv6 address, without leading zeros, `::` and a dotted tail expanded. */
+function ipv6Groups(address: string): string[] | null {
+  let text = address.toLowerCase();
+  const dotted = /(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(text);
+  if (dotted) {
+    const [a, b, c, d] = dotted.slice(1).map(Number) as [number, number, number, number];
+    text = `${text.slice(0, dotted.index)}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
+  }
+  const [head = '', tail] = text.split('::');
+  const left = head ? head.split(':') : [];
+  const right = tail ? tail.split(':') : [];
+  const missing = 8 - left.length - right.length;
+  if (missing < 0 || (tail === undefined && missing !== 0)) return null;
+  return [...left, ...Array<string>(missing).fill('0'), ...right].map((g) =>
+    (parseInt(g, 16) || 0).toString(16),
+  );
+}
+
 /** Whether a caller's address is the server itself or on a private network. */
 export function isLocalAddress(address: string): boolean {
   const family = isIP(address);
@@ -159,7 +190,7 @@ const failing = (name: string, error: unknown): Check => ({
 
 /**
  * The admin page's routes, on a port of its own: `/health` for Docker's health check, `/` (HTML)
- * and `/status.json` behind the token. `remote` is the caller's address.
+ * and `/status.json` behind the token. `caller` is the caller's address.
  */
 export function adminHandler(options: AdminOptions) {
   const { service, allowRemote = false, now = Date.now, failDelayMs = 500, hosts = [] } = options;
@@ -215,8 +246,8 @@ export function adminHandler(options: AdminOptions) {
     };
   };
 
-  return async (request: AdminRequest, remote: string): Promise<Response> => {
-    if (!allowRemote && !isLocalAddress(remote)) {
+  return async (request: AdminRequest, caller: string): Promise<Response> => {
+    if (!allowRemote && !isLocalAddress(caller)) {
       return json({ error: 'The admin page only answers local addresses.' }, 403);
     }
     if (!isAllowedHost(request.host, hosts)) {
@@ -242,6 +273,7 @@ export function adminHandler(options: AdminOptions) {
         404,
       );
     }
+    const remote = failureKey(caller, allowRemote);
     if (lockedOut(remote)) {
       return json({ error: 'Too many wrong tokens. Try again in 15 minutes.' }, 429, {
         'Retry-After': String(Math.ceil(FAILURE_WINDOW_MS / 1000)),

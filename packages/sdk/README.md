@@ -51,7 +51,8 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
 - **`createAddon(handlers, options)`** turns handlers into `fetch(request)`. `options.basePath`
   mounts several add-ons under one host.
 - **Settings and sign-in:** `createAddon({ configure: { fields, secret, check } })` serves a form at
-  `/configure` and puts the listener's settings, encrypted, into the add-on's URL; handlers get them
+  `/configure` and puts the listener's settings, encrypted and bound to the manifest's `id`
+  (`e2.` tokens; `e1.` ones from before still open), into the add-on's URL; handlers get them
   as `config`. Nothing is stored on a server. The pages say who runs them (“This page is run by
   {host}, not by Lelap.”) and use `PAGE_STYLE`, the stylesheet Lelap's own configure pages share.
 - **Health:** every add-on answers `GET /health`; pass a `health` handler to report `degraded` or

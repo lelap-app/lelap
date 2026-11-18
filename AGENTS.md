@@ -50,7 +50,8 @@ modules/cast    Kotlin Expo module: casting over UPnP, an own Cast v2 client and
 modules/updater Kotlin Expo module: in-app APK updates through PackageInstaller
 modules/widget  Kotlin module: home screen widget and Quick Settings tile, no JavaScript API
 modules/bluetooth Kotlin Expo module: connected Bluetooth audio devices, battery, car detection
-modules/netfs   Kotlin Expo module: SMB (smbj) and SFTP (sshj) servers; listing, Media3 data source
+modules/netfs   Kotlin Expo module: SMB (smbj) and SFTP (sshj) servers; listing, Media3 data source;
+                the add-on sandbox's fetch
 modules/text    Kotlin Expo module: translated lines for notifications, widget and tile, kept for when closed
 examples/       add-on samples: plain Node, Python (stdlib), seasonal catalogs, a source add-on
                 that maps its files to works; tested in CI

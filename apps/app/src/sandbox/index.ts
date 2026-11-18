@@ -1,9 +1,9 @@
 import { t } from '../i18n';
 import {
   bundledAddon,
+  fetchLimit,
   getLocalAddonCode,
   listAddons,
-  type ManualFetch,
   sandboxFetch,
   type SandboxFetchInit,
 } from '@lelap/core';
@@ -17,9 +17,8 @@ import {
   signinPath,
 } from '@lelap/sdk';
 
-import { fetch as expoFetch } from 'expo/fetch';
-
 import { db } from '../db';
+import { addonManualFetch } from '../platform/addonFetch';
 import { sandboxPage } from './page';
 
 // The app's side of in-app add-ons (M38). Each add-on runs in its own hidden sandbox (a WebView
@@ -38,6 +37,9 @@ const LIBRARY_TIMEOUT_MS = 10 * 60_000;
 const PLACE_TIMEOUT_MS = 60_000;
 const FETCH_TIMEOUT_MS = 20_000;
 const MAX_RESPONSE_CHARS = 5_000_000;
+// Fetches in flight per add-on, across its sandboxes; the rest wait their turn. A library listing
+// runs six at a time.
+const PARALLEL_FETCHES = 6;
 
 type Call = {
   resolve: (r: { status: number; body: unknown }) => void;
@@ -51,6 +53,8 @@ export type Box = {
   id: string;
   html: string;
   hosts: string[];
+  /** The hosts among `hosts` the listener typed, which may be on the home network. */
+  typed: string[];
   post: ((message: string) => void) | null;
   ready: boolean;
   /** The add-on runs in a worker, which can't navigate away with what it was given. */
@@ -75,12 +79,13 @@ export const subscribeBoxes = (l: () => void) => {
 };
 export const currentBoxes = () => snapshot;
 
-function open(id: string, code: string, hosts: string[]): Box {
+function open(id: string, code: string, hosts: string[], declared: string[] = hosts): Box {
   const box: Box = {
     key: `${id}#${++seq}`,
     id,
     html: sandboxPage(code),
     hosts,
+    typed: hosts.filter((h) => !declared.includes(h)),
     post: null,
     ready: false,
     isolated: false,
@@ -116,16 +121,37 @@ export function attachSandbox(key: string, post: (message: string) => void): voi
   for (const box of boxes.values()) if (box.key === key) box.post = post;
 }
 
-// `expo/fetch` honours `redirect: 'manual'` on Android (OkHttp with redirects off); React
-// Native's own fetch follows every redirect, posted body and headers included.
-const manualFetch: ManualFetch = (url, init) => expoFetch(url, init);
-
-async function fetchFor(box: Box, id: string, url: string, init: SandboxFetchInit | undefined) {
-  const reply = await sandboxFetch(manualFetch, url, init, box.hosts, {
+// React Native's own fetch follows every redirect, posted body and headers included; this one
+// never does, and on Android it also keeps declared hosts off the home network.
+const manualFetch = () =>
+  addonManualFetch({
     timeoutMs: FETCH_TIMEOUT_MS,
-    maxChars: MAX_RESPONSE_CHARS,
+    // A character is a byte or more.
+    maxBytes: MAX_RESPONSE_CHARS * 4,
     tooLarge: t('The answer was too large.'),
   });
+
+// One limit per add-on, shared by its sandboxes (`<manifest URL>#<server>`).
+const limits = new Map<string, ReturnType<typeof fetchLimit>>();
+const limitOf = (box: Box) => {
+  const addon = box.id.split('#')[0] ?? box.id;
+  let limit = limits.get(addon);
+  if (!limit) {
+    limit = fetchLimit(PARALLEL_FETCHES);
+    limits.set(addon, limit);
+  }
+  return limit;
+};
+
+async function fetchFor(box: Box, id: string, url: string, init: SandboxFetchInit | undefined) {
+  const reply = await limitOf(box)(() =>
+    sandboxFetch(manualFetch(), url, init, box.hosts, {
+      timeoutMs: FETCH_TIMEOUT_MS,
+      maxChars: MAX_RESPONSE_CHARS,
+      tooLarge: t('The answer was too large.'),
+      typed: box.typed,
+    }),
+  );
   box.post?.(JSON.stringify({ t: 'fetched', id, ...reply }));
 }
 
@@ -280,7 +306,7 @@ function serverBox(args: { addonUrl: string; sandboxId: string; hosts: string[] 
     closeSandbox(id);
     box = undefined;
   }
-  return box ?? open(id, found.code, args.hosts);
+  return box ?? open(id, found.code, args.hosts, found.manifest.sandbox?.hosts ?? []);
 }
 
 /**

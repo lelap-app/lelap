@@ -1,6 +1,12 @@
 package app.lelap.cast
 
+import android.net.NetworkCapabilities.TRANSPORT_CELLULAR
+import android.net.NetworkCapabilities.TRANSPORT_ETHERNET
+import android.net.NetworkCapabilities.TRANSPORT_VPN
+import android.net.NetworkCapabilities.TRANSPORT_WIFI
+import java.net.InetAddress
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class MediaServerTest {
@@ -43,5 +49,20 @@ class MediaServerTest {
     assertEquals("audio/mp4", Mime.audioOr("application/octet-stream", "book.m4b"))
     assertEquals("image/png", Mime.image("cover.PNG"))
     assertEquals("m4b", Mime.extension("content://x/document/primary%3ABooks%2FDune.m4b"))
+  }
+
+  @Test
+  fun servesOnlyOnWifiOrEthernet() {
+    fun net(vararg transports: Int, address: String) =
+      ServerNetwork.Candidate(transports.toSet(), listOf(InetAddress.getByName("fe80::1"), InetAddress.getByName(address)))
+    val wifi = net(TRANSPORT_WIFI, address = "192.168.1.5")
+    val mobile = net(TRANSPORT_CELLULAR, address = "10.20.30.40")
+    val vpn = net(TRANSPORT_VPN, address = "10.8.0.2")
+    // A VPN on top of Wi-Fi: the Wi-Fi's own address, which receivers at home can reach.
+    assertEquals(InetAddress.getByName("192.168.1.5"), ServerNetwork.pick(listOf(vpn, mobile, wifi)))
+    assertEquals(InetAddress.getByName("10.0.0.9"), ServerNetwork.pick(listOf(net(TRANSPORT_ETHERNET, address = "10.0.0.9"))))
+    // Mobile data or a VPN alone: nowhere to serve, so the app asks for the same Wi-Fi.
+    assertNull(ServerNetwork.pick(listOf(mobile, vpn)))
+    assertNull(ServerNetwork.pick(listOf(net(TRANSPORT_WIFI, TRANSPORT_VPN, address = "10.8.0.3"))))
   }
 }

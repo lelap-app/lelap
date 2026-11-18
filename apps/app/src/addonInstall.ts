@@ -1,5 +1,11 @@
 import { t } from './i18n';
-import { fetchManifest, findAddonById, installAddon, replaceAddonUrl } from '@lelap/core';
+import {
+  asksForMore,
+  fetchManifest,
+  findAddonById,
+  installAddon,
+  replaceAddonUrl,
+} from '@lelap/core';
 import { type Manifest, needsConfiguration } from '@lelap/sdk';
 import { Linking } from 'react-native';
 
@@ -35,9 +41,13 @@ export function openConfigure(manifestUrl: string): void {
 /**
  * Fetches a manifest and asks before installing it. A manifest whose add-on is already installed
  * under another URL (new settings from its configure page) replaces that URL instead; one that
- * still needs settings opens its configure page. Resolves once the listener has chosen.
+ * still needs settings opens its configure page. `typed`: the listener entered the address in the
+ * app, so a web add-on may also move to another server. Resolves once the listener has chosen.
  */
-export async function confirmAddon(manifestUrl: string): Promise<'added' | 'cancelled'> {
+export async function confirmAddon(
+  manifestUrl: string,
+  typed = false,
+): Promise<'added' | 'cancelled'> {
   const manifest: Manifest = await fetchManifest(fetcher, manifestUrl);
   return new Promise((resolve) => {
     const cancel = {
@@ -65,10 +75,39 @@ export async function confirmAddon(manifestUrl: string): Promise<'added' | 'canc
       );
       return;
     }
+    const move = (existing: { url: string }, action: string) =>
+      void reviewAddon(manifest, manifestUrl, action).then((accepted) => {
+        if (accepted) {
+          replaceAddonUrl(db, {
+            oldUrl: existing.url,
+            newUrl: manifestUrl,
+            manifest,
+            now: Date.now(),
+          });
+        }
+        resolve(accepted ? 'added' : 'cancelled');
+      });
     const existing = findAddonById(db, manifest.id);
     // A manifest can claim any ID. Only the same server may move an add-on, with its books and
-    // unsent scrobbles, to a new address; a link from anywhere else must not take it over.
+    // unsent scrobbles, to a new address; a link from anywhere else must not take it over. The
+    // listener may move a web add-on to another server by entering its address here.
     const from = existing ? webOrigin(existing.url) : null;
+    if (
+      existing &&
+      existing.url !== manifestUrl &&
+      from &&
+      typed &&
+      webOrigin(manifestUrl) &&
+      from !== webOrigin(manifestUrl)
+    ) {
+      showAlert(
+        t('Move {name}?', { name: existing.manifest.name }),
+        `${t('It comes from {host}. Lelap will use {other} instead; books you play from it stay in your library.', { host: host(existing.url), other: host(manifestUrl) })}\n\n${trust(manifestUrl)}`,
+        [cancel, { text: t('Move'), onPress: () => move(existing, t('Move')) }],
+        options,
+      );
+      return;
+    }
     if (existing && existing.url !== manifestUrl && (!from || from !== webOrigin(manifestUrl))) {
       showAlert(
         t('{name} is added already', { name: existing.manifest.name }),
@@ -83,6 +122,15 @@ export async function confirmAddon(manifestUrl: string): Promise<'added' | 'canc
         [{ text: t('OK'), onPress: () => resolve('cancelled') }],
         options,
       );
+      return;
+    }
+    if (
+      existing &&
+      existing.url !== manifestUrl &&
+      asksForMore(existing, { manifest, url: manifestUrl })
+    ) {
+      // New settings that also ask for more, such as listening history: the full sheet.
+      move(existing, t('Update'));
       return;
     }
     if (existing && existing.url !== manifestUrl) {

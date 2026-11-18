@@ -150,7 +150,7 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
         </Text>
       )}
       <Text numberOfLines={1} className="text-xs text-muted">
-        {addon.url.replace(/\/(e1|p1)\.[A-Za-z0-9_-]+\//, '/…/')}
+        {addon.url.replace(/\/(e1|e2|p1)\.[A-Za-z0-9_-]+\//, '/…/')}
       </Text>
     </View>
   );
@@ -216,7 +216,7 @@ function AddonsManager() {
     }
     setAdding(true);
     try {
-      if ((await confirmAddon(manifestUrl)) === 'added') {
+      if ((await confirmAddon(manifestUrl, true)) === 'added') {
         setUrl('');
         changed();
       }

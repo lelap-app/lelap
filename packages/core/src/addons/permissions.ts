@@ -147,3 +147,18 @@ export function addonPermissions(manifest: Manifest, manifestUrl: string): Permi
   });
   return list;
 }
+
+/**
+ * Whether an update of an installed add-on asks for more than it had: a kind of permission the
+ * installed one lacked, such as `scrobble` or plain http, or a host it couldn't reach. The app
+ * then shows the review sheet instead of a plain “Update?”.
+ */
+export function asksForMore(
+  installed: { manifest: Manifest; url: string },
+  update: { manifest: Manifest; url: string },
+): boolean {
+  const before = new Set(addonPermissions(installed.manifest, installed.url).map((p) => p.kind));
+  if (addonPermissions(update.manifest, update.url).some((p) => !before.has(p.kind))) return true;
+  const hosts = new Set(installed.manifest.sandbox?.hosts ?? []);
+  return (update.manifest.sandbox?.hosts ?? []).some((h) => !hosts.has(h));
+}

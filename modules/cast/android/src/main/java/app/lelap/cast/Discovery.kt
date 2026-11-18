@@ -134,6 +134,9 @@ class Discovery(
           val response = MiniHttp.request("GET", answer.location)
           val description = Upnp.parseDescription(response.text(), answer.location) ?: return@search
           if (description.avTransportUrl == null) return@search
+          // A URLBase elsewhere would send the phone's commands, and the media's addresses, there.
+          val urls = listOf(description.avTransportUrl, description.renderingControlUrl, description.avTransportScpdUrl)
+          if (!Ssdp.sameHost(answer.location, urls)) return@search
           val id = description.udn ?: Ssdp.uuidOf(answer.usn) ?: answer.location
           val uri = java.net.URI(answer.location)
           devices[id] = CastDevice(

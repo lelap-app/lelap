@@ -27,7 +27,33 @@ type LelapNetfsModule = {
   check(uri: string, headers: Record<string, string>): Promise<{ folders: number; files: number }>;
   list(uri: string, headers: Record<string, string>): Promise<NetfsEntry[]>;
   copyTo(uri: string, headers: Record<string, string>, path: string): Promise<void>;
+  addonFetch(url: string, init: AddonFetchInit): Promise<AddonFetchAnswer>;
 };
+
+/** A request of an add-on inside the app (`lelap.fetch`). */
+export type AddonFetchInit = {
+  method: string;
+  headers?: Record<string, string>;
+  body?: string;
+  timeoutMs: number;
+  maxBytes: number;
+  /** The address is one the listener typed, so it may be on the home network. */
+  localNetwork: boolean;
+};
+
+export type AddonFetchAnswer = {
+  status: number;
+  url: string;
+  text: string;
+  /** Only `content-type`, `set-cookie` and `date`. */
+  headers: Record<string, string>;
+};
+
+/** Error codes `addonFetch` rejects with. */
+export const ADDON_FETCH_ERRORS = {
+  private: 'ERR_ADDON_PRIVATE',
+  tooLarge: 'ERR_ADDON_TOO_LARGE',
+} as const;
 
 const native = requireNativeModule<LelapNetfsModule>('LelapNetfs');
 
@@ -52,4 +78,13 @@ export function list(uri: string, headers: Record<string, string>): Promise<Netf
 /** Copies one file, such as a folder's `cover.jpg`, to a path on the phone. */
 export function copyTo(uri: string, headers: Record<string, string>, path: string): Promise<void> {
   return native.copyTo(uri, headers, path);
+}
+
+/**
+ * `lelap.fetch` for add-ons inside the app: no cookies, no redirects followed, the answer capped,
+ * and a host the add-on declared refused when it resolves to a private, loopback or link-local
+ * address. Only `localNetwork` requests, to addresses the listener typed, may reach those.
+ */
+export function addonFetch(url: string, init: AddonFetchInit): Promise<AddonFetchAnswer> {
+  return native.addonFetch(url, init);
 }

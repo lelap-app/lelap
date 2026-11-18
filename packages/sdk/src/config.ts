@@ -31,12 +31,12 @@ type WebCrypto = {
       usages: string[],
     ): Promise<unknown>;
     encrypt(
-      algorithm: { name: string; iv: Bytes },
+      algorithm: { name: string; iv: Bytes; additionalData?: Bytes },
       key: unknown,
       data: Bytes,
     ): Promise<ArrayBuffer>;
     decrypt(
-      algorithm: { name: string; iv: Bytes },
+      algorithm: { name: string; iv: Bytes; additionalData?: Bytes },
       key: unknown,
       data: Bytes,
     ): Promise<ArrayBuffer>;
@@ -61,12 +61,15 @@ const atob = (data: string) => web.atob(data);
 const utf8 = (text: string): Bytes => new web.TextEncoder().encode(text);
 const fromUtf8 = (bytes: ArrayBuffer | Bytes): string => new web.TextDecoder().decode(bytes);
 
+// `e2.` seals with the add-on's ID as associated data, so of two add-ons sharing a secret, neither
+// accepts the other's tokens; `e1.` tokens from before still open.
+const BOUND = 'e2.';
 const ENCRYPTED = 'e1.';
 const PLAIN = 'p1.';
 
 /** Whether a path segment is a config token rather than a resource name. */
 export function isConfigToken(segment: string): boolean {
-  return /^(e1|p1)\.[A-Za-z0-9_-]+$/.test(segment);
+  return /^(e1|e2|p1)\.[A-Za-z0-9_-]+$/.test(segment);
 }
 
 function toBase64Url(bytes: Uint8Array): string {
@@ -103,23 +106,36 @@ function asConfig(value: unknown): Config | null {
 
 /**
  * Turns a config into a URL-safe token. With `secret`, it is encrypted with AES-GCM (the add-on
- * alone can read it); without, it is only encoded, so anyone holding the URL can read it.
+ * alone can read it); without, it is only encoded, so anyone holding the URL can read it. With
+ * `id`, the manifest's ID, the sealed token (`e2.`) is accepted only by that add-on, even when
+ * another shares its secret; `createAddon` always passes it.
  */
-export async function encodeConfig(config: Config, secret?: string): Promise<string> {
+export async function encodeConfig(config: Config, secret?: string, id?: string): Promise<string> {
   const data = utf8(JSON.stringify(config));
   if (!secret) return PLAIN + toBase64Url(data);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const sealed = new Uint8Array(
-    await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await keyFor(secret), data),
+    await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv, ...(id === undefined ? {} : { additionalData: utf8(id) }) },
+      await keyFor(secret),
+      data,
+    ),
   );
   const out = new Uint8Array(iv.length + sealed.length);
   out.set(iv);
   out.set(sealed, iv.length);
-  return ENCRYPTED + toBase64Url(out);
+  return (id === undefined ? ENCRYPTED : BOUND) + toBase64Url(out);
 }
 
-/** Reads a token from `encodeConfig`; `null` when it is damaged or sealed with another secret. */
-export async function decodeConfig(token: string, secret?: string): Promise<Config | null> {
+/**
+ * Reads a token from `encodeConfig`; `null` when it is damaged, sealed with another secret or, for
+ * an `e2.` token, for another add-on than `id`. `e1.` tokens, sealed without an ID, still open.
+ */
+export async function decodeConfig(
+  token: string,
+  secret?: string,
+  id?: string,
+): Promise<Config | null> {
   if (!isConfigToken(token)) return null;
   const bytes = fromBase64Url(token.slice(3));
   if (!bytes) return null;
@@ -130,8 +146,14 @@ export async function decodeConfig(token: string, secret?: string): Promise<Conf
       return asConfig(JSON.parse(fromUtf8(bytes)));
     }
     if (!secret || bytes.length < 13) return null;
+    const bound = token.startsWith(BOUND);
+    if (bound && id === undefined) return null;
     const opened = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: bytes.slice(0, 12) },
+      {
+        name: 'AES-GCM',
+        iv: bytes.slice(0, 12),
+        ...(bound && id !== undefined ? { additionalData: utf8(id) } : {}),
+      },
       await keyFor(secret),
       bytes.slice(12),
     );
