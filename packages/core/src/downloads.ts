@@ -1,5 +1,5 @@
 import type { Meta } from '@lelap/sdk';
-import { and, asc, eq, inArray, ne } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { bookFiles, books, downloads, libraryRoots } from './schema';
@@ -24,8 +24,18 @@ export type NativeDownloadStatus = {
   /** Names of the files that are complete on disk. */
   files: string[];
   cover: string | null;
+  /** Where each finished file is read from, when not `<directory>/<bookId>/<name>`. */
+  paths?: Record<string, string>;
+  /** The folder holding the book can't be reached, such as an SD card that was taken out. */
+  unavailable?: boolean;
+  /** A move left copies in the old folder, deleted once the player no longer reads them. */
+  oldCopies?: boolean;
   error: string | null;
 };
+
+/** A URI the player and image views read: content URIs as they are, paths as `file://`. */
+export const localFileUri = (path: string): string =>
+  path.startsWith('content://') ? path : `file://${path}`;
 
 export class DownloadError extends Error {}
 
@@ -131,31 +141,65 @@ export function applyDownloadStatuses(
     for (const status of statuses) {
       const row = tx.select().from(downloads).where(eq(downloads.bookId, status.bookId)).get();
       if (!row) {
-        orphans.push(status.bookId);
+        // Files on a missing SD card are left alone; they are deleted once it is back.
+        if (!status.unavailable) orphans.push(status.bookId);
+        continue;
+      }
+      if (status.unavailable && row.state === 'done') {
+        // Until the folder is back the book streams, where it can, and keeps its download.
+        const onDisk = and(eq(bookFiles.bookId, status.bookId), isNotNull(bookFiles.downloadPath));
+        if (!tx.select({ id: bookFiles.id }).from(bookFiles).where(onDisk).get()) continue;
+        tx.update(bookFiles).set({ downloadPath: null, updatedAt: now }).where(onDisk).run();
+        tx.update(books)
+          .set({ coverPath: null, updatedAt: now })
+          .where(and(eq(books.id, status.bookId), ne(books.source, 'local')))
+          .run();
+        changed.push(status.bookId);
         continue;
       }
       if (status.state === 'done') {
-        if (row.state === 'done') continue;
         const folder = `${directory}/${status.bookId}`;
+        const pathOf = (name: string) => status.paths?.[name] ?? `${folder}/${name}`;
         const done = new Set(status.files);
+        let moved = false;
         const parts = tx
-          .select({ id: bookFiles.id, idx: bookFiles.idx, uri: bookFiles.uri })
+          .select({
+            id: bookFiles.id,
+            idx: bookFiles.idx,
+            uri: bookFiles.uri,
+            downloadPath: bookFiles.downloadPath,
+          })
           .from(bookFiles)
           .where(eq(bookFiles.bookId, status.bookId))
           .all();
+        // A finished book is folded again when its files moved to another folder or came back.
         for (const part of parts) {
           const name = partFileName(part.idx, part.uri);
-          if (!done.has(name)) continue;
+          if (!done.has(name) || part.downloadPath === pathOf(name)) continue;
           tx.update(bookFiles)
-            .set({ downloadPath: `${folder}/${name}`, updatedAt: now })
+            .set({ downloadPath: pathOf(name), updatedAt: now })
             .where(eq(bookFiles.id, part.id))
             .run();
+          moved = true;
         }
         if (status.cover) {
-          tx.update(books)
-            .set({ coverPath: `${folder}/${status.cover}`, updatedAt: now })
+          const cover = pathOf(status.cover);
+          const book = tx
+            .select({ coverPath: books.coverPath })
+            .from(books)
             .where(eq(books.id, status.bookId))
-            .run();
+            .get();
+          if (book && book.coverPath !== cover) {
+            tx.update(books)
+              .set({ coverPath: cover, updatedAt: now })
+              .where(eq(books.id, status.bookId))
+              .run();
+            moved = true;
+          }
+        }
+        if (row.state === 'done') {
+          if (moved) changed.push(status.bookId);
+          continue;
         }
         tx.update(downloads)
           .set({

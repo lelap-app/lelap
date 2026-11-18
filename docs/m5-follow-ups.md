@@ -26,6 +26,6 @@ Podcast search needs `PODCASTINDEX_KEY` and `PODCASTINDEX_SECRET` on the catalog
   itself, with the app closed; it logs what finished for the app to fold in.
 - Fixed in M11: feeds refresh, auto-downloads start and sync runs in the background about once an
   hour (`expo-background-task`, WorkManager underneath).
-- Atom feeds are not read.
+- Fixed in M53: Atom feeds subscribe like RSS ones.
 - Unsubscribing keeps the podcast's episodes and their places (subscribing again picks them up),
   so episode books of unsubscribed podcasts stay in the database.

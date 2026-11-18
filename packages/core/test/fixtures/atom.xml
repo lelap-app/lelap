@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <title type="text">Night Shift Radio</title>
+  <subtitle type="html">&lt;p&gt;Quiet talk for late listeners.&lt;/p&gt;</subtitle>
+  <id>urn:uuid:60a76c80-d399-11d9-b93c-0003939e0af6</id>
+  <updated>2026-10-02T21:00:00Z</updated>
+  <link rel="self" href="https://feeds.example.org/night-shift.atom"/>
+  <link href="https://example.org/night-shift"/>
+  <author><name>Mira Okafor</name></author>
+  <logo>https://img.example.org/night-shift.png</logo>
+  <podcast:guid>3c1fd7a7-9b2a-5a5b-9b5e-0d3b0b2f1a11</podcast:guid>
+  <entry>
+    <title>Episode 2: Owls</title>
+    <id>tag:example.org,2026:night-shift/2</id>
+    <published>2026-10-02T21:00:00Z</published>
+    <updated>2026-10-03T08:00:00Z</updated>
+    <summary type="html">&lt;b&gt;Who&lt;/b&gt; is awake at three.</summary>
+    <link rel="alternate" type="text/html" href="https://example.org/night-shift/2"/>
+    <link rel="enclosure" type="audio/mpeg" length="24000000" href="https://cdn.example.org/ns2.mp3"/>
+    <itunes:duration>25:00</itunes:duration>
+    <itunes:episode>2</itunes:episode>
+    <podcast:chapters url="https://cdn.example.org/ns2.json" type="application/json+chapters"/>
+  </entry>
+  <entry>
+    <title>Episode 1: Moths</title>
+    <id>tag:example.org,2026:night-shift/1</id>
+    <updated>2026-09-25T21:00:00Z</updated>
+    <content type="text">Moths and lamps.</content>
+    <link rel="enclosure" type="image/jpeg" href="https://cdn.example.org/ns1.jpg"/>
+    <link rel="enclosure" type="audio/ogg" href="https://cdn.example.org/ns1.ogg"/>
+  </entry>
+  <entry>
+    <title>Show notes only</title>
+    <id>tag:example.org,2026:night-shift/notes</id>
+    <updated>2026-09-20T21:00:00Z</updated>
+    <link href="https://example.org/night-shift/notes"/>
+  </entry>
+</feed>

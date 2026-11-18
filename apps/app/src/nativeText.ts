@@ -29,6 +29,17 @@ const nativeLines = (): Record<string, string> => ({
   Downloading: t('Downloading'),
   Cancel: t('Cancel'),
   'Listening for long silences': t('Listening for long silences'),
+  // Downloads in a folder the listener chose, and moving them there.
+  'The download folder can’t be reached. Put the SD card back, or choose another folder in Settings.':
+    t(
+      'The download folder can’t be reached. Put the SD card back, or choose another folder in Settings.',
+    ),
+  'Moving downloads': t('Moving downloads'),
+  'Moving downloads stopped: {reason}': t('Moving downloads stopped: {reason}'),
+  'There is not enough space in the new folder.': t('There is not enough space in the new folder.'),
+  'Some downloads stay where they are until their folder can be reached again.': t(
+    'Some downloads stay where they are until their folder can be reached again.',
+  ),
   Stop: t('Stop'),
   // The home screen widget and the Quick Settings tile.
   'Nothing playing': t('Nothing playing'),

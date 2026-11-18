@@ -283,6 +283,9 @@ importers:
       expo-secure-store:
         specifier: ~58.0.2
         version: 58.0.2(6cbeb0b12c5f32e4aabaf5075ce9b7e1)
+      expo-sharing:
+        specifier: ~58.0.22
+        version: 58.0.22(19f14bdf0c3d6dca32a5c49daed3b77f)
       expo-sqlite:
         specifier: ~58.0.15
         version: 58.0.15(2bfe2f76c61e1d0d20b9d9648743e5fe)
@@ -4077,6 +4080,13 @@ packages:
   expo-server@58.1.0:
     resolution: {integrity: sha512-jo7I6uHnP5OQYKx3+7lbpdVVnOEwFj2ryDkQdauUQSwgh2HuMUkiFXWUIVe01ts6DLRoff5U0Tv+uNb3CMq/kw==}
     engines: {node: ^22.13.0 || ^24.3.0 || ^26.0.0 || >=27.0.0}
+
+  expo-sharing@58.0.22:
+    resolution: {integrity: sha512-s9/hFsGIZR+M8xRicKKKdV5/+TVSvEHze58yu3x9962lLvxkGY1aJ4vojg1RszSTesPJaNiCg7DRA2H8f47/9w==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
 
   expo-sqlite@58.0.15:
     resolution: {integrity: sha512-jokbgUHPD1zvpFT/LeJaCoOTsd0QXXWzbthVPCMyMMn+/IZAMqQu79OxYzck5G5wlc+t+vTuEESGMY8r1n3VTA==}
@@ -11245,6 +11255,25 @@ snapshots:
       - supports-color
 
   expo-server@58.1.0: {}
+
+  expo-sharing@58.0.22(19f14bdf0c3d6dca32a5c49daed3b77f):
+    dependencies:
+      '@expo/config-plugins': 58.0.13(supports-color@8.1.1)(typescript@6.0.3)
+      '@expo/config-types': 58.0.3
+      '@expo/plist': 0.10.2
+      expo: 58.0.25(9c3e799cd1ff1c859c09715cc0cffb27)
+      react: 19.3.0
+      react-native: 0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@expo/dom-webview'
+      - '@expo/log-box'
+      - '@expo/metro-runtime'
+      - expo-router
+      - react-native-webview
+      - react-native-worklets
+      - supports-color
+      - typescript
 
   expo-sqlite@58.0.15(2bfe2f76c61e1d0d20b9d9648743e5fe):
     dependencies:

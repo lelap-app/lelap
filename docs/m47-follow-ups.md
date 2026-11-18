@@ -49,8 +49,8 @@ the request. The ring trims by time. The route is closed to a kids profile.
 
 Minor, left for later:
 
-- Android shares the file as text through the share sheet, not as a `.txt` attachment, as the
-  library export does; sending a real file needs `expo-sharing`. Some apps cut very long text.
+- Fixed in M53: Android shares a real `.txt` file through the share sheet (`expo-sharing`), as
+  the library export does.
 - The file's text is fixed at a small size in a sideways scroller; with a large font setting it
   is hard to read. A full-screen view could follow.
 - A book ID longer than 200 characters would make a player event fail validation and be dropped;

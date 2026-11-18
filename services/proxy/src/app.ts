@@ -158,7 +158,7 @@ export function createApp(platform: Platform, env: Env): Hono {
     if (cached) return new Response(cached.body, cached);
 
     const conditional: Record<string, string> = {
-      Accept: 'application/rss+xml, application/xml, text/xml, */*',
+      Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
     };
     // Browsers pass these in the query, which spares a preflight request per feed.
     const etag = c.req.header('if-none-match') ?? c.req.query('etag');

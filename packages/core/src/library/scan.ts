@@ -19,7 +19,7 @@ import { isSealed, secretBox } from '../secrets';
 import { presentFiles } from './bookFiles';
 import { buildChapters } from './chapters';
 import { isAudioFile, type ScannedFile } from './files';
-import { groupIntoBooks } from './group';
+import { groupIntoBooks, withoutDownloads } from './group';
 import { toBookPosition } from './timeline';
 
 type TagKey =
@@ -102,7 +102,7 @@ export function upsertRoot(
 
 /** Audio files that are new or changed since they were last read, so their tags need reading. */
 export function filesNeedingTags(db: Db, listed: ListedFile[]): ListedFile[] {
-  const audio = listed.filter((f) => isAudioFile(f.name));
+  const audio = withoutDownloads(listed).filter((f) => isAudioFile(f.name));
   if (audio.length === 0) return [];
   const stored = new Map(
     db

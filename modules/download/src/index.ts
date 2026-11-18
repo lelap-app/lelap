@@ -21,10 +21,33 @@ export type DownloadStatus = {
   bytesTotal: number;
   files: string[];
   cover: string | null;
+  /** Where each finished file is read from: a path, or a content URI in a chosen folder. */
+  paths?: Record<string, string>;
+  /** The book's folder can't be reached, such as an SD card that was taken out. */
+  unavailable?: boolean;
+  /** A move left the old copies behind until the player lets go of them (`releaseOld`). */
+  oldCopies?: boolean;
+  /** The folder the paths are in (null: private storage), for `releaseOld`. */
+  location?: string | null;
   error: string | null;
 };
 
 export type StorageInfo = { freeBytes: number; totalBytes: number; usedBytes: number };
+
+/** Where new downloads go, and how moving the earlier ones there is getting on. */
+export type DownloadLocation = {
+  /** The chosen folder; null for the app's private storage. */
+  uri: string | null;
+  /** `primary` for the phone's shared storage, `removable` for an SD card or USB drive. */
+  volume: 'primary' | 'removable' | null;
+  /** The folder's path on its storage, such as `Audiobooks`. */
+  path: string | null;
+  available: boolean;
+  moving: boolean;
+  /** Books whose files are not in this folder yet. */
+  waiting: number;
+  error: string | null;
+};
 
 declare class LelapDownloadModule extends NativeModule {
   directory(): string;
@@ -33,6 +56,11 @@ declare class LelapDownloadModule extends NativeModule {
   statuses(): Promise<DownloadStatus[]>;
   setRules(wifiOnly: boolean, chargingOnly: boolean): Promise<void>;
   storage(): Promise<StorageInfo>;
+  location(): Promise<DownloadLocation>;
+  chooseLocation(): Promise<boolean>;
+  resetLocation(): Promise<void>;
+  resumeMove(): Promise<void>;
+  releaseOld(bookId: string, location: string | null): Promise<void>;
   isIgnoringBatteryOptimizations(): boolean;
   canNotify(): boolean;
   notify(tag: string, title: string, text: string, link: string | null): boolean;
@@ -67,6 +95,39 @@ export function setRules(rules: DownloadRules): Promise<void> {
 
 export function storage(): Promise<StorageInfo> {
   return native.storage();
+}
+
+/** Whether downloads can go to a folder the listener chooses (Android only). */
+export const CHOOSE_LOCATION = true;
+
+export function location(): Promise<DownloadLocation> {
+  return native.location();
+}
+
+/**
+ * Opens Android's folder picker. New downloads go to the chosen folder, and earlier ones move
+ * there in the background. False when the listener cancels.
+ */
+export function chooseLocation(): Promise<boolean> {
+  return native.chooseLocation();
+}
+
+/** Back to the app's private storage, moving the downloads back too. */
+export function resetLocation(): Promise<void> {
+  return native.resetLocation();
+}
+
+/**
+ * Deletes the copies a move left in the old folder. Call it once the player no longer reads the
+ * book from there.
+ */
+export function releaseOld(bookId: string, location: string | null): Promise<void> {
+  return native.releaseOld(bookId, location);
+}
+
+/** Continues a move that stopped or waited for an SD card. */
+export function resumeMove(): Promise<void> {
+  return native.resumeMove();
 }
 
 export function isIgnoringBatteryOptimizations(): boolean {

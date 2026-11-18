@@ -123,6 +123,16 @@ describe('groupIntoBooks', () => {
     expect(group([scanned('Hidden/.nomedia'), scanned('Hidden/book.mp3')])).toHaveLength(1);
   });
 
+  it('leaves out Lelap’s own downloads inside the library folder', () => {
+    const books = group([
+      scanned('Lelap/.nomedia'),
+      scanned('Lelap/.lelap-downloads'),
+      scanned('Lelap/0193f7a2/001.mp3'),
+      scanned('Lelapsing/book.mp3'),
+    ]);
+    expect(books.map((b) => b.title)).toEqual(['Lelapsing']);
+  });
+
   it('prefers an embedded cover, then the folder cover', () => {
     const covers = new Map([[`${ROOT}/Book`, '/covers/folder.jpg']]);
     expect(group([scanned('Book/a.mp3')], covers)[0]?.coverPath).toBe('/covers/folder.jpg');

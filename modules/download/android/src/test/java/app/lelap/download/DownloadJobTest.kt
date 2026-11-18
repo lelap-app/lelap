@@ -20,6 +20,13 @@ class DownloadJobTest {
     val withLogin = job.copy(headers = mapOf("Authorization" to "Basic bWU6cHc="))
     assertEquals(withLogin, DownloadJob.decode(withLogin.encode()))
     assertEquals(job.copy(cover = null), DownloadJob.decode(job.copy(cover = null).encode()))
+    val onCard = job.copy(location = "content://com.android.externalstorage.documents/tree/1A2B-3C4D%3A", revision = "r1")
+    assertEquals(onCard, DownloadJob.decode(onCard.encode()))
+  }
+
+  @Test fun `a job from before chosen folders is in private storage`() {
+    val json = """{"bookId":"b1","title":"T","files":[{"url":"https://x/1.mp3","name":"001.mp3","size":5}],"cover":null,"rules":{"wifiOnly":false,"chargingOnly":true}}"""
+    assertNull(DownloadJob.decode(json)?.location)
   }
 
   @Test fun `reads the plan JavaScript sends`() {

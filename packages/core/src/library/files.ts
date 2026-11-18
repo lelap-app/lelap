@@ -38,3 +38,49 @@ const collator = new Intl.Collator('da', { numeric: true, sensitivity: 'base' })
 export function compareNatural(a: string, b: string): number {
   return collator.compare(a, b);
 }
+
+const COVER_IMAGE = /^(cover|folder)\.(jpe?g|png|webp)$/i;
+const COVER_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+
+/** `cover.jpg` before `folder.jpg`; JPEG before PNG before WebP. */
+function coverRank(name: string): number {
+  const [base = '', ext = ''] = name.toLowerCase().split('.');
+  return (base === 'cover' ? 0 : COVER_EXTENSIONS.length) + COVER_EXTENSIONS.indexOf(ext);
+}
+
+/**
+ * The cover image in each folder (`cover.jpg`, `folder.jpg`, `cover.png`, … in any case), by the
+ * folder's location. A book uses it when its files carry no cover of their own.
+ */
+export function folderCoverFiles<F extends { location: string; name: string }>(
+  files: F[],
+): Map<string, F> {
+  const covers = new Map<string, F>();
+  for (const file of files) {
+    if (!COVER_IMAGE.test(file.name)) continue;
+    const folder = file.location.slice(0, file.location.lastIndexOf('/'));
+    const current = covers.get(folder);
+    if (!current || coverRank(file.name) < coverRank(current.name)) covers.set(folder, file);
+  }
+  return covers;
+}
+
+/**
+ * The name a server folder's cover is kept under on the device. It changes when the image on the
+ * server does, so an unchanged cover is not fetched again on every scan.
+ */
+export function folderCoverCacheName(file: {
+  location: string;
+  name: string;
+  size: number;
+  modifiedAt: number;
+}): string {
+  // FNV-1a: short and stable; a collision only shows the wrong cover until the next change.
+  let hash = 0x811c9dc5;
+  for (const char of `${file.location}|${file.size}|${file.modifiedAt}`) {
+    hash ^= char.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  const ext = file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase();
+  return `folder-${hash.toString(16).padStart(8, '0')}.${ext}`;
+}

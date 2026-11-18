@@ -12,6 +12,8 @@ import {
   setRemoteCovers,
   type FileTags,
   filesNeedingTags,
+  folderCoverCacheName,
+  folderCoverFiles,
   type ListedFile,
   listRoots,
   listS3,
@@ -19,7 +21,8 @@ import {
   scanFailureEvent,
   upsertRoot,
 } from '@lelap/core';
-import { Directory, Paths } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
+import { Platform } from 'react-native';
 
 import { forgetAudiobookshelfParts, withKey } from './audiobookshelf';
 import { db, newId } from './db';
@@ -35,8 +38,6 @@ import {
 import { fileAccess } from './remote';
 
 export type ScanResult = { added: number; missing: number } | { error: 'permission' | 'no-folder' };
-
-const COVER_IMAGE = /^(cover|folder)\.(jpe?g|png|webp)$/i;
 
 // Native code wants a plain path, not a file:// URI.
 const coverDir = () =>
@@ -74,6 +75,31 @@ async function tagsFor(root: Root, file: ListedFile, dir: string): Promise<FileT
   if (!root.remote) return readTags(file.uri, file.name, dir);
   const access = fileAccess({ uri: file.uri, rootId: root.id });
   return readRemoteTags(access.uri, access.headers, file.name, dir);
+}
+
+/**
+ * A WebDAV or S3 folder's cover, downloaded once per version of the image. Null on the web, which
+ * keeps no covers folder.
+ */
+async function fetchFolderCover(root: Root, file: ListedFile): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+  const folder = new Directory(Paths.document, 'covers');
+  if (!folder.exists) folder.create({ intermediates: true });
+  const target = new File(folder, folderCoverCacheName(file));
+  const pathOf = (f: File) => decodeURI(f.uri.replace(/^file:\/\//, ''));
+  if (target.exists) return pathOf(target);
+  // Partial downloads never stay under the final name, or a broken image would be kept for good.
+  const part = new File(folder, `${folderCoverCacheName(file)}.part`);
+  if (part.exists) part.delete();
+  const access = fileAccess({ uri: file.uri, rootId: root.id });
+  try {
+    await File.downloadFileAsync(access.uri, part, { headers: access.headers });
+    part.move(target);
+  } catch (error) {
+    if (part.exists) part.delete();
+    throw error;
+  }
+  return pathOf(target);
 }
 
 async function run(onProgress: (done: number, total: number) => void): Promise<ScanResult> {
@@ -128,15 +154,14 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
     }
     onProgress(need.length, need.length);
 
-    // `cover.jpg` files are read from the phone's folder only; servers give embedded covers.
+    // `cover.jpg` and friends, for books whose files carry no cover. A server's image is fetched
+    // with the same login as its audio, straight from the server, and kept with the other covers.
     const folderCovers = new Map<string, string>();
-    if (!root.remote) {
-      for (const file of listed.filter((f) => COVER_IMAGE.test(f.name))) {
-        const folder = file.location.slice(0, file.location.lastIndexOf('/'));
-        if (folderCovers.has(folder)) continue;
-        const path = await readImage(file.uri, dir()).catch(() => null);
-        if (path) folderCovers.set(folder, path);
-      }
+    for (const [folder, file] of folderCoverFiles(listed)) {
+      const path = await (
+        root.remote ? fetchFolderCover(root, file) : readImage(file.uri, dir())
+      ).catch(() => null);
+      if (path) folderCovers.set(folder, path);
     }
 
     const result = applyScan(db, {
