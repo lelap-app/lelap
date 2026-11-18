@@ -73,6 +73,14 @@ export function signinPath(step: 'start' | 'check', type: ContentType = 'audiobo
   return `signin/${type}/${step}.json`;
 }
 
+/**
+ * Since revision 8: the call that hands an add-on inside the app a batch of `ScrobbleEvent`s with
+ * its settings. Only the sandbox makes it; over HTTP an add-on takes `POST /scrobble`.
+ */
+export function scrobblePath(type: ContentType = 'audiobook'): string {
+  return `scrobble/${type}/all.json`;
+}
+
 export type Route =
   | { resource: 'manifest' }
   | { resource: 'catalog'; type: ContentType; id: string; extra: Extra }

@@ -23,6 +23,7 @@ export const SHARED_TABLES = [
   'removed_addons',
   'local_addon_code',
   'stream_headers',
+  'addon_settings',
   'downloads',
   'podcasts',
   'episodes',
@@ -344,6 +345,22 @@ export const localAddonCode = sqliteTable('local_addon_code', {
   code: text('code').notNull(),
   /** SHA-256 of `code`, shown at install so a listener can compare it with the author's. */
   sha256: text('sha256').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+/**
+ * The settings of a scrobbler inside the app (M61, protocol revision 8), such as the Open Library
+ * reading log's archive.org keys. Password fields are sealed like a server's password. On this
+ * device only: never synced, exported or in diagnostics.
+ */
+export const scrobblerSettings = sqliteTable('addon_settings', {
+  url: text('url').primaryKey(),
+  /** The plain fields, as JSON. */
+  settings: text('settings').notNull(),
+  /** The password fields as JSON, sealed with the device's key where there is one. */
+  secret: text('secret').notNull(),
+  /** The installed file's fingerprint the settings were entered for; null for a bundled add-on. */
+  codeSha: text('code_sha'),
   updatedAt: integer('updated_at').notNull(),
 });
 

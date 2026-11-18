@@ -1,41 +1,48 @@
 # M61 follow-ups
 
-Checked in the web preview (Chrome), with the catalog Worker under `wrangler dev` and a stand-in
-for Open Library's login and bookshelves endpoints on localhost (`OPEN_LIBRARY_URL`): the configure
-page at `/open-library/configure` refused a wrong secret with “Open Library did not accept these S3
-keys” and made a sealed link for the right ones. Pasted under Settings → Add-ons, the add-on showed
-as Working. Playing Walden from the Catalog (`ol:OL55649W`, audio from LibriVox) put
-`OL55649W` on shelf 2 (Currently reading); playing it to the end put it on shelf 3 (Already read)
-within seconds. Each shelf request sent the work in its path and only `bookshelf_id` and
-`dont_remove` in its body, with the `session` cookie, `Accept`, `Content-Type` and
-`User-Agent: Lelap/1 (+https://github.com/lelap-app/lelap)`.
+The reading log is a bundled add-on inside the app
+(`packages/core/src/addons/bundled/openlibrary-log.js`), not a Worker route: the archive.org S3 keys
+stay sealed on the phone and never travel in an add-on URL or reach a Lelap server.
 
-Covered by tests, against answers written from Open Library's source (`account_login_json`,
-`process_work_bookshelves`): the S3-key login and the cookie it sets, keys never in the link,
-keys refused while configuring and later (401), an email and password refused before anything is
-sent, start and finish to the two shelves, nothing sent for progress, pauses, abandons and ratings
-(no login either), books without a work ID skipped and never searched for, `ol` external IDs from
-other add-ons, only the last start or finish per work, one login per batch and 350 ms between
-shelf requests, login errors (wrong keys and blocked accounts as 401, other errors, redirects and
-429 retried later), a work Open Library refuses skipped without holding up the others, the comma-
-joined `Set-Cookie` header, `OPEN_LIBRARY_URL` limited to https or localhost, a link sealed for
-another add-on refused.
+Checked in the web preview (Chrome) with a stand-in for Open Library's login and bookshelves on
+localhost (`EXPO_PUBLIC_LELAP_SCROBBLER_STAND_IN`, development builds only): Settings → Add-ons lists
+“Open Library reading log” under Comes with Lelap with the note that it works in the Android app
+only, and its set-up page shows the same note instead of the form. Driven from the console, the
+add-on ran in a worker sandbox (`isolated: true`) of its own: with only openlibrary.org allowed,
+its sign-in was refused before anything left the page (“Not allowed: this add-on may only reach
+openlibrary.org.”); with the stand-in allowed, the login reached it and nothing else did. Chrome
+sent its own User-Agent instead of Lelap's and kept the `session` cookie from the page, so the
+add-on answered 401: the reason the web app doesn't offer it.
 
-Open with a real account (the maintainer's; nothing here created or used one):
+Covered by tests: the add-on file run as the sandbox runs it, against answers written from Open
+Library's source (`account_login_json`, `process_work_bookshelves`): the S3-key login as JSON with
+Lelap's User-Agent, the set-up check (a call without events signs in only), start and finish to
+the two shelves with only `bookshelf_id` and `dont_remove`, nothing about the listening sent,
+nothing sent for progress, pauses, abandons and ratings (no login either), books without a work
+ID skipped and never searched for, `ol` external IDs from other add-ons, the last start or finish
+per work with one login and 350 ms between requests, account errors as 401 and passing ones as
+5xx, a work Open Library refuses skipped, no keys in its messages, only openlibrary.org or a
+stand-in the app allowed. The settings on the device: the secret sealed and opened again, not for
+other code, asked for again after a restore on another phone, kept out of sync, exports,
+diagnostics and the scrobble outbox, removed with the add-on; the sandbox's hosts.
 
-- <a id="keys"></a>Make S3 keys at archive.org/account/s3.php, paste them on
-  `https://catalog.lelap.app/open-library/configure` (after the next services deploy): the page
-  makes a link. Check that the JSON login with S3 keys still sets the `session` cookie; the
-  add-on depends on it.
-- <a id="reading"></a>Add the link in Lelap on a phone, start a Catalog book: within a minute it
-  is on Currently reading at openlibrary.org/account/books.
-- <a id="read"></a>Play it to the end: within a minute it moves to Already read, with no check-in
-  date added.
+Open on a phone, with the maintainer's own archive.org account (nothing here created or used one):
+
+- <a id="reading"></a>Settings → Add-ons → Open Library reading log → Set up. Make S3 keys at
+  archive.org/account/s3.php, paste them, Check and save: it signs in and the add-on shows in the
+  list. Start a Catalog book: within a minute it is on Currently reading at
+  openlibrary.org/account/books. Play it to the end: within a minute it moves to Already read, with
+  no check-in date added. Check that the JSON login still sets the `session` cookie and that the
+  app hands the add-on `set-cookie` on Android; the add-on depends on both.
+- <a id="useragent"></a>The stand-in's log on a development build shows
+  `User-Agent: Lelap/1 (+https://github.com/lelap-app/lelap)`: set
+  `EXPO_PUBLIC_LELAP_SCROBBLER_STAND_IN` to a stand-in on the laptop behind `adb reverse`.
 - <a id="already"></a>Start a book that is already on Want to read: it moves to Currently reading
   rather than coming off the shelf.
-- <a id="revoke"></a>Make new keys on the same archive.org page: check that the old keys stop
-  working (the docs and the configure page say so), so the next start fails with 401 and the
-  add-on asks to be configured again.
+- <a id="revoke"></a>Make new keys on the same archive.org page: check that the old ones stop
+  working, so the next start fails with 401; the add-on then asks to be set up again.
+- <a id="restore"></a>Restore a backup on another phone: the reading log asks for its keys again
+  (Settings shows “Enter the keys again”), and the export file holds no keys.
 - <a id="librivox"></a>A book from the LibriVox add-on outside the Catalog has no Open Library ID:
   nothing is sent.
 
@@ -49,11 +56,12 @@ From the review:
 - The User-Agent names the project and its repository but no contact email, which Open Library
   suggests for clients that make many requests. The add-on keeps to 3 requests a second.
 
+Also:
+
 - Books from the listener's own files that M56 linked to a Catalog work are scrobbled without the
-  work's ID, so this add-on skips them. Sending the linked work as `externalIds.ol` would cover
+  work's ID, so the reading log skips them. Sending the linked work as `externalIds.ol` would cover
   them (and give Hardcover a better match).
 - “Mark as finished” in the book menu doesn't scrobble, here or to Hardcover; only playing to the
   end does.
-- Each batch with a start or finish signs in again; Open Library's login goes through archive.org.
-  If that proves slow or limited, the Worker could keep the session in memory for a while, at the
-  cost of holding a live session on the server.
+- When settings can't be opened (a restore on another phone), events wait (503) until the keys are
+  entered again or for 30 days; the Add-ons screen doesn't yet say so on the add-on's row.

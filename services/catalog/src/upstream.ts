@@ -1,14 +1,7 @@
 /** The platform calls the add-ons need, injected so Workers, Node and tests can each provide them. */
 export type FetchLike = (
   url: string,
-  init: {
-    headers: Record<string, string>;
-    signal?: AbortSignal;
-    method?: string;
-    body?: string;
-    /** `manual` keeps a `Set-Cookie` that came with a redirect. */
-    redirect?: 'follow' | 'manual';
-  },
+  init: { headers: Record<string, string>; signal?: AbortSignal; method?: string; body?: string },
 ) => Promise<Response>;
 
 /** A response cache keyed by URL, such as the Workers Cache API. */

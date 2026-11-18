@@ -11,7 +11,6 @@ import type { PodcastIndexCredentials } from './podcastindex';
 import { BASE_PATH as GPODDER, gpodderAddon } from './scrobble/gpodder';
 import { BASE_PATH as HARDCOVER, hardcoverAddon } from './scrobble/hardcover';
 import { mountConfigurable } from './scrobble/mount';
-import { BASE_PATH as OPEN_LIBRARY_LOG, openLibraryLogAddon } from './scrobble/openlibrary';
 import { createSealer } from './scrobble/sealed';
 import { createUpstream, type Platform } from './upstream';
 
@@ -22,36 +21,15 @@ export type Env = {
   /** Where the source lives; it goes into the User-Agent sent upstream. */
   SOURCE_URL?: string;
   /**
-   * At least 32 random characters. Seals listeners' tokens and keys into the Hardcover, gPodder
-   * and Open Library reading log add-on URLs; without it those add-ons can't be configured. Changing it means everyone configures
+   * At least 32 random characters. Seals listeners' tokens into the Hardcover and gPodder add-on
+   * URLs; without it those add-ons can't be configured. Changing it means everyone configures
    * them again.
    */
   CONFIG_SECRET?: string;
-  /** Where the reading log add-on signs in; openlibrary.org unless testing against another. */
-  OPEN_LIBRARY_URL?: string;
 };
 
 export function userAgent(env: Env): string {
   return env.SOURCE_URL ? `Lelap/1 (+${env.SOURCE_URL})` : 'Lelap/1';
-}
-
-/**
- * `OPEN_LIBRARY_URL` when it is https, or http on this machine; listeners' keys go there, so
- * anything else is ignored.
- */
-export function openLibraryBase(env: Env): string | undefined {
-  const value = env.OPEN_LIBRARY_URL?.trim();
-  if (!value) return undefined;
-  try {
-    const url = new URL(value);
-    const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-    if (url.protocol === 'https:' || (url.protocol === 'http:' && local))
-      return url.href.replace(/\/+$/, '');
-  } catch {
-    // Falls through to the warning.
-  }
-  console.error('OPEN_LIBRARY_URL is not an https address; using openlibrary.org');
-  return undefined;
 }
 
 export function podcastIndexCredentials(env: Env): PodcastIndexCredentials | null {
@@ -82,16 +60,6 @@ export function createApp(platform: Platform, env: Env): Hono {
     { ...gpodderAddon(platform.userFetch ?? platform.fetch, agent), onError },
     createSealer(env.CONFIG_SECRET, 'gpodder'),
   );
-  const openLibrary = openLibraryBase(env);
-  const openLibraryLog = mountConfigurable(
-    {
-      ...openLibraryLogAddon(platform.fetch, agent, {
-        ...(openLibrary ? { base: openLibrary } : {}),
-      }),
-      onError,
-    },
-    createSealer(env.CONFIG_SECRET, 'openlibrary-log'),
-  );
 
   const app = new Hono();
   // JSON only: never let a browser treat an answer as a page on this origin.
@@ -113,11 +81,7 @@ export function createApp(platform: Platform, env: Env): Hono {
           manifest(`${BASE_PATH}/manifest.json`),
           manifest(`${INTERNET_ARCHIVE}/manifest.json`),
         ],
-        configure: [
-          manifest(`${HARDCOVER}/configure`),
-          manifest(`${GPODDER}/configure`),
-          manifest(`${OPEN_LIBRARY_LOG}/configure`),
-        ],
+        configure: [manifest(`${HARDCOVER}/configure`), manifest(`${GPODDER}/configure`)],
       },
       200,
       CORS_HEADERS,
@@ -126,7 +90,6 @@ export function createApp(platform: Platform, env: Env): Hono {
   for (const [path, serve] of [
     [HARDCOVER, hardcover],
     [GPODDER, gpodder],
-    [OPEN_LIBRARY_LOG, openLibraryLog],
   ] as const) {
     app.all(path, (c) => serve(c.req.raw));
     app.all(`${path}/*`, (c) => serve(c.req.raw));

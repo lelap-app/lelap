@@ -7,6 +7,7 @@ import {
   addons,
   books,
   localAddonCode,
+  scrobblerSettings,
   profiles,
   removedAddons,
   scrobbleOutbox,
@@ -150,8 +151,9 @@ export function removeAddon(db: Db, url: string, now: number): void {
     const row = tx.select().from(addons).where(eq(addons.url, url)).get();
     if (!row) return;
     tx.delete(addons).where(eq(addons.url, url)).run();
-    // An add-on that ran inside the app takes its code with it.
+    // An add-on that ran inside the app takes its code with it, and a scrobbler its settings.
     tx.delete(localAddonCode).where(eq(localAddonCode.url, url)).run();
+    tx.delete(scrobblerSettings).where(eq(scrobblerSettings.url, url)).run();
     if (row.builtin) {
       tx.insert(removedAddons)
         .values({ url, removedAt: now, updatedAt: now })

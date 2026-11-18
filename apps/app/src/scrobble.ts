@@ -3,6 +3,7 @@ import {
   getBook,
   getProfile,
   type InstalledAddon,
+  isLocalAddonUrl,
   listAddons,
   mergeServiceAccounting,
   nextScrobbleDue,
@@ -17,12 +18,15 @@ import {
 
 import { db, newId } from './db';
 import * as audio from './platform/audio';
+import { postLocalScrobble } from './scrobblers';
 
 // Reports listening to add-ons that declare `scrobble`. Events wait in the outbox in the
 // database, so what was played offline goes out later with its own timestamps.
 
 const tracker = new ScrobbleTracker();
-const post: Poster = (url, init) => fetch(url, init);
+// Scrobblers inside the app (M61) get their events in their sandbox, not over HTTP.
+const post: Poster = (url, init) =>
+  isLocalAddonUrl(url) ? postLocalScrobble(url, init.body) : fetch(url, init);
 
 /** The add-ons a profile sees: a grown-up can hide a scrobbler from a child's profile. */
 function addonsFor(profile: string): InstalledAddon[] {
