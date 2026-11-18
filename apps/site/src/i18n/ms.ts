@@ -27,7 +27,6 @@ export const ms: Record<string, string> = {
   'Add-ons made by others run on their own servers. We can’t remove them, but we’ll tell you what we know about where one is hosted.':
     'Alat tambah yang dibuat oleh pihak lain berjalan pada pelayan mereka sendiri. Kami tidak dapat membuangnya, tetapi kami akan memberitahu anda apa yang kami tahu tentang tempat ia dihoskan.',
   'Audio never passes through our servers': 'Audio tidak pernah melalui pelayan kami',
-  Audiobooks: 'Buku audio',
   Beta: 'Beta',
   'Bring your own files': 'Bawa fail anda sendiri',
   'Built for long listens.': 'Dibina untuk sesi mendengar yang panjang.',
@@ -36,7 +35,6 @@ export const ms: Record<string, string> = {
     'Mod kereta memaparkan kulit buku yang besar dan lima butang besar. Android Auto memaparkan kulit buku yang disimpan pada telefon anda.',
   'Cast to the living room': 'Hantar ke ruang tamu',
   Catalogs: 'Katalog',
-  'Chapter {n}': 'Bab {n}',
 
   'Chapters where there were none': 'Bab untuk buku tanpa bab',
   'Clearer voices': 'Suara yang lebih jelas',
@@ -45,6 +43,7 @@ export const ms: Record<string, string> = {
   'Coming soon': 'Akan datang',
   'Connect the libraries you already have through add-ons, download for the flight, and drift off to a timer that fades. Open source, no account, no app store, no lock-in.':
     'Sambungkan pustaka yang sudah anda miliki melalui alat tambah, muat turun untuk penerbangan, dan terlelap diiringi pemasa yang beransur senyap. Sumber terbuka, tanpa akaun, tanpa gedung aplikasi, tanpa ikatan.',
+  Changelog: 'Log perubahan',
   Contribute: 'Menyumbang',
   Copyright: 'Hak cipta',
   'Covers, narrators, chapters': 'Kulit buku, pembaca, bab',
@@ -64,7 +63,6 @@ export const ms: Record<string, string> = {
     'Muat turun buku dan episod melalui Wi-Fi dengan skrin dimatikan, di Android ke kad SD jika anda mahu. Mod pesawat ialah hari biasa, bukan keadaan ralat.',
   'Download for Android': 'Muat turun untuk Android',
   Downloaded: 'Dimuat turun',
-  'Early Mornings at the Laksa Café': 'Pagi-pagi di Kafe Laksa',
   'Encrypted sync': 'Segerak bersulit',
   'Every control has a name for TalkBack, buttons are large enough to hit, and screens hold up at the largest text size.':
     'Setiap kawalan mempunyai nama untuk TalkBack, butang cukup besar untuk ditekan, dan skrin kekal kemas pada saiz teks terbesar.',
@@ -83,10 +81,10 @@ export const ms: Record<string, string> = {
   'From the add-ons you install. Out of the box that means public-domain audiobooks from LibriVox, podcast feeds and your own files. Add-ons are made and run by third parties. You are responsible for the add-ons you add and for only playing content you have the right to.':
     'Daripada alat tambah yang anda pasang. Secara lalai, itu bermakna buku audio domain awam daripada LibriVox, suapan podcast dan fail anda sendiri. Alat tambah dibuat dan dijalankan oleh pihak ketiga. Anda bertanggungjawab atas alat tambah yang anda tambah dan untuk hanya memainkan kandungan yang anda berhak mainkan.',
   'Get it': 'Dapatkan',
+  Help: 'Bantuan',
   'Get it on Android, or open it in a browser.': 'Dapatkan di Android, atau buka dalam pelayar.',
   'Hi, I’m Lori, a slow loris. <em>Lelap</em> is Indonesian for deep, peaceful sleep, which I’m very good at. I’m from Indonesia too, and I keep your place while you drift off.':
     'Hai, saya Lori, seekor kongkang. <em>Lelap</em> ialah perkataan Indonesia untuk tidur yang nyenyak dan tenang, dan saya memang pandai tidur. Saya juga berasal dari Indonesia, dan saya menyimpan tempat anda semasa anda terlelap.',
-  Home: 'Utama',
   'How it works': 'Cara ia berfungsi',
   'How to reach you, and that you are authorised to act for the rights holder':
     'Cara menghubungi anda, dan pengesahan bahawa anda diberi kuasa untuk bertindak bagi pihak pemegang hak',
@@ -99,7 +97,10 @@ export const ms: Record<string, string> = {
     'Ia perkataan Indonesia untuk tidur yang nyenyak dan tenang. Begitulah, pada pendapat kami, cerita yang baik patut menutup hari anda.',
   'Keeps going through calls': 'Terus bermain semasa panggilan',
   Later: 'Kemudian',
-  Library: 'Pustaka',
+  'Lelap’s home screen: the book to continue at the top, then rows of books from an add-on: Self-improvement and Growing up.':
+    'Skrin utama Lelap: buku untuk diteruskan di bahagian atas, kemudian baris buku daripada alat tambah: Pembangunan diri dan Membesar.',
+  'Lelap’s player: Early Mornings at the Laksa Café by Janet Tay, chapter 3 of 6, at 1.25× speed, with a 30-minute sleep timer running.':
+    'Pemain Lelap: Pagi-pagi di Kafe Laksa oleh Janet Tay, bab 3 daripada 6, pada kelajuan 1.25×, dengan pemasa tidur 30 minit sedang berjalan.',
   'Library, progress, downloads and playlists live on your phone first.':
     'Pustaka, kemajuan, muat turun dan senarai main disimpan dalam telefon anda dahulu.',
   'Lori, asleep before the chapter ends. Tap him.':
@@ -120,8 +121,10 @@ export const ms: Record<string, string> = {
     'Tanpa Play Store dan tanpa akaun. Setiap saluran menyediakan APK bertandatangan yang sama.',
   'No. To continue on another device, pair it with a sync code. Skip that and everything stays on the one device.':
     'Tidak. Untuk menyambung di peranti lain, gandingkannya dengan kod segerak. Langkau langkah itu dan semuanya kekal dalam satu peranti itu.',
-  'No. We publish our own add-ons for open sources and the SDK, nothing else. There is no add-on store, and we don’t link to, review or promote add-ons made by others.':
-    'Tidak. Kami menerbitkan alat tambah kami sendiri untuk sumber terbuka dan SDK, itu sahaja. Tiada gedung alat tambah, dan kami tidak memaut ke, mengulas atau mempromosikan alat tambah yang dibuat oleh pihak lain.',
+  'No. An add-on is just a web address that anyone can build, host and share, and you decide whose you trust. We can’t check what someone else’s add-on connects to, or keep checking as it changes, so we won’t vouch for any of it. We publish our own add-ons for open sources and the SDK, nothing else.':
+    'Tidak. Alat tambah hanyalah alamat web yang boleh dibina, dihoskan dan dikongsi oleh sesiapa sahaja, dan anda yang menentukan siapa yang anda percayai. Kami tidak dapat menyemak apa yang disambungkan oleh alat tambah orang lain, atau terus menyemaknya apabila ia berubah, jadi kami tidak akan menjamin mana-mana daripadanya. Kami menerbitkan alat tambah kami sendiri untuk sumber terbuka dan SDK, itu sahaja.',
+  'More answers, from adding an add-on to moving to a new phone, are on the <a href="/help" hreflang="en">help page</a>.':
+    'Lebih banyak jawapan, daripada menambah alat tambah hingga berpindah ke telefon baharu, ada di <a href="/help" hreflang="en">halaman bantuan</a> (dalam bahasa Inggeris).',
   'Nothing to download yet. These are the ways you’ll get the first version.':
     'Belum ada apa-apa untuk dimuat turun. Inilah cara anda akan mendapat versi pertama.',
   'Nothing to install. Add it to your home screen as a PWA. Best for your laptop, an iPhone or iPad, or any device that isn’t an Android phone.':
@@ -132,7 +135,6 @@ export const ms: Record<string, string> = {
     'Pada skrin lebar, pemain berada di sebelah pustaka anda. Aplikasi web mempunyai pintasan papan kekunci untuk main, langkau dan kelajuan.',
   'On Android, finds chapters at the long silences of a book without any. Skips a show’s intro and outro, set once per show.':
     'Di Android, mencari bab pada senyap panjang dalam buku yang tiada bab. Melangkau pengenalan dan penutup rancangan, ditetapkan sekali bagi setiap rancangan.',
-  'On this phone': 'Dalam telefon ini',
   'Open source · Android · Web · Self-hosted': 'Sumber terbuka · Android · Web · Hos sendiri',
   'Open source · Beta · Android and web': 'Sumber terbuka · Beta · Android dan web',
   'Open source, so you can check every line of that claim.':
@@ -147,10 +149,8 @@ export const ms: Record<string, string> = {
     'Sambung di komputer riba dari tempat anda berhenti di telefon. Gandingkan peranti dengan kod; segerak disulitkan hujung ke hujung.',
   'Play straight from your WebDAV, S3-compatible, Jellyfin, Emby, Plex, Navidrome or Audiobookshelf server, and on Android from SMB and SFTP. The app talks to it directly and keeps the credentials on your device.':
     'Main terus dari pelayan WebDAV, storan serasi S3, Jellyfin, Emby, Plex, Navidrome atau Audiobookshelf anda, dan di Android dari SMB dan SFTP. Aplikasi berhubung terus dengannya dan menyimpan butiran log masuk dalam peranti anda.',
-  'Playing from': 'Dimainkan dari',
   'Playlists, tags and Up Next': 'Senarai main, tag dan Seterusnya',
   'Please include:': 'Sila sertakan:',
-  Podcasts: 'Podcast',
   Primary: 'Navigasi utama',
   Privacy: 'Privasi',
   'Progress that follows you': 'Kemajuan yang mengikut anda',
@@ -171,13 +171,8 @@ export const ms: Record<string, string> = {
   'Self-host with Docker →': 'Hos sendiri dengan Docker →',
   'Self-hosted': 'Hos sendiri',
   'Self-hosting': 'Hos sendiri',
-  'Growing up': 'Membesar',
-  'Hardcover list': 'Senarai Hardcover',
-  'Horror and uncanny': 'Seram dan ganjil',
-  'Self-improvement': 'Pembangunan diri',
   'Share progress elsewhere': 'Kongsi kemajuan di tempat lain',
   'Ships with open sources:': 'Disertakan dengan sumber terbuka:',
-  'Sleep timer': 'Pemasa tidur',
   'Smart rewind, speed, chapters': 'Undur pintar, kelajuan, bab',
   'Sonos, DLNA, Google Cast and FCast from Android. The lock screen, your headphones and the sleep timer control the speaker.':
     'Sonos, DLNA, Google Cast dan FCast dari Android. Skrin kunci, fon kepala anda dan pemasa tidur mengawal pembesar suara.',
@@ -190,8 +185,8 @@ export const ms: Record<string, string> = {
     'Aplikasi memainkan audio. <span class="nowrap">Alat tambah</span> membawa pustaka.',
   'The built-in catalog add-on: Open Library, LibriVox and Podcast Index, cached.':
     'Alat tambah katalog terbina dalam: Open Library, LibriVox dan Podcast Index, dengan cache.',
-  'The docs, terms and privacy policy are in English.':
-    'Dokumentasi, terma dan dasar privasi hanya dalam bahasa Inggeris.',
+  'The docs, help, changelog, terms and privacy policy are in English.':
+    'Dokumentasi, bantuan, log perubahan, terma dan dasar privasi hanya dalam bahasa Inggeris.',
   'The full experience: background playback, downloads with the screen off, casting and Android Auto. Small updates install themselves; new versions take one tap.':
     'Pengalaman penuh: main balik di latar belakang, muat turun dengan skrin dimatikan, penghantaran dan Android Auto. Kemas kini kecil dipasang sendiri; versi baharu hanya perlu satu ketikan.',
   'The library opens in three groups: in progress, not started and finished. One queue for books and episodes, hand-made lists, and smart ones like “short and not started” or “for the flight”. Hide what you don’t want in the library; files that look like music are pointed out.':
@@ -228,7 +223,6 @@ export const ms: Record<string, string> = {
     'Ya. Alat tambah ialah perkhidmatan HTTP kecil yang memulangkan JSON. <a href="/docs/" hreflang="en">Dokumentasi alat tambah</a> (dalam bahasa Inggeris) merangkumi protokol dan SDK, yang ada di npm sebagai <code>@lelap/sdk</code>.',
   'Yes. The code is open source, and the hosted web app at {host} is free to use.':
     'Ya. Kodnya sumber terbuka, dan aplikasi web yang dihoskan di {host} percuma untuk digunakan.',
-  'Your library': 'Pustaka anda',
   'Your library lives on your device. There is no profile to sign up for.':
     'Pustaka anda disimpan dalam peranti anda. Tiada profil untuk didaftarkan.',
   'Your own files': 'Fail anda sendiri',
@@ -236,7 +230,6 @@ export const ms: Record<string, string> = {
     'Telefon anda berhubung terus dengan alat tambah dan sumbernya. Kami tidak pernah melihat apa yang anda mainkan.',
   'Your year in sound': 'Setahun anda mendengar',
   'Your server, your bucket': 'Pelayan anda, baldi anda',
-  'fades out': 'beransur senyap',
   '{name} does not host, index or link to any content. Add-ons are made and run by third parties.':
     '{name} tidak mengehos, mengindeks atau memaut ke sebarang kandungan. Alat tambah dibuat dan dijalankan oleh pihak ketiga.',
   '{name} handles playback, downloads, progress and sync. What you browse, where the audio lives and where your progress is shared are add-ons you choose, made and run by whoever builds them.':

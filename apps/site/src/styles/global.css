@@ -27,21 +27,6 @@
   --code-bg: light-dark(#fdfbf7, #0a0b0d);
   --code-line: light-dark(#ddd5c5, #23262e);
   --shadow: light-dark(rgb(60 40 10 / 0.14), rgb(0 0 0 / 0.4));
-  /* Drawn book covers in the phone mockups. Muted so amber stays the only accent. */
-  --cover-navy: #22324f;
-  --cover-teal: #1f4746;
-  --cover-plum: #3f2a48;
-  --cover-forest: #2a4231;
-  --cover-wine: #57262c;
-  --cover-slate: #39404d;
-  --cover-ocean: #1e3a57;
-  --cover-olive: #48472a;
-  --cover-rose: #6a3a48;
-  --cover-sand: #d8cab0;
-  --cover-paper: #ebe3d3;
-  --cover-broth: #b5573a;
-  --cover-ink: #ede6d6;
-  --cover-ink-dark: #1d1a16;
   --font-display: 'Space Grotesk Variable', 'Inter Variable', system-ui, sans-serif;
   --font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -342,20 +327,6 @@ code {
   line-height: 1.65;
   color: var(--fg-soft);
   overflow-x: auto;
-}
-
-/* Phone mockups */
-.phone-frame {
-  width: min(300px, 100%);
-  height: 610px;
-  border: 8px solid var(--code-line);
-  border-radius: 44px;
-  background: var(--code-bg);
-  padding: 22px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  overflow: hidden;
 }
 
 /* Long-form pages (terms, privacy) */

@@ -1,0 +1,27 @@
+---
+// Paragraphs and lists from CHANGELOG.md, as read by src/lib/changelog.ts.
+import ChangelogText from './ChangelogText.astro';
+import type { Block } from '../lib/changelog';
+
+interface Props {
+  blocks: Block[];
+}
+
+const { blocks } = Astro.props;
+---
+
+{blocks.map((block) =>
+  block.kind === 'p' ? (
+    <p>
+      <ChangelogText parts={block.text} />
+    </p>
+  ) : (
+    <ul>
+      {block.items.map((item) => (
+        <li>
+          <ChangelogText parts={item} />
+        </li>
+      ))}
+    </ul>
+  ),
+)}

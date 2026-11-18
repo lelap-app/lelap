@@ -1,0 +1,141 @@
+---
+// A screenshot of the real app in a phone frame, made from a demo library of made-up books by the
+// site-screenshots skill (.claude/skills/site-screenshots). Regenerate after UI changes.
+import { Picture } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import Icon from './Icon.astro';
+import { t, type Lang } from '../i18n';
+import homeEn from '../assets/screens/home-en.webp';
+import homeMs from '../assets/screens/home-ms.webp';
+import playerEn from '../assets/screens/player-en.webp';
+import playerMs from '../assets/screens/player-ms.webp';
+
+interface Props {
+  lang: Lang;
+  screen: 'player' | 'home';
+  /** Above the fold: load it at once rather than when scrolled to. */
+  eager?: boolean;
+}
+
+const { lang, screen, eager = false } = Astro.props;
+
+const images: Record<Props['screen'], Record<Lang, ImageMetadata>> = {
+  player: { en: playerEn, ms: playerMs },
+  home: { en: homeEn, ms: homeMs },
+};
+
+const alt = {
+  player: t(
+    lang,
+    'Lelap’s player: Early Mornings at the Laksa Café by Janet Tay, chapter 3 of 6, at 1.25× speed, with a 30-minute sleep timer running.',
+  ),
+  home: t(
+    lang,
+    'Lelap’s home screen: the book to continue at the top, then rows of books from an add-on: Self-improvement and Growing up.',
+  ),
+}[screen];
+---
+
+<figure class:list={['stage night', screen]}>
+  <div class="frame">
+    <Picture
+      src={images[screen][lang]}
+      alt={alt}
+      widths={[300, 600]}
+      sizes="(max-width: 340px) calc(100vw - 48px), 284px"
+      formats={['avif', 'webp']}
+      fallbackFormat="webp"
+      loading={eager ? 'eager' : 'lazy'}
+      fetchpriority={eager ? 'high' : 'auto'}
+    />
+  </div>
+  {screen === 'player' ? (
+    <span class="float" aria-hidden="true">
+      <Icon name="circleCheck" size={20} />
+      <span class="float-text">
+        <b>{t(lang, 'Downloaded')}</b>
+        <span>{t(lang, 'Ready for airplane mode')}</span>
+      </span>
+    </span>
+  ) : (
+    <span class="float" aria-hidden="true">
+      <Icon name="box" size={18} />
+      <b>{t(lang, 'Rows come from your add-ons')}</b>
+    </span>
+  )}
+</figure>
+
+<style>
+  .stage {
+    position: relative;
+    width: 340px;
+    max-width: 100%;
+    margin: 0 auto;
+    padding-bottom: 8px;
+  }
+
+  .frame {
+    width: min(300px, 100%);
+    aspect-ratio: 390 / 844;
+    border: 8px solid var(--code-line);
+    border-radius: 44px;
+    background: var(--code-bg);
+    overflow: hidden;
+  }
+
+  .player .frame {
+    margin-left: auto;
+  }
+
+  .frame :global(img) {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .float {
+    position: absolute;
+    border-radius: 14px;
+    background: var(--surface-float);
+    border: 1px solid var(--line-strong);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    box-shadow: 0 12px 32px var(--shadow);
+  }
+
+  .float :global(svg) {
+    flex: none;
+    color: var(--accent);
+  }
+
+  .player .float {
+    left: 0;
+    top: 36%;
+  }
+
+  .home .float {
+    right: 0;
+    top: 81%;
+  }
+
+  .float-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .float-text span {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  /* On the narrowest phones the note would cover the screenshot; the picture says enough. */
+  @media (max-width: 360px) {
+    .float {
+      display: none;
+    }
+  }
+</style>

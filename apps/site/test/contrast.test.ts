@@ -63,13 +63,8 @@ const files = (dir: string): string[] =>
     if (statSync(path).isDirectory()) return files(path);
     return name.endsWith('.astro') ? [path] : [];
   });
-// Lori is a drawing with fixed fur colours; the theme-color metas name each theme's --bg; the
-// catalog mock-up's progress shade sits inside the night-only phone.
-const allowed = [
-  /^components\/Lori\.astro: /,
-  /^layouts\/Base\.astro: content="#/,
-  /^components\/CatalogMockup\.astro: background: rgb\(/,
-];
+// Lori is a drawing with fixed fur colours; the theme-color metas name each theme's --bg.
+const allowed = [/^components\/Lori\.astro: /, /^layouts\/Base\.astro: content="#/];
 
 describe('theme tokens', () => {
   it('reads every colour token', () => {

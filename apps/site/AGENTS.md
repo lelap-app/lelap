@@ -24,8 +24,13 @@ The landing page for lelap.app. Astro, static output, no client-side framework.
   (`.night`) keep the night theme. Amber is the only accent: `--accent` for text and icons (darker
   by day), `--accent-fill` for amber surfaces. `test/contrast.test.ts` checks every text pair
   against WCAG AA; add a new token or pair there.
+- **Pictures of the app** are screenshots of the real app with a demo library of made-up books,
+  in `src/assets/screens/` and shown by `src/components/AppScreen.astro`. Make them with the
+  `site-screenshots` skill (`.claude/skills/site-screenshots/`), never by hand from a real library.
+  Rerun it after a UI change to the screens they show.
 - **Languages:** the home page exists in English (`/`) and Bahasa Melayu (`/ms/`), both rendered
   by `src/components/Home.astro`. Text goes through `t(lang, 'English text')` from `src/i18n`, with
   the Malay line in `src/i18n/ms.ts`; `test/i18n.test.ts` fails on a missing or unused line. Docs,
-  privacy, terms and the 404 page stay English only.
+  help, the changelog (built from the root `CHANGELOG.md` by `src/lib/changelog.ts`), privacy,
+  terms and the 404 page stay English only.
 - **Commands:** `pnpm --filter @lelap/site dev | build | check | test`. Deploy setup is in `README.md`.

@@ -1,0 +1,102 @@
+---
+// Built from CHANGELOG.md at the repository root, so the page changes with each release.
+import Base from '../layouts/Base.astro';
+import ChangelogBlocks from '../components/ChangelogBlocks.astro';
+import { parseChangelog } from '../lib/changelog';
+import { site } from '../site';
+import changelog from '../../../../CHANGELOG.md?raw';
+
+const releases = parseChangelog(changelog);
+---
+
+<Base
+  title={`Changelog · ${site.name}`}
+  description={`What changed in each ${site.name} release, newest first.`}
+>
+  <article class="container prose changelog">
+    <h1>Changelog</h1>
+    <p>
+      What changed in each {site.name} release, newest first. The files for each one are on{' '}
+      <a href={site.releasesUrl}>GitHub Releases</a>.
+    </p>
+    {releases.length > 1 && (
+      <nav class="versions" aria-label="Releases">
+        {releases.map((release) => (
+          <a href={`#${release.id}`}>{release.version}</a>
+        ))}
+      </nav>
+    )}
+    {releases.map((release) => (
+      <section class="release" id={release.id} aria-labelledby={`${release.id}-title`}>
+        <h2 id={`${release.id}-title`}>
+          {release.version}
+          {release.date && <time datetime={release.date}>{release.date}</time>}
+        </h2>
+        <ChangelogBlocks blocks={release.intro} />
+        {release.groups.map((group) => (
+          <>
+            <h3>{group.title}</h3>
+            <ChangelogBlocks blocks={group.blocks} />
+          </>
+        ))}
+      </section>
+    ))}
+  </article>
+</Base>
+
+<style>
+  .versions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .versions a {
+    padding: 4px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .release {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    scroll-margin-top: 96px;
+  }
+
+  .release h2 {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    font-family: var(--font-mono);
+  }
+
+  .release time {
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+
+  .release h3 {
+    margin: 10px 0 0;
+    font-size: 17px;
+  }
+
+  .release :global(p),
+  .release :global(ul) {
+    margin: 0;
+  }
+
+  .release :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    overflow-wrap: anywhere;
+  }
+</style>
