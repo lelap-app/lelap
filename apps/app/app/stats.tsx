@@ -1,4 +1,4 @@
-import { dayDate, dayKey, getSettings, listeningStats, setSetting } from '@lelap/core';
+import { dayDate, getSettings, listeningStats, setSetting } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -16,6 +16,7 @@ import {
   SectionTitle,
   streakDates,
   useStatsPalette,
+  useToday,
 } from '../src/components/Stats';
 import { db } from '../src/db';
 import {
@@ -40,14 +41,15 @@ export default function StatsScreen() {
   const palette = useStatsPalette();
   const { version, refresh } = useLibrary();
   const [choosingGoal, setChoosingGoal] = useState(false);
+  const today = useToday();
 
   // `version` is the signal to re-read the database.
   const { stats, goal } = useMemo(
     () => ({
-      stats: listeningStats(db, profileId, dayKey(new Date()), weekStartsOn()),
+      stats: listeningStats(db, profileId, today, weekStartsOn()),
       goal: getSettings(db, profileId).yearlyGoalBooks,
     }),
-    [version],
+    [version, today],
   );
 
   const thisWeek = stats.weeks[stats.weeks.length - 1];
@@ -191,7 +193,11 @@ export default function StatsScreen() {
             <Text numberOfLines={1} style={{ color: palette.text }} className="flex-1">
               {b.title || t('Untitled')}
             </Text>
-            <Text style={{ color: palette.secondary }} className="text-sm">
+            <Text
+              accessibilityLabel={formatLongDate(dayDate(b.day))}
+              style={{ color: palette.secondary }}
+              className="text-sm"
+            >
               {formatDayMonth(dayDate(b.day))}
             </Text>
           </View>

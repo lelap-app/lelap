@@ -1,6 +1,6 @@
-import { dayDate, type Streak, type YearInSound } from '@lelap/core';
-import type { Ref } from 'react';
-import { Text, useColorScheme, View } from 'react-native';
+import { dayDate, dayKey, type Streak, type YearInSound } from '@lelap/core';
+import { type Ref, useEffect, useState } from 'react';
+import { AppState, Text, useColorScheme, View } from 'react-native';
 import Svg, { G, Rect, Text as SvgText } from 'react-native-svg';
 
 import {
@@ -58,6 +58,23 @@ const DAY: StatsPalette = {
 };
 
 export const useStatsPalette = (): StatsPalette => (useColorScheme() === 'light' ? DAY : NIGHT);
+
+/** Today as YYYY-MM-DD, moving on at midnight and when the app comes back. */
+export function useToday(): string {
+  const [today, setToday] = useState(() => dayKey(new Date()));
+  useEffect(() => {
+    const check = () => setToday(dayKey(new Date()));
+    const timer = setInterval(check, 60_000);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') check();
+    });
+    return () => {
+      clearInterval(timer);
+      subscription.remove();
+    };
+  }, []);
+  return today;
+}
 
 /** “3 h 20 min”, “45 min”, “under 1 min”, “0 min”. */
 export function listenedText(ms: number): string {
@@ -235,7 +252,7 @@ export function YearCard({
   const counts = [
     { value: formatNumber(year.finished.length), label: t('Books finished') },
     { value: formatNumber(year.daysListened), label: t('Days listened') },
-    { value: formatNumber(year.longestStreak?.days ?? 0), label: t('Longest streak') },
+    { value: formatNumber(year.longestStreak?.days ?? 0), label: t('Days in a row') },
   ];
   const top = year.top[0];
   return (
@@ -276,10 +293,10 @@ export function YearCard({
             key={`${c.label}-label`}
             x={left + i * 320}
             y={745}
-            fontSize={34}
+            fontSize={30}
             fill={palette.secondary}
           >
-            {clip(c.label, 16)}
+            {clip(c.label, 20)}
           </SvgText>
         ))}
         <Rect
@@ -300,7 +317,7 @@ export function YearCard({
               width={slot - 18}
               height={h}
               rx={10}
-              fill={ms === peak && ms > 0 ? palette.accent : palette.bar}
+              fill={i === year.busiestMonth ? palette.accent : palette.bar}
             />
           );
         })}

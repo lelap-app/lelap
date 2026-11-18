@@ -193,6 +193,11 @@ describe('year in sound', () => {
     row('2026-03-10', 'c', 90 * MIN),
     row('2026-12-31', 'c', 30_000),
   ];
+
+  it('takes the earlier of two equally busy days, whatever the log’s order', () => {
+    const tied = [row('2026-05-02', 'a', 30 * MIN), row('2026-05-01', 'b', 30 * MIN)];
+    expect(yearInSound(tied, [], 2026).busiestDay?.day).toBe('2026-05-01');
+  });
   const finished = [
     { bookId: 'b', title: 'B', day: '2026-03-01' },
     { bookId: 'a', title: 'A', day: '2026-01-02' },
@@ -207,6 +212,7 @@ describe('year in sound', () => {
     expect(year.booksPlayed).toBe(3);
     expect(year.finished.map((b) => b.title)).toEqual(['A', 'B']);
     expect(year.busiestDay).toEqual({ day: '2026-03-10', ms: 90 * MIN });
+    expect(year.busiestMonth).toBe(2);
     expect(year.top.map((b) => [b.title, b.ms])).toEqual([
       ['C', 90 * MIN + 30_000],
       ['B', 40 * MIN],
@@ -228,6 +234,7 @@ describe('year in sound', () => {
     expect(year.ms).toBe(0);
     expect(year.months.every((ms) => ms === 0)).toBe(true);
     expect(year.busiestDay).toBeNull();
+    expect(year.busiestMonth).toBeNull();
     expect(year.longestStreak).toBeNull();
     expect(year.top).toEqual([]);
   });

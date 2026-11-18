@@ -164,6 +164,8 @@ export type YearInSound = {
   /** The year's longest streak, counted within the year. */
   longestStreak: Streak | null;
   busiestDay: DayTotal | null;
+  /** The month with the most listening, from 0; the earlier of a tie, null without any. */
+  busiestMonth: number | null;
   top: BookTotal[];
 };
 
@@ -183,7 +185,11 @@ export function yearInSound(
   }
   let busiestDay: DayTotal | null = null;
   for (const [day, ms] of byDay) {
-    if (ms > 0 && (!busiestDay || ms > busiestDay.ms)) busiestDay = { day, ms };
+    if (
+      ms > 0 &&
+      (!busiestDay || ms > busiestDay.ms || (ms === busiestDay.ms && day < busiestDay.day))
+    )
+      busiestDay = { day, ms };
   }
   return {
     year,
@@ -196,6 +202,7 @@ export function yearInSound(
       .sort((a, b) => a.day.localeCompare(b.day)),
     longestStreak: longestStreak(byDay),
     busiestDay,
+    busiestMonth: Math.max(...months) > 0 ? months.indexOf(Math.max(...months)) : null,
     top: topBooks(yearRows, 5),
   };
 }

@@ -24,7 +24,7 @@ export async function shareText(name: string, text: string): Promise<void> {
   const file = new File(folder, name);
   if (file.exists) file.delete();
   file.create();
-  file.write(text);
+  file.writeSync(text);
   await Sharing.shareAsync(file.uri, { mimeType: mimeTypeOf(name), dialogTitle: name });
 }
 
@@ -36,7 +36,7 @@ export async function shareImage(name: string, base64: string): Promise<void> {
   const file = new File(folder, name);
   if (file.exists) file.delete();
   file.create();
-  file.write(base64, { encoding: 'base64' });
+  file.writeSync(base64, { encoding: 'base64' });
   await Sharing.shareAsync(file.uri, { mimeType: mimeTypeOf(name), dialogTitle: name });
 }
 

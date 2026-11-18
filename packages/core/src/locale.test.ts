@@ -74,6 +74,9 @@ describe('locale', () => {
       expect(firstDayFromTable(tag)).toBe(firstDayOfWeek(tag));
     }
     expect(firstDayFromTable('en')).toBe(1);
+    // No region: Monday on every engine, not the US week `Intl` guesses for `en`.
+    expect(firstDayOfWeek('en')).toBe(1);
+    expect(firstDayOfWeek('pt-BR')).toBe(0);
     expect(firstDayFromTable('en-u-ca-gregory')).toBe(1);
   });
 

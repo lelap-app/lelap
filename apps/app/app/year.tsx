@@ -45,20 +45,21 @@ export default function YearScreen() {
   const year = useMemo(() => yearInSoundFor(db, profileId, yearNumber), [version, yearNumber]);
   const title = t('{year} in sound', { year: String(yearNumber) });
   const cardWidth = Math.min(width - 32, 480);
-  const busiestMonth = year.months.indexOf(Math.max(...year.months));
+  const busiestMonth = year.busiestMonth;
 
   const share = () => {
-    if (!card.current || sharing) return;
+    const svg = card.current;
+    if (!svg || sharing) return;
     setSharing(true);
     setFailed(false);
-    card.current.toDataURL(
-      (base64) => {
-        shareImage(`lelap-${yearNumber}.png`, base64)
-          .catch(() => setFailed(true))
-          .finally(() => setSharing(false));
-      },
-      { width: CARD_WIDTH, height: CARD_HEIGHT },
-    );
+    // `toDataURL` never calls back when drawing fails, so give up after a while.
+    new Promise<string>((resolve, reject) => {
+      setTimeout(() => reject(new Error('The image took too long')), 10_000);
+      svg.toDataURL(resolve, { width: CARD_WIDTH, height: CARD_HEIGHT });
+    })
+      .then((base64) => shareImage(`lelap-${yearNumber}.png`, base64))
+      .catch(() => setFailed(true))
+      .finally(() => setSharing(false));
   };
 
   return (
@@ -156,7 +157,7 @@ export default function YearScreen() {
             <SectionTitle
               palette={palette}
               title={t('Month by month')}
-              {...(year.ms > 0
+              {...(busiestMonth !== null
                 ? { count: t('Busiest: {month}', { month: formatMonth(busiestMonth, 'long') }) }
                 : {})}
             />
@@ -168,7 +169,7 @@ export default function YearScreen() {
                 label: formatMonth(month),
                 spoken: formatMonth(month, 'long'),
                 ms,
-                current: year.ms > 0 && month === busiestMonth,
+                current: month === busiestMonth,
               }))}
             />
 

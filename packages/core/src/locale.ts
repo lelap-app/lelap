@@ -63,6 +63,10 @@ type WeekInfo = { firstDay?: number };
 
 /** The first day of the week in [tag]'s region: 0 Sunday, 1 Monday … 6 Saturday. */
 export function firstDayOfWeek(tag: string): number {
+  // Without a region `Intl` guesses one (`en` → the US); the table's Monday is the same everywhere.
+  if (!/^[A-Za-z]{2,3}(-[A-Za-z]{4})?[-_]([A-Za-z]{2}|\d{3})\b/.test(tag)) {
+    return firstDayFromTable(tag);
+  }
   try {
     const locale = new Intl.Locale(tag) as Intl.Locale & {
       getWeekInfo?: () => WeekInfo;
