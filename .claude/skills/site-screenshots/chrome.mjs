@@ -1,4 +1,4 @@
-// Just enough of the Chrome DevTools Protocol to drive a headless Chrome: no Playwright or
+// The part of the Chrome DevTools Protocol needed to drive a headless Chrome: no Playwright or
 // Puppeteer, so the screenshots need nothing beyond Node 24 (its built-in WebSocket) and Chrome.
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -54,6 +54,7 @@ export async function launchChrome() {
       }
     });
     child.on('exit', () => reject(new Error(`Chrome quit:\n${text}`)));
+    child.on('error', (error) => reject(new Error(`Chrome did not start: ${error.message}`)));
   });
   const browser = await connect(wsUrl);
   browser.close = async () => {
@@ -84,8 +85,16 @@ async function connect(url) {
       for (const listener of listeners) listener(message);
     }
   };
+  // If Chrome goes away mid-run, every waiting call fails instead of hanging.
+  let closed = false;
+  ws.onclose = () => {
+    closed = true;
+    for (const { reject } of pending.values()) reject(new Error('Chrome closed the connection.'));
+    pending.clear();
+  };
   const send = (method, params = {}, sessionId) =>
     new Promise((resolve, reject) => {
+      if (closed) return reject(new Error('Chrome closed the connection.'));
       const id = nextId++;
       pending.set(id, { resolve, reject });
       ws.send(JSON.stringify({ id, method, params, sessionId }));

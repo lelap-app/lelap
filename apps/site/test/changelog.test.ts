@@ -84,4 +84,16 @@ A paragraph.
     }
     expect(new Set(releases.map((r) => r.id)).size).toBe(releases.length);
   });
+
+  it('meets no Markdown the page would show raw', () => {
+    const markdown = readFileSync(new URL('../../../CHANGELOG.md', import.meta.url), 'utf8');
+    const texts = parseChangelog(markdown)
+      .flatMap((r) => [...r.intro, ...r.groups.flatMap((g) => g.blocks)])
+      .flatMap((b) => (b.kind === 'p' ? [b.text] : b.items))
+      .flat()
+      .flatMap((part) => (part.kind === 'text' ? [part.value] : []));
+    // Links, bold and nested lists are not read by src/lib/changelog.ts; teach it first.
+    expect(texts.filter((text) => /\]\(|\*\*/.test(text))).toEqual([]);
+    expect(markdown.split('\n').filter((line) => /^\s+[-*] /.test(line))).toEqual([]);
+  });
 });

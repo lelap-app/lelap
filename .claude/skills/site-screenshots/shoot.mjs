@@ -10,7 +10,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { extname, join, normalize, resolve } from 'node:path';
+import { extname, join, normalize, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { launchChrome } from './chrome.mjs';
@@ -54,6 +54,9 @@ function exportApp() {
     stdio: ['ignore', 'ignore', 'inherit'],
     env: {
       ...process.env,
+      // Every other host the app derives from the domain: `.invalid` never resolves.
+      EXPO_PUBLIC_LELAP_DOMAIN: 'demo.invalid',
+      EXPO_PUBLIC_LELAP_UPDATES: off,
       EXPO_PUBLIC_LELAP_ADDONS: `${ORIGIN}/demo/manifest.json`,
       EXPO_PUBLIC_LELAP_PROXY: `${ORIGIN}/proxy`,
       EXPO_PUBLIC_LELAP_SYNC: off,
@@ -84,9 +87,13 @@ function wavHeader(bytes) {
 function sendSilence(req, res, durationMs) {
   const data = Math.round((durationMs / 1000) * RATE);
   const total = 44 + data;
-  const range = /bytes=(\d+)-(\d*)/.exec(req.headers.range ?? '');
+  if (!Number.isFinite(data) || data <= 0) return res.writeHead(404).end();
+  const range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range ?? '');
   const start = range ? Number(range[1]) : 0;
   const end = range && range[2] ? Math.min(Number(range[2]), total - 1) : total - 1;
+  if (start >= total || end < start) {
+    return res.writeHead(416, { 'Content-Range': `bytes */${total}` }).end();
+  }
   const body = Buffer.alloc(end - start + 1, 128);
   if (start < 44) wavHeader(data).copy(body, 0, start, Math.min(44, end + 1));
   res.writeHead(range ? 206 : 200, {
@@ -149,6 +156,9 @@ function addon(path) {
   if (m) {
     const book = all.find((b) => b.id === decodeURIComponent(m[1]));
     if (!book) return null;
+    // The shelves are real titles, so they stay metadata only, as a reading list's would: only
+    // the made-up book has audio.
+    if (book.id !== lib.laksa.id) return { streams: [] };
     return {
       streams: [
         {
@@ -223,7 +233,7 @@ async function serve(req, res) {
   if (path.startsWith('/off/')) return res.writeHead(404).end();
   // The exported app; any other path is a route of the single-page app.
   let file = join(WEB, normalize(path));
-  if (!file.startsWith(WEB) || !(await stat(file).catch(() => null))?.isFile()) {
+  if (relative(WEB, file).startsWith('..') || !(await stat(file).catch(() => null))?.isFile()) {
     file = join(WEB, 'index.html');
   }
   res.writeHead(200, { 'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream' });
@@ -251,8 +261,11 @@ async function shootLanguage(browser, lang) {
     lang === 'en'
       ? {}
       : JSON.parse(await readFile(join(APP, `src/i18n/catalogs/${lang}.json`), 'utf8'));
-  const ui = (text, vars = {}) =>
-    (catalog[text] || text).replace(/\{(\w+)\}/g, (_, key) => String(vars[key]));
+  const ui = (text, vars = {}) => {
+    const line = lang === 'en' ? text : catalog[text];
+    if (!line) throw new Error(`The app has no ${lang} line for “${text}”.`);
+    return line.replace(/\{(\w+)\}/g, (_, key) => String(vars[key]));
+  };
   const lib = demoLibrary(lang);
   const page = await browser.newPage(PHONE);
   state.page = page;
@@ -314,6 +327,7 @@ async function shootLanguage(browser, lang) {
   await settle();
   shots.player = await page.screenshot();
   if (page.errors.length) log('page errors:', page.errors.join('\n'));
+  state.page = null;
   await page.dispose();
   return shots;
 }
@@ -345,8 +359,12 @@ async function main() {
       await save(lang, await shootLanguage(browser, lang));
     }
   } catch (error) {
-    log(`failed; the last screen is in ${join(WORK, 'failed.png')}`);
-    if (state.page) await writeFile(join(WORK, 'failed.png'), await state.page.screenshot());
+    // A broken page must not hide the error that broke it.
+    const png = await state.page?.screenshot().catch(() => null);
+    if (png) {
+      await writeFile(join(WORK, 'failed.png'), png);
+      log(`failed; the last screen is in ${join(WORK, 'failed.png')}`);
+    }
     throw error;
   } finally {
     await browser.close();

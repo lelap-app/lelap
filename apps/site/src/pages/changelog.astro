@@ -1,5 +1,5 @@
 ---
-// Built from CHANGELOG.md at the repository root, so the page changes with each release.
+// Built from CHANGELOG.md at the repository root when the site is built.
 import Base from '../layouts/Base.astro';
 import ChangelogBlocks from '../components/ChangelogBlocks.astro';
 import { parseChangelog } from '../lib/changelog';
@@ -27,8 +27,8 @@ const releases = parseChangelog(changelog);
       </nav>
     )}
     {releases.map((release) => (
-      <section class="release" id={release.id} aria-labelledby={`${release.id}-title`}>
-        <h2 id={`${release.id}-title`}>
+      <section class="release" id={release.id}>
+        <h2>
           {release.version}
           {release.date && <time datetime={release.date}>{release.date}</time>}
         </h2>

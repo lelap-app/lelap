@@ -14,7 +14,9 @@ const { parts } = Astro.props;
   part.kind === 'code' ? (
     <code>{part.value}</code>
   ) : part.kind === 'pr' ? (
-    <a href={`${site.repoUrl}/pull/${part.number}`}>#{part.number}</a>
+    <a href={`${site.repoUrl}/pull/${part.number}`} aria-label={`Pull request ${part.number}`}>
+      #{part.number}
+    </a>
   ) : (
     part.value
   ),
