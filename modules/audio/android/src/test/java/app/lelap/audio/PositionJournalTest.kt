@@ -22,8 +22,62 @@ class PositionJournalTest {
 
   @Test
   fun roundTripsAnEntryAndItsPlaylist() {
-    val entry = JournalEntry("book-1", "primary:Books/Bog/02.mp3", 734_000, 1_763_300_000_000)
-    assertEquals(entry to playlist, PositionJournal.decode(PositionJournal.encode(entry, playlist)))
+    val entry = JournalEntry("book-1", "primary:Books/Bog/02.mp3", 734_000, 1_763_300_000_000, 1_763_299_000_000)
+    val entryJson = PositionJournal.encodeEntry(entry)
+    assertEquals(entry to playlist, PositionJournal.decode(entryJson, PositionJournal.encodePlaylist(playlist)))
+    assertEquals(entry, PositionJournal.decodeEntry(entryJson))
+    // The place alone, written on every tick, carries none of the playlist.
+    assertFalse(entryJson.contains("Kapitel"))
+  }
+
+  @Test
+  fun readsTheOlderJournalThatCarriedItsPlaylist() {
+    val old = """
+      {"entry":{"bookId":"book-1","fileLocation":"primary:Books/Bog/02.mp3","filePositionMs":5,"savedAt":9},
+       "playlist":${PositionJournal.encodePlaylist(playlist)}}
+    """.trimIndent()
+    val entry = JournalEntry("book-1", "primary:Books/Bog/02.mp3", 5, 9)
+    assertEquals(entry to playlist, PositionJournal.decode(old, null))
+    assertEquals(entry, PositionJournal.decodeEntry(old))
+    assertNull(entry.pausedAt)
+  }
+
+  @Test
+  fun resumesNothingWhenThePlaylistIsGoneOrAnotherBooks() {
+    val entryJson = PositionJournal.encodeEntry(JournalEntry("book-1", "primary:Books/Bog/02.mp3", 5, 9))
+    // Removed when another profile emptied the player: the place is kept, nothing resumes.
+    assertNull(PositionJournal.decode(entryJson, null))
+    assertNull(PositionJournal.decode(entryJson, PositionJournal.encodePlaylist(playlist.copy(bookId = "other"))))
+    assertEquals("book-1", PositionJournal.decodeEntry(entryJson)?.bookId)
+  }
+
+  @Test
+  fun smartRewindMeasuresThePauseItself() {
+    // Paused at 100, then a seek while paused moved the place at 500.
+    assertEquals(100L, JournalEntry("b", "f", 0, savedAt = 500, pausedAt = 100).pauseStartedAt)
+    // Stopped while playing (the process died): the last saved place is the best guess.
+    assertEquals(500L, JournalEntry("b", "f", 0, savedAt = 500).pauseStartedAt)
+  }
+
+  @Test
+  fun keepsTheLiveSpeed() {
+    assertEquals(2f, PositionJournal.withSpeed(playlist, 2f).speed)
+    assertTrue(PositionJournal.withSpeed(playlist, 1.25f) === playlist)
+    assertEquals(3f, PositionJournal.withSpeed(playlist, 9f).speed)
+    val journaled = PositionJournal.withSpeed(playlist, 1.75f)
+    val (_, decoded) = PositionJournal.decode(
+      PositionJournal.encodeEntry(JournalEntry("book-1", "primary:Books/Bog/01.mp3", 0, 1)),
+      PositionJournal.encodePlaylist(journaled),
+    )!!
+    assertEquals(1.75f, decoded.speed)
+  }
+
+  @Test
+  fun seesWhenTheSameBookComesWithOtherFiles() {
+    assertFalse(PositionJournal.filesChanged(playlist, playlist.copy(chapters = emptyList(), speed = 2f)))
+    val downloaded = playlist.copy(files = playlist.files.map { it.copy(uri = "file:///downloads/${it.title}") })
+    assertTrue(PositionJournal.filesChanged(playlist, downloaded))
+    assertTrue(PositionJournal.filesChanged(playlist, playlist.copy(headers = mapOf("Authorization" to "Basic x"))))
   }
 
   @Test
@@ -68,8 +122,10 @@ class PositionJournalTest {
 
   @Test
   fun returnsNullForCorruptJson() {
-    assertNull(PositionJournal.decode("{not json"))
-    assertNull(PositionJournal.decode("""{"entry":{}}"""))
+    assertNull(PositionJournal.decode("{not json", null))
+    assertNull(PositionJournal.decode("""{"entry":{}}""", null))
+    assertNull(PositionJournal.decodeEntry("{not json"))
+    assertNull(PositionJournal.decodeEntry(null))
     assertNull(PositionJournal.decodeLoad(""))
   }
 
@@ -85,6 +141,7 @@ class PositionJournalTest {
       JournalEntry("book-1", "primary:Books/Bog/02.mp3", 500, 9),
       PositionJournal.entryFor(playlist, 1, "primary:Books/Bog/02.mp3", 500, 9),
     )
+    assertEquals(4L, PositionJournal.entryFor(playlist, 1, "primary:Books/Bog/02.mp3", 500, 9, pausedAt = 4)?.pausedAt)
     assertNull(PositionJournal.entryFor(playlist, 1, "primary:Other/x.mp3", 500, 9))
     assertNull(PositionJournal.entryFor(playlist, 5, "primary:Books/Bog/02.mp3", 500, 9))
     assertNull(PositionJournal.entryFor(null, 0, "primary:Books/Bog/01.mp3", 500, 9))

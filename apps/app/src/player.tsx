@@ -153,8 +153,38 @@ export function reloadBook(bookId: string, evenWhilePlaying: boolean): Promise<v
     const current = await audio.getState();
     if (current.bookId !== bookId || current.partIndex < 0) return;
     if (current.playing && !evenWhilePlaying) return;
+    // Removed from the library (with its download): nothing is left to play.
+    if (!getBook(db, profileId, bookId)) {
+      await audio.unload();
+      return;
+    }
     await load(bookId, current.playing, true);
   });
+}
+
+/**
+ * Hands the loaded book's new chapters (found from silences) to the player, also while it plays:
+ * the Android service keeps the place and renames the lock screen title and moves a chapter
+ * timer. The web player would start the book over, so there a playing book waits for its next load.
+ */
+export function updateChapters(bookId: string): Promise<void> {
+  if (Platform.OS !== 'android') return reloadBook(bookId, false);
+  return enqueue(async () => {
+    const current = await audio.getState();
+    if (current.bookId !== bookId || current.partIndex < 0) return;
+    if (playerProfile() !== profileId) return;
+    const book = bookLoad(bookId);
+    if (book) await audio.load(book, false);
+  });
+}
+
+/**
+ * Sends Up Next and the car's books to the service again, after their files moved or went, so
+ * nothing it starts by itself reads deleted files.
+ */
+export async function resendQueue(): Promise<void> {
+  await syncQueue();
+  if (Platform.OS === 'android') await syncCar();
 }
 
 async function load(bookId: string, autoplay: boolean, force = false): Promise<void> {
@@ -289,9 +319,15 @@ export function switchProfile(id: string): Promise<void> {
     await audio.setSettings(getSettings(db, id));
     await applyBedtime(getSettings(db, id));
     const next = continueListening(db, id);
-    // The lock screen follows the listener: their last book, or nothing.
-    if (next) await load(next.id, false).catch(() => {});
-    else if (current.bookId) await audio.unload();
+    // The lock screen follows the listener: their last book, or nothing. A book that can't load
+    // here empties the player too, so headphones can't resume the last listener's book.
+    const loaded = next
+      ? await load(next.id, false).then(
+          () => true,
+          () => false,
+        )
+      : false;
+    if (!loaded && current.bookId) await audio.unload();
   });
 }
 

@@ -12,7 +12,6 @@ import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
-import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import expo.modules.kotlin.Promise
@@ -54,13 +53,11 @@ class AudioModule : Module() {
 
     // The book travels as JSON so the service can decode it with the same code as its journal.
     AsyncFunction("load") { bookJson: String, autoplay: Boolean, promise: Promise ->
-      withController(promise) { c ->
-        val args = Bundle().apply {
-          putString(Commands.KEY_BOOK_JSON, bookJson)
-          putBoolean(Commands.KEY_AUTOPLAY, autoplay)
-        }
-        c.sendCustomCommand(SessionCommand(Commands.LOAD_BOOK, Bundle.EMPTY), args)
+      val args = Bundle().apply {
+        putString(Commands.KEY_BOOK_JSON, bookJson)
+        putBoolean(Commands.KEY_AUTOPLAY, autoplay)
       }
+      sendCommand(promise, Commands.LOAD_BOOK, args)
     }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("seekTo") { index: Int, positionMs: Double, promise: Promise ->
@@ -72,8 +69,8 @@ class AudioModule : Module() {
     // Same process as the service, so the journal is read straight from its preferences.
     AsyncFunction("takeJournal") {
       val json = context.getSharedPreferences(Commands.JOURNAL_PREFS, Context.MODE_PRIVATE)
-        .getString(Commands.JOURNAL_KEY, null) ?: return@AsyncFunction null
-      val (entry, _) = PositionJournal.decode(json) ?: return@AsyncFunction null
+        .getString(Commands.JOURNAL_KEY, null)
+      val entry = PositionJournal.decodeEntry(json) ?: return@AsyncFunction null
       mapOf(
         "bookId" to entry.bookId,
         "fileLocation" to entry.fileLocation,
@@ -114,17 +111,15 @@ class AudioModule : Module() {
     AsyncFunction("setSettings") {
         duck: Boolean, skipIntervalMs: Double, smartRewind: Boolean,
         mono: Boolean, voiceEq: Boolean, volumeBoost: Boolean, promise: Promise ->
-      withController(promise) { c ->
-        val args = Bundle().apply {
-          putBoolean(Commands.EXTRA_DUCK, duck)
-          putLong(Commands.KEY_SKIP_INTERVAL_MS, skipIntervalMs.toLong())
-          putBoolean(Commands.KEY_SMART_REWIND, smartRewind)
-          putBoolean(Commands.KEY_MONO, mono)
-          putBoolean(Commands.KEY_VOICE_EQ, voiceEq)
-          putBoolean(Commands.KEY_VOLUME_BOOST, volumeBoost)
-        }
-        c.sendCustomCommand(SessionCommand(Commands.SET_SETTINGS, Bundle.EMPTY), args)
+      val args = Bundle().apply {
+        putBoolean(Commands.EXTRA_DUCK, duck)
+        putLong(Commands.KEY_SKIP_INTERVAL_MS, skipIntervalMs.toLong())
+        putBoolean(Commands.KEY_SMART_REWIND, smartRewind)
+        putBoolean(Commands.KEY_MONO, mono)
+        putBoolean(Commands.KEY_VOICE_EQ, voiceEq)
+        putBoolean(Commands.KEY_VOLUME_BOOST, volumeBoost)
       }
+      sendCommand(promise, Commands.SET_SETTINGS, args)
     }.runOnQueue(Queues.MAIN)
 
     // Computed here and sent as a plain seek: the session gates seekToNext by ExoPlayer's own
@@ -145,33 +140,23 @@ class AudioModule : Module() {
     }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("startSleepTimer") { minutes: Double, promise: Promise ->
-      withController(promise) { c ->
-        val args = Bundle().apply { putLong(Commands.KEY_DURATION_MS, (minutes * 60_000).toLong()) }
-        c.sendCustomCommand(SessionCommand(Commands.START_SLEEP_TIMER, Bundle.EMPTY), args)
-        startTicker()
-      }
+      val args = Bundle().apply { putLong(Commands.KEY_DURATION_MS, (minutes * 60_000).toLong()) }
+      sendCommand(promise, Commands.START_SLEEP_TIMER, args, then = ::startTicker)
     }.runOnQueue(Queues.MAIN)
 
     // "chapter" or "episode": stops at the end of the chapter playing, or of the episode.
     AsyncFunction("startSleepTimerAtEnd") { mode: String, promise: Promise ->
-      withController(promise) { c ->
-        val args = Bundle().apply { putString(Commands.KEY_SLEEP_MODE, mode) }
-        c.sendCustomCommand(SessionCommand(Commands.START_SLEEP_TIMER, Bundle.EMPTY), args)
-        startTicker()
-      }
+      val args = Bundle().apply { putString(Commands.KEY_SLEEP_MODE, mode) }
+      sendCommand(promise, Commands.START_SLEEP_TIMER, args, then = ::startTicker)
     }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("cancelSleepTimer") { promise: Promise ->
-      withController(promise) { c ->
-        c.sendCustomCommand(SessionCommand(Commands.CANCEL_SLEEP_TIMER, Bundle.EMPTY), Bundle.EMPTY)
-      }
+      sendCommand(promise, Commands.CANCEL_SLEEP_TIMER)
     }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("setQueue") { queueJson: String, promise: Promise ->
-      withController(promise) { c ->
-        val args = Bundle().apply { putString(Commands.KEY_QUEUE_JSON, queueJson) }
-        c.sendCustomCommand(SessionCommand(Commands.SET_QUEUE, Bundle.EMPTY), args)
-      }
+      val args = Bundle().apply { putString(Commands.KEY_QUEUE_JSON, queueJson) }
+      sendCommand(promise, Commands.SET_QUEUE, args)
     }.runOnQueue(Queues.MAIN)
 
     // Same process: the places of books the service replaced by itself, oldest first.
@@ -202,9 +187,7 @@ class AudioModule : Module() {
 
     // The service counts up to now (after commands sent before this one), before the app folds.
     AsyncFunction("settleAccounting") { promise: Promise ->
-      withController(promise) { c ->
-        c.sendCustomCommand(SessionCommand(Commands.SETTLE_ACCOUNTING, Bundle.EMPTY), Bundle.EMPTY)
-      }
+      sendCommand(promise, Commands.SETTLE_ACCOUNTING)
     }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("ackAccounting") { epoch: String, through: Double ->
@@ -263,42 +246,17 @@ class AudioModule : Module() {
 
     // Resolves once the receiver loaded the first file; rejects with the receiver's reason.
     AsyncFunction("castTo") { promise: Promise ->
-      val future = connect()
-      future.addListener(
-        {
-          try {
-            val result = future.get().sendCustomCommand(SessionCommand(Commands.START_CAST, Bundle.EMPTY), Bundle.EMPTY)
-            result.addListener(
-              {
-                val r = runCatching { result.get() }.getOrNull()
-                if (r?.resultCode == SessionResult.RESULT_SUCCESS) {
-                  promise.resolve(null)
-                } else {
-                  promise.reject("ERR_LELAP_CAST", r?.sessionError?.message ?: "Casting failed", null)
-                }
-              },
-              ContextCompat.getMainExecutor(context),
-            )
-          } catch (e: Exception) {
-            promise.reject("ERR_LELAP_AUDIO", e.cause?.message ?: e.message ?: "Player unavailable", e)
-          }
-        },
-        ContextCompat.getMainExecutor(context),
-      )
+      sendCommand(promise, Commands.START_CAST, code = "ERR_LELAP_CAST", fallback = "Casting failed")
     }.runOnQueue(Queues.MAIN)
 
     // Hands back to the phone; null plays on here if the receiver was playing.
     AsyncFunction("stopCasting") { resume: Boolean?, promise: Promise ->
-      withController(promise) { c ->
-        val args = Bundle().apply { resume?.let { putBoolean(Commands.KEY_RESUME, it) } }
-        c.sendCustomCommand(SessionCommand(Commands.STOP_CAST, Bundle.EMPTY), args)
-      }
+      val args = Bundle().apply { resume?.let { putBoolean(Commands.KEY_RESUME, it) } }
+      sendCommand(promise, Commands.STOP_CAST, args)
     }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("unload") { promise: Promise ->
-      withController(promise) { c ->
-        c.sendCustomCommand(SessionCommand(Commands.UNLOAD, Bundle.EMPTY), Bundle.EMPTY)
-      }
+      sendCommand(promise, Commands.UNLOAD)
     }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("getState") { promise: Promise ->
@@ -334,6 +292,44 @@ class AudioModule : Module() {
       "filePositionMs" to record.filePositionMs.toDouble(),
       "startLocation" to record.startLocation,
       "startPositionMs" to record.startPositionMs?.toDouble(),
+    )
+  }
+
+  /**
+   * Sends a custom command and settles [promise] with the service's answer, so a refusal (a book
+   * it could not read) reaches JavaScript. [then] runs on success before the promise resolves.
+   */
+  private fun sendCommand(
+    promise: Promise,
+    action: String,
+    args: Bundle = Bundle.EMPTY,
+    code: String = "ERR_LELAP_AUDIO",
+    fallback: String = "The player refused the command",
+    then: () -> Unit = {},
+  ) {
+    val future = connect()
+    future.addListener(
+      {
+        try {
+          val result = future.get().sendCustomCommand(SessionCommand(action, Bundle.EMPTY), args)
+          result.addListener(
+            {
+              val r = runCatching { result.get() }.getOrNull()
+              val failure = Commands.failure(r?.resultCode, r?.sessionError?.message, fallback)
+              if (failure == null) {
+                then()
+                promise.resolve(null)
+              } else {
+                promise.reject(code, failure, null)
+              }
+            },
+            ContextCompat.getMainExecutor(context),
+          )
+        } catch (e: Exception) {
+          promise.reject("ERR_LELAP_AUDIO", e.cause?.message ?: e.message ?: "Player unavailable", e)
+        }
+      },
+      ContextCompat.getMainExecutor(context),
     )
   }
 

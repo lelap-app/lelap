@@ -73,6 +73,13 @@ class SeekRulesTest {
   }
 
   @Test
+  fun keepsAPlaceSavedInsideTheIntro() {
+    assertEquals(10_000L, SeekRules.startPosition(0, 10_000, null, 0, smartRewind = true, introMs = 30_000))
+    assertEquals(5_000L, SeekRules.startPosition(0, 10_000, pausedAt = 0, now = 120_000, smartRewind = true, introMs = 30_000))
+    assertEquals(0L, SeekRules.trimmedStart(0, 3_000, 5_000, 30_000))
+  }
+
+  @Test
   fun endsAnEpisodeWhereItsOutroStarts() {
     assertEquals(1_740_000L, SeekRules.outroStart(1_800_000, 60_000, 30_000, singleFile = true))
     assertNull(SeekRules.outroStart(1_800_000, 0, 0, singleFile = true))

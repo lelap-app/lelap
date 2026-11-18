@@ -88,6 +88,10 @@ export type PlayerState = {
   /** Location of the file playing now. */
   fileLocation: string | null;
   bookTitle: string | null;
+  /**
+   * The title the lock screen shows: the chapter playing now, or the file's title in a book
+   * without chapters. Not necessarily the part's own title.
+   */
   partTitle: string | null;
   /** -1 when nothing is loaded. */
   partIndex: number;
@@ -148,6 +152,11 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
 
 const native = requireNativeModule<LelapAudioModule>('LelapAudio');
 
+/**
+ * Loads a book, or updates the one loaded: the same book keeps its live place and takes new
+ * chapters, an intro or outro, or other file addresses (a download that finished, went or
+ * moved). Rejects when the service refuses the book, like every command it answers.
+ */
 export function load(book: BookLoad, autoplay: boolean): Promise<void> {
   return native.load(JSON.stringify(book), autoplay);
 }

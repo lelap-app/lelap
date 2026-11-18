@@ -85,7 +85,8 @@ export const ADDON_RESOURCES = [
 export type AddonResource = (typeof ADDON_RESOURCES)[number];
 
 /** A row ID from this device's database. Reports never print it; they print `book#1`. */
-const Ref = z.string().min(1).max(200);
+const REF_MAX = 200;
+const Ref = z.string().min(1).max(REF_MAX);
 const Count = z.number().int().min(0).max(10_000_000);
 const Status = z.number().int().min(100).max(599);
 const Code = z.number().int().min(-1_000_000).max(1_000_000);
@@ -163,7 +164,8 @@ export function playerEvent(
     platform,
     ...(raw.code != null ? { code: raw.code } : {}),
     ...(raw.status != null ? { status: raw.status } : {}),
-    ...(raw.bookId ? { book: raw.bookId } : {}),
+    // An ID too long for a reference loses the book, not the event.
+    ...(raw.bookId && raw.bookId.length <= REF_MAX ? { book: raw.bookId } : {}),
     ...(raw.part != null && raw.part >= 0 ? { part: raw.part } : {}),
   });
   return parsed.success ? { at: raw.at, event: parsed.data } : null;

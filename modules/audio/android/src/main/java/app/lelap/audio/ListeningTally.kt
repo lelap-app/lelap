@@ -75,10 +75,12 @@ class AccountingLog(
 
   fun addListening(bookId: String, title: String, day: String, ms: Long) {
     if (ms <= 0) return
-    // The last record grows while nobody has seen it, so a night stays one record per book and day.
-    val last = list.lastOrNull()
-    if (last is Listened && last.seq > sealedThrough && last.bookId == bookId && last.day == day) {
-      list[list.lastIndex] = last.copy(ms = last.ms + ms, title = title)
+    // A total per book and day grows while nobody has seen it, also with events after it, so
+    // weeks with the app closed stay one record per book and day.
+    val total = list.indexOfLast { it is Listened && it.seq > sealedThrough && it.bookId == bookId && it.day == day }
+    if (total >= 0) {
+      val r = list[total] as Listened
+      list[total] = r.copy(ms = r.ms + ms, title = title)
       return
     }
     list += Listened(nextSeq++, bookId, title, day, ms)
@@ -86,6 +88,13 @@ class AccountingLog(
   }
 
   fun addEvent(kind: String, bookId: String, at: Long, location: String, positionMs: Long, start: Pair<String, Long>?) {
+    // Only the latest progress of a session nobody has seen yet matters: it replaces the one before.
+    if (kind == PROGRESS) {
+      list.removeAll {
+        it is SessionEvent && it.seq > sealedThrough && it.kind == PROGRESS && it.bookId == bookId &&
+          it.startLocation == start?.first && it.startPositionMs == start?.second
+      }
+    }
     list += SessionEvent(nextSeq++, kind, bookId, at, location, positionMs, start?.first, start?.second)
     trim()
   }

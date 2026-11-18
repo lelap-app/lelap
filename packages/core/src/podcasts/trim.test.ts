@@ -12,6 +12,12 @@ describe('trimmedStart', () => {
     expect(trimmedStart(0, 35_000, 15_000, 30_000)).toBe(30_000);
   });
 
+  it('keeps a place saved inside the intro', () => {
+    expect(trimmedStart(0, 10_000, 0, 30_000)).toBe(10_000);
+    expect(trimmedStart(0, 10_000, 5_000, 30_000)).toBe(5_000);
+    expect(trimmedStart(0, 3_000, 5_000, 30_000)).toBe(0);
+  });
+
   it('has no intro after the first file, or without one', () => {
     expect(trimmedStart(1, 0, 0, 30_000)).toBe(0);
     expect(trimmedStart(0, 10_000, 5_000, 0)).toBe(5_000);

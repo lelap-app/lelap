@@ -232,6 +232,20 @@ describe('diagnostics log', () => {
     expect(playerEvent({ at: NOW, what: SECRETS.webdavUrl }, 'android')).toBeNull();
     expect(listDiagnostics(db)).toEqual([]);
   });
+
+  it('keeps a player event whose book ID is too long, without the book', () => {
+    const parsed = playerEvent(
+      { at: NOW, what: 'error', code: 2004, bookId: 'b'.repeat(201), part: 1 },
+      'android',
+    );
+    expect(parsed?.event).toEqual({
+      area: 'player',
+      what: 'error',
+      platform: 'android',
+      code: 2004,
+      part: 1,
+    });
+  });
 });
 
 describe('classifyError', () => {

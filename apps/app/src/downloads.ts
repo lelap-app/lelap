@@ -24,7 +24,7 @@ import { logDiagnostic } from './diagnostics';
 import { formatBytes } from './format';
 import * as audio from './platform/audio';
 import * as native from './platform/downloads';
-import { reloadBook, useLibrary } from './player';
+import { reloadBook, resendQueue, useLibrary } from './player';
 import { profileId } from './profile';
 import { fileAccess } from './remote';
 
@@ -88,6 +88,8 @@ export async function deleteDownload(bookId: string): Promise<void> {
   removeDownload(db, bookId, Date.now());
   // Switch the player to the stream before the files go. The book itself may be gone already.
   await reloadBook(bookId, true).catch(() => {});
+  // Up Next and the car stream it from now on too.
+  await resendQueue().catch(() => {});
   await native.remove(bookId);
   void queryClient.invalidateQueries({ queryKey: DOWNLOADS_KEY });
 }
@@ -108,7 +110,11 @@ async function syncDownloads(onChange: () => void): Promise<Map<string, native.D
     // A paused book picks up its new files now; a playing one at its next load.
     if (row?.state === 'done') await reloadBook(bookId, false).catch(() => {});
   }
-  if (fold.changed.length > 0) onChange();
+  if (fold.changed.length > 0) {
+    onChange();
+    // Before old copies go: books queued in the service's Up Next get their new paths.
+    await resendQueue().catch(() => {});
+  }
   // Books that moved to another folder: the old copies go once the player reads the new ones.
   // A book that is playing keeps them until it pauses; a reload then switches it over.
   for (const status of statuses.filter((s) => s.oldCopies && !fold.orphans.includes(s.bookId))) {
