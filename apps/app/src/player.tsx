@@ -391,11 +391,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const subscription = audio.addStateListener(setState);
     const start = async () => {
-      await Promise.race([
-        foldJournal().catch(logCaught),
-        new Promise((resolve) => setTimeout(resolve, JOURNAL_WAIT_MS)),
-      ]);
+      const folded = foldJournal().catch(logCaught);
+      await Promise.race([folded, new Promise((resolve) => setTimeout(resolve, JOURNAL_WAIT_MS))]);
       setJournalFolded(true);
+      // The startup load still waits for the journal, so it starts at the newest place.
+      await folded;
       await foldServiceAccounting(playerProfile());
       await foldFinished();
       await audio.setSettings(getSettings(db, profileId));

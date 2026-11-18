@@ -8,11 +8,14 @@ import { COLORS, Icon } from './Icon';
 import { formatLeft } from '../format';
 import { BookCover, coverUri } from './BookCover';
 import { db } from '../db';
+import { useLibrary } from '../player';
 
 export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: () => void }) {
+  const { version } = useLibrary();
+  // `version` is the signal to re-read the database: chapters found from silences arrive later.
   const chapter = useMemo(
     () => chapterTitleAt(db, book.id, book.bookPositionMs),
-    [book.id, book.bookPositionMs],
+    [book.id, book.bookPositionMs, version],
   );
   return (
     <Pressable

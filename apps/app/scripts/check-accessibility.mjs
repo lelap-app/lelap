@@ -125,7 +125,7 @@ for (const file of [...files(join(root, 'app')), ...files(join(root, 'src'))]) {
           (cls === ''
             ? !a.has('style')
             : /\bp[y]?-(0|px|0\.5|1|1\.5|2|2\.5)\b/.test(cls) ||
-              (/\bp[y]?-3\b/.test(cls) && textCount(element) < 2) ||
+              (/\bp[y]?-3(?![.\d])/.test(cls) && textCount(element) < 2) ||
               covers.length > 0);
         if (thin && !sized) problems.push(`${at}: ${tag} smaller than 48 points; add min-h-12`);
       }
