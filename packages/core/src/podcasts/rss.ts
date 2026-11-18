@@ -6,6 +6,7 @@ import {
 } from './podcasting';
 import {
   asArray,
+  atomTextOf,
   attrOf,
   FeedError,
   htmlToText,
@@ -59,20 +60,51 @@ export function parseDuration(text: string): number {
   return Math.round(parts.reduce((total, p) => total * 60 + p, 0) * 1000);
 }
 
-function enclosureOf(item: Record<string, unknown>) {
-  const enclosures = asArray(item.enclosure).filter(isNode);
-  const audio =
-    enclosures.find((e) => textOf(e['@_type']).startsWith('audio/')) ??
-    enclosures.find((e) => isHttp(textOf(e['@_url'])));
-  if (!audio) return null;
-  const url = textOf(audio['@_url']);
-  if (!isHttp(url)) return null;
-  const size = Number(textOf(audio['@_length']));
-  return {
-    url,
-    mime: orNull(textOf(audio['@_type'])),
-    size: Number.isFinite(size) && size > 0 ? size : 0,
-  };
+type Enclosure = { url: string; mime: string | null; size: number };
+
+function enclosure(url: string, type: string, length: string): Enclosure {
+  const size = Number(length);
+  return { url, mime: orNull(type), size: Number.isFinite(size) && size > 0 ? size : 0 };
+}
+
+/**
+ * The audio among `podcast:alternateEnclosure`s, the one marked `default` first, at its first
+ * web address. Sources of other schemes are skipped: the player streams over HTTP only.
+ */
+export function alternateAudioOf(item: XmlNode): Enclosure | null {
+  const audio = asArray(item['podcast:alternateEnclosure'])
+    .filter(isNode)
+    .filter((a) => textOf(a['@_type']).toLowerCase().startsWith('audio/'));
+  const ordered = [
+    ...audio.filter((a) => textOf(a['@_default']) === 'true'),
+    ...audio.filter((a) => textOf(a['@_default']) !== 'true'),
+  ];
+  for (const alt of ordered) {
+    const url = asArray(alt['podcast:source'])
+      .filter(isNode)
+      .map((s) => textOf(s['@_uri']))
+      .find(isHttp);
+    if (url) return enclosure(url, textOf(alt['@_type']), textOf(alt['@_length']));
+  }
+  return null;
+}
+
+/**
+ * An item's audio: an audio `<enclosure>`, else an audio alternate (a video show may list its
+ * audio there), else any enclosure with a web address and no better claim.
+ */
+function enclosureOf(item: XmlNode): Enclosure | null {
+  const enclosures = asArray(item.enclosure)
+    .filter(isNode)
+    .filter((e) => isHttp(textOf(e['@_url'])));
+  const pick = (e: XmlNode) =>
+    enclosure(textOf(e['@_url']), textOf(e['@_type']), textOf(e['@_length']));
+  const audio = enclosures.find((e) => textOf(e['@_type']).toLowerCase().startsWith('audio/'));
+  if (audio) return pick(audio);
+  const alternate = alternateAudioOf(item);
+  if (alternate) return alternate;
+  const any = enclosures[0];
+  return any ? pick(any) : null;
 }
 
 /** Reads an RSS 2.0 or Atom podcast feed. Items without an audio enclosure are left out. */
@@ -139,20 +171,16 @@ const atomLinks = (node: XmlNode, rel: string): XmlNode[] =>
     .filter(isNode)
     .filter((l) => (textOf(l['@_rel']) || 'alternate') === rel);
 
-function atomEnclosureOf(entry: XmlNode) {
-  const links = atomLinks(entry, 'enclosure');
-  const audio =
-    links.find((l) => textOf(l['@_type']).startsWith('audio/')) ??
-    links.find((l) => isHttp(textOf(l['@_href'])) && textOf(l['@_type']) === '');
-  if (!audio) return null;
-  const url = textOf(audio['@_href']);
-  if (!isHttp(url)) return null;
-  const size = Number(textOf(audio['@_length']));
-  return {
-    url,
-    mime: orNull(textOf(audio['@_type'])),
-    size: Number.isFinite(size) && size > 0 ? size : 0,
-  };
+function atomEnclosureOf(entry: XmlNode): Enclosure | null {
+  const links = atomLinks(entry, 'enclosure').filter((l) => isHttp(textOf(l['@_href'])));
+  const pick = (l: XmlNode) =>
+    enclosure(textOf(l['@_href']), textOf(l['@_type']), textOf(l['@_length']));
+  const audio = links.find((l) => textOf(l['@_type']).toLowerCase().startsWith('audio/'));
+  if (audio) return pick(audio);
+  const alternate = alternateAudioOf(entry);
+  if (alternate) return alternate;
+  const untyped = links.find((l) => textOf(l['@_type']) === '');
+  return untyped ? pick(untyped) : null;
 }
 
 const atomAuthor = (author: unknown): string => {
@@ -177,9 +205,10 @@ function parseAtom(feed: XmlNode): ParsedFeed {
     if (seen.has(guid)) continue;
     seen.add(guid);
     const published = Date.parse(textOf(entry.published) || textOf(entry.updated));
-    const description = htmlToText(
-      textOf(entry.content) || textOf(entry.summary) || textOf(entry['itunes:summary']),
-    );
+    const description =
+      atomTextOf(entry.content) ||
+      atomTextOf(entry.summary) ||
+      htmlToText(textOf(entry['itunes:summary']));
     episodes.push({
       guid,
       title:
@@ -206,7 +235,7 @@ function parseAtom(feed: XmlNode): ParsedFeed {
   return {
     title,
     author: orNull(htmlToText(textOf(feed['itunes:author'])) || atomAuthor(feed.author)),
-    description: orNull(htmlToText(textOf(feed.subtitle) || textOf(feed['itunes:summary']))),
+    description: orNull(atomTextOf(feed.subtitle) || htmlToText(textOf(feed['itunes:summary']))),
     coverUrl: isHttp(cover) ? cover : null,
     link: link ?? null,
     guid: orNull(textOf(feed['podcast:guid'])),

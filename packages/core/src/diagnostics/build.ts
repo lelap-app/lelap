@@ -62,6 +62,40 @@ export function syncFailureEvent(error: unknown): DiagnosticEvent {
   return { area: 'sync', what: 'failed', reason, ...withStatus(status) };
 }
 
+// A run where every feed fails would otherwise take 500 lines; the summary keeps the full count.
+const MAX_FEED_FAILURES = 5;
+
+/**
+ * Events for one podcast refresh. A run the app started while open is logged only when a feed
+ * failed: one line every time the app opens would say when someone uses it. Android's own runs
+ * are always logged, as whether they happen at all is what a report needs to show.
+ */
+export function feedRefreshEvents(
+  result: { feeds: number; failures: { podcastId: string; error: unknown }[] },
+  background: boolean,
+): DiagnosticEvent[] {
+  if (!background && result.failures.length === 0) return [];
+  return [
+    {
+      area: 'podcast',
+      what: 'refreshed',
+      ...(background ? { background } : {}),
+      count: result.feeds,
+      failed: result.failures.length,
+    },
+    ...result.failures.slice(0, MAX_FEED_FAILURES).map(({ podcastId, error }): DiagnosticEvent => {
+      const { reason, status } = classifyError(error);
+      return {
+        area: 'podcast',
+        what: 'feed-failed',
+        podcast: podcastId,
+        reason,
+        ...withStatus(status),
+      };
+    }),
+  ];
+}
+
 /** An error nothing else caught. Only its class name and reason are kept, never its stack. */
 export function appErrorEvent(
   error: unknown,

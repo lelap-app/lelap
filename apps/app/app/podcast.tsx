@@ -42,10 +42,16 @@ import { queries, useAddons } from '../src/addons';
 import { BookCover } from '../src/components/BookCover';
 import { db, newId } from '../src/db';
 import { startDownload } from '../src/downloads';
-import { formatDuration, formatLeft } from '../src/format';
+import { formatClock, formatDuration, formatLeft } from '../src/format';
 import * as audio from '../src/platform/audio';
 import { reloadBook, useLibrary } from '../src/player';
-import { fetchFeed, playEpisode, runAutoDownload, subscribeToFeed } from '../src/podcasts';
+import {
+  fetchFeed,
+  playEpisode,
+  playSoundbite,
+  runAutoDownload,
+  subscribeToFeed,
+} from '../src/podcasts';
 import { profileId } from '../src/profile';
 import { Pill } from '../src/components/Pill';
 import { ROW_BUTTON, TextButton } from '../src/components/TextButton';
@@ -141,8 +147,14 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 
 function episodeStatus(e: EpisodeItem): string {
   const guests = (e.extras?.persons ?? []).filter((p) => p.role === 'guest').map((p) => p.name);
+  const soundbites = e.extras?.soundbites?.length ?? 0;
   const parts = [
     guests.length > 0 ? t('With {names}', { names: guests.join(', ') }) : null,
+    soundbites === 0
+      ? null
+      : soundbites === 1
+        ? t('1 soundbite')
+        : t('{n} soundbites', { n: soundbites }),
     e.publishedAt ? new Date(e.publishedAt).toLocaleDateString() : null,
     e.finished
       ? t('Played')
@@ -274,6 +286,18 @@ export default function PodcastScreen() {
           refresh();
         },
       },
+      // `podcast:soundbite`: the stretches the show picked to start with (M75).
+      ...(e.extras?.soundbites ?? []).map((s): Action => ({
+        icon: 'play',
+        label: s.title
+          ? t('Soundbite: {title} ({time})', { title: s.title, time: formatClock(s.startMs) })
+          : t('Soundbite at {time}', { time: formatClock(s.startMs) }),
+        onPress: () =>
+          void run(async () => {
+            await playSoundbite(e.id, s.startMs);
+            openPlayer(router);
+          }),
+      })),
     ];
   };
 
@@ -318,6 +342,11 @@ export default function PodcastScreen() {
                   <View className="flex-1 justify-center gap-1">
                     <Text className="text-xl font-semibold text-paper">{podcast.title}</Text>
                     {podcast.author && <Text className="text-soft">{podcast.author}</Text>}
+                    {podcast.extras?.location && (
+                      <Text numberOfLines={1} className="text-sm text-muted">
+                        {t('Place: {name}', { name: podcast.extras.location.name })}
+                      </Text>
+                    )}
                   </View>
                 </View>
                 {podcast.description && (

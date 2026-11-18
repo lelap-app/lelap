@@ -95,6 +95,18 @@ function installHandlers(): void {
   });
 }
 
+/**
+ * Reads the switch only, for a background run without the UI (M75): the player and the error
+ * handlers belong to the app, which calls `startDiagnostics` when it opens.
+ */
+export function loadDiagnosticsSwitch(): void {
+  try {
+    on = diagnosticsOn(db);
+  } catch {
+    on = false;
+  }
+}
+
 /** Reads the switch once the database is open, and tells the player. */
 export function startDiagnostics(): void {
   on = diagnosticsOn(db);

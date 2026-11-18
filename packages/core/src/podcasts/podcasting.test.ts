@@ -85,6 +85,9 @@ describe('Podcasting 2.0 feed tags', () => {
       transcripts: [],
       persons: [],
       seasonName: null,
+      soundbites: [],
+      location: null,
+      value: [],
     });
   });
 
@@ -189,6 +192,12 @@ describe('storing Podcasting 2.0 fields', () => {
     const { podcastId } = save();
     expect(feedCache(db, FEED_URL)).toEqual({ etag: '"v1"', lastModified: null });
     db.update(podcasts).set({ extras: null }).where(eq(podcasts.id, podcastId)).run();
+    expect(feedCache(db, FEED_URL)).toEqual({ etag: null, lastModified: null });
+    // Stored by M23 to M74, without M75's fields.
+    db.update(podcasts)
+      .set({ extras: { persons: [], funding: [] } })
+      .where(eq(podcasts.id, podcastId))
+      .run();
     expect(feedCache(db, FEED_URL)).toEqual({ etag: null, lastModified: null });
   });
 

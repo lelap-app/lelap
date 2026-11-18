@@ -272,6 +272,14 @@ function eventLine(event: DiagnosticEvent, names: Pseudonyms): string {
       if (event.code !== undefined) parts.push(NSD_ERRORS[event.code] ?? `code ${event.code}`);
       if (event.count !== undefined) parts.push(`×${event.count}`);
       break;
+    case 'podcast':
+      if (event.background) parts.push('background');
+      if (event.count !== undefined) parts.push(`${event.count} feeds`);
+      if (event.failed !== undefined) parts.push(`${event.failed} failed`);
+      if (event.podcast) parts.push(names.name('podcast', event.podcast));
+      if (event.reason) parts.push(event.reason);
+      if (event.status !== undefined) parts.push(`HTTP ${event.status}`);
+      break;
     case 'app':
       if (event.name) parts.push(event.name);
       if (event.reason) parts.push(event.reason);

@@ -23,8 +23,44 @@ export type FeedTranscript = {
   rel: string | null;
 };
 
-/** Podcasting 2.0 fields of a show, kept as one JSON value. */
-export type PodcastExtras = { persons: FeedPerson[]; funding: FeedFunding[] };
+/** `podcast:soundbite`: a short stretch of an episode worth hearing first. */
+export type FeedSoundbite = { startMs: number; durationMs: number; title: string | null };
+
+/** `podcast:location`: the place a show or an episode is about or made in. */
+export type FeedLocation = {
+  name: string;
+  /** A `geo:` URI, such as `geo:51.48,-0.29`. */
+  geo: string | null;
+  /** An OpenStreetMap object, such as `R1234`. */
+  osm: string | null;
+};
+
+/** One `podcast:valueRecipient`: who gets which share of a value-for-value payment. */
+export type FeedValueRecipient = {
+  name: string | null;
+  type: string;
+  address: string;
+  split: number;
+};
+
+/** `podcast:value`: how listeners can pay as they listen. Kept only: Lelap sends no money. */
+export type FeedValue = {
+  type: string;
+  method: string;
+  suggested: number | null;
+  recipients: FeedValueRecipient[];
+};
+
+/**
+ * Podcasting 2.0 fields of a show, kept as one JSON value. Fields added in M75 are optional:
+ * rows stored before then lack them until the feed is read again.
+ */
+export type PodcastExtras = {
+  persons: FeedPerson[];
+  funding: FeedFunding[];
+  location?: FeedLocation | null;
+  value?: FeedValue[];
+};
 
 /** Podcasting 2.0 fields of an episode, kept as one JSON value. */
 export type EpisodeExtras = {
@@ -33,6 +69,9 @@ export type EpisodeExtras = {
   persons: FeedPerson[];
   /** `podcast:season name=…`: a title for the season, such as “Race for the White House”. */
   seasonName: string | null;
+  soundbites?: FeedSoundbite[];
+  location?: FeedLocation | null;
+  value?: FeedValue[];
 };
 
 const isHttp = (url: string) => /^https?:\/\//i.test(url);
@@ -60,8 +99,71 @@ export function fundingOf(channel: XmlNode): FeedFunding[] {
     .filter((f) => isHttp(f.url));
 }
 
+/** A plain non-negative decimal, such as `73.5`; `null` for anything else. */
+function nonNegative(text: string): number | null {
+  const value = text.trim();
+  return /^\d+(\.\d+)?$/.test(value) ? Number(value) : null;
+}
+
+// A feed could list hundreds; a handful is what a listener looks through.
+const MAX_SOUNDBITES = 20;
+
+export function soundbitesOf(item: XmlNode): FeedSoundbite[] {
+  const list: FeedSoundbite[] = [];
+  for (const node of nodes(item, 'podcast:soundbite')) {
+    const start = nonNegative(attr(node, 'startTime'));
+    const duration = nonNegative(attr(node, 'duration'));
+    if (start === null || duration === null || duration <= 0) continue;
+    list.push({
+      startMs: Math.round(start * 1000),
+      durationMs: Math.round(duration * 1000),
+      title: orNull(htmlToText(textOf(node))),
+    });
+    if (list.length === MAX_SOUNDBITES) break;
+  }
+  return list.sort((a, b) => a.startMs - b.startMs);
+}
+
+export function locationOf(parent: XmlNode): FeedLocation | null {
+  const node = nodes(parent, 'podcast:location')[0];
+  const name = node ? htmlToText(textOf(node)) : '';
+  if (!node || name === '') return null;
+  const geo = attr(node, 'geo');
+  return {
+    name,
+    geo: /^geo:-?\d/i.test(geo) ? geo : null,
+    osm: orNull(attr(node, 'osm')),
+  };
+}
+
+export function valueOf(parent: XmlNode): FeedValue[] {
+  return nodes(parent, 'podcast:value')
+    .map((node) => {
+      const suggested = attr(node, 'suggested');
+      return {
+        type: attr(node, 'type').toLowerCase(),
+        method: attr(node, 'method').toLowerCase(),
+        suggested: nonNegative(suggested),
+        recipients: nodes(node, 'podcast:valueRecipient')
+          .map((r) => ({
+            name: orNull(htmlToText(attr(r, 'name'))),
+            type: attr(r, 'type').toLowerCase(),
+            address: attr(r, 'address'),
+            split: Number(attr(r, 'split')),
+          }))
+          .filter((r) => r.address !== '' && Number.isFinite(r.split) && r.split > 0),
+      };
+    })
+    .filter((v) => v.type !== '' && v.recipients.length > 0);
+}
+
 export function podcastExtrasOf(channel: XmlNode): PodcastExtras {
-  return { persons: personsOf(channel), funding: fundingOf(channel) };
+  return {
+    persons: personsOf(channel),
+    funding: fundingOf(channel),
+    location: locationOf(channel),
+    value: valueOf(channel),
+  };
 }
 
 export function episodeExtrasOf(item: XmlNode): EpisodeExtras {
@@ -79,6 +181,9 @@ export function episodeExtrasOf(item: XmlNode): EpisodeExtras {
       .filter((t) => isHttp(t.url)),
     persons: personsOf(item),
     seasonName: season ? orNull(htmlToText(attr(season, 'name'))) : null,
+    soundbites: soundbitesOf(item),
+    location: locationOf(item),
+    value: valueOf(item),
   };
 }
 

@@ -8,6 +8,8 @@ const parser = new XMLParser({
   parseTagValue: false,
   parseAttributeValue: false,
   trimValues: true,
+  // Atom text constructs stay raw, so `type="xhtml"` keeps its markup in order (M75).
+  stopNodes: ['feed.subtitle', 'feed.entry.content', 'feed.entry.summary'],
 });
 
 export type XmlNode = Record<string, unknown>;
@@ -63,6 +65,19 @@ export const attrOf = (value: unknown, name: string): string => {
   const first = asArray(value)[0];
   return isNode(first) ? textOf(first[`@_${name}`]) : '';
 };
+
+/**
+ * An Atom text construct as plain text. `type="xhtml"` holds markup, not escaped HTML: its
+ * entities are decoded only after the tags are gone, so a written `&lt;b&gt;` stays text.
+ */
+export function atomTextOf(value: unknown): string {
+  const first = asArray(value)[0];
+  if (isNode(first) && textOf(first['@_type']).toLowerCase() === 'xhtml') {
+    const raw = asArray(first['#text'])[0];
+    return typeof raw === 'string' ? htmlToText(raw) : '';
+  }
+  return htmlToText(textOf(value));
+}
 
 /** Plain text from an HTML description: tags out, paragraphs kept as line breaks. */
 export function htmlToText(html: string): string {

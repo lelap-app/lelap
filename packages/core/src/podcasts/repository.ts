@@ -114,8 +114,11 @@ export function feedCache(db: Db, feedUrl: string): FeedCache | null {
     .where(eq(podcasts.feedUrl, feedUrl))
     .get();
   if (!row) return null;
-  // Stored before Podcasting 2.0 fields were read: fetch the whole feed once to fill them in.
-  if (row.extras === null) return { etag: null, lastModified: null };
+  // Stored before Podcasting 2.0 fields (M23) or M75's soundbites and value were read: fetch the
+  // whole feed once to fill them in.
+  if (row.extras === null || row.extras.value === undefined) {
+    return { etag: null, lastModified: null };
+  }
   return { etag: row.etag, lastModified: row.lastModified };
 }
 

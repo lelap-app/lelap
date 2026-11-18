@@ -13,6 +13,7 @@ import {
   addonFailureEvent,
   appErrorEvent,
   downloadFailureEvent,
+  feedRefreshEvents,
   scanFailureEvent,
   syncFailureEvent,
 } from './build';
@@ -405,6 +406,41 @@ describe('diagnostics export', () => {
     expect(text).toContain('download  failed  book#1');
     expect(text).toContain('download  failed  book#2');
     expect(text).not.toContain('another-book');
+  });
+
+  it('sums up a background podcast refresh and keeps only the class of a feed’s error', () => {
+    const { db } = seededDb();
+    setDiagnosticsOn(db, true, NOW);
+    const failures = [
+      { podcastId: 'pod-a', error: new Error(`The feed answered HTTP 503. ${SECRETS.webdavUrl}`) },
+      { podcastId: 'pod-b', error: new Error(`Not readable XML: ${SECRETS.title}`) },
+    ];
+    const events = feedRefreshEvents({ feeds: 12, failures }, true);
+    events.forEach((event, i) => expect(recordDiagnostic(db, event, NOW - 10 + i)).toBe(true));
+    const text = exportOf(db);
+    expectClean(text);
+    expect(text).toContain('podcast  refreshed  background  12 feeds  2 failed');
+    expect(text).toContain('podcast  feed-failed  podcast#1  server  HTTP 503');
+    expect(text).toContain('podcast  feed-failed  podcast#2  unreadable');
+    expect(text).not.toContain('pod-a');
+  });
+
+  it('logs a refresh the app started only when a feed failed, and at most five feeds', () => {
+    expect(feedRefreshEvents({ feeds: 3, failures: [] }, false)).toEqual([]);
+    expect(feedRefreshEvents({ feeds: 0, failures: [] }, true)).toEqual([
+      { area: 'podcast', what: 'refreshed', background: true, count: 0, failed: 0 },
+    ]);
+    const failures = Array.from({ length: 9 }, (_, i) => ({
+      podcastId: `pod-${i}`,
+      error: new Error('timeout'),
+    }));
+    const events = feedRefreshEvents({ feeds: 9, failures }, false);
+    expect(events[0]).toEqual({ area: 'podcast', what: 'refreshed', count: 9, failed: 9 });
+    expect(events).toHaveLength(6);
+    expect(
+      DiagnosticEvent.safeParse({ area: 'podcast', what: 'feed-failed', feed: SECRETS.absUrl })
+        .success,
+    ).toBe(false);
   });
 
   it('turned off, exports no log', () => {

@@ -4,6 +4,7 @@ import {
   carryFolderPlace,
   episodeBook,
   FeedError,
+  feedRefreshEvents,
   isPlaceholderFeed,
   refreshFeeds,
   feedCache,
@@ -20,9 +21,10 @@ import { AppState, Platform } from 'react-native';
 import { proxyBase } from './config';
 
 import { db, newId } from './db';
+import { logDiagnostic } from './diagnostics';
 import { deleteDownload, startDownload } from './downloads';
 import { loadEpisodeChapters, loadEpisodeChaptersWithin } from './podcasting';
-import { playBook, useLibrary, usePlayerState } from './player';
+import { playBook, seekToBookPosition, useLibrary, usePlayerState } from './player';
 import { profileId } from './profile';
 
 const FETCH_TIMEOUT_MS = 20_000;
@@ -103,11 +105,15 @@ export async function runAutoDownload(): Promise<void> {
 
 let lastRefresh = 0;
 
-/** Refreshes every subscribed feed; one failing feed never stops the others. */
-export async function refreshPodcasts(force = false): Promise<void> {
+/**
+ * Refreshes every subscribed feed; one failing feed never stops the others. `background` marks a
+ * run Android started without the UI, for the diagnostics log.
+ */
+export async function refreshPodcasts(force = false, background = false): Promise<void> {
   if (!force && Date.now() - lastRefresh < REFRESH_EVERY_MS) return;
   lastRefresh = Date.now();
-  await refreshFeeds(db, profileId, fetchFeed);
+  const result = await refreshFeeds(db, profileId, fetchFeed);
+  for (const event of feedRefreshEvents(result, background)) logDiagnostic(event);
   await runAutoDownload();
 }
 
@@ -141,6 +147,14 @@ export async function playEpisode(episodeId: string): Promise<void> {
   const bookId = episodeBook(db, episodeId, Date.now(), newId);
   await loadEpisodeChaptersWithin(bookId, CHAPTERS_WAIT_MS);
   await playBook(bookId);
+}
+
+/** Plays an episode from a soundbite's start; it plays on from there like any other seek. */
+export async function playSoundbite(episodeId: string, startMs: number): Promise<void> {
+  const bookId = episodeBook(db, episodeId, Date.now(), newId);
+  await loadEpisodeChaptersWithin(bookId, CHAPTERS_WAIT_MS);
+  await playBook(bookId);
+  await seekToBookPosition(bookId, startMs);
 }
 
 /** Subscribes to every feed in an OPML file. Returns how many were added and which failed. */

@@ -1,9 +1,11 @@
+import { appErrorEvent } from '@lelap/core';
 import { sql } from 'drizzle-orm';
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 
 import { refreshWanted } from './availability';
 import { db } from './db';
+import { loadDiagnosticsSwitch, logDiagnostic } from './diagnostics';
 import { refreshPodcasts } from './podcasts';
 import { loadActiveProfile } from './profile';
 import { syncOnce } from './sync';
@@ -18,13 +20,16 @@ TaskManager.defineTask(TASK, async () => {
     // Without the UI no migration step ran; switch foreign keys on as the app does after it.
     db.run(sql`pragma foreign_keys = on`);
     loadActiveProfile();
+    // The app reads the switch when its UI opens, which a background run never does.
+    loadDiagnosticsSwitch();
     // New episodes, then auto-downloads (inside refreshPodcasts), then sync.
-    await refreshPodcasts(true);
+    await refreshPodcasts(true, true);
     await syncOnce();
     // Last: it asks add-ons, and a slow one must not hold up the rest.
     await refreshWanted().catch(() => {});
     return BackgroundTask.BackgroundTaskResult.Success;
-  } catch {
+  } catch (error) {
+    logDiagnostic(appErrorEvent(error, 'error'));
     return BackgroundTask.BackgroundTaskResult.Failed;
   }
 });
