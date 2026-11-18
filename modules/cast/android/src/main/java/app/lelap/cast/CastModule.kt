@@ -1,7 +1,9 @@
 package app.lelap.cast
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import expo.modules.interfaces.permissions.PermissionsResponseListener
 import expo.modules.interfaces.permissions.PermissionsStatus
 import expo.modules.kotlin.Promise
@@ -11,6 +13,9 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 class CastFailedException(message: String) : CodedException(message)
+
+/** Android 17 without local network access: JavaScript shows the explanation and asks. */
+class LocalNetworkDeniedException : CodedException("ERR_LOCAL_NETWORK", "Local network access is off", null)
 
 /**
  * Bridges JavaScript to discovery and to the [CastLink]. Playback itself goes through the
@@ -37,9 +42,16 @@ class CastModule : Module() {
     }
   }
 
-  private fun discovery(): Discovery = discovery ?: Discovery(context) { list ->
-    sendEvent(DEVICES_EVENT, mapOf("devices" to list.map { it.toMap() }))
-  }.also { discovery = it }
+  private fun discovery(): Discovery = discovery ?: Discovery(
+    context,
+    hasAccess = ::hasLocalNetwork,
+    onReport = { report -> sendEvent(DISCOVERY_EVENT, report) },
+    onChange = { list -> sendEvent(DEVICES_EVENT, mapOf("devices" to list.map { it.toMap() })) },
+  ).also { discovery = it }
+
+  private fun hasLocalNetwork(): Boolean =
+    !LocalNetwork.needed(Build.VERSION.SDK_INT) ||
+      context.checkSelfPermission(LocalNetwork.PERMISSION) == PackageManager.PERMISSION_GRANTED
 
   private fun watch(link: CastLink?) {
     if (watched === link) return
@@ -50,7 +62,7 @@ class CastModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("LelapCast")
-    Events(DEVICES_EVENT, STATUS_EVENT)
+    Events(DEVICES_EVENT, STATUS_EVENT, DISCOVERY_EVENT)
 
     AsyncFunction("startDiscovery") { discovery().start() }
 
@@ -58,12 +70,27 @@ class CastModule : Module() {
 
     AsyncFunction("devices") { discovery().devices().map { it.toMap() } }
 
+    // Whether the search runs and, when it can't add anything, why (DiscoveryLog.summary).
+    AsyncFunction("discoveryReport") { discovery().report() }
+
+    // Discovery's events since the last call, for the diagnostics log: words, kinds, codes, counts.
+    AsyncFunction("takeDiagnostics") {
+      discovery().log.take().map {
+        mapOf("at" to it.at.toDouble(), "what" to it.what, "kind" to it.kind, "code" to it.code, "count" to it.count)
+      }
+    }
+
     // "granted", "ask" (with an explanation first) or "blocked" (only Android's settings can).
     AsyncFunction("localNetworkAccess") { promise: Promise -> localNetwork(promise, ask = false) }
 
     AsyncFunction("requestLocalNetworkAccess") { promise: Promise -> localNetwork(promise, ask = true) }
 
     AsyncFunction("connect") { deviceId: String ->
+      // The receiver and the file server it fetches from are both on the local network.
+      if (!hasLocalNetwork()) {
+        Log.w(Discovery.TAG, "connect refused: no local network access")
+        throw LocalNetworkDeniedException()
+      }
       val target = discovery().device(deviceId) ?: throw CastFailedException("That speaker is no longer on the network")
       val link = try {
         CastLink.open(context, target)
@@ -95,8 +122,7 @@ class CastModule : Module() {
   }
 
   private fun localNetwork(promise: Promise, ask: Boolean) {
-    val target = context.applicationInfo.targetSdkVersion
-    if (!LocalNetwork.needed(Build.VERSION.SDK_INT, target)) return promise.resolve(LocalNetwork.GRANTED)
+    if (!LocalNetwork.needed(Build.VERSION.SDK_INT)) return promise.resolve(LocalNetwork.GRANTED)
     val permissions = appContext.permissions ?: return promise.resolve(LocalNetwork.ASK)
     val answer = PermissionsResponseListener { result ->
       val response = result[LocalNetwork.PERMISSION]
@@ -122,5 +148,6 @@ class CastModule : Module() {
   private companion object {
     const val DEVICES_EVENT = "onDevices"
     const val STATUS_EVENT = "onStatus"
+    const val DISCOVERY_EVENT = "onDiscovery"
   }
 }

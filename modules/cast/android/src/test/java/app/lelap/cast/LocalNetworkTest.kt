@@ -7,11 +7,11 @@ import org.junit.Test
 
 class LocalNetworkTest {
   @Test
-  fun onlyAskedOnAndroid17ByAnAppThatTargetsIt() {
-    assertTrue(LocalNetwork.needed(sdk = 37, targetSdk = 37))
-    // Targeting less, Android grants local network access with INTERNET.
-    assertFalse(LocalNetwork.needed(sdk = 37, targetSdk = 36))
-    assertFalse(LocalNetwork.needed(sdk = 36, targetSdk = 37))
+  fun askedOnEveryAndroid17Device() {
+    assertTrue(LocalNetwork.needed(sdk = 37))
+    assertTrue(LocalNetwork.needed(sdk = 38))
+    // Android 16 and earlier have no such permission.
+    assertFalse(LocalNetwork.needed(sdk = 36))
   }
 
   @Test

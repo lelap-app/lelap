@@ -674,7 +674,7 @@
   "A log of what went wrong, kept on this device, for a bug report. Off until you turn it on.": "Log tentang apa yang tidak kena, disimpan dalam peranti ini, untuk laporan pepijat. Tutup sehingga anda menghidupkannya.",
   "Keep a diagnostics log": "Simpan log diagnostik",
   "A log of what went wrong, for a bug report. It stays on this device: Lelap never sends it anywhere. It only leaves when you share the file yourself.": "Log tentang apa yang tidak kena, untuk laporan pepijat. Ia kekal dalam peranti ini: Lelap tidak pernah menghantarnya ke mana-mana. Ia hanya keluar apabila anda sendiri berkongsi fail itu.",
-  "Errors, player events, failed downloads and scans, and add-on and sync trouble. The newest {n} events; turning it off deletes them.": "Ralat, peristiwa pemain, muat turun dan imbasan yang gagal, serta masalah alat tambah dan penyegerakan. {n} peristiwa terbaharu; mematikannya akan memadamkannya.",
+  "Errors, player events, failed downloads and scans, add-on and sync trouble, and what the search for speakers and TVs found. The newest {n} events; turning it off deletes them.": "Ralat, peristiwa pemain, muat turun dan imbasan yang gagal, masalah alat tambah dan penyegerakan, serta apa yang ditemui oleh carian pembesar suara dan TV. {n} peristiwa terbaharu; mematikannya akan memadamkannya.",
   "File for a bug report": "Fail untuk laporan pepijat",
   "No titles, file names, addresses, user names, keys or codes. Books, servers and add-ons are numbered instead, such as book#1. You see the whole file before you share it.": "Tiada tajuk, nama fail, alamat, nama pengguna, kunci atau kod. Buku, pelayan dan alat tambah diberi nombor sebaliknya, seperti book#1. Anda melihat seluruh fail sebelum berkongsinya.",
   "Preparing…": "Menyediakan…",
@@ -801,5 +801,8 @@
   "Opens a page on our server for your account; paste the link it gives you below.": "Membuka halaman di pelayan kami untuk akaun anda; tampal pautan yang diberikannya di bawah.",
   "No speakers or TVs found on this Wi-Fi.": "Tiada pembesar suara atau TV dijumpai pada Wi-Fi ini.",
   "Check that the speaker or TV is on and on the same Wi-Fi as this phone. Guest networks, some mesh and office networks, and a VPN on the phone stop devices from seeing each other.": "Pastikan pembesar suara atau TV dihidupkan dan berada pada Wi-Fi yang sama dengan telefon ini. Rangkaian tetamu, sesetengah rangkaian mesh dan pejabat, serta VPN pada telefon menghalang peranti daripada melihat satu sama lain.",
-  "Search again": "Cari semula"
+  "Search again": "Cari semula",
+  "Lelap couldn’t start looking for Google Cast and FCast devices (code {code}).": "Lelap tidak dapat mula mencari peranti Google Cast dan FCast (kod {code}).",
+  "Lelap found 1 Google Cast or FCast device but couldn’t reach it.": "Lelap menjumpai 1 peranti Google Cast atau FCast tetapi tidak dapat menghubunginya.",
+  "Lelap found {n} Google Cast or FCast devices but couldn’t reach them.": "Lelap menjumpai {n} peranti Google Cast atau FCast tetapi tidak dapat menghubunginya."
 }

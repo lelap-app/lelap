@@ -84,6 +84,26 @@ export const ADDON_RESOURCES = [
 ] as const;
 export type AddonResource = (typeof ADDON_RESOURCES)[number];
 
+/**
+ * What the cast search did (`modules/cast`'s `DiscoveryLog`). Each event stands for every one of
+ * its kind in one search, with a count, so a busy Wi-Fi takes a few lines.
+ */
+export const CAST_EVENTS = [
+  'started',
+  'start-failed',
+  'stop-failed',
+  'found',
+  'resolve-failed',
+  'resolve-timeout',
+  'no-address',
+  'added',
+  'lost',
+] as const;
+export type CastEventName = (typeof CAST_EVENTS)[number];
+
+/** The protocol, never the device: UPnP by SSDP, Google Cast and FCast by mDNS. */
+export const CAST_KINDS = ['upnp', 'cast', 'fcast'] as const;
+
 /** A row ID from this device's database. Reports never print it; they print `book#1`. */
 const REF_MAX = 200;
 const Ref = z.string().min(1).max(REF_MAX);
@@ -133,6 +153,14 @@ export const DiagnosticEvent = z.discriminatedUnion('area', [
     status: Status.optional(),
   }),
   z.strictObject({
+    area: z.literal('cast'),
+    what: z.enum(CAST_EVENTS),
+    kind: z.enum(CAST_KINDS),
+    /** NsdManager's `FAILURE_*` code; -1 when the call threw, -2 when it never answered. */
+    code: Code.optional(),
+    count: Count.optional(),
+  }),
+  z.strictObject({
     area: z.literal('app'),
     what: z.enum(['error', 'unhandled-rejection']),
     name: z.enum(ERROR_NAMES).optional(),
@@ -151,6 +179,29 @@ export type NativePlayerEvent = {
   bookId?: string | null;
   part?: number | null;
 };
+
+/** One cast discovery event as `modules/cast` keeps it. */
+export type NativeCastEvent = {
+  at: number;
+  what: string;
+  kind: string;
+  code?: number | null;
+  count?: number | null;
+};
+
+/** A cast discovery event from native code, or `null` when it is not one Lelap knows. */
+export function castEvent(raw: NativeCastEvent): { at: number; event: DiagnosticEvent } | null {
+  if (!Number.isFinite(raw.at)) return null;
+  const parsed = DiagnosticEvent.safeParse({
+    area: 'cast',
+    what: raw.what,
+    kind: raw.kind,
+    ...(raw.code != null ? { code: raw.code } : {}),
+    // Once is the default; only repeats are worth a number.
+    ...(raw.count != null && raw.count > 1 ? { count: raw.count } : {}),
+  });
+  return parsed.success ? { at: raw.at, event: parsed.data } : null;
+}
 
 /** A player event from native code, or `null` when it is not one Lelap knows. */
 export function playerEvent(

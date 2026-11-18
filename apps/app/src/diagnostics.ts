@@ -26,10 +26,10 @@ const addonSeen = new Map<string, number>();
 export const isDiagnosticsOn = () => on;
 
 /** Adds an event while the log is on; never throws, so logging can't break what it watches. */
-export function logDiagnostic(event: DiagnosticEvent | null): void {
+export function logDiagnostic(event: DiagnosticEvent | null, at: number = Date.now()): void {
   if (!on || !event) return;
   try {
-    recordDiagnostic(db, event, Date.now());
+    recordDiagnostic(db, event, at);
   } catch {
     // A log that can't be written is not worth an error of its own.
   }
