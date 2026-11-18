@@ -33,7 +33,10 @@ class CoverProvider : ContentProvider() {
     return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
   }
 
-  override fun getType(uri: Uri): String = "image/*"
+  override fun getType(uri: Uri): String {
+    val cover = context?.let { CarCovers.find(uri.lastPathSegment.orEmpty(), snapshot(it), journal(it)) }
+    return CarCovers.mimeType(cover)
+  }
 
   private fun snapshot(context: Context): CarSnapshot = CarLibrary.decode(
     context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE).getString(Commands.PREF_CAR_LIBRARY, null),

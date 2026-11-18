@@ -1352,9 +1352,11 @@ class PlaybackService : MediaLibraryService() {
         Commands.SETTLE_ACCOUNTING -> account()
         Commands.SKIP -> {
           // A player with nothing loaded can't seek; Play would start the book, so load it paused.
-          if (player.mediaItemCount == 0) journalLoad()?.let { loadBook(it, autoplay = false) }
+          val loaded = player.mediaItemCount == 0 && journalLoad()?.let { loadBook(it, autoplay = false) } != null
           val forward = args.getBoolean(Commands.KEY_FORWARD, true)
           skipBy(if (forward) skipIntervalMs else -skipIntervalMs)
+          // The listener picked this place; Play shouldn't rewind from it for the old pause.
+          if (loaded) pausedAt = null
         }
         Commands.STOP_CAST ->
           endRemote(resume = if (args.containsKey(Commands.KEY_RESUME)) args.getBoolean(Commands.KEY_RESUME) else null)

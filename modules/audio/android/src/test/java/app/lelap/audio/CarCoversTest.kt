@@ -39,6 +39,12 @@ class CarCoversTest {
     assertEquals("file:///c.jpg", CarCovers.find(CarCovers.key("file:///c.jpg"), CarSnapshot(), journal))
   }
 
+  @Test fun `the type follows the extension`() {
+    assertEquals("image/png", CarCovers.mimeType("file:///c/a.PNG"))
+    assertEquals("image/jpeg", CarCovers.mimeType("file:///c/a"))
+    assertEquals("image/jpeg", CarCovers.mimeType(null))
+  }
+
   @Test fun `a web cover is never served by the provider`() {
     val snapshot = CarSnapshot(onPhone = listOf(load("a", "https://img/a.jpg")))
     assertNull(CarCovers.find(CarCovers.key("https://img/a.jpg"), snapshot, null))

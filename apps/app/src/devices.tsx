@@ -59,6 +59,16 @@ function markedCars(): MarkedCar[] {
 const listeners = new Set<() => void>();
 const carListeners = new Set<(car: bluetooth.AudioDevice) => void>();
 let subscription: { remove: () => void } | null = null;
+// Levels count only while a book plays: idle earbuds drain slower than listening ones.
+let listening = false;
+
+/** Playback started or stopped; a pause ends the measure, the next play starts a new one. */
+function setListening(playing: boolean): void {
+  if (playing === listening) return;
+  listening = playing;
+  if (!playing) snapshot = { ...snapshot, samples: new Map() };
+  update(reported);
+}
 
 function update(found: bluetooth.AudioDevice[]) {
   // Android names some devices nothing; native code leaves the name empty for the app to fill.
@@ -72,7 +82,7 @@ function update(found: bluetooth.AudioDevice[]) {
     const before = snapshot.samples.get(d.id) ?? [];
     const last = before.at(-1);
     const next =
-      d.battery !== null && last?.level !== d.battery
+      listening && d.battery !== null && last?.level !== d.battery
         ? [...before, { at: now, level: d.battery }]
         : before;
     // Up to 20 h of steps of ten, so a whole session's drain can be measured.
@@ -169,11 +179,13 @@ export function useCarChoices(): {
  */
 export function DeviceRunner() {
   const { version } = useLibrary();
+  const { playing } = usePlayerState();
   const router = useRouter();
   const settings = useMemo(() => getSettings(db, profileId), [version]);
   useEffect(() => {
     void followDevices(settings).catch(() => {});
   }, [settings]);
+  useEffect(() => setListening(playing), [playing]);
   useEffect(() => {
     if (!settings.carModeOffer) return;
     const offer = (car: bluetooth.AudioDevice) =>
@@ -229,7 +241,14 @@ export function useHeadphoneWarning(): { name: string; level: number; what: stri
 }
 
 /** Like the offline banner: the headphones' battery likely won't last. */
-export function HeadphoneBanner({ className = '' }: { className?: string }) {
+export function HeadphoneBanner({
+  className = '',
+  large = false,
+}: {
+  className?: string;
+  /** Car mode: no text under 18 points. */
+  large?: boolean;
+}) {
   const warning = useHeadphoneWarning();
   if (!warning) return null;
   return (
@@ -237,8 +256,8 @@ export function HeadphoneBanner({ className = '' }: { className?: string }) {
       accessibilityRole="alert"
       className={`flex-row items-center gap-3 rounded-xl bg-[#2b2414] px-4 py-3 ${className}`}
     >
-      <Icon name="headphones" size={20} color="#f7d9a0" />
-      <Text className="flex-1 text-sm text-[#f7d9a0]">
+      <Icon name="headphones" size={large ? 28 : 20} color="#f7d9a0" />
+      <Text className={`flex-1 ${large ? 'text-lg' : 'text-sm'} text-[#f7d9a0]`}>
         {t('{name} at {level}%.', { name: warning.name, level: warning.level })}{' '}
         {warning.what || t('Charge it soon.')}
       </Text>

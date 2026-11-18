@@ -6,8 +6,8 @@ export type BatterySample = { at: number; level: number };
 
 /** Percent per hour assumed when the device has not reported long enough to measure its drain. */
 export const ASSUMED_DRAIN_PER_HOUR = 20;
-/** No earbuds last longer than 20 hours of listening; a slower measure is a fluke. */
-export const MIN_DRAIN_PER_HOUR = 5;
+/** Earbuds rarely last past 12 hours of listening; a slower measure is a fluke. */
+export const MIN_DRAIN_PER_HOUR = 8;
 /** With nothing coming that needs a length of time, warn at this level or below. */
 export const LOW_BATTERY_PERCENT = 20;
 // Measured over less than this, a drop of one step says little.
@@ -56,13 +56,15 @@ export function learnDrain(learned: number | null, samples: BatterySample[]): nu
 }
 
 /**
- * Percent per hour: what the samples show between drops, else what this device showed before
+ * Percent per hour: what the samples show between drops (or most of what this device showed
+ * before, if that is faster), else what it showed before
  * ([learned]), else the rough measure since connection but never less than
  * [ASSUMED_DRAIN_PER_HOUR]. Samples are in the order they arrived; a rise starts the measure again.
  */
 export function drainPerHour(samples: BatterySample[], learned: number | null = null): number {
   const measured = measuredDrain(samples);
-  if (measured !== null) return Math.max(MIN_DRAIN_PER_HOUR, measured);
+  // One slow stretch now can't undo much of what earlier sessions showed.
+  if (measured !== null) return Math.max(MIN_DRAIN_PER_HOUR, measured, (learned ?? 0) * 0.75);
   const run = sinceLastRise(samples);
   const from = run[0];
   const last = run.at(-1);

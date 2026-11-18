@@ -81,6 +81,8 @@ describe('headphone battery', () => {
   it('measures between drops, slower than assumed when the earbuds show it', () => {
     expect(measuredDrain(tenHours)).toBe(10);
     expect(drainPerHour(tenHours)).toBe(10);
+    // Earlier sessions at 20 % per hour keep it at 15 at least.
+    expect(drainPerHour(tenHours, 20)).toBe(15);
     // One drop alone, or two close together, can't tell yet.
     expect(measuredDrain(tenHours.slice(0, 2))).toBeNull();
     expect(
@@ -103,7 +105,7 @@ describe('headphone battery', () => {
   });
 
   it('uses what a device showed before until it can measure again', () => {
-    expect(drainPerHour([], 8)).toBe(8);
+    expect(drainPerHour([], 10)).toBe(10);
     expect(drainPerHour([{ at: 0, level: 70 }], 2)).toBe(MIN_DRAIN_PER_HOUR);
     // A faster rough measure since connection still wins, to stay on the safe side.
     expect(
@@ -112,7 +114,7 @@ describe('headphone battery', () => {
           { at: 0, level: 80 },
           { at: 30 * MIN, level: 60 },
         ],
-        8,
+        10,
       ),
     ).toBe(40);
     // 30 % lasts three hours at 10 % per hour, so a two-hour timer gets no warning.

@@ -33,6 +33,8 @@ type Palette = {
   /** The chapter line: amber at night, a darker amber that reads on paper by day. */
   accentText: string;
   track: string;
+  /** The place in the chapter, on [track]. */
+  progress: string;
   disabled: string;
 };
 
@@ -44,18 +46,21 @@ const NIGHT: Palette = {
   secondary: COLORS.soft,
   accentText: COLORS.amber,
   track: COLORS.line,
+  progress: COLORS.amber,
   disabled: '#5f5c56',
 };
 
-// Every text colour here is at least 6:1 on the paper background.
+// Every text colour here is at least 5:1 on the paper and on the buttons. Amber on paper is too
+// faint for the bar, so it takes the darker amber of the chapter line.
 const DAY: Palette = {
   background: COLORS.paper,
   surface: '#e6e0d3',
-  border: '#cbc3b2',
+  border: '#a89f8c',
   text: COLORS.ink,
   secondary: '#5c574d',
   accentText: '#7a4f00',
   track: '#d8d1c2',
+  progress: '#7a4f00',
   disabled: '#a39d91',
 };
 
@@ -215,10 +220,14 @@ export default function CarMode() {
   const shape = landscape ? 'landscape' : 'portrait';
   const height = dims.height - insets.top - insets.bottom;
   // What is left after the header, the text and the buttons; the cover takes it, within reason.
+  // Portrait: the cover takes what the title and chapter leave of the middle, once measured, so
+  // a headphone warning or large system text never pushes the buttons off the screen.
+  const [middle, setMiddle] = useState<{ area: number; words: number } | null>(null);
+  const portraitRoom = middle ? middle.area - middle.words - 24 : height - 556;
   const coverSize = Math.round(
     landscape
       ? Math.max(96, Math.min(height - 24, dims.width * 0.36, 360))
-      : Math.max(96, Math.min(dims.width - 64, height - 556, 360)),
+      : Math.max(64, Math.min(dims.width - 64, portraitRoom, 360)),
   );
 
   const exit = (
@@ -307,7 +316,7 @@ export default function CarMode() {
               width: `${progress * 100}%`,
               height: 6,
               borderRadius: 3,
-              backgroundColor: COLORS.amber,
+              backgroundColor: palette.progress,
             }}
           />
         </View>
@@ -396,17 +405,31 @@ export default function CarMode() {
               <View className="flex-1">{words}</View>
               {exit}
             </View>
-            <HeadphoneBanner />
+            <HeadphoneBanner large />
             {controls}
           </View>
         </View>
       ) : (
         <View className="flex-1 justify-between gap-6">
           <View className="flex-row justify-end">{exit}</View>
-          <HeadphoneBanner />
-          <View className="flex-1 items-center justify-center gap-6">
+          <HeadphoneBanner large />
+          <View
+            className="flex-1 items-center justify-center gap-6"
+            onLayout={(e) => {
+              const area = e.nativeEvent.layout.height;
+              setMiddle((m) => (m?.area === area ? m : { area, words: m?.words ?? 0 }));
+            }}
+          >
             {artwork}
-            <View style={{ alignSelf: 'stretch' }}>{words}</View>
+            <View
+              style={{ alignSelf: 'stretch' }}
+              onLayout={(e) => {
+                const words = e.nativeEvent.layout.height;
+                setMiddle((m) => (m?.words === words ? m : { area: m?.area ?? 0, words }));
+              }}
+            >
+              {words}
+            </View>
           </View>
           {controls}
         </View>
