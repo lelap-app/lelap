@@ -293,7 +293,7 @@ export function hardcoverAddon(
     manifestFor,
     intro: `Paste your Hardcover API token (hardcover.app → Settings → Hardcover API). It needs these permissions: ${SCOPES.join(', ')}. Tokens made before August 2026 have them all. Lelap then moves books to Currently reading, Read or Did not finish as you listen, and shows your Want to read shelf, trending books and the lists you choose.`,
     introLink: { href: NEW_TOKEN_URL, label: 'Make a token with these permissions' },
-    fields: [{ name: 'token', label: 'API token', type: 'password', placeholder: 'Bearer eyJ…' }],
+    fields: [{ name: 'token', label: 'API token', type: 'password', placeholder: 'hc_pat_…' }],
     parse: (form) => {
       const token = (form.token ?? '').trim();
       if (token.length < 20)
