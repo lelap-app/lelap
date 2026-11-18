@@ -1,6 +1,6 @@
 # Draft of the recipe for F-Droid's fdroiddata repository (metadata/app.lelap.yml), to submit as a
 # merge request there once the first stable version is tagged. Kept here so it changes with the
-# build. Each release adds two Builds entries, one per CPU type (M54), each with its own
+# build. Each release has two Builds entries, one per CPU type (M54), each with its own
 # versionCode and signed APK:
 #   armeabi-v7a  10 * base + 1   lelap-<version>-fdroid-armv7.apk
 #   arm64-v8a    10 * base + 2   lelap-<version>-fdroid.apk
@@ -8,6 +8,9 @@
 # `scripts/release.mts stamp` writes into app.json; the Gradle build multiplies it
 # (apps/app/plugins/withArchitectures.js). `node scripts/release.mts apk v0.1.0 arm64-v8a fdroid`
 # prints the name and code. 64-bit has the higher code, so phones that run both get it.
+# The release pull request commits the stamped app.json, so every stable tag carries its base
+# code and F-Droid adds the two entries itself (UpdateCheckData, VercodeOperation below). The
+# release workflow refuses a stable tag without it (`scripts/release.mts committed`).
 Categories:
   - Multimedia
 License: AGPL-3.0-only
@@ -89,6 +92,8 @@ AllowedAPKSigningKeys: 104bfde7bfcbcc898031493164e3e76b9fcc3bcb98c85110ccb8667b7
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
+# The base versionCode and the version from app.json at the tag.
+UpdateCheckData: apps/app/app.json|"versionCode":\s*(\d+)|apps/app/app.json|"version":\s*"(\d+\.\d+\.\d+)"
 # One build per CPU type from the base versionCode (%c), in the order of the Builds entries.
 VercodeOperation:
   - 10 * %c + 1

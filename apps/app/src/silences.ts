@@ -15,7 +15,7 @@ import { queryClient } from './addons';
 import { db, newId } from './db';
 import { t } from './i18n';
 import * as library from './platform/library';
-import { reloadBook, useLibrary } from './player';
+import { updateChapters, useLibrary } from './player';
 import { profileId } from './profile';
 
 // Chapters from silences (M45). Android decodes the book's own files in a background worker;
@@ -94,8 +94,8 @@ async function foldScans(onChange: () => void): Promise<Map<string, SilenceScan>
     if (chapters.length > 0 && saveFoundChapters(db, scan.bookId, chapters, Date.now(), newId)) {
       changed = true;
       await library.removeSilences(scan.bookId);
-      // The player shows the chapter on the lock screen once the book is loaded again.
-      await reloadBook(scan.bookId, false).catch(() => {});
+      // A playing book gets them too: the lock screen title and a chapter timer follow them.
+      await updateChapters(scan.bookId).catch(() => {});
     } else if (!detail || detail.chapters.length > 0) {
       // The book is gone, or has chapters from elsewhere by now.
       await library.removeSilences(scan.bookId);

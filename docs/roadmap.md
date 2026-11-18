@@ -73,14 +73,14 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M60 Internet Archive](milestones/m60.md)            | Done        |           5 | A hosted add-on for public-domain audio on archive.org beyond LibriVox                                  |
 | [M61 Open Library reading log](milestones/m61.md)    | Done        |           8 | A scrobble add-on marking books read or reading on Open Library                                         |
 | [M62 SMB and SFTP](milestones/m62.md)                | Done        |          11 | Built-in sources for NAS shares and plain servers, on Android                                           |
-| [M63 Playback fixes](milestones/m63.md)              | Planned     |             | Small fixes in the playback service and the player, left from earlier reviews                           |
+| [M63 Playback fixes](milestones/m63.md)              | Done        |          10 | Small fixes in the playback service and the player, left from earlier reviews                           |
 | [M64 Library fixes](milestones/m64.md)               | Planned     |             | Folder scans, tags, downloads and matching: small fixes left from earlier reviews                       |
 | [M65 Server sources 2](milestones/m65.md)            | Planned     |             | Outboxes, narrators and series, and steadier places for the media servers                               |
 | [M66 Add-on protocol 3](milestones/m66.md)           | Planned     |             | Editions, settings for every route, paging, more scrobble events and upkeep of first-party add-ons      |
 | [M67 Web app 2](milestones/m67.md)                   | Planned     |             | Faster saves, covers from servers and steadier media keys in the web app                                |
 | [M68 Sync fixes](milestones/m68.md)                  | Done        |           5 | Quieter scans, the source choice synced, and sturdier snapshots and expiry                              |
 | [M69 Casting 3](milestones/m69.md)                   | Planned     |             | Outro skipping, smart rewind and measured timings on receivers, Cast device authentication              |
-| [M70 Release upkeep](milestones/m70.md)              | Planned     |             | Smaller OTA updates, a pinned signing toolchain, F-Droid update checks and other pipeline fixes         |
+| [M70 Release upkeep](milestones/m70.md)              | Done        |           6 | Smaller OTA updates, a pinned signing toolchain, F-Droid update checks and other pipeline fixes         |
 | [M71 App polish](milestones/m71.md)                  | Planned     |             | Small fixes on Home, the Library, the Player and Settings, left from earlier reviews                    |
 | [M72 Languages 2](milestones/m72.md)                 | Planned     |             | Native errors, made-up chapter titles, dates and numbers in the profile’s language                      |
 | [M73 Landing page polish](milestones/m73.md)         | Done        |           2 | Theme switch announcements, one shared hidden class, narrow screens and escaped holes                   |

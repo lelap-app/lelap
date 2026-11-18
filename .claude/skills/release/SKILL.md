@@ -123,9 +123,13 @@ add shipped features that a reader would look for.
   on npm, not only the workspace (see the SDK check in step 2).
 - **Store text:** `fastlane/metadata/android/en-US/full_description.txt` and
   `short_description.txt`, same check as the landing page.
+- **App version:** `node scripts/release.mts stamp vX.Y.Z` and commit `apps/app/app.json`, beta
+  and stable alike. F-Droid's update check reads the base versionCode from it at the tag, and
+  the release workflow stops a stable tag whose `app.json` doesn't match (a beta gets a warning).
 - **F-Droid recipe** (`docs/fdroid/app.lelap.yml`), stable only: two `Builds` entries (one per
   CPU type) with `versionName`, `versionCode` and `commit`, and `CurrentVersion`,
-  `CurrentVersionCode` (the arm64 code). Before the first
+  `CurrentVersionCode` (the arm64 code). Once the recipe is in fdroiddata, F-Droid adds these
+  itself from the committed `app.json`; the copy here only keeps up. Before the first
   submission, `AllowedAPKSigningKeys` needs the certificate hash; ask the user whether this
   release is the one to submit, and make the landing page's F-Droid card say the same.
 - **Project docs:** the front matter and record of the release milestone
@@ -152,7 +156,9 @@ add shipped features that a reader would look for.
    `gh release edit vX.Y.Z --notes-file <file with the entry>`.
 4. Check what went out:
    - `curl -s https://dl.<domain>/beta.json` (and `latest.json` for stable) shows the new
-     version, and its `url` downloads.
+     version, and its `url` downloads. Not after a JavaScript-only release (same runtime, bundle
+     published over the air): the file keeps the previous APK on purpose, and the run says so in
+     a notice.
    - `gh release view vX.Y.Z` lists four APKs (direct and F-Droid, arm64 and `-armv7`),
      `SHA256SUMS` and `release.json`.
    - The images exist: `docker manifest inspect ghcr.io/lelap-app/web:X.Y.Z`.
