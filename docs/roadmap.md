@@ -36,7 +36,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M23 Podcasting 2.0](milestones/m23.md)              | Done        |           6 | Transcripts, chapter files, person and season tags, funding links from feeds                             |
 | [M24 Stats and goals](milestones/m24.md)             | Done        |           4 | Listening time, streaks, finished books, an optional yearly goal; computed and kept on device            |
 | [M25 Home screen and tiles](milestones/m25.md)       | Done        |           9 | Android widget, Quick Settings tile, sleep timer from the lock screen                                    |
-| [M26 Casting](milestones/m26.md)                     | Done        |          13 | Sonos and DLNA over UPnP, Google Cast speakers (Nest) through an open Cast client, FCast; no Google SDK  |
+| [M26 Casting](milestones/m26.md)                     | Done        |          12 | Sonos and DLNA over UPnP, Google Cast speakers (Nest) through an open Cast client, FCast; no Google SDK  |
 | [M27 Add-on protocol v2](milestones/m27.md)          | Done        |           6 | Settings pages for add-ons, add-on sign-in, health checks, protocol versioning                           |
 | [M28 F-Droid](milestones/m28.md)                     | In progress |           2 | Reproducible APKs, an F-Droid listing, signed checksums on the site                                      |
 | [M29 Sleep and links](milestones/m29.md)             | Done        |          10 | Sleep timer until end of chapter or episode, shake to extend, retry `/resolve` on 403 and 410            |
