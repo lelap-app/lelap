@@ -1,4 +1,4 @@
-import { fetchMeta, getBook, linkBook, searchAll } from '@lelap/core';
+import { fetchMeta, formatSeries, getBook, linkBook, searchAll } from '@lelap/core';
 import type { MetaPreview } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -54,7 +54,12 @@ export default function MatchScreen() {
         bookId,
         { type: 'audiobook', id: preview.id, externalIds: meta?.externalIds },
         Date.now(),
-        { title: name, author, cover: meta?.cover ?? preview.cover ?? null },
+        {
+          title: name,
+          author,
+          cover: meta?.cover ?? preview.cover ?? null,
+          series: formatSeries(meta?.series),
+        },
       );
       refresh();
       router.back();

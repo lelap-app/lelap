@@ -37,6 +37,8 @@ data class KindTags(
   /** A narrator tag, else the composer, which audiobooks often use for the narrator. */
   val narrator: String?,
   val mediaKind: String?,
+  /** `Dune #1` from the file's series tags (M109); null when it has none. */
+  val series: String?,
 ) {
   fun toMap(): Map<String, String?> = mapOf(
     "genre" to genre,
@@ -45,6 +47,8 @@ data class KindTags(
     "year" to year,
     "narrator" to narrator,
     "mediaKind" to mediaKind,
+    // Always present, also when null: the app reads a book's first file again until it is.
+    "series" to series,
   )
 }
 
@@ -55,6 +59,7 @@ private fun kindTags(tag: (Int) -> String?, file: FileTags) = KindTags(
   year = tag(MediaMetadataRetriever.METADATA_KEY_YEAR),
   narrator = file.narrator ?: tag(MediaMetadataRetriever.METADATA_KEY_COMPOSER),
   mediaKind = file.mediaKind,
+  series = file.series,
 )
 
 /** Text tags, duration and embedded cover from Android, chapters from our own parsers. */

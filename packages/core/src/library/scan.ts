@@ -120,12 +120,17 @@ export function upsertRoot(
  * Audio files that are new or changed since they were last read, so their tags need reading.
  * `readsIds`: the reader gives ISBN and ASIN tags, so files read before it did (M56) are read once
  * more. `readsKinds`: the reader gives genre and ISRC (M77), so single-file books read before it
- * did are read once more; only they can look like music.
+ * did are read once more; only they can look like music. `readsSeries`: the reader gives series
+ * tags (M109), so the first file of each book read before it did is read once more.
  */
 export function filesNeedingTags(
   db: Db,
   listed: ListedFile[],
-  { readsIds = false, readsKinds = false }: { readsIds?: boolean; readsKinds?: boolean } = {},
+  {
+    readsIds = false,
+    readsKinds = false,
+    readsSeries = false,
+  }: { readsIds?: boolean; readsKinds?: boolean; readsSeries?: boolean } = {},
 ): ListedFile[] {
   const audio = withoutDownloads(listed).filter((f) => isAudioFile(f.name));
   if (audio.length === 0) return [];
@@ -139,6 +144,7 @@ export function filesNeedingTags(
         ids: bookFiles.ids,
         kindTags: bookFiles.kindTags,
         bookId: bookFiles.bookId,
+        idx: bookFiles.idx,
       })
       .from(bookFiles)
       .all()
@@ -159,7 +165,8 @@ export function filesNeedingTags(
       s.modifiedAt !== f.modifiedAt ||
       s.durationMs === 0 ||
       (readsIds && s.ids === null) ||
-      (readsKinds && s.kindTags === null && s.bookId !== null && partsOf.get(s.bookId) === 1)
+      (readsKinds && s.kindTags === null && s.bookId !== null && partsOf.get(s.bookId) === 1) ||
+      (readsSeries && s.bookId !== null && s.idx === 0 && !(s.kindTags && 'series' in s.kindTags))
     );
   });
 }

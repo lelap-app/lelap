@@ -8,6 +8,7 @@ import {
   type FoundStream,
   getBook,
   getEditionChoice,
+  findSeries,
   getSourceChoice,
   linkBook,
   type LinkableWork,
@@ -162,6 +163,12 @@ export default function ItemScreen() {
       series: Number.isInteger(position) ? position : null,
     };
   }, [meta.data, type, id]);
+  // The same series in the library (M109), by name, for a link to its page.
+  const seriesName = meta.data?.meta.series?.[0]?.name;
+  const inLibrary = useMemo(
+    () => (seriesName ? findSeries(db, profileId, seriesName) : null),
+    [seriesName, version],
+  );
   const yourCopy = useMemo(
     () => (linkable ? findYourCopy(db, linkable) : null),
     [linkable, version],
@@ -324,6 +331,19 @@ export default function ItemScreen() {
                 .filter(Boolean)
                 .join(' · ')}
             </Text>
+            {inLibrary && (
+              <TextButton
+                text={
+                  inLibrary.books.length === 1
+                    ? t('1 book of {series} in your library', { series: inLibrary.name })
+                    : t('{n} books of {series} in your library', {
+                        n: inLibrary.books.length,
+                        series: inLibrary.name,
+                      })
+                }
+                onPress={() => router.push({ pathname: '/series', params: { key: inLibrary.key } })}
+              />
+            )}
           </View>
 
           {offer && (

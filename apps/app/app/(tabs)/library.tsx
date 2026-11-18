@@ -13,8 +13,10 @@ import {
   listTags,
   localRoot,
   listRoots,
+  listSeries,
   markNotMusic,
   musicSuggestions,
+  type Series,
   setSetting,
   showInLibrary,
   SMART_PRESETS,
@@ -42,6 +44,7 @@ import { COLORS, Icon, IconButton } from '../../src/components/Icon';
 import { BookActions } from '../../src/components/BookActions';
 import { BookRow, type RowSwipe } from '../../src/components/BookRow';
 import { MusicCard, MusicReview } from '../../src/components/MusicSuggestions';
+import { SeriesRow } from '../../src/components/SeriesRow';
 import { type UndoNotice, UndoBar } from '../../src/components/UndoBar';
 import { ContinueCard } from '../../src/components/ContinueCard';
 import { EmptyState, Lori } from '../../src/components/Lori';
@@ -55,21 +58,25 @@ import { chooseFolder, scanLibrary } from '../../src/scan';
 import { Pill } from '../../src/components/Pill';
 import { TextButton } from '../../src/components/TextButton';
 
-/** `progress` is the grouped view (M79); Title and Author are flat lists. */
-type LibraryView = 'progress' | 'title' | 'author';
+/** `progress` is the grouped view (M79); Title and Author are flat lists; Series lists series (M109). */
+type LibraryView = 'progress' | 'title' | 'author' | 'series';
 
 const views = (): { key: LibraryView; label: string }[] => [
   { key: 'progress', label: t('Progress') },
   { key: 'title', label: t('Title') },
   { key: 'author', label: t('Author') },
+  { key: 'series', label: t('Series') },
 ];
 
 /** A group's title above its books, in the grouped view. */
 type GroupHeader = { group: ListeningStatus; count: number };
-type Row = LibraryBook | GroupHeader;
+type SeriesItem = { series: Series };
+type Row = LibraryBook | GroupHeader | SeriesItem;
 
 const isHeader = (row: Row): row is GroupHeader => 'group' in row;
-const rowKeyOf = (row: Row) => (isHeader(row) ? `group:${row.group}` : row.id);
+const isSeries = (row: Row): row is SeriesItem => 'series' in row;
+const rowKeyOf = (row: Row) =>
+  isHeader(row) ? `group:${row.group}` : isSeries(row) ? `series:${row.series.key}` : row.id;
 
 const groupTitle = (header: GroupHeader) =>
   header.group === 'inProgress'
@@ -128,13 +135,14 @@ export default function LibraryScreen() {
   // The phone's folder or any server: a rescan reads them all.
   const hasRoots = useMemo(() => listRoots(db).length > 0, [version]);
   const grouped = view === 'progress' && !showHidden;
+  const bySeries = view === 'series' && !showHidden;
   // The Hidden view stays one flat list; in the grouped view each group sorts itself.
   const books = useMemo(
     () =>
       listBooks(
         db,
         profileId,
-        view === 'progress' ? 'recent' : view,
+        view === 'progress' ? 'recent' : view === 'series' ? 'title' : view,
         showHidden ? 'hidden' : 'visible',
       ),
     [view, version, showHidden],
@@ -149,7 +157,13 @@ export default function LibraryScreen() {
     setSetting(db, profileId, 'libraryFinishedOpen', !finishedOpen, Date.now());
     setToggled((n) => n + 1);
   }, [finishedOpen]);
+  // `version` is the signal to re-read the database.
+  const seriesList = useMemo(
+    () => (bySeries ? listSeries(db, profileId) : []),
+    [bySeries, version],
+  );
   const rows = useMemo<Row[]>(() => {
+    if (bySeries) return seriesList.map((series) => ({ series }));
     if (!grouped) return books;
     const groups = groupByProgress(books);
     const list: Row[] = [];
@@ -160,7 +174,7 @@ export default function LibraryScreen() {
       if (group !== 'finished' || finishedOpen) list.push(...members);
     }
     return list;
-  }, [books, grouped, finishedOpen]);
+  }, [books, grouped, finishedOpen, bySeries, seriesList]);
   // A kids profile counts only what its Hidden view can show.
   const hiddenTotal = useMemo(
     () =>
@@ -318,9 +332,15 @@ export default function LibraryScreen() {
 
   // Stable, so a refresh redraws only the rows whose book changed (BookRow is memoised).
   const offline = network.isConnected === false;
+  const openSeries = useCallback(
+    (series: Series) => router.push({ pathname: '/series', params: { key: series.key } }),
+    [router],
+  );
   const renderRow = useCallback(
     ({ item }: { item: Row }) =>
-      isHeader(item) ? (
+      isSeries(item) ? (
+        <SeriesRow series={item.series} onOpen={openSeries} />
+      ) : isHeader(item) ? (
         <GroupTitle header={item} open={finishedOpen} onToggle={toggleFinished} />
       ) : (
         <BookRow
@@ -331,7 +351,17 @@ export default function LibraryScreen() {
           unavailable={offline && item.source !== 'local' && !item.downloaded}
         />
       ),
-    [openRow, showActions, offline, showHidden, showSwipe, hideSwipe, finishedOpen, toggleFinished],
+    [
+      openRow,
+      showActions,
+      offline,
+      showHidden,
+      showSwipe,
+      hideSwipe,
+      finishedOpen,
+      toggleFinished,
+      openSeries,
+    ],
   );
 
   if (!hasRoots && books.length === 0 && hiddenTotal === 0 && !showHidden) {
@@ -592,6 +622,13 @@ export default function LibraryScreen() {
             <EmptyState
               title={t('Nothing hidden')}
               hint={t('Swipe a book to the left, or press and hold it, to hide it here.')}
+            />
+          ) : bySeries && books.length > 0 ? (
+            <EmptyState
+              title={t('No series yet.')}
+              hint={t(
+                'Books show here when their tags, their server or their add-on name a series.',
+              )}
             />
           ) : scanning === null ? (
             <EmptyState

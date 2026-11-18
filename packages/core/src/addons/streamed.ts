@@ -3,7 +3,15 @@ import { and, asc, eq, like, notInArray } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
-import { type AddonItemRef, bookFiles, books, chapters, streamHeaders } from '../schema';
+import {
+  type AddonItemRef,
+  bookFiles,
+  books,
+  chapters,
+  type KindTags,
+  streamHeaders,
+} from '../schema';
+import { formatSeries } from '../library/seriesNames';
 import { recordDeletion } from '../sync/keys';
 import { saveStreamHeaders } from './streamHeaders';
 
@@ -21,6 +29,15 @@ type Part = { url: string; title: string; durationMs: number; size: number };
 export const streamedBookLocation = (type: string, id: string) => `addon:${type}:${id}`;
 
 const partLocation = (sourceKey: string, index: number) => `stream:${sourceKey}:${index}`;
+
+const NO_KIND_TAGS: KindTags = {
+  genre: null,
+  isrc: null,
+  track: null,
+  year: null,
+  narrator: null,
+  mediaKind: null,
+};
 
 function partsOf(meta: Meta | MetaPreview, stream: Stream): Part[] {
   if (hasParts(stream)) {
@@ -169,8 +186,11 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
           before[i]?.uri === part.url &&
           before[i]?.durationMs === part.durationMs,
       );
+    // The work's series rides on the first part's tags, where a server's series is kept too.
+    const series = 'series' in meta ? formatSeries(meta.series) : null;
     for (const [idx, part] of parts.entries()) {
       const row = {
+        ...(idx === 0 && series ? { kindTags: { ...NO_KIND_TAGS, series } } : {}),
         bookId,
         rootId: null,
         idx,

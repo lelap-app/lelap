@@ -34,6 +34,7 @@ import {
 import { bookIdForKey, bookKey, parseEpisodeKey, recordDeletion, type TombstoneKind } from './keys';
 import { type SoundOverrides, syncedOverrides } from '../sound';
 import { cleanChapters } from '../library/ownChapters';
+import { cleanOrder, SERIES_ORDER_PREFIX } from '../library/series';
 
 /** Where a profile's source choices live in `settings` (see addons/sources.ts). */
 const SOURCE_PREFIX = 'source:';
@@ -222,6 +223,15 @@ export type Op =
       key: string;
       at: number;
       data: { addonUrl: string; sourceKey: string };
+    }
+  | {
+      /** A profile's own order of a series (M109): book keys. Older devices skip it. */
+      type: 'seriesOrder';
+      profile: string;
+      /** The series' key, as `seriesKey` makes it. */
+      key: string;
+      at: number;
+      data: { books: string[] };
     }
   | { type: 'delete'; kind: TombstoneKind; profile: string; key: string; at: number };
 
@@ -476,6 +486,20 @@ export function collectOps(db: Db, since: number): Op[] {
       data: choice,
     });
   }
+  const orders = db
+    .select()
+    .from(settings)
+    .where(and(gt(settings.updatedAt, since), like(settings.key, `${SERIES_ORDER_PREFIX}%`)))
+    .all();
+  for (const s of orders) {
+    ops.push({
+      type: 'seriesOrder',
+      profile: s.profileId,
+      key: s.key.slice(SERIES_ORDER_PREFIX.length),
+      at: s.updatedAt,
+      data: { books: cleanOrder(s.value) },
+    });
+  }
   for (const t of db.select().from(bookTags).where(gt(bookTags.updatedAt, since)).all()) {
     const k = key(t.bookId);
     if (!k) continue;
@@ -583,6 +607,7 @@ const ORDER: Record<Op['type'], number> = {
   playlist: 3,
   link: 3,
   source: 3,
+  seriesOrder: 3,
   delete: 4,
 };
 
@@ -948,6 +973,9 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
         case 'source':
           applySource(tx, op, now);
           break;
+        case 'seriesOrder':
+          applySeriesOrder(tx, op, now);
+          break;
         case 'delete':
           applyDelete(tx, op);
           break;
@@ -975,6 +1003,7 @@ function applyLink(db: Db, op: Extract<Op, { type: 'link' }>): void {
           title: meta.title,
           author: isText(meta.author, 1000) ? meta.author : null,
           cover: isText(meta.cover) && /^https?:\/\//.test(meta.cover) ? meta.cover : null,
+          ...(isText(meta.series, 1000) ? { series: meta.series } : {}),
         }
       : null;
   const where = and(
@@ -1061,6 +1090,26 @@ function applySource(db: Db, op: Extract<Op, { type: 'source' }>, now: number): 
   const local = db.select({ updatedAt: settings.updatedAt }).from(settings).where(where).get();
   if (local && local.updatedAt >= op.at) return;
   const value = JSON.stringify(choice);
+  db.insert(settings)
+    .values({ profileId: op.profile, key, value, updatedAt: op.at })
+    .onConflictDoUpdate({
+      target: [settings.profileId, settings.key],
+      set: { value, updatedAt: op.at },
+    })
+    .run();
+}
+
+/** Another device's order of a series; kept by the series' key and the books' synced names. */
+function applySeriesOrder(db: Db, op: Extract<Op, { type: 'seriesOrder' }>, now: number): void {
+  if (typeof op.data !== 'object' || op.data === null) return;
+  if (!isText(op.key, 1024) || !isText(op.profile, 256)) return;
+  if (typeof op.at !== 'number' || !Number.isFinite(op.at)) return;
+  if (!ensureProfile(db, op.profile, now)) return;
+  const key = `${SERIES_ORDER_PREFIX}${op.key}`;
+  const where = and(eq(settings.profileId, op.profile), eq(settings.key, key));
+  const local = db.select({ updatedAt: settings.updatedAt }).from(settings).where(where).get();
+  if (local && local.updatedAt >= op.at) return;
+  const value = JSON.stringify(cleanOrder(op.data.books));
   db.insert(settings)
     .values({ profileId: op.profile, key, value, updatedAt: op.at })
     .onConflictDoUpdate({

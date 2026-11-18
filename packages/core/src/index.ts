@@ -14,6 +14,7 @@ export { chapterTitleAt, regroupedBook } from './library/bookFiles';
 export * from './bookmarks';
 export * from './library/queries';
 export * from './library/ownChapters';
+export * from './library/series';
 export * from './placeLink';
 export * from './clip';
 export * from './library/byProgress';

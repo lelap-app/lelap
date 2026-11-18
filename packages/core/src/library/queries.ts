@@ -175,7 +175,10 @@ export type BookDetail = {
   speed: number;
   /** From the first file's tags: a narrator tag, or what a server says (M65). */
   narrator: string | null;
-  /** The book's series as a server names it, such as `Dune #1` (M65). */
+  /**
+   * The book's series as `Dune #1, Dune Chronicles #1`: from the work it was matched with, else
+   * from a server, its tags or its add-on (M65, M109).
+   */
   series: string | null;
 };
 
@@ -207,8 +210,17 @@ export function getBook(db: Db, profileId: string, bookId: string): BookDetail |
     foundChapters: own === null && list.length > 0 && list.every((c) => c.found),
     speed: entry?.speed ?? 1,
     narrator: (!music && first?.kindTags?.narrator?.trim()) || null,
-    series: first?.kindTags?.series?.trim() || null,
+    series: linkedSeries(db, bookId) ?? (first?.kindTags?.series?.trim() || null),
   };
+}
+
+function linkedSeries(db: Db, bookId: string): string | null {
+  const location = db
+    .select({ location: books.location })
+    .from(books)
+    .where(eq(books.id, bookId))
+    .get()?.location;
+  return (location && linkedMetaByKey(db, [location]).get(location)?.series?.trim()) || null;
 }
 
 /**

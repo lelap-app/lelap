@@ -17,6 +17,8 @@ data class FileTags(
   val mediaKind: String? = null,
   /** A Vorbis `GENRE` comment, from FLAC, Ogg Vorbis and Opus files, which Android may not give. */
   val genre: String? = null,
+  /** The series and its number as `Dune #1` (M109), as Audiobookshelf writes them. */
+  val series: String? = null,
 )
 
 /**
@@ -25,6 +27,8 @@ data class FileTags(
  * normalises them (`idsFromTags` in the SDK). The ISRC comes from ID3 `TSRC`, the MP4
  * `----:com.apple.iTunes:ISRC` item or a Vorbis `ISRC` comment; the media kind from MP4 `stik`.
  * Vorbis comments come from FLAC, Ogg Vorbis and Opus files; Audible's `CDEK` MP4 item is the ASIN.
+ * The series (M109) comes from `SERIES` and `SERIES-PART` in any of them, or the movement name and
+ * number (ID3 `MVNM` and `MVIN`, MP4 `©mvn` and `©mvi`).
  */
 object IdTags {
   private const val MAX_FRAME_BYTES = 4 shl 10
@@ -69,6 +73,24 @@ object IdTags {
   internal fun isNarrator(tag: String) =
     tag.lowercase().filter { it.isLetter() } in setOf("narrator", "narratedby", "reader")
 
+  /** A series name: `SERIES`, or the movement name tagging apps use for it (`MVNM`, `©mvn`). */
+  internal fun isSeries(tag: String) =
+    tag.lowercase().filter { it.isLetter() } in setOf("series", "seriesname", "movementname", "mvnm")
+
+  /** A number in the series: `SERIES-PART`, or the movement number (`MVIN`, `©mvi`). */
+  internal fun isSeriesPart(tag: String) =
+    tag.lowercase().filter { it.isLetter() } in
+      setOf("seriespart", "seriesposition", "seriesindex", "seriessequence", "movement", "mvin")
+
+  /** `Dune #1` from a name and a number such as `1` or `1/6`; the name alone without a number. */
+  internal fun seriesText(name: String?, part: String?): String? {
+    val clean = name?.replace("#", "")?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    // A decimal comma (“1,5”) is a decimal point here, as commas part series in the text.
+    val number = part?.substringBefore('/')?.replace("#", "")?.replace(',', '.')?.trim()
+      ?.takeIf { it.isNotEmpty() }
+    return if (number != null) "$clean #$number" else clean
+  }
+
   /** MP4 `stik` values as Apple uses them; 2 is an audiobook. */
   internal fun mediaKind(stik: Int): String = when (stik) {
     0, 1 -> "music"
@@ -84,15 +106,19 @@ object IdTags {
     var narrator: String? = null
     var mediaKind: String? = null
     var genre: String? = null
+    var series: String? = null
+    var seriesPart: String? = null
 
     fun add(name: String, value: String) {
       if (value.isBlank()) return
       if (wanted(name) && ids.size < MAX_TAGS) ids[name] = value
       if (isIsrc(name)) isrc = isrc ?: value
       if (isNarrator(name)) narrator = narrator ?: value
+      if (isSeries(name)) series = series ?: value
+      if (isSeriesPart(name)) seriesPart = seriesPart ?: value
     }
 
-    fun tags() = FileTags(ids, isrc, narrator, mediaKind, genre)
+    fun tags() = FileTags(ids, isrc, narrator, mediaKind, genre, seriesText(series, seriesPart))
   }
 
   private fun exactly(read: (Long, Int) -> ByteArray, size: Long, offset: Long, length: Int): ByteArray {
@@ -100,7 +126,7 @@ object IdTags {
     return read(offset, length).also { require(it.size == length) }
   }
 
-  private val ID3_FRAMES = setOf("TXXX", "TXX", "TSRC", "TRC")
+  private val ID3_FRAMES = setOf("TXXX", "TXX", "TSRC", "TRC", "MVNM", "MVIN")
 
   private fun id3(read: (Long, Int) -> ByteArray, size: Long): FileTags {
     val found = Found()
@@ -109,6 +135,7 @@ object IdTags {
       when (frame.id) {
         "TXXX", "TXX" -> txxx(frame.body)?.let { (description, value) -> found.add(description, value) }
         "TSRC", "TRC" -> textFrame(frame.body)?.let { found.isrc = it }
+        "MVNM", "MVIN" -> textFrame(frame.body)?.let { found.add(frame.id, it) }
       }
       found.ids.size < MAX_TAGS
     }
@@ -194,6 +221,19 @@ object IdTags {
           val data = boxes(item.bodyStart, item.end).firstOrNull { it.type == "data" } ?: continue
           text(read, size, data, 8)?.let { found.add("asin", it) }
         }
+        MOVEMENT_NAME_ATOM -> {
+          val data = boxes(item.bodyStart, item.end).firstOrNull { it.type == "data" } ?: continue
+          text(read, size, data, 8)?.let { found.add("mvnm", it) }
+        }
+        // A 16-bit integer, as iTunes writes it.
+        MOVEMENT_NUMBER_ATOM -> {
+          val data = boxes(item.bodyStart, item.end).firstOrNull { it.type == "data" } ?: continue
+          val length = (data.end - data.bodyStart - 8).toInt()
+          if (length !in 1..4) continue
+          val bytes = exactly(read, size, data.bodyStart + 8, length)
+          val number = bytes.fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xff) }
+          if (number > 0) found.add("mvin", number.toString())
+        }
         NARRATOR_ATOM -> {
           val data = boxes(item.bodyStart, item.end).firstOrNull { it.type == "data" } ?: continue
           text(read, size, data, 8)?.let { found.add("narrator", it) }
@@ -201,7 +241,9 @@ object IdTags {
         "----" -> {
           val parts = boxes(item.bodyStart, item.end)
           val name = parts.firstOrNull { it.type == "name" }?.let { text(read, size, it, 4) } ?: continue
-          if (!wanted(name) && !isIsrc(name) && !isNarrator(name)) continue
+          if (!wanted(name) && !isIsrc(name) && !isNarrator(name) && !isSeries(name) && !isSeriesPart(name)) {
+            continue
+          }
           val value = parts.firstOrNull { it.type == "data" }?.let { text(read, size, it, 8) } ?: continue
           found.add(name, value)
         }
@@ -212,6 +254,10 @@ object IdTags {
 
   /** Apple's narrator item, `©nrt`. */
   private const val NARRATOR_ATOM = "©nrt"
+
+  /** Apple's movement name and number, which audiobook taggers use for the series. */
+  private const val MOVEMENT_NAME_ATOM = "©mvn"
+  private const val MOVEMENT_NUMBER_ATOM = "©mvi"
 
   /**
    * FLAC: `fLaC`, then metadata blocks of a one-byte type (top bit: the last block) and a 24-bit
