@@ -20,7 +20,9 @@ import { COLORS, Icon, type IconName } from '../src/components/Icon';
 import { Lori } from '../src/components/Lori';
 import { OwnAddonOffer, useOwnAddonOffers } from '../src/components/OwnAddons';
 import { TextButton } from '../src/components/TextButton';
+import { defaultAddons } from '../src/config';
 import { db } from '../src/db';
+import { formatNames } from '../src/format';
 import { LOCAL_FOLDERS } from '../src/platform/library';
 import { profileId } from '../src/profile';
 import { useLibrary } from '../src/player';
@@ -119,6 +121,18 @@ export default function WelcomeScreen() {
   const waitingFor = useRef<'server' | 'sync' | null>(null);
   const { title, scroll } = useFocusOnStep(step);
   const { refresh, version } = useLibrary();
+  // Named from what this build installed: a fork's defaults may leave LibriVox out.
+  const free = addons.filter((a) => a.builtin).map((a) => a.manifest.name);
+  let freeDetail = t('Free catalogs appear on Home once Lelap’s default add-ons are installed.');
+  if (free.length === 1) {
+    freeDetail = t('{name} is already installed. Its free books are on Home.', {
+      name: formatNames(free),
+    });
+  } else if (free.length > 1) {
+    freeDetail = t('{names} are already installed. Their free books are on Home.', {
+      names: formatNames(free),
+    });
+  }
 
   // Back goes to the step before; on the first step it leaves as usual.
   useEffect(() => {
@@ -240,17 +254,18 @@ export default function WelcomeScreen() {
             router.push('/server');
           }}
         />
-        <Choice
-          icon="discover"
-          title={t('Free books to play now')}
-          detail={t(
-            'LibriVox is already installed: public-domain audiobooks, read by volunteers. The Open Library catalog helps you find more.',
-          )}
-          onPress={() => {
-            setLanding('/');
-            setStep('addons');
-          }}
-        />
+        {/* A build without default add-ons has no free books to offer. */}
+        {defaultAddons.length > 0 && (
+          <Choice
+            icon="discover"
+            title={t('Free books to play now')}
+            detail={freeDetail}
+            onPress={() => {
+              setLanding('/');
+              setStep('addons');
+            }}
+          />
+        )}
         <TextButton text={t('Skip')} tone="muted" onPress={() => finish('/')} />
       </>
     );

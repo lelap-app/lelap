@@ -131,8 +131,9 @@ GitHub Actions in a public repository:
 - `remote-integration` runs `packages/core/integration` against rclone's WebDAV server and MinIO in
   Docker (locally: `scripts/test-servers.sh up` first), on `main` and on pull requests that touch
   the remote code, the library code it uses, the lockfile, the tests or `ci.yml`. `emulator-smoke`
-  builds an x86_64 release APK (`scripts/emulator-apk.sh`), installs it on an emulator and opens
-  the Library (`scripts/emulator-smoke.sh`): on `main`, when CI is run by hand (`workflow_dispatch`),
+  builds an x86_64 release APK (`scripts/emulator-apk.sh`), installs it on an emulator, opens
+  the Library, chooses a pushed folder in the system picker and plays a book from it
+  (`scripts/emulator-smoke.sh`): on `main`, when CI is run by hand (`workflow_dispatch`),
   and on pull requests that change the build setup or those scripts.
 - Deploy jobs use GitHub environments (`web` for the site and services, `release` for signed
   builds) so secrets never reach pull requests from forks.

@@ -5,15 +5,17 @@
 # the APK (M54), and SoLoader only looks there for the emulator's own CPU type.
 # Run from the repository root after `pnpm install`; needs JDK 21 and the Android SDK.
 #   scripts/emulator-apk.sh OUT_DIR
+# EMULATOR_ABI=arm64-v8a builds for an emulator on an Apple silicon Mac instead.
 set -euo pipefail
 
 out="${1:?usage: emulator-apk.sh OUT_DIR}"
+abi="${EMULATOR_ABI:-x86_64}"
 
 pnpm --filter @lelap/app exec expo prebuild --platform android --no-install --clean
 # Unsigned whatever the environment holds: withReleaseSigning signs when it sees a keystore.
 unset LELAP_KEYSTORE_PATH
 (cd apps/app/android && LELAP_UNSIGNED=1 ./gradlew --no-daemon :app:assembleRelease \
-  -PreactNativeArchitectures=x86_64)
+  -PreactNativeArchitectures="$abi")
 
 mkdir -p "$out"
 cp apps/app/android/app/build/outputs/apk/release/app-release-unsigned.apk "$out/lelap-emulator.apk"

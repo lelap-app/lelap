@@ -69,7 +69,15 @@ Settings → Add-ons.
 ## Web app locally
 
 Start the `proxy` and `web` configurations in `.claude/launch.json` (`wrangler dev` on :8788,
-`expo start --web` on :8082).
+`expo start --web` on :8082). Each configuration runs through `scripts/dev-node.sh`, which uses the
+Node on `PATH` when it is version 24, else nvm or fnm, and says so when it finds none.
+
+## Database migrations
+
+Generate migrations with `pnpm exec drizzle-kit generate` in `packages/core`. Babel inlines each
+`.sql` file into `drizzle/migrations.js`, so Metro alone would not notice an edit to an existing
+one; `metro.config.js` keys its cache on the migrations' contents instead. Restart Metro after
+such an edit, and reset a dev database that already ran the old version.
 
 ## Device checks
 
