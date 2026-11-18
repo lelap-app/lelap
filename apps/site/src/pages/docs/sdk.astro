@@ -374,7 +374,9 @@ const toc: [string, string][] = [
     To show a rating or a count of new episodes on a cover, send it as <code>badges</code> on the
     item, never as text in the picture. The app draws badges in one style next to its own (finished,
     how far in), reads them out with the title, and the listener can turn them off. Apps from before
-    revision 4 ignore them. See <a href="/docs/protocol/#badges">Badges</a> for the fields.
+    revision 4 ignore them. See <a href="/docs/protocol/#badges">Badges</a> for the fields. Badges
+    come with the SDK release after 0.3.0; until it is on npm, the published SDK declares revision
+    3.
   </p>
   <CodeBlock code={badges} />
 

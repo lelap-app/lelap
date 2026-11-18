@@ -34,8 +34,8 @@ export const ms: Record<string, string> = {
   'Cast to the living room': 'Hantar ke ruang tamu',
   Catalogs: 'Katalog',
   'Chapter {n}': 'Bab {n}',
-  'Chromecast and Sonos from Android, with your progress kept while it plays.':
-    'Chromecast dan Sonos dari Android, dengan kemajuan anda disimpan semasa ia dimainkan.',
+
+  'Chapters where there were none': 'Bab untuk buku tanpa bab',
   Classics: 'Klasik',
   'Coming after the first stable release. F-Droid builds Lelap from source and, when the result matches ours, ships the same signed APK, so you can switch between F-Droid and the direct download without reinstalling.':
     'Akan tiba selepas keluaran stabil pertama. F-Droid membina Lelap daripada kod sumber dan, apabila hasilnya sepadan dengan binaan kami, mengedarkan APK bertandatangan yang sama, jadi anda boleh bertukar antara F-Droid dan muat turun terus tanpa memasang semula.',
@@ -64,6 +64,8 @@ export const ms: Record<string, string> = {
   Downloaded: 'Dimuat turun',
   'Early Mornings at the Laksa Café': 'Pagi-pagi di Kafe Laksa',
   'Encrypted sync': 'Segerak bersulit',
+  'Every control has a name for TalkBack, buttons are large enough to hit, and screens hold up at the largest text size.':
+    'Setiap kawalan mempunyai nama untuk TalkBack, butang cukup besar untuk ditekan, dan skrin kekal kemas pada saiz teks terbesar.',
   'Every version with its release notes, the same APKs and build attestations.':
     'Setiap versi dengan nota keluarannya, APK yang sama dan pengesahan binaannya.',
   'Everything behind {host} is in the repository. Four small containers; sync keeps one SQLite file, so there is no database server to run.':
@@ -123,6 +125,10 @@ export const ms: Record<string, string> = {
     'Tiada apa-apa untuk dipasang. Tambahkannya ke skrin utama anda sebagai PWA. Paling sesuai untuk komputer riba, iPhone atau iPad, atau mana-mana peranti yang bukan telefon Android.',
   'Nothing to look at, by design.': 'Tiada apa-apa untuk kami lihat, memang begitu reka bentuknya.',
   'Offline first': 'Luar talian didahulukan',
+  'On a wide screen the player stands beside your library. The web app has keyboard shortcuts for play, skip and speed.':
+    'Pada skrin lebar, pemain berada di sebelah pustaka anda. Aplikasi web mempunyai pintasan papan kekunci untuk main, langkau dan kelajuan.',
+  'On Android, finds chapters at the long silences of a book without any. Skips a show’s intro and outro, set once per show.':
+    'Di Android, mencari bab pada senyap panjang dalam buku yang tiada bab. Melangkau pengenalan dan penutup rancangan, ditetapkan sekali bagi setiap rancangan.',
   'On this phone': 'Dalam telefon ini',
   'One queue for books and episodes, hand-made lists, and smart ones like “short and not started” or “for the flight”.':
     'Satu baris gilir untuk buku dan episod, senarai buatan sendiri, dan senarai pintar seperti “pendek dan belum dimulakan” atau “untuk penerbangan”.',
@@ -135,10 +141,11 @@ export const ms: Record<string, string> = {
   'Optional:': 'Pilihan:',
   'Paste an add-on’s address and you’re done. Settings live on the add-on’s own page; the app only remembers the URL. <a href="/docs/"{docs}>Build your own</a>.':
     'Tampal alamat alat tambah dan selesai. Tetapan berada di halaman alat tambah itu sendiri; aplikasi hanya mengingati URL. <a href="/docs/"{docs}>Bina alat tambah anda sendiri</a> (panduan dalam bahasa Inggeris).',
+  'Phone, tablet or laptop': 'Telefon, tablet atau komputer riba',
   'Pick up on your laptop where you stopped on your phone. Pair devices with a code; sync is end-to-end encrypted.':
     'Sambung di komputer riba dari tempat anda berhenti di telefon. Gandingkan peranti dengan kod; segerak disulitkan hujung ke hujung.',
-  'Play straight from a WebDAV server or an S3-compatible bucket. The app talks to it directly and keeps the credentials on your device.':
-    'Main terus dari pelayan WebDAV atau baldi yang serasi dengan S3. Aplikasi berhubung terus dengannya dan menyimpan butiran log masuk dalam peranti anda.',
+  'Play straight from your WebDAV, S3-compatible, Jellyfin or Audiobookshelf server. The app talks to it directly and keeps the credentials on your device.':
+    'Main terus dari pelayan WebDAV, storan serasi S3, Jellyfin atau Audiobookshelf anda. Aplikasi berhubung terus dengannya dan menyimpan butiran log masuk dalam peranti anda.',
   'Playing from': 'Dimainkan dari',
   'Playlists, tags and Up Next': 'Senarai main, tag dan Seterusnya',
   'Please include:': 'Sila sertakan:',
@@ -168,6 +175,8 @@ export const ms: Record<string, string> = {
   'Ships with open sources:': 'Disertakan dengan sumber terbuka:',
   'Sleep timer': 'Pemasa tidur',
   'Smart rewind, speed, chapters': 'Undur pintar, kelajuan, bab',
+  'Sonos, DLNA, Google Cast and FCast from Android. The lock screen, your headphones and the sleep timer control the speaker.':
+    'Sonos, DLNA, Google Cast dan FCast dari Android. Skrin kunci, fon kepala anda dan pemasa tidur mengawal pembesar suara.',
   Sources: 'Sumber',
   'Start listening': 'Mula mendengar',
   'Stores encrypted progress and playlists. It can’t read them.':
@@ -201,6 +210,7 @@ export const ms: Record<string, string> = {
     'Tempat anda menemui bahan yang melanggar hak, berserta pautan',
   'Why isn’t it on Google Play?': 'Mengapa ia tiada di Google Play?',
   'Works fully offline': 'Berfungsi sepenuhnya luar talian',
+  'Works with a screen reader': 'Berfungsi dengan pembaca skrin',
   'Yes. An add-on is a small HTTP service that returns JSON. The <a href="/docs/"{docs}>add-on docs</a> cover the protocol and the SDK, which is on npm as <code>@lelap/sdk</code>.':
     'Ya. Alat tambah ialah perkhidmatan HTTP kecil yang memulangkan JSON. <a href="/docs/"{docs}>Dokumentasi alat tambah</a> (dalam bahasa Inggeris) merangkumi protokol dan SDK, yang ada di npm sebagai <code>@lelap/sdk</code>.',
   'Yes. The code is open source, and the hosted web app at {host} is free to use.':

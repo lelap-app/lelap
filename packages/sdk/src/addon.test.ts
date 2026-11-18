@@ -4,6 +4,9 @@ import { AddonError, CORS_HEADERS, createAddon } from './addon';
 import { catalogPath, metaPath, streamPath } from './paths';
 import type { Manifest } from './protocol';
 
+// Long and unusual: a short one like `pw` turns up by chance in sealed base64 now and then.
+const PASSWORD = 'correct-horse-battery-staple';
+
 const manifest: Manifest = {
   id: 'org.example.test',
   version: '1.0.0',
@@ -254,7 +257,7 @@ describe('createAddon with configure', () => {
     const a = configured();
     const saved = await post(a, 'configure', {
       user: 'ada',
-      password: 'pw',
+      password: PASSWORD,
       return: 'lelap://addon',
     });
     expect(saved.status).toBe(303);
@@ -264,7 +267,7 @@ describe('createAddon with configure', () => {
     expect(manifestUrl).toMatch(
       /^https:\/\/addon\.example\/sub\/e1\.[A-Za-z0-9_-]+\/manifest\.json$/,
     );
-    expect(manifestUrl).not.toContain('pw');
+    expect(manifestUrl).not.toContain(PASSWORD);
 
     const served = (await (await a.fetch(new Request(manifestUrl))).json()) as Manifest;
     expect(served.behaviorHints?.configurationRequired).toBe(false);
@@ -275,7 +278,7 @@ describe('createAddon with configure', () => {
 
   it('shows the URL on a page without a return address, and keeps the password when reconfiguring', async () => {
     const a = configured();
-    const first = await post(a, 'configure', { user: 'ada', password: 'pw' });
+    const first = await post(a, 'configure', { user: 'ada', password: PASSWORD });
     expect(first.status).toBe(200);
     const text = await first.text();
     const manifestUrl =
@@ -286,7 +289,7 @@ describe('createAddon with configure', () => {
       await a.fetch(new Request(`https://addon.example/sub/${token}/configure`))
     ).text();
     expect(form).toContain('value="ada"');
-    expect(form).not.toContain('value="pw"');
+    expect(form).not.toContain(`value="${PASSWORD}"`);
     const again = await post(a, `${token}/configure`, { user: 'grace', password: '' });
     expect(again.status).toBe(200);
   });
@@ -304,7 +307,7 @@ describe('createAddon with configure', () => {
     const other = configured('another secret');
     const saved = await post(other, 'configure', {
       user: 'ada',
-      password: 'pw',
+      password: PASSWORD,
       return: 'lelap://addon',
     });
     const manifestUrl = decodeURIComponent(
