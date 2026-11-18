@@ -37,6 +37,7 @@ import {
 import { AppState, Platform, View } from 'react-native';
 
 import { applyBedtime } from './bedtime';
+import { savedCatalogCover } from './catalogCovers';
 import { coverUri } from './components/BookCover';
 import { db, newId } from './db';
 import { logCaught } from './diagnostics';
@@ -287,7 +288,7 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
         ? coverUri(detail.book)
         : detail.book.coverPath
           ? localFileUri(detail.book.coverPath)
-          : detail.book.coverUrl,
+          : (savedCatalogCover(detail.book.coverUrl) ?? detail.book.coverUrl),
     files: detail.files.map((f, i) => ({
       // A downloaded part plays from the phone; the rest stream (signed, if on a server).
       uri: f.downloadPath ? localFileUri(f.downloadPath) : (access[i]?.uri ?? f.uri),

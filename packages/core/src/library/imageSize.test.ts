@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { imageSize } from './imageSize';
+import { imageSize, looksLikeImage } from './imageSize';
 
 const bytes = (...parts: (number[] | string)[]) =>
   new Uint8Array(
@@ -10,6 +10,22 @@ const u16 = (n: number) => [(n >> 8) & 0xff, n & 0xff];
 const u32 = (n: number) => [...u16(n >>> 16), ...u16(n & 0xffff)];
 const le16 = (n: number) => [n & 0xff, (n >> 8) & 0xff];
 const le24 = (n: number) => [n & 0xff, (n >> 8) & 0xff, (n >> 16) & 0xff];
+
+describe('looksLikeImage', () => {
+  const pad = new Array<number>(8).fill(0);
+  it('knows the image formats covers come in', () => {
+    expect(looksLikeImage(bytes([0xff, 0xd8, 0xff, 0xe0], pad))).toBe(true);
+    expect(looksLikeImage(bytes([0x89], 'PNG', [0x0d, 0x0a, 0x1a, 0x0a], pad))).toBe(true);
+    expect(looksLikeImage(bytes('GIF89a', pad))).toBe(true);
+    expect(looksLikeImage(bytes('RIFF', u32(100), 'WEBP'))).toBe(true);
+    expect(looksLikeImage(bytes(u32(24), 'ftypavif', pad))).toBe(true);
+  });
+  it('refuses a page or an error sent with a 200', () => {
+    expect(looksLikeImage(bytes('<!doctype html><html>'))).toBe(false);
+    expect(looksLikeImage(bytes('{"error":"no"}'))).toBe(false);
+    expect(looksLikeImage(bytes([0xff, 0xd8]))).toBe(false);
+  });
+});
 
 describe('imageSize', () => {
   it('reads a PNG header', () => {

@@ -4,6 +4,7 @@ import { Image, Platform, Text, View } from 'react-native';
 
 import { CoverBadgeRow } from './CoverBadges';
 import { FadeIn } from './Motion';
+import { savedCatalogCover } from '../catalogCovers';
 import { proxyBase } from '../config';
 import { OPFS_SCHEME, opfsImageUrl } from '../webCovers';
 
@@ -16,12 +17,15 @@ export function webSafe(url: string | null | undefined): string | null {
   return url;
 }
 
-/** A `file://` or `content://` URI for a cover saved on the phone, else the add-on's cover URL. */
+/** A `file://` or `content://` URI for a cover saved on the phone, else the cover's own URL. */
 export function coverUri(book: {
   coverPath: string | null;
   coverUrl?: string | null;
 }): string | null {
   if (book.coverPath && Platform.OS !== 'web') return localFileUri(book.coverPath);
+  // A matched book's catalog cover, from the copy on the phone once there is one (M80).
+  const saved = savedCatalogCover(book.coverUrl);
+  if (saved) return saved;
   // The web keeps its saved covers in OPFS, which an <img> can't read: the cover URL first, and
   // a server folder's cover through a blob URL (see CoverImage).
   const url = webSafe(book.coverUrl);
@@ -36,16 +40,19 @@ export function coverUri(book: {
  */
 export function BookCover({
   uri,
+  fallbackUri,
   title,
   size,
   badges = [],
 }: {
   uri: string | null | undefined;
+  /** Shown when `uri` doesn't load, such as the book's cover under a chapter's picture. */
+  fallbackUri?: string | null | undefined;
   title: string;
   size: number;
   badges?: CoverBadge[];
 }) {
-  const cover = <PlainCover uri={uri} title={title} size={size} />;
+  const cover = <PlainCover uri={uri} fallbackUri={fallbackUri} title={title} size={size} />;
   if (badges.length === 0) return cover;
   return (
     <View aria-hidden style={{ width: size, height: size }}>
@@ -57,16 +64,32 @@ export function BookCover({
 
 function PlainCover({
   uri,
+  fallbackUri,
   title,
   size,
 }: {
   uri: string | null | undefined;
+  fallbackUri: string | null | undefined;
   title: string;
   size: number;
 }) {
-  const shown = useShownUri(uri ? (webSafe(uri) ?? uri) : null);
+  // Addresses that failed to load: a broken link, or one the proxy refused, showed a blank tile.
+  const [failed, setFailed] = useState<ReadonlySet<string>>(new Set());
+  const wanted = [uri, fallbackUri]
+    .map((u) => (u ? (webSafe(u) ?? u) : null))
+    .find((u) => u !== null && !failed.has(u));
+  const shown = useShownUri(wanted ?? null);
   // The image, or the bare tile while a cover is read from OPFS, as while an image loads.
-  if (shown !== null) return <CoverImage uri={shown} size={size} />;
+  if (shown !== null) {
+    return (
+      <CoverImage
+        key={shown}
+        uri={shown}
+        size={size}
+        onError={() => wanted && setFailed((old) => new Set(old).add(wanted))}
+      />
+    );
+  }
   return (
     <View
       aria-hidden
@@ -102,7 +125,15 @@ function useShownUri(uri: string | null): string | null | undefined {
 }
 
 /** The cover fades in once loaded, over the same raised tile the letter cover uses. */
-function CoverImage({ uri, size }: { uri: string | undefined; size: number }) {
+function CoverImage({
+  uri,
+  size,
+  onError,
+}: {
+  uri: string | undefined;
+  size: number;
+  onError: () => void;
+}) {
   const [loaded, setLoaded] = useState(false);
   return (
     <View
@@ -116,7 +147,7 @@ function CoverImage({ uri, size }: { uri: string | undefined; size: number }) {
             source={{ uri }}
             accessibilityIgnoresInvertColors
             onLoad={() => setLoaded(true)}
-            onError={() => setLoaded(true)}
+            onError={onError}
             style={{ width: size, height: size }}
           />
         </FadeIn>

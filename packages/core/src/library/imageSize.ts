@@ -13,6 +13,18 @@ const ascii = (b: Uint8Array, at: number, length: number) =>
 const sized = (width: number, height: number): ImageSize | null =>
   width > 0 && height > 0 ? { width, height } : null;
 
+/** Whether bytes start like a JPEG, PNG, GIF, WebP or AVIF file, such as before keeping a download. */
+export function looksLikeImage(bytes: Uint8Array): boolean {
+  if (bytes.length < 12) return false;
+  return (
+    (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) ||
+    (bytes[0] === 0x89 && ascii(bytes, 1, 3) === 'PNG') ||
+    ascii(bytes, 0, 4) === 'GIF8' ||
+    (ascii(bytes, 0, 4) === 'RIFF' && ascii(bytes, 8, 4) === 'WEBP') ||
+    (ascii(bytes, 4, 4) === 'ftyp' && ['avif', 'avis'].includes(ascii(bytes, 8, 4)))
+  );
+}
+
 /**
  * A JPEG, PNG or WebP image's width and height from the start of the file (`IMAGE_HEAD_BYTES`),
  * without decoding it. Null for other formats, or when the size lies further in.

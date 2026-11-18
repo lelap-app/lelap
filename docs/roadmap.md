@@ -90,7 +90,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M77 Hide from library](milestones/m77.md)           | Done        |          15 | Hide items from the library and bring them back; suggestions to hide what looks like music               |
 | [M78 Casting 4](milestones/m78.md)                   | Planned     |             | Speaker groups across protocols, and Cast device authentication enforced                                 |
 | [M79 Library by progress](milestones/m79.md)         | Done        |           4 | The Library in three groups, In progress, Not started and Finished, each in its own order                |
-| [M80 App polish 2](milestones/m80.md)                | Planned     |             | The bigger items left from M71: a zoomed scrubber, saved catalog covers, faster web saves                |
+| [M80 App polish 2](milestones/m80.md)                | In progress |           7 | A zoomed scrubber, matched covers kept offline, faster web saves, player tools at 320 dp                 |
 | [M81 Test round 2](milestones/m81.md)                | Planned     |             | A full phone round over adb and the fixes it finds, the gate for v0.1.0                                  |
 | [M82 First start](milestones/m82.md)                 | Done        |          10 | A first start that helps: choose a folder or a server, suggested add-ons, helpful empty states           |
 | [M83 Accessibility 2](milestones/m83.md)             | Planned     |             | One pass over every screen with TalkBack, large text and contrast                                        |
@@ -114,6 +114,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M102 Add-on protocol 4](milestones/m102.md)         | Planned     |             | Ratings, Android finish sessions, scrobblers on the SDK's configure and catalog upkeep                   |
 | [M103 Podcasts 5](milestones/m103.md)                | Planned     |             | Alternate enclosures, podcast:integrity checks, chapter images on the lock screen                        |
 | [M104 Security hardening 3](milestones/m104.md)      | Planned     |             | What M96's audit left: LAN addresses for add-ons, discovery, SMB signing, SDK sealing                    |
+| [M105 App polish 3](milestones/m105.md)              | Planned     |             | What M80 left: suggestion covers, podcast badges, Plex library list, a Library that reads less           |
 
 <!-- milestones:end -->
 

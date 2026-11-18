@@ -70,19 +70,21 @@ function Control({
   label,
   onPress,
   value,
+  compact,
 }: {
   icon: IconName;
   label: string;
   onPress: () => void;
   value?: string;
+  compact: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      hitSlop={8}
+      hitSlop={compact ? 4 : 8}
       accessibilityRole="button"
       accessibilityLabel={label}
-      className="h-14 w-14 items-center justify-center rounded-full active:bg-raised"
+      className={`h-14 ${compact ? 'w-12' : 'w-14'} items-center justify-center rounded-full active:bg-raised`}
     >
       <Icon
         name={icon}
@@ -93,6 +95,15 @@ function Control({
   );
 }
 
+type ToolProps = {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  active?: boolean;
+  /** What a screen reader says when the short label alone is unclear, such as “Speed, 1.5×”. */
+  spoken?: string;
+};
+
 /** Icon over a short label, as in the bottom row of the design sketch. */
 function Tool({
   icon,
@@ -100,34 +111,48 @@ function Tool({
   onPress,
   active = false,
   spoken,
-}: {
-  icon: IconName;
-  label: string;
-  onPress: () => void;
-  active?: boolean;
-  /** What a screen reader says when the short label alone is unclear, such as “Speed, 1.5×”. */
-  spoken?: string;
-}) {
+  width,
+}: ToolProps & { width: number }) {
   const color = active ? COLORS.amber : COLORS.soft;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={spoken ?? label}
-      className="flex-1 items-center gap-1 rounded-xl py-2 active:bg-raised"
+      style={{ width: `${width}%` }}
+      className="min-h-12 items-center gap-1 rounded-xl px-0.5 py-2 active:bg-raised"
     >
       <Icon name={icon} size={22} color={color} />
-      {/* Up to eight tools share the row: at large font sizes the label shrinks to fit whole. */}
-      <Text
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.5}
-        style={{ color }}
-        className="text-center text-xs font-semibold"
-      >
+      <Text numberOfLines={2} style={{ color }} className="text-center text-xs font-semibold">
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+// The narrowest a tool gets at normal text size; “Soundbites” or “12 bookmarks” fit whole.
+const TOOL_MIN_WIDTH = 76;
+
+/**
+ * The tools under the controls, up to eight. When they don't fit side by side, as on a narrow
+ * phone or with large text, they wrap into rows of equal count rather than cutting labels short.
+ */
+function ToolRow({ tools }: { tools: (ToolProps & { key: string })[] }) {
+  const dims = useWindowDimensions();
+  // Until measured, about the screen less the page's sides.
+  const [width, setWidth] = useState(dims.width - 48);
+  const fit = Math.max(1, Math.floor(width / (TOOL_MIN_WIDTH * Math.max(1, dims.fontScale))));
+  const rows = Math.ceil(tools.length / fit);
+  const perRow = Math.ceil(tools.length / rows);
+  return (
+    <View
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      className="flex-row flex-wrap justify-center"
+    >
+      {tools.map(({ key, ...tool }) => (
+        <Tool key={key} {...tool} width={100 / perRow} />
+      ))}
+    </View>
   );
 }
 
@@ -209,6 +234,10 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
   const [jumpText, setJumpText] = useState('');
   // While the playhead is dragged the page holds still, so moving up for fine scrubbing works.
   const [scrubbing, setScrubbing] = useState(false);
+  // Under 304 points the five controls don't fit at full size, as on a 320 dp phone.
+  const [controlsWidth, setControlsWidth] = useState(dims.width - 48);
+  const compact = controlsWidth < 304;
+  const playSize = compact ? 72 : 80;
   // `version` is the signal to re-read the setting.
   const skipSeconds = useMemo(() => getSettings(db, profileId).skipIntervalMs / 1000, [version]);
   const shakeToExtend = useMemo(() => getSettings(db, profileId).shakeToExtend, [version]);
@@ -385,6 +414,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
   const cover = (
     <BookCover
       uri={chapterImage ?? coverUri(detail.book)}
+      fallbackUri={chapterImage ? coverUri(detail.book) : null}
       title={detail.book.title}
       size={coverSize}
     />
@@ -450,26 +480,35 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
         {...(chapter ? { onPressMiddle: () => setWholeBook((v) => !v) } : {})}
       />
 
-      <View className={`flex-row items-center justify-between ${landscape ? 'py-1' : 'py-4'}`}>
+      <View
+        onLayout={(e) => setControlsWidth(e.nativeEvent.layout.width)}
+        className={`flex-row items-center justify-between ${landscape ? 'py-1' : 'py-4'}`}
+      >
         <Control
           icon="skipBack"
           value={String(skipSeconds)}
           label={t('Back {n} seconds', { n: skipSeconds })}
+          compact={compact}
           onPress={() => void audio.skip(false)}
         />
         {chapters.length > 0 ? (
-          <Control icon="previous" label={t('Previous chapter')} onPress={previousChapter} />
+          <Control
+            icon="previous"
+            label={t('Previous chapter')}
+            onPress={previousChapter}
+            compact={compact}
+          />
         ) : (
-          <View className="w-14" />
+          <View className={compact ? 'w-12' : 'w-14'} />
         )}
         <PressScale
           onPress={() => void (state.playing ? audio.pause() : audio.play())}
           accessibilityRole="button"
           accessibilityLabel={state.playing ? t('Pause') : t('Play')}
           style={{
-            width: 80,
-            height: 80,
-            borderRadius: 40,
+            width: playSize,
+            height: playSize,
+            borderRadius: playSize / 2,
             backgroundColor: COLORS.amber,
             alignItems: 'center',
             justifyContent: 'center',
@@ -478,14 +517,15 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           <Icon name={state.playing ? 'pause' : 'play'} size={32} color={COLORS.ink} />
         </PressScale>
         {chapters.length > 0 ? (
-          <Control icon="next" label={t('Next chapter')} onPress={nextChapter} />
+          <Control icon="next" label={t('Next chapter')} onPress={nextChapter} compact={compact} />
         ) : (
-          <View className="w-14" />
+          <View className={compact ? 'w-12' : 'w-14'} />
         )}
         <Control
           icon="skipForward"
           value={String(skipSeconds)}
           label={t('Forward {n} seconds', { n: skipSeconds })}
+          compact={compact}
           onPress={() => void audio.skip(true)}
         />
       </View>
@@ -512,53 +552,78 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
         </View>
       )}
 
-      <View className="flex-row">
-        <Tool
-          icon="speed"
-          label={`${Number(state.speed.toFixed(2))}×`}
-          spoken={t('Speed, {speed}×', { speed: Number(state.speed.toFixed(2)) })}
-          onPress={() => setSheet('speed')}
-        />
-        <Tool
-          icon="sound"
-          label={t('Sound')}
-          active={sound.active}
-          onPress={() => setSheet('sound')}
-        />
-        <Tool
-          icon="moon"
-          label={timer === null ? t('Sleep') : `${timerPrefix}${formatClock(timer)}`}
-          active={timer !== null}
-          onPress={() => setSheet('sleep')}
-        />
-        {/* Every book: one without chapters can have them found or added by hand (M85). */}
-        <Tool icon="chapters" label={t('Chapters')} onPress={() => setSheet('chapters')} />
-        {hasTranscript && (
-          <Tool
-            icon="transcript"
-            label={t('Transcript')}
-            onPress={() => router.push('/transcript')}
-          />
-        )}
-        {soundbites.length > 0 && (
-          <Tool icon="soundbite" label={t('Soundbites')} onPress={() => setSheet('soundbites')} />
-        )}
-        <Tool
-          icon="bookmark"
-          label={
-            bookmarks.length === 1 ? t('1 bookmark') : t('{n} bookmarks', { n: bookmarks.length })
-          }
-          onPress={() => setSheet('bookmarks')}
-        />
-        {CASTING_SUPPORTED && (
-          <Tool
-            icon="cast"
-            label={casting.device?.name ?? t('Cast')}
-            active={casting.device !== null}
-            onPress={() => setSheet('cast')}
-          />
-        )}
-      </View>
+      <ToolRow
+        tools={[
+          {
+            key: 'speed',
+            icon: 'speed',
+            label: `${Number(state.speed.toFixed(2))}×`,
+            spoken: t('Speed, {speed}×', { speed: Number(state.speed.toFixed(2)) }),
+            onPress: () => setSheet('speed'),
+          },
+          {
+            key: 'sound',
+            icon: 'sound',
+            label: t('Sound'),
+            active: sound.active,
+            onPress: () => setSheet('sound'),
+          },
+          {
+            key: 'sleep',
+            icon: 'moon',
+            label: timer === null ? t('Sleep') : `${timerPrefix}${formatClock(timer)}`,
+            active: timer !== null,
+            onPress: () => setSheet('sleep'),
+          },
+          // Every book: one without chapters can have them found or added by hand (M85).
+          {
+            key: 'chapters',
+            icon: 'chapters',
+            label: t('Chapters'),
+            onPress: () => setSheet('chapters'),
+          },
+          ...(hasTranscript
+            ? [
+                {
+                  key: 'transcript',
+                  icon: 'transcript' as const,
+                  label: t('Transcript'),
+                  onPress: () => router.push('/transcript'),
+                },
+              ]
+            : []),
+          ...(soundbites.length > 0
+            ? [
+                {
+                  key: 'soundbites',
+                  icon: 'soundbite' as const,
+                  label: t('Soundbites'),
+                  onPress: () => setSheet('soundbites'),
+                },
+              ]
+            : []),
+          {
+            key: 'bookmarks',
+            icon: 'bookmark',
+            label:
+              bookmarks.length === 1
+                ? t('1 bookmark')
+                : t('{n} bookmarks', { n: bookmarks.length }),
+            onPress: () => setSheet('bookmarks'),
+          },
+          ...(CASTING_SUPPORTED
+            ? [
+                {
+                  key: 'cast',
+                  icon: 'cast' as const,
+                  label: casting.device?.name ?? t('Cast'),
+                  active: casting.device !== null,
+                  onPress: () => setSheet('cast'),
+                },
+              ]
+            : []),
+        ]}
+      />
     </>
   );
 

@@ -29,6 +29,7 @@ import { ShortcutsHost } from '../src/shortcuts';
 import { PodcastSync } from '../src/podcasts';
 import { ClipStop } from '../src/clips';
 import { SyncRunner } from '../src/sync';
+import { syncCatalogCovers } from '../src/catalogCovers';
 import { offerUpdateOnStart } from '../src/updates';
 import { OtaRunner } from '../src/ota';
 import { registerBackgroundRefresh } from '../src/background';
@@ -41,6 +42,13 @@ function AddonSync() {
     void offerUpdateOnStart();
     void registerBackgroundRefresh().catch(() => {});
   }, [refresh]);
+  return null;
+}
+
+/** Keeps matched catalog covers on the phone after each library change (M80). */
+function CatalogCoverSync() {
+  const { version, refresh } = useLibrary();
+  useEffect(() => syncCatalogCovers(refresh), [version, refresh]);
   return null;
 }
 
@@ -85,6 +93,7 @@ export default function RootLayout() {
         <DownloadSync />
         <SilenceSync />
         <PodcastSync />
+        <CatalogCoverSync />
         <ClipStop />
         <SyncRunner />
         <OtaRunner />

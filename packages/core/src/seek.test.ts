@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseTime, scrubRate, snapTo } from './seek';
+import { parseTime, scrubRate, snapTo, zoomWindow } from './seek';
+
+describe('zoomWindow', () => {
+  const min = 60_000;
+  it('covers five minutes either side of the playhead', () => {
+    expect(zoomWindow(30 * min, 60 * min)).toEqual({ startMs: 25 * min, endMs: 35 * min });
+  });
+  it('stays inside the range at its start and end', () => {
+    expect(zoomWindow(2 * min, 60 * min)).toEqual({ startMs: 0, endMs: 10 * min });
+    expect(zoomWindow(59 * min, 60 * min)).toEqual({ startMs: 50 * min, endMs: 60 * min });
+  });
+  it('has nothing to zoom in a range of ten minutes or less', () => {
+    expect(zoomWindow(3 * min, 10 * min)).toBeNull();
+  });
+});
 
 describe('parseTime', () => {
   it('reads clocks, minutes and units', () => {
