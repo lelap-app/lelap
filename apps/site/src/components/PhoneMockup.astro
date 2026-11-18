@@ -10,7 +10,7 @@ const { lang } = Astro.props;
 const book = t(lang, 'Early Mornings at the Laksa Café');
 ---
 
-<div class="stage" aria-hidden="true">
+<div class="stage night" aria-hidden="true">
   <div class="phone phone-frame">
     <div class="from">
       <span class="label">{t(lang, 'Playing from')}</span>
@@ -182,7 +182,7 @@ const book = t(lang, 'Early Mornings at the Laksa Café');
     width: 58%;
     height: 4px;
     border-radius: 2px;
-    background: var(--accent);
+    background: var(--accent-fill);
   }
 
   .times {
@@ -215,7 +215,7 @@ const book = t(lang, 'Early Mornings at the Laksa Café');
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: var(--accent);
+    background: var(--accent-fill);
     color: var(--accent-ink);
     display: flex;
     align-items: center;
@@ -244,8 +244,8 @@ const book = t(lang, 'Early Mornings at the Laksa Café');
   .float {
     position: absolute;
     border-radius: 14px;
-    background: #1c1f26;
-    border: 1px solid #2e323c;
+    background: var(--surface-float);
+    border: 1px solid var(--line-strong);
     display: flex;
     align-items: center;
     gap: 10px;

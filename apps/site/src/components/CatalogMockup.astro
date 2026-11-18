@@ -159,7 +159,7 @@ const rows: { name: string; source: string; books: Book[] }[] = [
 ];
 ---
 
-<div class="stage" aria-hidden="true">
+<div class="stage night" aria-hidden="true">
   <div class="phone phone-frame">
     <div class="head">
       <span class="heading">{t(lang, 'Catalogs')}</span>
@@ -325,7 +325,7 @@ const rows: { name: string; source: string; books: Book[] }[] = [
   .tile-progress span {
     display: block;
     height: 100%;
-    background: var(--accent);
+    background: var(--accent-fill);
   }
 
   .caption {
@@ -367,8 +367,8 @@ const rows: { name: string; source: string; books: Book[] }[] = [
     bottom: 76px;
     padding: 10px 12px;
     border-radius: 14px;
-    background: #1c1f26;
-    border: 1px solid #2e323c;
+    background: var(--surface-float);
+    border: 1px solid var(--line-strong);
     display: flex;
     align-items: center;
     gap: 10px;

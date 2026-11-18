@@ -1,6 +1,8 @@
 ---
 // Lori, Lelap's mascot: a slow loris asleep with headphones on. The same drawing as the app's
-// `apps/app/src/components/Lori.tsx`; inline SVG, so the page makes no extra requests.
+// `apps/app/src/components/Lori.tsx`; inline SVG, so the page makes no extra requests. The ear
+// cups and closed eyes keep the app's amber; the “z” sits on the page, so it uses --accent,
+// which darkens by day.
 interface Props {
   size?: number;
   class?: string;
@@ -30,7 +32,7 @@ const { size = 120, class: className } = Astro.props;
   <path d="M46 35h4l-0.6 27h-2.8z" fill="#ede6d6"></path>
   <path
     d="M36 54q4 3 8 0M52 54q4 3 8 0"
-    stroke="var(--accent)"
+    stroke="var(--accent-fill)"
     stroke-width="1.6"
     stroke-linecap="round"
     fill="none"
@@ -43,8 +45,8 @@ const { size = 120, class: className } = Astro.props;
     stroke-linecap="round"
     fill="none"
   ></path>
-  <rect x="22" y="47" width="8" height="14" rx="4" fill="var(--accent)"></rect>
-  <rect x="66" y="47" width="8" height="14" rx="4" fill="var(--accent)"></rect>
+  <rect x="22" y="47" width="8" height="14" rx="4" fill="var(--accent-fill)"></rect>
+  <rect x="66" y="47" width="8" height="14" rx="4" fill="var(--accent-fill)"></rect>
   <path
     d="M76 32h6l-6 7h6"
     stroke="var(--accent)"

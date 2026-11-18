@@ -1,19 +1,30 @@
-/* Lelap: one dark, warm night-listening look. Amber is the only accent. */
+/* Lelap: a warm night-listening look, and a paper-light one by day. Amber is the only accent.
+   Each colour token holds both themes as light-dark(day, night) and `color-scheme` picks one:
+   the system's, unless Base.astro's script sets data-theme from the header switch.
+   test/contrast.test.ts checks the text pairs of both against WCAG AA. */
 :root {
-  color-scheme: dark;
-  --bg: #0d0e11;
-  --bg-raised: #101115;
-  --surface: #17191f;
-  --surface-2: #20232b;
-  --line: #1e2128;
-  --line-strong: #2a2e37;
-  --fg: #f3f1ec;
-  --fg-soft: #c4c8cf;
-  --muted: #a3a8b2;
-  --accent: #f5b041;
-  --accent-hover: #ffc867;
+  color-scheme: light dark;
+  --bg: light-dark(#f8f5ef, #0d0e11);
+  --bg-raised: light-dark(#f1ede4, #101115);
+  --surface: light-dark(#ebe6db, #17191f);
+  --surface-2: light-dark(#e3ddcf, #20232b);
+  --surface-float: light-dark(#fffdf9, #1c1f26);
+  --line: light-dark(#e0d9cb, #1e2128);
+  --line-strong: light-dark(#c9c0ad, #2a2e37);
+  --fg: light-dark(#1c1a16, #f3f1ec);
+  --fg-soft: light-dark(#45403a, #c4c8cf);
+  --muted: light-dark(#5d574d, #a3a8b2);
+  /* Amber for text, icons and outlines; by day it darkens so it reads on paper. */
+  --accent: light-dark(#8a5300, #f5b041);
+  --accent-hover: light-dark(#6b4000, #ffc867);
+  /* Amber as a surface (buttons, the logo, the play button), the same in both themes. */
+  --accent-fill: #f5b041;
+  --accent-fill-hover: light-dark(#eaa12a, #ffc867);
   --accent-ink: #1a1305;
-  --accent-tint: #2b2414;
+  --accent-tint: light-dark(#f7e5c1, #2b2414);
+  --code-bg: light-dark(#fdfbf7, #0a0b0d);
+  --code-line: light-dark(#ddd5c5, #23262e);
+  --shadow: light-dark(rgb(60 40 10 / 0.14), rgb(0 0 0 / 0.4));
   /* Drawn book covers in the phone mockups. Muted so amber stays the only accent. */
   --cover-navy: #22324f;
   --cover-teal: #1f4746;
@@ -34,6 +45,50 @@
   --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
   --gutter: clamp(16px, 4vw, 32px);
   --section-y: clamp(56px, 8vw, 104px);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+/* Browsers from before light-dark() (Safari 17.4, Chrome 122 and older) get the night theme. */
+@supports not (color: light-dark(#000, #fff)) {
+  :root,
+  :root[data-theme] {
+    color-scheme: dark;
+    --bg: #0d0e11;
+    --bg-raised: #101115;
+    --surface: #17191f;
+    --surface-2: #20232b;
+    --surface-float: #1c1f26;
+    --line: #1e2128;
+    --line-strong: #2a2e37;
+    --fg: #f3f1ec;
+    --fg-soft: #c4c8cf;
+    --muted: #a3a8b2;
+    --accent: #f5b041;
+    --accent-hover: #ffc867;
+    --accent-fill-hover: #ffc867;
+    --accent-tint: #2b2414;
+    --code-bg: #0a0b0d;
+    --code-line: #23262e;
+    --shadow: rgb(0 0 0 / 0.4);
+  }
+
+  [data-theme-switch] {
+    display: none !important;
+  }
+}
+
+/* Pictures of the app keep its night theme on either page. The colour is set again because the
+   inherited one was already resolved for the page's theme. */
+.night {
+  color-scheme: dark;
+  color: var(--fg);
 }
 
 *,
@@ -172,12 +227,12 @@ code {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: var(--accent-fill);
   color: var(--accent-ink);
 }
 
 .btn-primary:hover {
-  background: var(--accent-hover);
+  background: var(--accent-fill-hover);
   color: var(--accent-ink);
 }
 
@@ -268,8 +323,8 @@ code {
   margin: 0;
   padding: 18px 20px;
   border-radius: 14px;
-  background: #0a0b0d;
-  border: 1px solid #23262e;
+  background: var(--code-bg);
+  border: 1px solid var(--code-line);
   font-size: 13.5px;
   line-height: 1.65;
   color: var(--fg-soft);
@@ -280,9 +335,9 @@ code {
 .phone-frame {
   width: min(300px, 100%);
   height: 610px;
-  border: 8px solid #23262e;
+  border: 8px solid var(--code-line);
   border-radius: 44px;
-  background: #0a0b0d;
+  background: var(--code-bg);
   padding: 22px 20px;
   display: flex;
   flex-direction: column;

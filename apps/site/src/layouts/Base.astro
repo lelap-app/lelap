@@ -36,7 +36,19 @@ const english = lang === 'en' ? undefined : 'en';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0d0e11" />
+    {/* --bg of each theme; the script below points both at the one the switch picked. */}
+    <meta
+      name="theme-color"
+      content="#f8f5ef"
+      media="(prefers-color-scheme: light)"
+      data-scheme="light"
+    />
+    <meta
+      name="theme-color"
+      content="#0d0e11"
+      media="(prefers-color-scheme: dark)"
+      data-scheme="dark"
+    />
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
@@ -70,6 +82,60 @@ const english = lang === 'en' ? undefined : 'en';
       </>
     )}
     <script is:inline>
+      // Theme before first paint, so a saved choice never flashes the other one. Without this
+      // script the page follows prefers-color-scheme and the switch stays hidden.
+      (() => {
+        const root = document.documentElement;
+        const themes = ['system', 'light', 'dark'];
+        let theme = 'system';
+        try {
+          theme = localStorage.getItem('lelap-theme') || 'system';
+        } catch {
+          // Storage blocked: follow the system.
+        }
+        if (!themes.includes(theme)) theme = 'system';
+        const apply = () => {
+          if (theme === 'system') delete root.dataset.theme;
+          else root.dataset.theme = theme;
+          for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+            const scheme = meta.dataset.scheme;
+            meta.media =
+              theme === 'system'
+                ? `(prefers-color-scheme: ${scheme})`
+                : scheme === theme
+                  ? 'all'
+                  : 'not all';
+          }
+        };
+        apply();
+        // Shows the switch from the first paint (see .theme-switch), so the header never shifts.
+        root.dataset.js = '';
+        addEventListener('DOMContentLoaded', () => {
+          const button = document.querySelector('[data-theme-switch]');
+          if (!button) return;
+          const label = button.querySelector('[data-theme-label]');
+          const show = () => {
+            label.textContent = button.dataset[theme];
+          };
+          show();
+          button.hidden = false;
+          button.addEventListener('click', () => {
+            // The first click always changes what you see: system, its opposite, then its own.
+            const order = matchMedia('(prefers-color-scheme: dark)').matches
+              ? ['system', 'light', 'dark']
+              : ['system', 'dark', 'light'];
+            theme = order[(order.indexOf(theme) + 1) % order.length];
+            try {
+              if (theme === 'system') localStorage.removeItem('lelap-theme');
+              else localStorage.setItem('lelap-theme', theme);
+            } catch {
+              // Storage blocked: the choice holds for this page only.
+            }
+            apply();
+            show();
+          });
+        });
+      })();
       // Scroll reveals, progressive: without this script nothing is hidden.
       (() => {
         if (!('IntersectionObserver' in window)) return;
@@ -128,6 +194,29 @@ const english = lang === 'en' ? undefined : 'en';
             <span class="lang-short">{languages[other].short}</span>
           </a>
         )}
+        {/* Cycles system, light and dark. Its name says the current choice. Shown by the script. */}
+        <button
+          type="button"
+          class="btn btn-sm theme-switch"
+          data-theme-switch
+          data-system={t(lang, 'Theme: follows the system')}
+          data-light={t(lang, 'Theme: light')}
+          data-dark={t(lang, 'Theme: dark')}
+          hidden
+        >
+          <span class="theme-icon" data-for="system">
+            <Icon name="contrast" size={18} />
+          </span>
+          <span class="theme-icon" data-for="light">
+            <Icon name="sun" size={18} />
+          </span>
+          <span class="theme-icon" data-for="dark">
+            <Icon name="moon" size={18} />
+          </span>
+          <span class="visually-hidden" data-theme-label>
+            {t(lang, 'Theme: follows the system')}
+          </span>
+        </button>
         <a class="btn btn-sm btn-outline" href={site.repoUrl}>
           <Icon name="code" size={18} />
           GitHub
@@ -261,8 +350,62 @@ const english = lang === 'en' ? undefined : 'en';
     display: none;
   }
 
+  /* A 44 px icon button; .btn's display would otherwise win over [hidden]. */
+  .theme-switch {
+    position: relative;
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: var(--fg-soft);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .theme-switch:hover {
+    color: var(--fg);
+  }
+
+  .theme-switch[hidden] {
+    display: none;
+  }
+
+  /* The head script marks the page before first paint; without it the switch stays hidden. */
+  :global(:root[data-js]) .theme-switch[hidden] {
+    display: inline-flex;
+  }
+
+  .theme-icon {
+    display: none;
+  }
+
+  /* The icon follows the root's data-theme, which is set before first paint. */
+  :global(:root:not([data-theme])) [data-for='system'],
+  :global(:root[data-theme='light']) [data-for='light'],
+  :global(:root[data-theme='dark']) [data-for='dark'] {
+    display: flex;
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   /* Phones: “BM” or “EN” keeps the header on one row; the name says both, for voice control. */
   @media (max-width: 420px) {
+    .site-header {
+      column-gap: 12px;
+    }
+
+    .header-actions {
+      gap: 4px;
+    }
+
     .lang-short {
       display: inline;
     }
