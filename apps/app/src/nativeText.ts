@@ -101,6 +101,10 @@ const nativeLines = (): Record<string, string> => ({
   '{name} did not start its media player': t('{name} did not start its media player'),
   '{name} did not answer': t('{name} did not answer'),
   '{name} could not play this file': t('{name} could not play this file'),
+  // Cast device authentication (M78).
+  '{name} didn’t prove it’s a genuine Google Cast device, so Lelap didn’t connect.': t(
+    '{name} didn’t prove it’s a genuine Google Cast device, so Lelap didn’t connect.',
+  ),
   '{name} cannot play media': t('{name} cannot play media'),
   'Connect the phone to the same Wi-Fi as the speaker': t(
     'Connect the phone to the same Wi-Fi as the speaker',

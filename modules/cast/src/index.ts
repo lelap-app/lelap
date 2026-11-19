@@ -6,6 +6,21 @@ export type CastKind = 'upnp' | 'cast' | 'fcast';
 export type CastDevice = { id: string; name: string; kind: CastKind; model: string | null };
 
 /**
+ * What a session plays on: one receiver, or a group (kind `group`, M78) named after its speakers,
+ * which are listed in `members` with the first leading.
+ */
+export type CastSession = {
+  id: string;
+  name: string;
+  kind: CastKind | 'group';
+  model: string | null;
+  members: CastDevice[];
+};
+
+/** A session that started; `unreached` names group speakers that couldn't be reached. */
+export type Connected = { session: CastSession; unreached: string[] };
+
+/**
  * What the receiver reports, about once a second. `closed` means the session ended (handed back
  * to the phone); `lost` means it ended because the receiver went away or could not play.
  */
@@ -62,6 +77,12 @@ export type DiscoveryDiagnostic = {
 /** A `connect()` refused because Android 17's local network access is off. */
 export const LOCAL_NETWORK_DENIED = 'ERR_LOCAL_NETWORK';
 
+/**
+ * A `connect()` refused because a Google Cast speaker failed device authentication; the message
+ * names it. Connecting again with `anyway` lets that one speaker in for as long as the app runs.
+ */
+export const CAST_UNTRUSTED = 'ERR_CAST_UNTRUSTED';
+
 type LelapCastEvents = {
   onDevices: (event: { devices: CastDevice[] }) => void;
   onStatus: (status: CastStatus) => void;
@@ -76,8 +97,8 @@ declare class LelapCastModule extends NativeModule<LelapCastEvents> {
   takeDiagnostics(): Promise<DiscoveryDiagnostic[]>;
   localNetworkAccess(): Promise<LocalNetworkAccess>;
   requestLocalNetworkAccess(): Promise<LocalNetworkAccess>;
-  connect(deviceId: string): Promise<void>;
-  session(): Promise<CastDevice | null>;
+  connect(deviceIds: string[], anyway: boolean): Promise<Connected>;
+  session(): Promise<CastSession | null>;
   setVolume(level: number): Promise<void>;
   disconnect(): Promise<void>;
 }
@@ -126,15 +147,15 @@ export function requestLocalNetworkAccess(): Promise<LocalNetworkAccess> {
 }
 
 /**
- * Opens a session with the receiver. Playback then moves there with `castTo()` from
- * `@lelap/audio`, whose media session plays through it.
+ * Opens a session with one receiver, or with several as a group led by the first. Playback then
+ * moves there with `castTo()` from `@lelap/audio`, whose media session plays through it.
  */
-export function connect(deviceId: string): Promise<void> {
-  return native.connect(deviceId);
+export function connect(deviceIds: string[], anyway = false): Promise<Connected> {
+  return native.connect(deviceIds, anyway);
 }
 
-/** The receiver of the running session, also after the app was closed and opened again. */
-export function session(): Promise<CastDevice | null> {
+/** What the running session plays on, also after the app was closed and opened again. */
+export function session(): Promise<CastSession | null> {
   return native.session();
 }
 
