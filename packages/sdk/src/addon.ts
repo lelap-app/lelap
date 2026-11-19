@@ -32,6 +32,8 @@ import {
   WebStreamResponse,
   type ArtworkResponse,
   ArtworkResponse as ArtworkResponseSchema,
+  type SeriesResponse,
+  SeriesResponse as SeriesResponseSchema,
 } from './protocol';
 
 type Awaitable<T> = T | Promise<T>;
@@ -47,6 +49,14 @@ export type CatalogArgs = {
 export type ItemArgs = { type: ContentType; id: string; config: Config | null; request: Request };
 export type ScrobbleArgs = { events: ScrobbleEvent[]; config: Config | null; request: Request };
 export type HealthArgs = { config: Config | null; request: Request };
+/** `name` is the series' name; `extra` has `author`, `language` and `work` when the app knows them. */
+export type SeriesArgs = {
+  type: ContentType;
+  name: string;
+  extra: Extra;
+  config: Config | null;
+  request: Request;
+};
 
 export type ConfigureOptions = {
   fields: ConfigField[];
@@ -105,6 +115,8 @@ export type AddonHandlers = {
   stream?: (args: ItemArgs) => Awaitable<StreamResponse>;
   /** Since revision 3: pictures for an item, such as a square cover. */
   artwork?: (args: ItemArgs) => Awaitable<ArtworkResponse>;
+  /** Since revision 11: every book of a series; `{ series: null }` when it is unknown. */
+  series?: (args: SeriesArgs) => Awaitable<SeriesResponse>;
   /**
    * Events the app reports, oldest first. Resolve when they are handled (or deliberately
    * ignored); throw an `AddonError` with a 4xx status for events that should not be sent again.
@@ -325,6 +337,21 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
         const body = checked(
           ArtworkResponseSchema,
           await handlers.artwork({ ...route, config, request }),
+          validate,
+        );
+        return json(body, 200, body.cacheMaxAge);
+      }
+      case 'series': {
+        if (!handlers.series) break;
+        const body = checked(
+          SeriesResponseSchema,
+          await handlers.series({
+            type: route.type,
+            name: route.id,
+            extra: route.extra,
+            config,
+            request,
+          }),
           validate,
         );
         return json(body, 200, body.cacheMaxAge);

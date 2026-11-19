@@ -11,7 +11,9 @@ import {
   PlaceReport,
   PROTOCOL_VERSION,
   ScrobbleRequest,
+  SeriesResponse,
   scrobblePath,
+  seriesPath,
   SigninResult,
   SigninStart,
   StreamResponse,
@@ -205,6 +207,7 @@ GET /stream/{type}/{id}.json                → { "streams": Stream[] }
 POST /scrobble                              ← { "events": ScrobbleEvent[] }
 GET /health                                 → HealthResponse      (revision 2)
 GET /artwork/{type}/{id}.json               → { "artwork": ArtworkImage[] }  (revision 3)
+GET /series/{type}/{name}/{extra}.json      → { "series": SeriesList | null }  (revision 11)
 GET /library/audiobook/all.json             → { "files": LibraryFile[] }  (revision 5, inside the app)
 place/audiobook/all.json                    ← PlaceReport          (revision 6, inside the app only)
 signin/audiobook/start.json                 → SigninStart          (revision 7, inside the app only)
@@ -338,6 +341,36 @@ const locateResponse = example(LocateResponse, {
       url: 'https://203-0-113-7.0f1e.plex.direct:32400/library/parts/312/1763434800/file.mp3',
     },
   ],
+});
+
+const seriesRequest = `GET ${base}/${seriesPath('audiobook', 'Afdeling Q', {
+  author: 'Jussi Adler-Olsen',
+  language: 'da',
+})}`;
+
+const seriesResponse = example(SeriesResponse, {
+  series: {
+    name: 'Afdeling Q',
+    id: 'wikidata:Q86567441',
+    link: 'https://www.wikidata.org/wiki/Q86567441',
+    volumes: [
+      {
+        title: 'Kvinden i buret',
+        titles: { da: 'Kvinden i buret', en: 'The Keeper of Lost Causes' },
+        position: '1',
+        released: '2007',
+        externalIds: { wikidata: 'Q1348207' },
+      },
+      {
+        title: 'Fasandræberne',
+        titles: { da: 'Fasandræberne', en: 'The Absent One' },
+        position: '2',
+        released: '2008',
+        externalIds: { wikidata: 'Q15846927' },
+      },
+    ],
+  },
+  cacheMaxAge: 604800,
 });
 
 const configuredManifest = example(Manifest, {
@@ -1464,11 +1497,12 @@ const toc: [string, string][] = [
     when taken back), sends <code>resumed</code> only to an add-on that heard of the book, and{' '}
     <code>sessionStartMs</code> on every <code>finish</code> that ends a session; an app before
     revision 10 sends every event to every scrobbler. Revision 11 adds a library’s{' '}
-    <a href="#moved">settings</a> and <a href="#locate">locating files</a> before they stream; an
-    app before revision 11 ignores the settings and refuses a manifest that lists{' '}
-    <code>locate</code>. When an add-on declares a newer revision than the app knows, Settings →
-    Add-ons says so. Revision 9 comes with SDK 0.5.0; 0.4.0 covers revisions up to 8. Revisions 10
-    and 11 come with the next SDK release, 0.6.
+    <a href="#moved">settings</a>, <a href="#locate">locating files</a> before they stream and{' '}
+    <a href="#whole-series">whole series</a>; an app before revision 11 ignores the settings and
+    refuses a manifest that lists <code>locate</code> or <code>series</code>. When an add-on
+    declares a newer revision than the app knows, Settings → Add-ons says so. Revision 9 comes with
+    SDK 0.5.0; 0.4.0 covers revisions up to 8. Revisions 10 and 11 come with the next SDK release,
+    0.6.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />
@@ -1548,6 +1582,30 @@ const toc: [string, string][] = [
     draws any <a href="#badges">badges</a> itself: send plain pictures, not covers with text baked
     in. <code>kind</code> is <code>cover</code> today; other kinds are kept and ignored.
   </p>
+
+  <h2 id="whole-series">Whole series</h2>
+  <p>
+    Since revision 11, an add-on with the <code>series</code> resource lists every book of a series
+    in reading order, so a series page can show the books the listener lacks by title. The app asks
+    by the series’ name, with <code>author</code>, the profile’s <code>language</code> and, when the
+    listener linked one of its books to an Open Library work, <code>work</code> (such as{' '}
+    <code>ol:OL82563W</code>). Nothing else about the library goes out. Answer{' '}
+    <code>{'{ "series": null }'}</code> for a series you don’t know, never another series of the
+    same name.
+  </p>
+  <p>
+    A book’s <code>position</code> is the series’ own label, such as <code>1</code> or{' '}
+    <code>0.5</code>; <code>released</code> is a year or a date. The app orders by position, puts a
+    book without one after the last book released before it, and calls only whole numbers missing:
+    half numbers and books without a position (short stories, companions) are shown in their place
+    but never counted. <code>titles</code> holds the title by language, so a missing book is named
+    in the language of the editions the listener has. The app keeps the answer for 30 days and works
+    offline from it; series are asked by name, so <code>idPrefixes</code> don’t apply. Lelap’s own
+    Whole series add-on answers from Wikidata. Keep <code>series</code> in an add-on of its own, or
+    in one that needs revision 11 anyway: an app before it refuses the whole manifest.
+  </p>
+  <CodeBlock code={seriesRequest} label="The request" />
+  <CodeBlock code={seriesResponse} label="SeriesResponse" />
 
   <h2 id="badges">Badges</h2>
   <p>

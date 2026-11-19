@@ -1,7 +1,7 @@
 import type { ZodType } from 'zod';
 
 import { PAGE_STYLE } from './config';
-import { catalogPath, type Extra, metaPath, streamPath } from './paths';
+import { catalogPath, type Extra, metaPath, seriesPath, streamPath } from './paths';
 import {
   Badges,
   type CatalogDefinition,
@@ -18,8 +18,10 @@ import {
   MultiPartStream,
   needsConfiguration,
   offersHealth,
+  offersSeries,
   prefixesFor,
   type ResourceName,
+  SeriesResponse,
   SingleFileStream,
   supports,
 } from './protocol';
@@ -44,7 +46,8 @@ export type CheckKind =
   | 'ids'
   | 'stream'
   | 'audio'
-  | 'scrobble';
+  | 'scrobble'
+  | 'series';
 
 export type CheckProblem = {
   /** `error`: the app refuses or loses something. `warning`: it works, worse than it could. */
@@ -82,6 +85,8 @@ export type CheckOptions = {
   search?: string;
   /** More items to check meta and streams for, such as IDs no catalog lists. */
   ids?: { type: ContentType; id: string }[];
+  /** A series the add-on knows, for its `series` resource, such as `{ name: 'Dune', author: 'Frank Herbert' }`. */
+  series?: { name: string; author?: string };
   /** Also ask for the first bytes of each checked stream's audio. Off by default. */
   audio?: boolean;
   /** Answers slower than this are a warning. Default 3000 ms. */
@@ -465,6 +470,7 @@ export async function checkAddon(input: string, options: CheckOptions = {}): Pro
   }
   if (declares('stream') && !items.some((i) => supports(manifest, 'stream', i.type, i.id)))
     notes.push('No item to check streams with; pass one with --id.');
+  if (declares('series')) await checkSeries();
 
   await checkScrobble();
   return finish(addon);
@@ -585,6 +591,54 @@ export async function checkAddon(input: string, options: CheckOptions = {}): Pro
         far.answer.url,
         `skip=${FAR_SKIP} still brings the first items; paging never ends. Answer an empty list past the end.`,
       );
+  }
+
+  /** The `series` resource: a name no series has, then the one in `options.series`. */
+  async function checkSeries() {
+    if (!offersSeries(manifest, 'audiobook')) return;
+    const unknown = await get(seriesPath('audiobook', UNKNOWN, { author: UNKNOWN }), 'series');
+    if (unknown && unknown.status !== 404 && inspectJson(unknown, 'series')) {
+      const found = issuesOf(SeriesResponse, unknown.body);
+      reportIssues('series', unknown.url, found);
+      if (found.length === 0 && (unknown.body as SeriesResponse).series !== null)
+        report(
+          'warning',
+          'series',
+          unknown.url,
+          'Answered a series for a name no series has; the app would list its books on the wrong series page. Send {"series": null}.',
+        );
+    }
+    const wanted = options.series;
+    if (!wanted) {
+      notes.push('No series to check the series resource with; pass one with --series.');
+      return;
+    }
+    const answer = await get(
+      seriesPath('audiobook', wanted.name, wanted.author ? { author: wanted.author } : {}),
+      'series',
+    );
+    if (!answer || !inspectJson(answer, 'series')) return;
+    const found = issuesOf(SeriesResponse, answer.body);
+    reportIssues('series', answer.url, found);
+    inspectCaching(answer);
+    if (found.length > 0) return;
+    const series = (answer.body as SeriesResponse).series;
+    if (!series) {
+      report('warning', 'series', answer.url, `Knows no series called ${wanted.name}.`);
+      return;
+    }
+    if (series.volumes.length === 0)
+      report('warning', 'series', answer.url, 'The series has no books.', 'series.volumes');
+    series.volumes.forEach((volume, index) => {
+      if (volume.position === undefined && volume.released === undefined)
+        report(
+          'warning',
+          'series',
+          answer.url,
+          'Neither a position nor a release date, so the app lists this book last.',
+          `series.volumes[${index}]`,
+        );
+    });
   }
 
   async function checkMeta(item: Item): Promise<Meta | null> {
@@ -851,6 +905,14 @@ function checkManifestSense(
 ) {
   const names = manifest.resources.map((r) => (typeof r === 'string' ? r : r.name));
   manifest.resources.forEach((r, index) => {
+    if (typeof r !== 'string' && r.name === 'series' && r.idPrefixes)
+      report(
+        'warning',
+        'manifest',
+        url,
+        'Series are asked by name, so idPrefixes on series narrow nothing.',
+        `resources[${index}].idPrefixes`,
+      );
     if (typeof r === 'string' || !r.events) return;
     if (r.name !== 'scrobble')
       report(
@@ -868,6 +930,14 @@ function checkManifestSense(
       url,
       'Declares the catalog resource but no catalogs.',
       'catalogs',
+    );
+  if (names.includes('series') && !offersSeries(manifest, 'audiobook'))
+    report(
+      'warning',
+      'manifest',
+      url,
+      'The app asks for series of audiobooks only, and this series resource takes none.',
+      'resources',
     );
   if (!names.includes('catalog') && manifest.catalogs.length > 0)
     report('error', 'manifest', url, 'Lists catalogs but not the catalog resource.', 'resources');

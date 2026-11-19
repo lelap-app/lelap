@@ -8,6 +8,7 @@ import {
   fetchCatalog,
   fetchManifest,
   fetchMeta,
+  fetchSeriesList,
   fetchStreams,
   type InstalledAddon,
   normalizeManifestUrl,
@@ -211,5 +212,50 @@ describe('requests', () => {
     await expect(fetchManifest(fetcher, 'https://x.example/manifest.json')).rejects.toThrow(
       'could not be reached',
     );
+  });
+});
+
+describe('whole series (M127)', () => {
+  const lister: InstalledAddon = {
+    id: '3',
+    url: 'https://c.example/manifest.json',
+    builtin: true,
+    manifest: manifest('lister', { resources: [{ name: 'series', types: ['audiobook'] }] }),
+  };
+  const want = { name: 'Afdeling Q', author: 'Jussi Adler-Olsen', language: 'da' };
+
+  it('asks the add-ons with a series resource by name, author and language', async () => {
+    const fetcher = fake(() => ({
+      series: { name: 'Afdeling Q', volumes: [{ title: 'Kvinden i buret', position: '1' }] },
+    }));
+    const list = await fetchSeriesList(fetcher, [catalog, lister], { ...want, work: 'ol:OL1W' });
+    expect(list?.volumes[0]?.title).toBe('Kvinden i buret');
+    expect(fetcher.calls).toEqual([
+      'https://c.example/series/audiobook/Afdeling%20Q/author=Jussi%20Adler-Olsen&language=da&work=ol%3AOL1W.json',
+    ]);
+  });
+
+  it('says null when the add-ons know none, undefined when none answered', async () => {
+    expect(
+      await fetchSeriesList(
+        fake(() => ({ series: null })),
+        [lister],
+        want,
+      ),
+    ).toBeNull();
+    expect(
+      await fetchSeriesList(
+        fake(() => 500),
+        [lister],
+        want,
+      ),
+    ).toBeUndefined();
+    expect(
+      await fetchSeriesList(
+        fake(() => ({ series: null })),
+        [catalog],
+        want,
+      ),
+    ).toBeUndefined();
   });
 });

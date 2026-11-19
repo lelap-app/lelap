@@ -16,6 +16,7 @@ import {
   catalogCoverName,
   findYourCopy,
   linkedCoverUrls,
+  linkedOpenLibraryWork,
   type LinkableWork,
   linkBook,
   rejectLink,
@@ -142,6 +143,15 @@ describe('your copy', () => {
       bookId,
       how: 'linked',
     });
+  });
+
+  it('names the Open Library work a book is linked with, for its series (M127)', () => {
+    const bookId = idOf(db, 'Sci-fi/hb-01');
+    const key = `${ROOT}/Sci-fi/hb-01`;
+    expect(linkedOpenLibraryWork(db, [key])).toBeNull();
+    linkBook(db, bookId, dune, 10);
+    expect(linkedOpenLibraryWork(db, ['other', key])).toBe('ol:OL893415W');
+    expect(linkedOpenLibraryWork(db, [])).toBeNull();
   });
 
   it('remembers a no, and unlinking is one call', () => {

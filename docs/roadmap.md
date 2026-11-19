@@ -135,6 +135,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M124 Languages 4](milestones/m124.md)               | Planned     |             | Chapter names that follow a language switch at once, and the last English failure texts                                       |
 | [M125 Casting 5](milestones/m125.md)                 | Planned     |             | An FCast receiver that goes silent, tuned receiver waits, Cast on the web, bedtime volume while casting                       |
 | [M126 Speed and battery 2](milestones/m126.md)       | Planned     |             | What M106 left: Android's start, a Library that rereads only what changed, a smaller start bundle                             |
+| [M127 Series 3](milestones/m127.md)                  | Done        |           6 | Whole series from Wikidata, in release order, with the books the library lacks by title                                       |
 
 <!-- milestones:end -->
 
@@ -170,6 +171,11 @@ when it is planned.
   in `cond ? <ActivityIndicator /> : …`.
 - **Themes and community looks:** community skins and community players. M108 brought built-in
   themes, accents and theme files of colours only.
+- **Series leftovers (from M127):** Hardcover's series for listeners who connected Hardcover with
+  their own token, to fill what Wikidata lacks (Department Q's book 10, years it doesn't have).
+  A hidden book matched only by its title still shows as a book the listener lacks. And an app
+  that drops resources it doesn't know, instead of refusing the manifest, would let later
+  resources join existing add-ons.
 
 ## Environments
 

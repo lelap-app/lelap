@@ -1,5 +1,6 @@
 # The Catalog add-on at the root, LibriVox under /librivox, Internet Archive under
-# /internet-archive, Hardcover under /hardcover and gPodder sync under /gpodder.
+# /internet-archive, whole series under /series, Hardcover under /hardcover and gPodder sync
+# under /gpodder.
 # No routes here: attach a custom domain in the Cloudflare dashboard, so forks deploy to their own.
 name = "lelap-catalog"
 main = "src/index.ts"

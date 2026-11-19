@@ -16,7 +16,7 @@ const domain: string = process.env.EXPO_PUBLIC_LELAP_DOMAIN || 'lelap.app';
  */
 const configured: string =
   process.env.EXPO_PUBLIC_LELAP_ADDONS ||
-  `https://catalog.${domain}/librivox/manifest.json,https://catalog.${domain}/manifest.json`;
+  `https://catalog.${domain}/librivox/manifest.json,https://catalog.${domain}/manifest.json,https://catalog.${domain}/series/manifest.json`;
 
 export const defaultAddons: string[] = configured
   .split(',')

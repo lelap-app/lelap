@@ -48,6 +48,14 @@ describe('asksForMore', () => {
 });
 
 describe('addonPermissions', () => {
+  it('says what a series resource gets (M127)', () => {
+    const list = addonPermissions(
+      manifest([{ name: 'series', types: ['audiobook'] }]),
+      'https://addon.example/series/manifest.json',
+    );
+    expect(list.find((p) => p.kind === 'series')).toMatchObject({ notable: false });
+  });
+
   it('names what the add-on does and flags what deserves a second look', () => {
     const list = addonPermissions(
       manifest(['catalog', 'stream', 'scrobble']),

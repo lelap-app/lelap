@@ -40,6 +40,8 @@ export type Series = {
   missing: number[];
   /** The listener put the books in an order of their own. */
   ordered: boolean;
+  /** Numbers that books the profile hid hold (M115): not missing, and nothing to look for. */
+  held: number[];
 };
 
 /** Gaps are only shown up to this number, so a year or a catalogue number reads as no gap. */
@@ -352,6 +354,7 @@ function build(db: Db, profileId: string): Built {
       // Up to the highest number listed, as before: a hidden book only fills a gap.
       missing: missingNumbers(usual.map((b) => b.number)).filter((n) => !hiddenNumbers.has(n)),
       ordered: order.length > 0,
+      held: [...hiddenNumbers].sort((a, b) => a - b),
     });
   }
   return { series: out.sort((a, b) => compareNatural(a.name, b.name)), all, held };
@@ -418,7 +421,27 @@ export type NextInSeries = {
   book: LibraryBook | null;
   position: string | null;
   number: number | null;
+  /** The missing book's title and year, when a whole series list names it (M127). */
+  title?: string;
+  year?: number;
 };
+
+/** The series a book names first, its main series; null when it is in none. */
+export function mainSeriesOf(
+  db: Db,
+  profileId: string,
+  bookId: string,
+  version?: number,
+): Series | null {
+  const { all, series: list } = built(db, profileId, version);
+  const own = all.filter((m) => m.book.id === bookId);
+  const rank = (s: Series) =>
+    Math.min(...own.filter((m) => s.keys.includes(m.nameKey)).map((m) => m.rank), 99);
+  const ranked = list
+    .filter((s) => s.books.some((b) => b.book.id === bookId))
+    .sort((a, b) => rank(a) - rank(b));
+  return ranked[0] ?? null;
+}
 
 export function nextInSeries(
   db: Db,
@@ -426,15 +449,8 @@ export function nextInSeries(
   bookId: string,
   version?: number,
 ): NextInSeries | null {
-  const { all, series: list, held } = built(db, profileId, version);
-  // The main series is the one the book names first.
-  const own = all.filter((m) => m.book.id === bookId);
-  const rank = (s: Series) =>
-    Math.min(...own.filter((m) => s.keys.includes(m.nameKey)).map((m) => m.rank), 99);
-  const ranked = list
-    .filter((s) => s.books.some((b) => b.book.id === bookId))
-    .sort((a, b) => rank(a) - rank(b));
-  const series = ranked[0];
+  const { held } = built(db, profileId, version);
+  const series = mainSeriesOf(db, profileId, bookId, version);
   if (!series) return null;
   const at = series.books.findIndex((b) => b.book.id === bookId);
   const current = series.books[at];

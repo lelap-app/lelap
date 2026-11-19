@@ -122,6 +122,10 @@ const options: [string, string][] = [
     '--id <type:id>',
     'Also check this item, such as audiobook:example:raven: useful for a source add-on that answers IDs no catalog lists. Repeatable.',
   ],
+  [
+    '--series <name/author>',
+    'A series for the series resource, such as “Dune/Frank Herbert”; the author is optional.',
+  ],
   ['--audio', 'Also ask for the first bytes of each checked stream’s first file.'],
   ['--timeout <ms>', 'Give up on an answer after this long. Default 10000, as the app.'],
 ];
@@ -214,6 +218,12 @@ const toc: [string, string][] = [
       keeps the listener’s choice by key, and there are two or more, since the item page shows none
       below that. <code>events</code> (revision 10) sit on the <code>scrobble</code> resource only.
       In the next SDK release, 0.6.
+    </li>
+    <li>
+      <strong>Whole series.</strong> A <code>series</code> resource answers a name no series has
+      with <code>{'{ "series": null }'}</code>, not with some other series; with{' '}
+      <code>--series</code>, the series you name parses and each book has a position or a release
+      date. In the next SDK release, 0.6.
     </li>
     <li>
       <strong>Streams.</strong> No headers from an add-on on a server, a different{' '}

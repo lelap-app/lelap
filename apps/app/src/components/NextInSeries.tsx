@@ -1,4 +1,4 @@
-import { nextInSeries } from '@lelap/core';
+import { mainSeriesOf, nextInWholeSeries } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
@@ -6,10 +6,10 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { hint } from '../a11y';
 import { db } from '../db';
 import { showAlert } from '../dialog';
-import { t } from '../i18n';
+import { currentLanguage, t } from '../i18n';
 import { playBook, useLibrary } from '../player';
 import { profileId } from '../profile';
-import { bookNumber, useFindVolume } from '../series';
+import { bookNumber, useFindVolume, useSeriesList } from '../series';
 import { BookCover, coverUri } from './BookCover';
 import { TextButton } from './TextButton';
 import { useColors } from '../theme';
@@ -32,9 +32,28 @@ export function NextInSeries({
   const { version, refresh } = useLibrary();
   const { find, looking } = useFindVolume();
   // `version` is the signal to re-read the database.
-  const next = useMemo(
-    () => (ended ? nextInSeries(db, profileId, bookId, version) : null),
+  const main = useMemo(
+    () => (ended ? mainSeriesOf(db, profileId, bookId, version) : null),
     [ended, bookId, version],
+  );
+  const lookup = useMemo(
+    () =>
+      main
+        ? {
+            key: main.key,
+            name: main.name,
+            author: main.author,
+            bookKeys: main.books.map((b) => b.bookKey),
+          }
+        : null,
+    [main],
+  );
+  // The whole series (M127) names the next book by its title; asked once, then kept.
+  const { list } = useSeriesList(lookup);
+  const next = useMemo(
+    () => (ended ? nextInWholeSeries(db, profileId, bookId, currentLanguage(), version) : null),
+    // `list` is the signal that a new answer was kept.
+    [ended, bookId, version, list],
   );
   if (!next) return null;
 
@@ -83,23 +102,40 @@ export function NextInSeries({
 
   const number = next.number;
   if (number === null) return null;
+  const title = next.title;
+  const id = `next:${number}`;
   return (
     <View
       accessibilityLiveRegion="polite"
       className={`gap-1 rounded-xl border border-line bg-raised p-3 ${className}`}
     >
       <Text className="text-xs uppercase tracking-widest text-muted">{heading}</Text>
-      <Text className="text-paper">
-        {t('Book {n} is not in your library.', { n: next.position ?? String(number) })}
-      </Text>
+      {title ? (
+        <>
+          <Text numberOfLines={2} className="text-paper">
+            {[next.position ? bookNumber(next.position) : null, title].filter(Boolean).join(' · ')}
+          </Text>
+          <Text className="text-sm text-muted">
+            {[next.year !== undefined ? String(next.year) : null, t('Not in your library')]
+              .filter(Boolean)
+              .join(' · ')}
+          </Text>
+        </>
+      ) : (
+        <Text className="text-paper">
+          {t('Book {n} is not in your library.', { n: next.position ?? String(number) })}
+        </Text>
+      )}
       <View className="flex-row flex-wrap items-center gap-x-4">
-        {looking === number ? (
+        {looking === id ? (
           <ActivityIndicator color={colors.amber} className="min-h-12" />
         ) : (
           <TextButton
             text={t('Look in your add-ons')}
             strong
-            onPress={() => void find(next.series, number)}
+            onPress={() =>
+              void find(next.series, { number, id, ...(title ? { titles: [title] } : {}) })
+            }
           />
         )}
         <TextButton text={t('Open the series')} tone="muted" onPress={openSeries} />

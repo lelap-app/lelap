@@ -10,6 +10,10 @@ import {
   Meta,
   MetaPreview,
   metaPath,
+  offersSeries,
+  type SeriesList,
+  seriesPath,
+  SeriesResponse,
   Stream,
   streamPath,
   WebStream,
@@ -222,6 +226,39 @@ export async function fetchArtwork(
     }
   }
   return null;
+}
+
+/**
+ * A whole series from the first add-on with a `series` resource that knows it (M127). Sends the
+ * series' name, its author, the profile's language and, when given, an `ol:` work of the series.
+ * Null when every add-on that answered knows none; undefined when none answered, so the caller
+ * keeps what it had.
+ */
+export async function fetchSeriesList(
+  fetcher: Fetcher,
+  addons: InstalledAddon[],
+  want: { name: string; author: string | null; language: string; work?: string | null },
+): Promise<SeriesList | null | undefined> {
+  const extra: Extra = { language: want.language };
+  if (want.author) extra.author = want.author;
+  if (want.work) extra.work = want.work;
+  let answered = false;
+  for (const addon of addons) {
+    if (!offersSeries(addon.manifest, 'audiobook')) continue;
+    try {
+      const body = await getJson(
+        fetcher,
+        addonBase(addon.url) + seriesPath('audiobook', want.name, extra),
+      );
+      const parsed = SeriesResponse.safeParse(body);
+      if (!parsed.success) continue;
+      answered = true;
+      if (parsed.data.series && parsed.data.series.volumes.length > 0) return parsed.data.series;
+    } catch {
+      // The next add-on may know it.
+    }
+  }
+  return answered ? null : undefined;
 }
 
 /** Meta from the first add-on that answers for this ID. */

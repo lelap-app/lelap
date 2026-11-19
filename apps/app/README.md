@@ -53,14 +53,14 @@ native module's manifest.
 
 ## Add-ons while developing
 
-On first start the app installs the default add-ons from configuration: the LibriVox and Catalog
-add-ons on `catalog.<EXPO_PUBLIC_LELAP_DOMAIN>` (default `lelap.app`). To use the Worker running on
+On first start the app installs the default add-ons from configuration: the LibriVox, Catalog and
+Whole series add-ons on `catalog.<EXPO_PUBLIC_LELAP_DOMAIN>` (default `lelap.app`). To use the Worker running on
 your laptop instead, start it and forward its port to the phone:
 
 ```sh
 pnpm --filter @lelap/catalog dev            # wrangler dev on port 8787
 adb reverse tcp:8787 tcp:8787
-EXPO_PUBLIC_LELAP_ADDONS=http://localhost:8787/librivox/manifest.json,http://localhost:8787/manifest.json pnpm dev:app
+EXPO_PUBLIC_LELAP_ADDONS=http://localhost:8787/librivox/manifest.json,http://localhost:8787/manifest.json,http://localhost:8787/series/manifest.json pnpm dev:app
 ```
 
 Defaults are installed only once; on a phone that already has them, add the local URLs in

@@ -11,6 +11,7 @@ export type Permission = {
     | 'stream'
     | 'scrobble'
     | 'artwork'
+    | 'series'
     | 'library'
     | 'login'
     | 'settings'
@@ -82,6 +83,13 @@ export function addonPermissions(manifest: Manifest, manifestUrl: string): Permi
     list.push({
       kind: 'artwork',
       text: 'Supplies covers for items that have none.',
+      notable: false,
+    });
+  }
+  if (resources.has('series')) {
+    list.push({
+      kind: 'series',
+      text: 'Lists every book of a series you open, in reading order. It gets the series’ name, its author, your language and a catalog book you matched in it.',
       notable: false,
     });
   }

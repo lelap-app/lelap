@@ -41,6 +41,7 @@ describe('the worker app', () => {
         'https://addons.test/manifest.json',
         'https://addons.test/librivox/manifest.json',
         'https://addons.test/internet-archive/manifest.json',
+        'https://addons.test/series/manifest.json',
       ],
       configure: [
         'https://addons.test/hardcover/configure',

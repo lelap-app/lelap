@@ -52,6 +52,17 @@ export function artworkPath(type: ContentType, id: string): string {
   return `artwork/${type}/${enc(id)}.json`;
 }
 
+/**
+ * Since revision 11: every book of a series, asked by its name, with `author`, `language` and
+ * `work` as extras.
+ */
+export function seriesPath(type: ContentType, name: string, extra: Extra = {}): string {
+  const encoded = encodeExtra(extra);
+  return encoded
+    ? `series/${type}/${enc(name)}/${encoded}.json`
+    : `series/${type}/${enc(name)}.json`;
+}
+
 /** Since revision 5: every file of the listener's library, from an add-on inside the app. */
 export function libraryPath(type: ContentType = 'audiobook'): string {
   return `library/${type}/all.json`;
@@ -91,7 +102,7 @@ export function scrobblePath(type: ContentType = 'audiobook'): string {
 
 export type Route =
   | { resource: 'manifest' }
-  | { resource: 'catalog'; type: ContentType; id: string; extra: Extra }
+  | { resource: 'catalog' | 'series'; type: ContentType; id: string; extra: Extra }
   | { resource: 'meta' | 'stream' | 'artwork' | 'library'; type: ContentType; id: string };
 
 const isType = (value: string): value is ContentType =>
@@ -108,7 +119,8 @@ export function parseRoute(path: string): Route | null {
   const type = decode(rawType);
   const id = decode(rawId);
   if (!isType(type)) return null;
-  if (resource === 'catalog') return { resource, type, id, extra: parseExtra(extra ?? '') };
+  if (resource === 'catalog' || resource === 'series')
+    return { resource, type, id, extra: parseExtra(extra ?? '') };
   if (
     (resource === 'meta' ||
       resource === 'stream' ||
