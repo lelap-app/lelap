@@ -91,4 +91,64 @@ describe('theme files', () => {
     const read = parseThemeFile(file({}, { text: '#EEF1F7' }));
     expect(read.ok && read.theme.colors.paper).toBe('#eef1f7');
   });
+
+  it('keeps high contrast through a file, and holds it to 7:1', () => {
+    const written = themeToFile(builtInTheme('contrast', 'blue'), 'High contrast, Blue');
+    expect(written.highContrast).toBe(true);
+    const read = parseThemeFile(JSON.stringify(written));
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    const theme = resolveTheme('custom', 'amber', read.theme, false);
+    expect(theme.highContrast).toBe(true);
+    expect(theme.colors).toEqual(builtInTheme('contrast', 'blue').colors);
+    // Dusk passes at 4.5:1 but not at 7:1, so it can't call itself high contrast.
+    const faint = parseThemeFile(file({ highContrast: true }));
+    expect(faint.ok).toBe(false);
+    if (!faint.ok) expect(faint.problems.some((p) => p.includes('below 7:1'))).toBe(true);
+    expect(themeToFile(builtInTheme('dusk', 'teal'), 'Dusk').highContrast).toBeUndefined();
+    expect(parseThemeFile(file({ highContrast: 'yes' })).ok).toBe(false);
+  });
+});
+
+describe('a file theme in car mode', () => {
+  const custom = (dark: boolean, accent: string) => {
+    const base = builtInTheme(dark ? 'dusk' : 'day', 'teal');
+    return resolveTheme(
+      'custom',
+      'rose',
+      { name: 'Mine', dark, colors: { ...base.colors, amber: accent } },
+      true,
+    );
+  };
+
+  it('keeps the file’s accent as it is where it reads on the swapped theme', () => {
+    // A file marked light whose accent also reads on Night's black.
+    const marked = { ...custom(true, '#4fc4b6'), dark: false };
+    const atNight = carTheme(marked, 'rose', false);
+    expect(atNight.id).toBe('night');
+    expect(atNight.colors.amber).toBe('#4fc4b6');
+  });
+
+  it('keeps the file’s hue in a lightness that reads, rather than the profile’s accent', () => {
+    for (const [dark, accent] of [
+      [true, '#4fc4b6'],
+      [true, '#ff6fd8'],
+      [false, '#11665d'],
+      [false, '#6440a8'],
+    ] as const) {
+      const swapped = carTheme(custom(dark, accent), 'rose', dark);
+      expect(swapped.id).toBe(dark ? 'day' : 'night');
+      expect(swapped.colors.amber).not.toBe(accent);
+      expect(swapped.colors.amber).not.toBe(builtInTheme(swapped.id as 'day', 'rose').colors.amber);
+      expect(themeProblems(swapped), accent).toEqual([]);
+    }
+  });
+
+  it('never draws car mode with a pair below its ratio, and leaves built-in themes as they were', () => {
+    for (const accent of ['#777777', '#000000', '#ffffff', '#ff0000'])
+      for (const dark of [true, false])
+        expect(themeProblems(carTheme(custom(dark, accent), 'rose', dark))).toEqual([]);
+    const builtIn = carTheme(builtInTheme('dusk', 'rose'), 'rose', true);
+    expect(builtIn).toEqual(builtInTheme('day', 'rose'));
+  });
 });

@@ -6,13 +6,14 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { sourceManifest } from '../src/addonSources';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { TextButton } from '../src/components/TextButton';
 import { hint } from '../src/a11y';
 import { t } from '../src/i18n';
 import { activeProfile } from '../src/profile';
 import { scrobblerForm, scrobblersWork, setUpScrobbler } from '../src/scrobblers';
 import { READABLE } from '../src/layout';
+import { useColors } from '../src/theme';
 
 /**
  * `/scrobbler?url=…`: sets up a scrobbler inside the app (M61), such as the Open Library reading
@@ -20,6 +21,7 @@ import { READABLE } from '../src/layout';
  * sealed on this device.
  */
 export default function ScrobblerScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -67,7 +69,7 @@ export default function ScrobblerScreen() {
         <IconButton
           name="back"
           label={t('Back')}
-          color={COLORS.soft}
+          color={colors.soft}
           onPress={() => router.back()}
         />
       </View>
@@ -108,7 +110,7 @@ export default function ScrobblerScreen() {
                     accessibilityLabel={field.label}
                     {...hint(field.help)}
                     {...(field.placeholder === undefined ? {} : { placeholder: field.placeholder })}
-                    placeholderTextColor={COLORS.muted}
+                    placeholderTextColor={colors.muted}
                     autoCapitalize="none"
                     autoCorrect={false}
                     secureTextEntry={field.type === 'password'}
@@ -136,7 +138,7 @@ export default function ScrobblerScreen() {
                 className="min-h-12 items-center justify-center self-start rounded-full bg-amber px-5 py-3 active:opacity-80"
               >
                 {saving ? (
-                  <ActivityIndicator color={COLORS.ink} />
+                  <ActivityIndicator color={colors.ink} />
                 ) : (
                   <Text className="font-semibold text-ink">{t('Check and save')}</Text>
                 )}

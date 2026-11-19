@@ -2,6 +2,7 @@ import {
   type AddonHealth,
   healthState,
   type HealthState,
+  type ThemeColors,
   type InstalledAddon,
   normalizeManifestUrl,
   parseAddonLink,
@@ -26,7 +27,7 @@ import { reviewAddon } from '../src/addonReview';
 import { installAddonFile, isAddonFile } from '../src/localAddons';
 import { closeSandboxesOf } from '../src/sandbox';
 import { ActionSheet, type Action } from '../src/components/ActionSheet';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { showAlert } from '../src/dialog';
 import { checkAddonHealth, useAddonHealth, useAddons } from '../src/addons';
 import { confirmAddon, openConfigure } from '../src/addonInstall';
@@ -37,17 +38,17 @@ import { TextButton } from '../src/components/TextButton';
 import { scrobblerForm, scrobblersWork } from '../src/scrobblers';
 import { OwnAddonOffer, useOwnAddonOffers } from '../src/components/OwnAddons';
 import { READABLE } from '../src/layout';
+import { useColors } from '../src/theme';
 
 const openScrobbler = (router: ReturnType<typeof useRouter>, url: string) =>
   router.push({ pathname: '/scrobbler', params: { url } });
 
-// A function, so it reads the theme's colours of the moment.
-const stateColor = (): Record<HealthState, string> => ({
-  unknown: COLORS.muted,
-  ok: COLORS.ok,
-  slow: COLORS.amber,
-  degraded: COLORS.amber,
-  failing: COLORS.danger,
+const stateColor = (colors: ThemeColors): Record<HealthState, string> => ({
+  unknown: colors.muted,
+  ok: colors.ok,
+  slow: colors.amber,
+  degraded: colors.amber,
+  failing: colors.danger,
 });
 
 const stateLabel = (): Record<HealthState, string> => ({
@@ -83,6 +84,7 @@ function healthLines(health: AddonHealth, now: number): string[] {
 }
 
 function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void }) {
+  const colors = useColors();
   const router = useRouter();
   const health = useAddonHealth(addon.url);
   const state = healthState(health);
@@ -120,7 +122,7 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
         <IconButton
           name="more"
           label={t('More for {name}', { name: addon.manifest.name })}
-          color={COLORS.soft}
+          color={colors.soft}
           onPress={onMore}
         />
       </View>
@@ -128,7 +130,10 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
         <Text className="text-sm text-soft">{addon.manifest.description}</Text>
       )}
       <View className="flex-row items-center gap-2 pt-1">
-        <View style={{ backgroundColor: stateColor()[state] }} className="h-2 w-2 rounded-full" />
+        <View
+          style={{ backgroundColor: stateColor(colors)[state] }}
+          className="h-2 w-2 rounded-full"
+        />
         <Text className="text-xs text-soft">{stateLabel()[state]}</Text>
       </View>
       {healthLines(health, Date.now()).map((line) => (
@@ -173,6 +178,7 @@ export default function AddonsScreen() {
 }
 
 function AddonsManager() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { refresh } = useLibrary();
@@ -287,7 +293,7 @@ function AddonsManager() {
         <IconButton
           name="back"
           label={t('Back')}
-          color={COLORS.soft}
+          color={colors.soft}
           onPress={() => router.back()}
         />
       </View>
@@ -326,7 +332,7 @@ function AddonsManager() {
           onChangeText={setUrl}
           placeholder={'https://…/manifest.json'}
           accessibilityLabel={t('Add-on address')}
-          placeholderTextColor={COLORS.muted}
+          placeholderTextColor={colors.muted}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="url"
@@ -341,7 +347,7 @@ function AddonsManager() {
           className="min-h-12 justify-center rounded-full bg-amber px-4 py-3 active:opacity-80"
         >
           {adding ? (
-            <ActivityIndicator color={COLORS.ink} />
+            <ActivityIndicator color={colors.ink} />
           ) : (
             <Text className="font-semibold text-ink">{t('Add')}</Text>
           )}

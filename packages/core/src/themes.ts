@@ -173,6 +173,9 @@ export const ThemeFileSchema = z
     version: z.literal(1),
     name: z.string().trim().min(1).max(40),
     dark: z.boolean(),
+    // Optional, so files written before M117 still read. A file that sets it is held to the high
+    // contrast rules: text at 7:1, borders at 3:1.
+    highContrast: z.boolean().optional(),
     colors: z
       .object(
         Object.fromEntries(Object.keys(FILE_NAMES).map((k) => [k, HEX])) as Record<
@@ -186,11 +189,17 @@ export const ThemeFileSchema = z
 export type ThemeFile = z.infer<typeof ThemeFileSchema>;
 
 /** A theme read from a file, kept in the settings as it is. */
-export type CustomTheme = { name: string; dark: boolean; colors: ThemeColors };
+export type CustomTheme = {
+  name: string;
+  dark: boolean;
+  highContrast?: boolean | undefined;
+  colors: ThemeColors;
+};
 export const CustomThemeSchema = z
   .object({
     name: z.string().min(1).max(40),
     dark: z.boolean(),
+    highContrast: z.boolean().optional(),
     colors: z.object(Object.fromEntries(TOKENS.map((t) => [t, HEX])) as Record<Token, typeof HEX>),
   })
   .strict();
@@ -229,7 +238,7 @@ export function resolveTheme(
   systemLight: boolean,
 ): Theme {
   if (choice === 'custom') {
-    if (custom) return { id: 'custom', ...custom, highContrast: false };
+    if (custom) return { id: 'custom', ...custom, highContrast: custom.highContrast === true };
     return builtInTheme('night', accent);
   }
   if (choice === 'system') return builtInTheme(systemLight ? 'day' : 'night', accent);
@@ -312,8 +321,70 @@ export type CarPalette = {
  */
 export function carTheme(theme: Theme, accent: AccentId, systemLight: boolean): Theme {
   if (theme.highContrast) return theme;
-  if (systemLight) return theme.dark ? builtInTheme('day', accent) : theme;
-  return theme.dark ? theme : builtInTheme('night', accent);
+  if (systemLight) return theme.dark ? swapped(theme, 'day', accent) : theme;
+  return theme.dark ? theme : swapped(theme, 'night', accent);
+}
+
+/**
+ * The built-in theme car mode swaps to. A file theme keeps its own accent there: as it is when it
+ * passes every pair on the swapped theme, else in the nearest lightness of the same hue that does
+ * (a bright accent for a dark file can't be text on paper). Only when none passes does the
+ * profile's accent stand in.
+ */
+function swapped(theme: Theme, id: 'day' | 'night', accent: AccentId): Theme {
+  const base = builtInTheme(id, accent);
+  if (theme.id !== 'custom') return base;
+  const [h, sat, light] = hsl(theme.colors.amber);
+  const steps = Array.from({ length: 101 }, (_, i) => i / 100).sort(
+    (a, b) => Math.abs(a - light) - Math.abs(b - light),
+  );
+  const tried = new Set<string>();
+  for (const l of [light, ...steps]) {
+    const amber = l === light ? theme.colors.amber : fromHsl(h, sat, l);
+    if (tried.has(amber)) continue;
+    tried.add(amber);
+    const own: Theme = { ...base, colors: { ...base.colors, amber } };
+    if (themeProblems(own).length === 0) return own;
+  }
+  return base;
+}
+
+/** Hue (0–360), saturation and lightness (0–1). */
+function hsl(hex: string): [number, number, number] {
+  const [r = 0, g = 0, b = 0] = rgb(hex).map((v) => v / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function fromHsl(h: number, s: number, l: number): string {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r, g, b] =
+    h < 60
+      ? [c, x, 0]
+      : h < 120
+        ? [x, c, 0]
+        : h < 180
+          ? [0, c, x]
+          : h < 240
+            ? [0, x, c]
+            : h < 300
+              ? [x, 0, c]
+              : [c, 0, x];
+  return (
+    '#' +
+    [r, g, b]
+      .map((v) => Math.round((v + m) * 255))
+      .map((v) => Math.min(255, Math.max(0, v)).toString(16).padStart(2, '0'))
+      .join('')
+  );
 }
 
 export function carPalette(theme: Theme): CarPalette {
@@ -409,6 +480,7 @@ export function themeToFile(theme: Theme, name: string): ThemeFile {
     version: 1,
     name: name.trim().slice(0, 40) || 'Lelap',
     dark: theme.dark,
+    ...(theme.highContrast ? { highContrast: true } : {}),
     colors: Object.fromEntries(
       Object.entries(FILE_NAMES).map(([key, token]) => [key, theme.colors[token]]),
     ) as ThemeFile['colors'],
@@ -444,7 +516,16 @@ export function parseThemeFile(text: string): ThemeImport {
       file.colors[key as keyof typeof FILE_NAMES],
     ]),
   ) as ThemeColors;
-  const theme: CustomTheme = { name: file.name, dark: file.dark, colors };
-  const problems = themeProblems({ id: 'custom', highContrast: false, ...theme });
+  const theme: CustomTheme = {
+    name: file.name,
+    dark: file.dark,
+    ...(file.highContrast === true ? { highContrast: true } : {}),
+    colors,
+  };
+  const problems = themeProblems({
+    id: 'custom',
+    ...theme,
+    highContrast: file.highContrast === true,
+  });
   return problems.length > 0 ? { ok: false, problems } : { ok: true, theme };
 }

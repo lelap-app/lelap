@@ -13,8 +13,9 @@ import { t } from '../src/i18n';
 import { READABLE, useWide } from '../src/layout';
 import { shareText } from '../src/platform/files';
 import { activeProfile, profileId } from '../src/profile';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { RowLabel, TextButton, Toggle } from '../src/components/TextButton';
+import { useColors } from '../src/theme';
 
 async function buildReport(): Promise<string> {
   await pullPlayerEvents();
@@ -33,6 +34,7 @@ async function buildReport(): Promise<string> {
 
 /** Diagnostics (M47): an opt-in log on this device, shown in full before it is shared. */
 export default function DiagnosticsScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const wide = useWide();
@@ -86,7 +88,7 @@ export default function DiagnosticsScreen() {
         <IconButton
           name="back"
           label={t('Back')}
-          color={COLORS.soft}
+          color={colors.soft}
           onPress={() => router.back()}
         />
       </View>

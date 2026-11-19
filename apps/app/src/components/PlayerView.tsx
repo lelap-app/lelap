@@ -39,7 +39,7 @@ import { NextInSeries } from './NextInSeries';
 import { ListBanner } from './ListBanner';
 import { openSeriesOf } from '../series';
 import { ChaptersSheet } from './ChaptersSheet';
-import { COLORS, Icon, IconButton, type IconName } from './Icon';
+import { Icon, IconButton, type IconName } from './Icon';
 import { Scrubber, type ScrubMark } from './Scrubber';
 import { Sheet } from './Sheet';
 import { TextButton } from './TextButton';
@@ -65,6 +65,7 @@ import { canSharePlace, CLIP_BACK_MS, sharePlace } from '../sharePlace';
 import { SoundbitesSheet } from './SoundbitesSheet';
 import { canFindChapters, findChapters, stopFindingChapters, useSilenceScans } from '../silences';
 import { profileId } from '../profile';
+import { useColors } from '../theme';
 
 const SLEEP_MINUTES = [5, 15, 30, 45, 60];
 
@@ -116,7 +117,8 @@ function Tool({
   spoken,
   width,
 }: ToolProps & { width: number }) {
-  const color = active ? COLORS.amber : COLORS.soft;
+  const colors = useColors();
+  const color = active ? colors.amber : colors.soft;
   return (
     <Pressable
       onPress={onPress}
@@ -171,6 +173,7 @@ function SleepOption({
   active?: boolean;
   muted?: boolean;
 }) {
+  const colors = useColors();
   return (
     <Pressable
       onPress={onPress}
@@ -182,14 +185,14 @@ function SleepOption({
       <Icon
         name={muted ? 'close' : 'moon'}
         size={20}
-        color={active ? COLORS.amber : muted ? COLORS.muted : COLORS.soft}
+        color={active ? colors.amber : muted ? colors.muted : colors.soft}
       />
       <Text
         className={`flex-1 text-base ${active ? 'text-amber' : muted ? 'text-muted' : 'text-paper'}`}
       >
         {label}
       </Text>
-      {active && <Icon name="check" size={20} color={COLORS.amber} />}
+      {active && <Icon name="check" size={20} color={colors.amber} />}
     </Pressable>
   );
 }
@@ -212,6 +215,7 @@ function Chip({ label, onPress }: { label: string; onPress: () => void }) {
  * a wide tabletop's hinge (M113), which is that many points tall.
  */
 export function PlayerView({ pane = false, below }: { pane?: boolean; below?: number }) {
+  const colors = useColors();
   const state = usePlayerState();
   const { version, refresh } = useLibrary();
   const router = useRouter();
@@ -396,7 +400,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
           <IconButton
             name="car"
             label={t('Car mode')}
-            color={COLORS.soft}
+            color={colors.soft}
             onPress={() => router.push('/car')}
           />
         ) : (
@@ -532,12 +536,12 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
             width: playSize,
             height: playSize,
             borderRadius: playSize / 2,
-            backgroundColor: COLORS.amber,
+            backgroundColor: colors.amber,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Icon name={state.playing ? 'pause' : 'play'} size={32} color={COLORS.ink} />
+          <Icon name={state.playing ? 'pause' : 'play'} size={32} color={colors.ink} />
         </PressScale>
         {chapters.length > 0 ? (
           <Control icon="next" label={t('Next chapter')} onPress={nextChapter} compact={compact} />
@@ -847,7 +851,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
               onSubmitEditing={() => jumpTarget !== null && jump(jumpTarget)}
               placeholder="2:14:30"
               accessibilityLabel={t('Time to jump to')}
-              placeholderTextColor={COLORS.muted}
+              placeholderTextColor={colors.muted}
               keyboardType="numbers-and-punctuation"
               returnKeyType="go"
               autoFocus
@@ -878,7 +882,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
           onChangeText={setNote}
           placeholder={t('Add a note (optional)')}
           accessibilityLabel={t('Note')}
-          placeholderTextColor={COLORS.muted}
+          placeholderTextColor={colors.muted}
           autoFocus
           onSubmitEditing={saveNote}
           className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"

@@ -32,7 +32,7 @@ import { t } from '../i18n';
 import { READABLE, useWide } from '../layout';
 import { openPlayer } from '../navigation';
 import { showAlert } from '../dialog';
-import { COLORS, Icon, IconButton } from './Icon';
+import { Icon, IconButton } from './Icon';
 import { addItem, playItem, queries, useAddons, useArtwork } from '../addons';
 import { sourceCache } from '../availability';
 import { BookCover, coverUri } from './BookCover';
@@ -45,6 +45,7 @@ import { formatClock, formatDuration, locale } from '../format';
 import { playBook, useLibrary } from '../player';
 import { profileId } from '../profile';
 import { TextButton } from './TextButton';
+import { useColors } from '../theme';
 
 const PARTS_SHOWN = 8;
 const EDITIONS_SHOWN = 4;
@@ -117,6 +118,7 @@ export function ItemPage({
   onBack: () => void;
   column?: boolean;
 }) {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const wide = useWide();
@@ -300,13 +302,13 @@ export function ItemPage({
         <IconButton
           name={column ? 'close' : 'back'}
           label={column ? t('Close') : t('Back')}
-          color={COLORS.soft}
+          color={colors.soft}
           onPress={onBack}
         />
       </View>
 
       {meta.isPending && !saved ? (
-        <ActivityIndicator color={COLORS.amber} className="pt-24" />
+        <ActivityIndicator color={colors.amber} className="pt-24" />
       ) : !item && !saved ? (
         <Text className="px-4 pt-24 text-center text-muted">
           {meta.isError
@@ -424,7 +426,7 @@ export function ItemPage({
               className={`min-h-12 items-center justify-center rounded-full py-3 ${canPlay ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
             >
               {starting ? (
-                <ActivityIndicator color={COLORS.ink} />
+                <ActivityIndicator color={colors.ink} />
               ) : (
                 <Text className={`text-base font-semibold ${canPlay ? 'text-ink' : 'text-muted'}`}>
                   {looking ? t('Looking for audio…') : playLabel}
@@ -584,7 +586,7 @@ export function ItemPage({
                   className="min-h-12 flex-row items-center gap-1"
                 >
                   <Text className="text-sm text-amber">{t('More about this book')}</Text>
-                  <Icon name="forward" size={16} color={COLORS.amber} />
+                  <Icon name="forward" size={16} color={colors.amber} />
                 </Pressable>
               )}
             </View>
@@ -607,6 +609,7 @@ function SourceRow({
   details: string;
   onPress: () => void;
 }) {
+  const colors = useColors();
   return (
     <Pressable
       onPress={onPress}
@@ -616,7 +619,7 @@ function SourceRow({
       className={`flex-row items-center gap-3 rounded-xl border px-3 py-3 ${selected ? 'border-amber bg-raised' : 'border-line'}`}
     >
       {selected ? (
-        <Icon name="check" size={24} color={COLORS.amber} />
+        <Icon name="check" size={24} color={colors.amber} />
       ) : (
         <View className="m-[3px] h-[18px] w-[18px] rounded-full border-2 border-line" />
       )}
@@ -642,10 +645,11 @@ function NoAudio({
   failed: string[];
   onAddons: () => void;
 }) {
+  const colors = useColors();
   const answered = asked - failed.length;
   return (
     <View className="items-center gap-2 rounded-2xl bg-raised px-4 py-5">
-      <Icon name="cloud" size={28} color={COLORS.muted} />
+      <Icon name="cloud" size={28} color={colors.muted} />
       <Text className="text-center text-base font-semibold text-paper">
         {t('No audio for this book yet')}
       </Text>
@@ -666,7 +670,7 @@ function NoAudio({
         className="min-h-12 flex-row items-center gap-1"
       >
         <Text className="font-semibold text-amber">{t('Manage add-ons')}</Text>
-        <Icon name="forward" size={16} color={COLORS.amber} />
+        <Icon name="forward" size={16} color={colors.amber} />
       </Pressable>
     </View>
   );

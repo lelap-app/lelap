@@ -14,7 +14,7 @@ import { ActivityIndicator, Linking, Pressable, Text, View } from 'react-native'
 import { showAlert } from '../dialog';
 import { t } from '../i18n';
 import { callAddonSignin } from '../sandbox';
-import { COLORS } from './Icon';
+import { useColors } from '../theme';
 
 // An add-on's sign-in through a website (revision 7), such as Plex's: the add-on gives a code and
 // a page, the listener enters the code there on any device, and the add-on hands back what it
@@ -58,6 +58,7 @@ export function AddonSignin({
   known?: Settings;
   onDone: (result: SigninResult) => void;
 }) {
+  const colors = useColors();
   const [pending, setPending] = useState<SigninStart | null>(null);
   const [busy, setBusy] = useState(false);
   // The form's values at the time of each check, without starting the checks again.
@@ -188,7 +189,7 @@ export function AddonSignin({
             </Pressable>
           </View>
           <View className="flex-row items-center gap-2">
-            <ActivityIndicator size="small" color={COLORS.muted} />
+            <ActivityIndicator size="small" color={colors.muted} />
             <Text className="text-xs text-muted">{t('Waiting for the code to be entered…')}</Text>
           </View>
         </View>
@@ -202,7 +203,7 @@ export function AddonSignin({
             className="min-h-12 items-center justify-center rounded-full border border-amber px-5 active:opacity-80"
           >
             {busy ? (
-              <ActivityIndicator color={COLORS.amber} />
+              <ActivityIndicator color={colors.amber} />
             ) : (
               <Text className="font-semibold text-amber">
                 {signedIn ? t('Sign in again') : t('Sign in')}

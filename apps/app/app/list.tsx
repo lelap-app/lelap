@@ -23,7 +23,7 @@ import { openPlayer } from '../src/navigation';
 import { EmptyState } from '../src/components/Lori';
 import { BookActions } from '../src/components/BookActions';
 import { BookRow } from '../src/components/BookRow';
-import { COLORS, Icon, IconButton } from '../src/components/Icon';
+import { Icon, IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { Sheet } from '../src/components/Sheet';
 import { db } from '../src/db';
@@ -33,6 +33,7 @@ import { profileId } from '../src/profile';
 import { TextButton } from '../src/components/TextButton';
 import { Pill } from '../src/components/Pill';
 import { LIST_COLUMN } from '../src/layout';
+import { useColors } from '../src/theme';
 
 const HOUR = 3_600_000;
 
@@ -171,6 +172,7 @@ function RuleSheet({
 
 /** A hand-made list, a smart list or all books with a tag. */
 export default function ListScreen() {
+  const colors = useColors();
   const params = useLocalSearchParams<{ id?: string; tag?: string; rename?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -269,7 +271,7 @@ export default function ListScreen() {
                 <IconButton
                   name="back"
                   label={t('Back')}
-                  color={COLORS.soft}
+                  color={colors.soft}
                   onPress={() => router.back()}
                 />
               </View>
@@ -277,7 +279,7 @@ export default function ListScreen() {
                 <IconButton
                   name="close"
                   label={t('Delete list')}
-                  color={COLORS.muted}
+                  color={colors.muted}
                   onPress={remove}
                 />
               )}
@@ -315,7 +317,7 @@ export default function ListScreen() {
                   {...hint(t('Plays the list from where it stands, one item after the other'))}
                   className="min-h-12 flex-row items-center gap-2 rounded-full bg-amber px-5 active:opacity-80"
                 >
-                  <Icon name="play" size={18} color={COLORS.ink} />
+                  <Icon name="play" size={18} color={colors.ink} />
                   <Text className="font-semibold text-ink">{t('Play list')}</Text>
                 </Pressable>
                 <Pill
@@ -337,7 +339,7 @@ export default function ListScreen() {
                 accessibilityRole="button"
                 className="min-h-12 flex-row items-center gap-2 self-start rounded-full border border-line px-3 active:bg-raised"
               >
-                <Icon name="moon" size={16} color={COLORS.amber} />
+                <Icon name="moon" size={16} color={colors.amber} />
                 <Text className="text-sm text-soft">{describeRule(list.rule)}</Text>
               </Pressable>
             ) : (
@@ -375,7 +377,7 @@ export default function ListScreen() {
                   name="up"
                   label={t('Move up')}
                   size={20}
-                  color={index === 0 ? COLORS.line : COLORS.soft}
+                  color={index === 0 ? colors.line : colors.soft}
                   onPress={() => {
                     if (index === 0) return;
                     movePlaylistItem(db, profileId, list.id, item.id, index - 1, Date.now());

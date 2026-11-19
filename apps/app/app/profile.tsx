@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { useAllAddons } from '../src/addons';
 import { Avatar, AVATAR_IDS, avatarName } from '../src/components/Avatar';
 import { db } from '../src/db';
@@ -24,9 +24,11 @@ import { switchProfile, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { TextButton, Toggle } from '../src/components/TextButton';
 import { READABLE } from '../src/layout';
+import { useColors } from '../src/theme';
 
 /** One profile: name, avatar, PIN, kids limits, delete. */
 export default function ProfileScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { version, refresh } = useLibrary();
@@ -97,7 +99,7 @@ export default function ProfileScreen() {
         <IconButton
           name="back"
           label={t('Back')}
-          color={COLORS.soft}
+          color={colors.soft}
           onPress={() => router.back()}
         />
       </View>
@@ -158,7 +160,7 @@ export default function ProfileScreen() {
           maxLength={4}
           placeholder={profile.pinHash ? t('New PIN') : t('PIN')}
           accessibilityLabel={profile.pinHash ? t('New PIN') : t('PIN')}
-          placeholderTextColor={COLORS.muted}
+          placeholderTextColor={colors.muted}
           className="min-h-12 w-32 rounded-lg border border-line px-3 py-2 text-paper"
         />
         <TextButton

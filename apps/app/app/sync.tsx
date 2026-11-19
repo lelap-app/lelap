@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../src/i18n';
 import { formatTime } from '../src/format';
 import { showAlert } from '../src/dialog';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { useLibrary } from '../src/player';
 import {
   defaultDeviceName,
@@ -21,6 +21,7 @@ import {
 } from '../src/sync';
 import { TextButton } from '../src/components/TextButton';
 import { READABLE } from '../src/layout';
+import { useColors } from '../src/theme';
 
 const CODE_MINUTES = 10;
 
@@ -28,6 +29,7 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 
 /** Sync between devices: no account, a group key shared with a pairing code. */
 export default function SyncScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { refresh } = useLibrary();
@@ -78,7 +80,7 @@ export default function SyncScreen() {
         <IconButton
           name="back"
           label={t('Back')}
-          color={COLORS.soft}
+          color={colors.soft}
           onPress={() => router.back()}
         />
       </View>
@@ -91,7 +93,7 @@ export default function SyncScreen() {
         )}
       </Text>
 
-      {busy && <ActivityIndicator color={COLORS.amber} />}
+      {busy && <ActivityIndicator color={colors.amber} />}
 
       {!member ? (
         <View className="gap-4">
@@ -118,7 +120,7 @@ export default function SyncScreen() {
               onChangeText={setName}
               placeholder={t('Name, such as Kitchen tablet')}
               accessibilityLabel={t('Name of this device')}
-              placeholderTextColor={COLORS.muted}
+              placeholderTextColor={colors.muted}
               className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
             />
           </View>
@@ -145,7 +147,7 @@ export default function SyncScreen() {
                 onChangeText={setCode}
                 placeholder={'7KQM-2XPA-9HRT'}
                 accessibilityLabel={t('Code from another device')}
-                placeholderTextColor={COLORS.muted}
+                placeholderTextColor={colors.muted}
                 autoCapitalize="characters"
                 autoCorrect={false}
                 className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 font-mono text-paper"

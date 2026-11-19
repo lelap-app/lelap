@@ -15,28 +15,28 @@ import {
   type Theme,
   THEME_FILE_MAX_BYTES,
   type ThemeChoice,
+  type ThemeColors,
   themeToFile,
   TOKENS,
 } from '@lelap/core';
 import * as DocumentPicker from 'expo-document-picker';
 import { vars } from 'nativewind';
-import { type ReactNode, useSyncExternalStore } from 'react';
+import { type ReactNode, useMemo, useSyncExternalStore } from 'react';
 import { Appearance, Platform, useColorScheme, View } from 'react-native';
 
-import { COLORS } from './components/Icon';
 import { showAlert } from './dialog';
 import { t } from './i18n';
 import { readPickedText, shareText } from './platform/files';
 
 // The look (M108). Classes such as `bg-night` read CSS variables, set here; icons and other
-// colours outside a class read COLORS, changed in place. The screens are drawn again under a new
-// key (`useThemeKey`), as for a new language, so nothing keeps an old colour.
+// colours outside a class read `useColors()`. Both follow a new theme in place, so a switch
+// keeps every screen and its scroll place (M117).
 
 type Look = Pick<Settings, 'theme' | 'accent' | 'customTheme'>;
 
 let look: Look = { theme: 'night', accent: 'amber', customTheme: null };
 let current: Theme = builtInTheme('night', 'amber');
-let key = 'night';
+let key = '';
 const listeners = new Set<() => void>();
 
 const variables = (theme: Theme): Record<string, string> => ({
@@ -55,7 +55,6 @@ function apply(): void {
   if (nextKey === key) return;
   current = next;
   key = nextKey;
-  Object.assign(COLORS, next.colors);
   // A sheet or dialog on the web is drawn outside the app's root view, so the variables go on
   // the page itself.
   if (Platform.OS === 'web' && typeof document !== 'undefined')
@@ -85,16 +84,24 @@ const subscribe = (listener: () => void) => {
 
 export const useTheme = (): Theme => useSyncExternalStore(subscribe, () => current);
 
-/** Changes with the colours: a key for whatever must be drawn again. */
-export const useThemeKey = (): string => useSyncExternalStore(subscribe, () => key);
+/**
+ * The theme's colours for icons and anything else drawn outside a class. A hook, so whatever reads
+ * them draws again when the theme changes.
+ */
+export const useColors = (): ThemeColors => useTheme().colors;
 
 export const currentAccent = (): AccentId => look.accent;
 
 /** Car mode: light by day and dark at night for glare, in the listener's accent (M74). */
 export function useCarPalette(): { palette: CarPalette; theme: Theme } {
   const app = useTheme();
-  const theme = carTheme(app, look.accent, useColorScheme() === 'light');
-  return { palette: carPalette(theme), theme };
+  const light = useColorScheme() === 'light';
+  const accent = look.accent;
+  // A file theme's accent may be searched for a lightness that reads; once per theme, not per tick.
+  return useMemo(() => {
+    const theme = carTheme(app, accent, light);
+    return { palette: carPalette(theme), theme };
+  }, [app, accent, light]);
 }
 
 /** The listening stats follow the app's theme. */

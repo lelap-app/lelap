@@ -9,7 +9,7 @@ import { confirmAddon } from '../src/addonInstall';
 import { useLibrary } from '../src/player';
 import { activeProfile } from '../src/profile';
 import { TextButton } from '../src/components/TextButton';
-import { COLORS } from '../src/components/Icon';
+import { useColors } from '../src/theme';
 
 /**
  * `lelap://addon?manifest=…` (and `/addon?manifest=…` on the web): where an add-on's configure page
@@ -17,6 +17,7 @@ import { COLORS } from '../src/components/Icon';
  * line, read as it changes, so it has no heading (a11y: no heading).
  */
 export default function AddonLinkScreen() {
+  const colors = useColors();
   const router = useRouter();
   const { refresh } = useLibrary();
   const queryClient = useQueryClient();
@@ -53,7 +54,7 @@ export default function AddonLinkScreen() {
     <View className="flex-1 items-center justify-center gap-4 bg-night p-8">
       {message === null ? (
         <>
-          <ActivityIndicator color={COLORS.amber} />
+          <ActivityIndicator color={colors.amber} />
           <Text accessibilityLiveRegion="polite" className="text-soft">
             {t('Opening the add-on…')}
           </Text>

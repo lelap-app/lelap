@@ -4,9 +4,10 @@ import { useSyncExternalStore } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { t } from './i18n';
-import { COLORS, Icon, type IconName } from './components/Icon';
+import { Icon, type IconName } from './components/Icon';
 import { Sheet } from './components/Sheet';
 import { isOwnAddon } from './config';
+import { useColors } from './theme';
 
 // The sheet shown before an add-on is installed, and from its menu later: what it can do, in plain
 // words, with what deserves a second look in amber. Add-ons are run by others; this is the moment
@@ -60,6 +61,7 @@ export function reviewAddon(
 
 /** Mounted once at the root. */
 export function AddonReviewHost() {
+  const colors = useColors();
   const review = useSyncExternalStore(
     subscribe,
     () => current,
@@ -91,7 +93,7 @@ export function AddonReviewHost() {
         <View className="gap-3 pb-4">
           {addonPermissions(manifest, url).map((p) => (
             <View key={p.kind} className="flex-row gap-3">
-              <Icon name={ICONS[p.kind]} size={20} color={p.notable ? COLORS.amber : COLORS.soft} />
+              <Icon name={ICONS[p.kind]} size={20} color={p.notable ? colors.amber : colors.soft} />
               <Text className={`flex-1 text-sm ${p.notable ? 'text-amber' : 'text-paper'}`}>
                 {p.text}
               </Text>

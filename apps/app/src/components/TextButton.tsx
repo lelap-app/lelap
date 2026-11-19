@@ -1,3 +1,4 @@
+import { type Theme } from '@lelap/core';
 import { createContext, useContext } from 'react';
 import {
   Platform,
@@ -10,7 +11,6 @@ import {
 
 import { hint } from '../a11y';
 import { useTheme } from '../theme';
-import { COLORS } from './Icon';
 
 /**
  * The role of a row that holds buttons of its own, such as the mini player with Play. Android
@@ -70,13 +70,16 @@ export function TextButton({
 // There it is 48 by 24, with a muted track (5:1 on night) that turns to the accent when on, and a
 // thumb in the background's colour on a light theme. `activeThumbColor` is the web's own prop for
 // the thumb when on.
-const webSwitch = (dark: boolean): Partial<SwitchProps> & { activeThumbColor?: string } =>
+const webSwitch = ({
+  dark,
+  colors,
+}: Theme): Partial<SwitchProps> & { activeThumbColor?: string } =>
   Platform.OS === 'web'
     ? {
         style: { height: 24 },
-        trackColor: { false: COLORS.muted, true: COLORS.amber },
-        thumbColor: dark ? COLORS.paper : COLORS.night,
-        activeThumbColor: dark ? COLORS.paper : COLORS.night,
+        trackColor: { false: colors.muted, true: colors.amber },
+        thumbColor: dark ? colors.paper : colors.night,
+        activeThumbColor: dark ? colors.paper : colors.night,
       }
     : {};
 
@@ -84,10 +87,10 @@ const webSwitch = (dark: boolean): Partial<SwitchProps> & { activeThumbColor?: s
 export function Toggle(props: SwitchProps) {
   const row = useContext(RowLabel);
   const label = props.accessibilityLabel ?? row;
-  const { dark } = useTheme();
+  const theme = useTheme();
   return (
     <Switch
-      {...webSwitch(dark)}
+      {...webSwitch(theme)}
       {...props}
       {...(label === undefined ? {} : { accessibilityLabel: label })}
     />

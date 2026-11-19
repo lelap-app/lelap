@@ -16,11 +16,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../../src/i18n';
 import { fetcher, SHOWN_TYPES, useAddons } from '../../src/addons';
 import { useAskWhenVisible, useAvailability } from '../../src/availability';
-import { COLORS, Icon } from '../../src/components/Icon';
+import { Icon } from '../../src/components/Icon';
 import { MetaTile } from '../../src/components/MetaCard';
 import { openItem } from '../../src/navigation';
 import { Pill } from '../../src/components/Pill';
 import { useWide } from '../../src/layout';
+import { useColors } from '../../src/theme';
 
 const COLUMNS = 3;
 // On a wide screen, as many columns as fit tiles about this wide.
@@ -43,6 +44,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 }
 
 export default function DiscoverScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -168,7 +170,7 @@ export default function DiscoverScreen() {
                   <Icon
                     name={playableOnly ? 'check' : 'play'}
                     size={14}
-                    color={playableOnly ? COLORS.amber : COLORS.muted}
+                    color={playableOnly ? colors.amber : colors.muted}
                   />
                   <Text className={playableOnly ? 'text-amber' : 'text-soft'}>
                     {t('Playable only')}
@@ -203,7 +205,7 @@ export default function DiscoverScreen() {
           }
           ListEmptyComponent={
             query.isPending ? (
-              <ActivityIndicator color={COLORS.amber} className="pt-12" />
+              <ActivityIndicator color={colors.amber} className="pt-12" />
             ) : (
               <Text className="px-4 pt-12 text-center text-muted">
                 {query.isError
@@ -213,7 +215,7 @@ export default function DiscoverScreen() {
             )
           }
           ListFooterComponent={
-            query.isFetchingNextPage ? <ActivityIndicator color={COLORS.amber} /> : undefined
+            query.isFetchingNextPage ? <ActivityIndicator color={colors.amber} /> : undefined
           }
           renderItem={({ item: row }) => (
             <View style={{ flexDirection: 'row', gap: GAP, paddingHorizontal: 16 }}>

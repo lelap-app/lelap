@@ -4,7 +4,8 @@ import { Pressable, Text, View } from 'react-native';
 
 import { t } from '../i18n';
 import { BookCover, coverUri } from './BookCover';
-import { COLORS, Icon } from './Icon';
+import { Icon } from './Icon';
+import { useColors } from '../theme';
 
 /** A series in the Library's Series view (M109): its first cover, name, author and count. */
 export const SeriesRow = memo(function SeriesRow({
@@ -14,6 +15,7 @@ export const SeriesRow = memo(function SeriesRow({
   series: Series;
   onOpen: (series: Series) => void;
 }) {
+  const colors = useColors();
   const first = series.books[0]?.book;
   const count = series.books.length;
   const finished = series.books.filter((b) => b.book.finishedAt !== null).length;
@@ -50,7 +52,7 @@ export const SeriesRow = memo(function SeriesRow({
           {line}
         </Text>
       </View>
-      <Icon name="forward" size={20} color={COLORS.muted} />
+      <Icon name="forward" size={20} color={colors.muted} />
     </Pressable>
   );
 });

@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { BookmarkEditor, BookmarkRow } from '../src/components/BookmarksSheet';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { Sheet } from '../src/components/Sheet';
 import { db } from '../src/db';
@@ -22,9 +22,11 @@ import { openPlayer } from '../src/navigation';
 import { playAt, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { canSharePlace, sharePlace } from '../src/sharePlace';
+import { useColors } from '../src/theme';
 
 /** Every bookmark across the listener's books (M85), newest first. */
 export default function BookmarksScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { version, refresh } = useLibrary();
@@ -56,7 +58,7 @@ export default function BookmarksScreen() {
               <IconButton
                 name="back"
                 label={t('Back')}
-                color={COLORS.soft}
+                color={colors.soft}
                 onPress={() => router.back()}
               />
             </View>

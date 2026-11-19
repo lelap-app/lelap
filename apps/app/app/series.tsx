@@ -15,7 +15,7 @@ import { READABLE, useWide } from '../src/layout';
 import { openPlayer } from '../src/navigation';
 import { BookActions } from '../src/components/BookActions';
 import { BookRow } from '../src/components/BookRow';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { EmptyState } from '../src/components/Lori';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { TextButton } from '../src/components/TextButton';
@@ -24,6 +24,7 @@ import { showAlert } from '../src/dialog';
 import { playBook, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { bookNumber, useFindVolume } from '../src/series';
+import { useColors } from '../src/theme';
 
 /** A book of the series, or a number no book in the library has. */
 type Row = { book: SeriesBook } | { missing: number };
@@ -49,6 +50,7 @@ function rowsOf(books: SeriesBook[], missing: number[], ordered: boolean): Row[]
 
 /** A series in the library (M109): its books in reading order and the numbers it lacks. */
 export default function SeriesScreen() {
+  const colors = useColors();
   const params = useLocalSearchParams<{ key?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -122,7 +124,7 @@ export default function SeriesScreen() {
               <IconButton
                 name="back"
                 label={t('Back')}
-                color={COLORS.soft}
+                color={colors.soft}
                 onPress={() => router.back()}
               />
             </View>
@@ -178,7 +180,7 @@ export default function SeriesScreen() {
                 </View>
                 {series &&
                   (looking === item.missing ? (
-                    <ActivityIndicator color={COLORS.amber} className="min-h-12 px-3" />
+                    <ActivityIndicator color={colors.amber} className="min-h-12 px-3" />
                   ) : (
                     <TextButton
                       text={t('Look for it')}
@@ -212,14 +214,14 @@ export default function SeriesScreen() {
                   name="up"
                   label={t('Move {title} up', { title: entry.book.title })}
                   size={20}
-                  color={at === 0 ? COLORS.line : COLORS.soft}
+                  color={at === 0 ? colors.line : colors.soft}
                   onPress={() => at > 0 && move(entry, -1)}
                 />
                 <IconButton
                   name="down"
                   label={t('Move {title} down', { title: entry.book.title })}
                   size={20}
-                  color={at === count - 1 ? COLORS.line : COLORS.soft}
+                  color={at === count - 1 ? colors.line : colors.soft}
                   onPress={() => at < count - 1 && move(entry, 1)}
                 />
               </View>

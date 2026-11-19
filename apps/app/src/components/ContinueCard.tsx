@@ -4,14 +4,16 @@ import { Pressable, Text, View } from 'react-native';
 
 import { hint } from '../a11y';
 import { t } from '../i18n';
-import { COLORS, Icon } from './Icon';
+import { Icon } from './Icon';
 import { formatLeft } from '../format';
 import { BookCover, coverUri } from './BookCover';
 import { db } from '../db';
 import { useLibrary } from '../player';
 import { profileId } from '../profile';
+import { useColors } from '../theme';
 
 export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: () => void }) {
+  const colors = useColors();
   const { version } = useLibrary();
   // `version` is the signal to re-read the database: chapters found from silences arrive later.
   const chapter = useMemo(
@@ -45,7 +47,7 @@ export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: ()
         )}
       </View>
       <View className="h-12 w-12 items-center justify-center rounded-full bg-amber">
-        <Icon name="play" size={22} color={COLORS.ink} />
+        <Icon name="play" size={22} color={colors.ink} />
       </View>
     </Pressable>
   );

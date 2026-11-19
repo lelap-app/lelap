@@ -42,7 +42,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../../src/i18n';
 import { openPlayer } from '../../src/navigation';
 import { showAlert } from '../../src/dialog';
-import { COLORS, Icon, IconButton } from '../../src/components/Icon';
+import { Icon, IconButton } from '../../src/components/Icon';
 import { BookActions } from '../../src/components/BookActions';
 import { BookRow, type RowSwipe } from '../../src/components/BookRow';
 import { MusicCard, MusicReview } from '../../src/components/MusicSuggestions';
@@ -61,6 +61,7 @@ import { Pill } from '../../src/components/Pill';
 import { TextButton } from '../../src/components/TextButton';
 import { LIST_COLUMN } from '../../src/layout';
 import { startupMark } from '../../src/startup';
+import { useColors } from '../../src/theme';
 
 /** `progress` is the grouped view (M79); Title and Author are flat lists; Series lists series (M109). */
 type LibraryView = 'progress' | 'title' | 'author' | 'series';
@@ -98,6 +99,7 @@ function GroupTitle({
   open: boolean;
   onToggle: () => void;
 }) {
+  const colors = useColors();
   if (header.group !== 'finished') {
     return (
       <Text accessibilityRole="header" className="px-4 pb-1 pt-4 text-sm font-semibold text-soft">
@@ -115,7 +117,7 @@ function GroupTitle({
       className="mt-2 min-h-12 flex-row items-center justify-between px-4 active:bg-raised"
     >
       <Text className="text-sm font-semibold text-soft">{groupTitle(header)}</Text>
-      <Icon name={open ? 'up' : 'down'} size={20} color={COLORS.soft} />
+      <Icon name={open ? 'up' : 'down'} size={20} color={colors.soft} />
     </Pressable>
   );
 }
@@ -129,6 +131,7 @@ function markLibraryRows() {
 }
 
 export default function LibraryScreen() {
+  const colors = useColors();
   const network = useNetworkState();
   const { version, refresh } = useLibrary();
   const router = useRouter();
@@ -448,7 +451,7 @@ export default function LibraryScreen() {
             <IconButton
               name="rescan"
               label={scanning ? t('Scanning…') : t('Rescan')}
-              color={scanning ? COLORS.muted : COLORS.soft}
+              color={scanning ? colors.muted : colors.soft}
               onPress={() => {
                 if (scanning) return;
                 setPulled(true);
@@ -459,13 +462,13 @@ export default function LibraryScreen() {
           <IconButton
             name="bookmark"
             label={t('Bookmarks')}
-            color={COLORS.soft}
+            color={colors.soft}
             onPress={() => router.push('/bookmarks')}
           />
           <IconButton
             name="settings"
             label={t('Settings')}
-            color={COLORS.soft}
+            color={colors.soft}
             onPress={() => router.push('/settings')}
           />
         </View>
@@ -496,7 +499,7 @@ export default function LibraryScreen() {
               setPulled(true);
               void rescan();
             }}
-            tintColor={COLORS.amber}
+            tintColor={colors.amber}
           />
         }
         contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}
@@ -558,7 +561,7 @@ export default function LibraryScreen() {
                       <Icon
                         name={list.rule ? 'moon' : 'chapters'}
                         size={20}
-                        color={list.rule ? '#dce3f5' : COLORS.ink}
+                        color={list.rule ? '#dce3f5' : colors.ink}
                       />
                     </View>
                     <View className="flex-1">
@@ -577,7 +580,7 @@ export default function LibraryScreen() {
                   accessibilityLabel={t('New list')}
                   className="min-h-12 w-28 flex-row items-center justify-center gap-1 rounded-xl border border-dashed border-line p-2.5 active:bg-raised"
                 >
-                  <Icon name="plus" size={16} color={COLORS.muted} />
+                  <Icon name="plus" size={16} color={colors.muted} />
                   <Text className="text-sm text-muted">{t('List')}</Text>
                 </Pressable>
               </ScrollView>
@@ -621,7 +624,7 @@ export default function LibraryScreen() {
                   aria-selected={showHidden}
                   className={`flex-row items-center gap-1 rounded-full border px-3 py-1 ${showHidden ? 'border-amber bg-amber' : 'border-line'}`}
                 >
-                  <Icon name="hide" size={16} color={showHidden ? COLORS.ink : COLORS.soft} />
+                  <Icon name="hide" size={16} color={showHidden ? colors.ink : colors.soft} />
                   <Text className={showHidden ? 'text-ink' : 'text-soft'}>
                     {t('Hidden ({n})', { n: hiddenTotal })}
                   </Text>
@@ -669,7 +672,7 @@ export default function LibraryScreen() {
               accessibilityRole="button"
               className="flex-row items-center gap-3 rounded-lg px-2 py-3 active:bg-line"
             >
-              <Icon name={preset.rule ? 'moon' : 'chapters'} size={22} color={COLORS.soft} />
+              <Icon name={preset.rule ? 'moon' : 'chapters'} size={22} color={colors.soft} />
               <View>
                 <Text className="text-paper">{preset.name}</Text>
                 <Text className="text-xs text-muted">

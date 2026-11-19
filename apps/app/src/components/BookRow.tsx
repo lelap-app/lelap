@@ -15,9 +15,10 @@ import { deleteKeyAction } from '../a11y';
 import { t } from '../i18n';
 import { BookCover, coverUri } from './BookCover';
 import { useBookBadges } from './CoverBadges';
-import { COLORS, Icon, IconButton, type IconName } from './Icon';
+import { Icon, IconButton, type IconName } from './Icon';
 import { ROW_BUTTON } from './TextButton';
 import { Draggable } from '../drag';
+import { useColors } from '../theme';
 
 /** What swiping a row to the left does, such as Hide; also offered to TalkBack as an action. */
 export type RowSwipe = {
@@ -92,6 +93,7 @@ export const BookRow = memo(function BookRow({
   onLongPress: (book: LibraryBook) => void;
   swipe?: RowSwipe;
 }) {
+  const colors = useColors();
   const progress = book.durationMs > 0 ? Math.min(1, book.bookPositionMs / book.durationMs) : 0;
   const dim = book.missing || unavailable;
   // The row shows progress as a bar and a percent already; screen readers read its words.
@@ -123,7 +125,7 @@ export const BookRow = memo(function BookRow({
             ]}
           >
             <View className="flex-1 flex-row items-center justify-end gap-2 bg-amber px-6">
-              <Icon name={swipe.icon} size={20} color={COLORS.ink} />
+              <Icon name={swipe.icon} size={20} color={colors.ink} />
               <Text className="font-semibold text-ink">{swipe.label}</Text>
             </View>
           </Animated.View>
@@ -178,7 +180,7 @@ export const BookRow = memo(function BookRow({
                 name="more"
                 label={t('More for {name}', { name: book.title })}
                 size={20}
-                color={COLORS.muted}
+                color={colors.muted}
                 onPress={() => onLongPress(book)}
               />
             )}

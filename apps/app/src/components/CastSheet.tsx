@@ -21,8 +21,9 @@ import {
 } from '../casting';
 import { t } from '../i18n';
 import { bookLoad } from '../player';
-import { COLORS, Icon } from './Icon';
+import { Icon } from './Icon';
 import { Sheet } from './Sheet';
+import { useColors } from '../theme';
 
 /** How long a search finds nothing before the sheet says so; most devices answer in a few seconds. */
 const QUIET_AFTER_MS = 12_000;
@@ -68,6 +69,7 @@ export function CastSheet({
   bookId: string;
   onClose: () => void;
 }) {
+  const colors = useColors();
   const casting = useCasting();
   const [devices, setDevices] = useState<CastDevice[]>([]);
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -310,7 +312,7 @@ export function CastSheet({
                 <Icon
                   name={group !== null && ticked ? 'check' : 'cast'}
                   size={22}
-                  color={highlighted ? COLORS.amber : COLORS.soft}
+                  color={highlighted ? colors.amber : colors.soft}
                 />
                 <View className="flex-1">
                   <Text numberOfLines={1} className={highlighted ? 'text-amber' : 'text-paper'}>
@@ -320,7 +322,7 @@ export function CastSheet({
                     {[device.model, KIND[device.kind]].filter(Boolean).join(' · ')}
                   </Text>
                 </View>
-                {connecting === device.id && <ActivityIndicator color={COLORS.amber} />}
+                {connecting === device.id && <ActivityIndicator color={colors.amber} />}
               </Pressable>
             );
           })}
@@ -361,7 +363,7 @@ export function CastSheet({
             </View>
           ) : (
             <View className="flex-row items-center gap-3 py-3">
-              <ActivityIndicator color={COLORS.muted} />
+              <ActivityIndicator color={colors.muted} />
               <Text className="flex-1 text-sm text-muted">
                 {t(
                   'Looking for speakers and TVs on this Wi-Fi. Sonos, DLNA, Google Cast and FCast receivers play the book themselves; files on this phone are shared with them only while casting.',
