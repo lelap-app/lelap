@@ -109,12 +109,21 @@ Newest version on top:
 For each claim, find the code that makes it true. Remove or reword claims that aren't shipped;
 add shipped features that a reader would look for.
 
+Then go the other way: for each user-visible change in the notes range, find every line in the
+README, the landing page and the store text that describes that feature, and update it. A line
+that is still true but now says less than what ships is stale too: a qualifier like “on Android”
+or “Android only” that no longer holds, or “lower the volume” where there is now a choice.
+
 - **`README.md`:** the status note (installable or not, beta or stable, where to get it), the
   feature list (present tense only for shipped things), the repository layout table's Status
   column, getting-started commands (app as well as site), the Deployment section (everything
   that deploys, not only the site), the license line about the SDK.
-- **Landing page** (`apps/site/src/pages/index.astro`): the `features` array, the hero text, the
-  “Get it” cards (APK, GitHub Releases, Obtainium, F-Droid, web app, self-hosted), the FAQ, and
+- **Landing page** (`apps/site/src/components/Home.astro`, shown by `src/pages/index.astro` and
+  `src/pages/ms/`): every English line has a Malay line in `apps/site/src/i18n/ms.ts`, and the
+  site's test fails without it. Write the Malay with the English, using the app's own terms from
+  `apps/app/src/i18n/catalogs/ms.json`, and list the new lines in the PR body for a native
+  speaker. Never leave an English line stale because it needs Malay. Check the features, the
+  hero text, the “Get it” cards (APK, GitHub Releases, Obtainium, F-Droid, web app, self-hosted), the FAQ, and
   badges such as “Beta” or “Coming soon”. Text inside `!site.released` blocks disappears when
   `LELAP_RELEASED` is set, so for a stable release check the released branch of each condition
   too. Look at it: `preview_start` with `site-beta` or
@@ -178,4 +187,6 @@ add shipped features that a reader would look for.
 | README still says “nothing to install yet”               | The status note changes with every first: first beta, first stable, F-Droid listing. |
 | Tagging before the release PR is merged                  | The tag must point at a commit on `main` that contains the changelog.                |
 | Promising an update “over the air” after a native change | Native changes need the new APK; say so in the notes.                                |
+| “The landing page's claims still hold”, so it's left     | Check each released change against the lines about it; true but narrower is stale.   |
+| Skipping a site line because it needs Malay              | Write the Malay with the English in `ms.ts` and list it for a native speaker.        |
 | Hard-coding `lelap.app` in new site or app text          | Hosts come from `site.ts` or the domain variable.                                    |
