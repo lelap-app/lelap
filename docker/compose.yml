@@ -46,6 +46,10 @@ services:
       # Seals listeners' Hardcover and gPodder tokens into their add-on URLs. Generated when
       # empty; keep it (and the secrets volume) stable, or those add-ons need setting up again.
       CONFIG_SECRET: ${CONFIG_SECRET:-}
+      # Optional: signing in to Hardcover instead of pasting a token, with your own app at
+      # Hardcover. Sign-ins are kept, encrypted, in the secrets volume.
+      HARDCOVER_CLIENT_ID: ${HARDCOVER_CLIENT_ID:-}
+      HARDCOVER_CLIENT_SECRET: ${HARDCOVER_CLIENT_SECRET:-}
       # A gPodder server on your own network: true lets the gPodder add-on reach private addresses.
       SCROBBLE_ALLOW_PRIVATE: ${SCROBBLE_ALLOW_PRIVATE:-false}
       # The web app, which the Hardcover and gPodder configure pages may send the listener back to.

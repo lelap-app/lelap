@@ -58,18 +58,23 @@ const catalog = `catalog.${site.domain}`;
       Hardcover. This opens <code>https://{catalog}/hardcover/configure</code> in the browser.
     </li>
     <li>
-      Choose Make a token on Hardcover. It opens Hardcover’s form for a new token with the
-      permissions <code>read:me</code>, <code>read:library</code>, <code>write:library</code>,{' '}
-      <code>read:catalog</code> and <code>read:lists</code> ticked. Tokens made before August 2026
-      have them all.
+      Choose Sign in with Hardcover. Hardcover shows what Lelap asks for and you choose Allow; you
+      never see a token.
     </li>
-    <li>Paste the token, choose Next, tick your rows and choose Save.</li>
+    <li>Tick your rows and choose Save.</li>
     <li>
       Opened from the Android app, the page sends the link back, and the app asks before adding it.
       Opened on its own, choose Open in the app, or copy the link and paste it in Settings →
       Add-ons.
     </li>
   </ol>
+  <p>
+    You can paste a token instead, for example on a server of your own without sign-in: open Or
+    paste a token you make yourself, choose Make a token on Hardcover, and paste it. The form has
+    the permissions <code>read:me</code>, <code>read:library</code>, <code>write:library</code>,{' '}
+    <code>read:catalog</code> and <code>read:lists</code> ticked. Tokens made before August 2026
+    have them all.
+  </p>
   <p>
     To change the rows later, open the add-on link with <code>configure</code> in place of{' '}
     <code>manifest.json</code>, and replace the add-on with the new link. Rows you add or rename on
@@ -82,8 +87,10 @@ const catalog = `catalog.${site.domain}`;
   </p>
   <p>
     Books are matched by ISBN or Audible ASIN when the add-on that lists them knows one, and
-    otherwise by title and author. Books Hardcover doesn’t know are skipped. Hardcover tokens expire
-    after a while; when yours does, make a new link the same way and replace the add-on.
+    otherwise by title and author. Books Hardcover doesn’t know are skipped. A sign-in renews itself
+    while you use it; after six months unused, or once you revoke Lelap on Hardcover, sign in again
+    and replace the add-on. A pasted token runs out when Hardcover says; then make a new link the
+    same way.
   </p>
   <p>
     Rate a book with the stars on its page, or Rate in its menu, and the rating goes to Hardcover;
@@ -161,9 +168,15 @@ const catalog = `catalog.${site.domain}`;
       doesn’t show it.
     </li>
     <li>
+      Signing in to Hardcover is the exception: Hardcover changes its tokens every week, so the
+      catalog service keeps them, encrypted with a key that only your add-on link holds. To sign
+      Lelap out, choose Revoke next to it on Hardcover under Settings → Hardcover API → Authorized
+      apps; the add-on then stops working until you sign in again.
+    </li>
+    <li>
       The link itself still works for whoever has it, so keep it to yourself. {site.name} keeps it
       on your device and syncs it end-to-end encrypted. To stop a leaked link, revoke the token or
-      change the password at the service.
+      Lelap’s access, or change the password at the service.
     </li>
     <li>
       The add-ons are stateless: they act on each batch of events and forget it. What you played is
@@ -181,7 +194,11 @@ const catalog = `catalog.${site.domain}`;
     image. Set <code>CONFIG_SECRET</code> to at least 32 random characters (on Workers with{' '}
     <code>wrangler secret put CONFIG_SECRET</code>); without it, the configure pages say they are
     unavailable. Keep it stable: changing it makes every link stop working until it is configured
-    again. On Docker, the gPodder add-on can’t reach private addresses unless you set{' '}
+    again. Sign in with Hardcover needs an app of your own at Hardcover (Account → API Access →
+    Developer Apps, a web app with the redirect URL{' '}
+    <code>https://{catalog}/hardcover/oauth/callback</code>): set <code>HARDCOVER_CLIENT_ID</code>{' '}
+    and <code>HARDCOVER_CLIENT_SECRET</code>. Without them, the page asks for a token. On Docker,
+    the gPodder add-on can’t reach private addresses unless you set{' '}
     <code>SCROBBLE_ALLOW_PRIVATE=true</code>, for a gPodder server on your own network. See{' '}
     <a href="/docs/hosting/">Hosting</a>.
   </p>

@@ -4,6 +4,7 @@ import {
   allowedReturn,
   checkFields,
   type ConfigField,
+  configurePage,
   decodeConfig,
   encodeConfig,
   isConfigToken,
@@ -122,5 +123,54 @@ describe('return addresses', () => {
     expect(returnUrl('lelap://addon', 'https://a.example/p1.x/manifest.json')).toBe(
       'lelap://addon?manifest=https%3A%2F%2Fa.example%2Fp1.x%2Fmanifest.json',
     );
+  });
+});
+
+describe('sign-in on the configure page', () => {
+  const signIn = {
+    href: '/svc/oauth/start',
+    label: 'Sign in with Svc',
+    note: 'Revoke it any time at Svc.',
+    other: 'Or paste a token',
+  };
+
+  it('offers the sign-in button first, with the return address, and folds the form', () => {
+    const html = configurePage({
+      name: 'Svc',
+      description: 'd',
+      fields,
+      returnTo: 'lelap://addon',
+      text: { intro: 'Hi', signIn },
+    });
+    expect(html).toContain(
+      `<a class="button" href="/svc/oauth/start?return=${encodeURIComponent('lelap://addon')}">Sign in with Svc</a>`,
+    );
+    expect(html).toContain('<details><summary>Or paste a token</summary>');
+    expect(html.indexOf('Sign in with Svc')).toBeLessThan(html.indexOf('<form'));
+  });
+
+  it('opens the fold when the form has an error', () => {
+    const html = configurePage({
+      name: 'Svc',
+      description: 'd',
+      fields,
+      error: 'Wrong token',
+      text: { signIn },
+    });
+    expect(html).toContain('<details open>');
+    expect(html).toContain('href="/svc/oauth/start"');
+  });
+
+  it('leaves out a sign-in that leads off the add-on’s host', () => {
+    for (const href of ['https://evil.example/', '//evil.example/x', 'javascript:alert(1)']) {
+      const html = configurePage({
+        name: 'Svc',
+        description: 'd',
+        fields,
+        text: { signIn: { ...signIn, href } },
+      });
+      expect(html).not.toContain('Sign in with Svc');
+      expect(html).not.toContain('<details');
+    }
   });
 });

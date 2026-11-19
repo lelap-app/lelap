@@ -1,4 +1,7 @@
 /** The platform calls the add-ons need, injected so Workers, Node and tests can each provide them. */
+import type { Grants } from './scrobble/hardcover-grants';
+import type { Tokens } from './scrobble/hardcover-oauth';
+
 export type FetchLike = (
   url: string,
   init: { headers: Record<string, string>; signal?: AbortSignal; method?: string; body?: string },
@@ -20,6 +23,11 @@ export type Platform = {
   cache?: ResponseCache;
   /** Unix time in milliseconds; tests pin it. */
   now?: () => number;
+  /**
+   * Where Hardcover sign-ins are kept (M92), given how to renew their tokens. Without it, the
+   * Hardcover add-on takes pasted tokens only.
+   */
+  grants?: (refresh: (refreshToken: string) => Promise<Tokens>) => Grants;
 };
 
 export const TTL = {

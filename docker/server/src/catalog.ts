@@ -1,5 +1,9 @@
+import { join } from 'node:path';
+
 import { createApp } from '../../../services/catalog/src/app';
+import { localGrants } from '../../../services/catalog/src/scrobble/hardcover-grants';
 import { adminFromEnv } from './admin';
+import { grantFiles } from './grantFiles';
 import { guardedFetch } from './guardedFetch';
 import { memoryCache } from './memoryCache';
 import { secret } from './secrets';
@@ -10,6 +14,16 @@ const configSecret = secret('CONFIG_SECRET');
 const podcastIndex = Boolean(process.env.PODCASTINDEX_KEY && process.env.PODCASTINDEX_SECRET);
 const allowPrivate = process.env.SCROBBLE_ALLOW_PRIVATE === 'true';
 const cache = memoryCache();
+// Signing in to Hardcover (M92): the operator's own app at Hardcover; sign-ins are kept, sealed,
+// next to CONFIG_SECRET in the secrets volume.
+const hardcoverClientId = process.env.HARDCOVER_CLIENT_ID?.trim();
+const hardcoverClientSecret = process.env.HARDCOVER_CLIENT_SECRET?.trim();
+const grantsDir = process.env.SECRETS_DIR
+  ? join(process.env.SECRETS_DIR, 'hardcover-grants')
+  : undefined;
+const hardcoverSignIn = Boolean(
+  hardcoverClientId && hardcoverClientSecret && grantsDir && configSecret,
+);
 const app = createApp(
   {
     fetch: (url, init) => fetch(url, init),
@@ -17,11 +31,15 @@ const app = createApp(
     // unless the operator allows it (a gPodder server on the same network).
     userFetch: guardedFetch({ allowPrivate }),
     cache,
+    ...(grantsDir ? { grants: (refresh) => localGrants(grantFiles(grantsDir), refresh) } : {}),
   },
   {
     SOURCE_URL: process.env.SOURCE_URL ?? 'https://github.com/lelap-app/lelap',
     ...(configSecret ? { CONFIG_SECRET: configSecret } : {}),
     ...(process.env.APP_ORIGINS ? { APP_ORIGINS: process.env.APP_ORIGINS } : {}),
+    ...(hardcoverClientId && hardcoverClientSecret
+      ? { HARDCOVER_CLIENT_ID: hardcoverClientId, HARDCOVER_CLIENT_SECRET: hardcoverClientSecret }
+      : {}),
     // Podcast Index catalogs only when both are set, as on Workers.
     ...(process.env.PODCASTINDEX_KEY && process.env.PODCASTINDEX_SECRET
       ? {
@@ -42,6 +60,10 @@ adminFromEnv('catalog', servicePort, {
       [
         'Hardcover and gPodder set-up',
         configSecret && configSecret.length >= 32 ? 'on' : 'off (no CONFIG_SECRET)',
+      ],
+      [
+        'Sign in with Hardcover',
+        hardcoverSignIn ? 'on' : 'off (no HARDCOVER_CLIENT_ID and HARDCOVER_CLIENT_SECRET)',
       ],
       ['gPodder servers on private networks', allowPrivate ? 'allowed' : 'refused'],
       ['Cached responses', String(cache.size)],

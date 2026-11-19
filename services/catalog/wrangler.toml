@@ -10,10 +10,24 @@ send_metrics = false
 
 [vars]
 SOURCE_URL = "https://github.com/lelap-app/lelap"
+# Lelap's app at Hardcover (M92), for signing in instead of pasting a token. Not a secret. Forks
+# register their own under hardcover.app → Account → API Access → Developer Apps: a web app
+# (server-side) with the redirect URL https://<catalog domain>/hardcover/oauth/callback.
+HARDCOVER_CLIENT_ID = "c163f021-e15a-4c28-b919-d4a10c45965c"
 
 # Optional secrets, set with `wrangler secret put`:
 #   PODCASTINDEX_KEY, PODCASTINDEX_SECRET  turn on the Podcast Index catalogs.
 #   CONFIG_SECRET  32+ random characters; lets listeners configure the Hardcover and gPodder
 #                  add-ons (their tokens are sealed into the add-on URL with it).
+#   HARDCOVER_CLIENT_SECRET  the secret of the Hardcover app above; sign-in is off without it.
 #   APP_ORIGINS    web builds of the app, comma-separated (https://listen.example.org), that
 #                  the configure pages may send the listener back to. A var, not a secret.
+
+# Hardcover sign-ins: one Durable Object per sign-in holds its encrypted tokens.
+[[durable_objects.bindings]]
+name = "HARDCOVER_GRANTS"
+class_name = "HardcoverGrants"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["HardcoverGrants"]

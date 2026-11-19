@@ -276,7 +276,7 @@ const escape = (text: string) =>
 /**
  * One stylesheet for every configure page: the SDK's own (`configurePage`, `configuredPage`) and
  * those of Lelap's first-party add-ons, so a listener sees one style. It styles `main`, headings,
- * fields with a `.help` line, `.check` boxes, `fieldset`, buttons and `.button` links, `.error`,
+ * fields with a `.help` line, `.check` boxes, `fieldset`, buttons and `.button` links, `.error`, a folded `details`,
  * `.muted`, steps in `ol`, a tap-to-copy `.copy` button and the `.sender` line.
  */
 export const PAGE_STYLE = `body{margin:0;background:#14121a;color:#f4efe6;font:16px/1.5 system-ui,sans-serif}
@@ -300,6 +300,7 @@ code{word-break:break-all;background:#1e1b26;padding:.15rem .3rem;border-radius:
 .copy{display:block;width:100%;text-align:left;margin:0;padding:.5rem;border:1px solid #3a3644;border-radius:.5rem;background:#1e1b26;color:inherit;font:inherit;cursor:pointer}
 .copy code{background:none;padding:0;user-select:all}
 .copy-note{font-size:.875rem;color:#a59fb0;margin-top:.25rem}
+details{margin-top:1.5rem}summary{cursor:pointer;font-weight:600}
 .sender{font-size:.875rem;border-top:1px solid #3a3644;margin-top:2rem;padding-top:1rem}`;
 
 /**
@@ -326,7 +327,22 @@ export type ConfigureText = {
   steps?: string[];
   /** A small line under the steps. */
   note?: string;
+  /**
+   * Signing in with the service instead of typing a token, such as OAuth: a button to `href`, a
+   * path on the add-on's own host that the page adds `return` to. The form folds under `other`.
+   */
+  signIn?: { href: string; label: string; note?: string; other: string };
 };
+
+/** The sign-in button; only a path on the add-on's own host, so it can't lead elsewhere. */
+function signInHtml(signIn: ConfigureText['signIn'], returnTo: string | undefined): string {
+  if (!signIn || !/^\/(?!\/)/.test(signIn.href)) return '';
+  const href = returnTo
+    ? `${signIn.href}${signIn.href.includes('?') ? '&' : '?'}return=${encodeURIComponent(returnTo)}`
+    : signIn.href;
+  const note = signIn.note ? `<p class="muted">${escape(signIn.note)}</p>` : '';
+  return `<p><a class="button" href="${escape(href)}">${escape(signIn.label)}</a></p>${note}`;
+}
 
 function fieldHtml(field: ConfigField, current: Config[string] | undefined): string {
   const id = `f-${field.key}`;
@@ -406,9 +422,14 @@ export function configurePage(args: {
   const restart = args.restart
     ? `<p><a href="${escape(args.restart)}">Change the other settings</a></p>`
     : '';
+  const form = `${link}${steps}${note}${problem}<form method="post">${inputs}${hidden}<button type="submit">${escape(args.submit ?? 'Save')}</button></form>`;
+  const signIn = signInHtml(text.signIn, returnTo);
+  const rest = signIn
+    ? `${signIn}<details${error ? ' open' : ''}><summary>${escape(text.signIn?.other ?? '')}</summary>${form}${footnote}</details>${restart}`
+    : `${form}${restart}${footnote}`;
   return page(
     `${name} settings`,
-    `<h1>${escape(name)}</h1><p>${escape(text.intro ?? description)}</p>${link}${steps}${note}${problem}<form method="post">${inputs}${hidden}<button type="submit">${escape(args.submit ?? 'Save')}</button></form>${restart}${footnote}`,
+    `<h1>${escape(name)}</h1><p>${escape(text.intro ?? description)}</p>${rest}`,
     host,
   );
 }
