@@ -1,7 +1,7 @@
 /* global addon, lelap */
 // A Lelap add-on that runs inside the app (protocol revision 3). It reads a `books.json` from a
 // server on your own network and offers those books with their files. Install it in Lelap under
-// Settings → Add-ons by pasting the address of this file; change BASE and `sandbox.hosts` to your
+// Settings → Library and sources → Add-ons by pasting the address of this file; change BASE and `sandbox.hosts` to your
 // server first. The app lets it reach only the hosts in `sandbox.hosts`.
 //
 // books.json: [{ "id": "secret-garden", "title": "…", "author": "…", "cover": "http://…/cover.jpg",

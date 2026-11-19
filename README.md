@@ -26,21 +26,21 @@ and on the web from one codebase, and every server piece can be self-hosted with
   in sound to share as an image.
 - Organises with tags, playlists, smart lists and one Up Next queue, and plays a list from start
   to end. Hides what you don't want in the library, and points out files that look like music.
-- Lists each series in reading order, with the numbers you're missing and the next book at the end
-  of one.
+- Lists a whole series in reading order where Wikidata knows it, with the books you don't have yet
+  by their titles, and names the next book at the end of one.
 - Rates books in half stars, and marks new podcast episodes.
-- Plays a show's smallest file on mobile data when its feed offers several, and on Android checks
-  a download against the hash the feed gives.
+- Plays a show's smallest file on mobile data when its feed offers several, and checks a download
+  against the hash the feed gives.
 - Syncs progress between devices with a pairing code. No account, end-to-end encrypted.
 - Plays from your own files and folders; your own WebDAV, S3-compatible, Jellyfin, Emby, Plex,
   Navidrome (or other Subsonic) or Audiobookshelf server; an OPDS catalog such as Calibre's
   content server; SMB and SFTP shares on Android; and
-  add-ons: LibriVox, Open Library, Podcast Index, RSS feeds, the Internet Archive, or add-ons you
-  write yourself.
+  add-ons: LibriVox, Open Library, Podcast Index, RSS feeds, the Internet Archive, complete Open
+  Yale Courses lectures, or add-ons you write yourself.
 - Takes covers from the tags or from an image beside the audio, such as `cover.jpg`.
 - Shows Hardcover's trending books and your Hardcover lists as catalog rows, once you sign in to
   Hardcover or paste your own token, and keeps your Hardcover shelves and ratings and a gPodder
-  server up to date as you listen. Both are offered in Settings → Add-ons.
+  server up to date as you listen. Both are offered in Settings → Library and sources → Add-ons.
 - Downloads to an SD card if you like (Android), and lists your own copy first on a book's
   catalog page.
 - Finds chapters at the long silences of a book without any (Android), and skips a podcast's
@@ -50,7 +50,7 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Casts to Sonos, DLNA, Google Cast and FCast speakers without Google's SDK, to one speaker or
   several at once, with the lock screen, headphones and sleep timer controlling them.
 - Has a car mode with a large cover and big buttons, upright or sideways in a holder, and works in
-  Android Auto with the covers on your phone.
+  Android Auto with the covers on your phone and your lists.
 - Comes in five themes (Night, Dusk, Day, Sepia and High contrast) with six accent colours, or
   follows the phone's light or dark setting.
 - Works with TalkBack and at the largest text size, and uses the width of tablets, foldables and laptops.

@@ -13,11 +13,11 @@ Lelap is an open-source player for audiobooks and podcasts. It plays, downloads,
 <b>Your library</b>
 <ul>
 <li>Your own files and folders: m4b, mp3, opus, flac, with chapters from the tags and covers from the tags or an image beside the audio.</li>
-<li>Your own servers: WebDAV (Nextcloud, ownCloud), S3-compatible storage, Jellyfin, Emby, Plex, Navidrome and other Subsonic servers, Audiobookshelf, and SMB and SFTP shares.</li>
+<li>Your own servers: WebDAV (Nextcloud, ownCloud), S3-compatible storage, Jellyfin, Emby, Plex, Navidrome and other Subsonic servers, Audiobookshelf, OPDS catalogs such as Calibre's content server, and SMB and SFTP shares.</li>
 <li>Public-domain audiobooks from LibriVox, and podcasts by RSS with OPML import and export. When a feed offers several files of an episode, the smallest plays on mobile data.</li>
 <li>The library opens in three groups: in progress, not started and finished.</li>
 <li>Tags, hand-made lists and smart lists that play from start to end; Up Next for books and episodes.</li>
-<li>Series in reading order, with the numbers you're missing and the next book when one ends.</li>
+<li>Whole series in reading order where Wikidata knows them, with the books you don't have yet by their titles, and the next book when one ends.</li>
 <li>Rate books in half stars; new podcast episodes are marked.</li>
 <li>Hide what you don't want in the library; files that look like music are pointed out.</li>
 <li>Stats: time listened, streaks, finished books, and your year in sound to share as an image.</li>
@@ -27,7 +27,7 @@ Lelap is an open-source player for audiobooks and podcasts. It plays, downloads,
 <b>Around the house</b>
 <ul>
 <li>Casts to Sonos, DLNA and Google Cast speakers through open protocols, and to FCast receivers, one speaker or several at once. The lock screen, headphones and sleep timer control them.</li>
-<li>A car mode with a large cover and big buttons, upright or sideways, Android Auto with your covers, a home screen widget and a Quick Settings tile.</li>
+<li>A car mode with a large cover and big buttons, upright or sideways, Android Auto with your covers and lists, a home screen widget and a Quick Settings tile.</li>
 <li>Profiles for everyone in the household, with an optional PIN and a kids profile.</li>
 <li>Five themes, including Sepia and High contrast, with six accent colours, or follow the phone's light or dark setting.</li>
 <li>Works with TalkBack and at the largest text size, and uses the width of a tablet or a foldable.</li>
@@ -35,6 +35,6 @@ Lelap is an open-source player for audiobooks and podcasts. It plays, downloads,
 </ul>
 
 <b>Open by design</b>
-Catalogs, metadata and audio sources come from add-ons: small web services anyone can run. Lelap ships with add-ons for open sources only. Optional add-ons show Hardcover's trending books and your lists, and keep Hardcover (shelves and ratings) and a gPodder server up to date as you listen; set them up in Settings → Add-ons. Audio always goes straight from its source to your phone, never through our servers.
+Catalogs, metadata and audio sources come from add-ons: small web services anyone can run. Lelap ships with add-ons for open sources only. Optional add-ons bring complete Open Yale Courses lectures, show Hardcover's trending books and your lists, and keep Hardcover (shelves and ratings) and a gPodder server up to date as you listen; set them up in Settings → Library and sources → Add-ons. Audio always goes straight from its source to your phone, never through our servers.
 
 The same app runs in the browser, and the backend can be self-hosted with Docker.

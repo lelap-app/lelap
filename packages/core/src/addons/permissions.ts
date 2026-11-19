@@ -96,7 +96,7 @@ export function addonPermissions(manifest: Manifest, manifestUrl: string): Permi
   if (resources.has('library') && manifest.sandbox) {
     list.push({
       kind: 'library',
-      text: 'Lists the books on a server you add under Settings → Servers, so they play and download like your own.',
+      text: 'Lists the books on a server you add under Settings → Library and sources → Add a server, so they play and download like your own.',
       notable: false,
     });
   }

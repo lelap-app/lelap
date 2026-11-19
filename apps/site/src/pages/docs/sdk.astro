@@ -366,7 +366,10 @@ const toc: [string, string][] = [
       their own catalogs, and <code>legacy</code> keeps add-on addresses from before your add-on
       used this configure working. Throw an <code>AddonError</code> from <code>check</code> or{' '}
       <code>choose</code> to show its message on the page. The page after saving copies the address
-      with a tap. Lelap’s Hardcover and gPodder add-ons are built this way.
+      with a tap. With <code>text.signIn</code>, a button for signing in with the service comes
+      first: it goes to a path on your add-on’s own host with the page’s return address added, and
+      the form folds under it. It takes <code>href</code>, <code>label</code>, <code>note</code> and{' '}
+      <code>other</code>. Lelap’s Hardcover and gPodder add-ons are built this way.
     </li>
     <li>
       The form and the page after it say who runs them: “This page is run by {'{host}'}, not by
@@ -391,7 +394,8 @@ const toc: [string, string][] = [
     declares <code>behaviorHints.health</code>; the SDK also sets <code>protocolVersion</code> to
     the newest revision it knows: 9 in SDK 0.5.0, the version on npm, and 8 in 0.4.0. The next
     release, 0.6, sets <code>{LATEST_PROTOCOL_VERSION}</code>. Pass a <code>health</code> handler to
-    check what your add-on relies on. Keep it quick: the app asks when Settings → Add-ons opens.
+    check what your add-on relies on. Keep it quick: the app asks when Settings → Library and
+    sources → Add-ons opens.
   </p>
   <CodeBlock code={health} />
 
@@ -421,8 +425,8 @@ const toc: [string, string][] = [
     for a meta’s <code>editions</code>, <code>resumed</code> on a <code>ScrobbleEvent</code>,{' '}
     <code>next</code> on a <code>LibraryResponse</code> for a library in pages, and{' '}
     <code>setUpWithSettings(manifest)</code>, which tells whether an add-on inside the app is set up
-    with its settings under Settings → Add-ons, its settings reaching every call. See{' '}
-    <a href="/docs/protocol/#versions">Versions</a>.
+    with its settings under Settings → Library and sources → Add-ons, its settings reaching every
+    call. See <a href="/docs/protocol/#versions">Versions</a>.
   </p>
   <p>
     Revision 10 comes with the next SDK release, 0.6. A <code>scrobble</code> resource can list the{' '}
@@ -509,8 +513,8 @@ const toc: [string, string][] = [
   <ol>
     <li>Deploy the add-on, or run it on a machine your phone can reach.</li>
     <li>
-      In {site.name}, open <strong>Settings → Add-ons</strong>, paste the manifest URL, such as{' '}
-      <code>https://addon.example.com/manifest.json</code>, and add it.
+      In {site.name}, open <strong>Settings → Library and sources → Add-ons</strong>, paste the
+      manifest URL, such as <code>https://addon.example.com/manifest.json</code>, and add it.
     </li>
     <li>
       Its catalogs show up on Home and in Discover, and searchable catalogs in Search. Items whose

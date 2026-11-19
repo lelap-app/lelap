@@ -2,6 +2,146 @@
 
 What changed in each Lelap release, newest first.
 
+## 0.1.0-beta.12 (2026-11-19)
+
+This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t
+bring it to older APKs. The app offers the APK as usual. At first start the app’s database adds a
+table that keeps whole series on the device. One new permission, to see network connections: the
+app checks whether the phone is on mobile data to pick an episode’s smaller file with the app
+closed. Android grants it at install without asking.
+
+### New
+
+- Settings is a short list of eight groups: Look and language, Listening, Sleep, Library and
+  sources, Downloads and storage, People and devices, Backup and updates, and Help. Each opens its
+  own page, and each line says what is set now, such as “Night · Amber · English”. Every setting
+  stays as it was. (#227)
+- A series page lists the whole series in reading order, from Wikidata: the books in your library
+  play, and the others show their title, number and year with Look for it. Missing books are named
+  in the language of the editions you have. Next in the series names the next book by its title
+  when you don’t have it. The list is kept on the device for 30 days, so the page works offline.
+  (#218)
+- OPDS catalogs as a library source: add a Calibre content server on your home network, or a
+  library’s open catalog, under Add a server. Only the audiobooks come in, with their covers; the
+  login stays on your device. In the web app the catalog must use https and send CORS headers.
+  OPDS is offered under Lelap’s own add-ons, off by default. (#230)
+- Open lectures: 37 complete Open Yale Courses as books, one lecture a part, with Yale’s credit
+  line and licence on each course’s page. Add it under Lelap’s own add-ons; it is off by default.
+  (#231)
+- Sign in with Hardcover: the Hardcover add-on’s set-up page signs you in through Hardcover, and you
+  never handle a token. Pasting a token you make yourself still works. (#221)
+- Android Auto has a Lists shelf. A list opens on Play list, which starts where the list stands, and
+  it plays on from item to item with the app closed. (#225)
+- Previous in list sits beside Next in list in the notification’s overflow, on the lock screen, on
+  watches and in Android Auto, also with the app closed. (#225)
+- The tall widget says “Next in list: …” while a list plays. (#225)
+- On a tablet or another wide window on Android, press and hold a book or an episode, then move it
+  onto a list. Tiles on Home and Discover and Search results can be dragged onto a list as well,
+  there and in the web app; the book joins your library without playing. The Library’s list cards
+  take drops as well as the side rail. (#228)
+- A theme file can be marked high contrast. Saving the High contrast theme marks it, and opening the
+  file brings back the thick focus ring and solid badges. (#216)
+
+### Improved
+
+- Skip silence in the web app now works on M4B, Opus, Vorbis and FLAC files as well as on MP3s
+  with a constant bitrate. It reads the stream the player already loads instead of fetching it
+  twice. A browser that can’t decode the format plays the book unchanged. (#229)
+- With Subsonic, Plex or Emby, a pause with Lelap closed now reaches the server about 10 s later
+  instead of with the next hourly refresh. Jellyfin and Audiobookshelf get the place sooner too.
+  (#222)
+- A Plex book started with Lelap closed (from Up Next, Android Auto, the widget or headphones) finds
+  the server’s current address before it plays, and a Plex download does the same, so both work
+  away from home. (#222)
+- On Android, episodes started with the app closed follow the connection: on mobile data a show
+  set to Automatic streams its smallest file. (#220)
+- Web downloads check a file against the hash its feed gives, as the phone does. A file that
+  doesn’t match isn’t kept. (#220)
+- The browser’s media controls show the picture of the chapter playing, and the cover where a
+  chapter has none. (#220)
+- In car mode, a theme file’s accent stays, made darker or lighter until it reads well on the day
+  or night colours. (#216)
+- Changing the theme or the accent no longer moves Settings back to the top. (#216)
+- Switching the language renames untitled chapters at once on the notification, the lock screen,
+  the widget and Android Auto. (#219)
+- Chapters you make from chapters found from silences are named “Part n”. (#219)
+- An SMB or SFTP failure, a download that can’t be saved and casting to an unknown kind of receiver
+  now show a translated line instead of English. (#219)
+- On a foldable half open on a table, the screens above the hinge no longer leave room for the
+  navigation bar, and the layout no longer splits the old window when the hinge is reported first.
+  (#228)
+- A playing list reads only its own books, not the whole library. (#225)
+
+### Fixed
+
+- Chapter names you typed yourself are kept. Beta 11 cleared your own chapter names that read
+  exactly “Chapter n” or “Bab n” for their place; a phone that updates from beta 10 or earlier now
+  keeps them. With sync on, a phone that already ran beta 11 gets those names back from the sync
+  group where its chapter list hasn’t changed since. Without sync they have to be typed again.
+  (#219)
+
+### Self-hosting and add-on developers
+
+- Sync: no D1 migration, and the sync Worker hasn’t changed.
+- Catalog service: a new default add-on, Whole series (`/series/manifest.json`), reads Wikidata
+  with no key. Open lectures is under `/lectures`. Hardcover sign-in needs `HARDCOVER_CLIENT_ID`
+  and `HARDCOVER_CLIENT_SECRET` (on Docker in `.env`, plus `CATALOG_ORIGIN` when the catalog is
+  public under another address); without them, pasting a token still works. On Workers each
+  sign-in is a Durable Object; on Docker it is a file in the secrets volume, so back that up.
+  These deployed with the merges to `main`. (#218, #221, #231)
+- Protocol revision 11 gains the `series` resource. An app before revision 11 refuses a manifest
+  that lists it, so keep it in an add-on of its own. (#218)
+- Coming with the next SDK release (0.6, not on npm yet; `@lelap/sdk` 0.5.0 is the current one):
+  protocol revisions 10 and 11 with the `series` resource, `lelap-sdk check` with `--series`, and
+  `text.signIn` on the configure page for signing in with the service. Until then they run from the
+  repository. (#218, #221)
+
+### Known issues
+
+- The new Settings has only been tried in the web app: not on Android, with TalkBack or on a
+  tablet. (#227)
+- Sign in with Hardcover hasn’t been tried with a real Hardcover account, nor has renewing the
+  sign-in after a week. (#221)
+- Places sent with the app closed to Subsonic, Plex, Emby, Jellyfin or Audiobookshelf are untested
+  on a phone and a real server. (#210, #222)
+- A Plex book or download that finds the server’s address away from home is untested on a real
+  Plex server. (#210, #222)
+- Skip silence and even loudness in the web app have only been tried in Chromium, not in Firefox or
+  Safari. (#209, #229)
+- OPDS hasn’t been tried against a real Calibre server. Calibre may not list M4B books at all,
+  since it doesn’t know their file type. Calibre’s default login over http (Digest) isn’t
+  supported: set Calibre to Basic. (#230)
+- In the web app, Open lectures courses that stream from Yale can’t be downloaded or use the sound
+  effects, because Yale’s server doesn’t let the browser read its files. They stream as usual; the
+  three courses from archive.org download. Downloads on a phone are untested. (#231)
+- Dragging onto a list on an Android tablet is untested on a real tablet. (#228)
+- Lists in Android Auto, and playing a list with the app closed or while casting, haven’t been
+  tried in a car or on a phone. (#204, #225)
+- Google Cast device authentication now uses Google’s bundled roots and is untested against a
+  real Nest speaker. If a genuine speaker is refused, Connect anyway lets it in. (#212)
+- Playing on several speakers is untested on real speakers. (#212)
+- Books from a server with a login play on Android through a new reader, untested on a phone.
+  (#210)
+- Foldable layouts are untested on a real foldable, and the dividers on a tablet with a finger.
+  (#206, #228)
+- Clearing made-up chapter names at first start, and getting typed names back from sync, are
+  untested on a real library. (#211, #219)
+- Episode file choices with the app closed, integrity checks and chapter pictures on the lock
+  screen and in the car are untested on a phone. (#208, #220)
+- Themes on Android, including theme files and car mode’s accent, haven’t been looked at on a
+  phone. (#199, #216)
+- Whole series pages and reading series from the files’ tags are untested on a phone. (#196, #218)
+- Ratings sent to Hardcover, and Hardcover’s audiobook editions, haven’t been tried against the
+  live service. (#203)
+- Car mode sideways, and the tap on a podcast’s place opening a map app, are untested on a phone.
+  (#194, #198)
+- SMB requires signing for logged-in sessions. A Samba server that maps a login to its guest
+  account may stop working. (#191)
+- Shared place links open in the web app; opening them in the Android app isn’t switched on yet.
+  (#187)
+- Some new Malay lines, here and in earlier betas, haven’t been checked by a native speaker.
+  (#211, #227)
+
 ## 0.1.0-beta.11 (2026-11-19)
 
 This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t
