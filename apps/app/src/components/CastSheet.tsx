@@ -1,16 +1,22 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { castGroupsHere } from '@lelap/core';
+
 import {
   addDevicesListener,
   addDiscoveryListener,
   type CastDevice,
   connectAnyway,
   type DiscoveryReport,
+  forgetGroup,
   isLocalNetworkDenied,
+  joinSpeaker,
+  leaveSpeaker,
   listDevices,
   localNetworkAccess,
   type LocalNetworkAccess,
+  rememberedGroups,
   requestLocalNetworkAccess,
   setCastVolume,
   startCasting,
@@ -81,6 +87,11 @@ export function CastSheet({
   // Choosing speakers for a group (M78): the ticked ones in the order they were ticked, the
   // first leading; null when a tap plays on one.
   const [group, setGroup] = useState<string[] | null>(null);
+  // Groups played on before (M125), read again each time the sheet opens.
+  const [remembered, setRemembered] = useState(rememberedGroups);
+  useEffect(() => {
+    if (visible) setRemembered(rememberedGroups());
+  }, [visible]);
 
   // Android 17 asks before an app reaches the Wi-Fi's devices; the sheet explains first.
   useEffect(() => {
@@ -140,12 +151,35 @@ export function CastSheet({
     }
   };
 
-  const play = (chosen: CastDevice[]) => {
+  const play = (chosen: CastDevice[], busy?: string) => {
     const book = bookLoad(bookId);
     const first = chosen[0];
     if (!book || !first) return;
-    void connect(first.id, () => startCasting(chosen, book));
+    void connect(busy ?? first.id, () => startCasting(chosen, book));
   };
+
+  // Joining or leaving keeps the sheet open: the listener may add or take out more.
+  const change = async (busy: string, run: () => Promise<void>) => {
+    setConnecting(busy);
+    try {
+      await run();
+      setRemembered(rememberedGroups());
+    } catch (e) {
+      if (isLocalNetworkDenied(e)) setAccess(await localNetworkAccess());
+    } finally {
+      setConnecting(null);
+    }
+  };
+
+  const sessionIds = casting.device?.members.map((m) => m.id) ?? null;
+  const leaderId = sessionIds?.[0] ?? null;
+  const groupsHere =
+    group === null
+      ? castGroupsHere(remembered, new Set(devices.map((d) => d.id)), sessionIds).flatMap((g) => {
+          const members = g.ids.flatMap((id) => devices.filter((d) => d.id === id));
+          return members.length === g.ids.length ? [{ ids: g.ids, members }] : [];
+        })
+      : [];
 
   const pick = (device: CastDevice) => {
     if (group !== null) {
@@ -236,7 +270,10 @@ export function CastSheet({
                   label={t('Connect anyway')}
                   onPress={() => {
                     const book = bookLoad(bookId);
-                    if (book) void connect('anyway', () => connectAnyway(book));
+                    if (!book) return;
+                    // A speaker refused while joining keeps the sheet open, like Add.
+                    if (casting.device) void change('anyway', () => connectAnyway(book));
+                    else void connect('anyway', () => connectAnyway(book));
                   }}
                 />
               </View>
@@ -295,35 +332,96 @@ export function CastSheet({
               )}
             </View>
           )}
+          {groupsHere.map((g) => {
+            const name = g.members.map((m) => m.name).join(' + ');
+            const busy = `group:${g.ids.join('+')}`;
+            return (
+              <View key={busy} className="flex-row items-center gap-2">
+                <Pressable
+                  onPress={() => play(g.members, busy)}
+                  disabled={connecting !== null}
+                  accessibilityRole="button"
+                  className="min-h-12 flex-1 flex-row items-center gap-3 py-3 active:opacity-60"
+                >
+                  <Icon name="cast" size={22} color={colors.soft} />
+                  <View className="flex-1">
+                    <Text numberOfLines={1} className="text-paper">
+                      {name}
+                    </Text>
+                    <Text numberOfLines={1} className="text-xs text-muted">
+                      {t('Played together before')}
+                    </Text>
+                  </View>
+                  {connecting === busy && <ActivityIndicator color={colors.amber} />}
+                </Pressable>
+                <Chip
+                  label={t('Forget')}
+                  spoken={t('Forget {name}', { name })}
+                  onPress={() => {
+                    forgetGroup(g.ids);
+                    setRemembered(rememberedGroups());
+                  }}
+                />
+              </View>
+            );
+          })}
           {devices.map((device) => {
             const current = playingOn(device);
             const ticked = group?.includes(device.id) ?? false;
             const highlighted = group === null ? current : ticked;
+            // While a session plays (M125): any other speaker can join it, and one that follows
+            // in a group can leave. The leading speaker stays; a new group replaces it.
+            const canJoin = group === null && casting.device !== null && !current;
+            const canLeave =
+              group === null &&
+              current &&
+              sessionIds !== null &&
+              sessionIds.length > 1 &&
+              device.id !== leaderId;
             return (
-              <Pressable
-                key={device.id}
-                onPress={() => pick(device)}
-                disabled={connecting !== null}
-                accessibilityRole={group === null ? 'button' : 'checkbox'}
-                accessibilityState={group === null ? { selected: current } : { checked: ticked }}
-                {...(group === null ? { 'aria-selected': current } : { 'aria-checked': ticked })}
-                className="min-h-12 flex-row items-center gap-3 py-3 active:opacity-60"
-              >
-                <Icon
-                  name={group !== null && ticked ? 'check' : 'cast'}
-                  size={22}
-                  color={highlighted ? colors.amber : colors.soft}
-                />
-                <View className="flex-1">
-                  <Text numberOfLines={1} className={highlighted ? 'text-amber' : 'text-paper'}>
-                    {device.name}
-                  </Text>
-                  <Text numberOfLines={1} className="text-xs text-muted">
-                    {[device.model, KIND[device.kind]].filter(Boolean).join(' · ')}
-                  </Text>
-                </View>
-                {connecting === device.id && <ActivityIndicator color={colors.amber} />}
-              </Pressable>
+              <View key={device.id} className="flex-row items-center gap-2">
+                <Pressable
+                  onPress={() => pick(device)}
+                  disabled={connecting !== null}
+                  accessibilityRole={group === null ? 'button' : 'checkbox'}
+                  accessibilityState={group === null ? { selected: current } : { checked: ticked }}
+                  {...(group === null ? { 'aria-selected': current } : { 'aria-checked': ticked })}
+                  className="min-h-12 flex-1 flex-row items-center gap-3 py-3 active:opacity-60"
+                >
+                  <Icon
+                    name={group !== null && ticked ? 'check' : 'cast'}
+                    size={22}
+                    color={highlighted ? colors.amber : colors.soft}
+                  />
+                  <View className="flex-1">
+                    <Text numberOfLines={1} className={highlighted ? 'text-amber' : 'text-paper'}>
+                      {device.name}
+                    </Text>
+                    <Text numberOfLines={1} className="text-xs text-muted">
+                      {[device.model, KIND[device.kind]].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                  {connecting === device.id && <ActivityIndicator color={colors.amber} />}
+                </Pressable>
+                {canJoin && (
+                  <Chip
+                    label={t('Add')}
+                    spoken={t('Add {name} to the speakers playing', { name: device.name })}
+                    onPress={() => {
+                      if (connecting === null) void change(device.id, () => joinSpeaker(device));
+                    }}
+                  />
+                )}
+                {canLeave && (
+                  <Chip
+                    label={t('Take out')}
+                    spoken={t('Take {name} out of the group', { name: device.name })}
+                    onPress={() => {
+                      if (connecting === null) void change(device.id, () => leaveSpeaker(device));
+                    }}
+                  />
+                )}
+              </View>
             );
           })}
           {startFailed !== null ? (

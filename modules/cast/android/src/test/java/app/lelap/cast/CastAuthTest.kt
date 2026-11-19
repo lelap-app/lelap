@@ -11,6 +11,7 @@ import java.security.spec.PKCS8EncodedKeySpec
 import java.util.Date
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -159,6 +160,26 @@ class CastAuthTest {
     // A failure stays what it was.
     val failed = CastAuthProbe.Outcome(CastAuth.Verdict.Untrusted("bad signature"), peer.encoded)
     assertEquals(CastAuth.Verdict.Untrusted("bad signature"), CastAuthProbe.forSession(failed, peer.encoded))
+  }
+
+  @Test
+  fun connectAnywayLetsInOnlyThePinnedTlsCertificate() {
+    val untrusted = CastAuth.Verdict.Untrusted("no answer")
+    val pinned = setOf(CastAuthProbe.fingerprint(peer.encoded)!!)
+    assertTrue(CastAuthProbe.letIn(untrusted, peer.encoded, pinned))
+    // Another device that took over the speaker's name shows another certificate.
+    assertFalse(CastAuthProbe.letIn(untrusted, root.encoded, pinned))
+    assertFalse(CastAuthProbe.letIn(untrusted, null, pinned))
+    assertFalse(CastAuthProbe.letIn(untrusted, peer.encoded, emptySet()))
+    // A trusted speaker needs no pin.
+    assertTrue(CastAuthProbe.letIn(trusted, null, emptySet()))
+  }
+
+  @Test
+  fun aFingerprintIsTheCertificatesSha256InHex() {
+    val print = CastAuthProbe.fingerprint(byteArrayOf(1, 2, 3))!!
+    assertEquals("039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81", print)
+    assertEquals(null, CastAuthProbe.fingerprint(null))
   }
 
   @Test

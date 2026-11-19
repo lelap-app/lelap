@@ -89,7 +89,7 @@ class CastModule : Module() {
 
     // One receiver, or a group of any protocols led by the first (M78). With [anyway], the speaker
     // the last attempt refused connects even though it failed device authentication, for as long
-    // as the app runs.
+    // as the app runs, and only while it shows the same TLS certificate (M125).
     AsyncFunction("connect") { deviceIds: List<String>, anyway: Boolean ->
       // The receiver and the file server it fetches from are both on the local network.
       if (!hasLocalNetwork()) {
@@ -100,19 +100,52 @@ class CastModule : Module() {
         discovery().device(it) ?: throw CastFailedException(NativeText.t(context, "That speaker is no longer on the network"))
       }
       if (targets.isEmpty()) throw CastFailedException(NativeText.t(context, "That speaker is no longer on the network"))
-      // Only the speaker that was refused, never the others of the attempt.
-      if (anyway) refused?.takeIf { id -> targets.any { it.id == id } }?.let { letIn += it }
-      refused = null
+      if (anyway) pinRefused(targets) else refused = null
       val link = try {
-        CastLink.open(context, targets, letIn.toSet())
+        CastLink.open(context, targets, pinned.toSet())
       } catch (e: CastUntrustedException) {
-        refused = e.device.id
-        throw CastUntrustedCodedException(e.message.orEmpty())
+        refuse(e)
       } catch (e: CastException) {
         throw CastFailedException(e.message.orEmpty())
       }
       watch(link)
       mapOf("session" to link.toMap(), "unreached" to link.unreached)
+    }
+
+    // A speaker joins the group that plays, or makes one with the receiver that plays (M125). On a
+    // thread of its own: it can take half a minute, and every module's async calls share one queue,
+    // so the app's own Play and Pause would wait behind it.
+    AsyncFunction("join") { deviceId: String, anyway: Boolean, promise: Promise ->
+      if (!hasLocalNetwork()) throw LocalNetworkDeniedException()
+      val link = CastLink.current?.takeIf { !it.closed } ?: throw CastFailedException(NativeText.t(context, "Not casting"))
+      val target = discovery().device(deviceId)
+        ?: throw CastFailedException(NativeText.t(context, "That speaker is no longer on the network"))
+      if (anyway) pinRefused(listOf(target)) else refused = null
+      val pins = pinned.toSet()
+      offQueue(promise) {
+        try {
+          link.join(target, pins)
+        } catch (e: CastUntrustedException) {
+          refuse(e)
+        } catch (e: CastException) {
+          throw CastFailedException(e.message.orEmpty())
+        }
+        if (link.closed) throw CastFailedException(NativeText.t(context, "Not casting"))
+        link.toMap()
+      }
+    }
+
+    // A speaker other than the leading one leaves the group; it stops and the rest play on.
+    AsyncFunction("leave") { deviceId: String, promise: Promise ->
+      val link = CastLink.current?.takeIf { !it.closed } ?: throw CastFailedException(NativeText.t(context, "Not casting"))
+      offQueue(promise) {
+        try {
+          link.leave(deviceId)
+        } catch (e: Exception) {
+          throw CastFailedException(NativeText.t(context, "Casting failed"))
+        }
+        link.toMap()
+      }
     }
 
     // The receiver the session plays on, also after the app was closed and opened again.
@@ -158,15 +191,49 @@ class CastModule : Module() {
     "durationMs" to (status?.durationMs ?: 0L).toDouble(),
     "volume" to status?.volume?.toDouble(),
     "error" to error,
+    // The speakers that play now: one may have dropped out of a group (M125).
+    "members" to watched?.members?.map { it.id },
   )
 
-  private companion object {
-    /** Google Cast speakers the listener let in by hand; kept for the process, never stored. */
-    val letIn: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+  /** Runs [block] on a thread of its own and settles [promise] with what it returns or throws. */
+  private fun offQueue(promise: Promise, block: () -> Any?) {
+    Thread({
+      try {
+        promise.resolve(block())
+      } catch (e: CodedException) {
+        promise.reject(e)
+      } catch (e: Exception) {
+        promise.reject(CastFailedException(NativeText.t(context, "Casting failed")))
+      }
+    }, "lelap-cast-join").start()
+  }
 
-    /** The speaker the last attempt refused, which “Connect anyway” lets in. */
+  /** “Connect anyway”: pins the certificate the refused speaker showed, if it is one of [targets]. */
+  private fun pinRefused(targets: List<CastDevice>) {
+    // Only the speaker that was refused, never the others of the attempt.
+    refused?.takeIf { r -> targets.any { it.id == r.deviceId } }?.fingerprint?.let { pinned += it }
+    refused = null
+  }
+
+  private fun refuse(e: CastUntrustedException): Nothing {
+    // Without a certificate there is nothing to pin, so “Connect anyway” isn't offered.
+    val print = e.fingerprint ?: throw CastFailedException(e.message.orEmpty())
+    refused = Refusal(e.device.id, print)
+    throw CastUntrustedCodedException(e.message.orEmpty())
+  }
+
+  private class Refusal(val deviceId: String, val fingerprint: String?)
+
+  private companion object {
+    /**
+     * TLS certificate fingerprints of Google Cast speakers the listener let in by hand (M125); kept
+     * for the process, never stored. A device id alone could be taken over by another device.
+     */
+    val pinned: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    /** The speaker the last attempt refused, and the certificate it showed, which “Connect anyway” pins. */
     @Volatile
-    var refused: String? = null
+    var refused: Refusal? = null
 
     const val DEVICES_EVENT = "onDevices"
     const val STATUS_EVENT = "onStatus"

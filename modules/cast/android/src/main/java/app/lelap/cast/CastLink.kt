@@ -14,6 +14,7 @@ import java.util.concurrent.FutureTask
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** A file for the receiver as the player knows it; [CastLink] turns it into a URL the receiver can fetch. */
@@ -44,11 +45,22 @@ data class CastRequest(
  */
 class CastLink private constructor(
   context: Context,
-  /** The receiver, or for a group a stand-in named after its speakers (kind `group`). */
-  val device: CastDevice,
-  /** The speakers, the first leading; one for a single receiver. */
-  val members: List<CastDevice>,
+  first: CastDevice,
+  speakers: List<CastDevice>,
 ) {
+  /**
+   * The receiver, or for a group a stand-in named after its speakers (kind `group`). Its id stays
+   * the same while speakers join and leave (M125), so JavaScript follows one session.
+   */
+  @Volatile
+  var device: CastDevice = first
+    private set
+
+  /** The speakers, the first leading; one for a single receiver. */
+  @Volatile
+  var members: List<CastDevice> = speakers
+    private set
+
   interface Listener {
     fun onStatus(status: RendererStatus)
 
@@ -197,51 +209,71 @@ class CastLink private constructor(
   /** For JavaScript: the receiver, and for a group its speakers. */
   fun toMap(): Map<String, Any?> = device.toMap() + ("members" to members.map { it.toMap() })
 
-  private fun open(trusted: Set<String>) {
+  // The leader as the session plays it: remembers the file and speed, for a speaker that joins.
+  private var leader: RememberingRenderer? = null
+
+  // Guarded by the cast thread: the group, once there is one, and each follower's client by id.
+  @Volatile
+  private var group: GroupRenderer? = null
+  private val followers = mutableMapOf<String, Renderer>()
+
+  private fun probe(member: CastDevice): FutureTask<CastAuthProbe.Outcome>? =
+    if (member.kind != "cast") null
+    else FutureTask { CastAuthProbe.run(member) }.also { Thread(it, "lelap-cast-auth").apply { isDaemon = true }.start() }
+
+  /**
+   * Enforced (M78): a Google Cast speaker that doesn't prove itself is not connected, unless the
+   * listener chose “Connect anyway” for the TLS certificate its session's connection shows
+   * (M125). The verdict must come from that same certificate too.
+   */
+  private fun checkTrust(member: CastDevice, probe: FutureTask<CastAuthProbe.Outcome>, session: Renderer, pinned: Set<String>) {
+    val outcome = try {
+      probe.get(AUTH_WAIT_MS, TimeUnit.MILLISECONDS)
+    } catch (e: Exception) {
+      CastAuthProbe.Outcome(CastAuth.Verdict.Untrusted("no answer"), null)
+    }
+    val certificate = (session as? GoogleCastRenderer)?.peerCertificate
+    val verdict = CastAuthProbe.forSession(outcome, certificate)
+    val allowed = CastAuthProbe.letIn(verdict, certificate, pinned)
+    Log.i(TAG, "cast device auth: ${CastAuthProbe.describe(verdict)}${if (verdict is CastAuth.Verdict.Untrusted && allowed) ", connected anyway" else ""}")
+    if (!allowed) throw CastUntrustedException(member, CastAuthProbe.fingerprint(certificate))
+  }
+
+  private fun follower(member: CastDevice): Renderer {
+    var self: Renderer? = null
+    // A follower lost before the group exists is dropped by its first failed command.
+    return rendererFor(member) { self?.let { r -> group?.drop(r) } }.also { self = it }
+  }
+
+  private fun open(pinned: Set<String>) {
     // Device authentication on connections of their own, alongside the session's (M69). Read
     // the verdicts with `adb logcat -s LelapCast`.
-    val probes = members.filter { it.kind == "cast" }.map { member ->
-      member to FutureTask { CastAuthProbe.run(member) }.also { Thread(it, "lelap-cast-auth").apply { isDaemon = true }.start() }
-    }
+    val probes = members.mapNotNull { member -> probe(member)?.let { member to it } }
     val opened = mutableMapOf<String, Renderer>()
-    val leader = rendererFor(members.first(), ::lost).also { opened[members.first().id] = it }
-    renderer = leader
+    val first = rendererFor(members.first(), ::lost).also { opened[members.first().id] = it }
+    val remembering = RememberingRenderer(first)
+    leader = remembering
+    renderer = remembering
     if (members.size > 1) {
-      // Set once the group exists; a follower lost before that is dropped by its first failed command.
-      var group: GroupRenderer? = null
-      val followers = mutableListOf<Renderer>()
       val missed = mutableListOf<CastDevice>()
       for (member in members.drop(1)) {
         try {
-          var self: Renderer? = null
-          rendererFor(member) { self?.let { r -> group?.drop(r) } }.also {
-            self = it
-            followers += it
-            opened[member.id] = it
-          }
+          opened[member.id] = follower(member)
         } catch (e: Exception) {
           missed += member
         }
       }
       if (missed.isNotEmpty()) Log.i(TAG, "group: ${missed.size} of ${members.size} speakers not reached")
-      group = GroupRenderer(leader, followers, clock = { System.nanoTime() / 1_000_000L })
-      renderer = group
+      followers += opened - members.first().id
+      group = groupOf(remembering, followers.values.toList()).also { renderer = it }
       unreached = missed.map { it.name }
+      members = members - missed.toSet()
+      device = standIn(members).copy(id = device.id)
     }
-    // Enforced (M78): a Google Cast speaker that doesn't prove itself is not connected, unless
-    // the listener chose “Connect anyway” for it. One the group couldn't reach plays no part,
-    // and the verdict must come from the same TLS certificate the session's connection showed.
+    // One the group couldn't reach plays no part.
     for ((member, probe) in probes) {
       val session = opened[member.id] ?: continue
-      val outcome = try {
-        probe.get(AUTH_WAIT_MS, TimeUnit.MILLISECONDS)
-      } catch (e: Exception) {
-        CastAuthProbe.Outcome(CastAuth.Verdict.Untrusted("no answer"), null)
-      }
-      val verdict = CastAuthProbe.forSession(outcome, (session as? GoogleCastRenderer)?.peerCertificate)
-      val allowed = member.id in trusted
-      Log.i(TAG, "cast device auth: ${CastAuthProbe.describe(verdict)}${if (verdict is CastAuth.Verdict.Untrusted && allowed) ", connected anyway" else ""}")
-      if (verdict is CastAuth.Verdict.Untrusted && !allowed) throw CastUntrustedException(member)
+      checkTrust(member, probe, session, pinned)
     }
     val wifi = app.getSystemService(WifiManager::class.java)
     @Suppress("DEPRECATION")
@@ -250,6 +282,128 @@ class CastLink private constructor(
       acquire()
     }
     poll = worker.scheduleWithFixedDelay({ pollStatus() }, 1, 1, TimeUnit.SECONDS)
+  }
+
+  /**
+   * Adds [member] to the speakers that play (M125): a single receiver becomes a group it leads.
+   * The new speaker loads the file at the leader's place, and the group's sync brings it in step.
+   * Blocks on the network for up to about half a minute; never on main, never on the cast thread.
+   */
+  fun join(member: CastDevice, pinned: Set<String>) {
+    if (closed) throw CastException(NativeText.current().t("Not casting"))
+    if (members.any { it.id == member.id }) return
+    val probe = probe(member)
+    // Set when the speaker was lost, or the wait gave up, before the cast thread added it.
+    val gone = AtomicBoolean(false)
+    var joining: Renderer? = null
+    val loaded = try {
+      val r = rendererFor(member) {
+        gone.set(true)
+        joining?.let { j -> group?.drop(j) }
+      }
+      joining = r
+      if (probe != null) checkTrust(member, probe, r, pinned)
+      val task = worker.submit(Callable { addFollower(member, r, gone) })
+      try {
+        task.get(JOIN_WAIT_S, TimeUnit.SECONDS)
+      } catch (e: TimeoutException) {
+        gone.set(true)
+        task.cancel(false)
+        throw e
+      }
+    } catch (e: Exception) {
+      gone.set(true)
+      joining?.let { r ->
+        runCatching { r.close() }
+        // In case the cast thread added it just as the wait gave up.
+        later { removeRenderer(r) }
+      }
+      throw unwrap(e)
+    }
+    try {
+      loaded?.get(GroupRenderer.COMMAND_WAIT_S, TimeUnit.SECONDS)
+    } catch (e: Exception) {
+      joining?.let { r -> later { removeRenderer(r) } }
+      throw CastException(NativeText.current().t("{name} couldn’t join", "name" to member.name))
+    }
+  }
+
+  /**
+   * The sleep timer's fade times the bedtime volume, as far as the receiver was lowered by it
+   * (M125); a speaker that joins meanwhile is lowered as much, one that is taken out gets its
+   * volume back first.
+   */
+  fun setFadeScale(scale: Float) {
+    if (scale == fadeScale) return
+    fadeScale = scale
+    later { group?.scale = scale }
+  }
+
+  @Volatile
+  private var fadeScale = 1f
+
+  /** Takes a speaker other than the leading one out of the group; it stops and the rest play on. */
+  fun leave(memberId: String) {
+    if (closed || members.firstOrNull()?.id == memberId) return
+    worker.submit(Callable { removeFollower(memberId) }).get(JOIN_WAIT_S, TimeUnit.SECONDS)
+  }
+
+  // On the cast thread. The future is the new speaker's catch-up load, null when nothing plays.
+  private fun addFollower(member: CastDevice, joining: Renderer, gone: AtomicBoolean): java.util.concurrent.Future<Unit>? {
+    if (closed) throw CastException(NativeText.current().t("Not casting"))
+    if (gone.get()) throw CastException(NativeText.current().t("{name} couldn’t join", "name" to member.name))
+    val first = leader ?: throw CastException(NativeText.current().t("Not casting"))
+    val media = first.media
+    if (media != null && !joining.canPlayAt(first.speed)) {
+      throw CastException(NativeText.current().t("{name} only plays at 1×. Set the speed to 1× to add it.", "name" to member.name))
+    }
+    val g = group ?: groupOf(first, emptyList()).also {
+      group = it
+      renderer = it
+    }
+    val status = lastStatus
+    val playing = status?.state == PlayState.PLAYING || status?.state == PlayState.BUFFERING
+    val catchUp: ((Renderer) -> Unit)? = if (media == null || status == null || status.state == PlayState.IDLE || status.state == PlayState.ENDED) {
+      null
+    } else {
+      val speed = first.speed
+      { r -> r.load(media, status.positionMs, playing, speed) }
+    }
+    val loaded = g.add(joining, catchUp)
+    followers[member.id] = joining
+    members = members + member
+    device = standIn(members).copy(id = device.id)
+    Log.i(TAG, "group: a speaker joined, ${members.size} play")
+    return loaded
+  }
+
+  private fun groupOf(first: Renderer, rest: List<Renderer>) = GroupRenderer(
+    first,
+    rest,
+    clock = { System.nanoTime() / 1_000_000L },
+    // A speaker that dropped out is no longer listed as playing.
+    onLeft = { gone -> later { removeRenderer(gone) } },
+  ).also { it.scale = fadeScale }
+
+  // On the cast thread.
+  private fun removeRenderer(r: Renderer) {
+    followers.entries.firstOrNull { it.value === r }?.key?.let(::removeFollower)
+  }
+
+  // On the cast thread.
+  private fun removeFollower(memberId: String) {
+    val r = followers.remove(memberId) ?: return
+    group?.remove(r)
+    members = members.filter { it.id != memberId }
+    device = standIn(members).copy(id = device.id)
+  }
+
+  private fun unwrap(e: Exception): Exception {
+    val cause = if (e is ExecutionException) e.cause ?: e else e
+    return when (cause) {
+      is CastException -> cause
+      else -> CastException(message(cause))
+    }
   }
 
   private fun pollStatus() {
@@ -317,19 +471,22 @@ class CastLink private constructor(
     var current: CastLink? = null
       private set
 
+    /** How long [join] and [leave] wait for the cast thread, which a slow command may hold. */
+    private const val JOIN_WAIT_S = 30L
+
     /**
      * Connects to [devices], one receiver or a group led by the first, ending any session before.
-     * Google Cast speakers in [trusted] connect even when they fail device authentication.
-     * Blocks on the network; never on main.
+     * A Google Cast speaker whose TLS certificate's fingerprint is in [pinned] connects even when
+     * it fails device authentication. Blocks on the network; never on main.
      */
-    fun open(context: Context, devices: List<CastDevice>, trusted: Set<String> = emptySet()): CastLink {
+    fun open(context: Context, devices: List<CastDevice>, pinned: Set<String> = emptySet()): CastLink {
       require(devices.isNotEmpty())
       current?.close()
       // Loads the profile's lines for the receivers' threads, which have no Context.
       NativeText.get(context)
       val link = CastLink(context, standIn(devices), devices)
       try {
-        link.worker.submit(Callable { link.open(trusted) }).get()
+        link.worker.submit(Callable { link.open(pinned) }).get()
       } catch (e: ExecutionException) {
         link.worker.execute { link.shutDown() }
         link.worker.shutdown()

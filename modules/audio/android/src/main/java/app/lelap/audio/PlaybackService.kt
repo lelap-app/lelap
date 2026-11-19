@@ -297,13 +297,11 @@ class PlaybackService : MediaLibraryService() {
       .setWakeMode(C.WAKE_MODE_NETWORK)
       .build()
 
-    mixer = VolumeMixer { player.volume = it }
+    // A receiver takes the timer's fade and the bedtime routine's quieter volume too (M125).
+    mixer = VolumeMixer(applyReceiver = { remote?.setFade(it) }) { player.volume = it }
     sleepTimer = SleepTimer(
       clock = SystemClock::elapsedRealtime,
-      onVolume = {
-        mixer.fade = it
-        remote?.setFade(it)
-      },
+      onVolume = { mixer.fade = it },
       onFinished = {
         // The timer's stop goes into the history; the app offers going back from it (M86, M138).
         placeNow()?.let { (bookId, at) -> record(bookId, PlaybackHistory.SLEEP, PlaybackHistory.SLEEP_TIMER, at, at) }
@@ -1535,6 +1533,8 @@ class PlaybackService : MediaLibraryService() {
     castStart = started
     // Loaded before the swap, so the session never shows an empty player in between.
     r.setBook(items, timelineDurations(), index, position, speed, play = true, outroAtMs = remoteOutroAt())
+    // A bedtime routine or a fade under way carries over to the receiver.
+    r.setFade(mixer.receiverLevel)
     session.player = SkippingPlayer(r)
     publishExtras()
     return started

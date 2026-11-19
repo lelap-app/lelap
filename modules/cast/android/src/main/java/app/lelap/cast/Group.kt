@@ -42,6 +42,11 @@ class GroupSync(private val clock: () -> Long) {
     followers.remove(follower)
   }
 
+  /** A follower joined while the group plays (M125): it gets a moment to load before it is judged. */
+  fun joined(follower: Int) {
+    followers.getOrPut(follower, ::Follower).actedAt = clock()
+  }
+
   /** The whole group was just told to play, pause, seek or load: statuses lag it for a moment. */
   fun commanded() {
     holdUntil = clock() + COOLDOWN_MS
@@ -118,6 +123,8 @@ class GroupRenderer(
   clock: () -> Long,
   /** For `adb logcat -s LelapCast`: numbers only. */
   private val log: (String) -> Unit = { Log.i(TAG, it) },
+  /** A follower left by itself (lost, failed, silent), not through [remove]. */
+  private val onLeft: (Renderer) -> Unit = {},
 ) : Renderer {
   private class Member(val number: Int, val renderer: Renderer) {
     val thread: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "lelap-cast-group").apply { isDaemon = true } }
@@ -127,11 +134,25 @@ class GroupRenderer(
 
     /** Polls in a row it gave no status for. */
     var silent = 0
+
+    /** Still loading after it joined: its polls wait behind the load, which isn't silence. */
+    @Volatile
+    var catchingUp = false
   }
+
+  /**
+   * How far the receivers' volumes are lowered by a fade or the bedtime routine, 1 for not (M125).
+   * A speaker that joins is lowered as much; one taken out gets its volume back before it stops.
+   */
+  @Volatile
+  var scale: Float = 1f
 
   private val members = CopyOnWriteArrayList(followers.mapIndexed { i, r -> Member(i, r) })
   private val sync = GroupSync(clock)
   private var leaderVolume: Float? = null
+
+  // Numbers are never reused, so GroupSync never mixes up a speaker that left with one that joined.
+  private var nextNumber = followers.size
 
   /** The speakers still in the group besides the first. */
   val followerCount: Int
@@ -143,9 +164,53 @@ class GroupRenderer(
     leave(member, "lost")
   }
 
-  private fun leave(member: Member, why: String) {
+  /**
+   * A speaker joins the group as it plays (M125). [catchUp] (a load at the leader's place) runs on
+   * its thread first; the future fails when it did, and the speaker then leaves. Call it on the
+   * thread the leader is called on.
+   */
+  fun add(renderer: Renderer, catchUp: ((Renderer) -> Unit)?): Future<Unit>? {
+    val member = Member(nextNumber++, renderer)
+    synchronized(sync) { sync.joined(member.number) }
+    // In the group before the load is queued, so nothing the group tells it overtakes the load.
+    member.catchingUp = true
+    members += member
+    return on(member) { r ->
+      try {
+        catchUp?.invoke(r)
+        // Lowered like the others while a fade or the bedtime routine holds them down.
+        val lowered = scale
+        if (lowered < 1f) {
+          r.status().volume?.let { v ->
+            r.setVolume(v * lowered)
+            member.volume = v * lowered
+          }
+        }
+      } catch (e: Exception) {
+        leave(member, "failed")
+        throw e
+      } finally {
+        member.catchingUp = false
+      }
+    }
+  }
+
+  /** The listener took a follower out of the group: it stops, and the rest play on. */
+  fun remove(renderer: Renderer) {
+    val member = members.firstOrNull { it.renderer === renderer } ?: return
+    // It leaves at the volume it had before a fade or the bedtime routine lowered it.
+    val lowered = scale
+    val volume = member.volume
+    if (lowered in 0.01f..0.999f && volume != null) {
+      on(member) { r -> r.setVolume((volume / lowered).coerceIn(0f, 1f)) }
+    }
+    leave(member, "removed", notify = false)
+  }
+
+  private fun leave(member: Member, why: String, notify: Boolean = true) {
     if (!members.remove(member)) return
     synchronized(sync) { sync.forget(member.number) }
+    if (notify) onLeft(member.renderer)
     log("group: a speaker left ($why), ${members.size + 1} left")
     // Runs after whatever it was still doing; a call stuck on the network ends with the socket.
     runCatching { member.thread.execute { runCatching { member.renderer.close() } } }
@@ -210,7 +275,7 @@ class GroupRenderer(
         null
       }
       if (s?.volume != null) m.volume = s.volume
-      m.silent = if (s == null) m.silent + 1 else 0
+      m.silent = if (s != null || m.catchingUp) 0 else m.silent + 1
       m.number to s
     }
     for (m in list) if (m.silent >= SILENT_POLLS) leave(m, "silent")
