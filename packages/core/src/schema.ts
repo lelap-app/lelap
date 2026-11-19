@@ -661,6 +661,30 @@ export const listeningLog = sqliteTable(
 );
 
 /**
+ * What moved the place in a book (M138): plays, pauses, skips, seeks, chapter jumps and the sleep
+ * timer, with where each came from. Kept on this device only and never synced: it is about the
+ * last minutes here. The last 50 per book, none older than 30 days (`history.ts`).
+ */
+export const playbackHistory = sqliteTable(
+  'playback_history',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    profileId: text('profile_id')
+      .notNull()
+      .references(() => profiles.id),
+    bookId: text('book_id')
+      .notNull()
+      .references(() => books.id, { onDelete: 'cascade' }),
+    action: text('action').notNull(),
+    source: text('source').notNull(),
+    at: integer('at').notNull(),
+    fromMs: integer('from_ms').notNull(),
+    toMs: integer('to_ms').notNull(),
+  },
+  (t) => [index('playback_history_book_idx').on(t.profileId, t.bookId, t.at)],
+);
+
+/**
  * Scrobble events waiting for an add-on, one row per event and add-on, so offline listening is
  * reported later with its own timestamps. Kept on this device; never synced.
  */

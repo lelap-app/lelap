@@ -1,11 +1,19 @@
-import { sleepStopChoices } from '@lelap/core';
-import { useEffect, useState } from 'react';
+import {
+  bookHistory,
+  deviceValue,
+  setDeviceValue,
+  sleepStopChoices,
+  sleepStopOf,
+} from '@lelap/core';
+import { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { db } from '../db';
+import { useHistoryVersion } from '../history';
 import { t } from '../i18n';
 import { formatTimeOfDay } from '../format';
-import * as audio from '../platform/audio';
 import { seekToBookPosition } from '../player';
+import { profileId } from '../profile';
 import { TextButton } from './TextButton';
 
 const clockOf = (ms: number): string => {
@@ -13,8 +21,11 @@ const clockOf = (ms: number): string => {
   return formatTimeOfDay(d.getHours() * 60 + d.getMinutes());
 };
 
+/** The stop the listener answered with “Not now”, so it isn't offered again. */
+const DISMISSED = 'sleepStopDismissed';
+
 /**
- * After the sleep timer stopped playback (M86): back to when the listener last used the player,
+ * After the sleep timer stopped playback (M86), read from the playback history (M138): back to when the listener last used the player,
  * or a few minutes back. Lelap can't know when they fell asleep, so it never says; it only knows
  * their last touch. Nothing moves until they pick, and the offer goes once they play on.
  */
@@ -29,26 +40,23 @@ export function SleepStopBanner({
   playing: boolean;
   className?: string;
 }) {
-  const [stop, setStop] = useState<audio.SleepPlace | null>(null);
-
-  // The service writes the stop when the timer pauses playback, so look again at every pause.
-  useEffect(() => {
-    let live = true;
-    audio
-      .getSleepPlace()
-      .then((s) => live && setStop(s))
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, [bookId, playing]);
+  // The stop arrives with the history, also when the app wakes after the night; `version` and
+  // `playing` are the signals to read it again.
+  const version = useHistoryVersion();
+  const [dismissed, setDismissed] = useState(() => deviceValue(db, DISMISSED));
+  const stop = useMemo(
+    () => sleepStopOf(bookHistory(db, profileId, bookId, Date.now())),
+    [bookId, playing, version],
+  );
+  const key = stop ? `${profileId}:${stop.bookId}:${stop.stoppedAt}` : null;
 
   const choices = sleepStopChoices(stop, bookId, positionMs, Date.now());
-  if (stop === null || choices === null) return null;
+  if (stop === null || choices === null || key === dismissed) return null;
 
   const close = () => {
-    setStop(null);
-    void audio.clearSleepPlace();
+    if (!key) return;
+    setDismissed(key);
+    setDeviceValue(db, DISMISSED, key, Date.now());
   };
   const goTo = (bookPositionMs: number) => {
     void seekToBookPosition(bookId, bookPositionMs);

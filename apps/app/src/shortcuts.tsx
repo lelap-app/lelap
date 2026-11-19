@@ -21,6 +21,7 @@ import { UndoBar, type UndoNotice } from './components/UndoBar';
 import { db, newId } from './db';
 import { formatClock } from './format';
 import { t } from './i18n';
+import * as history from './history';
 import * as audio from './platform/audio';
 import { seekToBookPosition, useLibrary } from './player';
 import { profileId } from './profile';
@@ -143,7 +144,7 @@ async function stepAudioSpeed(faster: boolean): Promise<void> {
 
 async function playPause(): Promise<void> {
   const state = await audio.getState();
-  await (state.playing ? audio.pause() : audio.play());
+  await history.playPause(state.playing);
 }
 
 /** The book playing and where in it, on the whole-book timeline. */
@@ -160,7 +161,7 @@ async function jumpChapter(forward: boolean): Promise<void> {
   const place = await playingPlace();
   if (!place) return;
   const to = chapterJump(place.detail.chapters, place.position, forward);
-  if (to !== null) await seekToBookPosition(place.detail.book.id, to);
+  if (to !== null) await seekToBookPosition(place.detail.book.id, to, 'chapter');
 }
 
 /** Adds a bookmark where the book is; the notice it returns can take it back. */
@@ -222,10 +223,10 @@ export function ShortcutsHost() {
           void playPause();
           break;
         case 'back':
-          void audio.skip(false);
+          void history.skip(false);
           break;
         case 'forward':
-          void audio.skip(true);
+          void history.skip(true);
           break;
         case 'previousChapter':
         case 'nextChapter':

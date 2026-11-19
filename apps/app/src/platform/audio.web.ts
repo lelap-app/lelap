@@ -9,7 +9,7 @@ import type {
   PlayerState,
   QueueList,
   ServiceAccounting,
-  SleepPlace,
+  HistoryItem,
   SleepTimerMode,
 } from '@lelap/audio';
 import {
@@ -46,7 +46,7 @@ export type {
   PlayerState,
   QueueList,
   ServiceAccounting,
-  SleepPlace,
+  HistoryItem,
   SleepTimerMode,
 };
 
@@ -64,6 +64,9 @@ let element: HTMLAudioElement | null = null;
 let book: BookLoad | null = null;
 let queue: BookLoad[] = [];
 let finished: FinishedItem[] = [];
+// The playback history's actions from the browser's media keys and the sleep timer (M138); the
+// app logs its own taps.
+let history: HistoryItem[] = [];
 let index = -1;
 let ended = false;
 let buffering = false;
@@ -165,6 +168,7 @@ let objectUrl: string | null = null;
 const listeners = new Set<(state: PlayerState) => void>();
 // The diagnostics log's player events (M47), kept like the Android service keeps its own.
 const DIAGNOSTICS_LIMIT = 200;
+const HISTORY_LIMIT = 200;
 let diagnosticsOn = false;
 let diagnostics: PlayerDiagnostic[] = [];
 let ticker: ReturnType<typeof setInterval> | null = null;
@@ -180,6 +184,30 @@ const playing = () => !!element && !element.paused && !element.ended;
 
 function offsetOf(i: number): number {
   return (book?.files ?? []).slice(0, i).reduce((sum, f) => sum + f.durationMs, 0);
+}
+
+const bookPlace = () => offsetOf(index) + positionMs();
+
+function keep(action: string, source: string, fromMs: number, toMs: number): void {
+  if (!book) return;
+  history.push({ bookId: book.bookId, action, source, at: Date.now(), fromMs, toMs });
+  if (history.length > HISTORY_LIMIT) history = history.slice(-HISTORY_LIMIT);
+}
+
+/** The sleep timer stopped playback here, for “Back to when you last used it” (M86, M138). */
+function keepSleepStop(atMs = bookPlace()): void {
+  keep('sleep', 'timer', atMs, atMs);
+}
+
+/** A media key's action, kept in the history with the place before and after it. */
+function byKey(action: string, run: () => Promise<void>): () => void {
+  return () => {
+    const bookId = book?.bookId;
+    const from = bookPlace();
+    void run().then(() => {
+      if (book && book.bookId === bookId) keep(action, 'keys', from, bookPlace());
+    });
+  };
 }
 
 const durations = () => (book?.files ?? []).map((f) => f.durationMs);
@@ -238,6 +266,7 @@ function stopAtBoundary(): void {
   clearSleepTimer();
   audio.pause();
   if (target.index === index && !target.atFileEnd) audio.currentTime = target.positionMs / 1000;
+  keepSleepStop(offsetOf(target.index) + target.positionMs);
   emit();
 }
 
@@ -313,6 +342,7 @@ function tick(): void {
     if (sleepRemainingMs === 0) {
       element?.pause();
       clearSleepTimer();
+      keepSleepStop();
     }
   }
   const left = untilBoundary();
@@ -412,6 +442,7 @@ function player(): HTMLAudioElement {
       if (sleepsHere) {
         // The chapter ended with its file: stop, with the place at the start of the next one.
         clearSleepTimer();
+        keepSleepStop(offsetOf(index + 1));
         void setPart(index + 1, 0, false);
       } else void setPart(index + 1, 0, true);
     } else {
@@ -423,6 +454,7 @@ function player(): HTMLAudioElement {
       const next = book?.handsOver && !sleepsHere ? queue.shift() : undefined;
       if (sleepsHere) {
         clearSleepTimer();
+        keepSleepStop(offsetOf(book?.files.length ?? 0));
       }
       if (next) {
         void load(next, true);
@@ -787,13 +819,11 @@ export async function setBedtime(bedtime: Bedtime | null): Promise<void> {
   void bedtime;
 }
 
-// Back to where you last used the player after the timer stopped (M86): Android only, like the
-// bedtime routine.
-export async function getSleepPlace(): Promise<SleepPlace | null> {
-  return null;
+export async function takeHistory(): Promise<HistoryItem[]> {
+  const list = history;
+  history = [];
+  return list;
 }
-
-export async function clearSleepPlace(): Promise<void> {}
 
 export async function takeFinished(): Promise<FinishedItem[]> {
   const list = finished;
@@ -838,13 +868,25 @@ export function addStateListener(listener: (state: PlayerState) => void): Subscr
 function setUpMediaSession(): void {
   if (!('mediaSession' in navigator)) return;
   const session = navigator.mediaSession;
-  session.setActionHandler('play', () => void play());
-  session.setActionHandler('pause', () => void pause());
+  session.setActionHandler('play', byKey('play', play));
+  session.setActionHandler('pause', byKey('pause', pause));
   // ⏮ and ⏭ skip by the interval, as on Android's lock screen, also while a list plays.
-  session.setActionHandler('previoustrack', () => void skip(false));
-  session.setActionHandler('nexttrack', () => void skip(true));
-  session.setActionHandler('seekbackward', () => void skip(false));
-  session.setActionHandler('seekforward', () => void skip(true));
+  session.setActionHandler(
+    'previoustrack',
+    byKey('skip', () => skip(false)),
+  );
+  session.setActionHandler(
+    'nexttrack',
+    byKey('skip', () => skip(true)),
+  );
+  session.setActionHandler(
+    'seekbackward',
+    byKey('skip', () => skip(false)),
+  );
+  session.setActionHandler(
+    'seekforward',
+    byKey('skip', () => skip(true)),
+  );
   // The browser's media overlay and the system's media controls can drag within the chapter (the
   // whole book without chapters) and stop.
   const optional: [MediaSessionAction, MediaSessionActionHandler][] = [
@@ -854,12 +896,17 @@ function setUpMediaSession(): void {
         if (details.seekTime !== undefined) {
           const ms = Math.max(0, details.seekTime) * 1000;
           // Without the book's durations the bar is the file, and so is the seek.
-          if (offsetOf(book?.files.length ?? 0) > 0) void seekToBook(shownSpanStart + ms);
-          else void seekTo(index, ms);
+          const go = () =>
+            offsetOf(book?.files.length ?? 0) > 0
+              ? seekToBook(shownSpanStart + ms)
+              : seekTo(index, ms);
+          // A drag sends many fast seeks; only the one where it lets go is kept in the history.
+          if (details.fastSeek) void go();
+          else byKey('seek', go)();
         }
       },
     ],
-    ['stop', () => void pause()],
+    ['stop', byKey('pause', pause)],
   ];
   for (const [action, handler] of optional) {
     try {

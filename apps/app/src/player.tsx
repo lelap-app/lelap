@@ -55,6 +55,7 @@ import { savedCatalogCover } from './catalogCovers';
 import { coverUri } from './components/BookCover';
 import { db, newId } from './db';
 import { logCaught } from './diagnostics';
+import { foldHistory, logged, pruneOldHistory } from './history';
 import { subscribeLanguage } from './i18n';
 import { pickEpisodeFile } from './episodeFiles';
 import { chapterImagesRead } from './podcasting';
@@ -450,7 +451,7 @@ async function load(
     force = true;
   }
   if (!force && current.bookId === bookId && current.partIndex >= 0) {
-    if (autoplay) await audio.play();
+    if (autoplay) await logged('play', audio.play);
     return;
   }
   if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
@@ -470,6 +471,8 @@ async function load(
   }
   setDeviceValue(db, PLAYER_PROFILE, profileId, Date.now());
   await audio.load(book, autoplay);
+  // The listener's Play from the library, for the history (M138).
+  if (autoplay) await logged('play', async () => {}, undefined, bookId);
 }
 
 /**
@@ -752,7 +755,8 @@ export function switchProfile(id: string): Promise<void> {
     // The last listener's sleep timer, routine volume and where their timer stopped are theirs.
     await audio.cancelSleepTimer().catch(() => {});
     await applyBedtime(getSettings(db, id));
-    await audio.clearSleepPlace().catch(() => {});
+    // What the last listener did away from the app is theirs.
+    await foldHistory(playerProfile());
     const next = continueListening(db, id);
     // The lock screen follows the listener: their last book, or nothing. A book that can't load
     // here empties the player too, so headphones can't resume the last listener's book.
@@ -766,19 +770,31 @@ export function switchProfile(id: string): Promise<void> {
   });
 }
 
-/** Jumps to a place on the whole-book timeline. */
-export async function seekToBookPosition(bookId: string, bookPositionMs: number): Promise<void> {
+/**
+ * Jumps to a place on the whole-book timeline at the listener's tap, logged in the history as a
+ * seek or a chapter jump (M138).
+ */
+export async function seekToBookPosition(
+  bookId: string,
+  bookPositionMs: number,
+  action: 'seek' | 'chapter' = 'seek',
+): Promise<void> {
   const detail = getBook(db, profileId, bookId);
   if (!detail) return;
   const target = toFilePosition(detail.files, bookPositionMs);
-  await audio.seekTo(target.index, target.positionMs);
+  await logged(
+    action,
+    () => audio.seekTo(target.index, target.positionMs),
+    () => Math.max(0, bookPositionMs),
+    bookId,
+  );
 }
 
 /** Plays a book from a place on its timeline: a bookmark in another book, or a shared place (M85). */
 export async function playAt(bookId: string, bookPositionMs: number): Promise<void> {
   await playBook(bookId, false);
   await seekToBookPosition(bookId, bookPositionMs);
-  await audio.play();
+  await logged('play', audio.play, undefined, bookId);
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
@@ -804,6 +820,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       await folded;
       await foldServiceAccounting(playerProfile());
       await foldFinished();
+      pruneOldHistory();
+      await foldHistory(playerProfile());
       await audio.setSettings(getSettings(db, profileId));
       await applyBedtime(getSettings(db, profileId));
       const now = await audio.getState();
@@ -828,6 +846,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       void foldJournal()
         .then(() => foldServiceAccounting(playerProfile()))
         .then(foldFinished)
+        .then(() => foldHistory(playerProfile()))
         .catch(logCaught)
         .finally(refresh);
       void flushScrobbles();
@@ -870,6 +889,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
     listened.current = 0;
   }, []);
+  // What the player kept away from the app shows in the history as it happens (M138); on Android
+  // the service hands it over from its preferences, so a look per update is cheap.
+  useEffect(() => {
+    if (state.bookId) void foldHistory(playerProfile());
+  }, [state]);
+
   useEffect(() => {
     trackPlayerState(state, playerProfile());
     trackServerPlaces(state, playerProfile());

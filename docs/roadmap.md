@@ -144,7 +144,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M134 Better sound 4](milestones/m134.md)            | Planned     |             | The sound effects on cast receivers through a stream the phone renders; skip silence on the web for variable-bitrate MP3, and MP3's encoder delay per browser |
 | [M135 OPDS 2](milestones/m135.md)                    | Planned     |             | What M128 left: Digest logins for audio, OPDS Progression places, a feed's summary, language and series                                                       |
 | [M136 Lecture transcripts](milestones/m136.md)       | Planned     |             | Yale's transcripts for Open lectures on the transcript screen, through a stream part's transcripts                                                            |
-| [M138 Playback history](milestones/m138.md)          | Planned     |             | A short log per book of plays, pauses, skips, seeks, chapter jumps and sleep timer stops, so one tap undoes an accidental jump                                |
+| [M138 Playback history](milestones/m138.md)          | Done        |          13 | A short log per book of plays, pauses, skips, seeks, chapter jumps and sleep timer stops, so one tap undoes an accidental jump                                |
 
 <!-- milestones:end -->
 
@@ -162,6 +162,11 @@ when it is planned.
   field and forbid lasting copies (so no Google fields in downloads or sync), it has no narrators or
   lengths, and its coverage of Danish editions is unknown until a key exists. Apple's iTunes Search
   API is out unless a store link is shown beside its data. M137 is left unused.
+- **Playback history, finer points (after M138):** while casting, log a seek's target rather than
+  the receiver's position, which may lag; log the app's skips at the place the service lands on
+  across file ends rather than the place plus the interval; log taps for the profile the player
+  plays for when it differs from the one on screen; don't offer “Go back” in the app after the
+  notification's own Back.
 - **Wear OS:** control playback from the watch (tile and app: play, pause, skip, the sleep timer),
   and maybe play downloads on it. Was M89; set aside on 2026-11-18 until there is a watch to test
   on.

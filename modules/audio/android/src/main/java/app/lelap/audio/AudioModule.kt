@@ -242,24 +242,24 @@ class AudioModule : Module() {
       BedtimeAlarm.schedule(context)
     }
 
-    // Same process: where the timer last stopped playback, and where the listener last used the player.
-    AsyncFunction("getSleepPlace") {
+    // Same process: the actions made away from the app since it last looked (M138).
+    AsyncFunction("takeHistory") {
       val prefs = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE)
-      SleepPlace.decode(prefs.getString(Commands.PREF_SLEEP_PLACE, null))?.let {
+      // The app looks with every player update, so the empty case writes nothing.
+      val list = PlaybackHistory.decode(prefs.getString(Commands.PREF_HISTORY, null))
+      if (prefs.contains(Commands.PREF_HISTORY)) prefs.edit().remove(Commands.PREF_HISTORY).apply()
+      list.map {
         mapOf(
           "bookId" to it.bookId,
-          "stoppedMs" to it.stoppedMs.toDouble(),
-          "stoppedAt" to it.stoppedAt.toDouble(),
-          "usedMs" to it.usedMs?.toDouble(),
-          "usedAt" to it.usedAt?.toDouble(),
+          "action" to it.action,
+          "source" to it.source,
+          "at" to it.at.toDouble(),
+          "fromMs" to it.fromMs.toDouble(),
+          "toMs" to it.toMs.toDouble(),
         )
       }
-    }
-
-    AsyncFunction("clearSleepPlace") {
-      context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE)
-        .edit().remove(Commands.PREF_SLEEP_PLACE).apply()
-    }
+      // On the main thread, where the service appends, so no action lands between read and clear.
+    }.runOnQueue(Queues.MAIN)
 
     // Same process as the service: the log is read and cleared straight from its preferences.
     AsyncFunction("takeFinished") {
@@ -423,6 +423,8 @@ class AudioModule : Module() {
     controllerFuture?.let { return it }
     val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
     val future = MediaController.Builder(context, token)
+      // The app logs its own taps in the history with what they were; the service skips them.
+      .setConnectionHints(Bundle().apply { putBoolean(Commands.HINT_APP, true) })
       .setListener(object : MediaController.Listener {
         override fun onExtrasChanged(controller: MediaController, extras: Bundle) = emit()
 

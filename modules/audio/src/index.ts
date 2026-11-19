@@ -205,8 +205,7 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   settleAccounting(): Promise<void>;
   setCarLibrary(json: string): Promise<void>;
   setBedtime(json: string | null): Promise<void>;
-  getSleepPlace(): Promise<SleepPlace | null>;
-  clearSleepPlace(): Promise<void>;
+  takeHistory(): Promise<HistoryItem[]>;
   setDiagnostics(on: boolean): Promise<void>;
   takeDiagnostics(): Promise<PlayerDiagnostic[]>;
   getState(): Promise<PlayerState>;
@@ -433,26 +432,22 @@ export function setBedtime(bedtime: Bedtime | null): Promise<void> {
 }
 
 /**
- * Where and when the sleep timer stopped playback (M86), and where and when the listener last used
- * the player before that: the last moment they surely were awake. Positions are on the whole-book
- * timeline; times are wall-clock.
+ * An action for the playback history (M138) made away from the app: the notification, lock
+ * screen, headphones, car, watch, widget, a shake or the sleep timer's stop. Names as in
+ * `HistoryAction` and `HistorySource` of `@lelap/core`; places on the whole-book timeline.
  */
-export type SleepPlace = {
+export type HistoryItem = {
   bookId: string;
-  stoppedMs: number;
-  stoppedAt: number;
-  /** Null when they didn't touch the player in this book before the stop. */
-  usedMs: number | null;
-  usedAt: number | null;
+  action: string;
+  source: string;
+  at: number;
+  fromMs: number;
+  toMs: number;
 };
 
-/** The place the timer last left, kept until the app clears it. */
-export function getSleepPlace(): Promise<SleepPlace | null> {
-  return native.getSleepPlace();
-}
-
-export function clearSleepPlace(): Promise<void> {
-  return native.clearSleepPlace();
+/** The actions the service kept since the app last looked, also with the app closed. */
+export function takeHistory(): Promise<HistoryItem[]> {
+  return native.takeHistory();
 }
 
 /**
