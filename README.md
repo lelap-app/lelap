@@ -24,8 +24,11 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Opens the library in three groups: in progress, not started and finished.
 - Shows your listening: time today, this week and this year, streaks, finished books and a year
   in sound to share as an image.
-- Organises with tags, playlists, smart lists and one Up Next queue. Hides what you don't want in
-  the library, and points out files that look like music.
+- Organises with tags, playlists, smart lists and one Up Next queue, and plays a list from start
+  to end. Hides what you don't want in the library, and points out files that look like music.
+- Lists each series in reading order, with the numbers you're missing and the next book at the end
+  of one.
+- Rates books in half stars, and marks new podcast episodes.
 - Syncs progress between devices with a pairing code. No account, end-to-end encrypted.
 - Plays from your own files and folders; your own WebDAV, S3-compatible, Jellyfin, Emby, Plex,
   Navidrome (or other Subsonic) or Audiobookshelf server; SMB and SFTP shares on Android; and
@@ -33,8 +36,8 @@ and on the web from one codebase, and every server piece can be self-hosted with
   write yourself.
 - Takes covers from the tags or from an image beside the audio, such as `cover.jpg`.
 - Shows Hardcover's trending books and your Hardcover lists as catalog rows, with your own token,
-  and keeps your Hardcover shelves and a gPodder server up to date as you listen. Both are offered
-  in Settings → Add-ons.
+  and keeps your Hardcover shelves and ratings and a gPodder server up to date as you listen. Both
+  are offered in Settings → Add-ons.
 - Downloads to an SD card if you like (Android), and lists your own copy first on a book's
   catalog page.
 - Finds chapters at the long silences of a book without any (Android), and skips a podcast's
@@ -45,6 +48,8 @@ and on the web from one codebase, and every server piece can be self-hosted with
   headphones and sleep timer controlling the speaker.
 - Has a car mode with a large cover and big buttons, upright or sideways in a holder, and works in
   Android Auto with the covers on your phone.
+- Comes in five themes (Night, Dusk, Day, Sepia and High contrast) with six accent colours, or
+  follows the phone's light or dark setting.
 - Works with TalkBack and at the largest text size, and uses the width of tablets and laptops.
 - Profiles for a household, and the app in English and Bahasa Melayu.
 

@@ -2,6 +2,124 @@
 
 What changed in each Lelap release, newest first.
 
+## 0.1.0-beta.10 (2026-11-19)
+
+This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t
+bring it to older APKs. The app offers the APK as usual. At first start the app’s database notes
+when each podcast episode arrived and gets a “Play finished ones too” setting for lists. No new
+permissions. Android Auto now gets read access only to the covers in the lists it asked for,
+instead of the cover provider being open to every app.
+
+### New
+
+- Themes, in Settings → Theme: Night (the default), Dusk, Day, Sepia, High contrast, and Like the
+  phone, which follows the phone’s light or dark setting. Settings → Accent picks Amber, Teal,
+  Rose, Blue, Green or Violet. Both are kept per profile. High contrast keeps text at 7:1 or more.
+  A theme can be saved as a small file and opened on another device; a file with anything besides
+  a name and its colours, or with colours that are too hard to read, is refused with the reasons.
+  (#199)
+- Series: Library → Series lists each series with its author, how many books you have, how many
+  you finished and which numbers are missing. A series page shows the books in reading order, and
+  each missing number has Look for it, which searches your add-ons’ catalogs. You can change the
+  order, and it syncs. The player links to the book’s series and, at the end of a book, offers the
+  next one. (#196)
+- Series also come from the files’ own tags on Android, from an add-on’s details for streamed
+  books and from Match with catalog…, as well as from Audiobookshelf. The next scan reads the
+  first file of each book once more for this. (#196)
+- Play a list from start to end: Play list starts where the list stands and plays item after
+  item, books and episodes alike, also with the app closed. Tapping an item plays the list from
+  there. The player says which list it plays from and what comes next, with Previous and Next in
+  list. Up Next still comes first. (#204)
+- While a list plays, the notification, the lock screen and Android Auto have Next in list. In car
+  mode, Next chapter becomes Next in list in a book’s last chapter. A list can also play its
+  finished items again from their start (“Play finished ones too”). (#204)
+- Ratings: stars on a book’s page and Rate… in its menu, in half stars. Ratings are kept per
+  profile, sync to your other devices and go to the scrobbling add-ons you set up, such as
+  Hardcover for a book already on one of your Hardcover shelves. The row says which add-ons get it.
+  (#203)
+- “New” on podcasts: the Podcasts tab shows how many episodes arrived since you last opened a
+  show, and the show’s page marks them. Opening the page clears it. Counted per device. (#202)
+- A podcast’s place (`podcast:location`) shows under its author as a link that opens your map app,
+  or OpenStreetMap in a browser; an episode with its own place shows it too. Shows that take small
+  payments as you listen (`podcast:value`) get a card that says through what and to whom. Lelap
+  draws no map and sends no payments. (#198)
+- After a Goodreads import, Lelap can look up your to-read books it doesn’t have in your search
+  catalogs, if you say yes; those it finds make a Want to read · Goodreads row on Home. (#203)
+- Car mode turns sideways on a phone: cover and title on the left, the buttons in a column on the
+  right. The rest of the app stays upright, and the phone’s auto-rotate setting still applies. At
+  night, car mode’s background takes a faint tint from the cover. (#194)
+
+### Improved
+
+- The Hardcover and gPodder set-up pages have the steps on the page, and the link they make is
+  copied with a tap. Opened from the app, the page hands the link straight back. Links made before
+  keep working. (#203)
+- The Open Library reading log puts a book you began before setting it up on Currently reading.
+  gPodder and the reading log only get the kinds of events they use. (#203)
+- On Android, finishing a book with the app closed now tells scrobbling add-ons where that
+  listening session began, as the app already did while open. (#203)
+- Catalog tiles show the rating their item’s page last showed. Hardcover lists audiobook
+  editions, and more editions get their narrators, length and cover filled in. (#203)
+- The web app’s position bar zooms with Z while it has focus; ? lists the key. (#202)
+- Stats and the year overview follow the app’s theme. (#199)
+- The first start names the free-book add-ons this build installed, instead of always LibriVox.
+  (#192)
+
+### Fixed
+
+- Headphone battery: a listening session’s drain is counted once, also when the app restarts in
+  the middle of it. (#194)
+- LibriVox no longer repeats books when you page through a list after an uneven page. (#201)
+- Pasting a bare Hardcover or gPodder add-on link opens its set-up page instead of installing an
+  add-on that can’t work yet. (#201)
+- Covers that a server sends without an image type now show in the web app. (#202)
+- A saved cover that went missing falls back to the catalog’s cover instead of the title’s
+  letter, and is saved again. (#202)
+- Subsonic and Plex chapters that showed as “001 …” get their track titles on the next scan.
+  (#202)
+- Updating no longer brings back the welcome for an install whose only traces were add-ons, a
+  sync group or listening history. (#192)
+
+### Self-hosting and add-on developers
+
+- Sync: no D1 migration, and the sync Worker hasn’t changed. Series order and ratings travel as
+  new kinds of sync operations, which older app versions skip. (#196, #203)
+- The catalog takes `APP_ORIGINS`: web builds of the app that the Hardcover and gPodder set-up
+  pages may send the listener back to. In Docker it comes from `WEB_ORIGIN`. (#203)
+- The proxy’s `/cover` recognises JPEG, PNG, GIF, WebP and AVIF by their first bytes, up to 10 MB,
+  and refuses SVG, HTML and audio whatever their type says. (#202)
+- Release builds take `LELAP_CONTACT` (a repository variable) for the User-Agent that Open Library
+  sees. (#203)
+- The hosted catalog’s LibriVox, Hardcover and gPodder add-ons pass the add-on check; Hardcover and
+  gPodder answer `/health` before they are set up. (#201)
+- Coming with the next SDK release (0.6, not on npm yet; `@lelap/sdk` 0.5.0 is the current one):
+  protocol revision 10, with `events` on the `scrobble` resource, `rate` without a rating to take
+  one back, `resumed` only to an add-on that heard of the book, and `sessionStartMs` on every
+  `finish` that ends a session; a larger configure page (`url` and `choices` fields, page text, a
+  second page, a manifest per listener); and `lelap-sdk check`, which checks an add-on the way
+  the app reads it, with `--json` and exit codes for CI. Until then the check runs from the
+  repository. (#200, #203)
+- The app already speaks revision 10: the web app since these changes reached `main`, and the
+  Android app with this beta. (#203)
+
+### Known issues
+
+- Themes on Android: the colours now come from variables set at the app’s root. The emulator test
+  passed, but the themes haven’t been looked at on a phone. (#199)
+- Android Auto covers now rely on the access each car app gets per list. Covers in Android Auto
+  haven’t been tried in a car with this change. (#194)
+- Playing a list with the app closed, in the car and while casting is untested. (#204)
+- Reading series from the files’ tags is untested on a phone. (#196)
+- Ratings sent to Hardcover, and Hardcover’s audiobook editions, haven’t been tried against the
+  live service. (#203)
+- Car mode sideways, and the tap on a podcast’s place opening a map app, are untested on a phone.
+  (#194, #198)
+- SMB requires signing for logged-in sessions. A Samba server that maps a login to its guest
+  account may stop working. (#191)
+- Shared place links open in the web app; opening them in the Android app isn’t switched on yet.
+  (#187)
+- Some new Bahasa Melayu lines haven’t been checked by a native speaker.
+
 ## 0.1.0-beta.9 (2026-11-18)
 
 This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t
