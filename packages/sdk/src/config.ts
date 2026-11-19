@@ -452,7 +452,7 @@ export function configuredPage(args: {
   const open = returnUrl(returnTo ?? APP_RETURN, manifestUrl);
   return page(
     `${name} is ready`,
-    `<h1>${escape(name)} is ready</h1><p><a class="button" href="${escape(open)}">Open in the app</a></p><p>On the phone with the app, that adds it in one tap. Anywhere else, such as the web app, copy this address and paste it under Settings → Add-ons:</p><button type="button" class="copy" id="link" aria-label="Manifest URL"><code>${escape(manifestUrl)}</code></button><p class="copy-note" id="note" aria-live="polite">Tap the address to copy it.</p><p class="muted">Keep the address to yourself: it holds your settings for this add-on.</p>`,
+    `<h1>${escape(name)} is ready</h1><p><a class="button" href="${escape(open)}">Open in the app</a></p><p>On the phone with the app, that adds it in one tap. Anywhere else, such as the web app, copy this address and paste it under Settings → Library and sources → Add-ons:</p><button type="button" class="copy" id="link" aria-label="Manifest URL"><code>${escape(manifestUrl)}</code></button><p class="copy-note" id="note" aria-live="polite">Tap the address to copy it.</p><p class="muted">Keep the address to yourself: it holds your settings for this add-on.</p>`,
     host,
     COPY_SCRIPT,
     nonce,
