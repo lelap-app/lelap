@@ -142,6 +142,8 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M132 Open lectures](milestones/m132.md)             | Planned     |             | Complete Open Yale Courses as books, one lecture per part, with Yale's credit, licence and transcripts                                                        |
 | [M134 Better sound 4](milestones/m134.md)            | Planned     |             | The sound effects on cast receivers through a stream the phone renders; skip silence on the web for variable-bitrate MP3, and MP3's encoder delay per browser |
 | [M135 OPDS 2](milestones/m135.md)                    | Planned     |             | What M128 left: Digest logins for audio, OPDS Progression places, a feed's summary, language and series                                                       |
+| [M137 Metadata 2](milestones/m137.md)                | Planned     |             | The Catalog add-on fills missing descriptions, covers, genres and release dates from Google Books, with credit per field                                      |
+| [M138 Playback history](milestones/m138.md)          | Planned     |             | A short log per book of plays, pauses, skips, seeks, chapter jumps and sleep timer stops, so one tap undoes an accidental jump                                |
 
 <!-- milestones:end -->
 
@@ -192,6 +194,12 @@ when it is planned.
   once BookWyrm ships a client API with its own sign-in
   ([issue #785](https://github.com/bookwyrm-social/bookwyrm/issues/785)). Until then the add-on
   only shows shelves: no password, no posting of the site's forms.
+- **A second server address:** Audiobookshelf, Jellyfin and WebDAV with a home and an outside
+  address, switching by itself to the one that answers.
+- **“Play X” by voice:** voice search through the Assistant and Android Auto.
+- **Following authors and narrators:** follow a person and get a Home row of their new books.
+- **Taste 2:** separate ratings for story and narration, “why this pick”, “More like this” and an
+  “I have N hours” filter.
 
 ## Environments
 

@@ -112,9 +112,10 @@ Issues and pull requests are welcome. Start with [`CONTRIBUTING.md`](CONTRIBUTIN
 [`AGENTS.md`](AGENTS.md) apply to people as much as to coding agents. Report security issues as
 described in [`SECURITY.md`](SECURITY.md).
 
-Lelap only ships add-ons for open sources and for storage you control. We don't accept code,
-add-ons, docs or examples aimed at finding or resolving pirated content, and we don't list
-third-party add-ons.
+Lelap only ships add-ons for open sources and for storage you control; they may also read
+metadata, such as covers and descriptions, from official public APIs, with credit, never audio. We
+don't accept code, add-ons, docs or examples aimed at finding or resolving pirated content, and we
+don't list third-party add-ons.
 
 ## Rights holders
 
