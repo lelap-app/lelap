@@ -1,0 +1,2 @@
+-keep class app.lelap.headless.ServerTaskConsumer { *; }
+-keep class app.lelap.headless.ServerTaskWork { *; }

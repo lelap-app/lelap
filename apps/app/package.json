@@ -17,6 +17,7 @@
     "@lelap/core": "workspace:*",
     "@lelap/download": "workspace:*",
     "@lelap/fold": "workspace:*",
+    "@lelap/headless": "workspace:*",
     "@lelap/library": "workspace:*",
     "@lelap/netfs": "workspace:*",
     "@lelap/sdk": "workspace:*",

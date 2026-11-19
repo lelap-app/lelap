@@ -21,6 +21,7 @@ import {
 
 import { db } from '../db';
 import { addonManualFetch } from '../platform/addonFetch';
+import { screenlessSandbox } from '../platform/headless';
 import { sandboxPage } from './page';
 
 // The app's side of in-app add-ons (M38). Each add-on runs in its own hidden sandbox (a WebView
@@ -29,6 +30,8 @@ import { sandboxPage } from './page';
 // An add-on used as a library source (M57) gets a sandbox of its own per server, with that
 // server's hosts, and its settings only in that sandbox's `library` and `place` calls. An add-on
 // set up with settings under Settings → Add-ons (M61, M66) gets one sandbox for all its calls.
+// While no screen is up to hold the WebView, such as in the background refresh, the page runs in
+// one that needs no screen (M123, `@lelap/headless`): the same page, settings and fetch rules.
 
 const CALL_TIMEOUT_MS = 20_000;
 // A library listing may take many requests, such as one per album on a Subsonic server: thousands
@@ -63,6 +66,8 @@ export type Box = {
   ready: boolean;
   /** The add-on runs in a worker, which can't navigate away with what it was given. */
   isolated: boolean;
+  /** Runs in a WebView without a screen (M123), not in the host component's. */
+  screenless: boolean;
   waiting: (() => void)[];
   calls: Map<string, Call>;
 };
@@ -83,6 +88,22 @@ export const subscribeBoxes = (l: () => void) => {
 };
 export const currentBoxes = () => snapshot;
 
+// Host components mounted now; without one, a new sandbox runs without a screen where it can.
+let screens = 0;
+let listening = false;
+
+/** The host component is up; the function it returns says it went. */
+export function screenMounted(): () => void {
+  screens++;
+  return () => {
+    screens--;
+    // Its WebViews went with it, such as when the app is swiped away while the player plays on:
+    // the next call starts one without a screen.
+    if (screens > 0) return;
+    for (const box of [...boxes.values()]) if (!box.screenless) closeSandbox(box.id);
+  };
+}
+
 function open(id: string, code: string, hosts: string[], declared: string[] = hosts): Box {
   const box: Box = {
     key: `${id}#${++seq}`,
@@ -93,9 +114,20 @@ function open(id: string, code: string, hosts: string[], declared: string[] = ho
     post: null,
     ready: false,
     isolated: false,
+    screenless: false,
     waiting: [],
     calls: new Map(),
   };
+  const screenless = screens === 0 ? screenlessSandbox : null;
+  if (screenless) {
+    if (!listening) {
+      listening = true;
+      screenless.listen(sandboxMessage);
+    }
+    box.screenless = true;
+    box.post = (message) => screenless.post(box.key, message);
+    screenless.open(box.key, box.html);
+  }
   boxes.set(id, box);
   changed();
   return box;
@@ -116,6 +148,7 @@ export function closeSandbox(id: string): void {
     clearTimeout(call.timer);
     call.reject(new Error(t('The add-on stopped.')));
   }
+  if (box.screenless) screenlessSandbox?.close(box.key);
   boxes.delete(id);
   changed();
 }

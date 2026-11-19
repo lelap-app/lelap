@@ -19,6 +19,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { AppState, PermissionsAndroid, Platform } from 'react-native';
 
+import { locateAddonBook } from './addonLocate';
 import { showAlert } from './dialog';
 import { queryClient } from './addons';
 import { db } from './db';
@@ -102,6 +103,8 @@ export async function startDownload(
     // So the browser doesn't clear the downloads when its disk runs low.
     void native.keepStorage();
   }
+  // An add-on server says where the files are now, such as Plex away from home (M123).
+  await locateAddonBook(bookId, profileId);
   // Files on a server: S3 links signed now, WebDAV with its login (sent to that host only).
   const access = plan.files.map((f) => fileAccess({ uri: f.url, rootId: f.rootId, bookId }));
   // Android 17: a server at home needs local network access, asked for now; without it the

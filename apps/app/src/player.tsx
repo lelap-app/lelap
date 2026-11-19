@@ -58,7 +58,7 @@ import { pickEpisodeFile } from './episodeFiles';
 import { chapterImagesRead } from './podcasting';
 import * as audio from './platform/audio';
 import { profileId, setProfileId } from './profile';
-import { locateAddonBook } from './addonLocate';
+import { locateAddonBook, locatesFiles } from './addonLocate';
 import { prepareAudiobookshelfBook } from './audiobookshelf';
 import { askLocalNetwork } from './localNetwork';
 import { fileAccess } from './remote';
@@ -67,6 +67,7 @@ import { flushScrobbles, foldServiceAccounting, trackFinished, trackPlayerState 
 import { checkServerAfterError } from './serverCheck';
 import {
   flushServerPlaces,
+  keepsServerPlaces,
   queueJournalPlace,
   serverPlacesFinished,
   trackServerPlaces,
@@ -530,7 +531,35 @@ export function bookLoad(
     // The book's or show's own sound (M84), for the same reason.
     sound: setOverrides(bookSound(db, profileId, bookId).overrides),
     ...(detail.book.source === 'feed' ? artworksOf(bookId) : {}),
+    ...serverTasksOf(detail.files),
   };
+}
+
+/** What the service asks the app for with this book, also when it is closed (M123). */
+function serverTasksOf(
+  files: { rootId: string | null; downloadPath?: string | null }[],
+): Pick<audio.BookLoad, 'serverPlaces' | 'locate'> {
+  if (Platform.OS !== 'android') return {};
+  return {
+    ...(keepsServerPlaces(files, profileId) ? { serverPlaces: true } : {}),
+    ...(locatesFiles(files) ? { locate: true } : {}),
+  };
+}
+
+/**
+ * A book the service started by itself from an add-on server that locates its files (Up Next,
+ * Android Auto, the widget): the add-on says where they are now, and the service moves the book
+ * there at its live place (M123). Runs as a server task, also with the app closed.
+ */
+export function relocateBook(bookId: string): Promise<void> {
+  return enqueue(async () => {
+    if (playerProfile() !== profileId) return;
+    await locateAddonBook(bookId, profileId);
+    if ((await audio.getState()).bookId !== bookId) return;
+    const book = bookLoad(bookId);
+    // Only for the book still loaded; files at the same addresses change nothing.
+    if (book) await audio.updateBook(book);
+  });
 }
 
 /**

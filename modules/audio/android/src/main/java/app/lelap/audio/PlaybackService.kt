@@ -20,6 +20,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
+import app.lelap.headless.ServerTasks
 import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -513,6 +514,7 @@ class PlaybackService : MediaLibraryService() {
     if (next == null) return
     saveQueue(rest, UpNext.listNextAfterHead(listNext, rest))
     loadBook(next, autoplay = true)
+    locateStarted(next.playlist)
   }
 
   /** Next in list (M112): the list's next item now, playing if this one was. */
@@ -522,6 +524,7 @@ class PlaybackService : MediaLibraryService() {
     val play = active.playWhenReady
     saveQueue(rest, after)
     loadBook(next, autoplay = play)
+    locateStarted(next.playlist)
     noteInteraction()
   }
 
@@ -550,6 +553,15 @@ class PlaybackService : MediaLibraryService() {
       Commands.PREF_DIAGNOSTIC_LOG,
       Diagnostics.append(prefs.getString(Commands.PREF_DIAGNOSTIC_LOG, null), entry),
     ).apply()
+  }
+
+  /**
+   * A book the service started by itself, from the last addresses the app gave it: an add-on
+   * server that locates its files (Plex away from home) is asked where they are now, and the app
+   * moves the book there at its live place (M123).
+   */
+  private fun locateStarted(playlist: BookPlaylist) {
+    if (playlist.locate) ServerTasks.request(this, ServerTasks.LOCATE, playlist.bookId)
   }
 
   private fun encodeQueue(list: List<BookLoad>): String =
@@ -735,6 +747,7 @@ class PlaybackService : MediaLibraryService() {
     )
     // The session sets the items after this returns; a chapter timer then finds the new chapter.
     handler.post { placeBoundary() }
+    locateStarted(playlist)
     return MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, start)
   }
 
@@ -1241,6 +1254,9 @@ class PlaybackService : MediaLibraryService() {
       placeChangedAt = System.currentTimeMillis()
       writeJournal(PositionJournal.Event.PAUSE)
       handler.postDelayed(pauseSettled, PAUSE_SETTLE_MS)
+      // A real pause, not a stall while buffering: its place goes to the book's server now,
+      // not with the next hourly refresh (M123).
+      if (!active.playWhenReady && current?.serverPlaces == true) ServerTasks.request(this, ServerTasks.PLACES)
     }
   }
 
@@ -1712,6 +1728,7 @@ class PlaybackService : MediaLibraryService() {
       player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
       pausedAt = null
       val start = SeekRules.startPosition(index, entry.filePositionMs, entry.pauseStartedAt, System.currentTimeMillis(), smartRewind, playlist.introMs)
+      locateStarted(playlist)
       return Futures.immediateFuture(MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, start))
     }
 
