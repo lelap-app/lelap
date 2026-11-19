@@ -187,6 +187,8 @@ function isbnsOf(values) {
   return [...new Set(ids)].slice(0, 4);
 }
 
+class NotFeed extends Error {}
+
 function atomFeed(text) {
   const doc = parseXml(text);
   const feed = kid(doc, 'feed');
@@ -194,7 +196,7 @@ function atomFeed(text) {
     // An entry document on its own is one publication.
     const entry = kid(doc, 'entry');
     if (entry) return { id: '', links: [], navigation: [], publications: [atomEntry(entry)] };
-    throw new Error(
+    throw new NotFeed(
       'This address is not an OPDS feed. For Calibre’s content server, add /opds to its address.',
     );
   }
@@ -236,7 +238,7 @@ function atomEntry(entry) {
       .map((a) => textOf(kid(a, 'name')))
       .filter(Boolean),
     ids: isbnsOf([textOf(kid(entry, 'id')), ...kids(entry, 'identifier').map(textOf)]),
-    updated: Number.isFinite(updated) ? updated : undefined,
+    updated: updated >= 0 ? updated : undefined,
     links,
   };
 }
@@ -275,7 +277,7 @@ function jsonPublication(p) {
     title,
     authors: asList(metadata.author).map(nameOf).filter(Boolean),
     ids: isbnsOf(asList(metadata.identifier)),
-    updated: Number.isFinite(modified) ? modified : undefined,
+    updated: modified >= 0 ? modified : undefined,
     links: asList(p && p.links).map(jsonLink),
     images: asList(p && p.images).map(jsonLink),
     readingOrder: asList(p && p.readingOrder).map(jsonLink),
@@ -287,9 +289,9 @@ function jsonFeed(text) {
   try {
     body = JSON.parse(text);
   } catch {
-    throw new Error('This address is not an OPDS catalog: it did not answer in JSON or Atom.');
+    throw new NotFeed('This address is not an OPDS catalog: it did not answer in JSON or Atom.');
   }
-  if (!body || typeof body !== 'object') throw new Error('This address is not an OPDS catalog.');
+  if (!body || typeof body !== 'object') throw new NotFeed('This address is not an OPDS catalog.');
   // A Readium audiobook manifest on its own is one publication.
   if (body.readingOrder && body.metadata) {
     return { id: '', links: [], navigation: [], publications: [jsonPublication(body)] };
@@ -299,7 +301,8 @@ function jsonFeed(text) {
   for (const part of [body, ...asList(body.groups)]) {
     if (!part || typeof part !== 'object') continue;
     for (const l of asList(part.navigation).map(jsonLink)) {
-      if (!l.templated && !l.rels.some((r) => NOT_DOWN.has(r))) navigation.push(l);
+      const feedLike = l.type === '' || /json|atom\+xml/.test(l.type);
+      if (feedLike && !l.templated && !l.rels.some((r) => NOT_DOWN.has(r))) navigation.push(l);
     }
     publications.push(...asList(part.publications).map(jsonPublication));
   }
@@ -330,10 +333,22 @@ function refusal(s, status, type, text) {
   return new Error('The catalog refused the user name or password.');
 }
 
+/**
+ * A feed or manifest that is gone, moved or not a feed at all. Past the start address it is left
+ * out; anything else, such as a server error, fails the scan so no book is marked missing.
+ */
+class Gone extends Error {}
+
 async function get(s, url) {
-  const response = await lelap.fetch(url, {
-    headers: { Accept: ACCEPT, ...(s.auth ? { Authorization: s.auth } : {}) },
-  });
+  let response;
+  try {
+    response = await lelap.fetch(url, {
+      headers: { Accept: ACCEPT, ...(s.auth ? { Authorization: s.auth } : {}) },
+    });
+  } catch (error) {
+    const message = String((error && error.message) || error);
+    throw /redirect/i.test(message) ? new Gone(message) : error;
+  }
   const type = String((response.headers && response.headers.get('content-type')) || '');
   const text = await response.text();
   if (response.status === 401 || response.status === 403) {
@@ -346,7 +361,8 @@ async function get(s, url) {
     );
   }
   if (!response.ok) {
-    throw new Error(`The catalog answered HTTP ${response.status} for ${new URL(url).pathname}.`);
+    const said = `The catalog answered HTTP ${response.status} for ${new URL(url).pathname}.`;
+    throw response.status === 404 || response.status === 410 ? new Gone(said) : new Error(said);
   }
   return { type: type.toLowerCase(), text };
 }
@@ -503,7 +519,9 @@ function bookFiles(scan, p, parts, cover) {
     };
   });
   if (cover) {
-    const type = (p.images || p.links).find((l) => absolute(l.href, scan.base) === cover);
+    const type = (p.images && p.images.length > 0 ? p.images : p.links).find(
+      (l) => absolute(l.href, scan.base) === cover,
+    );
     const ext = IMAGE_EXT[type ? type.type.split(';')[0].trim() : ''] || 'jpg';
     // A changed cover gets a new address on most servers; its hash stands in for a time.
     files.push({ path: `${folder}/cover.${ext}`, url: cover, modifiedAt: hash(cover) });
@@ -589,12 +607,12 @@ async function publicationFiles(scan, p, base) {
     const at = link && sameServer(link.href, base, scan.s.origin);
     if (at) {
       fetchBudget(scan);
-      const { text } = await get(scan.s, at);
       let manifest = null;
       try {
-        manifest = jsonPublication(JSON.parse(text));
-      } catch {
-        // A broken manifest leaves out its book, not the whole catalog.
+        manifest = jsonPublication(JSON.parse((await get(scan.s, at)).text));
+      } catch (error) {
+        // A missing or broken manifest leaves out its book, not the whole catalog.
+        if (!(error instanceof Gone) && !(error instanceof SyntaxError)) throw error;
       }
       if (manifest) {
         parts = readingOrderParts(manifest.readingOrder, at, p.updated);
@@ -625,7 +643,14 @@ async function library(settings, cursor) {
     for (let n = 0; n < pages && scan.queue.length > 0; n++) {
       const url = scan.queue.shift();
       fetchBudget(scan);
-      const feed = parseFeed(await get(scan.s, url));
+      let feed;
+      try {
+        feed = parseFeed(await get(scan.s, url));
+      } catch (error) {
+        if (url === scan.s.start || !(error instanceof Gone || error instanceof NotFeed))
+          throw error;
+        continue;
+      }
       for (const p of feed.publications) files.push(...(await publicationFiles(scan, p, url)));
       scan.queue.unshift(...linksOn(scan, feed, url));
     }

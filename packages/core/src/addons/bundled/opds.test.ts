@@ -248,6 +248,38 @@ describe('OPDS', () => {
     ).rejects.toThrow('a kind of login Lelap can’t do yet');
   });
 
+  it('leaves out a feed or manifest that is gone, but fails on a server error', async () => {
+    const feed = (status: number) => (url: string) => {
+      const { pathname } = new URL(url);
+      if (pathname === '/opds') {
+        return atom(`<feed xmlns="http://www.w3.org/2005/Atom"><id>r</id>
+          <entry><title>Old</title><id>o</id><link href="/old" type="application/atom+xml;profile=opds-catalog"/></entry>
+          <entry><title>Web</title><id>w</id><link href="/web" type="application/atom+xml;profile=opds-catalog"/></entry>
+          <entry><title>Talk</title><id>t</id><updated>0001-01-01T00:00:00Z</updated>
+            <link rel="http://opds-spec.org/acquisition" href="/a.mp3" type="audio/mpeg"/></entry>
+          <entry><title>Lost</title><id>l</id>
+            <link rel="http://opds-spec.org/acquisition" href="/lost.json" type="application/audiobook+json"/></entry>
+        </feed>`);
+      }
+      if (pathname === '/web')
+        return { status: 200, body: '<html><p>Hi</p></html>', type: 'text/html' };
+      return { status, body: '', type: 'text/plain' };
+    };
+    const { list } = run({ url: 'http://nas.local/opds' }, feed(404));
+    const result = await list();
+    // A date before 1970, as some servers write for “none”, is left out rather than refused.
+    expect(result.files).toEqual([
+      expect.objectContaining({
+        path: 'Unknown author/Talk/Talk.mp3',
+        url: 'http://nas.local/a.mp3',
+      }),
+    ]);
+    expect(result.files[0]?.modifiedAt).toBeUndefined();
+    await expect(run({ url: 'http://nas.local/opds' }, feed(503)).list()).rejects.toThrow(
+      'The catalog answered HTTP 503',
+    );
+  });
+
   it('says when the address is a web page instead of a feed', async () => {
     await expect(
       run({ url: 'http://192.168.1.20:8080' }, () => ({
