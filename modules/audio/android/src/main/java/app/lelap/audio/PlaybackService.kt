@@ -606,7 +606,6 @@ class PlaybackService : MediaLibraryService() {
     pausedAt = if (autoplay) null else load.pausedAt
     placeChangedAt = load.pausedAt ?: 0L
     val items = mediaItems(playlist)
-    player.setWakeMode(Battery.wakeModeFor(playlist.files.map { it.uri }))
     player.setMediaItems(items, index, position)
     player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
     // While casting the book (or the next in Up Next) goes to the same receiver; ExoPlayer only
@@ -634,8 +633,6 @@ class PlaybackService : MediaLibraryService() {
     val playlist = PositionJournal.withSpeed(load.playlist, current?.speed ?: load.playlist.speed)
     current = playlist
     val items = mediaItems(playlist)
-    // A download that finished, or was removed, changes what the player needs awake.
-    player.setWakeMode(Battery.wakeModeFor(playlist.files.map { it.uri }))
     player.setMediaItems(items, index, position)
     val r = remote
     if (r == null) {
@@ -733,7 +730,14 @@ class PlaybackService : MediaLibraryService() {
     return MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, start)
   }
 
-  private fun mediaItems(playlist: BookPlaylist): List<MediaItem> = playlist.files.mapIndexed { index, file ->
+  // Every book the player gets passes here (the app, the car, playback resumption), so the wake
+  // mode follows the files: a finished download no longer needs the Wi-Fi lock (M106).
+  private fun mediaItems(playlist: BookPlaylist): List<MediaItem> {
+    player.setWakeMode(Battery.wakeModeFor(playlist.files.map { it.uri }))
+    return itemsOf(playlist)
+  }
+
+  private fun itemsOf(playlist: BookPlaylist): List<MediaItem> = playlist.files.mapIndexed { index, file ->
     val uri = Uri.parse(file.uri)
     MediaItem.Builder()
       .setMediaId(file.location)
@@ -1132,6 +1136,8 @@ class PlaybackService : MediaLibraryService() {
     val chapters = current?.chapters.orEmpty().map { it.startMs }
     val boundary = SleepBoundary.boundaryMs(mode, bookPositionNow(durations), chapters, durations)
     sleepBoundaryMs = boundary
+    // The time left changed: the next tick may now fall inside the fade.
+    if (sleepTimer.isRunning) startTicker()
     val target = SleepBoundary.fileTarget(boundary, durations)
     // The book's own end is caught by onBookEnded, which also keeps Up Next from starting.
     if (target.atFileEnd && target.index >= player.mediaItemCount - 1) return

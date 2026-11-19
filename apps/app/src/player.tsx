@@ -93,6 +93,8 @@ export const IDLE: audio.PlayerState = {
 };
 
 const SAVE_INTERVAL_MS = 10_000;
+// In the background the player reports every 10 s (M106); one that lands a moment early still saves.
+const SAVE_SLACK_MS = 1_000;
 
 type Library = {
   /** Bumped whenever stored library data may have changed; screens re-read on change. */
@@ -774,7 +776,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const paused = wasPlaying.current && !state.playing;
     wasPlaying.current = state.playing;
     const now = Date.now();
-    if (!paused && !(state.playing && now - lastSave.current >= SAVE_INTERVAL_MS)) return;
+    if (!paused && !(state.playing && now - lastSave.current >= SAVE_INTERVAL_MS - SAVE_SLACK_MS))
+      return;
     lastSave.current = now;
     if (audio.countsInService) {
       void foldServiceAccounting(playerProfile()).then((added) => {
