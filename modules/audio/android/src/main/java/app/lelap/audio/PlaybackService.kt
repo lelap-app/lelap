@@ -566,6 +566,9 @@ class PlaybackService : MediaLibraryService() {
         switchFiles(load, autoplay)
         return
       }
+      // The same addresses with another automatic pair (M121): kept for the next rebuild of the
+      // items, which picks by the connection then.
+      if (loaded.files != playlist.files) current = (current ?: loaded).copy(files = playlist.files)
       // A changed intro or outro for the show, or chapters found from silences, apply to the
       // book that is loaded, at its live place.
       // The book's or show's own sound changed: it applies at once, at the live place.

@@ -170,7 +170,7 @@ async function run(job: DownloadJob): Promise<void> {
     // Offline, it waits and carries on with the next status poll once the connection is back. A
     // network error after data came in is a dropped connection, not CORS: the next poll retries.
     const dropped = error instanceof TypeError && state.received;
-    if (error instanceof PermanentFailure) {
+    if (error instanceof PermanentFailure && running.get(job.bookId) === state) {
       errors.set(job.bookId, error.message);
       await writeText(`${dir}/${FAILED_FILE}`, error.message).catch(() => {});
     } else if (!state.controller.signal.aborted && !offline() && !dropped) {

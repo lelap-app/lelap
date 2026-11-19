@@ -129,7 +129,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M118 App polish 4](milestones/m118.md)              | Planned     |             | What M105 left for a decision or a sample: suggestion covers, Plex library list, Library reads, SABP bookmarks                |
 | [M119 Lists 3](milestones/m119.md)                   | Planned     |             | What M112 left: lists in Android Auto, Previous in list off the phone, the list on the widget                                 |
 | [M120 Big screens 3](milestones/m120.md)             | Planned     |             | What M113 left: drag to a list on Android and from catalog tiles, drop on the Library's list cards                            |
-| [M121 Podcasts 7](milestones/m121.md)                | Done        |           6 | Integrity checks for web downloads, the smaller file with the app closed, chapter images on the web                           |
+| [M121 Podcasts 7](milestones/m121.md)                | Done        |           7 | Integrity checks for web downloads, the smaller file with the app closed, chapter images on the web                           |
 | [M122 Better sound 3](milestones/m122.md)            | Planned     |             | Skip silence on the web for every format, without reading streams twice, and on cast receivers                                |
 | [M123 Server sources 4](milestones/m123.md)          | Planned     |             | Add-on servers' places with the app closed, located addresses for books started without the app                               |
 | [M124 Languages 4](milestones/m124.md)               | Done        |           7 | Chapter names that follow a language switch at once, typed chapter names kept, the last English failure texts                 |
@@ -171,6 +171,9 @@ when it is planned.
   in `cond ? <ActivityIndicator /> : …`.
 - **Themes and community looks:** community skins and community players. M108 brought built-in
   themes, accents and theme files of colours only.
+- **Episode file leftovers (from M121):** the Android service compares the addresses the app sent,
+  not the file it picked: when the app re-picks a loaded episode's automatic file, the service may
+  prepare the same file again, a short rebuffer. Comparing what `EpisodeFiles` would pick avoids it.
 - **Series leftovers (from M127):** Hardcover's series for listeners who connected Hardcover with
   their own token, to fill what Wikidata lacks (Department Q's book 10, years it doesn't have).
   A hidden book matched only by its title still shows as a book the listener lacks. And an app

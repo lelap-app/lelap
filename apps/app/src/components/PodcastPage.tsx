@@ -58,7 +58,7 @@ import { startDownload } from '../downloads';
 import { formatClock, formatDate, formatDuration, formatLeft } from '../format';
 import * as audio from '../platform/audio';
 import { pickEpisodeFile } from '../episodeFiles';
-import { reloadBook, useLibrary } from '../player';
+import { reloadBook, updateEpisodeFiles, useLibrary } from '../player';
 import {
   fetchFeed,
   playEpisode,
@@ -457,9 +457,10 @@ export function PodcastPage({
     setAudioChoice(db, profileId, podcastId, choice, Date.now());
     // A loaded episode of this show switches file at its place; a downloaded one keeps its file.
     void audio.getState().then(({ bookId: loaded }) => {
-      if (loaded && episodeOfBook(db, loaded)?.podcastId === podcastId && pickEpisodeFile(loaded)) {
+      if (!loaded || episodeOfBook(db, loaded)?.podcastId !== podcastId) return;
+      if (pickEpisodeFile(loaded))
         void reloadBook(loaded, Platform.OS === 'android').catch(() => {});
-      }
+      else void updateEpisodeFiles(loaded).catch(() => {});
     });
     refresh();
   };

@@ -281,6 +281,19 @@ export function updateChapters(bookId: string): Promise<void> {
   });
 }
 
+/**
+ * Hands the loaded episode the files its show's choice now allows (M121), when its address stays:
+ * the Android service picks between them by itself later.
+ */
+export function updateEpisodeFiles(bookId: string): Promise<void> {
+  if (Platform.OS !== 'android') return Promise.resolve();
+  return enqueue(async () => {
+    if (playerProfile() !== profileId) return;
+    const book = bookLoad(bookId);
+    if (book) await audio.updateBook(book);
+  });
+}
+
 /** Hands the loaded episode its chapter pictures once they are read, at its live place. */
 export function updateArtworks(bookId: string): Promise<void> {
   return enqueue(async () => {
