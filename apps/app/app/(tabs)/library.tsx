@@ -169,7 +169,7 @@ export default function LibraryScreen() {
   }, [finishedOpen]);
   // `version` is the signal to re-read the database.
   const seriesList = useMemo(
-    () => (bySeries ? listSeries(db, profileId) : []),
+    () => (bySeries ? listSeries(db, profileId, version) : []),
     [bySeries, version],
   );
   const rows = useMemo<Row[]>(() => {

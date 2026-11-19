@@ -186,11 +186,14 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
           before[i]?.uri === part.url &&
           before[i]?.durationMs === part.durationMs,
       );
-    // The work's series rides on the first part's tags, where a server's series is kept too.
+    // The work's series rides on the first part's tags, where a server's series is kept too. The
+    // item's own meta decides, also when it no longer names one (M115); a meta from another item
+    // that plays the same recording only adds one.
     const series = 'series' in meta ? formatSeries(meta.series) : null;
+    const ownItem = !found || found.location === location;
     for (const [idx, part] of parts.entries()) {
       const row = {
-        ...(idx === 0 && series ? { kindTags: { ...NO_KIND_TAGS, series } } : {}),
+        ...(idx === 0 && (series || ownItem) ? { kindTags: { ...NO_KIND_TAGS, series } } : {}),
         bookId,
         rootId: null,
         idx,

@@ -14,7 +14,7 @@ import { presentFiles } from './bookFiles';
 import { namedChapters } from './chapterNames';
 import { compareNatural } from './files';
 import { kidFilter } from '../kids';
-import { linkedMetaByKey } from './links';
+import { linkedMetaByKey, linkedSeriesByKey } from './links';
 import { notHidden, onlyHidden } from './hidden';
 import { bookChapters, getOwnChapters } from './ownChapters';
 
@@ -236,7 +236,7 @@ function linkedSeries(db: Db, bookId: string): string | null {
     .from(books)
     .where(eq(books.id, bookId))
     .get()?.location;
-  return (location && linkedMetaByKey(db, [location]).get(location)?.series?.trim()) || null;
+  return (location && linkedSeriesByKey(db, [location]).get(location)) || null;
 }
 
 /**

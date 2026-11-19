@@ -32,7 +32,7 @@ export function NextInSeries({
   const { find, looking } = useFindVolume();
   // `version` is the signal to re-read the database.
   const next = useMemo(
-    () => (ended ? nextInSeries(db, profileId, bookId) : null),
+    () => (ended ? nextInSeries(db, profileId, bookId, version) : null),
     [ended, bookId, version],
   );
   if (!next) return null;

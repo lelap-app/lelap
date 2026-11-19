@@ -60,7 +60,7 @@ export default function SeriesScreen() {
 
   // `version` is the signal to re-read the database.
   const series = useMemo(
-    () => (params.key ? getSeries(db, profileId, params.key) : null),
+    () => (params.key ? getSeries(db, profileId, params.key, version) : null),
     [params.key, version],
   );
   const rows = useMemo(

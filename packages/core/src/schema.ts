@@ -750,6 +750,11 @@ export const workLinks = sqliteTable(
     ids: text('ids', { mode: 'json' }).$type<string[]>().notNull(),
     /** Set by Match with catalog…: the work's title, author and cover. */
     meta: text('meta', { mode: 'json' }).$type<LinkedMeta>(),
+    /**
+     * The work's series as `Dune #1` (M115), also for a link confirmed with “In your library?”,
+     * which keeps the book's own title and so stores no `meta`.
+     */
+    series: text('series'),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [

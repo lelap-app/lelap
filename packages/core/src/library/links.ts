@@ -171,8 +171,9 @@ function upsertLink(
   state: 'linked' | 'rejected',
   meta: LinkedMeta | null,
   now: number,
+  series: string | null = null,
 ): void {
-  const values = { state, ids: idsOf(work), meta, updatedAt: now };
+  const values = { state, ids: idsOf(work), meta, series, updatedAt: now };
   db.insert(workLinks)
     .values({ bookKey, workType: work.type, workId: work.id, ...values })
     .onConflictDoUpdate({
@@ -185,7 +186,7 @@ function upsertLink(
 /** Turns a stored link into “not this book”, keeping the IDs it was stored with. */
 function rejectStored(db: Db, bookKey: string, link: BookLink, now: number): void {
   db.update(workLinks)
-    .set({ state: 'rejected', meta: null, updatedAt: now })
+    .set({ state: 'rejected', meta: null, series: null, updatedAt: now })
     .where(
       and(
         eq(workLinks.bookKey, bookKey),
@@ -198,7 +199,8 @@ function rejectStored(db: Db, bookKey: string, link: BookLink, now: number): voi
 
 /**
  * Remembers that a library book is this work. `meta` comes from Match with catalog…: the book
- * then shows the work's title, author and cover. A book is one work, so links to other works go.
+ * then shows the work's title, author and cover. `series` is the work's (`Dune #1`), which
+ * “In your library?” keeps without `meta` (M115). A book is one work, so links to other works go.
  */
 export function linkBook(
   db: Db,
@@ -206,6 +208,7 @@ export function linkBook(
   work: LinkableWork,
   now: number,
   meta: LinkedMeta | null = null,
+  series: string | null = meta?.series ?? null,
 ): void {
   const bookKey = keyOf(db, bookId);
   if (!bookKey) return;
@@ -215,7 +218,7 @@ export function linkBook(
       if (other.workId === work.id || other.ids.some((id) => ids.has(id))) continue;
       rejectStored(tx, bookKey, other, now);
     }
-    upsertLink(tx, bookKey, work, 'linked', meta, now);
+    upsertLink(tx, bookKey, work, 'linked', meta, now, series?.trim() || null);
   });
 }
 
@@ -287,6 +290,26 @@ export function linkedMetaByKey(db: Db, keys?: string[]): Map<string, LinkedMeta
     .all();
   const out = new Map<string, LinkedMeta>();
   for (const row of rows) if (row.meta) out.set(row.bookKey, row.meta);
+  return out;
+}
+
+/**
+ * The series of every linked book (M115), by book location: from Match with catalog… or from a
+ * work confirmed with “In your library?”. A work knows its series better than the files do.
+ */
+export function linkedSeriesByKey(db: Db, keys?: string[]): Map<string, string> {
+  if (keys?.length === 0) return new Map();
+  const rows = db
+    .select({ bookKey: workLinks.bookKey, meta: workLinks.meta, series: workLinks.series })
+    .from(workLinks)
+    .where(and(eq(workLinks.state, 'linked'), keys ? inArray(workLinks.bookKey, keys) : undefined))
+    .orderBy(asc(workLinks.updatedAt))
+    .all();
+  const out = new Map<string, string>();
+  for (const row of rows) {
+    const series = (row.series ?? row.meta?.series)?.trim();
+    if (series) out.set(row.bookKey, series);
+  }
   return out;
 }
 

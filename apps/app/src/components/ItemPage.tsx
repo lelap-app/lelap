@@ -9,6 +9,7 @@ import {
   getBook,
   getEditionChoice,
   findSeries,
+  formatSeries,
   getSourceChoice,
   linkBook,
   type LinkableWork,
@@ -183,7 +184,7 @@ export function ItemPage({
   // The same series in the library (M109), by name, for a link to its page.
   const seriesName = meta.data?.meta.series?.[0]?.name;
   const inLibrary = useMemo(
-    () => (seriesName ? findSeries(db, profileId, seriesName) : null),
+    () => (seriesName ? findSeries(db, profileId, seriesName, version) : null),
     [seriesName, version],
   );
   const yourCopy = useMemo(
@@ -203,8 +204,11 @@ export function ItemPage({
   };
   const confirm = (yes: boolean) => {
     if (!linkable || !offer) return;
-    if (yes) linkBook(db, offer.bookId, linkable, Date.now());
-    else rejectLink(db, offer.bookId, linkable, Date.now());
+    // The work's series comes along; its title and cover don't, so the book keeps its own.
+    if (yes) {
+      const series = formatSeries(meta.data?.meta.series);
+      linkBook(db, offer.bookId, linkable, Date.now(), null, series);
+    } else rejectLink(db, offer.bookId, linkable, Date.now());
     setOwnPicked(true);
     refresh();
   };

@@ -8,6 +8,7 @@ import { isPlaceholderFeed } from '../podcasts/placeholder';
 import { episodeBook } from '../podcasts/repository';
 import {
   type AddonItemRef,
+  type KindTags,
   type LinkedMeta,
   bookFiles,
   bookmarks,
@@ -90,6 +91,11 @@ export type BookSnapshot = {
   durationMs: number;
   parts: Part[];
   chapters: { title: string; startMs: number }[];
+  /**
+   * The series its add-on named, as `Dune #1` (M115), kept on this device in the first part's
+   * tags. Older devices leave it out.
+   */
+  series?: string | null;
 };
 
 export type EpisodeSnapshot = {
@@ -202,6 +208,8 @@ export type Op =
         state: 'linked' | 'rejected';
         ids: string[];
         meta: LinkedMeta | null;
+        /** The work's series (M115); older devices leave it out and keep none. */
+        series?: string | null;
       };
     }
   | {
@@ -282,7 +290,15 @@ function localFile(db: Db, bookId: string, place: Place): string | null {
 function bookSnapshot(db: Db, bookId: string): BookSnapshot | null {
   const book = db.select().from(books).where(eq(books.id, bookId)).get();
   if (book?.source !== 'addon') return null;
+  const first = db
+    .select({ kindTags: bookFiles.kindTags })
+    .from(bookFiles)
+    .where(eq(bookFiles.bookId, bookId))
+    .orderBy(asc(bookFiles.idx))
+    .limit(1)
+    .get();
   return {
+    series: first?.kindTags?.series ?? null,
     title: book.title,
     author: book.author,
     kind: book.kind,
@@ -602,6 +618,7 @@ export function collectOps(db: Db, since: number): Op[] {
         state: l.state,
         ids: l.ids,
         meta: l.meta,
+        series: l.series,
       },
     });
   }
@@ -703,10 +720,54 @@ function ensurePodcast(
 // other address from another device would make this phone open a file or app of its own.
 const webPart = (part: Part): boolean => /^https?:\/\//i.test(part.uri);
 
+/** The first part's tags of a streamed book, which carry its series (M109). */
+const seriesTags = (series: string | null): KindTags => ({
+  genre: null,
+  isrc: null,
+  track: null,
+  year: null,
+  narrator: null,
+  mediaKind: null,
+  series,
+});
+
+/**
+ * A book this device already has takes the series from a newer snapshot: the other device
+ * added it again from a meta that names another series, or none.
+ */
+function applyBookSeries(db: Db, op: Extract<Op, { type: 'book' }>, bookId: string): void {
+  const { series } = op.data;
+  if (series !== null && !isText(series, 1000)) return;
+  const book = db
+    .select({ source: books.source, updatedAt: books.updatedAt })
+    .from(books)
+    .where(eq(books.id, bookId))
+    .get();
+  if (book?.source !== 'addon' || book.updatedAt > op.at) return;
+  const first = db
+    .select({ id: bookFiles.id, kindTags: bookFiles.kindTags })
+    .from(bookFiles)
+    .where(eq(bookFiles.bookId, bookId))
+    .orderBy(asc(bookFiles.idx))
+    .limit(1)
+    .get();
+  if (!first || (first.kindTags?.series ?? null) === series) return;
+  db.update(bookFiles)
+    .set({ kindTags: { ...(first.kindTags ?? seriesTags(null)), series } })
+    .where(eq(bookFiles.id, first.id))
+    .run();
+}
+
 function applyBook(db: Db, op: Extract<Op, { type: 'book' }>, newId: IdGenerator): void {
-  if (bookIdForKey(db, op.key)) return;
   const { data } = op;
+  const known = bookIdForKey(db, op.key);
+  if (known) {
+    // Older devices send no series; that says nothing about it.
+    if (data.series !== undefined) applyBookSeries(db, op, known);
+    return;
+  }
   if (!data.parts.every(webPart)) return;
+  const series = isText(data.series, 1000) ? data.series : null;
   const bookId = newId();
   db.insert(books)
     .values({
@@ -741,6 +802,7 @@ function applyBook(db: Db, op: Extract<Op, { type: 'book' }>, newId: IdGenerator
         modifiedAt: op.at,
         durationMs: part.durationMs,
         chaptersJson: [],
+        ...(idx === 0 && series ? { kindTags: seriesTags(series) } : {}),
         updatedAt: op.at,
       })
       .onConflictDoNothing()
@@ -1052,7 +1114,7 @@ const isText = (value: unknown, max = 2048): value is string =>
 /** Another device's link, checked field by field: it is only data, and the newest one wins. */
 function applyLink(db: Db, op: Extract<Op, { type: 'link' }>): void {
   if (typeof op.data !== 'object' || op.data === null) return;
-  const { book, workType, workId, state, ids, meta } = op.data;
+  const { book, workType, workId, state, ids, meta, series } = op.data;
   if (!isText(book) || !isText(workType, 64) || !isText(workId, 512)) return;
   if (state !== 'linked' && state !== 'rejected') return;
   const cleanIds = Array.isArray(ids)
@@ -1074,7 +1136,13 @@ function applyLink(db: Db, op: Extract<Op, { type: 'link' }>): void {
   );
   const local = db.select({ updatedAt: workLinks.updatedAt }).from(workLinks).where(where).get();
   if (local && local.updatedAt >= op.at) return;
-  const row = { state, ids: cleanIds, meta: cleanMeta, updatedAt: op.at };
+  const row = {
+    state,
+    ids: cleanIds,
+    meta: cleanMeta,
+    series: state === 'linked' && isText(series, 1000) ? series : null,
+    updatedAt: op.at,
+  };
   db.insert(workLinks)
     .values({ bookKey: book, workType, workId, ...row })
     .onConflictDoUpdate({

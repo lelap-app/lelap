@@ -316,3 +316,18 @@ describe('ISBN and ASIN from Jellyfin', () => {
     ]);
   });
 });
+
+describe('series from Jellyfin', () => {
+  it('come from an audiobook’s series name, never from music', () => {
+    const scan = jellyfinScan(source, [
+      { Id: 'a', Name: 'Dune', Type: 'AudioBook', SeriesName: ' Dune Chronicles ' },
+      { Id: 'b', Name: 'Song', Type: 'Audio', SeriesName: 'Best of' },
+      { Id: 'c', Name: 'Alone', Type: 'AudioBook' },
+    ]);
+    expect([...scan.tags.values()].map((t) => t.kindTags?.series)).toEqual([
+      'Dune Chronicles',
+      null,
+      null,
+    ]);
+  });
+});

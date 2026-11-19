@@ -4,7 +4,7 @@ import { and, desc, eq, isNotNull, isNull, like, ne } from 'drizzle-orm';
 import type { Db } from '../db';
 import { bookFiles, books, settings } from '../schema';
 import { compareNatural } from './files';
-import { linkedMetaByKey } from './links';
+import { linkedSeriesByKey } from './links';
 import { type LibraryBook, listBooks } from './queries';
 import { parseSeries, seriesKey, seriesNumber } from './seriesNames';
 
@@ -46,12 +46,19 @@ export type Series = {
 const MAX_GAP_NUMBER = 100;
 const ORDER_PREFIX = 'seriesOrder:';
 
-type Member = SeriesBook & { name: string; nameKey: string; rank: number };
+/** `hidden`: the profile hid the book; it counts for the gaps but is not listed (M115). */
+type Member = SeriesBook & { name: string; nameKey: string; rank: number; hidden: boolean };
 
-/** Every series a visible library book names, from its files' tags or its matched catalog work. */
+/** Every series a library book names, from its files' tags or its linked catalog work. */
 function members(db: Db, profileId: string): Member[] {
   const visible = listBooks(db, profileId, 'title');
   if (visible.length === 0) return [];
+  const hidden = new Set<string>();
+  const shelf = [...visible];
+  for (const book of listBooks(db, profileId, 'title', 'hidden')) {
+    hidden.add(book.id);
+    shelf.push(book);
+  }
   const locations = new Map(
     db
       .select({ id: books.id, location: books.location })
@@ -77,14 +84,14 @@ function members(db: Db, profileId: string): Member[] {
     const series = f.kindTags?.series?.trim();
     if (f.bookId && series && !tagged.has(f.bookId)) tagged.set(f.bookId, series);
   }
-  const linked = linkedMetaByKey(db);
+  const linked = linkedSeriesByKey(db);
 
   const out: Member[] = [];
-  for (const book of visible) {
+  for (const book of shelf) {
     const bookKey = locations.get(book.id);
     if (!bookKey) continue;
-    // A work the listener matched by hand knows its series better than the files do.
-    const text = linked.get(bookKey)?.series ?? tagged.get(book.id);
+    // A work the listener matched or confirmed knows its series better than the files do.
+    const text = linked.get(bookKey) ?? tagged.get(book.id);
     parseSeries(text).forEach((ref, rank) => {
       const nameKey = seriesKey(ref.name);
       if (!nameKey) return;
@@ -94,6 +101,7 @@ function members(db: Db, profileId: string): Member[] {
         name: ref.name,
         nameKey,
         rank,
+        hidden: hidden.has(book.id),
         position: ref.position,
         number: seriesNumber(ref.position),
       });
@@ -227,13 +235,36 @@ export const SERIES_ORDER_PREFIX = ORDER_PREFIX;
  * catalog's “The Expanse” and a server's “Expanse”). The same work twice in one series (a server's
  * copy and a streamed one) is listed once, the copy played last or else the listener's own file.
  */
-export function listSeries(db: Db, profileId: string): Series[] {
-  return build(db, profileId).series;
+export function listSeries(db: Db, profileId: string, version?: number): Series[] {
+  return built(db, profileId, version).series;
 }
 
-function build(db: Db, profileId: string): { series: Series[]; all: Member[] } {
+type Built = {
+  series: Series[];
+  all: Member[];
+  /** Numbers that hidden books hold, by series key: no gap, and nothing to look for. */
+  held: Map<string, Set<number>>;
+};
+
+const cache = new WeakMap<Db, { profileId: string; version: number; built: Built }>();
+
+/**
+ * Working out every series reads the whole library, and the Library, a series page and an item
+ * page each ask (M115). With the library's version, the result is kept until it changes.
+ */
+function built(db: Db, profileId: string, version: number | undefined): Built {
+  if (version === undefined) return build(db, profileId);
+  const kept = cache.get(db);
+  if (kept && kept.profileId === profileId && kept.version === version) return kept.built;
+  const fresh = build(db, profileId);
+  cache.set(db, { profileId, version, built: fresh });
+  return fresh;
+}
+
+function build(db: Db, profileId: string): Built {
   const all = members(db, profileId);
-  if (all.length === 0) return { series: [], all };
+  const held = new Map<string, Set<number>>();
+  if (all.length === 0) return { series: [], all, held };
   // The names each book gives, so a book's own two series are never joined through its twin.
   const named = new Map<string, Set<string>>();
   for (const m of all) {
@@ -276,7 +307,9 @@ function build(db: Db, profileId: string): { series: Series[]; all: Member[] } {
 
   const orders = allOrders(db, profileId);
   const out: Series[] = [];
-  for (const list of groups.values()) {
+  for (const group of groups.values()) {
+    const list = group.filter((m) => !m.hidden);
+    if (list.length === 0) continue;
     // The name most books use is the series' name; its key keeps the page and the order.
     const name = mostCommon(list.map((m) => m.name)) ?? list[0]?.name ?? '';
     const key = seriesKey(name);
@@ -301,7 +334,11 @@ function build(db: Db, profileId: string): { series: Series[]; all: Member[] } {
     const usual = kept
       .map(({ book, bookKey, position, number }) => ({ book, bookKey, position, number }))
       .sort(compareInSeries);
-    const keys = [...new Set([key, ...list.map((m) => m.nameKey)])];
+    const keys = [...new Set([key, ...group.map((m) => m.nameKey)])];
+    const hiddenNumbers = new Set(
+      group.filter((m) => m.hidden && m.number !== null).map((m) => m.number as number),
+    );
+    if (hiddenNumbers.size > 0) held.set(key, hiddenNumbers);
     // The newest order kept under any of its names; an empty one is the usual order.
     const order = [...orders].find(([k]) => keys.includes(k))?.[1] ?? [];
     out.push({
@@ -310,27 +347,40 @@ function build(db: Db, profileId: string): { series: Series[]; all: Member[] } {
       name,
       author: mostCommon(usual.map((b) => splitAuthors(b.book.author)[0] ?? null)),
       books: order.length > 0 ? applyOrder(usual, order) : usual,
-      missing: missingNumbers(usual.map((b) => b.number)),
+      missing: missingNumbers([...usual.map((b) => b.number), ...hiddenNumbers]),
       ordered: order.length > 0,
     });
   }
-  return { series: out.sort((a, b) => compareNatural(a.name, b.name)), all };
+  return { series: out.sort((a, b) => compareNatural(a.name, b.name)), all, held };
 }
 
-/** One series by the key of any of its names, or null when no book in the library names it. */
-export function getSeries(db: Db, profileId: string, key: string): Series | null {
-  const series = listSeries(db, profileId);
+/**
+ * One series by the key of any of its names, or null when no book in the library names it.
+ * `version` is the library's, for the kept result.
+ */
+export function getSeries(db: Db, profileId: string, key: string, version?: number): Series | null {
+  const series = listSeries(db, profileId, version);
   return series.find((s) => s.key === key) ?? series.find((s) => s.keys.includes(key)) ?? null;
 }
 
 /** The series in the library a name means, such as a catalog work's. */
-export function findSeries(db: Db, profileId: string, name: string): Series | null {
-  return getSeries(db, profileId, seriesKey(name));
+export function findSeries(
+  db: Db,
+  profileId: string,
+  name: string,
+  version?: number,
+): Series | null {
+  return getSeries(db, profileId, seriesKey(name), version);
 }
 
 /** The series a book is in, its main series first. */
-export function seriesOfBook(db: Db, profileId: string, bookId: string): Series[] {
-  return listSeries(db, profileId)
+export function seriesOfBook(
+  db: Db,
+  profileId: string,
+  bookId: string,
+  version?: number,
+): Series[] {
+  return listSeries(db, profileId, version)
     .filter((s) => s.books.some((b) => b.book.id === bookId))
     .sort((a, b) => Number(b.books.length) - Number(a.books.length));
 }
@@ -367,13 +417,18 @@ export type NextInSeries = {
   number: number | null;
 };
 
-export function nextInSeries(db: Db, profileId: string, bookId: string): NextInSeries | null {
-  const built = build(db, profileId);
+export function nextInSeries(
+  db: Db,
+  profileId: string,
+  bookId: string,
+  version?: number,
+): NextInSeries | null {
+  const { all, series: list, held } = built(db, profileId, version);
   // The main series is the one the book names first.
-  const own = built.all.filter((m) => m.book.id === bookId);
+  const own = all.filter((m) => m.book.id === bookId);
   const rank = (s: Series) =>
     Math.min(...own.filter((m) => s.keys.includes(m.nameKey)).map((m) => m.rank), 99);
-  const ranked = built.series
+  const ranked = list
     .filter((s) => s.books.some((b) => b.book.id === bookId))
     .sort((a, b) => rank(a) - rank(b));
   const series = ranked[0];
@@ -398,7 +453,10 @@ export function nextInSeries(db: Db, profileId: string, bookId: string): NextInS
   }
   const wanted =
     current.number !== null && Number.isInteger(current.number) ? current.number + 1 : null;
-  const have = wanted !== null && series.books.some((b) => b.number === wanted);
+  // A hidden book is one the listener has, so it is no number to look for either.
+  const have =
+    wanted !== null &&
+    (series.books.some((b) => b.number === wanted) || held.get(series.key)?.has(wanted) === true);
   if (wanted !== null && !have && wanted <= MAX_GAP_NUMBER) {
     return { series: head, book: null, position: String(wanted), number: wanted };
   }

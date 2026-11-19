@@ -82,6 +82,10 @@ object IdTags {
     tag.lowercase().filter { it.isLetter() } in
       setOf("seriespart", "seriesposition", "seriesindex", "seriessequence", "movement", "mvin")
 
+  /** The movement name or number (`MVNM`/`MVIN`, `©mvn`/`©mvi`), the other family of series tags. */
+  internal fun isMovement(tag: String) =
+    tag.lowercase().filter { it.isLetter() } in setOf("movementname", "mvnm", "movement", "mvin")
+
   /** `Dune #1` from a name and a number such as `1` or `1/6`; the name alone without a number. */
   internal fun seriesText(name: String?, part: String?): String? {
     val clean = name?.replace("#", "")?.trim()?.takeIf { it.isNotEmpty() } ?: return null
@@ -108,17 +112,29 @@ object IdTags {
     var genre: String? = null
     var series: String? = null
     var seriesPart: String? = null
+    var movement: String? = null
+    var movementPart: String? = null
 
     fun add(name: String, value: String) {
       if (value.isBlank()) return
       if (wanted(name) && ids.size < MAX_TAGS) ids[name] = value
       if (isIsrc(name)) isrc = isrc ?: value
       if (isNarrator(name)) narrator = narrator ?: value
-      if (isSeries(name)) series = series ?: value
-      if (isSeriesPart(name)) seriesPart = seriesPart ?: value
+      val movementTag = isMovement(name)
+      if (isSeries(name)) {
+        if (movementTag) movement = movement ?: value else series = series ?: value
+      }
+      if (isSeriesPart(name)) {
+        if (movementTag) movementPart = movementPart ?: value else seriesPart = seriesPart ?: value
+      }
     }
 
-    fun tags() = FileTags(ids, isrc, narrator, mediaKind, genre, seriesText(series, seriesPart))
+    // The number comes from the same family as the name (M115): `SERIES` with only a movement
+    // number has none, as the movement may count something else.
+    fun tags() = FileTags(
+      ids, isrc, narrator, mediaKind, genre,
+      if (series != null) seriesText(series, seriesPart) else seriesText(movement, movementPart),
+    )
   }
 
   private fun exactly(read: (Long, Int) -> ByteArray, size: Long, offset: Long, length: Int): ByteArray {
