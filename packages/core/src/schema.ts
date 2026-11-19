@@ -530,6 +530,11 @@ export const subscriptions = sqliteTable(
     skipSilence: integer('skip_silence', { mode: 'boolean' }),
     evenLoudness: integer('even_loudness', { mode: 'boolean' }),
     /**
+     * Which of an episode's files to play (M103): null is automatic (the feed's own file, the
+     * smallest on mobile data), `smallest`, or an `AudioFile` key such as `alt:Opus`.
+     */
+    audioChoice: text('audio_choice'),
+    /**
      * When this profile last opened the podcast's page on this device: episodes published since
      * are new (M105). Not synced, and it leaves `updatedAt` alone so it never starts a push.
      */

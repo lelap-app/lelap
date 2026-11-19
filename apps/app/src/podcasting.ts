@@ -98,7 +98,20 @@ export function loadEpisodeChaptersWithin(bookId: string, ms: number): Promise<b
 export async function loadChapterImages(bookId: string): Promise<ChapterImage[]> {
   const url = episodeDetail(db, bookId)?.extras?.chaptersUrl;
   if (!url) return [];
-  return parseChapterImages(await fetchChaptersFile(url).catch(() => ''));
+  const images = parseChapterImages(await fetchChaptersFile(url).catch(() => ''));
+  readImages.set(url, images);
+  return images;
+}
+
+const readImages = new Map<string, ChapterImage[]>();
+
+/**
+ * The chapter pictures already read this app start, for the lock screen and the car (M103):
+ * the player's load is built at once, so pictures still on their way follow with an update.
+ */
+export function chapterImagesRead(bookId: string): ChapterImage[] {
+  const url = episodeDetail(db, bookId)?.extras?.chaptersUrl;
+  return url ? (readImages.get(url) ?? []) : [];
 }
 
 /** The chapters file's picture at a position of the playing book, or null for its own cover. */

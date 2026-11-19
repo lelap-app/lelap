@@ -19,6 +19,7 @@ import {
   subscribe,
   episodeBook,
 } from '../podcasts/repository';
+import { setAudioChoice } from '../podcasts/alternates';
 import { parseFeed } from '../podcasts/rss';
 import {
   addToPlaylist,
@@ -381,6 +382,7 @@ describe('sync between two devices', () => {
     );
     subscribe(phone, ME, podcastId, 11);
     setTrim(phone, ME, podcastId, { skipIntroMs: 30_000, skipOutroMs: 15_000 }, 11);
+    setAudioChoice(phone, ME, podcastId, 'alt:Opus', 11);
     const episode = listEpisodes(phone, ME, podcastId)[0];
     const bookId = episodeBook(phone, episode?.id ?? '', 12, newId);
     const fileLocation = getBook(phone, ME, bookId)?.files[0]?.location ?? '';
@@ -395,6 +397,7 @@ describe('sync between two devices', () => {
       title: 'Garden Hour',
       skipIntroMs: 30_000,
       skipOutroMs: 15_000,
+      audioChoice: 'alt:Opus',
     });
     expect(listEpisodes(laptop, ME, sub?.podcastId ?? '')[0]).toMatchObject({
       title: 'Roses',

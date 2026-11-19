@@ -602,8 +602,16 @@ class PlaybackService : MediaLibraryService() {
       // book that is loaded, at its live place.
       // The book's or show's own sound changed: it applies at once, at the live place.
       if (loaded.sound != playlist.sound) current = loaded.copy(sound = playlist.sound)
-      if (loaded.introMs != playlist.introMs || loaded.outroMs != playlist.outroMs || loaded.chapters != playlist.chapters) {
-        current = (current ?: loaded).copy(introMs = playlist.introMs, outroMs = playlist.outroMs, chapters = playlist.chapters)
+      if (loaded.introMs != playlist.introMs || loaded.outroMs != playlist.outroMs || loaded.chapters != playlist.chapters ||
+        loaded.artworks != playlist.artworks || loaded.coverUri != playlist.coverUri
+      ) {
+        current = (current ?: loaded).copy(
+          introMs = playlist.introMs,
+          outroMs = playlist.outroMs,
+          chapters = playlist.chapters,
+          artworks = playlist.artworks,
+          coverUri = playlist.coverUri,
+        )
         placeOutro()
         remote?.setOutro(remoteOutroAt())
         updateChapterTitle()
@@ -769,7 +777,7 @@ class PlaybackService : MediaLibraryService() {
           .setTitle(chapterTitleAt(playlist, index, 0L) ?: file.title)
           .setAlbumTitle(playlist.title)
           .setArtist(playlist.author)
-          .setArtworkUri(playlist.coverUri?.let(Uri::parse))
+          .setArtworkUri(ChapterArtwork.at(playlist, index, 0L)?.let(Uri::parse))
           .setTrackNumber(index + 1)
           .setTotalTrackCount(playlist.files.size)
           .setExtras(Bundle().apply { putString(Commands.METADATA_BOOK_ID, playlist.bookId) })
@@ -855,16 +863,22 @@ class PlaybackService : MediaLibraryService() {
     return playlist.chapters.lastOrNull { it.startMs <= bookPosition }?.title
   }
 
-  /** Shows the current chapter as the title on the notification and lock screen. */
+  /**
+   * Shows the current chapter as the title on the notification and lock screen, with the chapter's
+   * picture from an episode's chapters file (M103), which the car shows too.
+   */
   private fun updateChapterTitle() {
     val playlist = current ?: return
     val p = active
     val index = p.currentMediaItemIndex
     val item = p.currentMediaItem ?: return
-    val title = chapterTitleAt(playlist, index, p.currentPosition) ?: return
-    if (item.mediaMetadata.title?.toString() == title) return
+    val position = p.currentPosition
+    val title = chapterTitleAt(playlist, index, position) ?: item.mediaMetadata.title?.toString()
+    val artwork = ChapterArtwork.at(playlist, index, position)?.let(Uri::parse)
+    if (item.mediaMetadata.title?.toString() == title && item.mediaMetadata.artworkUri == artwork) return
     // Same URI, so ExoPlayer swaps the metadata without interrupting playback.
-    p.replaceMediaItem(index, item.buildUpon().setMediaMetadata(item.mediaMetadata.buildUpon().setTitle(title).build()).build())
+    val metadata = item.mediaMetadata.buildUpon().setTitle(title).setArtworkUri(artwork).build()
+    p.replaceMediaItem(index, item.buildUpon().setMediaMetadata(metadata).build())
   }
 
   /**

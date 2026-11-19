@@ -9,6 +9,9 @@ data class BookFile(val uri: String, val location: String, val title: String, va
 
 data class ChapterMark(val title: String, val startMs: Long)
 
+/** Where a chapters file's picture takes over (M103), on the whole-book timeline; null is the cover. */
+data class ArtworkMark(val startMs: Long, val uri: String?)
+
 /** What the service needs to play a book, and to resume it without the app. */
 data class BookPlaylist(
   val bookId: String,
@@ -30,6 +33,8 @@ data class BookPlaylist(
   val privateUris: Boolean = false,
   /** The book's or show's own sound (M84), laid over the listener's defaults. */
   val sound: SoundOverrides = SoundOverrides(),
+  /** An episode's chapter pictures (M103), for the lock screen and the car. */
+  val artworks: List<ArtworkMark> = emptyList(),
 )
 
 /**
@@ -208,6 +213,7 @@ object PositionJournal {
     .put("skipOutroMs", p.outroMs)
     .put("privateUris", p.privateUris)
     .put("sound", p.sound.toJson())
+    .put("artworks", JSONArray(p.artworks.map { JSONObject().put("startMs", it.startMs).put("uri", it.uri ?: JSONObject.NULL) }))
 
   private fun decodePlaylist(o: JSONObject): BookPlaylist {
     val files = o.getJSONArray("files")
@@ -232,6 +238,12 @@ object PositionJournal {
       outroMs = o.optLong("skipOutroMs", 0L).coerceAtLeast(0L),
       privateUris = o.optBoolean("privateUris", false),
       sound = SoundOverrides.fromJson(o.optJSONObject("sound")),
+      artworks = o.optJSONArray("artworks")?.let { a ->
+        List(a.length()) {
+          val m = a.getJSONObject(it)
+          ArtworkMark(m.getLong("startMs"), m.optStringOrNull("uri"))
+        }
+      } ?: emptyList(),
     )
   }
 

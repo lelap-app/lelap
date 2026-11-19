@@ -38,6 +38,11 @@ export type BookLoad = {
    * follows the listener's default in `PlayerSettings`.
    */
   sound?: Partial<Record<'voiceEq' | 'skipSilence' | 'evenLoudness', boolean>>;
+  /**
+   * An episode's chapter pictures (M103), on the whole-book timeline, in order: the lock screen
+   * and the car show each from its start; `uri` null goes back to the cover.
+   */
+  artworks?: { startMs: number; uri: string | null }[];
   /** Only an update of the book already loaded: the service ignores it for any other book. */
   onlyIfLoaded?: boolean;
 };

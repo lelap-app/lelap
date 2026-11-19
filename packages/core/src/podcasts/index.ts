@@ -1,3 +1,4 @@
+export * from './alternates';
 export * from './folder';
 export * from './opml';
 export * from './repository';

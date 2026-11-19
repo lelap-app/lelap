@@ -1,0 +1,1 @@
+ALTER TABLE `subscriptions` ADD `audio_choice` text;

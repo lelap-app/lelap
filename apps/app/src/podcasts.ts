@@ -28,8 +28,8 @@ import { db, newId } from './db';
 import { logDiagnostic } from './diagnostics';
 import { deleteDownload, startDownload } from './downloads';
 import { playClip } from './clips';
-import { loadEpisodeChapters, loadEpisodeChaptersWithin } from './podcasting';
-import { playAt, playBook, useLibrary, usePlayerState } from './player';
+import { loadChapterImages, loadEpisodeChapters, loadEpisodeChaptersWithin } from './podcasting';
+import { playAt, playBook, updateChapters, useLibrary, usePlayerState } from './player';
 import { profileId } from './profile';
 
 const FETCH_TIMEOUT_MS = 20_000;
@@ -137,6 +137,12 @@ export function PodcastSync() {
     void loadEpisodeChapters(bookId).then((added) => {
       if (added) refresh();
     });
+    // The chapters file's pictures go to the lock screen and the car once read (M103).
+    if (Platform.OS === 'android') {
+      void loadChapterImages(bookId).then((images) => {
+        if (images.length > 0) void updateChapters(bookId).catch(() => {});
+      });
+    }
   }, [bookId, refresh]);
   useEffect(() => {
     // Before the first refresh, so what it brings for a podcast without a clock is not new.

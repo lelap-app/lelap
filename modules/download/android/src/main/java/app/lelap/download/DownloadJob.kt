@@ -3,7 +3,8 @@ package app.lelap.download
 import org.json.JSONArray
 import org.json.JSONObject
 
-data class JobFile(val url: String, val name: String, val size: Long)
+/** [integrity] is the feed's SRI hash of an episode's file (M103), checked once it is in. */
+data class JobFile(val url: String, val name: String, val size: Long, val integrity: String? = null)
 
 /** When a download may run. Applied as WorkManager constraints. */
 data class Rules(val wifiOnly: Boolean, val chargingOnly: Boolean)
@@ -72,9 +73,14 @@ data class DownloadJob(
 
     private fun encodeFile(f: JobFile) =
       JSONObject().put("url", f.url).put("name", f.name).put("size", f.size)
+        .apply { f.integrity?.let { put("integrity", it) } }
 
-    private fun decodeFile(o: JSONObject) =
-      JobFile(o.getString("url"), o.getString("name"), o.optLong("size", 0L))
+    private fun decodeFile(o: JSONObject) = JobFile(
+      o.getString("url"),
+      o.getString("name"),
+      o.optLong("size", 0L),
+      if (o.isNull("integrity")) null else o.optString("integrity").ifEmpty { null },
+    )
   }
 }
 

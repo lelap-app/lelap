@@ -1,5 +1,8 @@
 import {
   addToUpNext,
+  type AudioFile,
+  audioFileLabel,
+  audioFilesOf,
   castOf,
   type EpisodeItem,
   episodeBook,
@@ -15,8 +18,10 @@ import {
   markPodcastSeen,
   type SeenClock,
   schema,
+  setAudioChoice,
   setAutoDownload,
   setFinished,
+  SMALLEST_KEY,
   setTrim,
   TRIM_STEPS_S,
   unsubscribe,
@@ -52,6 +57,7 @@ import { Draggable } from '../drag';
 import { startDownload } from '../downloads';
 import { formatClock, formatDate, formatDuration, formatLeft } from '../format';
 import * as audio from '../platform/audio';
+import { pickEpisodeFile } from '../episodeFiles';
 import { reloadBook, useLibrary } from '../player';
 import {
   fetchFeed,
@@ -172,6 +178,62 @@ function People({ persons }: { persons: FeedPerson[] }) {
         </Pressable>
       ))}
     </ScrollView>
+  );
+}
+
+/**
+ * Which of an episode's files plays (M103), for a show that offers alternates: automatic, the
+ * smallest, or one the show names, held for every episode.
+ */
+function AudioChoiceRow({
+  files,
+  choice,
+  onPick,
+}: {
+  files: AudioFile[];
+  choice: string | null;
+  onPick: (choice: string | null) => void;
+}) {
+  const label = t('Episode file');
+  const options = [
+    { key: null, text: t('Automatic') },
+    { key: SMALLEST_KEY, text: t('Smallest') },
+    ...files.map((f) => ({
+      key: f.key,
+      text: audioFileLabel(f) || (f.key === 'enclosure' ? t('The feed’s own file') : f.key),
+    })),
+  ];
+  return (
+    <View className="gap-2">
+      <View>
+        <Text className="text-paper">{label}</Text>
+        <Text className="text-sm text-muted">
+          {t('Automatic plays the feed’s own file, and the smallest one on mobile data.')}
+        </Text>
+      </View>
+      <View
+        accessibilityRole="radiogroup"
+        accessibilityLabel={label}
+        className="flex-row flex-wrap gap-2"
+      >
+        {options.map((o) => {
+          const selected = choice === o.key;
+          return (
+            <Pill
+              key={o.key ?? 'auto'}
+              accessibilityRole="radio"
+              accessibilityLabel={o.text}
+              onPress={() => onPick(o.key)}
+              accessibilityState={{ checked: selected }}
+              aria-checked={selected}
+              className={`rounded-full border px-3 py-1 ${selected ? 'border-amber bg-amber' : 'border-line'}`}
+            >
+              <Text className={selected ? 'text-ink' : 'text-soft'}>{o.text}</Text>
+            </Pill>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -380,6 +442,24 @@ export function PodcastPage({
     refresh();
   };
 
+  // The show's files, from its newest episode that lists alternates.
+  const audioFiles = useMemo(() => {
+    const newest = list.find((e) => (e.extras?.alternates?.length ?? 0) > 0);
+    return newest ? audioFilesOf(newest) : [];
+  }, [list]);
+
+  const changeAudioChoice = (choice: string | null) => {
+    if (!podcastId) return;
+    setAudioChoice(db, profileId, podcastId, choice, Date.now());
+    // A loaded episode of this show switches file at its place; a downloaded one keeps its file.
+    void audio.getState().then(({ bookId: loaded }) => {
+      if (loaded && episodeOfBook(db, loaded)?.podcastId === podcastId && pickEpisodeFile(loaded)) {
+        void reloadBook(loaded, Platform.OS === 'android').catch(() => {});
+      }
+    });
+    refresh();
+  };
+
   const [actionEpisode, setActionEpisode] = useState<EpisodeItem | null>(null);
   const showActions = (e: EpisodeItem) => setActionEpisode(e);
   const episodeActions = (e: EpisodeItem): Action[] => {
@@ -544,6 +624,13 @@ export function PodcastPage({
                       valueMs={sub.skipOutroMs}
                       onPick={(ms) => changeTrim({ skipIntroMs: sub.skipIntroMs, skipOutroMs: ms })}
                     />
+                    {audioFiles.length > 1 && (
+                      <AudioChoiceRow
+                        files={audioFiles}
+                        choice={sub.audioChoice}
+                        onPick={changeAudioChoice}
+                      />
+                    )}
                     <TextButton
                       text={t('Unsubscribe')}
                       onPress={() => {

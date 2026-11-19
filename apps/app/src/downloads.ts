@@ -23,6 +23,7 @@ import { showAlert } from './dialog';
 import { queryClient } from './addons';
 import { db } from './db';
 import { logDiagnostic } from './diagnostics';
+import { onMobileData, pickEpisodeFile } from './episodeFiles';
 import { formatBytes } from './format';
 import * as audio from './platform/audio';
 import * as native from './platform/downloads';
@@ -71,6 +72,11 @@ export async function startDownload(
   ask = true,
 ): Promise<void> {
   const first = listDownloads(db).length === 0;
+  // An episode downloads the file its show plays; the smaller one on mobile data only when
+  // downloads may use it. A loaded episode downloads the file it plays, so the stream stays.
+  if ((await audio.getState().catch(() => null))?.bookId !== bookId) {
+    pickEpisodeFile(bookId, onMobileData() && !currentRules().wifiOnly);
+  }
   const plan = planDownload(db, bookId);
   // A browser's quota is often a few gigabytes: a book that can't fit isn't started.
   if (!native.RULES_APPLY) {
@@ -110,6 +116,7 @@ export async function startDownload(
         url: access[i]?.uri ?? f.url,
         name: f.name,
         size: f.size,
+        ...(f.integrity ? { integrity: f.integrity } : {}),
       })),
       headers: sharedHeaders(access),
       ...(localNetwork ? { localNetwork: true } : {}),

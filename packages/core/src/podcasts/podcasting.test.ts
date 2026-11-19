@@ -90,6 +90,7 @@ describe('Podcasting 2.0 feed tags', () => {
       soundbites: [],
       location: null,
       value: [],
+      alternates: [],
     });
   });
 

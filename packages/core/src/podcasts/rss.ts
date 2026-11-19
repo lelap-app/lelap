@@ -1,3 +1,4 @@
+import { alternatesOf } from './alternates';
 import {
   episodeExtrasOf,
   type EpisodeExtras,
@@ -69,24 +70,11 @@ function enclosure(url: string, type: string, length: string): Enclosure {
 
 /**
  * The audio among `podcast:alternateEnclosure`s, the one marked `default` first, at its first
- * web address. Sources of other schemes are skipped: the player streams over HTTP only.
+ * web address.
  */
 export function alternateAudioOf(item: XmlNode): Enclosure | null {
-  const audio = asArray(item['podcast:alternateEnclosure'])
-    .filter(isNode)
-    .filter((a) => textOf(a['@_type']).toLowerCase().startsWith('audio/'));
-  const ordered = [
-    ...audio.filter((a) => textOf(a['@_default']) === 'true'),
-    ...audio.filter((a) => textOf(a['@_default']) !== 'true'),
-  ];
-  for (const alt of ordered) {
-    const url = asArray(alt['podcast:source'])
-      .filter(isNode)
-      .map((s) => textOf(s['@_uri']))
-      .find(isHttp);
-    if (url) return enclosure(url, textOf(alt['@_type']), textOf(alt['@_length']));
-  }
-  return null;
+  const first = alternatesOf(item)[0];
+  return first ? { url: first.url, mime: first.mime, size: first.size } : null;
 }
 
 /**

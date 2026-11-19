@@ -1,5 +1,10 @@
 {
   "@language": "Bahasa Melayu",
+  "Episode file": "Fail episod",
+  "Automatic": "Automatik",
+  "Smallest": "Paling kecil",
+  "The feed’s own file": "Fail asal suapan",
+  "Automatic plays the feed’s own file, and the smallest one on mobile data.": "Automatik memainkan fail asal suapan, dan yang paling kecil pada data mudah alih.",
   " · hold a book for more": " · tekan lama buku untuk lagi",
   "10,000 made-up books and 500 podcasts, for timing a big library. They don’t play.": "10,000 buku rekaan dan 500 podcast, untuk mengukur masa pustaka besar. Ia tidak dimainkan.",
   "1 add-on": "1 alat tambah",
@@ -864,6 +869,7 @@
   "Only web addresses can be downloaded.": "Hanya alamat web boleh dimuat turun.",
   "That speaker is no longer on the network": "Pembesar suara itu tiada lagi dalam rangkaian",
   "The connection closed early.": "Sambungan ditutup terlalu awal.",
+  "The file doesn’t match the checksum in the feed, so it was not kept. It may have changed on the way.": "Fail ini tidak sepadan dengan checksum dalam suapan, jadi ia tidak disimpan. Ia mungkin berubah dalam perjalanan.",
   "The download does not match the release. Try again.": "Muat turun tidak sepadan dengan keluaran. Cuba lagi.",
   "The download failed.": "Muat turun gagal.",
   "The download kept failing: {reason}": "Muat turun berulang kali gagal: {reason}",

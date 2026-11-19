@@ -24,6 +24,8 @@ class DownloadJobTest {
     assertEquals(onCard, DownloadJob.decode(onCard.encode()))
     val onLan = job.copy(localNetwork = true)
     assertEquals(onLan, DownloadJob.decode(onLan.encode()))
+    val hashed = job.copy(files = listOf(JobFile("https://a.example/1.opus", "001.opus", 10, "sha256-abc=")))
+    assertEquals(hashed, DownloadJob.decode(hashed.encode()))
   }
 
   @Test fun `a job from before chosen folders is in private storage`() {
