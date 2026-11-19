@@ -109,8 +109,8 @@ export const ms: Record<string, string> = {
     'Pustaka, kemajuan, muat turun dan senarai main disimpan dalam telefon anda dahulu.',
   'Lori, asleep before the chapter ends. Tap him.':
     'Lori, sudah tertidur sebelum bab tamat. Ketik dia.',
-  'Lower the volume instead of stopping when a call comes in. Your choice, on Android.':
-    'Perlahankan bunyi dan bukannya berhenti apabila panggilan masuk. Pilihan anda, di Android.',
+  'When a call comes in, pause, or keep playing at a volume you choose. On Android.':
+    'Apabila panggilan masuk, jeda, atau teruskan main pada kelantangan yang anda pilih. Di Android.',
   Metadata: 'Metadata',
   'Made for the car': 'Dibuat untuk kereta',
   'Minutes or end of chapter. Fades out over the last minute, rewinds a little so you can find your place, and a shake buys you ten more.':
@@ -210,8 +210,8 @@ export const ms: Record<string, string> = {
   'Try the Android beta': 'Cuba beta Android',
   'Until the first stable release, use the <code>beta</code> tag of each image.':
     'Sehingga keluaran stabil pertama, gunakan tag <code>beta</code> bagi setiap imej.',
-  'Voice boost brings soft and loud words closer together. On Android, skip silence shortens long pauses and shows the time it saved, and even loudness keeps every book at one level. Set per book or per show.':
-    'Penguat suara merapatkan perkataan yang perlahan dan yang kuat. Pada Android, langkau senyap memendekkan jeda yang panjang dan menunjukkan masa yang dijimatkan, dan kenyaringan sekata mengekalkan setiap buku pada satu tahap. Tetapkan bagi setiap buku atau setiap rancangan.',
+  'Voice boost brings soft and loud words closer together. Skip silence shortens long pauses and shows the time it saved, and even loudness keeps every book at one level. Set per book or per show. In the web app, skip silence works on MP3s with a constant bitrate, such as LibriVox’s.':
+    'Penguat suara merapatkan perkataan yang perlahan dan yang kuat. Langkau senyap memendekkan jeda yang panjang dan menunjukkan masa yang dijimatkan, dan kenyaringan sekata mengekalkan setiap buku pada satu tahap. Tetapkan bagi setiap buku atau setiap rancangan. Dalam aplikasi web, langkau senyap berfungsi pada fail MP3 dengan kadar bit tetap, seperti fail LibriVox.',
   'We ship the .apk directly so releases don’t wait on store review. The app checks for updates itself, or you can follow releases with Obtainium.':
     'Kami mengedarkan .apk secara terus supaya keluaran tidak perlu menunggu semakan gedung aplikasi. Aplikasi menyemak kemas kini sendiri, atau anda boleh mengikuti keluaran dengan Obtainium.',
   'Web app': 'Aplikasi web',
