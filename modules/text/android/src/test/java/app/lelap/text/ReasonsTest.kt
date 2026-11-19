@@ -42,6 +42,17 @@ class ReasonsTest {
     assertEquals("Fail itu hilang.", Reasons.of(IOException(ShownException("Fail itu hilang.")), ms))
   }
 
+  @Test fun asksAFailureThatNamesItselfAlsoWhenWrapped() {
+    class Named : IOException("internal"), Explained {
+      override fun reason(text: NativeCatalog) = text.t("No answer from the server.")
+    }
+    assertEquals("Tiada jawapan daripada pelayan.", Reasons.of(RuntimeException(Named()), ms))
+  }
+
+  @Test fun namesAFileThatCouldNotBeSaved() {
+    assertEquals("Lelap could not save to the phone’s storage.", Reasons.of(NotSavedException(), en))
+  }
+
   @Test fun unknownIsNull() {
     assertNull(Reasons.of(IllegalStateException("Something odd"), en))
     assertNull(Reasons.of(ShownException(" "), en))

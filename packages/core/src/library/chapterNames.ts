@@ -25,9 +25,7 @@ export function chapterTitle(title: string, index: number, found = false): strin
 }
 
 /** The chapters with every untitled one named, ready to show. */
-export function namedChapters<T extends StoredChapter & { found?: boolean }>(
-  list: readonly T[],
-): T[] {
+export function namedChapters<T extends StoredChapter>(list: readonly T[]): T[] {
   return list.map((c, i) =>
     c.title.trim() === '' ? { ...c, title: chapterTitle(c.title, i, c.found) } : c,
   );

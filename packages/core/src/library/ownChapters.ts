@@ -18,7 +18,7 @@ export const CHAPTER_TITLE_MAX = 500;
  * stays).
  */
 export function cleanChapters(
-  list: readonly { title: unknown; startMs: unknown }[],
+  list: readonly { title: unknown; startMs: unknown; found?: unknown }[],
   durationMs: number,
 ): StoredChapter[] {
   const last = durationMs > 0 ? durationMs - 1 : Number.MAX_SAFE_INTEGER;
@@ -27,12 +27,13 @@ export function cleanChapters(
     .map((c, order) => ({
       title: typeof c.title === 'string' ? c.title.trim().slice(0, CHAPTER_TITLE_MAX) : '',
       startMs: Math.min(last, Math.max(0, Math.round(c.startMs as number))),
+      found: c.found === true,
       order,
     }))
     .sort((a, b) => a.startMs - b.startMs || a.order - b.order)
     .filter((c, i, all) => i === 0 || all[i - 1]?.startMs !== c.startMs)
     .slice(0, OWN_CHAPTERS_MAX);
-  return kept.map((c) => ({ title: c.title, startMs: c.startMs }));
+  return kept.map((c) => ({ title: c.title, startMs: c.startMs, ...(c.found && { found: true }) }));
 }
 
 /** The listener's own chapters for a book, or null when the book's own apply. */
@@ -49,7 +50,17 @@ export function getOwnChapters(db: Db, profileId: string, bookId: string): Store
   // Synced from a device whose copy may be longer: nothing starts past this copy's end.
   const durationMs =
     db.select({ d: books.durationMs }).from(books).where(eq(books.id, bookId)).get()?.d ?? 0;
-  return durationMs > 0 ? list.filter((c) => c.startMs < durationMs) : list;
+  const kept = durationMs > 0 ? list.filter((c) => c.startMs < durationMs) : list;
+  // A list saved before M124 doesn't say which chapters were found: one untitled at the start of
+  // a chapter found from silences is a “Part” too.
+  const found = new Set(
+    bookChapters(db, bookId)
+      .filter((c) => c.found)
+      .map((c) => c.startMs),
+  );
+  return kept.map((c) =>
+    !c.found && c.title === '' && found.has(c.startMs) ? { ...c, found: true } : c,
+  );
 }
 
 /** The chapters as the book itself has them: from tags, a feed, a server or found from silences. */
@@ -66,7 +77,11 @@ export function bookChapters(db: Db, bookId: string): (StoredChapter & { found: 
 export function chaptersOf(db: Db, profileId: string, bookId: string): StoredChapter[] {
   return (
     getOwnChapters(db, profileId, bookId) ??
-    bookChapters(db, bookId).map(({ title, startMs }) => ({ title, startMs }))
+    bookChapters(db, bookId).map(({ title, startMs, found }) => ({
+      title,
+      startMs,
+      ...(found && { found: true }),
+    }))
   );
 }
 
@@ -94,7 +109,7 @@ export function setOwnChapters(
   db: Db,
   profileId: string,
   bookId: string,
-  list: readonly { title: string; startMs: number }[],
+  list: readonly StoredChapter[],
   durationMs: number,
   now: number,
 ): boolean {

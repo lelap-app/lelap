@@ -14,7 +14,6 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import app.lelap.netfs.LocalNetwork
 import app.lelap.netfs.Messages
-import app.lelap.netfs.NetFailure
 import app.lelap.netfs.NetLogin
 import app.lelap.netfs.Netfs
 import app.lelap.text.NativeText
@@ -144,8 +143,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     NativeText.t(applicationContext, "The download kept failing: {reason}", "reason" to it)
   } ?: NativeText.t(applicationContext, "The download failed.")
 
-  private fun reason(e: Exception): String? =
-    if (e is NetFailure) Messages.describe(applicationContext, e) else Reasons.of(e, NativeText.get(applicationContext))
+  // An SMB or SFTP failure names itself, also inside another exception.
+  private fun reason(e: Exception): String? = Reasons.of(e, NativeText.get(applicationContext))
 
   private fun noLocalNetworkText(): String = NativeText.t(
     applicationContext,

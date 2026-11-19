@@ -132,7 +132,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M121 Podcasts 7](milestones/m121.md)                | Planned     |             | Integrity checks for web downloads, the smaller file with the app closed, chapter images on the web                           |
 | [M122 Better sound 3](milestones/m122.md)            | Planned     |             | Skip silence on the web for every format, without reading streams twice, and on cast receivers                                |
 | [M123 Server sources 4](milestones/m123.md)          | Planned     |             | Add-on servers' places with the app closed, located addresses for books started without the app                               |
-| [M124 Languages 4](milestones/m124.md)               | Planned     |             | Chapter names that follow a language switch at once, and the last English failure texts                                       |
+| [M124 Languages 4](milestones/m124.md)               | Done        |           7 | Chapter names that follow a language switch at once, typed chapter names kept, the last English failure texts                 |
 | [M125 Casting 5](milestones/m125.md)                 | Planned     |             | An FCast receiver that goes silent, tuned receiver waits, Cast on the web, bedtime volume while casting                       |
 | [M126 Speed and battery 2](milestones/m126.md)       | Planned     |             | What M106 left: Android's start, a Library that rereads only what changed, a smaller start bundle                             |
 | [M127 Series 3](milestones/m127.md)                  | Done        |           6 | Whole series from Wikidata, in release order, with the books the library lacks by title                                       |

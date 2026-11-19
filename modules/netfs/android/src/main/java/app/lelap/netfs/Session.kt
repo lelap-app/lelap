@@ -1,5 +1,7 @@
 package app.lelap.netfs
 
+import app.lelap.text.Explained
+import app.lelap.text.NativeCatalog
 import java.io.Closeable
 import java.io.IOException
 import java.io.InterruptedIOException
@@ -34,9 +36,12 @@ interface NetSession : Closeable {
 
 /**
  * Why a server could not be used. [Kind.permanent]: trying again will not help (a refused login,
- * a changed host key); the others may pass, such as a server asleep.
+ * a changed host key); the others may pass, such as a server asleep. Its message is for logs; a
+ * listener reads [reason], also when it is wrapped in another failure.
  */
-class NetFailure(val kind: Kind, message: String, cause: Throwable? = null) : IOException(message, cause) {
+class NetFailure(val kind: Kind, message: String, cause: Throwable? = null) : IOException(message, cause), Explained {
+  override fun reason(text: NativeCatalog): String = Messages.describe(text, this)
+
   enum class Kind(val code: String, val permanent: Boolean) {
     LOGIN("ERR_NETFS_LOGIN", true),
     HOST_KEY_CHANGED("ERR_NETFS_HOST_KEY_CHANGED", true),

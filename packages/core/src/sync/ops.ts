@@ -27,6 +27,7 @@ import {
   progress,
   settings,
   type SmartRule,
+  type StoredChapter,
   subscriptions,
   tombstones,
   upNext,
@@ -236,7 +237,7 @@ export type Op =
       /** The book's synced name, as for tags. */
       key: string;
       at: number;
-      data: { chapters: { title: string; startMs: number }[] | null };
+      data: { chapters: { title: string; startMs: number; found?: boolean }[] | null };
     }
   | {
       /** The source a profile picked for an add-on work (M15). Since M68; older devices skip it. */
@@ -1319,6 +1320,65 @@ export function fillMissingSkips(db: Db, ops: Op[], pushedAt: number): number {
         continue;
       }
       tx.update(subscriptions).set(trim).where(where).run();
+      changed++;
+    }
+  });
+  return changed;
+}
+
+/** The names migration 0027 emptied in the listener's own chapters (beta 11): only these come back. */
+const emptiedByMigration = (title: string, index: number): boolean =>
+  title === `Chapter ${index + 1}` || title === `Bab ${index + 1}`;
+
+/** Whether some own chapter has no name, the only case `restoreOwnChapterNames` can change. */
+export function hasUntitledOwnChapters(db: Db): boolean {
+  return db
+    .select({ chapters: ownChapters.chapters })
+    .from(ownChapters)
+    .all()
+    .some((row) => row.chapters?.some((c) => c.title === ''));
+}
+
+/**
+ * Gives back the names migration 0027 took from the listener's own chapters, from the group's
+ * copy of the same version: same time, same starts, and the only difference a name it emptied.
+ * A list changed since is the listener's, and stays. The row keeps its time, so nothing is sent
+ * back; each device restores its own. Returns how many lists changed.
+ */
+export function restoreOwnChapterNames(db: Db, ops: Op[]): number {
+  const rowKey = (profile: string, key: string, at: number) => `${profile}\u0000${key}\u0000${at}`;
+  const sent = new Map<string, StoredChapter[]>();
+  for (const op of ops) {
+    if (op.type !== 'chapters' || typeof op.data !== 'object' || op.data === null) continue;
+    const list: unknown = op.data.chapters;
+    if (!Array.isArray(list) || typeof op.at !== 'number') continue;
+    const objects = list.filter(
+      (c): c is { title: unknown; startMs: unknown } => typeof c === 'object' && c !== null,
+    );
+    sent.set(rowKey(op.profile, op.key, op.at), cleanChapters(objects, 0));
+  }
+  let changed = 0;
+  db.transaction((tx) => {
+    for (const row of tx.select().from(ownChapters).all()) {
+      const local = row.chapters;
+      const before = sent.get(rowKey(row.profileId, row.bookKey, row.updatedAt));
+      if (!local || !before || before.length !== local.length) continue;
+      let other = false;
+      let restored = 0;
+      const list = local.map((c, i) => {
+        const was = before[i];
+        if (!was || was.startMs !== c.startMs) other = true;
+        else if (c.title === '' && was.title !== '' && emptiedByMigration(was.title, i)) {
+          restored++;
+          return { ...c, title: was.title };
+        } else if (was.title !== c.title) other = true;
+        return c;
+      });
+      if (other || restored === 0) continue;
+      tx.update(ownChapters)
+        .set({ chapters: list })
+        .where(and(eq(ownChapters.profileId, row.profileId), eq(ownChapters.bookKey, row.bookKey)))
+        .run();
       changed++;
     }
   });

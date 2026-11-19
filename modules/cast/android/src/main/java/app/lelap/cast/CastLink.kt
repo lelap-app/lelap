@@ -267,7 +267,7 @@ class CastLink private constructor(
     "upnp" -> UpnpRenderer(member)
     "cast" -> GoogleCastRenderer(member, onLost)
     "fcast" -> FCastRenderer(member, onLost)
-    else -> throw CastException("Unknown kind of receiver")
+    else -> throw CastException(NativeText.current().t("Lelap can’t cast to this kind of speaker."))
   }
 
   /** The receiver closed the connection; whoever plays through the link hands back. */

@@ -20,7 +20,15 @@ import {
   toBase64Url,
   toHex,
 } from './crypto';
-import { applyOps, collectOps, fillMissingSkips, type Handoff, type Op } from './ops';
+import {
+  applyOps,
+  collectOps,
+  fillMissingSkips,
+  type Handoff,
+  hasUntitledOwnChapters,
+  type Op,
+  restoreOwnChapterNames,
+} from './ops';
 import {
   applySnapshot,
   openSnapshot,
@@ -344,8 +352,12 @@ export async function syncNow(
   }
 
   // Once per device: shows a version before M45 kept without their intro and outro.
-  if (!skipsFilled(db)) {
+  if (!isDone(db, SKIPS_KEY)) {
     await fillSkipsFromGroup(db, client, membership, token, enc, now).catch(() => {});
+  }
+  // Once per device: own chapter names that beta 11 emptied, from the group's copy (M124).
+  if (!isDone(db, NAMES_KEY)) {
+    await restoreNamesFromGroup(db, client, membership, token, enc, now).catch(() => {});
   }
 
   // Collected after the pull, so what just arrived is not sent straight back (much).
@@ -413,10 +425,6 @@ export function packMessages(ops: Op[], device: string, name: string): Envelope[
 /** Set once this device has looked for intro and outro values it missed (M68). */
 const SKIPS_KEY = 'skipsFilled';
 
-function skipsFilled(db: Db): boolean {
-  return db.select().from(syncState).where(eq(syncState.key, SKIPS_KEY)).get() !== undefined;
-}
-
 /**
  * Reads the group's snapshot and log once, for `fillMissingSkips`. Only when some show here reads
  * 0 and 0, which is the only case it can change; this device's own messages count too, since a
@@ -439,39 +447,79 @@ async function fillSkipsFromGroup(
       .where(and(eq(subscriptions.skipIntroMs, 0), eq(subscriptions.skipOutroMs, 0)))
       .get();
   if (unset) {
-    const ops: Op[] = [];
-    const keep = (list: Op[]) => {
-      for (const op of list) {
-        if (op.type === 'subscription' || (op.type === 'delete' && op.kind === 'subscription')) {
-          ops.push(op);
-        }
-      }
-    };
-    let after = 0;
-    for (;;) {
-      let page: Awaited<ReturnType<SyncClient['pull']>>;
-      try {
-        page = await client.pull(groupId, token, after, PULL_LIMIT);
-      } catch (error) {
-        if (!(error instanceof SyncError && error.status === 410) || after > 0) throw error;
-        const snapshot = await readSnapshot(client, groupId, token, enc);
-        for (const entry of snapshot.entries) keep(entry.ops);
-        after = snapshot.covers;
-        continue;
-      }
-      for (const message of page.messages) {
-        const envelope = readEnvelope(open(enc, groupId, message.data));
-        if (envelope !== null && envelope !== 'newer') keep(envelope.ops);
-      }
-      after = Math.max(after, page.last);
-      if (page.messages.length < PULL_LIMIT) break;
-    }
+    const ops = await readGroupOps(
+      client,
+      groupId,
+      token,
+      enc,
+      (op) => op.type === 'subscription' || (op.type === 'delete' && op.kind === 'subscription'),
+    );
     fillMissingSkips(db, ops, pushedAt);
   }
-  db.insert(syncState)
-    .values({ key: SKIPS_KEY, value: '1', updatedAt: now })
-    .onConflictDoNothing()
-    .run();
+  markDone(db, SKIPS_KEY, now);
+}
+
+/** Set once this device has looked for own chapter names that migration 0027 emptied (M124). */
+const NAMES_KEY = 'chapterNamesRestored';
+
+/**
+ * Reads the group's snapshot and log once, for `restoreOwnChapterNames`: the group still holds
+ * the lists as they were sent, names and all. Only when some own chapter here has no name.
+ */
+async function restoreNamesFromGroup(
+  db: Db,
+  client: SyncClient,
+  { groupId }: SyncMembership,
+  token: string,
+  enc: Uint8Array,
+  now: number,
+): Promise<void> {
+  if (hasUntitledOwnChapters(db)) {
+    const ops = await readGroupOps(client, groupId, token, enc, (op) => op.type === 'chapters');
+    restoreOwnChapterNames(db, ops);
+  }
+  markDone(db, NAMES_KEY, now);
+}
+
+const isDone = (db: Db, key: string): boolean =>
+  db.select().from(syncState).where(eq(syncState.key, key)).get() !== undefined;
+
+function markDone(db: Db, key: string, now: number): void {
+  db.insert(syncState).values({ key, value: '1', updatedAt: now }).onConflictDoNothing().run();
+}
+
+/** Every change in the group's snapshot and log that `wanted` keeps, this device's own too. */
+async function readGroupOps(
+  client: SyncClient,
+  groupId: string,
+  token: string,
+  enc: Uint8Array,
+  wanted: (op: Op) => boolean,
+): Promise<Op[]> {
+  const ops: Op[] = [];
+  const keep = (list: Op[]) => {
+    for (const op of list) if (wanted(op)) ops.push(op);
+  };
+  let after = 0;
+  for (;;) {
+    let page: Awaited<ReturnType<SyncClient['pull']>>;
+    try {
+      page = await client.pull(groupId, token, after, PULL_LIMIT);
+    } catch (error) {
+      if (!(error instanceof SyncError && error.status === 410) || after > 0) throw error;
+      const snapshot = await readSnapshot(client, groupId, token, enc);
+      for (const entry of snapshot.entries) keep(entry.ops);
+      after = snapshot.covers;
+      continue;
+    }
+    for (const message of page.messages) {
+      const envelope = readEnvelope(open(enc, groupId, message.data));
+      if (envelope !== null && envelope !== 'newer') keep(envelope.ops);
+    }
+    after = Math.max(after, page.last);
+    if (page.messages.length < PULL_LIMIT) break;
+  }
+  return ops;
 }
 
 /** The group's snapshot, read and opened; throws when there is none or it does not open. */

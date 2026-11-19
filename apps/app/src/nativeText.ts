@@ -136,6 +136,9 @@ const nativeLines = (): Record<string, string> => ({
     'Could not make the book’s folder in the download folder.',
   ),
   'Moving downloads stopped.': t('Moving downloads stopped.'),
+  // The last internal failures that had English text of their own (M124).
+  'Lelap could not save to the phone’s storage.': t('Lelap could not save to the phone’s storage.'),
+  'Lelap can’t cast to this kind of speaker.': t('Lelap can’t cast to this kind of speaker.'),
   'The download is larger than the release.': t('The download is larger than the release.'),
   'The update was cancelled.': t('The update was cancelled.'),
   'Android blocked the update.': t('Android blocked the update.'),
