@@ -352,7 +352,13 @@ describe('Hardcover', () => {
     const { fetch, state } = hardcover();
     const app = appWith(fetch);
     const { url } = await configure(app, '/hardcover', { token: TOKEN });
-    await post(app, url, [event({ event: 'rate', rating: 4.5 })]);
+    // Not on a shelf yet: a rating alone would put it on Read, so it waits.
+    await post(app, url, [event({ event: 'rate', rating: 4, at: 1 })]);
+    expect(state.userBook).toBeFalsy();
+    await post(app, url, [
+      event({ event: 'start', at: 2 }),
+      event({ event: 'rate', rating: 4.5, at: 3 }),
+    ]);
     expect(state.updates).toContainEqual({ rating: 4.5 });
     // Revision 10: a rate without a rating takes it back.
     await post(app, url, [event({ event: 'rate', at: 5 })]);

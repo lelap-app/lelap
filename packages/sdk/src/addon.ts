@@ -416,7 +416,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
 
     const draft = form.get('draft');
     if (draft !== null && choose) {
-      const opened = await decodeConfig(draft, configure.secret, `${declared.id} draft`);
+      const opened = await decodeConfig(draft, configure.secret, `${declared.id}\ndraft`);
       const until = Number(opened?.['~until']);
       if (!opened || !Number.isFinite(until) || until < now())
         return html(
@@ -524,7 +524,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
     const sealed = await encodeConfig(
       { ...config, '~until': String(now() + CHOOSE_DRAFT_MS) },
       configure.secret,
-      `${declared.id} draft`,
+      `${declared.id}\ndraft`,
     );
     const start = `configure?start=1${returnTo ? `&return=${encodeURIComponent(returnTo)}` : ''}`;
     return html(

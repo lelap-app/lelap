@@ -202,8 +202,11 @@ async function apply(gql: GraphQL, user: number, book: number, event: ScrobbleEv
   // Carrying on with a book already marked read, such as its last minutes again, isn't a new
   // reading; only a fresh start (revision 9: a start without `resumed`) is.
   if (userBook?.status_id === STATUS.read && carriesOn(event)) return;
-  // A rating taken back (revision 10) for a book not on a shelf leaves nothing to change.
-  if (event.event === 'rate' && event.rating === undefined && !userBook) return;
+  // A rating needs the book on a shelf: rating one Hardcover has no shelf for would put it on
+  // Read. A book played in Lelap is on one from its first start (revision 10 sends `rate` from
+  // any library book).
+  if (event.event === 'rate' && !userBook) return;
+
   const wanted =
     event.event === 'finish'
       ? STATUS.read

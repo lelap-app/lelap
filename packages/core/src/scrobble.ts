@@ -147,7 +147,7 @@ export function enqueueScrobble(
   const item = scrobbleItemKey(event.item);
   db.transaction((tx) => {
     for (const addon of targets) {
-      const key = `${HEARD_PREFIX}${profileId}\n${addon.url}\n${item}`;
+      const key = `${HEARD_PREFIX}${profileId}\n${addon.manifest.id}\n${item}`;
       const heard = deviceValue(tx, key) !== null;
       // Revision 10: `resumed` only to an add-on that heard of the book before, so a book begun
       // before the add-on was set up still reaches it.

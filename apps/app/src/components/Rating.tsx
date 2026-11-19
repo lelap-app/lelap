@@ -1,8 +1,9 @@
 import { getRating, setRating } from '@lelap/core';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { db } from '../db';
+import { useLibrary } from '../player';
 import { t } from '../i18n';
 import { ratingAddonsFor, trackRated } from '../scrobble';
 import { COLORS, Icon } from './Icon';
@@ -38,7 +39,10 @@ export function RatingRow({
   /** Off where the sheet's title already says “Your rating”. */
   heading?: boolean;
 }) {
+  const { version } = useLibrary();
   const [rating, setShown] = useState(() => getRating(db, profile, bookId));
+  // A rating from another device arrives with a sync, which changes `version`.
+  useEffect(() => setShown(getRating(db, profile, bookId)), [bookId, profile, version]);
   const hearing = useMemo(() => ratingAddonsFor(bookId, profile), [bookId, profile]);
   const change = (next: number | null) => {
     if (!setRating(db, profile, bookId, next, Date.now())) return;

@@ -142,6 +142,10 @@ when it is planned.
   and maybe play downloads on it. Was M89; set aside on 2026-11-18 until there is a watch to test
   on.
 
+- **Scrobble bookkeeping (left from M102):** mark a book as heard by an add-on when its event is
+  delivered rather than queued, and log a session's start with the Android `finish` itself, so a
+  session too short for the tally to see never borrows an earlier one's start.
+
 - **More from Podcasting 2.0 tags (left from M75):** play a soundbite as a clip that stops at its
   end, and list soundbites in the player; let the listener pick among alternate enclosures (a
   smaller file on mobile data) and check `podcast:integrity`. Sending value-for-value payments
