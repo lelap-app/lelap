@@ -74,6 +74,13 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
   from; `resumed` on a `start` that carries on with a book; `next` on a `LibraryResponse` for a
   library in pages; and `setUpWithSettings`, for an add-on inside the app whose settings reach every
   call.
+- **Add-on test kit** (from the next version, 0.6): `npx @lelap/sdk check <url>` fetches an
+  add-on's manifest and everything it declares, validates each answer with these schemas, and
+  checks what schemas can't see: CORS, speed, caching, paging that ends, IDs that come back and
+  configure pages in the shared style. `--json` and exit codes (0 passed, 1 problems, 2 wrong use)
+  are for CI. `checkAddon(url, { fetch })` from `@lelap/sdk/check` does the same in your tests,
+  without a server, and stays out of bundles that import the SDK's root; see
+  [Checking an add-on](https://lelap.app/docs/checking/).
 - **Paths:** `catalogPath`, `metaPath`, `streamPath`, `libraryPath`, `placePath`, `parseRoute`, `encodeExtra`,
   `parseExtra`.
 - **Helpers:** `supports`, `prefixesFor`, `hasParts`, `isConfigurable`, `needsConfiguration`,

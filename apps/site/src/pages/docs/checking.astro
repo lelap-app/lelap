@@ -1,0 +1,292 @@
+---
+import CodeBlock from '../../components/CodeBlock.astro';
+import Docs from '../../layouts/Docs.astro';
+import { site } from '../../site';
+
+const tree = (path: string) => `${site.repoUrl}/tree/main/${path}`;
+
+const run = `
+npx @lelap/sdk check https://addon.example.com/manifest.json
+`;
+
+const fromRepo = `
+pnpm install
+pnpm --filter @lelap/sdk build
+node packages/sdk/dist/bin.js check http://localhost:8787
+`;
+
+const sample = `
+Broken example 1.0.0 (org.example.broken)
+http://localhost:8787/manifest.json
+
+error   cors  http://localhost:8787/manifest.json
+        No Access-Control-Allow-Origin header: the web app cannot read this answer. The same at 5 more addresses.
+warning caching  http://localhost:8787/manifest.json
+        No cacheMaxAge and no Cache-Control max-age: the app and caches ask again every time. The same at 5 more addresses.
+error   catalog  http://localhost:8787/catalog/audiobook/classics.json
+        metas[1].id: IDs look like prefix:value. Got "raven". The same at 2 more addresses.
+error   catalog  http://localhost:8787/catalog/audiobook/classics.json
+        metas[1].name: Too small: expected string to have >=1 characters. Got "". The same at 2 more addresses.
+warning paging  http://localhost:8787/catalog/audiobook/classics/skip=2.json
+        skip=2 brings only items earlier pages listed. skip counts items, so it should start after the first 2, or answer an empty list past the end.
+error   paging  http://localhost:8787/catalog/audiobook/classics/skip=100000.json
+        skip=100000 still brings the first items; paging never ends. Answer an empty list past the end.
+error   catalog  http://localhost:8787/catalog/audiobook/lelap-check-unknown.json
+        Answered 500 for a catalog it does not list; expected 404.
+error   ids  http://localhost:8787/meta/audiobook/example%3Araven.json
+        meta.id: Asked for example:raven and got example:Raven. The app keeps an item by the ID it asked for, so it must come back unchanged.
+warning stream  http://localhost:8787/stream/audiobook/example%3Araven.json
+        streams[0].url: Plain http: the web app, on https, cannot play it. Use https.
+error   meta  http://localhost:8787/meta/audiobook/example%3Alelap-check-unknown.json
+        Answered 500 for an ID it does not know; expected 404.
+
+Failed: 7 errors, 3 warnings, 8 requests.
+`;
+
+const json = `
+{
+  "url": "http://localhost:8787/manifest.json",
+  "addon": { "id": "org.example.broken", "name": "Broken example", "version": "1.0.0" },
+  "ok": false,
+  "errors": 7,
+  "warnings": 3,
+  "requests": 8,
+  "problems": [
+    {
+      "level": "error",
+      "kind": "catalog",
+      "url": "http://localhost:8787/catalog/audiobook/classics.json",
+      "field": "metas[1].id",
+      "message": "IDs look like prefix:value. Got \\"raven\\"."
+    }
+  ],
+  "notes": []
+}
+`;
+
+const workflow = `
+name: Add-on check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: npm ci
+      # Start the add-on in the background and wait until it answers.
+      - run: |
+          npm start &
+          for i in $(seq 30); do
+            curl -sf http://localhost:8787/manifest.json > /dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+      # Fails the job on errors; drop --strict to let warnings pass.
+      - run: npx lelap-sdk check http://localhost:8787 --strict
+`;
+
+const vitest = `
+import { checkAddon, formatReport } from '@lelap/sdk/check';
+import { expect, it } from 'vitest';
+
+import { addon } from './addon';
+
+it('passes the add-on test kit', async () => {
+  const report = await checkAddon('https://addon.test/', {
+    fetch: (url, init) => addon.fetch(new Request(url, init)),
+  });
+  expect(report.problems, formatReport(report)).toEqual([]);
+});
+`;
+
+const options: [string, string][] = [
+  ['--json', 'Print the report as JSON instead of text.'],
+  ['--strict', 'Fail on warnings too.'],
+  ['--items <n>', 'Items per catalog whose meta and streams are checked. Default 2.'],
+  ['--pages <n>', 'Catalog pages followed through skip. Default 3.'],
+  ['--search <text>', 'The text for catalogs that need a search. Default “the”.'],
+  [
+    '--id <type:id>',
+    'Also check this item, such as audiobook:example:raven: useful for a source add-on that answers IDs no catalog lists. Repeatable.',
+  ],
+  ['--audio', 'Also ask for the first bytes of each checked stream’s first file.'],
+  ['--timeout <ms>', 'Give up on an answer after this long. Default 10000, as the app.'],
+];
+
+const toc: [string, string][] = [
+  ['run', 'Run it'],
+  ['checks', 'What it checks'],
+  ['output', 'Output and exit codes'],
+  ['ci', 'In GitHub Actions'],
+  ['tests', 'In your own tests'],
+];
+---
+
+<Docs
+  title="Checking an add-on"
+  description={`A command that checks a ${site.name} add-on against protocol v1 and says what is wrong, for your machine and your CI.`}
+  toc={toc}
+>
+  <h1>Checking an add-on</h1>
+  <p class="lead">
+    <code>lelap-sdk check</code> asks your add-on for its manifest and everything it declares, the
+    way the app does, and says what is wrong: the field, what was expected and the address that
+    answered. Run it before you share your add-on, and in your CI.
+  </p>
+  <div class="note">
+    <p>
+      The command comes with the next release of <code>@lelap/sdk</code>, 0.6. Until that is on npm,
+      run it from the <a href={tree('packages/sdk')}>repository</a>.
+    </p>
+  </div>
+
+  <h2 id="run">Run it</h2>
+  <p>
+    Give it the manifest URL, with or without <code>manifest.json</code>. It works with any add-on
+    on a server, whatever it is written in: the checks only use HTTP.
+  </p>
+  <CodeBlock code={run} label="Terminal, from SDK 0.6" />
+  <CodeBlock code={fromRepo} label="Terminal, in a clone of the repository" />
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Option</th>
+          <th scope="col">What it does</th>
+        </tr>
+      </thead>
+      <tbody>
+        {options.map(([option, what]) => (
+          <tr>
+            <td>
+              <code>{option}</code>
+            </td>
+            <td>{what}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p>
+    It makes at most 150 requests and never sends scrobbles. Add-ons inside the app, a single
+    JavaScript file with a <code>sandbox</code>, run on the phone and aren’t checked over HTTP.
+  </p>
+
+  <h2 id="checks">What it checks</h2>
+  <ul>
+    <li>
+      <strong>Schemas.</strong> Every answer against the SDK’s zod schemas: the manifest, health,
+      catalogs, meta and streams. A manifest the app refuses stops the check there.
+    </li>
+    <li>
+      <strong>CORS.</strong> <code>Access-Control-Allow-Origin: *</code> on every answer, or the web
+      app can’t read it; a preflight for <code>POST /scrobble</code> if the add-on takes scrobbles.
+    </li>
+    <li>
+      <strong>Speed and caching.</strong> Answers slower than 3 s are a warning, and after 10 s the
+      app gives up. Each answer should carry <code>cacheMaxAge</code> or a{' '}
+      <code>Cache-Control</code> max-age.
+    </li>
+    <li>
+      <strong>Paging that ends.</strong> For catalogs with <code>skip</code>, each page brings new
+      items, and a <code>skip</code> far past the end doesn’t bring the first items again.
+    </li>
+    <li>
+      <strong>IDs that come back.</strong> Items from the catalogs are asked for by ID,
+      percent-encoded as the app does; the meta must answer with the same ID. Unknown IDs and
+      catalogs answer 404.
+    </li>
+    <li>
+      <strong>Streams.</strong> No headers from an add-on on a server, a different{' '}
+      <code>sourceKey</code> per stream, audio types in <code>mime</code>, https addresses without a
+      login in them. With <code>--audio</code>, that the audio answers and allows seeking.
+    </li>
+    <li>
+      <strong>Configure pages.</strong> The page answers, uses <code>PAGE_STYLE</code> from the SDK
+      (<a href="/docs/sdk/#configure">Settings and sign-in</a>) and sends{' '}
+      <code>Referrer-Policy: no-referrer</code>. An add-on that must be configured first is checked
+      up to there; check the address its configure page hands out for the rest.
+    </li>
+  </ul>
+  <p>
+    Whether you may share the audio is yours to answer: see the{' '}
+    <a href="/docs/#policy">rules for add-ons</a>.
+  </p>
+
+  <h2 id="output">Output and exit codes</h2>
+  <p>
+    An <strong>error</strong> is something the app refuses or loses, such as an item it skips. A{' '}
+    <strong>warning</strong> works, but worse than it could. Notes say what was skipped and why.
+  </p>
+  <CodeBlock code={sample} label="lelap-sdk check http://localhost:8787" />
+  <p>
+    With <code>--json</code> the same report is one JSON object, for tools and CI annotations. Each
+    problem has a <code>level</code>, a <code>kind</code> (such as <code>cors</code>,{' '}
+    <code>paging</code> or <code>ids</code>), the <code>url</code> that answered, the{' '}
+    <code>field</code> where there is one and a <code>message</code>.
+  </p>
+  <CodeBlock code={json} label="lelap-sdk check http://localhost:8787 --json (shortened)" />
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Exit code</th>
+          <th scope="col">Means</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <code>0</code>
+          </td>
+          <td>
+            No errors (and with <code>--strict</code>, no warnings).
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>1</code>
+          </td>
+          <td>The add-on has problems, or couldn’t be reached.</td>
+        </tr>
+        <tr>
+          <td>
+            <code>2</code>
+          </td>
+          <td>The command was used wrongly, such as an address that isn’t one.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="ci">In GitHub Actions</h2>
+  <p>
+    Add <code>@lelap/sdk</code> as a dev dependency (<code>npm install --save-dev @lelap/sdk</code>
+    ), then start your add-on in the job and check it. For an add-on in another language, start it
+    the same way and run the command with <code>npx @lelap/sdk check</code>. Pin actions to a
+    commit, as here.
+  </p>
+  <CodeBlock code={workflow} label=".github/workflows/addon-check.yml" />
+
+  <h2 id="tests">In your own tests</h2>
+  <p>
+    The command is <code>checkAddon</code> from <code>@lelap/sdk/check</code>, which takes a{' '}
+    <code>fetch</code>. Pass your add-on’s own and it needs no server, so it runs in your unit
+    tests. The repository’s tests run it against every one of the{' '}
+    <a href="/docs/samples/">samples</a> and {site.name}’s own add-ons.
+  </p>
+  <CodeBlock code={vitest} label="src/addon.test.ts" />
+</Docs>

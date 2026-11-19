@@ -38,7 +38,8 @@ apps/site       landing page for lelap.app (Astro, static)       → apps/site/A
 apps/app        Expo app for Android and web; M1 test screen for now
 packages/core   domain model, library logic, Drizzle schema, add-on client, sync; bundled in-app
                 add-ons in src/addons/bundled (`pnpm --filter @lelap/core bundle-addons`)
-packages/sdk    add-on SDK: protocol v1 as zod schemas, createAddon(), the work matcher; MIT
+packages/sdk    add-on SDK: protocol v1 as zod schemas, createAddon(), the work matcher, the
+                `lelap-sdk check` add-on test kit; MIT
 services/       Hono services on Cloudflare Workers: catalog (Catalog, LibriVox and Internet Archive
                 add-ons), proxy (feeds and covers for the web app), sync (encrypted oplog, D1), updates (signed
                 over-the-air bundles from R2), template
