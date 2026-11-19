@@ -1,3 +1,4 @@
+import { checkAddon } from '@lelap/sdk/check';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createSourceAddon, manifest } from './addon.mjs';
@@ -69,5 +70,15 @@ describe('the node:http server', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
     expect((await response.json()).streams).toHaveLength(1);
+  });
+
+  it('passes the add-on test kit over HTTP', async () => {
+    const report = await checkAddon(base, {
+      ids: [
+        { type: 'audiobook', id: 'isbn:9780000000002' },
+        { type: 'audiobook', id: 'ol:OL1W' },
+      ],
+    });
+    expect(report.problems).toEqual([]);
   });
 });

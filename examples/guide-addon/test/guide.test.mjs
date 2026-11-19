@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { CatalogResponse, Manifest, MetaResponse, PAGE_STYLE, StreamResponse } from '@lelap/sdk';
+import { checkAddon } from '@lelap/sdk/check';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { addon as catalogAddon } from '../catalog.mjs';
@@ -17,6 +18,13 @@ const get = async (addon, path) => {
   const response = await addon.fetch(new Request(`https://addon.test${path}`));
   return { status: response.status, body: await response.json() };
 };
+
+// The add-on test kit, as the guide tells readers to run it, but without a server.
+const check = (addon, options = {}) =>
+  checkAddon('https://addon.test/', {
+    fetch: (url, init) => addon.fetch(new Request(url, init)),
+    ...options,
+  });
 
 describe('step 1: a catalog', () => {
   it('serves a valid manifest and a catalog without descriptions', async () => {
@@ -33,6 +41,11 @@ describe('step 1: a catalog', () => {
     const { body } = await get(catalogAddon, '/stream/audiobook/classics%3Achristmas-carol.json');
     expect(StreamResponse.parse(body).streams[0].parts).toHaveLength(5);
     expect((await get(catalogAddon, '/meta/audiobook/classics%3Anope.json')).status).toBe(404);
+  });
+
+  it('passes the add-on test kit', async () => {
+    const report = await check(catalogAddon);
+    expect(report.problems).toEqual([]);
   });
 });
 
@@ -73,6 +86,13 @@ describe('step 2: settings', () => {
   it('runs on Workers through the same fetch', async () => {
     const response = await worker.fetch(new Request('https://addon.test/manifest.json'));
     expect(response.status).toBe(200);
+  });
+});
+
+describe('step 2 and the test kit', () => {
+  it('passes, with the configure page in the shared style', async () => {
+    const report = await check(settingsAddon);
+    expect(report.problems).toEqual([]);
   });
 });
 
@@ -155,6 +175,11 @@ describe('step 3: a source for your own files', () => {
     );
     const own = await get(addon, '/stream/audiobook/classics%3Araven.json');
     expect(own.body.streams[0].title).toBe('LibriVox recording');
+  });
+
+  it('passes the add-on test kit, with a work from another add-on', async () => {
+    const report = await check(addon, { ids: [{ type: 'audiobook', id: 'ol:OL1W' }] });
+    expect(report.problems).toEqual([]);
   });
 
   describe('served by node:http', () => {

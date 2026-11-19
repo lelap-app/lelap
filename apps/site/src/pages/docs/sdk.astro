@@ -472,6 +472,11 @@ const toc: [string, string][] = [
     <code>metaPath</code> and <code>streamPath</code>, which build paths the way the app does.
   </p>
   <CodeBlock code={test} label="src/addon.test.ts" />
+  <p>
+    For everything at once, <code>checkAddon</code> from <code>@lelap/sdk/check</code> runs the{' '}
+    <a href="/docs/checking/">add-on test kit</a> against <code>addon.fetch</code>: schemas, CORS,
+    caching, paging and IDs that come back. It comes with the next SDK release, 0.6.
+  </p>
 
   <h2 id="app">Add it to the app</h2>
   <ol>

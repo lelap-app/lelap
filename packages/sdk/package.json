@@ -23,7 +23,8 @@
     "node": ">=20"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./check": "./src/check.ts"
   },
   "files": [
     "dist"
@@ -36,8 +37,15 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       },
+      "./check": {
+        "types": "./dist/check.d.ts",
+        "default": "./dist/check.js"
+      },
       "./protocol.schema.json": "./dist/protocol.schema.json",
       "./package.json": "./package.json"
+    },
+    "bin": {
+      "lelap-sdk": "./dist/bin.js"
     },
     "types": "./dist/index.d.ts"
   },

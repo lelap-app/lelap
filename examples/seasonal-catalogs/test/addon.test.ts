@@ -1,4 +1,5 @@
 import { CatalogResponse, catalogPath } from '@lelap/sdk';
+import { checkAddon } from '@lelap/sdk/check';
 import { describe, expect, it } from 'vitest';
 
 import { addon, manifest } from '../src/addon';
@@ -26,5 +27,12 @@ describe('seasonal catalogs', () => {
   it('answers nothing else', async () => {
     expect((await get('catalog/audiobook/summer.json')).status).toBe(404);
     expect((await get('meta/audiobook/librivox%3Agiftofmagi.json')).status).toBe(404);
+  });
+
+  it('passes the add-on test kit', async () => {
+    const report = await checkAddon('https://addon.test/', {
+      fetch: (url, init) => addon.fetch(new Request(url, init)),
+    });
+    expect(report.problems).toEqual([]);
   });
 });
