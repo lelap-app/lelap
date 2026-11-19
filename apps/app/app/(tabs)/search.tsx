@@ -102,7 +102,7 @@ export default function SearchScreen() {
       />
       {refs.length === 0 ? (
         <Text className="px-4 text-muted">
-          {t('No add-on can search. Add one in Settings → Add-ons.')}
+          {t('No add-on can search. Add one in Settings → Library and sources → Add-ons.')}
         </Text>
       ) : (
         <SectionList

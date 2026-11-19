@@ -84,7 +84,7 @@ export function useOwnAddonOffers(
           : pasteBelow
             ? t('Opens a page on our server for your account; paste the link it gives you below.')
             : t(
-                'Opens a page on our server for your account; paste the link it gives you in Settings → Add-ons.',
+                'Opens a page on our server for your account; paste the link it gives you in Settings → Library and sources → Add-ons.',
               ),
     }));
   return [...bundled, ...sources, ...hosted];

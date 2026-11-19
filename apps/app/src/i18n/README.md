@@ -1,7 +1,7 @@
 # Translations
 
 Lelap's app speaks English and Bahasa Melayu. Each profile picks its own language in
-Settings → Language; a new profile starts with the language of the profile that made it. The same
+Settings → Look and language; a new profile starts with the language of the profile that made it. The same
 lines name the notifications, the home screen widget, the Quick Settings tile and Android Auto's
 shelves.
 

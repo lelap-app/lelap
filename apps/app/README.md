@@ -7,7 +7,7 @@ in [`@lelap/core`](../../packages/core), playback in [`@lelap/audio`](../../modu
 folder access in [`@lelap/library`](../../modules/library). See
 [`docs/brief.md`](../../docs/brief.md) and [`docs/roadmap.md`](../../docs/roadmap.md).
 
-The M1 audio spike screen is still reachable from Settings → Developer until its call checks pass.
+The M1 audio spike screen is still reachable from Settings → Help → Developer until its call checks pass.
 
 ## Accessibility
 
@@ -64,7 +64,7 @@ EXPO_PUBLIC_LELAP_ADDONS=http://localhost:8787/librivox/manifest.json,http://loc
 ```
 
 Defaults are installed only once; on a phone that already has them, add the local URLs in
-Settings → Add-ons.
+Settings → Library and sources → Add-ons.
 
 ## Web app locally
 
