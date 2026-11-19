@@ -142,7 +142,6 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M132 Open lectures](milestones/m132.md)             | Planned     |             | Complete Open Yale Courses as books, one lecture per part, with Yale's credit, licence and transcripts                                                        |
 | [M134 Better sound 4](milestones/m134.md)            | Planned     |             | The sound effects on cast receivers through a stream the phone renders; skip silence on the web for variable-bitrate MP3, and MP3's encoder delay per browser |
 | [M135 OPDS 2](milestones/m135.md)                    | Planned     |             | What M128 left: Digest logins for audio, OPDS Progression places, a feed's summary, language and series                                                       |
-| [M137 Metadata 2](milestones/m137.md)                | Planned     |             | The Catalog add-on fills missing descriptions, covers, genres and release dates from Google Books, with credit per field                                      |
 | [M138 Playback history](milestones/m138.md)          | Planned     |             | A short log per book of plays, pauses, skips, seeks, chapter jumps and sleep timer stops, so one tap undoes an accidental jump                                |
 
 <!-- milestones:end -->
@@ -155,6 +154,12 @@ far.
 Ideas without a number or a place in the order yet. One becomes a milestone, with its own file,
 when it is planned.
 
+- **Metadata from Google Books:** fill missing descriptions, covers, genres and years from the Google
+  Books API in the Catalog add-on, as the metadata rule in the brief allows. Planned as M137 on
+  2026-11-19, then set aside the same day: Google's terms require its mark and a link beside every
+  field and forbid lasting copies (so no Google fields in downloads or sync), it has no narrators or
+  lengths, and its coverage of Danish editions is unknown until a key exists. Apple's iTunes Search
+  API is out unless a store link is shown beside its data. M137 is left unused.
 - **Wear OS:** control playback from the watch (tile and app: play, pause, skip, the sleep timer),
   and maybe play downloads on it. Was M89; set aside on 2026-11-18 until there is a watch to test
   on.
