@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAddons } from '../src/addons';
 import { showAlert } from '../src/dialog';
 import { t } from '../src/i18n';
-import { COLORS, Icon, type IconName } from '../src/components/Icon';
+import { Icon, type IconName } from '../src/components/Icon';
 import { Lori } from '../src/components/Lori';
 import { OwnAddonOffer, useOwnAddonOffers } from '../src/components/OwnAddons';
 import { TextButton } from '../src/components/TextButton';
@@ -28,6 +28,7 @@ import { profileId } from '../src/profile';
 import { useLibrary } from '../src/player';
 import { chooseFolder, scanLibrary } from '../src/scan';
 import { membership } from '../src/sync';
+import { useColors } from '../src/theme';
 
 type Step = 'welcome' | 'source' | 'addons';
 /** Where the listener lands when the first start ends: their own books, or the free catalogs. */
@@ -77,18 +78,19 @@ function Choice({
   detail: string;
   onPress: () => void;
 }) {
+  const colors = useColors();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       className="min-h-12 flex-row items-center gap-4 rounded-xl border border-line p-4 active:bg-raised"
     >
-      <Icon name={icon} color={COLORS.amber} />
+      <Icon name={icon} color={colors.amber} />
       <View className="flex-1 gap-1">
         <Text className="text-base font-semibold text-paper">{title}</Text>
         <Text className="text-sm text-soft">{detail}</Text>
       </View>
-      <Icon name="forward" size={20} color={COLORS.muted} />
+      <Icon name="forward" size={20} color={colors.muted} />
     </Pressable>
   );
 }

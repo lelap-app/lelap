@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { hint } from '../src/a11y';
 import { t } from '../src/i18n';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { useReducedMotion } from '../src/components/Motion';
 import { db } from '../src/db';
 import { formatClock } from '../src/format';
@@ -15,6 +15,7 @@ import { seekToBookPosition, usePlayerState } from '../src/player';
 import { loadTranscript, transcriptOf } from '../src/podcasting';
 import { profileId } from '../src/profile';
 import { READABLE } from '../src/layout';
+import { useColors } from '../src/theme';
 
 // After the listener scrolls, the list stops following the position for this long.
 const FOLLOW_PAUSE_MS = 8_000;
@@ -23,6 +24,7 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 
 /** The playing episode's transcript: the current line lit, a tap on a line seeks to it. */
 export default function TranscriptScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const state = usePlayerState();
@@ -64,7 +66,7 @@ export default function TranscriptScreen() {
           name="down"
           label={t('Close transcript')}
           size={26}
-          color={COLORS.soft}
+          color={colors.soft}
           onPress={() => router.back()}
         />
         <View className="flex-1">
@@ -84,7 +86,7 @@ export default function TranscriptScreen() {
           {t('This episode has no transcript.')}
         </Text>
       ) : transcript.isPending ? (
-        <ActivityIndicator color={COLORS.amber} className="pt-24" />
+        <ActivityIndicator color={colors.amber} className="pt-24" />
       ) : transcript.isError ? (
         <Text className="px-6 pt-24 text-center text-muted">
           {t('The transcript could not be read: {error}', { error: message(transcript.error) })}

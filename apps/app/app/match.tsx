@@ -8,19 +8,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { fetcher, useAddons } from '../src/addons';
 import { MetaListRow } from '../src/components/MetaCard';
 import { db } from '../src/db';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { LIST_COLUMN } from '../src/layout';
+import { useColors } from '../src/theme';
 
 /**
  * Match with catalog… (M56): the listener searches the add-ons' catalogs and picks the work a
  * library book is. The search starts only when they send it, with the words they chose.
  */
 export default function MatchScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { refresh } = useLibrary();
@@ -88,7 +90,7 @@ export default function MatchScreen() {
             <IconButton
               name="back"
               label={t('Back')}
-              color={COLORS.soft}
+              color={colors.soft}
               onPress={() => router.back()}
             />
           </View>
@@ -108,7 +110,7 @@ export default function MatchScreen() {
               onSubmitEditing={() => setQuery(text.trim())}
               placeholder={t('Title or author')}
               accessibilityLabel={t('Search the catalogs')}
-              placeholderTextColor={COLORS.muted}
+              placeholderTextColor={colors.muted}
               autoCorrect={false}
               returnKeyType="search"
               className="min-w-0 flex-1 rounded-lg bg-raised px-4 py-3 text-base text-paper"
@@ -129,7 +131,7 @@ export default function MatchScreen() {
               {t('The search goes to your add-ons when you send it.')}
             </Text>
           )}
-          {(busy || results.isFetching) && <ActivityIndicator color={COLORS.amber} />}
+          {(busy || results.isFetching) && <ActivityIndicator color={colors.amber} />}
           {query.length >= 2 && results.isSuccess && results.data.length === 0 && (
             <Text className="text-muted">{t('Nothing found. Try fewer words.')}</Text>
           )}

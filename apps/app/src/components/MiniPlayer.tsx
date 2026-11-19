@@ -5,18 +5,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { hint } from '../a11y';
 import { t } from '../i18n';
 import { FadeIn } from './Motion';
-import { COLORS, Icon } from './Icon';
+import { Icon } from './Icon';
 import { usePlayerBeside } from '../layout';
 import * as audio from '../platform/audio';
 import { playerProfile, usePlayerState } from '../player';
 import { profileId } from '../profile';
 import { ROW_BUTTON } from './TextButton';
+import { useColors } from '../theme';
 
 /**
  * The book that is loaded, with Play/Pause; opens the Player. Hidden when nothing is loaded.
  * Above the tab bar it leaves the bottom inset to the tab bar.
  */
 export function MiniPlayer({ inset = true }: { inset?: boolean }) {
+  const colors = useColors();
   const state = usePlayerState();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -55,7 +57,7 @@ export function MiniPlayer({ inset = true }: { inset?: boolean }) {
             accessibilityLabel={state.playing ? t('Pause') : t('Play')}
             className="h-12 w-12 items-center justify-center rounded-full bg-amber"
           >
-            <Icon name={state.playing ? 'pause' : 'play'} size={20} color={COLORS.ink} />
+            <Icon name={state.playing ? 'pause' : 'play'} size={20} color={colors.ink} />
           </Pressable>
         </View>
       </Pressable>

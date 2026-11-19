@@ -10,10 +10,11 @@ import { useAddons } from '../../src/addons';
 import { db } from '../../src/db';
 import { profileId } from '../../src/profile';
 import { useSourceCacheAddons } from '../../src/availability';
-import { COLORS, Icon, type IconName } from '../../src/components/Icon';
+import { Icon, type IconName } from '../../src/components/Icon';
 import { MiniPlayer } from '../../src/components/MiniPlayer';
 import { RailLists } from '../../src/components/RailLists';
 import { useWide } from '../../src/layout';
+import { useColors } from '../../src/theme';
 
 // React Navigation's tab bar is 49 points tall whatever the font size; this much more per
 // step of the system font scale keeps the labels whole at the largest sizes.
@@ -32,6 +33,7 @@ const ICONS: Record<string, IconName> = {
 };
 
 export default function TabsLayout() {
+  const colors = useColors();
   useSourceCacheAddons(useAddons());
   const { fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -69,7 +71,7 @@ export default function TabsLayout() {
       }
       screenOptions={({ route }) => ({
         headerShown: false,
-        sceneStyle: { backgroundColor: COLORS.night },
+        sceneStyle: { backgroundColor: colors.night },
         ...(wide
           ? {
               tabBarPosition: 'left' as const,
@@ -80,15 +82,15 @@ export default function TabsLayout() {
         tabBarStyle: wide
           ? // The rail's box draws the background and the line; the tabs keep to their height.
             {
-              backgroundColor: COLORS.raised,
+              backgroundColor: colors.raised,
               borderWidth: 0,
               flexGrow: 0,
               minWidth: 0,
               paddingBottom: 8,
             }
-          : { backgroundColor: COLORS.raised, borderTopColor: COLORS.line, ...tall },
-        tabBarActiveTintColor: COLORS.amber,
-        tabBarInactiveTintColor: COLORS.muted,
+          : { backgroundColor: colors.raised, borderTopColor: colors.line, ...tall },
+        tabBarActiveTintColor: colors.amber,
+        tabBarInactiveTintColor: colors.muted,
         tabBarIcon: ({ color }) => (
           <Icon name={ICONS[route.name] ?? 'home'} color={String(color)} />
         ),

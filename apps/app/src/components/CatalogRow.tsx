@@ -4,10 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 
 import { t } from '../i18n';
-import { COLORS, Icon } from './Icon';
+import { Icon } from './Icon';
 import { fetcher } from '../addons';
 import { useAskWhenVisible, useAvailability } from '../availability';
 import { MetaTile } from './MetaCard';
+import { useColors } from '../theme';
 
 const TILE = 120;
 
@@ -32,6 +33,7 @@ export function CatalogRow({
   onOpen: (meta: MetaPreview) => void;
   onMore: () => void;
 }) {
+  const colors = useColors();
   const { data, isPending, isError } = useQuery(catalogQuery(catalogRef));
   const availability = useAvailability();
   const visible = useAskWhenVisible();
@@ -47,12 +49,12 @@ export function CatalogRow({
         <Text className="text-lg font-semibold text-paper">{title ?? catalogRef.catalog.name}</Text>
         <View className="flex-row items-center">
           <Text className="text-sm text-amber">{t('More')}</Text>
-          <Icon name="forward" size={16} color={COLORS.amber} />
+          <Icon name="forward" size={16} color={colors.amber} />
         </View>
       </Pressable>
       {isPending ? (
         <View style={{ height: TILE + 40 }} className="justify-center">
-          <ActivityIndicator color={COLORS.amber} />
+          <ActivityIndicator color={colors.amber} />
         </View>
       ) : (
         <FlatList

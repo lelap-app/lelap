@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookCover, coverUri } from '../src/components/BookCover';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { TextButton } from '../src/components/TextButton';
 import { db } from '../src/db';
 import { showAlert } from '../src/dialog';
@@ -25,6 +25,7 @@ import { playClip } from '../src/clips';
 import { playAt, useLibrary } from '../src/player';
 import { playSharedEpisode } from '../src/podcasts';
 import { profileId } from '../src/profile';
+import { useColors } from '../src/theme';
 
 // Only a browser on an Android phone may have the app to hand the link to.
 const androidBrowser =
@@ -36,6 +37,7 @@ const androidBrowser =
  * names its show's feed, which is fetched only when the listener taps Subscribe and play.
  */
 export default function PlaceScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { version, refresh } = useLibrary();
@@ -101,7 +103,7 @@ export default function PlaceScreen() {
       className="min-h-12 items-center justify-center rounded-full bg-amber px-6 active:opacity-80"
     >
       {busy ? (
-        <ActivityIndicator color={COLORS.ink} />
+        <ActivityIndicator color={colors.ink} />
       ) : (
         <Text className="font-semibold text-ink">{label}</Text>
       )}
@@ -120,7 +122,7 @@ export default function PlaceScreen() {
       }}
     >
       <View className="-ms-2 self-start">
-        <IconButton name="back" label={t('Back')} color={COLORS.soft} onPress={back} />
+        <IconButton name="back" label={t('Back')} color={colors.soft} onPress={back} />
       </View>
       {!place ? (
         <Text className="text-soft">{t('This link does not name a place in a book.')}</Text>

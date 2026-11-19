@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../src/i18n';
 import { openPlayer } from '../src/navigation';
 import { showAlert } from '../src/dialog';
-import { COLORS, Icon, IconButton } from '../src/components/Icon';
+import { Icon, IconButton } from '../src/components/Icon';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { db } from '../src/db';
@@ -16,9 +16,11 @@ import { playBook, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { ROW_BUTTON } from '../src/components/TextButton';
 import { LIST_COLUMN } from '../src/layout';
+import { useColors } from '../src/theme';
 
 /** The queue: a podcast episode that ends plays the first item here; a book stops. */
 export default function UpNextScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { version, refresh } = useLibrary();
@@ -42,7 +44,7 @@ export default function UpNextScreen() {
               <IconButton
                 name="back"
                 label={t('Back')}
-                color={COLORS.soft}
+                color={colors.soft}
                 onPress={() => router.back()}
               />
             </View>
@@ -95,7 +97,7 @@ export default function UpNextScreen() {
                 disabled={index === 0}
                 onPress={() => move(item.bookId, index - 1)}
               >
-                <Icon name="up" size={22} color={index === 0 ? COLORS.line : COLORS.soft} />
+                <Icon name="up" size={22} color={index === 0 ? colors.line : colors.soft} />
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -107,7 +109,7 @@ export default function UpNextScreen() {
                 <Icon
                   name="down"
                   size={22}
-                  color={index === items.length - 1 ? COLORS.line : COLORS.soft}
+                  color={index === items.length - 1 ? colors.line : colors.soft}
                 />
               </Pressable>
               <Pressable
@@ -119,7 +121,7 @@ export default function UpNextScreen() {
                   refresh();
                 }}
               >
-                <Icon name="close" size={22} color={COLORS.muted} />
+                <Icon name="close" size={22} color={colors.muted} />
               </Pressable>
             </View>
           </Pressable>

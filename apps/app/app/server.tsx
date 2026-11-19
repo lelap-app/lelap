@@ -40,7 +40,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { hint as hintProps } from '../src/a11y';
 import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { db, newId } from '../src/db';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
@@ -64,6 +64,7 @@ import {
   NETFS,
 } from '../src/platform/netfs';
 import { READABLE } from '../src/layout';
+import { useColors } from '../src/theme';
 
 type BuiltIn = 'webdav' | 'smb' | 'sftp' | 's3' | 'jellyfin' | 'audiobookshelf';
 /** A built-in kind, or an add-on inside the app by its manifest URL (M57). */
@@ -143,6 +144,7 @@ function Field({
   locked?: boolean;
   hint?: string;
 }) {
+  const colors = useColors();
   return (
     <View className="gap-1">
       <Text className="text-sm text-soft">{label}</Text>
@@ -152,7 +154,7 @@ function Field({
         placeholder={placeholder}
         accessibilityLabel={label}
         {...hintProps(hint)}
-        placeholderTextColor={COLORS.muted}
+        placeholderTextColor={colors.muted}
         autoCapitalize="none"
         autoCorrect={false}
         secureTextEntry={secret}
@@ -168,6 +170,7 @@ function Field({
 
 /** Adds a WebDAV server, an S3-compatible bucket, or a Jellyfin or Audiobookshelf server. */
 export default function ServerScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { refresh } = useLibrary();
@@ -533,7 +536,7 @@ export default function ServerScreen() {
         <IconButton
           name="back"
           label={t('Back')}
-          color={COLORS.soft}
+          color={colors.soft}
           onPress={() => router.back()}
         />
       </View>
@@ -903,7 +906,7 @@ export default function ServerScreen() {
         className={`min-h-12 items-center justify-center rounded-full py-3 ${(testing ? ready : canConnect) ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
       >
         {busy ? (
-          <ActivityIndicator color={COLORS.ink} />
+          <ActivityIndicator color={colors.ink} />
         ) : (
           <Text
             className={`font-semibold ${(testing ? ready : canConnect) ? 'text-ink' : 'text-muted'}`}

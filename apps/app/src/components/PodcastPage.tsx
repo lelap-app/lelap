@@ -48,7 +48,7 @@ import { READABLE, useWide } from '../layout';
 import { openPlayer } from '../navigation';
 import { showAlert } from '../dialog';
 import { type Action, ActionSheet } from './ActionSheet';
-import { COLORS, Icon, IconButton } from './Icon';
+import { Icon, IconButton } from './Icon';
 import { queries, useAddons } from '../addons';
 import { BookCover } from './BookCover';
 import { newEpisodesBadges, useBadgesOn, withBadges } from './CoverBadges';
@@ -69,6 +69,7 @@ import {
 import { profileId } from '../profile';
 import { Pill } from './Pill';
 import { ROW_BUTTON, TextButton, Toggle } from './TextButton';
+import { useColors } from '../theme';
 
 const KEEP = [1, 3, 5, 10];
 
@@ -93,6 +94,7 @@ function openPlace(location: FeedLocation) {
 
 /** The place of a show or an episode; a tap opens it in maps. */
 function PlaceLink({ location, compact }: { location: FeedLocation; compact?: boolean }) {
+  const colors = useColors();
   return (
     <Pressable
       accessibilityRole="link"
@@ -100,7 +102,7 @@ function PlaceLink({ location, compact }: { location: FeedLocation; compact?: bo
       onPress={() => openPlace(location)}
       className={`${compact ? 'min-h-10' : 'min-h-12'} flex-row items-center gap-1 self-start active:opacity-70`}
     >
-      <Icon name="place" size={16} color={COLORS.amber} />
+      <Icon name="place" size={16} color={colors.amber} />
       <Text numberOfLines={1} className="shrink text-sm text-amber">
         {t('Place: {name}', { name: location.name })}
       </Text>
@@ -120,13 +122,14 @@ const VALUE_TYPES: Record<string, string> = {
  * what and for whom. Lelap sends no payments; that needs a decision first (M111).
  */
 function ValueCard({ values }: { values: FeedValue[] }) {
+  const colors = useColors();
   const info = valueInfoOf(values);
   const through = [...new Set(info.map((v) => VALUE_TYPES[v.type] ?? v.type))].join(', ');
   // With blocks of several types the recipients may differ per type; only one block's are shown.
   const shares = info.length === 1 ? (info[0]?.shares ?? []) : [];
   return (
     <View className="flex-row gap-3 rounded-xl border border-line px-3 py-2">
-      <Icon name="info" size={20} color={COLORS.muted} />
+      <Icon name="info" size={20} color={colors.muted} />
       <View className="flex-1 gap-1">
         <Text className="text-paper">{t('Value for value')}</Text>
         <Text className="text-sm text-muted">
@@ -329,6 +332,7 @@ export function PodcastPage({
   onBack: () => void;
   column?: boolean;
 }) {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const wide = useWide();
@@ -518,11 +522,11 @@ export function PodcastPage({
               <IconButton
                 name={column ? 'close' : 'back'}
                 label={column ? t('Close') : t('Back')}
-                color={COLORS.soft}
+                color={colors.soft}
                 onPress={onBack}
               />
             </View>
-            {loading && <ActivityIndicator color={COLORS.amber} className="pt-24" />}
+            {loading && <ActivityIndicator color={colors.amber} className="pt-24" />}
             {failed && (
               <Text accessibilityLiveRegion="polite" className="pt-24 text-center text-muted">
                 {fetched.isError
@@ -566,7 +570,7 @@ export function PodcastPage({
                     onPress={() => openLink(f.url)}
                     className="min-h-12 flex-row items-center gap-3 rounded-xl border border-line px-3 py-2 active:bg-raised"
                   >
-                    <Icon name="heart" size={20} color={COLORS.amber} />
+                    <Icon name="heart" size={20} color={colors.amber} />
                     <View className="flex-1">
                       <Text className="text-paper">{t('Support this show')}</Text>
                       {f.label && (
@@ -652,7 +656,7 @@ export function PodcastPage({
                     className="min-h-12 items-center justify-center rounded-full bg-amber py-3 active:opacity-80"
                   >
                     {busy ? (
-                      <ActivityIndicator color={COLORS.ink} />
+                      <ActivityIndicator color={colors.ink} />
                     ) : (
                       <Text className="text-base font-semibold text-ink">{t('Subscribe')}</Text>
                     )}
@@ -718,7 +722,7 @@ export function PodcastPage({
                       void run(() => startDownload(episodeBook(db, e.id, Date.now(), newId), null))
                     }
                   >
-                    <Icon name="download" color={COLORS.amber} />
+                    <Icon name="download" color={colors.amber} />
                   </Pressable>
                 )}
               </Pressable>

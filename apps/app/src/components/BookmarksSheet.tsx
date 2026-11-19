@@ -6,9 +6,9 @@ import { deleteKeyAction } from '../a11y';
 import { t } from '../i18n';
 import { showAlert } from '../dialog';
 import { formatClock } from '../format';
-import { COLORS } from './Icon';
 import { Sheet } from './Sheet';
 import { TextButton } from './TextButton';
+import { useColors } from '../theme';
 
 /** Asks before a bookmark is deleted. */
 export function confirmDeleteBookmark(bookmark: Bookmark, onDelete: () => void): void {
@@ -31,6 +31,7 @@ export function BookmarkEditor({
   onShare?: () => void;
   onDelete: () => void;
 }) {
+  const colors = useColors();
   const [note, setNote] = useState(bookmark.note ?? '');
   return (
     <View className="gap-3 pb-2">
@@ -40,7 +41,7 @@ export function BookmarkEditor({
         onChangeText={setNote}
         placeholder={t('Add a note (optional)')}
         accessibilityLabel={t('Note')}
-        placeholderTextColor={COLORS.muted}
+        placeholderTextColor={colors.muted}
         multiline
         autoFocus
         className="min-h-24 rounded-lg border border-line px-3 py-2 text-paper"

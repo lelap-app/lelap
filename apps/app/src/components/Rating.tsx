@@ -6,8 +6,9 @@ import { db } from '../db';
 import { useLibrary } from '../player';
 import { t } from '../i18n';
 import { ratingAddonsFor, trackRated } from '../scrobble';
-import { COLORS, Icon } from './Icon';
+import { Icon } from './Icon';
 import { TextButton } from './TextButton';
+import { useColors } from '../theme';
 
 const STARS = [1, 2, 3, 4, 5] as const;
 
@@ -39,6 +40,7 @@ export function RatingRow({
   /** Off where the sheet's title already says “Your rating”. */
   heading?: boolean;
 }) {
+  const colors = useColors();
   const { version } = useLibrary();
   const [rating, setShown] = useState(() => getRating(db, profile, bookId));
   // A rating from another device arrives with a sync, which changes `version`.
@@ -75,7 +77,7 @@ export function RatingRow({
                 <Icon
                   name="star"
                   size={28}
-                  color={fill === 'empty' ? COLORS.muted : COLORS.amber}
+                  color={fill === 'empty' ? colors.muted : colors.amber}
                   value={fill}
                 />
               </Pressable>

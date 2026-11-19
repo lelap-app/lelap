@@ -27,7 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../../src/i18n';
 import { showAlert } from '../../src/dialog';
-import { COLORS, Icon, IconButton } from '../../src/components/Icon';
+import { Icon, IconButton } from '../../src/components/Icon';
 import { SHOWN_TYPES, syncAddonsNow, useAddons } from '../../src/addons';
 import { Avatar } from '../../src/components/Avatar';
 import { CatalogRow } from '../../src/components/CatalogRow';
@@ -43,12 +43,14 @@ import { startupMark } from '../../src/startup';
 import { Pill } from '../../src/components/Pill';
 import { SuggestionRows } from '../../src/components/SuggestionRows';
 import { TextButton } from '../../src/components/TextButton';
+import { useColors } from '../../src/theme';
 
 /**
  * Asks once, next to the want-to-read row, whether Lelap may say when a wanted book can be
  * played. Never at launch, and never again after an answer.
  */
 function WantedAlertsHint({ onDone }: { onDone: () => void }) {
+  const colors = useColors();
   const answer = async (allow: boolean) => {
     if (allow && Platform.OS === 'android' && Number(Platform.Version) >= 33) {
       await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
@@ -58,7 +60,7 @@ function WantedAlertsHint({ onDone }: { onDone: () => void }) {
   };
   return (
     <View className="mx-4 flex-row items-center gap-3 rounded-xl border border-line px-4 py-3">
-      <Icon name="bookmark" color={COLORS.amber} />
+      <Icon name="bookmark" color={colors.amber} />
       <Text className="flex-1 text-sm text-soft">
         {t('Get a notification when a book you want to read can be played?')}
       </Text>
@@ -77,6 +79,7 @@ function markHome() {
 }
 
 export default function HomeScreen() {
+  const colors = useColors();
   const { version, refresh } = useLibrary();
   useEffect(markHome, []);
   // `version` is the signal to re-read the database.
@@ -152,7 +155,7 @@ export default function HomeScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => void reload()}
-          tintColor={COLORS.amber}
+          tintColor={colors.amber}
         />
       }
     >
@@ -186,13 +189,13 @@ export default function HomeScreen() {
           <IconButton
             name="stats"
             label={t('Listening stats')}
-            color={COLORS.soft}
+            color={colors.soft}
             onPress={() => router.push('/stats')}
           />
           <IconButton
             name="settings"
             label={t('Settings')}
-            color={COLORS.soft}
+            color={colors.soft}
             onPress={() => router.push('/settings')}
           />
         </View>
@@ -219,7 +222,7 @@ export default function HomeScreen() {
           accessibilityRole="button"
           className="mx-4 flex-row items-center gap-3 rounded-xl border border-line px-4 py-3 active:bg-raised"
         >
-          <Icon name="check" color={COLORS.amber} />
+          <Icon name="check" color={colors.amber} />
           <View className="flex-1 gap-0.5">
             <Text className="font-semibold text-paper">{t('Ready for offline')}</Text>
             <Text className="text-xs text-muted">
@@ -229,7 +232,7 @@ export default function HomeScreen() {
                 : t('{size} on this phone', { size: formatBytes(offline.bytes) })}
             </Text>
           </View>
-          <Icon name="forward" size={20} color={COLORS.muted} />
+          <Icon name="forward" size={20} color={colors.muted} />
         </Pressable>
       )}
       {wanted.map((ref) => (

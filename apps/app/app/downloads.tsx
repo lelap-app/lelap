@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { TextButton } from '../src/components/TextButton';
@@ -23,9 +23,11 @@ import * as native from '../src/platform/downloads';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { LIST_COLUMN } from '../src/layout';
+import { useColors } from '../src/theme';
 
 /** The storage overview: what Lelap keeps on the phone and the space left. */
 export default function DownloadsScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { version, refresh } = useLibrary();
@@ -86,7 +88,7 @@ export default function DownloadsScreen() {
               <IconButton
                 name="back"
                 label={t('Back')}
-                color={COLORS.soft}
+                color={colors.soft}
                 onPress={() => router.back()}
               />
             </View>

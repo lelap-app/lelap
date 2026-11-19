@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { fetcher, useAddons } from '../src/addons';
 import { MetaListRow } from '../src/components/MetaCard';
 import { db } from '../src/db';
@@ -16,12 +16,14 @@ import { useLibrary } from '../src/player';
 import { convertFolder } from '../src/podcasts';
 import { profileId } from '../src/profile';
 import { LIST_COLUMN } from '../src/layout';
+import { useColors } from '../src/theme';
 
 /**
  * Turns a podcast folder from the local library into a subscription: find the podcast, then the
  * place in the folder carries over to the feed's episodes.
  */
 export default function ConvertScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { refresh } = useLibrary();
@@ -86,7 +88,7 @@ export default function ConvertScreen() {
             <IconButton
               name="back"
               label={t('Back')}
-              color={COLORS.soft}
+              color={colors.soft}
               onPress={() => router.back()}
             />
           </View>
@@ -105,7 +107,7 @@ export default function ConvertScreen() {
               onChangeText={setFeedUrl}
               placeholder={t('Or paste its feed address')}
               accessibilityLabel={t('Feed address (RSS)')}
-              placeholderTextColor={COLORS.muted}
+              placeholderTextColor={colors.muted}
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
@@ -127,11 +129,11 @@ export default function ConvertScreen() {
             onChangeText={setQuery}
             placeholder={t('Search podcasts')}
             accessibilityLabel={t('Search podcasts')}
-            placeholderTextColor={COLORS.muted}
+            placeholderTextColor={colors.muted}
             autoCorrect={false}
             className="rounded-lg bg-raised px-4 py-3 text-base text-paper"
           />
-          {(busy || results.isFetching) && <ActivityIndicator color={COLORS.amber} />}
+          {(busy || results.isFetching) && <ActivityIndicator color={colors.amber} />}
           {results.isSuccess && results.data.length === 0 && (
             <Text className="text-muted">
               {t(

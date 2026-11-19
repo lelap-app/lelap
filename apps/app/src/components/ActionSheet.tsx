@@ -1,7 +1,8 @@
 import { Pressable, ScrollView, Text } from 'react-native';
 
-import { COLORS, Icon, type IconName } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { Sheet } from './Sheet';
+import { useColors } from '../theme';
 
 export type Action = { icon: IconName; label: string; onPress: () => void; danger?: boolean };
 
@@ -16,6 +17,7 @@ export function ActionSheet({
   actions: Action[];
   onClose: () => void;
 }) {
+  const colors = useColors();
   if (title === null) return null;
   return (
     <Sheet visible title={title} onClose={onClose}>
@@ -30,7 +32,7 @@ export function ActionSheet({
             accessibilityRole="button"
             className="min-h-12 flex-row items-center gap-3 rounded-lg px-2 py-3 active:bg-line"
           >
-            <Icon name={a.icon} size={22} color={a.danger ? COLORS.danger : COLORS.soft} />
+            <Icon name={a.icon} size={22} color={a.danger ? colors.danger : colors.soft} />
             <Text className={a.danger ? 'text-danger' : 'text-paper'}>{a.label}</Text>
           </Pressable>
         ))}

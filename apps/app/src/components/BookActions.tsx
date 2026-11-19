@@ -31,10 +31,11 @@ import { showAlert } from '../dialog';
 import { deleteDownload, startDownload } from '../downloads';
 import { profileId } from '../profile';
 import { scrobblesFor, trackAbandoned, trackMarkedFinished } from '../scrobble';
-import { COLORS, Icon, type IconName } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { RatingRow } from './Rating';
 import { Sheet } from './Sheet';
 import { TextButton } from './TextButton';
+import { useColors } from '../theme';
 
 type Mode = 'menu' | 'tags' | 'lists' | 'shelf' | 'rating';
 
@@ -49,13 +50,14 @@ function Row({
   onPress: () => void;
   danger?: boolean;
 }) {
+  const colors = useColors();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       className="min-h-12 flex-row items-center gap-3 rounded-lg px-2 py-3 active:bg-line"
     >
-      <Icon name={icon} size={22} color={danger ? COLORS.danger : COLORS.soft} />
+      <Icon name={icon} size={22} color={danger ? colors.danger : colors.soft} />
       <Text className={danger ? 'text-danger' : 'text-paper'}>{label}</Text>
     </Pressable>
   );
@@ -79,6 +81,7 @@ export function BookActions({
   onChanged: () => void;
   onHidden?: (book: LibraryBook) => void;
 }) {
+  const colors = useColors();
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('menu');
   const [draft, setDraft] = useState('');
@@ -338,7 +341,7 @@ export function BookActions({
               onSubmitEditing={addDraft}
               placeholder={t('New tag')}
               accessibilityLabel={t('New tag')}
-              placeholderTextColor={COLORS.muted}
+              placeholderTextColor={colors.muted}
               autoCapitalize="none"
               returnKeyType="done"
               className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"

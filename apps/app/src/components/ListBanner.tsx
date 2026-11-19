@@ -2,13 +2,15 @@ import { Text, View } from 'react-native';
 
 import { t } from '../i18n';
 import { stepList, stopList, useFollowedList, useLibrary } from '../player';
-import { COLORS, IconButton } from './Icon';
+import { IconButton } from './Icon';
+import { useColors } from '../theme';
 
 /**
  * In the player while a list plays (M112): which list, what comes next, the list's previous and
  * next item, and a way to stop following it.
  */
 export function ListBanner({ className = '' }: { className?: string }) {
+  const colors = useColors();
   const following = useFollowedList();
   const { refresh } = useLibrary();
   if (!following) return null;
@@ -32,7 +34,7 @@ export function ListBanner({ className = '' }: { className?: string }) {
           name="previous"
           label={t('Previous in list')}
           size={20}
-          color={COLORS.soft}
+          color={colors.soft}
           onPress={() => step(false)}
         />
       )}
@@ -41,7 +43,7 @@ export function ListBanner({ className = '' }: { className?: string }) {
           name="next"
           label={t('Next in list')}
           size={20}
-          color={COLORS.soft}
+          color={colors.soft}
           onPress={() => step(true)}
         />
       )}
@@ -49,7 +51,7 @@ export function ListBanner({ className = '' }: { className?: string }) {
         name="close"
         label={t('Stop playing the list')}
         size={20}
-        color={COLORS.muted}
+        color={colors.muted}
         onPress={() => void stopList().finally(refresh)}
       />
     </View>

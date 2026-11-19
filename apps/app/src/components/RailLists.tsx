@@ -15,10 +15,12 @@ import { showAlert } from '../dialog';
 import { DropTarget, useDragging } from '../drag';
 import { useLibrary } from '../player';
 import { profileId } from '../profile';
-import { COLORS, Icon } from './Icon';
+import { Icon } from './Icon';
+import { useColors } from '../theme';
 
 /** One list in the rail: opens it, and on the web takes a book or an episode dropped on it. */
 function RailList({ list }: { list: Playlist }) {
+  const colors = useColors();
   const router = useRouter();
   const { refresh } = useLibrary();
   const dragging = useDragging();
@@ -69,7 +71,7 @@ function RailList({ list }: { list: Playlist }) {
             <Icon
               name={added ? 'check' : 'chapters'}
               size={20}
-              color={lit ? COLORS.amber : COLORS.muted}
+              color={lit ? colors.amber : colors.muted}
             />
             <Text
               numberOfLines={2}

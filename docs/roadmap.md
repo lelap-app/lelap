@@ -125,7 +125,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M113 Big screens 2](milestones/m113.md)             | Done        |          10 | What M44 left: foldables, a third column, resizable panes, drag to lists, no stretched screens                                |
 | [M114 Add-on test kit](milestones/m114.md)           | Done        |           2 | A command in the SDK that checks an add-on against protocol v1 and says what's wrong                                          |
 | [M115 Series 2](milestones/m115.md)                  | In progress |           6 | Series leftovers from M109; hidden volumes, streamed books on other devices, faster lists                                     |
-| [M117 Themes 2](milestones/m117.md)                  | Planned     |             | High contrast in theme files, a file theme's own accent in car mode, and a live theme switch                                  |
+| [M117 Themes 2](milestones/m117.md)                  | Done        |           5 | High contrast in theme files, a file theme's own accent in car mode, and a live theme switch                                  |
 | [M118 App polish 4](milestones/m118.md)              | Planned     |             | What M105 left for a decision or a sample: suggestion covers, Plex library list, Library reads, SABP bookmarks                |
 | [M119 Lists 3](milestones/m119.md)                   | Planned     |             | What M112 left: lists in Android Auto, Previous in list off the phone, the list on the widget                                 |
 | [M120 Big screens 3](milestones/m120.md)             | Planned     |             | What M113 left: drag to a list on Android and from catalog tiles, drop on the Library's list cards                            |
@@ -149,6 +149,10 @@ when it is planned.
 - **Wear OS:** control playback from the watch (tile and app: play, pause, skip, the sleep timer),
   and maybe play downloads on it. Was M89; set aside on 2026-11-18 until there is a watch to test
   on.
+
+- **Rules of hooks in lint (left from M117):** colours outside a class come from `useColors()`
+  since M117, and nothing checks where a hook is called. `eslint-plugin-react-hooks` would catch
+  one in a callback, a condition or a render helper.
 
 - **Scrobble bookkeeping (left from M102):** mark a book as heard by an add-on when its event is
   delivered rather than queued, and log a session's start with the Android `finish` itself, so a

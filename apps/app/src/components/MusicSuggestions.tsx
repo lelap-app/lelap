@@ -5,9 +5,10 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { formatDuration } from '../format';
 import { t } from '../i18n';
 import { BookCover, coverUri } from './BookCover';
-import { COLORS, Icon, IconButton } from './Icon';
+import { Icon, IconButton } from './Icon';
 import { Sheet } from './Sheet';
 import { TextButton } from './TextButton';
+import { useColors } from '../theme';
 
 /** The card at the top of the Library when some items look like music (M77). */
 export function MusicCard({
@@ -19,9 +20,10 @@ export function MusicCard({
   onReview: () => void;
   onDismiss: () => void;
 }) {
+  const colors = useColors();
   return (
     <View className="mx-4 flex-row items-center gap-3 rounded-xl bg-raised py-1 pe-1 ps-4">
-      <Icon name="sound" size={22} color={COLORS.soft} />
+      <Icon name="sound" size={22} color={colors.soft} />
       <Text className="flex-1 text-paper">
         {count === 1
           ? t('1 item looks like music.')
@@ -32,7 +34,7 @@ export function MusicCard({
         name="close"
         label={t('Not music')}
         size={20}
-        color={COLORS.muted}
+        color={colors.muted}
         onPress={onDismiss}
       />
     </View>
@@ -53,6 +55,7 @@ export function MusicReview({
   onClose: () => void;
   onHide: (hide: LibraryBook[], keep: LibraryBook[]) => void;
 }) {
+  const colors = useColors();
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   useEffect(() => setTicked(new Set(books?.map((b) => b.id))), [books]);
   if (!books) return null;
@@ -93,7 +96,7 @@ export function MusicReview({
               <View
                 className={`h-6 w-6 items-center justify-center rounded border ${on ? 'border-amber bg-amber' : 'border-line'}`}
               >
-                {on && <Icon name="check" size={18} color={COLORS.ink} />}
+                {on && <Icon name="check" size={18} color={colors.ink} />}
               </View>
             </Pressable>
           );

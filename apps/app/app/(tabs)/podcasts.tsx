@@ -25,12 +25,13 @@ import { exportOpml, importOpml, refreshPodcasts, subscribeToFeed } from '../../
 import { readPickedText, shareText } from '../../src/platform/files';
 import { activeProfile, profileId } from '../../src/profile';
 import { TextButton } from '../../src/components/TextButton';
-import { COLORS } from '../../src/components/Icon';
 import { LIST_COLUMN } from '../../src/layout';
+import { useColors } from '../../src/theme';
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export default function PodcastsScreen() {
+  const colors = useColors();
   const kids = activeProfile()?.kids ?? false;
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -92,7 +93,7 @@ export default function PodcastsScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => void onRefresh()}
-          tintColor={COLORS.amber}
+          tintColor={colors.amber}
         />
       }
       ListHeaderComponent={
@@ -112,7 +113,7 @@ export default function PodcastsScreen() {
                   onChangeText={setFeedUrl}
                   placeholder={t('Feed address (RSS)')}
                   accessibilityLabel={t('Feed address (RSS)')}
-                  placeholderTextColor={COLORS.muted}
+                  placeholderTextColor={colors.muted}
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="url"
@@ -127,7 +128,7 @@ export default function PodcastsScreen() {
                   className="min-h-12 min-w-12 items-center justify-center px-1"
                 >
                   {busy ? (
-                    <ActivityIndicator color={COLORS.amber} />
+                    <ActivityIndicator color={colors.amber} />
                   ) : (
                     <Text className={feedUrl.trim() === '' ? 'text-muted' : 'text-amber'}>
                       {t('Add')}

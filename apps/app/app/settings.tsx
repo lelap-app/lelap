@@ -29,7 +29,7 @@ import { BLUETOOTH } from '../src/platform/bluetooth';
 import { showAlert } from '../src/dialog';
 import { ImportSheet } from '../src/components/ImportSheet';
 import { LevelSlider } from '../src/components/LevelSlider';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { useInstall } from '../src/installed';
 import { SHORTCUTS_SUPPORTED, showShortcuts } from '../src/shortcuts';
@@ -64,6 +64,7 @@ import {
   setLook,
   themeLabel,
   useTheme,
+  useColors,
 } from '../src/theme';
 
 const SKIP_SECONDS = [10, 15, 30, 45, 60];
@@ -138,7 +139,7 @@ function LookRows({
         ))}
       </View>
       <Text className="text-sm text-muted">
-        {settings.theme === 'contrast'
+        {theme.highContrast
           ? t('Text at 7:1 or more, stronger borders, wider focus rings and no text over covers.')
           : settings.theme === 'system'
             ? t('Day when the phone is light, Night when it is dark.')
@@ -147,7 +148,7 @@ function LookRows({
       <Text className="pt-2 text-base text-paper">{t('Accent')}</Text>
       {settings.theme === 'custom' ? (
         <Text className="text-sm text-muted">
-          {t('A theme from a file brings its own accent.')}
+          {t('A theme from a file brings its own accent, in car mode too.')}
         </Text>
       ) : (
         <View className="flex-row flex-wrap gap-2">
@@ -370,6 +371,7 @@ function UpdateRows({
 }
 
 export default function SettingsScreen() {
+  const colors = useColors();
   const { version, refresh } = useLibrary();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -439,7 +441,7 @@ export default function SettingsScreen() {
           <IconButton
             name="back"
             label={t('Back')}
-            color={COLORS.soft}
+            color={colors.soft}
             onPress={() => router.back()}
           />
         </View>
@@ -454,7 +456,7 @@ export default function SettingsScreen() {
               name="info"
               size={18}
               label={t('About the language')}
-              color={COLORS.muted}
+              color={colors.muted}
               onPress={() =>
                 showAlert(
                   t('Language'),

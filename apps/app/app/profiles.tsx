@@ -5,7 +5,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { useAllAddons } from '../src/addons';
 import { Avatar, pickAvatar } from '../src/components/Avatar';
 import { db, newId } from '../src/db';
@@ -13,9 +13,11 @@ import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { TextButton, Toggle } from '../src/components/TextButton';
 import { READABLE } from '../src/layout';
+import { useColors } from '../src/theme';
 
 /** Everyone who listens on this device (and, with sync, the household). */
 export default function ProfilesScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { version, refresh } = useLibrary();
@@ -63,7 +65,7 @@ export default function ProfilesScreen() {
         <IconButton
           name="back"
           label={t('Back')}
-          color={COLORS.soft}
+          color={colors.soft}
           onPress={() => router.back()}
         />
       </View>
@@ -107,7 +109,7 @@ export default function ProfilesScreen() {
           onChangeText={setName}
           placeholder={t('Name')}
           accessibilityLabel={t('Name')}
-          placeholderTextColor={COLORS.muted}
+          placeholderTextColor={colors.muted}
           onSubmitEditing={add}
           className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
         />

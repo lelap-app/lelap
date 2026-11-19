@@ -39,7 +39,7 @@ const problems = [];
 // Every built-in theme with every accent; the night theme with amber is the default.
 const ALL_THEMES = THEME_IDS.flatMap((id) => ACCENT_IDS.map((accent) => builtInTheme(id, accent)));
 const { colors } = builtInTheme('night', 'amber');
-// A theme colour written as a hex stays put when the theme changes; read COLORS instead. The
+// A theme colour written as a hex stays put when the theme changes; read useColors() instead. The
 // night theme comes last, so a hex several themes share is named by its night role.
 const THEME_HEX = new Map(
   [...ALL_THEMES]
@@ -179,15 +179,14 @@ for (const file of sources) {
   const art = source.includes(ILLUSTRATION);
   const dev = /[/\\]dev[/\\]/.test(file);
 
-  // COLORS changes with the theme, so a constant made from it outside a component keeps the old
-  // colour; read it while rendering, or make the constant a function.
-  const outside = (node, inFunction) => {
-    const now = inFunction || ts.isFunctionLike(node);
-    if (!now && ts.isPropertyAccessExpression(node) && node.expression.getText() === 'COLORS')
-      problems.push(`${where(node).at}: COLORS read outside a component keeps an old theme`);
-    ts.forEachChild(node, (child) => outside(child, now));
+  // A theme switch draws in place (M117), so a component that reads the colours must ask for them
+  // through useColors() to draw again; the old COLORS object would keep the last theme's.
+  const stale = (node) => {
+    if (ts.isIdentifier(node) && node.text === 'COLORS')
+      problems.push(`${where(node).at}: COLORS keeps an old theme; read useColors() instead`);
+    ts.forEachChild(node, stale);
   };
-  if (!/Icon\.tsx$/.test(file)) outside(sf, false);
+  stale(sf);
 
   // A screen starts with a heading, so TalkBack's heading navigation lands on it.
   const route = file.startsWith(routes) && !/_layout|[/\\]dev[/\\]/.test(file);
@@ -350,7 +349,7 @@ for (const file of sources) {
         if (token !== undefined) {
           if (!dev)
             problems.push(
-              `${where(node).at}: colour ${hex} stays put when the theme changes; use COLORS.${token} or a class`,
+              `${where(node).at}: colour ${hex} stays put when the theme changes; use useColors().${token} or a class`,
             );
         } else if (!checkedColours.has(hex.toLowerCase()))
           problems.push(

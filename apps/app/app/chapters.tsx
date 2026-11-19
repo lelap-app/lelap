@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { COLORS, IconButton } from '../src/components/Icon';
+import { IconButton } from '../src/components/Icon';
 import { TextButton } from '../src/components/TextButton';
 import { db } from '../src/db';
 import { showAlert } from '../src/dialog';
@@ -13,6 +13,7 @@ import { t } from '../src/i18n';
 import { READABLE } from '../src/layout';
 import { updateChapters, useLibrary, usePlayerState } from '../src/player';
 import { profileId } from '../src/profile';
+import { useColors } from '../src/theme';
 
 type Row = {
   key: number;
@@ -39,6 +40,7 @@ const startOf = (r: Row): number | null =>
  * listener's own chapters, synced and kept across rescans; Reset in the chapters sheet goes back.
  */
 export default function EditChaptersScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const state = usePlayerState();
@@ -118,7 +120,7 @@ export default function EditChaptersScreen() {
               <IconButton
                 name="back"
                 label={t('Back')}
-                color={COLORS.soft}
+                color={colors.soft}
                 onPress={() => router.back()}
               />
               <TextButton text={t('Save')} onPress={save} strong />
@@ -148,7 +150,7 @@ export default function EditChaptersScreen() {
                   : t('Chapter {n}', { n: index + 1 })
               }
               accessibilityLabel={t('Name of chapter {n}', { n: index + 1 })}
-              placeholderTextColor={COLORS.muted}
+              placeholderTextColor={colors.muted}
               className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
             />
             <TextInput
@@ -168,7 +170,7 @@ export default function EditChaptersScreen() {
             <IconButton
               name="close"
               label={t('Remove chapter {n}', { n: index + 1 })}
-              color={COLORS.muted}
+              color={colors.muted}
               onPress={() => setRows((list) => list.filter((r) => r.key !== item.key))}
             />
           </View>

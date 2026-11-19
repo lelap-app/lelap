@@ -35,8 +35,7 @@ import { syncCatalogCovers } from '../src/catalogCovers';
 import { offerUpdateOnStart } from '../src/updates';
 import { OtaRunner } from '../src/ota';
 import { registerBackgroundRefresh } from '../src/background';
-import { COLORS } from '../src/components/Icon';
-import { ThemeRoot, useTheme, useThemeKey } from '../src/theme';
+import { ThemeRoot, useTheme } from '../src/theme';
 import { useFold } from '../src/layout';
 import { startupMark } from '../src/startup';
 
@@ -75,8 +74,8 @@ export default function RootLayout() {
   const language = useSyncExternalStore(subscribeLanguage, currentLanguage, currentLanguage);
   const reduced = useReducedMotion();
   const theme = useTheme();
-  // A new theme draws the screens again, as a new language does.
-  const look = `${language} ${useThemeKey()}`;
+  // A new language draws the screens again; a new theme draws in place (M117).
+  const look = language;
   const pathname = usePathname();
   const hinge = useFold();
   // The full-screen player and car mode cover the whole window, across the hinge.
@@ -137,7 +136,7 @@ export default function RootLayout() {
                   key={look}
                   screenOptions={{
                     headerShown: false,
-                    contentStyle: { backgroundColor: COLORS.night },
+                    contentStyle: { backgroundColor: theme.colors.night },
                     ...(reduced ? { animation: 'none' } : {}),
                   }}
                 >

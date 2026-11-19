@@ -4,12 +4,13 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../i18n';
-import { COLORS, Icon } from './Icon';
+import { Icon } from './Icon';
 import { db } from '../db';
 import { switchProfile, useLibrary } from '../player';
 import { profileId } from '../profile';
 import { Avatar } from './Avatar';
 import { TextButton } from './TextButton';
+import { useColors } from '../theme';
 
 /**
  * “Who's listening?”: tap a profile; one with a PIN asks for it first. At launch (`atLaunch`)
@@ -22,6 +23,7 @@ export function ProfilePicker({
   onPicked: () => void;
   atLaunch?: boolean;
 }) {
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const { version, refresh } = useLibrary();
   // `version` is the signal to re-read the database.
@@ -79,7 +81,7 @@ export function ProfilePicker({
             maxLength={4}
             placeholder={t('PIN')}
             accessibilityLabel={t('PIN')}
-            placeholderTextColor={COLORS.muted}
+            placeholderTextColor={colors.muted}
             className="w-40 rounded-lg border border-line px-3 py-3 text-center text-2xl tracking-[12px] text-paper"
           />
           {wrong && (
@@ -102,7 +104,7 @@ export function ProfilePicker({
               <View className="flex-row items-center gap-1">
                 <Text className="text-paper">{p.name}</Text>
                 {p.pinHash ? (
-                  <Icon name="lock" size={14} color={COLORS.muted} label={t('PIN')} />
+                  <Icon name="lock" size={14} color={colors.muted} label={t('PIN')} />
                 ) : null}
               </View>
             </Pressable>

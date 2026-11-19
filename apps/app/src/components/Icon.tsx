@@ -1,7 +1,8 @@
-import { builtInTheme, type ThemeColors } from '@lelap/core';
 import type { ReactNode } from 'react';
 import { I18nManager, Platform, Pressable } from 'react-native';
 import Svg, { Circle, Path, Rect, Text as SvgText } from 'react-native-svg';
+
+import { useColors } from '../theme';
 
 // One icon set for the whole app, drawn on a 24-unit grid in the design sketch's style: 1.8
 // strokes with round caps, filled shapes only for play and pause.
@@ -270,16 +271,17 @@ const MIRRORED = new Set<string>(['back', 'forward']);
 export function Icon({
   name,
   size = 24,
-  color = COLORS.paper,
+  color,
   label,
   value,
 }: {
   name: IconName;
   size?: number;
-  color?: string;
+  color?: string | undefined;
   label?: string;
   value?: string;
 }) {
+  const paper = useColors().paper;
   return (
     <Svg
       width={size}
@@ -291,17 +293,10 @@ export function Icon({
       {...(label === undefined ? {} : { accessibilityLabel: label })}
       {...(label === undefined ? HIDDEN : {})}
     >
-      {ICONS[name](color, value)}
+      {ICONS[name](color ?? paper, value)}
     </Svg>
   );
 }
-
-/**
- * The theme's colours for icons and anything else drawn outside a class (M108). Changed in place
- * by src/theme.tsx, which then draws the screens again, so read it while rendering, never into a
- * constant outside a component.
- */
-export const COLORS: ThemeColors = { ...builtInTheme('night', 'amber').colors };
 
 /** A 48-point icon button for headers and toolbars. */
 export function IconButton({
@@ -309,13 +304,13 @@ export function IconButton({
   label,
   onPress,
   size = 24,
-  color = COLORS.paper,
+  color,
 }: {
   name: IconName;
   label: string;
   onPress: () => void;
   size?: number;
-  color?: string;
+  color?: string | undefined;
 }) {
   return (
     <Pressable
