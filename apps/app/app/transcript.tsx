@@ -14,6 +14,7 @@ import { formatClock } from '../src/format';
 import { seekToBookPosition, usePlayerState } from '../src/player';
 import { loadTranscript, transcriptOf } from '../src/podcasting';
 import { profileId } from '../src/profile';
+import { READABLE } from '../src/layout';
 
 // After the listener scrolls, the list stops following the position for this long.
 const FOLLOW_PAUSE_MS = 8_000;
@@ -95,7 +96,11 @@ export default function TranscriptScreen() {
           ref={list}
           data={cues}
           keyExtractor={(_, i) => String(i)}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: insets.bottom + 120 }}
+          contentContainerStyle={{
+            ...READABLE,
+            paddingHorizontal: 24,
+            paddingBottom: insets.bottom + 120,
+          }}
           onScrollBeginDrag={() => setHeldUntil(Date.now() + FOLLOW_PAUSE_MS)}
           onScrollToIndexFailed={({ index, averageItemLength }) => {
             list.current?.scrollToOffset({ offset: index * averageItemLength, animated: false });

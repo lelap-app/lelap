@@ -15,6 +15,7 @@ import { formatDuration } from '../src/format';
 import { playBook, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { ROW_BUTTON } from '../src/components/TextButton';
+import { LIST_COLUMN } from '../src/layout';
 
 /** The queue: a podcast episode that ends plays the first item here; a book stops. */
 export default function UpNextScreen() {
@@ -34,7 +35,7 @@ export default function UpNextScreen() {
       <FlatList
         data={items}
         keyExtractor={(i) => i.bookId}
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 24 }}
+        contentContainerStyle={{ ...LIST_COLUMN, paddingTop: insets.top + 8, paddingBottom: 24 }}
         ListHeaderComponent={
           <View className="gap-2 px-4 pb-4">
             <View className="-ms-2 self-start">

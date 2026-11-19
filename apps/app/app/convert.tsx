@@ -15,6 +15,7 @@ import { db } from '../src/db';
 import { useLibrary } from '../src/player';
 import { convertFolder } from '../src/podcasts';
 import { profileId } from '../src/profile';
+import { LIST_COLUMN } from '../src/layout';
 
 /**
  * Turns a podcast folder from the local library into a subscription: find the podcast, then the
@@ -74,7 +75,11 @@ export default function ConvertScreen() {
       data={results.data ?? []}
       keyExtractor={(m) => m.id}
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
+      contentContainerStyle={{
+        ...LIST_COLUMN,
+        paddingTop: insets.top + 8,
+        paddingBottom: insets.bottom + 24,
+      }}
       ListHeaderComponent={
         <View className="gap-3 px-4 pb-3">
           <View className="-ms-2 self-start">

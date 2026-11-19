@@ -210,18 +210,22 @@ export function deletePlaylist(db: Db, profileId: string, id: string, now: numbe
   recordDeletion(db, 'playlist', id, profileId, now);
 }
 
-/** Adds a book at the end of a hand-made list; a book is in a list once. */
+/**
+ * Adds a book at the end of a hand-made list; a book is in a list once. True when it was added,
+ * false when it was there already or the list takes no books.
+ */
 export function addToPlaylist(
   db: Db,
   profileId: string,
   id: string,
   bookId: string,
   now: number,
-): void {
+): boolean {
   const list = getPlaylist(db, profileId, id);
   const key = bookKey(db, bookId);
-  if (!list || list.rule !== null || !key || list.items.includes(key)) return;
+  if (!list || list.rule !== null || !key || list.items.includes(key)) return false;
   update(db, profileId, id, { items: [...list.items, key] }, now);
+  return true;
 }
 
 export function removeFromPlaylist(

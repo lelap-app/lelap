@@ -95,11 +95,18 @@ const targetOf = (element: Element | null): KeyTarget => {
   const tag = element.tagName;
   const type = element.getAttribute('type');
   const role = element.getAttribute('role');
-  // Arrows move within these, so they count as sliders here.
+  // Arrows move within these (and a pane's divider, M113), so they count as sliders here.
   if (
-    ['slider', 'tab', 'listbox', 'option', 'radio', 'menuitemradio', 'combobox'].includes(
-      role ?? '',
-    ) ||
+    [
+      'slider',
+      'tab',
+      'listbox',
+      'option',
+      'radio',
+      'menuitemradio',
+      'combobox',
+      'separator',
+    ].includes(role ?? '') ||
     (tag === 'INPUT' && type === 'range')
   )
     return 'slider';

@@ -29,6 +29,7 @@ import {
 } from '../src/format';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
+import { READABLE } from '../src/layout';
 
 const GOALS = [0, 6, 12, 24, 36, 52];
 // Finished books listed by title; the rest are counted.
@@ -59,7 +60,7 @@ export default function StatsScreen() {
   return (
     <View style={{ backgroundColor: palette.background }} className="flex-1">
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 4, paddingBottom: 24 }}
+        contentContainerStyle={{ ...READABLE, paddingTop: insets.top + 4, paddingBottom: 24 }}
         className="px-4"
       >
         <View className="-ms-2 self-start">

@@ -63,6 +63,7 @@ import {
   hostKey as askHostKey,
   NETFS,
 } from '../src/platform/netfs';
+import { READABLE } from '../src/layout';
 
 type BuiltIn = 'webdav' | 'smb' | 'sftp' | 's3' | 'jellyfin' | 'audiobookshelf';
 /** A built-in kind, or an add-on inside the app by its manifest URL (M57). */
@@ -521,6 +522,7 @@ export default function ServerScreen() {
       className="flex-1 bg-night"
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
+        ...READABLE,
         paddingTop: insets.top + 8,
         paddingHorizontal: 16,
         paddingBottom: 32,

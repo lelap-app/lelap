@@ -34,6 +34,8 @@ describe('settings', () => {
       homeSuggestions: true,
       badgesOnCovers: true,
       libraryFinishedOpen: false,
+      playerPaneWidth: null,
+      detailPaneWidth: null,
       language: 'en',
       theme: 'night',
       accent: 'amber',

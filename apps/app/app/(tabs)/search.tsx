@@ -13,6 +13,7 @@ import { MetaListRow } from '../../src/components/MetaCard';
 import { openItem } from '../../src/navigation';
 import { useSearchFocus } from '../../src/shortcuts';
 import { COLORS } from '../../src/components/Icon';
+import { LIST_COLUMN } from '../../src/layout';
 
 const DEBOUNCE_MS = 400;
 
@@ -82,7 +83,7 @@ export default function SearchScreen() {
     !pending && done.length > 0 && done.every((r) => r.metas.length === 0 && !r.error);
 
   return (
-    <View className="flex-1 bg-night" style={{ paddingTop: insets.top + 12 }}>
+    <View className="flex-1 bg-night" style={{ ...LIST_COLUMN, paddingTop: insets.top + 12 }}>
       <Text accessibilityRole="header" className="px-4 pb-3 text-3xl font-semibold text-paper">
         {t('Search')}
       </Text>

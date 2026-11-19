@@ -20,6 +20,7 @@ import {
   syncOnce,
 } from '../src/sync';
 import { TextButton } from '../src/components/TextButton';
+import { READABLE } from '../src/layout';
 
 const CODE_MINUTES = 10;
 
@@ -66,6 +67,7 @@ export default function SyncScreen() {
       className="flex-1 bg-night"
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
+        ...READABLE,
         paddingTop: insets.top + 8,
         paddingHorizontal: 16,
         paddingBottom: 32,

@@ -24,6 +24,7 @@ import { formatDayMonth, formatLongDate, formatMonth, formatNumber } from '../sr
 import { shareImage } from '../src/platform/files';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
+import { READABLE } from '../src/layout';
 
 /**
  * A year's overview (M87), worked out on this device. The picture is drawn here too and only
@@ -65,7 +66,11 @@ export default function YearScreen() {
   return (
     <View style={{ backgroundColor: palette.background }} className="flex-1">
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 4, paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{
+          ...READABLE,
+          paddingTop: insets.top + 4,
+          paddingBottom: insets.bottom + 24,
+        }}
         className="px-4"
       >
         <View className="-ms-2 self-start">

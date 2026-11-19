@@ -57,6 +57,7 @@ import { LOCAL_FOLDERS } from '../../src/platform/library';
 import { chooseFolder, scanLibrary } from '../../src/scan';
 import { Pill } from '../../src/components/Pill';
 import { TextButton } from '../../src/components/TextButton';
+import { LIST_COLUMN } from '../../src/layout';
 
 /** `progress` is the grouped view (M79); Title and Author are flat lists; Series lists series (M109). */
 type LibraryView = 'progress' | 'title' | 'author' | 'series';
@@ -425,7 +426,7 @@ export default function LibraryScreen() {
   // The title and the offline banner stay put above the list, so neither can slide under the
   // status bar when the banner comes and goes.
   return (
-    <View style={{ paddingTop: insets.top + 12 }} className="flex-1 gap-3 bg-night">
+    <View style={{ ...LIST_COLUMN, paddingTop: insets.top + 12 }} className="flex-1 gap-3 bg-night">
       <View className="flex-row items-center justify-between px-4">
         <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
           {t('Library')}

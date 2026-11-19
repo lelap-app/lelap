@@ -36,6 +36,7 @@ import { activeProfile } from '../src/profile';
 import { TextButton } from '../src/components/TextButton';
 import { scrobblerForm, scrobblersWork } from '../src/scrobblers';
 import { OwnAddonOffer, useOwnAddonOffers } from '../src/components/OwnAddons';
+import { READABLE } from '../src/layout';
 
 const openScrobbler = (router: ReturnType<typeof useRouter>, url: string) =>
   router.push({ pathname: '/scrobbler', params: { url } });
@@ -276,6 +277,7 @@ function AddonsManager() {
       className="flex-1 bg-night"
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
+        ...READABLE,
         paddingTop: insets.top + 8,
         paddingHorizontal: 16,
         paddingBottom: 24,

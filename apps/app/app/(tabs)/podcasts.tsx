@@ -19,12 +19,14 @@ import { showAlert } from '../../src/dialog';
 import { BookCover } from '../../src/components/BookCover';
 import { newEpisodesBadges, useBadgesOn, withBadges } from '../../src/components/CoverBadges';
 import { db } from '../../src/db';
+import { openPage } from '../../src/navigation';
 import { useLibrary } from '../../src/player';
 import { exportOpml, importOpml, refreshPodcasts, subscribeToFeed } from '../../src/podcasts';
 import { readPickedText, shareText } from '../../src/platform/files';
 import { activeProfile, profileId } from '../../src/profile';
 import { TextButton } from '../../src/components/TextButton';
 import { COLORS } from '../../src/components/Icon';
+import { LIST_COLUMN } from '../../src/layout';
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -56,7 +58,7 @@ export default function PodcastsScreen() {
     run(async () => {
       const podcastId = await subscribeToFeed(feedUrl);
       setFeedUrl('');
-      router.push({ pathname: '/podcast', params: { id: podcastId } });
+      openPage(router, { pathname: '/podcast', params: { id: podcastId } });
     });
 
   const importFile = () =>
@@ -85,7 +87,7 @@ export default function PodcastsScreen() {
       className="flex-1 bg-night"
       data={subs}
       keyExtractor={(s) => s.podcastId}
-      contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 24 }}
+      contentContainerStyle={{ ...LIST_COLUMN, paddingTop: insets.top + 8, paddingBottom: 24 }}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -174,7 +176,9 @@ export default function PodcastsScreen() {
           .join(' · ');
         return (
           <Pressable
-            onPress={() => router.push({ pathname: '/podcast', params: { id: sub.podcastId } })}
+            onPress={() =>
+              openPage(router, { pathname: '/podcast', params: { id: sub.podcastId } })
+            }
             accessibilityRole="button"
             accessibilityLabel={withBadges([sub.title, status], badges)}
             className="flex-row items-center gap-3 px-4 py-2 active:bg-raised"

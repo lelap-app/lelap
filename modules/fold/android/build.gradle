@@ -1,0 +1,23 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'app.lelap.fold'
+version = '0.0.0'
+
+android {
+  namespace 'app.lelap.fold'
+  defaultConfig {
+    versionCode 1
+    versionName '0.0.0'
+  }
+}
+
+dependencies {
+  // Jetpack WindowManager (Apache-2.0): the hinge's position and posture. The Java flavour takes a
+  // listener, so no coroutine scope to look after.
+  implementation 'androidx.window:window:1.3.0'
+  implementation 'androidx.window:window-java:1.3.0'
+  testImplementation 'junit:junit:4.13.2'
+}

@@ -78,6 +78,12 @@ export const SettingsSchema = z.object({
   /** The Library's Finished group (M79) is open; it starts closed, out of the way. */
   libraryFinishedOpen: z.boolean().default(false),
   /**
+   * Where the listener dragged the dividers on a wide screen (M113), in points; null is the
+   * default width. Not synced: a laptop and a tablet want their own.
+   */
+  playerPaneWidth: z.number().int().min(0).max(4000).nullable().default(null),
+  detailPaneWidth: z.number().int().min(0).max(4000).nullable().default(null),
+  /**
    * The app's language for this profile; a new profile starts with its creator's. Any language
    * code, so a new catalog needs no change here; the app shows English for one it has no file for.
    */

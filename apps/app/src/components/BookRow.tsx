@@ -17,6 +17,7 @@ import { BookCover, coverUri } from './BookCover';
 import { useBookBadges } from './CoverBadges';
 import { COLORS, Icon, IconButton, type IconName } from './Icon';
 import { ROW_BUTTON } from './TextButton';
+import { Draggable } from '../drag';
 
 /** What swiping a row to the left does, such as Hide; also offered to TalkBack as an action. */
 export type RowSwipe = {
@@ -102,85 +103,88 @@ export const BookRow = memo(function BookRow({
     if (event.nativeEvent.actionName === 'swipe') swipe?.onSwipe(book);
   };
   return (
-    <View onLayout={(e) => (width.current = e.nativeEvent.layout.width)}>
-      {swipe && (
-        // Shown only while the row moves, so no edge of it shows between rows at rest.
-        <Animated.View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              opacity: x.interpolate({
-                inputRange: [-1, 0],
-                outputRange: [1, 0],
-                extrapolate: 'clamp',
-              }),
-            },
-          ]}
-        >
-          <View className="flex-1 flex-row items-center justify-end gap-2 bg-amber px-6">
-            <Icon name={swipe.icon} size={20} color={COLORS.ink} />
-            <Text className="font-semibold text-ink">{swipe.label}</Text>
-          </View>
-        </Animated.View>
-      )}
-      <Animated.View style={{ transform: [{ translateX: x }] }} {...handlers}>
-        <Pressable
-          onPress={() => {
-            if (!justSwiped()) onOpen(book);
-          }}
-          onLongPress={() => onLongPress(book)}
-          {...ROW_BUTTON}
-          {...actions}
-          onAccessibilityAction={onAction}
-          {...deleteKeyAction(swipe?.label, () => swipe?.onSwipe(book))}
-          className="flex-row items-center gap-3 bg-night px-4 py-2 active:bg-raised"
-        >
-          {/* A book that can't play here is dimmed by colour, not opacity, so its text stays readable. */}
-          <View className={dim ? 'opacity-40' : ''}>
-            <BookCover uri={coverUri(book)} title={book.title} size={56} badges={badges} />
-          </View>
-          <View className="flex-1 gap-1">
-            <Text numberOfLines={2} className={`text-base ${dim ? 'text-muted' : 'text-paper'}`}>
-              {book.title}
-            </Text>
-            {(book.author !== null || book.source === 'addon' || note) && (
-              <Text numberOfLines={1} className="text-sm text-muted">
-                {[
-                  note,
-                  book.author,
-                  book.source === 'addon'
-                    ? book.downloaded
-                      ? t('Downloaded')
-                      : t('Streaming')
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
+    // On the web a mouse can drag the row onto a list in the rail (M113).
+    <Draggable item={{ kind: 'book', id: book.id }}>
+      <View onLayout={(e) => (width.current = e.nativeEvent.layout.width)}>
+        {swipe && (
+          // Shown only while the row moves, so no edge of it shows between rows at rest.
+          <Animated.View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                opacity: x.interpolate({
+                  inputRange: [-1, 0],
+                  outputRange: [1, 0],
+                  extrapolate: 'clamp',
+                }),
+              },
+            ]}
+          >
+            <View className="flex-1 flex-row items-center justify-end gap-2 bg-amber px-6">
+              <Icon name={swipe.icon} size={20} color={COLORS.ink} />
+              <Text className="font-semibold text-ink">{swipe.label}</Text>
+            </View>
+          </Animated.View>
+        )}
+        <Animated.View style={{ transform: [{ translateX: x }] }} {...handlers}>
+          <Pressable
+            onPress={() => {
+              if (!justSwiped()) onOpen(book);
+            }}
+            onLongPress={() => onLongPress(book)}
+            {...ROW_BUTTON}
+            {...actions}
+            onAccessibilityAction={onAction}
+            {...deleteKeyAction(swipe?.label, () => swipe?.onSwipe(book))}
+            className="flex-row items-center gap-3 bg-night px-4 py-2 active:bg-raised"
+          >
+            {/* A book that can't play here is dimmed by colour, not opacity, so its text stays readable. */}
+            <View className={dim ? 'opacity-40' : ''}>
+              <BookCover uri={coverUri(book)} title={book.title} size={56} badges={badges} />
+            </View>
+            <View className="flex-1 gap-1">
+              <Text numberOfLines={2} className={`text-base ${dim ? 'text-muted' : 'text-paper'}`}>
+                {book.title}
               </Text>
+              {(book.author !== null || book.source === 'addon' || note) && (
+                <Text numberOfLines={1} className="text-sm text-muted">
+                  {[
+                    note,
+                    book.author,
+                    book.source === 'addon'
+                      ? book.downloaded
+                        ? t('Downloaded')
+                        : t('Streaming')
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
+              )}
+              {progress > 0 && book.finishedAt === null && !book.missing && (
+                <View className="h-1 overflow-hidden rounded-full bg-line">
+                  <View style={{ width: `${progress * 100}%` }} className="h-1 bg-amber" />
+                </View>
+              )}
+            </View>
+            <Text className={`text-sm ${book.finishedAt !== null ? 'text-amber' : 'text-muted'}`}>
+              {unavailable ? t('Not on this phone') : status(book)}
+            </Text>
+            {/* A mouse can't long-press comfortably, so the web shows the menu as a button. */}
+            {Platform.OS === 'web' && (
+              <IconButton
+                name="more"
+                label={t('More for {name}', { name: book.title })}
+                size={20}
+                color={COLORS.muted}
+                onPress={() => onLongPress(book)}
+              />
             )}
-            {progress > 0 && book.finishedAt === null && !book.missing && (
-              <View className="h-1 overflow-hidden rounded-full bg-line">
-                <View style={{ width: `${progress * 100}%` }} className="h-1 bg-amber" />
-              </View>
-            )}
-          </View>
-          <Text className={`text-sm ${book.finishedAt !== null ? 'text-amber' : 'text-muted'}`}>
-            {unavailable ? t('Not on this phone') : status(book)}
-          </Text>
-          {/* A mouse can't long-press comfortably, so the web shows the menu as a button. */}
-          {Platform.OS === 'web' && (
-            <IconButton
-              name="more"
-              label={t('More for {name}', { name: book.title })}
-              size={20}
-              color={COLORS.muted}
-              onPress={() => onLongPress(book)}
-            />
-          )}
-        </Pressable>
-      </Animated.View>
-    </View>
+          </Pressable>
+        </Animated.View>
+      </View>
+    </Draggable>
   );
 });

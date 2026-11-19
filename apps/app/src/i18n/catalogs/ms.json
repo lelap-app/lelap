@@ -1111,5 +1111,13 @@
   "Play list": "Mainkan senarai",
   "Plays the list from where it stands, one item after the other": "Memainkan senarai dari tempat ia berhenti, satu demi satu",
   "Previous in list": "Sebelumnya dalam senarai",
-  "Stop playing the list": "Berhenti memainkan senarai"
+  "Stop playing the list": "Berhenti memainkan senarai",
+  "Added": "Ditambah",
+  "Added to {name}": "Ditambah ke {name}",
+  "Drag to change the width": "Seret untuk menukar lebar",
+  "Drag, or use the arrow keys, to change the width": "Seret, atau guna kekunci anak panah, untuk menukar lebar",
+  "Lists": "Senarai",
+  "Page width": "Lebar halaman",
+  "Player width": "Lebar pemain",
+  "Already in {name}": "Sudah ada dalam {name}"
 }

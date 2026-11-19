@@ -22,6 +22,7 @@ import { formatBytes } from '../src/format';
 import * as native from '../src/platform/downloads';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
+import { LIST_COLUMN } from '../src/layout';
 
 /** The storage overview: what Lelap keeps on the phone and the space left. */
 export default function DownloadsScreen() {
@@ -78,7 +79,7 @@ export default function DownloadsScreen() {
       <FlatList
         data={entries}
         keyExtractor={(e) => e.bookId}
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 24 }}
+        contentContainerStyle={{ ...LIST_COLUMN, paddingTop: insets.top + 8, paddingBottom: 24 }}
         ListHeaderComponent={
           <View className="gap-4 px-4 pb-4">
             <View className="-ms-2 self-start">

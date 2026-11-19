@@ -208,15 +208,20 @@ function Chip({ label, onPress }: { label: string; onPress: () => void }) {
 
 /**
  * The player: the Player screen on a phone, or the pane beside the list on a wide screen
- * (`pane`). A phone turned sideways gets the cover beside the controls.
+ * (`pane`). A phone turned sideways gets the cover beside the controls, as does the pane `below`
+ * a wide tabletop's hinge (M113), which is that many points tall.
  */
-export function PlayerView({ pane = false }: { pane?: boolean }) {
+export function PlayerView({ pane = false, below }: { pane?: boolean; below?: number }) {
   const state = usePlayerState();
   const { version, refresh } = useLibrary();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const dims = useWindowDimensions();
-  const landscape = !pane && dims.width > dims.height;
+  // Below a narrow tabletop's hinge (a flip phone) the controls take the whole half, no cover.
+  const coverless = below !== undefined && dims.width < 600;
+  const landscape = (below !== undefined && !coverless) || (!pane && dims.width > dims.height);
+  // Below a hinge the status bar is on the other half.
+  const top = below !== undefined ? 0 : insets.top;
   const [sheet, setSheet] = useState<
     | 'chapters'
     | 'bookmarks'
@@ -275,7 +280,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
   if (!bookId || !detail) {
     return (
       <View
-        style={{ paddingTop: insets.top }}
+        style={{ paddingTop: top }}
         className="flex-1 items-center justify-center gap-4 bg-night"
       >
         <Text className="text-soft">{t('Nothing is playing.')}</Text>
@@ -363,7 +368,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
 
   // Sideways, the cover fills the height beside the controls.
   const coverSize = landscape
-    ? Math.max(120, Math.min(320, dims.height - insets.top - insets.bottom - 48))
+    ? Math.max(120, Math.min(320, (below ?? dims.height) - top - insets.bottom - 48))
     : pane
       ? 240
       : 280;
@@ -654,7 +659,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
       className="flex-1 bg-night"
       contentContainerStyle={{
         flexGrow: 1,
-        paddingTop: insets.top + 4,
+        paddingTop: top + 4,
         paddingBottom: insets.bottom + 12,
         paddingHorizontal: 24 + (landscape ? Math.max(insets.left, insets.right) : 0),
       }}
@@ -670,7 +675,11 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
       ) : (
         <>
           {header}
-          <View className="min-h-48 flex-1 items-center justify-center py-4">{cover}</View>
+          {coverless ? (
+            <View className="flex-1" />
+          ) : (
+            <View className="min-h-48 flex-1 items-center justify-center py-4">{cover}</View>
+          )}
           {details}
         </>
       )}
