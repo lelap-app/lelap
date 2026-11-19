@@ -111,8 +111,8 @@ export function useCasting(): Casting {
   );
 }
 
-// The attempt that failed device authentication, for “Connect anyway”.
-let refused: { devices: CastDevice[]; book: BookLoad } | null = null;
+// The speakers of the attempt that failed device authentication, for “Connect anyway”.
+let refused: CastDevice[] | null = null;
 
 /**
  * Plays [book] on [devices] from where the phone is: one receiver, or several kept in step as a
@@ -144,18 +144,21 @@ export async function startCasting(
     // Without local network access the sheet shows its explanation instead of an error line.
     const error = isLocalNetworkDenied(e) ? null : e instanceof Error ? e.message : String(e);
     const untrusted = isUntrusted(e);
-    if (untrusted) refused = { devices, book };
+    if (untrusted) refused = devices;
     update({ device: null, error, untrusted, notice: null });
     await cast.disconnect().catch(() => {});
     throw e;
   }
 }
 
-/** Tries the attempt that failed device authentication again, letting its speakers in. */
-export async function connectAnyway(): Promise<void> {
-  const attempt = refused;
-  if (!attempt) return;
-  await startCasting(attempt.devices, attempt.book, true);
+/**
+ * Tries the speakers that failed device authentication again with [book] (the one loaded now),
+ * letting in the speaker that was refused.
+ */
+export async function connectAnyway(book: BookLoad): Promise<void> {
+  const devices = refused;
+  if (!devices) return;
+  await startCasting(devices, book, true);
 }
 
 /** Hands the book back to the phone at the receiver's place; it plays on if it was playing. */

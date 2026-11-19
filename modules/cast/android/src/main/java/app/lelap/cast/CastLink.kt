@@ -193,7 +193,6 @@ class CastLink private constructor(
   /** Speakers of the group that could not be reached when it connected; it plays without them. */
   var unreached: List<String> = emptyList()
     private set
-  private var skipped: Set<String> = emptySet()
 
   /** For JavaScript: the receiver, and for a group its speakers. */
   fun toMap(): Map<String, Any?> = device.toMap() + ("members" to members.map { it.toMap() })
@@ -204,7 +203,8 @@ class CastLink private constructor(
     val probes = members.filter { it.kind == "cast" }.map { member ->
       member to FutureTask { CastAuthProbe.run(member) }.also { Thread(it, "lelap-cast-auth").apply { isDaemon = true }.start() }
     }
-    val leader = rendererFor(members.first(), ::lost)
+    val opened = mutableMapOf<String, Renderer>()
+    val leader = rendererFor(members.first(), ::lost).also { opened[members.first().id] = it }
     renderer = leader
     if (members.size > 1) {
       // Set once the group exists; a follower lost before that is dropped by its first failed command.
@@ -214,7 +214,11 @@ class CastLink private constructor(
       for (member in members.drop(1)) {
         try {
           var self: Renderer? = null
-          rendererFor(member) { self?.let { r -> group?.drop(r) } }.also { self = it; followers += it }
+          rendererFor(member) { self?.let { r -> group?.drop(r) } }.also {
+            self = it
+            followers += it
+            opened[member.id] = it
+          }
         } catch (e: Exception) {
           missed += member
         }
@@ -223,17 +227,18 @@ class CastLink private constructor(
       group = GroupRenderer(leader, followers, clock = { System.nanoTime() / 1_000_000L })
       renderer = group
       unreached = missed.map { it.name }
-      skipped = missed.map { it.id }.toSet()
     }
     // Enforced (M78): a Google Cast speaker that doesn't prove itself is not connected, unless
-    // the listener chose “Connect anyway” for it. One the group couldn't reach plays no part.
+    // the listener chose “Connect anyway” for it. One the group couldn't reach plays no part,
+    // and the verdict must come from the same TLS certificate the session's connection showed.
     for ((member, probe) in probes) {
-      if (member.id in skipped) continue
-      val verdict = try {
-        probe.get(AUTH_WAIT_S, TimeUnit.SECONDS)
+      val session = opened[member.id] ?: continue
+      val outcome = try {
+        probe.get(AUTH_WAIT_MS, TimeUnit.MILLISECONDS)
       } catch (e: Exception) {
-        CastAuth.Verdict.Untrusted("no answer")
+        CastAuthProbe.Outcome(CastAuth.Verdict.Untrusted("no answer"), null)
       }
+      val verdict = CastAuthProbe.forSession(outcome, (session as? GoogleCastRenderer)?.peerCertificate)
       val allowed = member.id in trusted
       Log.i(TAG, "cast device auth: ${CastAuthProbe.describe(verdict)}${if (verdict is CastAuth.Verdict.Untrusted && allowed) ", connected anyway" else ""}")
       if (verdict is CastAuth.Verdict.Untrusted && !allowed) throw CastUntrustedException(member)
@@ -304,8 +309,8 @@ class CastLink private constructor(
   companion object {
     private const val TAG = "LelapCast"
 
-    /** The probe itself gives up after 5 s without an answer. */
-    private const val AUTH_WAIT_S = 12L
+    /** A little longer than the probe can take, so a slow but genuine speaker isn't cut off. */
+    private const val AUTH_WAIT_MS = CastAuthProbe.LONGEST_MS + 3_000L
 
     /** The session running now, if any. */
     @Volatile

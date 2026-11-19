@@ -29,7 +29,7 @@ export const addDevicesListener: (listener: (devices: CastDevice[]) => void) => 
 export const startCasting: (devices: CastDevice[], book: unknown) => Promise<void> = async () => {
   throw new Error(t('Casting needs the Android app.'));
 };
-export const connectAnyway = async (): Promise<void> => {};
+export const connectAnyway: (book: unknown) => Promise<void> = async () => {};
 export const stopCasting = async (): Promise<void> => {};
 export type LocalNetworkAccess = 'granted' | 'ask' | 'blocked';
 export const localNetworkAccess = async (): Promise<LocalNetworkAccess> => 'granted';

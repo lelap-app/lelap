@@ -5,6 +5,8 @@ import java.util.concurrent.Callable
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
@@ -105,7 +107,10 @@ fun groupVolumes(level: Float, volumes: List<Float?>): List<Float> {
 /**
  * Several speakers, of any protocols, as one [Renderer] (M78). The first plays the part of the
  * receiver: its status is the group's, so [RemoteSession] follows it. Commands go to all at once;
- * a follower that fails or goes away leaves the group, and the rest play on.
+ * a follower that fails, goes away or stops answering leaves the group, and the rest play on.
+ *
+ * The leader is called on the caller's thread (the cast thread). Each follower has a thread of
+ * its own, so its calls still run one at a time and in order, as every [Renderer] expects.
  */
 class GroupRenderer(
   private val leader: Renderer,
@@ -115,13 +120,17 @@ class GroupRenderer(
   private val log: (String) -> Unit = { Log.i(TAG, it) },
 ) : Renderer {
   private class Member(val number: Int, val renderer: Renderer) {
+    val thread: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "lelap-cast-group").apply { isDaemon = true } }
+
     @Volatile
     var volume: Float? = null
+
+    /** Polls in a row it gave no status for. */
+    var silent = 0
   }
 
   private val members = CopyOnWriteArrayList(followers.mapIndexed { i, r -> Member(i, r) })
   private val sync = GroupSync(clock)
-  private val pool: ExecutorService = Executors.newCachedThreadPool { Thread(it, "lelap-cast-group").apply { isDaemon = true } }
   private var leaderVolume: Float? = null
 
   /** The speakers still in the group besides the first. */
@@ -138,20 +147,30 @@ class GroupRenderer(
     if (!members.remove(member)) return
     synchronized(sync) { sync.forget(member.number) }
     log("group: a speaker left ($why), ${members.size + 1} left")
-    pool.execute { runCatching { member.renderer.close() } }
+    // Runs after whatever it was still doing; a call stuck on the network ends with the socket.
+    runCatching { member.thread.execute { runCatching { member.renderer.close() } } }
+    member.thread.shutdown()
   }
+
+  private fun <T> on(member: Member, block: (Renderer) -> T): Future<T>? =
+    try {
+      member.thread.submit(Callable { block(member.renderer) })
+    } catch (e: RejectedExecutionException) {
+      null
+    }
 
   /** Runs [block] on the leader here and on every follower alongside; a follower that throws leaves. */
   private fun all(block: (Renderer) -> Unit) {
     synchronized(sync) { sync.commanded() }
-    val pending = members.map { m -> m to pool.submit(Callable { block(m.renderer) }) }
+    val pending = members.map { m -> m to on(m, block) }
     try {
       block(leader)
     } finally {
       for ((member, future) in pending) {
         try {
-          future.get(FOLLOWER_WAIT_S, TimeUnit.SECONDS)
+          future?.get(COMMAND_WAIT_S, TimeUnit.SECONDS)
         } catch (e: Exception) {
+          future?.cancel(true)
           leave(member, "failed")
         }
       }
@@ -174,29 +193,36 @@ class GroupRenderer(
     val list = members.toList()
     val volumes = groupVolumes(level, listOf(leaderVolume) + list.map { it.volume })
     leader.setVolume(volumes[0])
-    list.forEachIndexed { i, m -> runCatching { m.renderer.setVolume(volumes[i + 1]) } }
+    list.forEachIndexed { i, m -> on(m) { r -> r.setVolume(volumes[i + 1]) } }
   }
 
   override fun status(): RendererStatus {
     val list = members.toList()
-    val polls = list.map { m -> m to pool.submit(Callable { m.renderer.status() }) }
+    val polls = list.map { m -> m to on(m) { it.status() } }
     val status = leader.status()
     if (status.volume != null) leaderVolume = status.volume
+    // A short wait: a speaker that went quiet must not slow the leader's poll for long.
     val statuses = polls.associate { (m, future) ->
-      val s = runCatching { future.get(FOLLOWER_WAIT_S, TimeUnit.SECONDS) }.getOrNull()
+      val s = try {
+        future?.get(STATUS_WAIT_MS, TimeUnit.MILLISECONDS)
+      } catch (e: Exception) {
+        future?.cancel(true)
+        null
+      }
       if (s?.volume != null) m.volume = s.volume
+      m.silent = if (s == null) m.silent + 1 else 0
       m.number to s
     }
+    for (m in list) if (m.silent >= SILENT_POLLS) leave(m, "silent")
     val actions = synchronized(sync) { sync.onStatuses(status, statuses) }
     for (action in actions) {
-      val member = list.firstOrNull { it.number == action.follower } ?: continue
-      pool.execute {
-        runCatching {
-          when (action) {
-            is GroupSync.Action.Seek -> member.renderer.seek(action.positionMs)
-            is GroupSync.Action.Play -> member.renderer.play()
-            is GroupSync.Action.Pause -> member.renderer.pause()
-          }
+      val member = members.firstOrNull { it.number == action.follower } ?: continue
+      // Queued behind the follower's other calls, so it never overtakes a newer command.
+      on(member) { r ->
+        when (action) {
+          is GroupSync.Action.Seek -> r.seek(action.positionMs)
+          is GroupSync.Action.Play -> r.play()
+          is GroupSync.Action.Pause -> r.pause()
         }
       }
       if (action is GroupSync.Action.Seek) log("group: a speaker was ${action.driftMs} ms off")
@@ -207,15 +233,21 @@ class GroupRenderer(
   override fun close() {
     val list = members.toList()
     members.clear()
-    for (m in list) pool.execute { runCatching { m.renderer.close() } }
+    for (m in list) {
+      runCatching { m.thread.execute { runCatching { m.renderer.close() } } }
+      m.thread.shutdown()
+    }
     runCatching { leader.close() }
-    pool.shutdown()
   }
 
   companion object {
     private const val TAG = "LelapCast"
 
-    /** A follower slower than this to load or answer leaves rather than holding up the group. */
-    const val FOLLOWER_WAIT_S = 25L
+    /** A follower slower than this to load or answer a command leaves rather than holding up the group. */
+    const val COMMAND_WAIT_S = 25L
+    const val STATUS_WAIT_MS = 1_500L
+
+    /** About 10 s without a status from a follower: it is gone. */
+    const val SILENT_POLLS = 8
   }
 }

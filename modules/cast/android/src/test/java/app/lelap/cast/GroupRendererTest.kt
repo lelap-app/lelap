@@ -23,7 +23,9 @@ class GroupRendererTest {
     override fun setSpeed(speed: Float) = call("speed $speed")
     override fun canPlayAt(speed: Float): Boolean = speed in speeds
     override fun setVolume(level: Float) = call("volume $level")
-    override fun status(): RendererStatus = status
+    var quiet = false
+
+    override fun status(): RendererStatus = if (quiet) throw CastException("$name is quiet") else status
     override fun close() {
       closed = true
     }
@@ -83,7 +85,27 @@ class GroupRendererTest {
     // The volume keeps each speaker's share.
     group.setVolume(1f)
     assertEquals("volume 1.0", leader.calls.last())
+    val until = System.currentTimeMillis() + 2_000L
+    while (follower.calls.size < 2 && System.currentTimeMillis() < until) Thread.sleep(10L)
     assertEquals("volume 0.5", follower.calls.last())
+  }
+
+  @Test
+  fun aFollowerThatStopsAnsweringLeaves() {
+    val follower = Fake("b", playing(0L)).apply { quiet = true }
+    val group = GroupRenderer(Fake("a", playing(0L)), listOf(follower), { now }, {})
+    repeat(GroupRenderer.SILENT_POLLS - 1) { group.status() }
+    assertEquals(1, group.followerCount)
+    group.status()
+    assertEquals(0, group.followerCount)
+  }
+
+  @Test
+  fun aFollowersCallsRunInOrder() {
+    val follower = Fake("b", playing(0L))
+    val group = GroupRenderer(Fake("a", playing(0L)), listOf(follower), { now }, {})
+    repeat(20) { i -> group.seek(i * 1_000L) }
+    assertEquals((0 until 20).map { "seek ${it * 1_000L}" }, follower.calls.toList())
   }
 
   @Test

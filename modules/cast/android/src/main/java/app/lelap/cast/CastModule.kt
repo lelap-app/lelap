@@ -87,9 +87,9 @@ class CastModule : Module() {
 
     AsyncFunction("requestLocalNetworkAccess") { promise: Promise -> localNetwork(promise, ask = true) }
 
-    // One receiver, or a group of any protocols led by the first (M78). With [anyway], the Google
-    // Cast speakers among them connect even when they fail device authentication, for as long as
-    // the app runs.
+    // One receiver, or a group of any protocols led by the first (M78). With [anyway], the speaker
+    // the last attempt refused connects even though it failed device authentication, for as long
+    // as the app runs.
     AsyncFunction("connect") { deviceIds: List<String>, anyway: Boolean ->
       // The receiver and the file server it fetches from are both on the local network.
       if (!hasLocalNetwork()) {
@@ -100,10 +100,13 @@ class CastModule : Module() {
         discovery().device(it) ?: throw CastFailedException(NativeText.t(context, "That speaker is no longer on the network"))
       }
       if (targets.isEmpty()) throw CastFailedException(NativeText.t(context, "That speaker is no longer on the network"))
-      if (anyway) letIn += targets.map { it.id }
+      // Only the speaker that was refused, never the others of the attempt.
+      if (anyway) refused?.takeIf { id -> targets.any { it.id == id } }?.let { letIn += it }
+      refused = null
       val link = try {
         CastLink.open(context, targets, letIn.toSet())
       } catch (e: CastUntrustedException) {
+        refused = e.device.id
         throw CastUntrustedCodedException(e.message.orEmpty())
       } catch (e: CastException) {
         throw CastFailedException(e.message.orEmpty())
@@ -160,6 +163,10 @@ class CastModule : Module() {
   private companion object {
     /** Google Cast speakers the listener let in by hand; kept for the process, never stored. */
     val letIn: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    /** The speaker the last attempt refused, which “Connect anyway” lets in. */
+    @Volatile
+    var refused: String? = null
 
     const val DEVICES_EVENT = "onDevices"
     const val STATUS_EVENT = "onStatus"

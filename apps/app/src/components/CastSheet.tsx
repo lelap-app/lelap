@@ -232,7 +232,10 @@ export function CastSheet({
               <View className="flex-row">
                 <Chip
                   label={t('Connect anyway')}
-                  onPress={() => void connect('anyway', connectAnyway)}
+                  onPress={() => {
+                    const book = bookLoad(bookId);
+                    if (book) void connect('anyway', () => connectAnyway(book));
+                  }}
                 />
               </View>
             </>

@@ -122,6 +122,9 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
   private val lock = Object()
   private val socket: SSLSocket
   private val out: BufferedOutputStream
+
+  /** The TLS certificate this connection showed, which device authentication must have vouched for (M78). */
+  val peerCertificate: ByteArray?
   private val heartbeat: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { Thread(it, "lelap-cast-heartbeat") }
   private var requestId = 1
   private var closed = false
@@ -149,17 +152,33 @@ class GoogleCastRenderer(private val device: CastDevice, private val onLost: (St
   init {
     val context = SSLContext.getInstance("TLS")
     context.init(null, arrayOf(TrustDevice), SecureRandom())
-    socket = context.socketFactory.createSocket() as SSLSocket
-    socket.connect(InetSocketAddress(device.host, device.port), 5_000)
-    socket.soTimeout = 0
-    socket.startHandshake()
-    out = BufferedOutputStream(socket.outputStream)
-    Thread({ readLoop(DataInputStream(socket.inputStream)) }, "lelap-cast-reader").apply { isDaemon = true }.start()
-    send(RECEIVER_ID, CastJson.CONNECTION, JSONObject().put("type", "CONNECT").toString())
-    heartbeat.scheduleWithFixedDelay({
-      runCatching { send(RECEIVER_ID, CastJson.HEARTBEAT, PING) }
-    }, 0, 5, TimeUnit.SECONDS)
-    sendRequest(RECEIVER_ID, CastJson.RECEIVER, JSONObject().put("type", "GET_STATUS"))
+    val s = context.socketFactory.createSocket() as SSLSocket
+    // A speaker that can't be reached (a group's, say) must not leave a socket or threads behind.
+    try {
+      s.connect(InetSocketAddress(device.host, device.port), 5_000)
+      s.soTimeout = 0
+      s.startHandshake()
+    } catch (e: Exception) {
+      heartbeat.shutdownNow()
+      runCatching { s.close() }
+      throw e
+    }
+    socket = s
+    peerCertificate = runCatching { s.session.peerCertificates.firstOrNull()?.encoded }.getOrNull()
+    out = BufferedOutputStream(s.outputStream)
+    try {
+      Thread({ readLoop(DataInputStream(s.inputStream)) }, "lelap-cast-reader").apply { isDaemon = true }.start()
+      send(RECEIVER_ID, CastJson.CONNECTION, JSONObject().put("type", "CONNECT").toString())
+      heartbeat.scheduleWithFixedDelay({
+        runCatching { send(RECEIVER_ID, CastJson.HEARTBEAT, PING) }
+      }, 0, 5, TimeUnit.SECONDS)
+      sendRequest(RECEIVER_ID, CastJson.RECEIVER, JSONObject().put("type", "GET_STATUS"))
+    } catch (e: Exception) {
+      synchronized(lock) { closed = true }
+      heartbeat.shutdownNow()
+      runCatching { s.close() }
+      throw e
+    }
   }
 
   private fun send(destination: String, namespace: String, payload: String) {

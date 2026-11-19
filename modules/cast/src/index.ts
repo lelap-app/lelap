@@ -79,7 +79,7 @@ export const LOCAL_NETWORK_DENIED = 'ERR_LOCAL_NETWORK';
 
 /**
  * A `connect()` refused because a Google Cast speaker failed device authentication; the message
- * names it. Connecting again with `anyway` lets it in for as long as the app runs.
+ * names it. Connecting again with `anyway` lets that one speaker in for as long as the app runs.
  */
 export const CAST_UNTRUSTED = 'ERR_CAST_UNTRUSTED';
 

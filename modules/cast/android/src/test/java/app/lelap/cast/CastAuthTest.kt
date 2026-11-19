@@ -149,6 +149,19 @@ class CastAuthTest {
   }
 
   @Test
+  fun aVerdictCountsOnlyForTheSessionThatShowedTheSameTlsCertificate() {
+    val probed = CastAuthProbe.Outcome(trusted, peer.encoded)
+    assertEquals(trusted, CastAuthProbe.forSession(probed, peer.encoded.copyOf()))
+    // The probe was passed on to a real device; the session's connection answered with another.
+    val other = CastAuth.Verdict.Untrusted("another TLS certificate on the session")
+    assertEquals(other, CastAuthProbe.forSession(probed, root.encoded))
+    assertEquals(other, CastAuthProbe.forSession(probed, null))
+    // A failure stays what it was.
+    val failed = CastAuthProbe.Outcome(CastAuth.Verdict.Untrusted("bad signature"), peer.encoded)
+    assertEquals(CastAuth.Verdict.Untrusted("bad signature"), CastAuthProbe.forSession(failed, peer.encoded))
+  }
+
+  @Test
   fun googlesTwoCastRootsLoadWithTheirFingerprints() {
     val roots = CastRoots.all
     assertEquals(listOf("Cast Root CA", "Eureka Root CA"), roots.map { r -> r.subjectX500Principal.name.substringAfter("CN=").substringBefore(",") })
