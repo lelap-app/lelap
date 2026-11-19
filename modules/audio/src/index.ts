@@ -18,7 +18,10 @@ export type BookLoad = {
   speed: number;
   /** When the place was saved, so the first Play can rewind a little. */
   pausedAt: number | null;
-  /** At its end, play the next item in Up Next (podcast episodes); books stop at their end. */
+  /**
+   * At its end, play the next item in the queue: podcast episodes, and anything while a list
+   * plays (M112). Otherwise a book stops at its end.
+   */
   handsOver?: boolean;
   /** Sent with every request for this book's files: the login of a WebDAV server. */
   headers?: Record<string, string>;
@@ -168,7 +171,7 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   unload(): Promise<void>;
   castTo(): Promise<void>;
   stopCasting(resume: boolean | null): Promise<void>;
-  setQueue(queueJson: string): Promise<void>;
+  setQueue(queueJson: string, listNext: number): Promise<void>;
   takeFinished(): Promise<FinishedItem[]>;
   takeEarlierPlaces(): Promise<JournalEntry[]>;
   takeAccounting(): Promise<ServiceAccounting>;
@@ -274,9 +277,13 @@ export function cancelSleepTimer(): Promise<void> {
   return native.cancelSleepTimer();
 }
 
-/** What plays after the current book when it hands over (Up Next, in order). */
-export function setQueue(queue: BookLoad[]): Promise<void> {
-  return native.setQueue(JSON.stringify(queue));
+/**
+ * What plays after the current book when it hands over: Up Next in order, then the rest of the
+ * list that plays (M112). `listNext` is where in `queue` the list's next item is, for the
+ * notification's Next in list; null without a list.
+ */
+export function setQueue(queue: BookLoad[], listNext: number | null = null): Promise<void> {
+  return native.setQueue(JSON.stringify(queue), listNext ?? -1);
 }
 
 /** Books that ended since the last call, for the app to mark finished. */

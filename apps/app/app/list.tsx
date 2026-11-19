@@ -8,6 +8,7 @@ import {
   normalizeTag,
   playlistBooks,
   renamePlaylist,
+  setPlaylistKeepFinished,
   setPlaylistRule,
   type SmartRule,
 } from '@lelap/core';
@@ -27,7 +28,7 @@ import { MiniPlayer } from '../src/components/MiniPlayer';
 import { Sheet } from '../src/components/Sheet';
 import { db } from '../src/db';
 import { showAlert } from '../src/dialog';
-import { playBook, useLibrary } from '../src/player';
+import { playBook, playList, useFollowedList, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { TextButton } from '../src/components/TextButton';
 import { Pill } from '../src/components/Pill';
@@ -188,17 +189,47 @@ export default function ListScreen() {
     [list, tag, version],
   );
 
+  const following = useFollowedList();
+  const playingHere = following && list && following.list.id === list.id ? following : null;
+
+  // A book tapped in a list plays the list from there (M112); a tag's books play on their own.
   const open = useCallback(
     async (book: LibraryBook) => {
       try {
-        await playBook(book.id);
+        if (list) await playList(list.id, book.id);
+        else await playBook(book.id);
+        refresh();
         openPlayer(router);
       } catch (error) {
         showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error));
       }
     },
-    [router],
+    [router, list, refresh],
   );
+
+  const play = async () => {
+    if (!list) return;
+    try {
+      const started = await playList(list.id);
+      refresh();
+      if (started) openPlayer(router);
+      else
+        showAlert(
+          t('Nothing left to play'),
+          t(
+            'Everything in this list is finished. Turn on “Play finished ones too” to hear it again.',
+          ),
+        );
+    } catch (error) {
+      showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const toggleKeepFinished = () => {
+    if (!list) return;
+    setPlaylistKeepFinished(db, profileId, list.id, !list.keepFinished, Date.now());
+    refresh();
+  };
 
   const saveName = () => {
     if (list && name !== null) renamePlaylist(db, profileId, list.id, name, Date.now());
@@ -275,6 +306,30 @@ export default function ListScreen() {
                 </Text>
               </Pressable>
             )}
+            {list && books.length > 0 && (
+              <View className="flex-row flex-wrap items-center gap-2 pt-1">
+                <Pressable
+                  onPress={() => void play()}
+                  accessibilityRole="button"
+                  {...hint(t('Plays the list from where it stands, one item after the other'))}
+                  className="min-h-12 flex-row items-center gap-2 rounded-full bg-amber px-5 active:opacity-80"
+                >
+                  <Icon name="play" size={18} color={COLORS.ink} />
+                  <Text className="font-semibold text-ink">{t('Play list')}</Text>
+                </Pressable>
+                <Pill
+                  onPress={toggleKeepFinished}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: list.keepFinished }}
+                  aria-checked={list.keepFinished}
+                  className={`min-h-12 justify-center rounded-full border px-3 ${list.keepFinished ? 'border-amber' : 'border-line'}`}
+                >
+                  <Text className={list.keepFinished ? 'text-amber' : 'text-soft'}>
+                    {t('Play finished ones too')}
+                  </Text>
+                </Pill>
+              </View>
+            )}
             {list?.rule ? (
               <Pressable
                 onPress={() => setEditingRule(true)}
@@ -307,6 +362,12 @@ export default function ListScreen() {
             <View className="flex-1">
               <BookRow book={item} onOpen={(b) => void open(b)} onLongPress={setActionBook} />
             </View>
+            {playingHere &&
+              (item.id === playingHere.playing || item.id === playingHere.next?.id) && (
+                <Text className="pe-2 text-xs uppercase tracking-widest text-amber">
+                  {item.id === playingHere.playing ? t('Playing') : t('Next')}
+                </Text>
+              )}
             {manual && list && (
               <View className="pe-2">
                 <IconButton

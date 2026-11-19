@@ -96,14 +96,14 @@ const byRecent = (a: LibraryBook, b: LibraryBook) =>
   (b.lastPlayedAt ?? -1) - (a.lastPlayedAt ?? -1) || b.addedAt - a.addedAt;
 
 /** Every book with its tags, read once for several lists. */
-type Library = { books: LibraryBook[]; tags: Map<string, string[]> };
+export type Library = { books: LibraryBook[]; tags: Map<string, string[]> };
 
-const readLibrary = (db: Db, profileId: string): Library => ({
+export const readLibrary = (db: Db, profileId: string): Library => ({
   books: listAllBooks(db, profileId),
   tags: tagsByBook(db, profileId),
 });
 
-function smartBooks(library: Library, rule: SmartRule): LibraryBook[] {
+export function smartBooks(library: Library, rule: SmartRule): LibraryBook[] {
   return library.books
     .filter((b) => matchesRule(b, library.tags.get(b.id) ?? [], rule))
     .sort(byRecent);
@@ -116,6 +116,8 @@ export type Playlist = {
   rule: SmartRule | null;
   /** Synced book keys, in order; empty for a smart list. */
   items: string[];
+  /** Playing the list goes through finished items too, from their start (M112). */
+  keepFinished: boolean;
   createdAt: number;
 };
 
@@ -126,6 +128,7 @@ export function listPlaylists(db: Db, profileId: string): Playlist[] {
       name: playlists.name,
       rule: playlists.rule,
       items: playlists.items,
+      keepFinished: playlists.keepFinished,
       createdAt: playlists.createdAt,
     })
     .from(playlists)
@@ -165,7 +168,7 @@ function update(
   db: Db,
   profileId: string,
   id: string,
-  change: Partial<Pick<Playlist, 'name' | 'rule' | 'items'>>,
+  change: Partial<Pick<Playlist, 'name' | 'rule' | 'items' | 'keepFinished'>>,
   now: number,
 ): void {
   db.update(playlists)
@@ -187,6 +190,17 @@ export function setPlaylistRule(
   now: number,
 ): void {
   update(db, profileId, id, { rule }, now);
+}
+
+/** Whether playing the list goes through finished items too (a list of favourites to hear again). */
+export function setPlaylistKeepFinished(
+  db: Db,
+  profileId: string,
+  id: string,
+  keepFinished: boolean,
+  now: number,
+): void {
+  update(db, profileId, id, { keepFinished }, now);
 }
 
 export function deletePlaylist(db: Db, profileId: string, id: string, now: number): void {

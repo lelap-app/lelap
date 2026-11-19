@@ -23,6 +23,17 @@ import {
   isLocalAddress,
   regroupedBook,
   setOverrides,
+  followedList,
+  followedListItems,
+  setFollowedList,
+  getPlaylist,
+  listPlayOrder,
+  listStart,
+  listUpcoming,
+  listPrevious,
+  playsFromStart,
+  type LibraryBook,
+  type ListFollow,
 } from '@lelap/core';
 import {
   createContext,
@@ -88,6 +99,30 @@ const LibraryContext = createContext<Library>({ version: 0, refresh: () => {} })
 export const usePlayerState = () => useContext(PlayerStateContext);
 export const useLibrary = () => useContext(LibraryContext);
 
+/**
+ * The list that plays (M112) with its items, what plays from it now and what comes next; null
+ * when no list plays.
+ */
+export function useFollowedList() {
+  const { version } = useLibrary();
+  const { bookId } = usePlayerState();
+  // `version` and the loaded book are the signals to re-read the database.
+  return useMemo(() => {
+    const following = followedListItems(db, profileId, Date.now());
+    if (!following) return null;
+    const { follow, list, items } = following;
+    // The loaded book before the queue caught up with it; an Up Next item in between leaves the list's.
+    const current = bookId && items.some((b) => b.id === bookId) ? bookId : follow.bookId;
+    return {
+      list,
+      items,
+      playing: current,
+      next: listUpcoming(items, current, list.keepFinished)[0] ?? null,
+      previous: listPrevious(items, current, list.keepFinished),
+    };
+  }, [version, bookId]);
+}
+
 // Books whose place this session has played; only those are saved when another book replaces
 // them. A book only loaded at startup may sit at a fallback place (its saved file is missing),
 // and saving that would stop the place from following the file when it comes back.
@@ -140,6 +175,15 @@ function savePlace(state: audio.PlayerState): boolean {
 /** Loads a book at its saved place, or resumes it when it is already loaded. */
 export async function playBook(bookId: string, autoplay = true): Promise<void> {
   userLoaded = true;
+  // A book outside the list that plays, and outside Up Next, ends following the list (M112).
+  const following = followedListItems(db, profileId, Date.now());
+  if (
+    following &&
+    !following.items.some((b) => b.id === bookId) &&
+    !listUpNext(db, profileId).some((i) => i.bookId === bookId)
+  ) {
+    setFollowedList(db, profileId, null, Date.now());
+  }
   // Android 17: a book streamed from a server at home asks for local network access first. It
   // loads either way; without access the player's error says why.
   if (streamsFromLocalNetwork(bookId)) await askLocalNetwork(true);
@@ -242,7 +286,90 @@ export async function resendQueue(): Promise<void> {
   if (Platform.OS === 'android') await syncCar();
 }
 
-async function load(bookId: string, autoplay: boolean, force = false): Promise<void> {
+/**
+ * Plays a list (M112) and follows it: each item hands over to the next one when it ends, books
+ * and episodes alike, also with the app closed. Starts at `bookId`, or where the list stands.
+ * False when nothing in it is left to play.
+ */
+export async function playList(listId: string, bookId?: string): Promise<boolean> {
+  const list = getPlaylist(db, profileId, listId);
+  if (!list) return false;
+  const before = followedList(db, profileId);
+  // A smart list plays in the order it shows now; see `ListFollow.order`.
+  const items = list.rule
+    ? listPlayOrder(db, profileId, list, null)
+    : listPlayOrder(db, profileId, list);
+  const start = bookId
+    ? items.find((b) => b.id === bookId)
+    : listStart(items, list.keepFinished, before?.listId === listId ? before.bookId : null);
+  if (!start) return false;
+  const order = list.rule ? items.map((b) => b.id) : null;
+  await playListItem({ listId, bookId: start.id, order }, start, list.keepFinished, true);
+  return true;
+}
+
+/**
+ * Follows `follow` and plays its item, from the start when it is finished and the list keeps
+ * those. The list is followed inside the load's turn, so a queue update waiting before it never
+ * sees the list with the old book still loaded; a load that fails leaves things as they were.
+ */
+async function playListItem(
+  follow: ListFollow,
+  book: LibraryBook,
+  keepFinished: boolean,
+  autoplay: boolean,
+) {
+  userLoaded = true;
+  if (streamsFromLocalNetwork(book.id)) await askLocalNetwork(true);
+  const fromStart = playsFromStart(book, keepFinished);
+  await enqueue(async () => {
+    const before = followedList(db, profileId);
+    setFollowedList(db, profileId, follow, Date.now());
+    try {
+      await load(book.id, autoplay, fromStart, fromStart);
+    } catch (error) {
+      setFollowedList(db, profileId, before, Date.now());
+      throw error;
+    }
+    // A book loaded before its list played stops at its end; now it hands over.
+    const loaded = bookLoad(book.id, { fromStart });
+    if (loaded) await audio.updateBook(loaded);
+    // Android keeps a loaded book's live place, also when it sits at its end.
+    if (loaded && fromStart) await audio.seekTo(loaded.startIndex, loaded.startPositionMs);
+  });
+  await syncQueue();
+}
+
+/** The player's Previous and Next in list: the item before or after the one playing. */
+export async function stepList(forward: boolean): Promise<void> {
+  const following = followedListItems(db, profileId, Date.now());
+  if (!following) return;
+  const { follow, list, items } = following;
+  const target = forward
+    ? listUpcoming(items, follow.bookId, list.keepFinished)[0]
+    : listPrevious(items, follow.bookId, list.keepFinished);
+  if (!target) return;
+  const { playing } = await audio.getState();
+  await playListItem({ ...follow, bookId: target.id }, target, list.keepFinished, playing);
+}
+
+/** Stops following the list: what plays now stops at its end again, like any book. */
+export async function stopList(): Promise<void> {
+  setFollowedList(db, profileId, null, Date.now());
+  await enqueue(async () => {
+    const { bookId } = await audio.getState();
+    const loaded = bookId ? bookLoad(bookId) : null;
+    if (loaded) await audio.updateBook(loaded);
+  });
+  await syncQueue();
+}
+
+async function load(
+  bookId: string,
+  autoplay: boolean,
+  force = false,
+  fromStart = false,
+): Promise<void> {
   const current = await audio.getState();
   if (playerProfile() !== profileId) {
     // A switch since this book was loaded: keep its place for its own profile, load fresh.
@@ -257,7 +384,7 @@ async function load(bookId: string, autoplay: boolean, force = false): Promise<v
   if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
   // A newer place from Audiobookshelf's own player is taken first.
   await prepareAudiobookshelfBook(bookId, profileId);
-  const book = bookLoad(bookId);
+  const book = bookLoad(bookId, { fromStart });
   if (!book) throw new Error('The files of this book are not available.');
   // What the service heard so far belongs to the profile it played for, which may change here:
   // after the service has counted up to the pause, so none of it lands in the next profile.
@@ -269,12 +396,21 @@ async function load(bookId: string, autoplay: boolean, force = false): Promise<v
   await audio.load(book, autoplay);
 }
 
-/** What the player needs for a book, at its saved place; null when it has no files here. */
-export function bookLoad(bookId: string): audio.BookLoad | null {
+/**
+ * What the player needs for a book, at its saved place; null when it has no files here. While a
+ * list plays (`following`, by default whether one does), every item hands over to the next.
+ */
+export function bookLoad(
+  bookId: string,
+  options: { fromStart?: boolean; following?: boolean } = {},
+): audio.BookLoad | null {
   const detail = getBook(db, profileId, bookId);
   if (!detail || detail.files.length === 0) return null;
-  const start = resumePoint(db, profileId, bookId);
-  if (!start) return null;
+  const saved = resumePoint(db, profileId, bookId);
+  if (!saved) return null;
+  // A finished item of a list that keeps them plays again from the top.
+  const start = options.fromStart ? { index: 0, positionMs: 0 } : saved;
+  const following = options.following ?? followedList(db, profileId) !== null;
   const trim = detail.book.source === 'feed' ? trimOfBook(db, profileId, bookId) : null;
   const now = Date.now();
   const access = detail.files.map((f) => fileAccess({ ...f, bookId }, now));
@@ -303,7 +439,7 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
     startPositionMs: trimmedStart(start.index, start.positionMs, 0, trim?.skipIntroMs ?? 0),
     speed: detail.speed,
     pausedAt: detail.book.lastPlayedAt,
-    handsOver: detail.book.source === 'feed',
+    handsOver: detail.book.source === 'feed' || following,
     // A book's files all come from one place, so one login covers them; files that would get
     // different headers get none.
     headers: sharedHeaders(access),
@@ -315,22 +451,77 @@ export function bookLoad(bookId: string): audio.BookLoad | null {
   };
 }
 
+// Enough for a long drive with the app closed; the app sends the queue again on every change.
+const QUEUE_LIMIT = 25;
+
+// The book last told to hand over while a list plays, so that is sent once per book.
+let lastHandedOver: string | null = null;
+// The provider's refresh, so screens see the list followed or left by a queue update.
+let onFollowChange: () => void = () => {};
+
 /**
  * Gives the playback service what plays after the loaded book: Up Next in order, up to and
- * including the first book (a book stops at its end, so nothing after it can follow on).
+ * including the first book (a book stops at its end, so nothing after it can follow on). While a
+ * list plays, everything hands over, and the rest of the list follows Up Next (M112).
+ * After loads, so a list that just started is never mistaken for one the listener left.
  */
-async function syncQueue(): Promise<void> {
+function syncQueue(): Promise<void> {
+  return enqueue(sendQueue);
+}
+
+async function sendQueue(): Promise<void> {
   if (playerProfile() !== profileId) return;
   const loaded = (await audio.getState()).bookId;
-  const queue: audio.BookLoad[] = [];
-  for (const item of listUpNext(db, profileId)) {
-    if (item.bookId === loaded) continue;
-    const book = bookLoad(item.bookId);
-    if (!book) continue;
-    queue.push(book);
-    if (!book.handsOver) break;
+  const upNext = listUpNext(db, profileId).map((i) => i.bookId);
+  const now = Date.now();
+  let following = followedListItems(db, profileId, now);
+  if (following && loaded) {
+    const { follow, items } = following;
+    const inList = items.some((b) => b.id === loaded);
+    if (inList || upNext.includes(loaded)) {
+      // The service moved along the list by itself, perhaps with the app closed.
+      if (inList && follow.bookId !== loaded) {
+        following = { ...following, follow: { ...follow, bookId: loaded } };
+        setFollowedList(db, profileId, following.follow, now);
+        onFollowChange();
+      }
+      // One picked in the car came without the list's hand-over.
+      if (loaded !== lastHandedOver) {
+        const book = bookLoad(loaded, { following: true });
+        if (book) await audio.updateBook(book).catch(() => {});
+        lastHandedOver = loaded;
+      }
+    } else {
+      // Something else plays now (picked in the car): the list is left, and that stops at its end.
+      setFollowedList(db, profileId, null, now);
+      following = null;
+      onFollowChange();
+      const book = bookLoad(loaded, { following: false });
+      if (book) await audio.updateBook(book).catch(() => {});
+    }
   }
-  await audio.setQueue(queue).catch(() => {});
+  if (!following) lastHandedOver = null;
+  const queue: audio.BookLoad[] = [];
+  const queued = new Set<string>(loaded ? [loaded] : []);
+  const add = (bookId: string, fromStart = false): boolean => {
+    if (queued.has(bookId) || queue.length >= QUEUE_LIMIT) return true;
+    const book = bookLoad(bookId, { fromStart, following: following !== null });
+    if (!book) return true;
+    queued.add(bookId);
+    queue.push(book);
+    return book.handsOver ?? false;
+  };
+  for (const bookId of upNext) if (!add(bookId)) break;
+  let listNext: number | null = null;
+  if (following) {
+    const { follow, list, items } = following;
+    for (const book of listUpcoming(items, follow.bookId, list.keepFinished)) {
+      const at = queue.length;
+      add(book.id, playsFromStart(book, list.keepFinished));
+      if (listNext === null && queue.length > at) listNext = at;
+    }
+  }
+  await audio.setQueue(queue, listNext).catch(() => {});
 }
 
 /**
@@ -340,8 +531,11 @@ async function syncQueue(): Promise<void> {
 async function syncCar(): Promise<void> {
   if (playerProfile() !== profileId) return;
   const shelves = carShelves(db, profileId);
+  // A book picked in the car plays on its own, as in the app outside a list.
   const loads = (ids: string[]) =>
-    ids.map((id) => bookLoad(id)).filter((b): b is audio.BookLoad => b !== null);
+    ids
+      .map((id) => bookLoad(id, { following: false }))
+      .filter((b): b is audio.BookLoad => b !== null);
   // An episode needs its library book before it can play; it is made here, like on first play.
   const episodes = shelves.latestEpisodes.map(
     (e) => e.bookId ?? episodeBook(db, e.episodeId, Date.now(), newId),
@@ -567,6 +761,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     void syncQueue();
     if (Platform.OS === 'android') void syncCar();
   }, [state.bookId, version]);
+
+  useEffect(() => {
+    onFollowChange = refresh;
+    return () => {
+      onFollowChange = () => {};
+    };
+  }, [refresh]);
 
   const library = useMemo(() => ({ version, refresh }), [version, refresh]);
   return (

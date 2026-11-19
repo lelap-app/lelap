@@ -165,7 +165,14 @@ export type Op =
       profile: string;
       key: string;
       at: number;
-      data: { name: string; rule: SmartRule | null; items: string[]; createdAt: number };
+      data: {
+        name: string;
+        rule: SmartRule | null;
+        items: string[];
+        createdAt: number;
+        /** Missing from devices before M112. */
+        keepFinished?: boolean;
+      };
     }
   | {
       type: 'profile';
@@ -571,7 +578,13 @@ export function collectOps(db: Db, since: number): Op[] {
       profile: p.profileId,
       key: p.id,
       at: p.updatedAt,
-      data: { name: p.name, rule: p.rule, items: p.items, createdAt: p.createdAt },
+      data: {
+        name: p.name,
+        rule: p.rule,
+        items: p.items,
+        createdAt: p.createdAt,
+        keepFinished: p.keepFinished,
+      },
     });
   }
   for (const l of db.select().from(workLinks).where(gt(workLinks.updatedAt, since)).all()) {
@@ -985,6 +998,8 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
             name: op.data.name,
             rule: op.data.rule,
             items: op.data.items,
+            // A device from before M112 doesn't know the choice; it stays as it was.
+            ...(op.data.keepFinished !== undefined ? { keepFinished: op.data.keepFinished } : {}),
             updatedAt: op.at,
           };
           tx.insert(playlists)

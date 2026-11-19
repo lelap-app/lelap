@@ -1,0 +1,1 @@
+ALTER TABLE `playlists` ADD `keep_finished` integer DEFAULT false NOT NULL;
