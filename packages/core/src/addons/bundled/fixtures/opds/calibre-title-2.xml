@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/terms/" xmlns:opds="http://opds-spec.org/2010/catalog">
+  <id>calibre-all:title</id>
+  <title>calibre Library :: By Title</title>
+  <updated>2026-11-01T10:00:00+00:00</updated>
+  <link href="/opds?library_id=Calibre_Library" rel="start" title="Start" type="application/atom+xml;type=feed;profile=opds-catalog;kind=navigation"/>
+  <link href="/opds/navcatalog/4f7469746c65?library_id=Calibre_Library&amp;offset=0" rel="first" title="First" type="application/atom+xml;type=feed;profile=opds-catalog;kind=navigation"/>
+  <link href="/opds/navcatalog/4f7469746c65?library_id=Calibre_Library&amp;offset=0" rel="previous" title="Previous" type="application/atom+xml;type=feed;profile=opds-catalog;kind=navigation"/>
+  <entry>
+    <title>Treasure Island</title>
+    <author>
+      <name>Robert Louis Stevenson</name>
+    </author>
+    <id>urn:uuid:0b6c3c3e-8d56-4a58-9f0a-1f5d6b1b0003</id>
+    <updated>2026-10-03T09:00:00+00:00</updated>
+    <link type="audio/mpeg" href="/get/mp3/3/Calibre_Library" rel="http://opds-spec.org/acquisition" length="98402311" mtime="2026-10-03T09:30:00+00:00"/>
+    <link type="image/jpeg" href="/get/cover/3/Calibre_Library" rel="http://opds-spec.org/cover"/>
+    <link type="image/jpeg" href="/get/cover/3/Calibre_Library" rel="http://opds-spec.org/image"/>
+  </entry>
+  <entry>
+    <title>Walden</title>
+    <author>
+      <name>Henry David Thoreau</name>
+    </author>
+    <id>urn:uuid:0b6c3c3e-8d56-4a58-9f0a-1f5d6b1b0004</id>
+    <updated>2026-10-04T09:00:00+00:00</updated>
+    <link type="application/x-mobipocket-ebook" href="/get/mobi/4/Calibre_Library" rel="http://opds-spec.org/acquisition" length="502311"/>
+    <link type="image/jpeg" href="/get/cover/4/Calibre_Library" rel="http://opds-spec.org/image"/>
+  </entry>
+</feed>

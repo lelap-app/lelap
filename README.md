@@ -33,7 +33,8 @@ and on the web from one codebase, and every server piece can be self-hosted with
   a download against the hash the feed gives.
 - Syncs progress between devices with a pairing code. No account, end-to-end encrypted.
 - Plays from your own files and folders; your own WebDAV, S3-compatible, Jellyfin, Emby, Plex,
-  Navidrome (or other Subsonic) or Audiobookshelf server; SMB and SFTP shares on Android; and
+  Navidrome (or other Subsonic) or Audiobookshelf server; an OPDS catalog such as Calibre's
+  content server; SMB and SFTP shares on Android; and
   add-ons: LibriVox, Open Library, Podcast Index, RSS feeds, the Internet Archive, or add-ons you
   write yourself.
 - Takes covers from the tags or from an image beside the audio, such as `cover.jpg`.

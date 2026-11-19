@@ -136,11 +136,12 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M125 Casting 5](milestones/m125.md)                 | Planned     |             | An FCast receiver that goes silent, tuned receiver waits, Cast on the web, bedtime volume while casting                                                       |
 | [M126 Speed and battery 2](milestones/m126.md)       | Planned     |             | What M106 left: Android's start, a Library that rereads only what changed, a smaller start bundle                                                             |
 | [M127 Series 3](milestones/m127.md)                  | Done        |           6 | Whole series from Wikidata, in release order, with the books the library lacks by title                                                                       |
-| [M128 OPDS](milestones/m128.md)                      | Planned     |             | Any OPDS catalog as a source, such as a Calibre content server at home or a library's open catalog                                                            |
+| [M128 OPDS](milestones/m128.md)                      | Done        |           8 | Any OPDS catalog as a source, such as a Calibre content server at home or a library's open catalog                                                            |
 | [M130 BookWyrm](milestones/m130.md)                  | Planned     |             | The listener's public BookWyrm shelves as catalog rows, from their own instance                                                                               |
 | [M131 Lepak](milestones/m131.md)                     | Planned     |             | Free Malay, Indonesian and Singaporean podcasts from Podcast Index by language, in rows Cerita, Sembang, Sejarah and Singapura                                |
 | [M132 Open lectures](milestones/m132.md)             | Planned     |             | Complete Open Yale Courses as books, one lecture per part, with Yale's credit, licence and transcripts                                                        |
 | [M134 Better sound 4](milestones/m134.md)            | Planned     |             | The sound effects on cast receivers through a stream the phone renders; skip silence on the web for variable-bitrate MP3, and MP3's encoder delay per browser |
+| [M135 OPDS 2](milestones/m135.md)                    | Planned     |             | What M128 left: Digest logins for audio, OPDS Progression places, a feed's summary, language and series                                                       |
 
 <!-- milestones:end -->
 

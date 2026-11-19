@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/terms/" xmlns:opds="http://opds-spec.org/2010/catalog">
+  <id>urn:calibre:main</id>
+  <title>calibre Library</title>
+  <subtitle>Books in your library</subtitle>
+  <author>
+    <name>calibre</name>
+    <uri>https://calibre-ebook.com</uri>
+  </author>
+  <updated>2026-11-01T10:00:00+00:00</updated>
+  <link href="/opds/search/{searchTerms}?library_id=Calibre_Library" rel="search" title="Search" type="application/atom+xml"/>
+  <link href="/opds?library_id=Calibre_Library" rel="start" title="Start" type="application/atom+xml;type=feed;profile=opds-catalog;kind=navigation"/>
+  <entry>
+    <title>By Newest</title>
+    <id>calibre-navcatalog:1</id>
+    <updated>2026-11-01T10:00:00+00:00</updated>
+    <content type="text">Books sorted by Date</content>
+    <link href="/opds/navcatalog/4f6e6577657374?library_id=Calibre_Library" type="application/atom+xml;type=feed;profile=opds-catalog;kind=navigation"/>
+  </entry>
+  <entry>
+    <title>By Title</title>
+    <id>calibre-navcatalog:2</id>
+    <updated>2026-11-01T10:00:00+00:00</updated>
+    <content type="text">Books sorted by Title</content>
+    <link href="/opds/navcatalog/4f7469746c65?library_id=Calibre_Library" type="application/atom+xml;type=feed;profile=opds-catalog;kind=navigation"/>
+  </entry>
+  <entry>
+    <title>By Authors</title>
+    <id>calibre-navcatalog:3</id>
+    <updated>2026-11-01T10:00:00+00:00</updated>
+    <content type="text">Books sorted by Authors</content>
+    <link href="/opds/navcatalog/4e617574686f7273?library_id=Calibre_Library" type="application/atom+xml;type=feed;profile=opds-catalog;kind=navigation"/>
+  </entry>
+  <entry>
+    <title>Library: Calibre Library</title>
+    <id>calibre-library:Calibre_Library</id>
+    <updated>2026-11-01T10:00:00+00:00</updated>
+    <content type="text">Change calibre library to: Calibre Library</content>
+    <link href="/opds?library_id=Calibre_Library" type="application/atom+xml;type=feed;profile=opds-catalog;kind=navigation"/>
+  </entry>
+</feed>

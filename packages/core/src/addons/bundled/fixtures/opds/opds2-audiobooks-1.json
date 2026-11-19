@@ -1,0 +1,46 @@
+{
+  "metadata": { "title": "Audiobooks", "numberOfItems": 4, "itemsPerPage": 2 },
+  "links": [
+    { "rel": "self", "href": "/catalog/audiobooks.json", "type": "application/opds+json" },
+    { "rel": "next", "href": "/catalog/audiobooks.json?page=2", "type": "application/opds+json" }
+  ],
+  "publications": [
+    {
+      "metadata": {
+        "@type": "http://schema.org/Audiobook",
+        "title": "Pride and Prejudice",
+        "author": [{ "name": "Jane Austen" }],
+        "identifier": "urn:isbn:9780141439518",
+        "language": "en",
+        "modified": "2026-09-01T12:00:00Z",
+        "belongsTo": { "series": { "name": "Austen", "position": 2 } }
+      },
+      "links": [
+        {
+          "rel": "http://opds-spec.org/acquisition/open-access",
+          "href": "/audiobooks/pride/manifest.json",
+          "type": "application/audiobook+json"
+        }
+      ],
+      "images": [
+        { "href": "/covers/pride-small.jpg", "type": "image/jpeg", "width": 200 },
+        { "href": "/covers/pride.png", "type": "image/png", "width": 1200 }
+      ]
+    },
+    {
+      "metadata": { "title": "Emma", "author": "Jane Austen" },
+      "links": [
+        {
+          "rel": "http://opds-spec.org/acquisition/borrow",
+          "href": "/loans/emma",
+          "type": "audio/mpeg"
+        },
+        {
+          "rel": "http://opds-spec.org/acquisition/buy",
+          "href": "/shop/emma",
+          "type": "audio/mpeg"
+        }
+      ]
+    }
+  ]
+}

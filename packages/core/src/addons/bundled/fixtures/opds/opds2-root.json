@@ -1,0 +1,49 @@
+{
+  "metadata": { "title": "Open catalog" },
+  "links": [
+    { "rel": "self", "href": "/catalog/root.json", "type": "application/opds+json" },
+    {
+      "rel": "search",
+      "href": "/catalog/search{?query}",
+      "type": "application/opds+json",
+      "templated": true
+    }
+  ],
+  "navigation": [
+    {
+      "href": "/catalog/audiobooks.json",
+      "title": "Audiobooks",
+      "type": "application/opds+json",
+      "rel": "subsection"
+    },
+    {
+      "href": "/catalog/root.json",
+      "title": "Home",
+      "type": "application/opds+json",
+      "rel": "start"
+    }
+  ],
+  "groups": [
+    {
+      "metadata": { "title": "Featured" },
+      "publications": [
+        {
+          "metadata": {
+            "@type": "http://schema.org/Book",
+            "title": "Moby-Dick",
+            "author": "Herman Melville",
+            "identifier": "urn:isbn:9780142437247"
+          },
+          "links": [
+            {
+              "rel": "http://opds-spec.org/acquisition/open-access",
+              "href": "/books/moby-dick.epub",
+              "type": "application/epub+zip"
+            }
+          ],
+          "images": [{ "href": "/covers/moby-dick.jpg", "type": "image/jpeg" }]
+        }
+      ]
+    }
+  ]
+}
