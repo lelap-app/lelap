@@ -671,13 +671,6 @@ async function sendQueue(): Promise<void> {
           .filter((b): b is audio.BookLoad => b !== null)
       : [];
     list = { id: playlist.id, title: playlist.name, at, before, keepsFinished: keep };
-    audio.setListKeys({
-      previous: listPrevious(items, follow.bookId, keep) !== null,
-      next: listUpcoming(items, follow.bookId, keep).length > 0,
-      step: (forward) => void stepList(forward).catch(logCaught),
-    });
-  } else {
-    audio.setListKeys(null);
   }
   await audio.setQueue(queue, listNext, list).catch(() => {});
 }
