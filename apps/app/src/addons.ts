@@ -45,7 +45,7 @@ export const queryClient = new QueryClient({
   },
 });
 
-/** What each add-on's requests did during this run, for Settings → Add-ons. Kept in memory only. */
+/** What each add-on's requests did during this run, for Settings → Library and sources → Add-ons. Kept in memory only. */
 export const addonHealth = new HealthTracker(logAddonFailure);
 
 // Add-ons that run inside the app answer through their sandbox; all others over the network. One

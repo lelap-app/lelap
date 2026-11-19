@@ -292,7 +292,7 @@ export default function WelcomeScreen() {
           </View>
         )}
         <Text className="text-sm text-muted">
-          {t('Add-ons from others can be added in Settings → Add-ons.')}
+          {t('Add-ons from others can be added in Settings → Library and sources → Add-ons.')}
         </Text>
         <View className="pt-2">
           <PrimaryButton text={t('Done')} onPress={() => finish(landing)} />

@@ -29,7 +29,7 @@ import { sandboxPage } from './page';
 // sandbox asks the app to fetch, and the app fetches only from the add-on's declared hosts.
 // An add-on used as a library source (M57) gets a sandbox of its own per server, with that
 // server's hosts, and its settings only in that sandbox's `library` and `place` calls. An add-on
-// set up with settings under Settings → Add-ons (M61, M66) gets one sandbox for all its calls.
+// set up with settings under Settings → Library and sources → Add-ons (M61, M66) gets one sandbox for all its calls.
 // While no screen is up to hold the WebView, such as in the background refresh, the page runs in
 // one that needs no screen (M123, `@lelap/headless`): the same page, settings and fetch rules.
 

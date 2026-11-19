@@ -134,7 +134,7 @@ export default function HomeScreen() {
   const hideSuggestions = () => {
     setSetting(db, profileId, 'homeSuggestions', false, Date.now());
     refresh();
-    showAlert(t('Suggestions hidden'), t('Show them again in Settings → Catalogs.'));
+    showAlert(t('Suggestions hidden'), t('Show them again in Settings → Library and sources.'));
   };
 
   const resume = async () => {
@@ -266,7 +266,7 @@ export default function HomeScreen() {
           <Text className="text-base text-paper">{t('No catalogs yet')}</Text>
           <Text className="text-sm text-muted">
             {t(
-              'Catalogs come from add-ons. Pull down to try again, or add one in Settings → Add-ons.',
+              'Catalogs come from add-ons. Pull down to try again, or add one in Settings → Library and sources → Add-ons.',
             )}
           </Text>
         </View>

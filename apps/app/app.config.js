@@ -56,7 +56,7 @@ module.exports = ({ config }) => {
     updates: {
       enabled: signed,
       url: `${base}/manifest`,
-      // The app checks itself (src/ota.ts), so the setting in Settings → Updates can turn it off.
+      // The app checks itself (src/ota.ts), so the setting in Settings → Backup and updates can turn it off.
       checkAutomatically: 'NEVER',
       fallbackToCacheTimeout: 0,
       // Declared here so the app may switch it to `beta` at run time; the same in every build,

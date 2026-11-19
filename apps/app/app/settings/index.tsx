@@ -21,7 +21,8 @@ import { useSettingsState } from '../../src/settings/state';
 import { membership } from '../../src/sync';
 import { accentLabel, themeLabel } from '../../src/theme';
 
-type Group = { route: Href; title: string; summary: (string | null | undefined | false)[] };
+type Part = string | { text: string; spoken: string };
+type Group = { route: Href; title: string; summary: (Part | null | undefined | false)[] };
 
 /**
  * Settings (M133): eight groups, each a line with what it is set to now, opening its own page.
@@ -61,7 +62,10 @@ export default function SettingsScreen() {
       route: '/settings/listening',
       title: t('Listening'),
       summary: [
-        t('Skip {n} s', { n: Math.round(settings.skipIntervalMs / 1000) }),
+        {
+          text: t('Skip {n} s', { n: Math.round(settings.skipIntervalMs / 1000) }),
+          spoken: t('Skip {n} seconds', { n: Math.round(settings.skipIntervalMs / 1000) }),
+        },
         settings.smartRewind && t('Smart rewind'),
       ],
     },
@@ -130,8 +134,8 @@ export default function SettingsScreen() {
             <GroupLine
               key={String(group.route)}
               title={group.title}
-              parts={group.summary.filter(
-                (part): part is string => typeof part === 'string' && part !== '',
+              parts={group.summary.filter((part): part is Part =>
+                typeof part === 'object' ? part !== null : typeof part === 'string' && part !== '',
               )}
               onPress={() => router.push(group.route)}
             />

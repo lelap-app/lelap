@@ -18,7 +18,7 @@ export type SourceKind = { url: string; manifest: Manifest; bundled: boolean };
 
 /** The add-ons “Add a server” offers next to WebDAV and S3: bundled first, then installed. */
 export function libraryKinds(): SourceKind[] {
-  // Bundled scrobblers (M61) are set up under Settings → Add-ons instead.
+  // Bundled scrobblers (M61) are set up under Settings → Library and sources → Add-ons instead.
   const bundled = bundledAddons()
     .filter((a) => offersLibrary(a.manifest))
     .map((a) => ({ url: a.url, manifest: a.manifest, bundled: true }));

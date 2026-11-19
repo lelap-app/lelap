@@ -118,18 +118,22 @@ export function GroupLine({
   onPress,
 }: {
   title: string;
-  /** What is set now, each part short; shown joined by dots. */
-  parts: string[];
+  /**
+   * What is set now, each part short; shown joined by dots. A part with `spoken` is read out in
+   * that form, such as “30 seconds” for “30 s”.
+   */
+  parts: (string | { text: string; spoken: string })[];
   onPress: () => void;
 }) {
   const colors = useColors();
-  const summary = parts.join(' · ');
+  const summary = parts.map((p) => (typeof p === 'string' ? p : p.text)).join(' · ');
+  const spoken = parts.map((p) => (typeof p === 'string' ? p : p.spoken));
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       // Commas, so a screen reader pauses between the parts instead of saying “dot”.
-      accessibilityLabel={[title, ...parts].join(', ')}
+      accessibilityLabel={[title, ...spoken].join(', ')}
       className="min-h-12 flex-row items-center gap-4 border-b border-line py-4 active:bg-raised"
     >
       <View className="flex-1 gap-1">

@@ -28,7 +28,7 @@ import { t } from './i18n';
 import { callAddonScrobble, callAddonWithSettings } from './sandbox';
 
 // Scrobblers inside the app (M61, protocol revision 8), such as the Open Library reading log: set
-// up with their settings under Settings → Add-ons, kept sealed on this device, and handed their
+// up with their settings under Settings → Library and sources → Add-ons, kept sealed on this device, and handed their
 // events in a sandbox of their own instead of over HTTP. Since revision 9 (M66) every add-on
 // inside the app with settings and no library is set up the same way, and its settings reach all
 // of its calls.

@@ -189,7 +189,7 @@ export default function SyncScreen() {
                 </Text>
                 <Text className="text-sm text-muted">
                   {t(
-                    'Type this on the other device under Settings → Sync → Join. Works once, for {time} more.',
+                    'Type this on the other device under Settings → People and devices → Sync → Join. Works once, for {time} more.',
                     { time: `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` },
                   )}
                 </Text>

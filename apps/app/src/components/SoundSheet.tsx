@@ -59,7 +59,7 @@ export const deviceSoundOptions = (): SoundOption<DeviceSoundKey>[] => [
   { key: 'mono', label: t('Mono'), detail: t('Both channels in each ear, for one earbud.') },
 ];
 
-/** Every sound switch, as Settings → Playback shows them. */
+/** Every sound switch, as Settings → Listening shows them. */
 export const soundOptions = (): SoundOption<SoundKey>[] => [
   ...bookSoundOptions(),
   ...deviceSoundOptions(),
