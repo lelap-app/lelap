@@ -37,6 +37,11 @@ const app = createApp(
     SOURCE_URL: process.env.SOURCE_URL ?? 'https://github.com/lelap-app/lelap',
     ...(configSecret ? { CONFIG_SECRET: configSecret } : {}),
     ...(process.env.APP_ORIGINS ? { APP_ORIGINS: process.env.APP_ORIGINS } : {}),
+    // Behind Caddy or another proxy that ends TLS, requests arrive as http: Hardcover needs the
+    // public https address, which the app also uses.
+    CATALOG_ORIGIN:
+      process.env.CATALOG_ORIGIN?.trim() ||
+      `https://catalog.${process.env.LELAP_DOMAIN ?? 'localhost'}`,
     ...(hardcoverClientId && hardcoverClientSecret
       ? { HARDCOVER_CLIENT_ID: hardcoverClientId, HARDCOVER_CLIENT_SECRET: hardcoverClientSecret }
       : {}),

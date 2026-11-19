@@ -33,6 +33,11 @@ export type SignInOptions = {
   /** The settings to seal for a new grant, as the configure page keeps them. */
   settingsFor: (grant: { id: string; key: string }) => Record<string, string>;
   returnOrigins?: string[];
+  /**
+   * The public origin, such as `https://catalog.example.org`, when requests arrive under another
+   * (Docker behind a proxy that ends TLS). Defaults to the request's own.
+   */
+  origin?: string;
   now?: () => number;
   onError?: (error: unknown) => void;
 };
@@ -93,7 +98,7 @@ export function hardcoverSignIn(
     const returnTo = allowed(url.searchParams.get('return'));
     const state = randomToken(32);
     const verifier = randomToken(32);
-    const redirectUri = `${url.origin}${basePath}/oauth/callback`;
+    const redirectUri = `${options.origin ?? url.origin}${basePath}/oauth/callback`;
     const sealed = await encodeConfig(
       { state, verifier, redirectUri, returnTo, until: String(now() + SIGN_IN_MS) },
       secret,

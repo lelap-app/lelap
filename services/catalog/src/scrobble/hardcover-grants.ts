@@ -121,16 +121,30 @@ export function grantAccess(
       if (!turnedDown && tokens.expiresAt > now()) return tokens.access;
       throw error;
     }
-    await store.put(ref.id, await sealTokens(next, ref.key));
+    // The old refresh token is spent now: losing the new one would end the sign-in.
+    const sealedNext = await sealTokens(next, ref.key);
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await store.put(ref.id, sealedNext);
+        break;
+      } catch (error) {
+        if (attempt >= 3) throw error;
+      }
+    }
     return next.access;
   };
-  return (ref, refused) => {
+  const access: Grants['access'] = async (ref, refused) => {
     const pending = running.get(ref.id);
-    if (pending) return pending;
+    if (pending) {
+      const shared = await pending;
+      // That run may not have renewed the token this caller saw refused.
+      return refused !== undefined && shared === refused ? access(ref, refused) : shared;
+    }
     const started = run(ref, refused).finally(() => running.delete(ref.id));
     running.set(ref.id, started);
     return started;
   };
+  return access;
 }
 
 export function localGrants(

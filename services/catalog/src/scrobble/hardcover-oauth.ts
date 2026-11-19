@@ -77,7 +77,8 @@ export function hardcoverOAuth(
           'User-Agent': options.userAgent,
         },
         body: new URLSearchParams(form).toString(),
-        signal: AbortSignal.timeout(10_000),
+        // Generous: a refresh cut off after Hardcover answered has spent its token.
+        signal: AbortSignal.timeout(30_000),
       });
     } catch {
       throw new AddonError(504, 'Hardcover did not answer. Try again in a moment.');

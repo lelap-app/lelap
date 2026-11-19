@@ -314,6 +314,25 @@ describe('Hardcover sign-in', () => {
     expect(s.store.size()).toBe(0);
   });
 
+  it('sends Hardcover the configured public origin when there is one', async () => {
+    const hardcover = mockHardcover();
+    const app = createApp(
+      { fetch: hardcover.fetch, grants: (refresh) => localGrants(memoryGrantStore(), refresh) },
+      {
+        CONFIG_SECRET: SECRET,
+        HARDCOVER_CLIENT_ID: CLIENT_ID,
+        HARDCOVER_CLIENT_SECRET: CLIENT_SECRET,
+        CATALOG_ORIGIN: 'https://catalog.example.org/',
+      },
+    );
+    // As on Docker behind a proxy that ends TLS.
+    const start = await app.fetch(new Request('http://catalog.example.org/hardcover/oauth/start'));
+    const authorize = new URL(start.headers.get('Location') ?? '');
+    expect(authorize.searchParams.get('redirect_uri')).toBe(
+      'https://catalog.example.org/hardcover/oauth/callback',
+    );
+  });
+
   it('says so when the listener declines on Hardcover', async () => {
     const s = setup();
     const start = await s.get('/hardcover/oauth/start');
@@ -413,6 +432,24 @@ describe('grant renewal', () => {
     expect(await together).toEqual(['at2', 'at2', 'at2']);
     expect(calls).toBe(1);
     expect(await grants.access(ref)).toBe('at2');
+    expect(calls).toBe(1);
+  });
+
+  it('renews for a caller whose token was refused while another read it as fresh', async () => {
+    const store = memoryGrantStore();
+    let calls = 0;
+    const grants = localGrants(
+      store,
+      async () => {
+        calls += 1;
+        return tokens(2, 10 * WEEK);
+      },
+      () => 0,
+    );
+    const ref = await grants.create(tokens(1, WEEK));
+    const [fresh, renewed] = await Promise.all([grants.access(ref), grants.access(ref, 'at1')]);
+    expect(fresh).toBe('at1');
+    expect(renewed).toBe('at2');
     expect(calls).toBe(1);
   });
 

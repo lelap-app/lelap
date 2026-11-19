@@ -41,7 +41,18 @@ export type Env = {
    */
   HARDCOVER_CLIENT_ID?: string;
   HARDCOVER_CLIENT_SECRET?: string;
+  /**
+   * This service's public origin, such as `https://catalog.example.org`, for the Hardcover
+   * redirect URL when requests arrive under another (Docker behind a proxy). Workers leave it out.
+   */
+  CATALOG_ORIGIN?: string;
 };
+
+/** `CATALOG_ORIGIN` when it is an https origin. */
+export function catalogOrigin(env: Env): string | undefined {
+  const origin = env.CATALOG_ORIGIN?.trim().replace(/\/+$/, '');
+  return origin && /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(origin) ? origin : undefined;
+}
 
 /** The web app origins in `APP_ORIGINS`, https only. */
 export function returnOrigins(env: Env): string[] {
@@ -91,6 +102,7 @@ export function createApp(platform: Platform, env: Env): Hono {
   });
   const grants = oauth && platform.grants ? platform.grants(oauth.refresh) : null;
   const configSecret = env.CONFIG_SECRET?.trim();
+  const publicOrigin = catalogOrigin(env);
   const signIn =
     oauth && grants && configSecret && configSecret.length >= 32
       ? hardcoverSignIn({
@@ -101,6 +113,7 @@ export function createApp(platform: Platform, env: Env): Hono {
           grants,
           settingsFor: (grant) => ({ grant: grant.id, key: grant.key }),
           ...(returnOrigins(env).length > 0 ? { returnOrigins: returnOrigins(env) } : {}),
+          ...(publicOrigin ? { origin: publicOrigin } : {}),
           ...(platform.now ? { now: platform.now } : {}),
           onError,
         })
