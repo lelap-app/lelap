@@ -109,7 +109,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M97 Landing page 3](milestones/m97.md)              | Done        |           4 | Drawn phone screens checked against reference shots of the app, a changelog page and help                                |
 | [M98 Developer verification](milestones/m98.md)      | Planned     |             | Google's developer verification for sideloaded apps                                                                      |
 | [M99 Languages 3](milestones/m99.md)                 | Planned     |             | Media3's own notification texts, saved English chapter names, raw native error details                                   |
-| [M100 Server sources 3](milestones/m100.md)          | In progress |           9 | Places sent while the app is closed, Plex addresses that follow the server, a login that never follows a redirect off it |
+| [M100 Server sources 3](milestones/m100.md)          | Done        |           9 | Places sent while the app is closed, Plex addresses that follow the server, a login that never follows a redirect off it |
 | [M101 Better sound 2](milestones/m101.md)            | Done        |           9 | Skip silence and even loudness on the web, and steadier skip silence accounting                                          |
 | [M102 Add-on protocol 4](milestones/m102.md)         | In progress |          12 | Ratings, Android finish sessions, scrobblers on the SDK's configure and catalog upkeep                                   |
 | [M103 Podcasts 5](milestones/m103.md)                | Done        |           7 | Alternate enclosures, podcast:integrity checks, chapter images on the lock screen                                        |
