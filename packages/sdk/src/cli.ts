@@ -23,6 +23,7 @@ Options:
   --pages <n>        Catalog pages to follow through skip (default 3).
   --search <text>    Text for catalogs that need a search (default "the").
   --id <type:id>     Also check this item, such as audiobook:example:raven. Repeatable.
+  --series <name>    A series for the series resource, as name or name/author.
   --audio            Also ask for the first bytes of each checked stream.
   --timeout <ms>     Give up on an answer after this long (default 10000, as the app).
   --help             Show this.
@@ -90,6 +91,16 @@ function parseArgs(args: string[]): Parsed | string {
         if (at < 0 || !(CONTENT_TYPES as readonly string[]).includes(type) || !raw.slice(at + 1))
           return `--id takes type:id, such as audiobook:example:raven; got ${raw || 'nothing'}.`;
         ids.push({ type: type as ContentType, id: raw.slice(at + 1) });
+        break;
+      }
+      case '--series': {
+        const raw = value() ?? '';
+        // The author follows the last slash, so a series name may hold one.
+        const at = raw.lastIndexOf('/');
+        const name = (at < 0 ? raw : raw.slice(0, at)).trim();
+        const author = at < 0 ? '' : raw.slice(at + 1).trim();
+        if (!name) return '--series takes a name, or name/author, such as "Dune/Frank Herbert".';
+        options.series = author ? { name, author } : { name };
         break;
       }
       default:

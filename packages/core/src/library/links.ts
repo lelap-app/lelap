@@ -294,6 +294,24 @@ export function linkedMetaByKey(db: Db, keys?: string[]): Map<string, LinkedMeta
 }
 
 /**
+ * An Open Library work one of these books is linked with, such as `ol:OL82563W`, so a series can
+ * be found by its work (M127); null when none is.
+ */
+export function linkedOpenLibraryWork(db: Db, keys: readonly string[]): string | null {
+  if (keys.length === 0) return null;
+  for (const row of db
+    .select({ workId: workLinks.workId, ids: workLinks.ids })
+    .from(workLinks)
+    .where(and(eq(workLinks.state, 'linked'), inArray(workLinks.bookKey, [...keys])))
+    .orderBy(asc(workLinks.updatedAt))
+    .all()) {
+    const id = [row.workId, ...row.ids].find((i) => /^ol:OL\d{1,12}W$/i.test(i));
+    if (id) return `ol:${id.slice(3).toUpperCase()}`;
+  }
+  return null;
+}
+
+/**
  * The series of every linked book (M115), by book location: from Match with catalog… or from a
  * work confirmed with “In your library?”. A work knows its series better than the files do.
  */

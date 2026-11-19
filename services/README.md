@@ -57,6 +57,7 @@ The first-party add-ons, on one Worker (`lelap-catalog`):
 | `/manifest.json`                  | Catalog (`app.lelap.catalog`)                   | Open Library; Podcast Index when configured                     |
 | `/librivox/manifest.json`         | LibriVox (`app.lelap.librivox`)                 | archive.org's `librivoxaudio` collection                        |
 | `/internet-archive/manifest.json` | Internet Archive (`app.lelap.internet-archive`) | archive.org beyond LibriVox: old-time radio, lectures, readings |
+| `/series/manifest.json`           | Whole series (`app.lelap.series`)               | Wikidata                                                        |
 | `/`                               | JSON listing the manifests                      |                                                                 |
 
 - **LibriVox**: "New on LibriVox" and "Most listened" (with `genre` and `skip`), search, meta and
@@ -72,6 +73,13 @@ The first-party add-ons, on one Worker (`lelap-catalog`):
 - **Catalog**: Open Library search and meta for `ol:` IDs. With both Podcast Index secrets set it
   also lists trending podcasts, podcast search and meta for `podcast:` IDs with episodes; without
   them those catalogs are left out of the manifest.
+- **Whole series** (M127): the `series` resource of protocol revision 11, every book of a series
+  in reading order. It finds the series on Wikidata by name (`wbsearchentities`), then reads its
+  written works with four small SPARQL queries: ordinal, first release, original language, titles
+  and authors' names. The series counts when one of its books is by the asked author, or when an
+  Open Library work (`work=ol:…`) is part of it. Answers are cached for a week; the request names
+  the series, its author and the listener's language, nothing else. An add-on of its own because
+  apps before revision 11 refuse a manifest that lists a resource they don't know.
 
 ### What the Internet Archive add-on serves
 

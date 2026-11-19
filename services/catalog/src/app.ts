@@ -12,6 +12,7 @@ import { BASE_PATH as GPODDER, gpodderAddon } from './scrobble/gpodder';
 import { BASE_PATH as HARDCOVER, hardcoverAddon } from './scrobble/hardcover';
 import { serveScrobbleAddon } from './scrobble/mount';
 import { createSealer } from './scrobble/sealed';
+import { BASE_PATH as SERIES, createSeriesAddon } from './series/addon';
 import { createUpstream, type Platform } from './upstream';
 
 /** Settings read from the environment (Wrangler vars and secrets, or process.env). */
@@ -52,14 +53,15 @@ export function podcastIndexCredentials(env: Env): PodcastIndexCredentials | nul
 }
 
 /**
- * The add-ons on one origin: the Catalog at the root, LibriVox under `/librivox` and the Internet
- * Archive under `/internet-archive`. Platform
+ * The add-ons on one origin: the Catalog at the root, LibriVox under `/librivox`, the Internet
+ * Archive under `/internet-archive` and whole series under `/series`. Platform
  * calls are injected, so a Node entry only has to pass its own `fetch` (and no cache).
  */
 export function createApp(platform: Platform, env: Env): Hono {
   const upstream = createUpstream(platform, userAgent(env));
   const librivox = createLibrivoxAddon(upstream);
   const internetArchive = createInternetArchiveAddon(upstream);
+  const series = createSeriesAddon(upstream);
   const catalog = createCatalogAddon(upstream, podcastIndexCredentials(env));
   const agent = userAgent(env);
   // Never log a request or its body here: it may carry a listener's settings.
@@ -100,6 +102,7 @@ export function createApp(platform: Platform, env: Env): Hono {
           manifest('/manifest.json'),
           manifest(`${BASE_PATH}/manifest.json`),
           manifest(`${INTERNET_ARCHIVE}/manifest.json`),
+          manifest(`${SERIES}/manifest.json`),
         ],
         configure: [manifest(`${HARDCOVER}/configure`), manifest(`${GPODDER}/configure`)],
       },
@@ -117,6 +120,8 @@ export function createApp(platform: Platform, env: Env): Hono {
   app.all(BASE_PATH, (c) => librivox.fetch(c.req.raw));
   app.all(INTERNET_ARCHIVE, (c) => internetArchive.fetch(c.req.raw));
   app.all(`${INTERNET_ARCHIVE}/*`, (c) => internetArchive.fetch(c.req.raw));
+  app.all(SERIES, (c) => series.fetch(c.req.raw));
+  app.all(`${SERIES}/*`, (c) => series.fetch(c.req.raw));
   app.all(`${BASE_PATH}/*`, (c) => librivox.fetch(c.req.raw));
   app.all('*', (c) => catalog.fetch(c.req.raw));
   return app;

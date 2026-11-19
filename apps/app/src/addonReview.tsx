@@ -18,6 +18,7 @@ const ICONS: Record<Permission['kind'], IconName> = {
   meta: 'chapters',
   stream: 'play',
   artwork: 'discover',
+  series: 'library',
   library: 'library',
   login: 'lock',
   scrobble: 'stats',

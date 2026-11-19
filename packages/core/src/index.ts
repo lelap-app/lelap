@@ -16,6 +16,7 @@ export * from './library/queries';
 export * from './library/chapterNames';
 export * from './library/ownChapters';
 export * from './library/series';
+export * from './library/seriesList';
 export * from './ratings';
 export * from './placeLink';
 export * from './clip';

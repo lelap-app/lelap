@@ -104,6 +104,37 @@ describe('a series volume in the catalogs', () => {
     ).toBeNull();
   });
 
+  it('searches by the listed title, and takes a meta with that title (M127)', async () => {
+    const { fetcher, asked } = fakeFetcher(
+      [
+        preview('ol:7', 'Fasandræberne', 'Jussi Adler-Olsen'),
+        preview('ol:8', 'Kvinden i buret', 'Jussi Adler-Olsen'),
+      ],
+      {},
+    );
+    const found = await findSeriesVolume(fetcher, [addon], {
+      name: 'Afdeling Q',
+      author: 'Jussi Adler-Olsen',
+      number: 2,
+      titles: ['Fasandræberne', 'The Absent One'],
+    });
+    expect(found?.id).toBe('ol:7');
+    expect(decodeURIComponent(asked[0] ?? '')).toContain('search=Fasandræberne Jussi Adler-Olsen');
+  });
+
+  it('looks for a book without a number by its title only', async () => {
+    const { fetcher, asked } = fakeFetcher([preview('ol:9', 'Elsewhere', 'Someone')], {});
+    expect(
+      await findSeriesVolume(fetcher, [addon], {
+        name: 'Harry Potter',
+        author: null,
+        number: null,
+        titles: ['Harry Potter and the Cursed Child'],
+      }),
+    ).toBeNull();
+    expect(asked.filter((u) => u.includes('/catalog/'))).toHaveLength(1);
+  });
+
   it('reads titles that carry the number first', () => {
     const ranked = rankVolumes(
       [preview('a', 'Dune'), preview('b', 'Dune Messiah (Dune, #2)'), preview('c', 'Other', 'X Y')],

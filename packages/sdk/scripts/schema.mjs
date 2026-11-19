@@ -11,6 +11,7 @@ import {
   MetaResponse,
   PROTOCOL_VERSION,
   ScrobbleRequest,
+  SeriesResponse,
   SigninResult,
   SigninStart,
   StreamResponse,
@@ -29,6 +30,7 @@ registry.add(HealthResponse, { id: 'HealthResponse' });
 registry.add(LibraryResponse, { id: 'LibraryResponse' });
 registry.add(SigninStart, { id: 'SigninStart' });
 registry.add(SigninResult, { id: 'SigninResult' });
+registry.add(SeriesResponse, { id: 'SeriesResponse' });
 
 const { schemas } = z.toJSONSchema(registry, {
   io: 'output',

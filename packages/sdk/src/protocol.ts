@@ -21,7 +21,7 @@ export const PROTOCOL_VERSION = 1;
  * `scrobble` resource, sends `rate` (without `rating` when the listener takes it back), sends
  * `resumed` only to an add-on that heard of the book before, and `sessionStartMs` on every
  * `finish` that ends a session; 11 adds a library's `settings` and the `locate` resource, for
- * add-ons inside the app.
+ * add-ons inside the app, and the `series` resource: every book of a series, in order.
  */
 export const LATEST_PROTOCOL_VERSION = 11;
 
@@ -39,6 +39,7 @@ export const RESOURCES = [
   'place',
   'signin',
   'locate',
+  'series',
 ] as const;
 export const ResourceName = z.enum(RESOURCES);
 export type ResourceName = z.infer<typeof ResourceName>;
@@ -599,6 +600,50 @@ export const LocateResponse = z.object({
 export type LocateResponse = z.infer<typeof LocateResponse>;
 
 /**
+ * Since revision 11: one book of a series, as the `series` resource lists it. `position` is the
+ * series' own label, such as `1` or `0.5`; `released` is an ISO 8601 date or a year.
+ */
+export const SeriesListVolume = z.object({
+  title: z.string().min(1).max(500),
+  /**
+   * The title by language (BCP 47 or ISO 639), such as `{ da: 'Kvinden i buret', en: 'The Keeper
+   * of Lost Causes' }`, so the app can name a missing book in the language of the books it has.
+   */
+  titles: z.record(z.string().min(2).max(35), z.string().min(1).max(500)).optional(),
+  position: z.string().min(1).max(20).optional(),
+  released: z
+    .string()
+    .regex(/^\d{4}(-\d{2}(-\d{2})?)?$/, 'A year or a date such as 1997-06-26')
+    .optional(),
+  /** The work's own IDs, such as `{ wikidata: 'Q43361', ol: 'OL82563W' }`. */
+  externalIds: z.record(z.string(), z.string()).optional(),
+});
+export type SeriesListVolume = z.infer<typeof SeriesListVolume>;
+
+/** Since revision 11: a whole series, its books in the order the source gives. At most 500. */
+export const SeriesList = z.object({
+  name: z.string().min(1).max(500),
+  /** The source's ID for the series, such as `wikidata:Q8337`. */
+  id: ItemId.optional(),
+  /** A page about the series on the source's own site. */
+  link: Url.optional(),
+  volumes: z.array(SeriesListVolume).max(500),
+});
+export type SeriesList = z.infer<typeof SeriesList>;
+
+/**
+ * Since revision 11: the answer to `GET /series/{type}/{name}/{extra}.json`, with the extras
+ * `author`, `language` (the listener's, for the titles) and `work` (an ID of a book in the series,
+ * such as `ol:OL82563W`). `series` is `null` when the add-on doesn't know it. The app asks when a
+ * series page opens and keeps the answer for weeks, so a long `cacheMaxAge` suits it.
+ */
+export const SeriesResponse = z.object({
+  series: SeriesList.nullable(),
+  cacheMaxAge: CacheMaxAge,
+});
+export type SeriesResponse = z.infer<typeof SeriesResponse>;
+
+/**
  * Since revision 7, for add-ons with the `signin` resource: the answer to `signin/…/start.json`.
  * The app shows `code` and a button that opens `url`, where the listener enters or approves the
  * code, then asks `signin/…/check.json` every `interval` seconds until `expiresAt`.
@@ -835,6 +880,20 @@ export function offersPlaces(manifest: Manifest): boolean {
 /** Whether the add-on is asked where its library's files are before a book streams (revision 11). */
 export function offersLocate(manifest: Manifest): boolean {
   return offersLibrary(manifest) && resourceNames(manifest.resources).includes('locate');
+}
+
+/**
+ * Whether the add-on lists whole series for this type (revision 11). Series are asked by name, so
+ * `idPrefixes` don't narrow it.
+ */
+export function offersSeries(manifest: Manifest, type: ContentType = 'audiobook'): boolean {
+  const definition = manifest.resources.find(
+    (r) => (typeof r === 'string' ? r : r.name) === 'series',
+  );
+  if (!definition) return false;
+  const types =
+    typeof definition === 'string' ? manifest.types : (definition.types ?? manifest.types);
+  return types.includes(type);
 }
 
 /** The values of an add-on's settings form, by field key. */

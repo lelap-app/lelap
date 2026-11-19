@@ -1,4 +1,4 @@
-import type { Meta, ScrobbleEvent } from '@lelap/sdk';
+import type { Meta, ScrobbleEvent, SeriesList } from '@lelap/sdk';
 
 import type { EpisodeExtras, PodcastExtras } from './podcasts/podcasting';
 import {
@@ -32,6 +32,7 @@ export const SHARED_TABLES = [
   'diagnostics',
   'work_links',
   'place_outbox',
+  'series_lists',
 ] as const;
 
 export type StoredChapter = { title: string; startMs: number };
@@ -763,6 +764,23 @@ export const workLinks = sqliteTable(
     index('work_links_work_idx').on(t.workType, t.workId),
     index('work_links_state_idx').on(t.state),
   ],
+);
+
+/**
+ * Whole series as an add-on listed them (M127), by the series' key and the profile's language:
+ * the last answer, so a series page works offline. A cache of public data: never synced or
+ * backed up.
+ */
+export const seriesLists = sqliteTable(
+  'series_lists',
+  {
+    key: text('key').notNull(),
+    language: text('language').notNull(),
+    /** The add-on's answer; null when no add-on knew the series. */
+    list: text('list', { mode: 'json' }).$type<SeriesList>(),
+    fetchedAt: integer('fetched_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.key, t.language] })],
 );
 
 /**
