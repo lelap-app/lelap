@@ -806,6 +806,8 @@
   "Runs on this device, in a sandbox. It can reach only {hosts}, and what you enter stays sealed on this device.": "Berjalan pada peranti ini, dalam kotak pasir. Ia hanya boleh mencapai {hosts}, dan apa yang anda masukkan kekal tersegel pada peranti ini.",
   "Set up": "Sediakan",
   "Set up {name}": "Sediakan {name}",
+  "Add {name}": "Tambah {name}",
+  "Complete lecture courses from Open Yale Courses as books, one lecture per part, with Yale’s credit and licence on every course.": "Kursus kuliah lengkap daripada Open Yale Courses sebagai buku, satu kuliah bagi setiap bahagian, dengan kredit dan lesen Yale pada setiap kursus.",
   "Settings for {name}": "Tetapan untuk {name}",
   "This works in the Android app only: it signs in with a cookie, which a browser keeps from the page.": "Ini hanya berfungsi dalam aplikasi Android: ia log masuk dengan kuki, yang disembunyikan oleh pelayar daripada halaman.",
   "This phone’s key store isn’t working, so Lelap can’t keep the keys safe and didn’t save them. Restart the phone and try again.": "Stor kunci telefon ini tidak berfungsi, jadi Lelap tidak dapat menyimpan kunci dengan selamat dan tidak menyimpannya. Mulakan semula telefon dan cuba lagi.",

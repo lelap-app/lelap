@@ -139,10 +139,11 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M128 OPDS](milestones/m128.md)                      | Done        |           8 | Any OPDS catalog as a source, such as a Calibre content server at home or a library's open catalog                                                            |
 | [M130 BookWyrm](milestones/m130.md)                  | Planned     |             | The listener's public BookWyrm shelves as catalog rows, from their own instance                                                                               |
 | [M131 Lepak](milestones/m131.md)                     | Planned     |             | Free Malay, Indonesian and Singaporean podcasts from Podcast Index by language, in rows Cerita, Sembang, Sejarah and Singapura                                |
-| [M132 Open lectures](milestones/m132.md)             | Planned     |             | Complete Open Yale Courses as books, one lecture per part, with Yale's credit, licence and transcripts                                                        |
+| [M132 Open lectures](milestones/m132.md)             | Done        |           5 | 37 complete Open Yale Courses as books, one lecture per part, with Yale's credit and licence on every course                                                  |
 | [M133 Settings 2](milestones/m133.md)                | Done        |           8 | Settings as eight groups, each line saying what is set now and opening its own page                                                                           |
 | [M134 Better sound 4](milestones/m134.md)            | Planned     |             | The sound effects on cast receivers through a stream the phone renders; skip silence on the web for variable-bitrate MP3, and MP3's encoder delay per browser |
 | [M135 OPDS 2](milestones/m135.md)                    | Planned     |             | What M128 left: Digest logins for audio, OPDS Progression places, a feed's summary, language and series                                                       |
+| [M136 Lecture transcripts](milestones/m136.md)       | Planned     |             | Yale's transcripts for Open lectures on the transcript screen, through a stream part's transcripts                                                            |
 | [M138 Playback history](milestones/m138.md)          | Planned     |             | A short log per book of plays, pauses, skips, seeks, chapter jumps and sleep timer stops, so one tap undoes an accidental jump                                |
 
 <!-- milestones:end -->
