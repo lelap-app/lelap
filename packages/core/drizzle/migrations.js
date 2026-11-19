@@ -25,6 +25,7 @@ import m0020 from './0020_premium_phalanx.sql';
 import m0021 from './0021_flaky_garia.sql';
 import m0022 from './0022_opposite_infant_terrible.sql';
 import m0023 from './0023_nebulous_thunderbolt.sql';
+import m0024 from './0024_podcast_seen.sql';
 
 export default {
   journal,
@@ -53,5 +54,6 @@ export default {
     m0021,
     m0022,
     m0023,
+    m0024,
   },
 };

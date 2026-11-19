@@ -30,7 +30,8 @@ export type ScrubMark = {
  * Progress over a range of the book (the chapter, or the whole book). Tap to jump; drag the
  * playhead to scrub with a live time, and the seek happens once, on release. Moving the finger up
  * away from the bar slows the playhead down for fine positioning; near a mark it snaps to it.
- * A long press on the time zooms the bar to ten minutes around the playhead (M80).
+ * A long press on the time zooms the bar to ten minutes around the playhead (M80); on the web, Z
+ * does the same while the bar has focus (M105).
  */
 export function Scrubber({
   elapsedMs,
@@ -168,6 +169,12 @@ export function Scrubber({
           }) => {
             // Alt+← and ⌘← stay the browser's.
             if (event.ctrlKey || event.metaKey || event.altKey) return;
+            // The keyboard's long press: Z zooms in or out, as listed under ?.
+            if (event.key === 'z' || event.key === 'Z') {
+              event.preventDefault();
+              toggleZoom();
+              return;
+            }
             const next = sliderKey(event.key, ratio, STEP);
             if (next === null) return;
             event.preventDefault();

@@ -5,3 +5,7 @@ export function savedCatalogCover(): string | null {
 }
 
 export function syncCatalogCovers(): void {}
+
+export function catalogCoverSource(): string | null {
+  return null;
+}

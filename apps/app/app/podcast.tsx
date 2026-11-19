@@ -9,8 +9,10 @@ import {
   type FeedValue,
   groupBySeason,
   getSubscription,
+  isNewEpisode,
   listEpisodes,
   mapLink,
+  markPodcastSeen,
   schema,
   setAutoDownload,
   setFinished,
@@ -22,7 +24,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { eq } from 'drizzle-orm';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -43,6 +45,7 @@ import { type Action, ActionSheet } from '../src/components/ActionSheet';
 import { COLORS, Icon, IconButton } from '../src/components/Icon';
 import { queries, useAddons } from '../src/addons';
 import { BookCover } from '../src/components/BookCover';
+import { newEpisodesBadges, useBadgesOn, withBadges } from '../src/components/CoverBadges';
 import { db, newId } from '../src/db';
 import { startDownload } from '../src/downloads';
 import { formatClock, formatDate, formatDuration, formatLeft } from '../src/format';
@@ -218,10 +221,11 @@ function TrimRow({
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-function episodeStatus(e: EpisodeItem): string {
+function episodeStatus(e: EpisodeItem, isNew: boolean): string {
   const guests = (e.extras?.persons ?? []).filter((p) => p.role === 'guest').map((p) => p.name);
   const soundbites = e.extras?.soundbites?.length ?? 0;
   const parts = [
+    isNew ? t('New') : null,
     guests.length > 0 ? t('With {names}', { names: guests.join(', ') }) : null,
     soundbites === 0
       ? null
@@ -284,6 +288,23 @@ export default function PodcastScreen() {
     () => (podcastId ? listEpisodes(db, profileId, podcastId) : []),
     [podcastId, version],
   );
+  // When the listener last looked, kept while the page is open so its new episodes stay marked;
+  // the page notes this visit at once, so the Podcasts tab's badge is gone on the way back.
+  const subscribed = sub !== null;
+  const [seenBefore, setSeenBefore] = useState<{ id: string; at: number | null } | null>(null);
+  const noted = useRef<string | null>(null);
+  useEffect(() => {
+    if (!podcastId || !subscribed || noted.current === podcastId) return;
+    noted.current = podcastId;
+    setSeenBefore({ id: podcastId, at: markPodcastSeen(db, profileId, podcastId, Date.now()) });
+    refresh();
+  }, [podcastId, subscribed, refresh]);
+  const seenAt = seenBefore && seenBefore.id === podcastId ? seenBefore.at : null;
+  const newCount = useMemo(
+    () => list.filter((e) => isNewEpisode(e, seenAt)).length,
+    [list, seenAt],
+  );
+  const headerBadges = newEpisodesBadges(newCount, useBadgesOn());
   const rows = useMemo((): Row[] => {
     const groups = groupBySeason(list);
     if (groups.length === 1) return list.map((e) => ({ kind: 'episode', key: e.id, episode: e }));
@@ -419,9 +440,20 @@ export default function PodcastScreen() {
             {podcast && (
               <>
                 <View className="flex-row gap-4">
-                  <BookCover uri={podcast.coverUrl} title={podcast.title} size={112} />
+                  <BookCover
+                    uri={podcast.coverUrl}
+                    title={podcast.title}
+                    size={112}
+                    badges={headerBadges}
+                  />
                   <View className="flex-1 justify-center gap-1">
-                    <Text className="text-xl font-semibold text-paper">{podcast.title}</Text>
+                    <Text
+                      accessibilityRole="header"
+                      accessibilityLabel={withBadges([podcast.title], headerBadges)}
+                      className="text-xl font-semibold text-paper"
+                    >
+                      {podcast.title}
+                    </Text>
                     {podcast.author && <Text className="text-soft">{podcast.author}</Text>}
                     {podcast.extras?.location && <PlaceLink location={podcast.extras.location} />}
                   </View>
@@ -566,7 +598,7 @@ export default function PodcastScreen() {
                   {e.title}
                 </Text>
                 <Text numberOfLines={1} className="text-sm text-muted">
-                  {episodeStatus(e)}
+                  {episodeStatus(e, isNewEpisode(e, seenAt))}
                 </Text>
                 {e.extras?.location &&
                   e.extras.location.name !== podcast?.extras?.location?.name && (

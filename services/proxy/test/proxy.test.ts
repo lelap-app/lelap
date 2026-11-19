@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createApp, LIMITS, looksLikeXml, type Platform } from '../src/app';
+import { createApp, imageTypeOf, LIMITS, looksLikeXml, type Platform } from '../src/app';
 
 const FEED = '<?xml version="1.0"?><rss><channel><title>T</title></channel></rss>';
 
@@ -111,21 +111,65 @@ describe('feed proxy', () => {
   });
 });
 
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49]);
+const coverUrl = (url: string) => `/cover?url=${encodeURIComponent(url)}`;
+const ascii = (text: string) => new TextEncoder().encode(text);
+
 describe('cover proxy', () => {
-  it('passes raster images and refuses everything else', async () => {
-    const png = setup(
-      () =>
-        new Response(new Uint8Array([0x89, 0x50]), { headers: { 'Content-Type': 'image/png' } }),
-    );
-    const ok = await png.get('/cover?url=http%3A%2F%2Fimg.example.org%2Fc.png');
+  it('passes raster images with the type their first bytes name', async () => {
+    const png = setup(() => new Response(PNG, { headers: { 'Content-Type': 'image/png' } }));
+    const ok = await png.get(coverUrl('http://img.example.org/c.png'));
     expect(ok.status).toBe(200);
     expect(ok.headers.get('content-type')).toBe('image/png');
-    const svg = setup(
-      () => new Response('<svg/>', { headers: { 'Content-Type': 'image/svg+xml' } }),
+    const octets = setup(
+      () => new Response(PNG, { headers: { 'Content-Type': 'application/octet-stream' } }),
     );
-    expect((await svg.get('/cover?url=https%3A%2F%2Fimg.example.org%2Fc.svg')).status).toBe(415);
-    const audio = setup(() => new Response('x', { headers: { 'Content-Type': 'audio/mpeg' } }));
-    expect((await audio.get('/cover?url=https%3A%2F%2Fcdn.example.org%2Fa.mp3')).status).toBe(415);
+    const sniffed = await octets.get(coverUrl('http://img.example.org/c'));
+    expect(sniffed.status).toBe(200);
+    expect(sniffed.headers.get('content-type')).toBe('image/png');
+  });
+
+  it('refuses SVG, HTML and audio whatever their Content-Type says', async () => {
+    const svg = setup(() => new Response('<svg/>', { headers: { 'Content-Type': 'image/png' } }));
+    expect((await svg.get(coverUrl('https://img.example.org/c.svg'))).status).toBe(415);
+    const html = setup(
+      () => new Response('<!doctype html><p>hi</p>', { headers: { 'Content-Type': 'image/jpeg' } }),
+    );
+    expect((await html.get(coverUrl('https://img.example.org/c.jpg'))).status).toBe(415);
+    const audio = setup(() => new Response(PNG, { headers: { 'Content-Type': 'audio/mpeg' } }));
+    expect((await audio.get(coverUrl('https://cdn.example.org/a.mp3'))).status).toBe(415);
+    const m4a = new Uint8Array([0, 0, 0, 32, ...ascii('ftypM4A '), 0, 0, 0, 0]);
+    const octets = setup(
+      () => new Response(m4a, { headers: { 'Content-Type': 'application/octet-stream' } }),
+    );
+    expect((await octets.get(coverUrl('https://cdn.example.org/a'))).status).toBe(415);
+  });
+
+  it('allows artwork up to the cover limit', async () => {
+    const big = new Uint8Array(LIMITS.coverBytes);
+    big.set(PNG);
+    const ok = setup(() => new Response(big));
+    expect((await ok.get(coverUrl('https://img.example.org/big.png'))).status).toBe(200);
+    const over = new Uint8Array(LIMITS.coverBytes + 1);
+    over.set(PNG);
+    const tooBig = setup(() => new Response(over));
+    expect((await tooBig.get(coverUrl('https://img.example.org/huge.png'))).status).toBe(413);
+  });
+
+  it('names each image type by its signature', () => {
+    const pad = new Uint8Array(8);
+    const of = (...parts: (number[] | string | Uint8Array)[]) =>
+      imageTypeOf(
+        new Uint8Array(
+          parts.flatMap((part) => (typeof part === 'string' ? [...ascii(part)] : [...part])),
+        ),
+      );
+    expect(of([0xff, 0xd8, 0xff, 0xe0], pad)).toBe('image/jpeg');
+    expect(of('GIF89a', pad)).toBe('image/gif');
+    expect(of('RIFF', [0, 0, 0, 0], 'WEBP', pad)).toBe('image/webp');
+    expect(of([0, 0, 0, 24], 'ftypavif', pad)).toBe('image/avif');
+    expect(of([0, 0, 0, 24], 'ftypisom', pad)).toBeNull();
+    expect(of('ID3', pad, pad)).toBeNull();
   });
 });
 

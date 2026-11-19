@@ -303,7 +303,11 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
     // Android's reader gives ISBN and ASIN tags, genre, ISRC and series; the browser's reads only
     // the duration.
     const native = Platform.OS !== 'web';
-    const reads = { readsIds: native, readsKinds: native, readsSeries: native };
+    // Files an add-on names: those kept without a title before M67 are read once more.
+    const titled = new Set(
+      [...(fromAddon?.hints ?? [])].flatMap(([location, hint]) => (hint.title ? [location] : [])),
+    );
+    const reads = { readsIds: native, readsKinds: native, readsSeries: native, titled };
     const need = filesNeedingTags(db, listed, reads).filter(
       (f) => !fromAddon?.tags.has(f.location),
     );

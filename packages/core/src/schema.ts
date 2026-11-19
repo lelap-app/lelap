@@ -524,6 +524,11 @@ export const subscriptions = sqliteTable(
     voiceEq: integer('voice_eq', { mode: 'boolean' }),
     skipSilence: integer('skip_silence', { mode: 'boolean' }),
     evenLoudness: integer('even_loudness', { mode: 'boolean' }),
+    /**
+     * When this profile last opened the podcast's page on this device: episodes published since
+     * are new (M105). Not synced, and it leaves `updatedAt` alone so it never starts a push.
+     */
+    seenAt: integer('seen_at'),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [primaryKey({ columns: [t.profileId, t.podcastId] })],

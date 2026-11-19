@@ -124,9 +124,48 @@ export function feedCache(db: Db, feedUrl: string): FeedCache | null {
 
 export function subscribe(db: Db, profileId: string, podcastId: string, now: number): void {
   db.insert(subscriptions)
-    .values({ profileId, podcastId, subscribedAt: now, updatedAt: now })
+    .values({ profileId, podcastId, subscribedAt: now, seenAt: now, updatedAt: now })
     .onConflictDoNothing()
     .run();
+}
+
+/**
+ * Notes that this profile looked at the podcast now, so its episodes so far are no longer new.
+ * Returns when it looked before, or null if it never did.
+ */
+export function markPodcastSeen(
+  db: Db,
+  profileId: string,
+  podcastId: string,
+  now: number,
+): number | null {
+  const where = and(eq(subscriptions.profileId, profileId), eq(subscriptions.podcastId, podcastId));
+  const before = db.select({ seenAt: subscriptions.seenAt }).from(subscriptions).where(where).get();
+  if (!before) return null;
+  db.update(subscriptions).set({ seenAt: now }).where(where).run();
+  return before.seenAt;
+}
+
+/**
+ * Starts the clock for subscriptions that have none, such as those from before M105 or another
+ * device's: their episodes so far are not new, only those that arrive from now on.
+ */
+export function startSeenClocks(db: Db, now: number): void {
+  db.update(subscriptions).set({ seenAt: now }).where(isNull(subscriptions.seenAt)).run();
+}
+
+/** An episode counts as new while it is unstarted and came out after the listener last looked. */
+export function isNewEpisode(
+  episode: { publishedAt: number | null; finished: boolean; positionMs: number },
+  seenAt: number | null,
+): boolean {
+  return (
+    seenAt !== null &&
+    episode.publishedAt !== null &&
+    episode.publishedAt > seenAt &&
+    !episode.finished &&
+    episode.positionMs === 0
+  );
 }
 
 /** Ends a subscription. The episodes' places stay, so subscribing again picks them up. */
@@ -212,8 +251,12 @@ export type Subscription = {
   skipIntroMs: number;
   skipOutroMs: number;
   subscribedAt: number;
+  /** When this profile last opened the podcast's page here; null before it started counting. */
+  seenAt: number | null;
   latestAt: number | null;
   unplayed: number;
+  /** Unstarted episodes published since `seenAt`, for the cover's “new” badge (M105). */
+  newEpisodes: number;
 };
 
 /** Newest episode first. Counted in one query: 500 podcasts are 20,000 episodes or more. */
@@ -233,11 +276,16 @@ export function listSubscriptions(db: Db, profileId: string, podcastId?: string)
       skipIntroMs: subscriptions.skipIntroMs,
       skipOutroMs: subscriptions.skipOutroMs,
       subscribedAt: subscriptions.subscribedAt,
+      seenAt: subscriptions.seenAt,
       latestAt: sql<number | null>`max(${episodes.publishedAt})`,
       // count() of a column skips nulls: every episode, less those this profile finished.
       unplayed: sql<number>`count(${episodes.id}) - count(${libraryEntries.finishedAt})`.mapWith(
         Number,
       ),
+      // The same rule as `isNewEpisode`; a null `seen_at` makes the comparison null, so none.
+      newEpisodes: sql<number>`count(case when ${episodes.publishedAt} > ${subscriptions.seenAt}
+        and ${libraryEntries.finishedAt} is null and coalesce(${progress.bookPositionMs}, 0) = 0
+        then 1 end)`.mapWith(Number),
     })
     .from(subscriptions)
     .innerJoin(podcasts, eq(podcasts.id, subscriptions.podcastId))
@@ -245,6 +293,10 @@ export function listSubscriptions(db: Db, profileId: string, podcastId?: string)
     .leftJoin(
       libraryEntries,
       and(eq(libraryEntries.bookId, episodes.bookId), eq(libraryEntries.profileId, profileId)),
+    )
+    .leftJoin(
+      progress,
+      and(eq(progress.bookId, episodes.bookId), eq(progress.profileId, profileId)),
     )
     .where(
       and(

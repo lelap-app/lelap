@@ -34,7 +34,8 @@ the `web` environment.
 
 RSS feeds and cover images for the web app (Worker `lelap-proxy`), because browsers can't read
 most feeds across origins. It never passes audio: `/feed?url=` only answers XML up to 10 MB,
-`/cover?url=` only raster images up to 5 MB; media types and non-XML bodies are refused. Feeds are
+`/cover?url=` only JPEG, PNG, GIF, WebP and AVIF images up to 10 MB, known by their first bytes
+whatever type the host sends; media types, non-XML feeds and other images are refused. Feeds are
 cached for 15 minutes, covers for a day; `ETag` and `Last-Modified` pass through for conditional
 requests.
 

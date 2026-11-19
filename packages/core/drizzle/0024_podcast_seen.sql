@@ -1,0 +1,1 @@
+ALTER TABLE `subscriptions` ADD `seen_at` integer;

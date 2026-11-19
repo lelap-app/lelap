@@ -73,6 +73,8 @@ const label = (action: Shortcut, skipSeconds: number): string => {
       return t('Faster');
     case 'bookmark':
       return t('Add bookmark');
+    case 'zoom':
+      return t('Zoom the position bar in or out, while it has focus');
     case 'home':
       return t('Home');
     case 'discover':
