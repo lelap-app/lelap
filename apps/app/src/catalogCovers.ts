@@ -33,11 +33,38 @@ function nameFor(url: string): string {
   return name;
 }
 
-/** The `file://` address of a matched cover kept on this phone, or null. */
-export function savedCatalogCover(url: string | null | undefined): string | null {
+// The catalog address of each copy handed out, so a copy that went missing can fall back to it.
+const sourceOf = new Map<string, string>();
+
+/**
+ * The `file://` address of a matched cover kept on this phone, or null. `check` looks at the
+ * file itself, for a caller that can't fall back when it fails to load, such as the player.
+ */
+export function savedCatalogCover(
+  url: string | null | undefined,
+  { check = false }: { check?: boolean } = {},
+): string | null {
   if (!url) return null;
   const name = nameFor(url);
-  return savedNames().has(name) ? new File(folder(), name).uri : null;
+  if (!savedNames().has(name)) return null;
+  const file = new File(folder(), name);
+  if (check && !file.exists) {
+    savedNames().delete(name);
+    return null;
+  }
+  sourceOf.set(file.uri, url);
+  return file.uri;
+}
+
+/**
+ * The catalog address of a kept copy that failed to load, or null for any other address. The
+ * copy is forgotten, so the next library change saves it again (M105).
+ */
+export function catalogCoverSource(uri: string): string | null {
+  const url = sourceOf.get(uri);
+  if (!url) return null;
+  savedNames().delete(nameFor(url));
+  return url;
 }
 
 /** Saves the matched covers not on the phone yet and removes those no book uses any more. */

@@ -101,7 +101,7 @@ The repository layout is in [`AGENTS.md`](../AGENTS.md#repository-map).
 - **Installed app:** the manifest's shortcuts open in the window already open
   (`launch_handler`), and the window title names the book loaded. Settings offers Install where
   the browser has a prompt (Chromium).
-- **Feeds** go through `proxy.lelap.app` (XML only, 10 MB, never audio); plain-http covers too, and
+- **Feeds** go through `proxy.lelap.app` (XML only, 10 MB, never audio); plain-http covers too (JPEG, PNG, GIF, WebP or AVIF by their first bytes, 10 MB), and
   Podcasting 2.0 chapters files and transcripts (UTF-8 text only, 5 MB).
 
 ### Sync

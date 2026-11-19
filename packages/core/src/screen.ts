@@ -33,6 +33,7 @@ export type Shortcut =
   | 'slower'
   | 'faster'
   | 'bookmark'
+  | 'zoom'
   | 'home'
   | 'discover'
   | 'search'
@@ -64,6 +65,8 @@ export const SHORTCUTS: readonly { action: Shortcut; keys: readonly string[] }[]
   { action: 'slower', keys: ['<'] },
   { action: 'faster', keys: ['>'] },
   { action: 'bookmark', keys: ['B'] },
+  // Taken by the position bar while it has focus, so it is not in `KEYS` (M105).
+  { action: 'zoom', keys: ['Z'] },
   { action: 'home', keys: ['1'] },
   { action: 'discover', keys: ['2'] },
   { action: 'search', keys: ['/', '3'] },

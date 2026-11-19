@@ -493,6 +493,11 @@ export const episodes = sqliteTable(
     extras: text('extras', { mode: 'json' }).$type<EpisodeExtras>(),
     /** The library book that plays it, made the first time it is played or downloaded. */
     bookId: text('book_id').references(() => books.id, { onDelete: 'set null' }),
+    /**
+     * When a feed refresh first stored it on this device, for “new” badges (M105): a feed's
+     * date can be older than the refresh that brings it. Null before M105 and from sync.
+     */
+    addedAt: integer('added_at'),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [
@@ -524,6 +529,16 @@ export const subscriptions = sqliteTable(
     voiceEq: integer('voice_eq', { mode: 'boolean' }),
     skipSilence: integer('skip_silence', { mode: 'boolean' }),
     evenLoudness: integer('even_loudness', { mode: 'boolean' }),
+    /**
+     * When this profile last opened the podcast's page on this device: episodes published since
+     * are new (M105). Not synced, and it leaves `updatedAt` alone so it never starts a push.
+     */
+    seenAt: integer('seen_at'),
+    /**
+     * When counting started here: at subscribing, on arrival by sync, or at the first start
+     * with M105. Episodes from before it are never new, so a synced show doesn't light up.
+     */
+    newSince: integer('new_since'),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [primaryKey({ columns: [t.profileId, t.podcastId] })],

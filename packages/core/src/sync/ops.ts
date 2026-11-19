@@ -884,6 +884,9 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
               profileId: op.profile,
               podcastId,
               subscribedAt: op.data.subscribedAt,
+              // Counted from its arrival here, or every episode so far would show as new.
+              seenAt: now,
+              newSince: now,
               ...row,
             })
             .onConflictDoUpdate({

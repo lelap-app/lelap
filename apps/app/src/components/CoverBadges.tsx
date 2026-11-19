@@ -41,6 +41,16 @@ export function BadgeSourceProvider({ children }: { children: ReactNode }) {
   return <BadgeSourceContext.Provider value={source}>{children}</BadgeSourceContext.Provider>;
 }
 
+/** Whether covers draw badges, the listener's setting (M49). */
+export function useBadgesOn(): boolean {
+  return useContext(BadgeSourceContext).on;
+}
+
+/** The “new” badge for a podcast's cover, when it has unstarted episodes since it was opened. */
+export function newEpisodesBadges(count: number, on: boolean): CoverBadge[] {
+  return on && count > 0 ? [{ kind: 'new', count }] : [];
+}
+
 /** Badges fit on a cover by its size: one on a list row's, two on a tile's, all on a large one. */
 export const badgesFor = (size: number) => (size < 100 ? 1 : size < 200 ? 2 : 3);
 

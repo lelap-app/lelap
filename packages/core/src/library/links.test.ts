@@ -301,4 +301,16 @@ describe('review cases', () => {
     scan(db, [scanned('Dune/01.mp3', { album: 'Dune', ids: [] })]);
     expect(filesNeedingTags(db, listed, { readsIds: true })).toEqual([]);
   });
+
+  it('reads an untitled file once more when its source names it', () => {
+    const db = createTestDb();
+    const files = [scanned('Dune/001 Opening.mp3', { album: 'Dune' })];
+    scan(db, files);
+    const { listed } = splitScanned(files);
+    const titled = new Set(listed.map((f) => f.location));
+    expect(filesNeedingTags(db, listed)).toEqual([]);
+    expect(filesNeedingTags(db, listed, { titled })).toHaveLength(1);
+    scan(db, [scanned('Dune/001 Opening.mp3', { album: 'Dune', title: 'Opening' })]);
+    expect(filesNeedingTags(db, listed, { titled })).toEqual([]);
+  });
 });

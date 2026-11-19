@@ -4,7 +4,7 @@ import { Image, Platform, Text, View } from 'react-native';
 
 import { CoverBadgeRow } from './CoverBadges';
 import { FadeIn } from './Motion';
-import { savedCatalogCover } from '../catalogCovers';
+import { catalogCoverSource, savedCatalogCover } from '../catalogCovers';
 import { proxyBase } from '../config';
 import { OPFS_SCHEME, opfsImageUrl } from '../webCovers';
 
@@ -75,7 +75,10 @@ function PlainCover({
 }) {
   // Addresses that failed to load: a broken link, or one the proxy refused, showed a blank tile.
   const [failed, setFailed] = useState<ReadonlySet<string>>(new Set());
-  const wanted = [uri, fallbackUri]
+  // A kept catalog cover that went missing falls back to the catalog's address (M105).
+  const backup = (u: string | null | undefined) =>
+    u && failed.has(u) ? catalogCoverSource(u) : null;
+  const wanted = [uri, backup(uri), fallbackUri, backup(fallbackUri)]
     .map((u) => (u ? (webSafe(u) ?? u) : null))
     .find((u) => u !== null && !failed.has(u));
   const shown = useShownUri(wanted ?? null);

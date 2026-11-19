@@ -8,6 +8,7 @@ import { applyDownloadStatuses, planDownload, requestDownload } from '../downloa
 import { getBook, listBooks, setFinished } from '../library/queries';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { saveProgress } from '../progress';
+import { subscriptions } from '../schema';
 import { addToUpNext, finishAndNext, finishFromPlayer, listUpNext, moveInUpNext } from '../upNext';
 import { carryFolderPlace, episodeCode, matchFiles } from './folder';
 import { buildOpml, parseOpml } from './opml';
@@ -15,10 +16,13 @@ import {
   autoDownloadWork,
   episodeBook,
   listEpisodes,
+  isNewEpisode,
   listSubscriptions,
+  markPodcastSeen,
   saveFeed,
   setAutoDownload,
   setTrim,
+  startSeenClocks,
   subscribe,
   trimOfBook,
   unsubscribe,
@@ -212,6 +216,67 @@ describe('subscriptions', () => {
     expect(listEpisodes(db, ME, first.podcastId).map((e) => e.number)).toEqual([3, 2, 1]);
     unsubscribe(db, ME, first.podcastId);
     expect(listSubscriptions(db, ME)).toEqual([]);
+  });
+
+  it('counts unstarted episodes that arrived since the podcast was last opened as new', () => {
+    const june = (day: number) => Date.parse(`2026-06-0${day}T08:00:00Z`);
+    const at = (day: number, count: number) =>
+      saveFeed(
+        db,
+        FEED_URL,
+        parseFeed(rss(count)),
+        { etag: null, lastModified: null },
+        june(day),
+        newId,
+      );
+    const { podcastId } = at(1, 1);
+    subscribe(db, ME, podcastId, june(1) + 1);
+    expect(listSubscriptions(db, ME)[0]?.newEpisodes).toBe(0);
+    // Episodes 2 and 3 come out, the page is opened before a refresh, then the refresh brings
+    // them dated before that visit: still new, as they arrived after it.
+    expect(markPodcastSeen(db, ME, podcastId, june(4))).toEqual({
+      seenAt: june(1) + 1,
+      newSince: june(1) + 1,
+    });
+    at(5, 3);
+    expect(listSubscriptions(db, ME)[0]?.newEpisodes).toBe(2);
+    // Starting one takes it off.
+    const third = must(listEpisodes(db, ME, podcastId).find((e) => e.number === 3));
+    const bookId = episodeBook(db, third.id, 1, newId);
+    const fileLocation = must(getBook(db, ME, bookId)?.files[0]).location;
+    saveProgress(db, ME, { bookId, fileLocation, filePositionMs: 5_000, savedAt: 2 });
+    expect(listSubscriptions(db, ME)[0]?.newEpisodes).toBe(1);
+    // Opening the page clears the rest; the page keeps the clock from before to mark them.
+    const before = markPodcastSeen(db, ME, podcastId, june(6));
+    expect(listSubscriptions(db, ME)[0]?.newEpisodes).toBe(0);
+    const second = must(listEpisodes(db, ME, podcastId).find((e) => e.number === 2));
+    expect(isNewEpisode(second, before)).toBe(true);
+    expect(isNewEpisode(second, null)).toBe(false);
+    expect(markPodcastSeen(db, ME, 'not-subscribed', 1)).toBeNull();
+  });
+
+  it('never counts old episodes that arrive after counting started, as for a synced show', () => {
+    const { podcastId } = save(db, 0);
+    subscribe(db, ME, podcastId, Date.parse('2026-07-01T00:00:00Z'));
+    // A refresh after the clock started brings the back catalogue, all from June.
+    saveFeed(
+      db,
+      FEED_URL,
+      parseFeed(rss(3)),
+      { etag: null, lastModified: null },
+      Date.parse('2026-07-02T00:00:00Z'),
+      newId,
+    );
+    expect(listSubscriptions(db, ME)[0]?.newEpisodes).toBe(0);
+  });
+
+  it('starts counting for subscriptions from before M105 when the app starts', () => {
+    const { podcastId } = save(db, 3);
+    subscribe(db, ME, podcastId, 1);
+    db.update(subscriptions).set({ seenAt: null, newSince: null }).run();
+    expect(listSubscriptions(db, ME)[0]?.newEpisodes).toBe(0);
+    startSeenClocks(db, 500);
+    expect(listSubscriptions(db, ME)[0]).toMatchObject({ seenAt: 500, newSince: 500 });
   });
 
   it('plays an episode as a book that stays out of the Library list', () => {

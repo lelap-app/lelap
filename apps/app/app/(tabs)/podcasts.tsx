@@ -17,6 +17,7 @@ import { t } from '../../src/i18n';
 import { EmptyState } from '../../src/components/Lori';
 import { showAlert } from '../../src/dialog';
 import { BookCover } from '../../src/components/BookCover';
+import { newEpisodesBadges, useBadgesOn, withBadges } from '../../src/components/CoverBadges';
 import { db } from '../../src/db';
 import { useLibrary } from '../../src/player';
 import { exportOpml, importOpml, refreshPodcasts, subscribeToFeed } from '../../src/podcasts';
@@ -37,6 +38,7 @@ export default function PodcastsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   // `version` is the signal to re-read the database.
   const subs = useMemo(() => listSubscriptions(db, profileId), [version]);
+  const badgesOn = useBadgesOn();
 
   const run = async (task: () => Promise<void>) => {
     setBusy(true);
@@ -161,29 +163,34 @@ export default function PodcastsScreen() {
           actions={[{ label: t('Search for podcasts'), onPress: () => router.navigate('/search') }]}
         />
       }
-      renderItem={({ item: sub }) => (
-        <Pressable
-          onPress={() => router.push({ pathname: '/podcast', params: { id: sub.podcastId } })}
-          accessibilityRole="button"
-          className="flex-row items-center gap-3 px-4 py-2 active:bg-raised"
-        >
-          <BookCover uri={sub.coverUrl} title={sub.title} size={56} />
-          <View className="flex-1 gap-1">
-            <Text numberOfLines={2} className="text-base text-paper">
-              {sub.title}
-            </Text>
-            <Text numberOfLines={1} className="text-sm text-muted">
-              {[
-                sub.author,
-                sub.unplayed > 0 ? t('{n} unplayed', { n: sub.unplayed }) : t('All played'),
-                sub.autoDownload ? t('Auto-download') : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </Text>
-          </View>
-        </Pressable>
-      )}
+      renderItem={({ item: sub }) => {
+        const badges = newEpisodesBadges(sub.newEpisodes, badgesOn);
+        const status = [
+          sub.author,
+          sub.unplayed > 0 ? t('{n} unplayed', { n: sub.unplayed }) : t('All played'),
+          sub.autoDownload ? t('Auto-download') : null,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        return (
+          <Pressable
+            onPress={() => router.push({ pathname: '/podcast', params: { id: sub.podcastId } })}
+            accessibilityRole="button"
+            accessibilityLabel={withBadges([sub.title, status], badges)}
+            className="flex-row items-center gap-3 px-4 py-2 active:bg-raised"
+          >
+            <BookCover uri={sub.coverUrl} title={sub.title} size={56} badges={badges} />
+            <View className="flex-1 gap-1">
+              <Text numberOfLines={2} className="text-base text-paper">
+                {sub.title}
+              </Text>
+              <Text numberOfLines={1} className="text-sm text-muted">
+                {status}
+              </Text>
+            </View>
+          </Pressable>
+        );
+      }}
     />
   );
 }

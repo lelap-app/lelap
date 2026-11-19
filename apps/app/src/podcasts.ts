@@ -14,6 +14,7 @@ import {
   parseFeed,
   parseOpml,
   saveFeed,
+  startSeenClocks,
   subscribe,
   type FeedSoundbite,
   type SharedPlace,
@@ -138,6 +139,8 @@ export function PodcastSync() {
     });
   }, [bookId, refresh]);
   useEffect(() => {
+    // Before the first refresh, so what it brings for a podcast without a clock is not new.
+    startSeenClocks(db, Date.now());
     void refreshPodcasts().finally(refresh);
     const subscription = AppState.addEventListener('change', (status) => {
       if (status === 'active') void refreshPodcasts().finally(refresh);

@@ -18,7 +18,8 @@ export type Platform = {
 
 export const LIMITS = {
   feedBytes: 10 * 1024 * 1024,
-  coverBytes: 5 * 1024 * 1024,
+  // Podcast artwork is often a 3000 px JPEG or PNG of several megabytes.
+  coverBytes: 10 * 1024 * 1024,
   textBytes: 5 * 1024 * 1024,
   feedTtl: 15 * 60,
   textTtl: 24 * 60 * 60,
@@ -58,14 +59,36 @@ function targetOf(raw: string | undefined, base?: URL): URL {
   return url;
 }
 
-/** Reads at most `limit` bytes; anything longer is refused rather than cut. */
-async function readLimited(response: Response, limit: number): Promise<Uint8Array> {
+const join = (chunks: Uint8Array[], total: number): Uint8Array => {
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body;
+};
+
+/**
+ * Reads at most `limit` bytes; anything longer is refused rather than cut. `head`, when given,
+ * sees the first `bytes` (or the whole body, if shorter) before the rest is read, and may throw
+ * to stop the download there.
+ */
+async function readLimited(
+  response: Response,
+  limit: number,
+  head?: { bytes: number; check: (start: Uint8Array) => void },
+): Promise<Uint8Array> {
   const declared = Number(response.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > limit) throw new Refused(413, 'Too large.');
   const reader = response.body?.getReader();
-  if (!reader) return new Uint8Array();
+  if (!reader) {
+    head?.check(new Uint8Array());
+    return new Uint8Array();
+  }
   const chunks: Uint8Array[] = [];
   let total = 0;
+  let checked = !head;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -75,13 +98,18 @@ async function readLimited(response: Response, limit: number): Promise<Uint8Arra
       throw new Refused(413, 'Too large.');
     }
     chunks.push(value);
+    if (!checked && head && total >= head.bytes) {
+      checked = true;
+      try {
+        head.check(join(chunks, total).subarray(0, head.bytes));
+      } catch (error) {
+        await reader.cancel();
+        throw error;
+      }
+    }
   }
-  const body = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
+  const body = join(chunks, total);
+  if (!checked) head?.check(body);
   return body;
 }
 
@@ -105,6 +133,29 @@ export function looksLikeText(body: Uint8Array): boolean {
   } catch {
     return false;
   }
+}
+
+/** Bytes `imageTypeOf` needs from the start of a file. */
+export const IMAGE_HEAD_BYTES = 12;
+
+const ascii = (body: Uint8Array, at: number, length: number) =>
+  String.fromCharCode(...body.subarray(at, at + length));
+
+/**
+ * The raster image type a body's first bytes name: JPEG, PNG, GIF, WebP or AVIF. Null for
+ * anything else, so SVG, HTML and audio are refused whatever Content-Type the host sent.
+ */
+export function imageTypeOf(body: Uint8Array): string | null {
+  if (body.length < 12) return null;
+  if (body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff) return 'image/jpeg';
+  if (body[0] === 0x89 && ascii(body, 1, 7) === 'PNG\r\n\x1a\n') return 'image/png';
+  if (ascii(body, 0, 6) === 'GIF87a' || ascii(body, 0, 6) === 'GIF89a') return 'image/gif';
+  if (ascii(body, 0, 4) === 'RIFF' && ascii(body, 8, 4) === 'WEBP') return 'image/webp';
+  // ISO media files share `ftyp` with MP4 and M4A audio: only the AVIF brands count.
+  if (ascii(body, 4, 4) === 'ftyp' && ['avif', 'avis'].includes(ascii(body, 8, 4))) {
+    return 'image/avif';
+  }
+  return null;
 }
 
 export function createApp(platform: Platform, env: Env): Hono {
@@ -195,10 +246,20 @@ export function createApp(platform: Platform, env: Env): Hono {
 
     const response = await upstream(url, { Accept: 'image/*' });
     if (!response.ok) throw new Refused(502, `The image answered HTTP ${response.status}.`);
-    const type = response.headers.get('content-type') ?? '';
-    // SVG can carry script; covers are raster images.
-    if (!/^image\/(jpeg|png|webp|gif|avif)\b/i.test(type)) throw new Refused(415, 'Not an image.');
-    const body = await readLimited(response, LIMITS.coverBytes);
+    // Some podcast hosts send artwork as application/octet-stream: the first bytes decide, and
+    // the answer carries the type they name. A media type is refused before anything is read,
+    // anything else after its first bytes, so audio sent under another type is never fetched.
+    if (isMedia(response.headers.get('content-type') ?? ''))
+      throw new Refused(415, 'Not an image.');
+    let type: string | null = null;
+    const body = await readLimited(response, LIMITS.coverBytes, {
+      bytes: IMAGE_HEAD_BYTES,
+      check: (start) => {
+        type = imageTypeOf(start);
+        if (!type) throw new Refused(415, 'Not an image.');
+      },
+    });
+    if (!type) throw new Refused(415, 'Not an image.');
     const result = new Response(body, {
       status: 200,
       headers: { 'Content-Type': type, 'Cache-Control': `public, max-age=${LIMITS.coverTtl}` },

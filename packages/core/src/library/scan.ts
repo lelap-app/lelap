@@ -130,7 +130,17 @@ export function filesNeedingTags(
     readsIds = false,
     readsKinds = false,
     readsSeries = false,
-  }: { readsIds?: boolean; readsKinds?: boolean; readsSeries?: boolean } = {},
+    titled,
+  }: {
+    readsIds?: boolean;
+    readsKinds?: boolean;
+    readsSeries?: boolean;
+    /**
+     * Files a source gives a title for (a Subsonic or Plex add-on's hints). One stored without a
+     * title, as the browser kept them before M67, is read again once so the hint fills it (M105).
+     */
+    titled?: ReadonlySet<string>;
+  } = {},
 ): ListedFile[] {
   const audio = withoutDownloads(listed).filter((f) => isAudioFile(f.name));
   if (audio.length === 0) return [];
@@ -141,6 +151,7 @@ export function filesNeedingTags(
         size: bookFiles.size,
         modifiedAt: bookFiles.modifiedAt,
         durationMs: bookFiles.durationMs,
+        title: bookFiles.title,
         ids: bookFiles.ids,
         kindTags: bookFiles.kindTags,
         bookId: bookFiles.bookId,
@@ -166,7 +177,11 @@ export function filesNeedingTags(
       s.durationMs === 0 ||
       (readsIds && s.ids === null) ||
       (readsKinds && s.kindTags === null && s.bookId !== null && partsOf.get(s.bookId) === 1) ||
-      (readsSeries && s.bookId !== null && s.idx === 0 && !(s.kindTags && 'series' in s.kindTags))
+      (readsSeries &&
+        s.bookId !== null &&
+        s.idx === 0 &&
+        !(s.kindTags && 'series' in s.kindTags)) ||
+      (s.title === null && titled?.has(f.location) === true)
     );
   });
 }
