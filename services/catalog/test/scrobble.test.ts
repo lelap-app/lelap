@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-import type { ScrobbleEvent } from '@lelap/sdk';
+import type { Manifest, ScrobbleEvent } from '@lelap/sdk';
 import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../src/app';
@@ -145,10 +145,17 @@ describe('configure pages', () => {
     expect(response.status).toBe(503);
   });
 
-  it('answers 401 before it is configured', async () => {
+  it('asks to be configured first and answers 401 until it is', async () => {
     const app = appWith(fake(() => undefined).fetch);
     const manifest = await app.fetch(new Request('https://addons.example/hardcover/manifest.json'));
-    expect(((await manifest.json()) as { configurable: boolean }).configurable).toBe(true);
+    const served = (await manifest.json()) as Manifest;
+    expect(served.configurable).toBe(true);
+    expect(served.behaviorHints).toMatchObject({ configurationRequired: true, health: true });
+    for (const name of ['hardcover', 'gpodder']) {
+      const health = await app.fetch(new Request(`https://addons.example/${name}/health`));
+      expect(health.status).toBe(200);
+      expect(await health.json()).toEqual({ status: 'ok' });
+    }
     const response = await post(app, 'https://addons.example/hardcover/manifest.json', [
       event({ event: 'start' }),
     ]);

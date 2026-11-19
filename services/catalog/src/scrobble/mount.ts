@@ -6,7 +6,8 @@ import { MAX_SEALED, type Sealer } from './sealed';
 // manifest URL with their settings sealed into one path segment:
 //   /hardcover/configure                    the form
 //   /hardcover/v1.<sealed>/manifest.json    the add-on, for this listener
-//   /hardcover/manifest.json                the add-on before it is configured (it answers 401)
+//   /hardcover/manifest.json                the add-on before it is configured: it says
+//                                           configurationRequired; /health answers, the rest 401
 
 export type Field = {
   name: string;
@@ -200,7 +201,25 @@ function installed(manifestUrl: string, name: string): Response {
   );
 }
 
-const ROUTES = new Set(['manifest.json', 'configure', 'scrobble', 'catalog', 'meta', 'stream']);
+const ROUTES = new Set([
+  'manifest.json',
+  'configure',
+  'health',
+  'scrobble',
+  'catalog',
+  'meta',
+  'stream',
+]);
+
+/** The manifest before and after the listener's settings, as protocol v1 marks them. */
+const withHints = (manifest: Manifest, configured: boolean): Manifest => ({
+  ...manifest,
+  behaviorHints: {
+    ...manifest.behaviorHints,
+    configurable: true,
+    ...(configured ? {} : { configurationRequired: true }),
+  },
+});
 
 /** How long the choices page keeps its draft: long enough to read a few lists and choose. */
 export const DRAFT_MS = 60 * 60 * 1000;
@@ -228,7 +247,7 @@ export function mountConfigurable<C>(
   };
   const unconfigured = createAddon(
     {
-      manifest: addon.manifest,
+      manifest: withHints(addon.manifest, false),
       catalog: () => {
         throw new AddonError(401, 'Open the configure page of this add-on first');
       },
@@ -323,7 +342,10 @@ export function mountConfigurable<C>(
     }
     // Built per request: the handlers close over this listener's settings.
     return createAddon(
-      { manifest: addon.manifestFor?.(config) ?? addon.manifest, ...addon.handlers(config) },
+      {
+        manifest: withHints(addon.manifestFor?.(config) ?? addon.manifest, true),
+        ...addon.handlers(config),
+      },
       {
         basePath: `${base}/${first}`,
         ...(addon.onError ? { onError: (error: unknown) => addon.onError?.(error) } : {}),
