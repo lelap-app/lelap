@@ -13,13 +13,13 @@ export const OWN_CHAPTERS_MAX = 2_000;
 export const CHAPTER_TITLE_MAX = 500;
 
 /**
- * A list fit to store: titles trimmed (an empty one gets `untitled(n)`), whole milliseconds
- * inside the book, in order, and never two at the same start (the first one stays).
+ * A list fit to store: titles trimmed (an empty one stays empty, to be named where it shows),
+ * whole milliseconds inside the book, in order, and never two at the same start (the first one
+ * stays).
  */
 export function cleanChapters(
   list: readonly { title: unknown; startMs: unknown }[],
   durationMs: number,
-  untitled: (n: number) => string,
 ): StoredChapter[] {
   const last = durationMs > 0 ? durationMs - 1 : Number.MAX_SAFE_INTEGER;
   const kept = list
@@ -32,7 +32,7 @@ export function cleanChapters(
     .sort((a, b) => a.startMs - b.startMs || a.order - b.order)
     .filter((c, i, all) => i === 0 || all[i - 1]?.startMs !== c.startMs)
     .slice(0, OWN_CHAPTERS_MAX);
-  return kept.map((c, i) => ({ title: c.title || untitled(i + 1), startMs: c.startMs }));
+  return kept.map((c) => ({ title: c.title, startMs: c.startMs }));
 }
 
 /** The listener's own chapters for a book, or null when the book's own apply. */
@@ -62,7 +62,7 @@ export function bookChapters(db: Db, bookId: string): (StoredChapter & { found: 
     .all();
 }
 
-/** The chapters this profile sees: its own when it has them, else the book's. */
+/** The chapters this profile sees, as saved: its own when it has them, else the book's. */
 export function chaptersOf(db: Db, profileId: string, bookId: string): StoredChapter[] {
   return (
     getOwnChapters(db, profileId, bookId) ??
@@ -96,10 +96,9 @@ export function setOwnChapters(
   bookId: string,
   list: readonly { title: string; startMs: number }[],
   durationMs: number,
-  untitled: (n: number) => string,
   now: number,
 ): boolean {
-  const clean = cleanChapters(list, durationMs, untitled);
+  const clean = cleanChapters(list, durationMs);
   const book = bookChapters(db, bookId);
   // Saved unchanged: the book's own keep applying, so a later fix to them still shows.
   const same =

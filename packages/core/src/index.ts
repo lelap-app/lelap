@@ -13,6 +13,7 @@ export * from './library/scan';
 export { chapterTitleAt, regroupedBook } from './library/bookFiles';
 export * from './bookmarks';
 export * from './library/queries';
+export * from './library/chapterNames';
 export * from './library/ownChapters';
 export * from './library/series';
 export * from './ratings';

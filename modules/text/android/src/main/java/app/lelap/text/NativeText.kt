@@ -4,8 +4,11 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Build
+import android.os.LocaleList
 import org.json.JSONObject
+import java.util.Locale
 
 /**
  * The profile's language for native text. The app saves its lines here whenever the language
@@ -30,6 +33,16 @@ object NativeText {
 
   /** The lines [get] last read, English before; for threads without a Context, such as casting's. */
   fun current(): NativeCatalog = cached ?: NativeCatalog.ENGLISH
+
+  /**
+   * [context] in the profile's language, for text a library reads from Android resources itself,
+   * such as Media3's play and pause descriptions on the notification.
+   */
+  fun localized(context: Context): Context {
+    val config = Configuration(context.resources.configuration)
+    config.setLocales(LocaleList(Locale.forLanguageTag(get(context).language)))
+    return context.createConfigurationContext(config)
+  }
 
   // Synchronized with channel(): the player, download workers and alerts call it from their own
   // threads, and each rewrites the one list of channels.

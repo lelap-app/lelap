@@ -8,8 +8,9 @@ import android.os.StatFs
 import android.os.storage.StorageManager
 import android.provider.DocumentsContract
 import android.provider.DocumentsContract.Document
+import app.lelap.text.NativeText
+import app.lelap.text.ShownException
 import java.io.File
-import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -77,7 +78,7 @@ class TreePlace(private val context: Context, private val tree: Uri) : Place {
     val columns = arrayOf(Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME, Document.COLUMN_SIZE, Document.COLUMN_MIME_TYPE)
     // A null cursor means the storage is gone; never read that as an empty folder.
     val cursor = resolver.query(DocumentsContract.buildChildDocumentsUriUsingTree(tree, parentId), columns, null, null, null)
-      ?: throw IOException("The download folder can't be reached.")
+      ?: throw ShownException(NativeText.t(context, "The download folder can’t be reached. Put the SD card back, or choose another folder in Settings."))
     return cursor.use {
       buildList {
         while (it.moveToNext()) {
@@ -99,12 +100,12 @@ class TreePlace(private val context: Context, private val tree: Uri) : Place {
   private fun createDocument(parentId: String, mime: String, name: String): String {
     // Octet-stream, so the provider never adds an extension of its own to `001.mp3.part`.
     val created = DocumentsContract.createDocument(resolver, documentUri(parentId), mime, name)
-      ?: throw IOException("Could not create $name in the download folder.")
+      ?: throw ShownException(NativeText.t(context, "Could not create {name} in the download folder.", "name" to name))
     return DocumentsContract.getDocumentId(created)
   }
 
   private fun directory(parentId: String, name: String, create: Boolean): String? {
-    child(parentId, name)?.let { return if (it.isDir) it.id else throw IOException("$name is not a folder.") }
+    child(parentId, name)?.let { return if (it.isDir) it.id else throw ShownException(NativeText.t(context, "{name} is not a folder.", "name" to name)) }
     return if (create) createDocument(parentId, Document.MIME_TYPE_DIR, name) else null
   }
 
@@ -168,21 +169,21 @@ class TreePlace(private val context: Context, private val tree: Uri) : Place {
       val doc = child(id, name)?.id ?: createDocument(id, OCTET, name)
       // "wt" truncates for certain; plain "w" leaves old bytes behind on some Android versions.
       return resolver.openOutputStream(documentUri(doc), if (append) "wa" else "wt")
-        ?: throw IOException("Could not write $name.")
+        ?: throw ShownException(NativeText.t(context, "Could not write {name}.", "name" to name))
     }
 
     override fun input(name: String): InputStream {
-      val doc = child(id, name) ?: throw IOException("$name is missing.")
-      return resolver.openInputStream(documentUri(doc.id)) ?: throw IOException("Could not read $name.")
+      val doc = child(id, name) ?: throw ShownException(NativeText.t(context, "{name} is missing.", "name" to name))
+      return resolver.openInputStream(documentUri(doc.id)) ?: throw ShownException(NativeText.t(context, "Could not read {name}.", "name" to name))
     }
 
     override fun rename(from: String, to: String) {
       // Providers add “ (1)” rather than replace, so the old file goes first.
       child(id, to)?.let { DocumentsContract.deleteDocument(resolver, documentUri(it.id)) }
-      val doc = child(id, from) ?: throw IOException("$from is missing.")
+      val doc = child(id, from) ?: throw ShownException(NativeText.t(context, "{name} is missing.", "name" to from))
       DocumentsContract.renameDocument(resolver, documentUri(doc.id), to)
-        ?: throw IOException("Could not save $to.")
-      if (child(id, to) == null) throw IOException("Could not save $to.")
+        ?: throw ShownException(NativeText.t(context, "Could not save {name}.", "name" to to))
+      if (child(id, to) == null) throw ShownException(NativeText.t(context, "Could not save {name}.", "name" to to))
     }
 
     override fun delete(name: String) {
@@ -190,7 +191,7 @@ class TreePlace(private val context: Context, private val tree: Uri) : Place {
     }
 
     override fun path(name: String): String =
-      documentUri(child(id, name)?.id ?: throw IOException("$name is missing.")).toString()
+      documentUri(child(id, name)?.id ?: throw ShownException(NativeText.t(context, "{name} is missing.", "name" to name))).toString()
 
     // One listing for every name, rather than one per file.
     override fun paths(names: Collection<String>): Map<String, String> {

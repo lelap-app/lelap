@@ -111,16 +111,12 @@ describe('Podcasting 2.0 feed tags', () => {
 });
 
 describe('chapters files', () => {
-  it('sorts, skips artwork-only entries and fills empty titles', () => {
+  it('sorts, skips artwork-only entries and keeps an empty title empty', () => {
     expect(parseChaptersFile(fixture('chapters.json'))).toEqual([
       { title: 'Intro', startMs: 0 },
       { title: 'Finding Orion', startMs: 95_500 },
-      { title: 'Chapter 3', startMs: 300_000 },
+      { title: '', startMs: 300_000 },
     ]);
-  });
-
-  it('names untitled chapters in the profile’s language', () => {
-    expect(parseChaptersFile(fixture('chapters.json'), (n) => `Bab ${n}`)[2]?.title).toBe('Bab 3');
   });
 
   it('gives nothing for a file that is not a chapters file', () => {
@@ -252,9 +248,11 @@ describe('storing Podcasting 2.0 fields', () => {
     const bookId = episodeBook(db, orion?.id ?? '', 2, newId);
     const list = parseChaptersFile(fixture('chapters.json'));
     expect(saveEpisodeChapters(db, bookId, list, 3, newId)).toBe(true);
-    expect(getBook(db, ME, bookId)?.chapters).toEqual(list);
+    // Saved untitled, named where it shows.
+    const shown = list.map((c, i) => (i === 2 ? { ...c, title: 'Chapter 3' } : c));
+    expect(getBook(db, ME, bookId)?.chapters).toEqual(shown);
     expect(saveEpisodeChapters(db, bookId, [{ title: 'Other', startMs: 0 }], 4, newId)).toBe(false);
-    expect(getBook(db, ME, bookId)?.chapters).toEqual(list);
+    expect(getBook(db, ME, bookId)?.chapters).toEqual(shown);
   });
 
   it('never replaces chapters embedded in the audio', () => {

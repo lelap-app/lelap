@@ -14,7 +14,12 @@ the player's buttons, Android Auto's shelves, the home screen widget and the Qui
   app doesn't hand over. Code without a `Context` (casting's receiver threads) uses
   `NativeText.current().t(…)`, which holds once anything in the process has called `get`.
 - Error messages for the app go through it too (failed downloads, casting, updates), so they
-  show in the profile's language rather than English.
+  show in the profile's language rather than English. Android's and Java's own exception texts
+  never reach the listener: `Reasons.of(e, catalog)` names the kind of failure (no answer, a full
+  disk, a withdrawn folder) or gives null, and a `ShownException` carries a line that is already
+  translated.
+- `NativeText.localized(context)` is a context in the profile's language, for libraries that read
+  their own strings from resources: Media3's play and pause descriptions on the notification.
 
 Unit tests for the pure part run on the JVM:
 

@@ -2,7 +2,8 @@ import { and, asc, eq, isNull } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import { bookFiles, books } from '../schema';
-import { bookChapters, chaptersOf } from './ownChapters';
+import { chapterTitle } from './chapterNames';
+import { bookChapters, getOwnChapters } from './ownChapters';
 import { chapterAt } from './timeline';
 
 /** The files of a book that are on disk, in play order. */
@@ -47,8 +48,12 @@ export function chapterTitleAt(
   bookPositionMs: number,
   profileId?: string,
 ): string | null {
-  const list =
-    profileId === undefined ? bookChapters(db, bookId) : chaptersOf(db, profileId, bookId);
+  const own = profileId === undefined ? null : getOwnChapters(db, profileId, bookId);
+  const list = own ?? bookChapters(db, bookId);
   if (list.length < 2) return null;
-  return list[chapterAt(list, bookPositionMs)]?.title ?? null;
+  const at = chapterAt(list, bookPositionMs);
+  const chapter = list[at];
+  return chapter
+    ? chapterTitle(chapter.title, at, 'found' in chapter && chapter.found === true)
+    : null;
 }

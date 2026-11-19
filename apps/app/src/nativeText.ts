@@ -109,6 +109,62 @@ const nativeLines = (): Record<string, string> => ({
   'Not casting': t('Not casting'),
   'Casting failed': t('Casting failed'),
   'Casting stopped': t('Casting stopped'),
+  // Why a download, a move, an update or casting failed, rather than Android's own words (M99).
+  'The server’s address can’t be found. Check the connection.': t(
+    'The server’s address can’t be found. Check the connection.',
+  ),
+  'The server did not answer in time.': t('The server did not answer in time.'),
+  'The secure connection to the server failed.': t('The secure connection to the server failed.'),
+  'The phone’s storage is full.': t('The phone’s storage is full.'),
+  'Lelap may no longer use the folder. Choose it again in Settings.': t(
+    'Lelap may no longer use the folder. Choose it again in Settings.',
+  ),
+  'Could not create {name} in the download folder.': t(
+    'Could not create {name} in the download folder.',
+  ),
+  '{name} is not a folder.': t('{name} is not a folder.'),
+  'Could not write {name}.': t('Could not write {name}.'),
+  '{name} is missing.': t('{name} is missing.'),
+  'Could not read {name}.': t('Could not read {name}.'),
+  'Could not save {name}.': t('Could not save {name}.'),
+  'The copy of {name} came out the wrong size.': t('The copy of {name} came out the wrong size.'),
+  'Could not make the book’s folder in the download folder.': t(
+    'Could not make the book’s folder in the download folder.',
+  ),
+  'Moving downloads stopped.': t('Moving downloads stopped.'),
+  'The download is larger than the release.': t('The download is larger than the release.'),
+  'The update was cancelled.': t('The update was cancelled.'),
+  'Android blocked the update.': t('Android blocked the update.'),
+  'The update is signed differently from the installed app, so Android refused it.': t(
+    'The update is signed differently from the installed app, so Android refused it.',
+  ),
+  'The update does not fit this phone.': t('The update does not fit this phone.'),
+  'The update file is damaged. Try again.': t('The update file is damaged. Try again.'),
+  'The speaker refused the command (UPnP error {code}).': t(
+    'The speaker refused the command (UPnP error {code}).',
+  ),
+  'The speaker answered HTTP {status}.': t('The speaker answered HTTP {status}.'),
+  // The line under the player when playback fails (M99).
+  'The server would not send the file.': t('The server would not send the file.'),
+  'The file is gone. It may have been moved or deleted.': t(
+    'The file is gone. It may have been moved or deleted.',
+  ),
+  'Lelap may no longer read this file. Choose its folder again in Settings.': t(
+    'Lelap may no longer read this file. Choose its folder again in Settings.',
+  ),
+  'This file can’t be read. It may be damaged, or in a format Lelap does not play.': t(
+    'This file can’t be read. It may be damaged, or in a format Lelap does not play.',
+  ),
+  'This phone can’t play this kind of audio.': t('This phone can’t play this kind of audio.'),
+  'The phone’s sound output failed. Press play to try again.': t(
+    'The phone’s sound output failed. Press play to try again.',
+  ),
+  'This file is copy-protected, so Lelap can’t play it.': t(
+    'This file is copy-protected, so Lelap can’t play it.',
+  ),
+  'The file could not be played. Press play to try again.': t(
+    'The file could not be played. Press play to try again.',
+  ),
   // The home screen widget and the Quick Settings tile.
   'Nothing playing': t('Nothing playing'),
   'Open Lelap to pick a book': t('Open Lelap to pick a book'),

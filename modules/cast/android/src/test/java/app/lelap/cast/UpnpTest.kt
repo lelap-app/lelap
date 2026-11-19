@@ -1,5 +1,6 @@
 package app.lelap.cast
 
+import app.lelap.text.NativeCatalog
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -110,7 +111,15 @@ class UpnpTest {
       <faultcode>s:Client</faultcode><faultstring>UPnPError</faultstring><detail>
       <UPnPError xmlns="urn:schemas-upnp-org:control-1-0"><errorCode>701</errorCode>
       <errorDescription>Transition not available</errorDescription></UPnPError></detail></s:Fault></s:Body></s:Envelope>"""
-    assertEquals("701 Transition not available", Upnp.parseFault(fault))
+    assertEquals("701", Upnp.faultCode(fault))
+    assertNull(Upnp.faultCode("<s:Envelope/>"))
+  }
+
+  @Test
+  fun refusalsNameOnlyTheNumber() {
+    val ms = NativeCatalog("ms", mapOf("The speaker answered HTTP {status}." to "Pembesar suara menjawab HTTP {status}."))
+    assertEquals("The speaker refused the command (UPnP error 701).", Upnp.refusal("701", 500, NativeCatalog.ENGLISH))
+    assertEquals("Pembesar suara menjawab HTTP 500.", Upnp.refusal(null, 500, ms))
   }
 
   @Test

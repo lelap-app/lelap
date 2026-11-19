@@ -45,7 +45,6 @@ import { forgetLocated } from './addonLocate';
 import { codeFingerprint, listAddonLibrary, sourceManifest } from './addonSources';
 import { withKey } from './audiobookshelf';
 import { db, newId } from './db';
-import { chapterName } from './format';
 import { logDiagnostic } from './diagnostics';
 import {
   FOLDER_UNAVAILABLE,
@@ -126,12 +125,8 @@ async function tagsFor(root: Root, file: ListedFile, dir: string): Promise<FileT
     read = await readRemoteTags(access.uri, access.headers, file.name, dir);
   }
   // The native reader gives ISBN and ASIN tags by name; the SDK checks and normalises them.
-  const { idTags, chapters, ...rest } = read;
-  // Untitled chapters come back empty, to be named in the profile's language.
-  const tags = {
-    ...rest,
-    chapters: chapters.map((c, i) => (c.title ? c : { ...c, title: chapterName(i + 1) })),
-  };
+  // Untitled chapters come back empty and are saved so, to be named where they show.
+  const { idTags, ...tags } = read;
   return idTags ? { ...tags, ids: idsFromTags(idTags) } : tags;
 }
 

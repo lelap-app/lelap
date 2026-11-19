@@ -1131,7 +1131,6 @@ function applyOwnChapters(db: Db, op: Extract<Op, { type: 'chapters' }>, now: nu
             (c): c is { title: unknown; startMs: unknown } => typeof c === 'object' && c !== null,
           ),
           0,
-          (n) => String(n),
         );
   const row = { chapters: clean, updatedAt: op.at };
   db.insert(ownChapters)

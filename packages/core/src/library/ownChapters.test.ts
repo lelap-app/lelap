@@ -23,7 +23,6 @@ import { applyScan, splitScanned, upsertRoot } from './scan';
 
 let n = 0;
 const newId = () => `id-${String(++n).padStart(6, '0')}`;
-const untitled = (i: number) => `Chapter ${i}`;
 
 function scan(db: Db, files: ScannedFile[], now = 100) {
   const rootId = upsertRoot(
@@ -68,18 +67,17 @@ describe('cleanChapters', () => {
           { title: 7, startMs: 3_000 },
         ],
         10_000,
-        untitled,
       ),
     ).toEqual([
-      { title: 'Chapter 1', startMs: 0 },
+      { title: '', startMs: 0 },
       { title: 'Two', startMs: 2_000 },
-      { title: 'Chapter 3', startMs: 3_000 },
+      { title: '', startMs: 3_000 },
       { title: 'Late', startMs: 9_999 },
     ]);
   });
 
   it('keeps any start when the length is not known', () => {
-    expect(cleanChapters([{ title: 'A', startMs: 5e9 }], 0, untitled)).toEqual([
+    expect(cleanChapters([{ title: 'A', startMs: 5e9 }], 0)).toEqual([
       { title: 'A', startMs: 5e9 },
     ]);
   });
@@ -107,7 +105,6 @@ describe('own chapters', () => {
         { title: 'Ending', startMs: 3_000_000 },
       ],
       3_600_000,
-      untitled,
       200,
     );
     const mine = getBook(db, ME, bookId);
@@ -135,7 +132,6 @@ describe('own chapters', () => {
         { title: 'Chapter 1', startMs: 600_000 },
       ],
       3_600_000,
-      untitled,
       200,
     );
     expect(getOwnChapters(db, ME, bookId)).toBeNull();
@@ -148,20 +144,19 @@ describe('own chapters', () => {
         { title: 'B', startMs: 9_000_000 },
       ],
       0,
-      untitled,
       300,
     );
     expect(getBook(db, ME, bookId)?.chapters).toEqual([{ title: 'A', startMs: 0 }]);
   });
 
   it('may remove every chapter', () => {
-    setOwnChapters(db, ME, bookId, [], 3_600_000, untitled, 200);
+    setOwnChapters(db, ME, bookId, [], 3_600_000, 200);
     expect(getBook(db, ME, bookId)?.chapters).toEqual([]);
     expect(getBook(db, ME, bookId)?.ownChapters).toBe(true);
   });
 
   it('survive a rescan that rebuilds the book', () => {
-    setOwnChapters(db, ME, bookId, [{ title: 'Mine', startMs: 0 }], 3_600_000, untitled, 200);
+    setOwnChapters(db, ME, bookId, [{ title: 'Mine', startMs: 0 }], 3_600_000, 200);
     scan(db, [], 300);
     scan(db, novel(3_700_000, 2), 400);
     const again = idOf(db, NOVEL);
@@ -184,7 +179,7 @@ describe('own chapters', () => {
       newId,
     );
     expect(getBook(db, ME, lecture)?.foundChapters).toBe(true);
-    setOwnChapters(db, ME, lecture, [{ title: 'Intro', startMs: 0 }], 3_600_000, untitled, 200);
+    setOwnChapters(db, ME, lecture, [{ title: 'Intro', startMs: 0 }], 3_600_000, 200);
     expect(getBook(db, ME, lecture)?.foundChapters).toBe(false);
     resetOwnChapters(db, ME, lecture, 300);
     expect(getBook(db, ME, lecture)?.foundChapters).toBe(true);
@@ -192,7 +187,7 @@ describe('own chapters', () => {
 
   it('go when the profile is deleted', () => {
     const other = createProfile(db, { name: 'Sam', avatar: null, kids: false }, 100, newId);
-    setOwnChapters(db, other, bookId, [{ title: 'A', startMs: 0 }], 0, untitled, 200);
+    setOwnChapters(db, other, bookId, [{ title: 'A', startMs: 0 }], 0, 200);
     deleteProfile(db, other, 300);
     expect(db.select().from(ownChapters).all()).toEqual([]);
   });
@@ -204,7 +199,7 @@ describe('own chapters across devices', () => {
     const b = createTestDb();
     scan(a, novel());
     scan(b, novel());
-    setOwnChapters(a, ME, idOf(a, NOVEL), [{ title: 'Mine', startMs: 5_000 }], 0, untitled, 200);
+    setOwnChapters(a, ME, idOf(a, NOVEL), [{ title: 'Mine', startMs: 5_000 }], 0, 200);
     const ops = collectOps(a, 0).filter((op) => op.type === 'chapters');
     expect(ops).toEqual([
       {
@@ -235,7 +230,7 @@ describe('own chapters across devices', () => {
   it('arrive before the book does, and are in an export', () => {
     const a = createTestDb();
     scan(a, novel());
-    setOwnChapters(a, ME, idOf(a, NOVEL), [{ title: 'Mine', startMs: 0 }], 0, untitled, 200);
+    setOwnChapters(a, ME, idOf(a, NOVEL), [{ title: 'Mine', startMs: 0 }], 0, 200);
     const later = createTestDb();
     importLibrary(later, exportLibrary(a, 300), 300, newId);
     scan(later, novel(), 400);

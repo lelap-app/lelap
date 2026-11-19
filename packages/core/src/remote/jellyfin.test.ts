@@ -150,7 +150,7 @@ describe('Jellyfin', () => {
     expect(machine?.chapters).toEqual([
       { title: 'Introduction', startMs: 0 },
       { title: 'Chapter 1', startMs: 900_000 },
-      { title: 'Chapter 3', startMs: 4_500_000 },
+      { title: '', startMs: 4_500_000 },
     ]);
     // No album tag: named after the folder on the server.
     expect(scan.tags.get(scan.listed[1]?.location ?? '')?.album).toBe('Loose tracks');

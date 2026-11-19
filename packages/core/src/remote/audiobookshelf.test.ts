@@ -199,7 +199,7 @@ describe('Audiobookshelf', () => {
     expect(scan.tags.get(`${ROOT}/li_machine/649531`)?.chapters).toEqual([
       { title: 'Introduction', startMs: 0 },
       { title: 'Chapter 1', startMs: 900_000 },
-      { title: 'Chapter 3', startMs: 2_400_000 },
+      { title: '', startMs: 2_400_000 },
     ]);
     expect([...scan.covers]).toEqual([
       [`${ROOT}/li_carol`, 'https://media.example.org/audiobookshelf/api/items/li_carol/cover'],

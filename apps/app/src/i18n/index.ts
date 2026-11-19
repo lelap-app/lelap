@@ -3,6 +3,8 @@
 // profile's catalog, or shows the English when there is none yet, so nothing breaks while a
 // translation catches up. `{name}` holes are filled from `vars`.
 
+import { setChapterNames } from '@lelap/core';
+
 /** A catalog file: English → translation, plus `@language`, the language's own name. */
 type CatalogFile = Record<string, string>;
 
@@ -61,3 +63,9 @@ export function t(text: string, vars?: Record<string, string | number>): string 
     key in vars ? String(vars[key]) : hole,
   );
 }
+
+// Untitled chapters are saved empty and named where they show, in the language current then.
+setChapterNames({
+  chapter: (n) => t('Chapter {n}', { n }),
+  part: (n) => t('Part {n}', { n }),
+});

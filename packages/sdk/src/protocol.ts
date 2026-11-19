@@ -322,6 +322,7 @@ export const MetaPreview = z.object({
 });
 export type MetaPreview = z.infer<typeof MetaPreview>;
 
+/** An empty `title` is named by the app, “Chapter 3”, in the listener's language. */
 export const Chapter = z.object({ title: z.string(), startMs: Duration });
 export type Chapter = z.infer<typeof Chapter>;
 

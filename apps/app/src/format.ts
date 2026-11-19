@@ -60,9 +60,6 @@ export function formatTimeOfDay(minutes: number): string {
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
 
-/** The name of an untitled chapter, `Chapter 3`, saved in the profile's language. */
-export const chapterName = (n: number): string => t('Chapter {n}', { n });
-
 /** A day, such as an episode's release, as the profile's language writes it. */
 export const formatDate = (ms: number): string => dateText(ms, locale());
 
