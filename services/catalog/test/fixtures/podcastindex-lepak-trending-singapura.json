@@ -1,0 +1,58 @@
+{
+  "status": "true",
+  "feeds": [
+    {
+      "id": 3001,
+      "url": "https://feeds.example.org/3001.xml",
+      "title": "Kopi Talk",
+      "description": "Conversations over coffee.",
+      "author": "Example Singapore",
+      "image": "https://images.example.org/3001.jpg",
+      "artwork": "https://images.example.org/3001-large.jpg",
+      "newestItemPublishTime": 1762819200,
+      "itunesId": null,
+      "trendScore": 8,
+      "language": "en-SG",
+      "categories": {
+        "77": "Society",
+        "78": "Culture"
+      }
+    },
+    {
+      "id": 3002,
+      "url": "https://feeds.example.org/3002.xml",
+      "title": "Morning Brief",
+      "description": "Could be from anywhere.",
+      "author": "Example News",
+      "image": "https://images.example.org/3002.jpg",
+      "artwork": "https://images.example.org/3002-large.jpg",
+      "newestItemPublishTime": 1762819200,
+      "itunesId": null,
+      "trendScore": 8,
+      "language": "en",
+      "categories": {
+        "55": "News"
+      }
+    },
+    {
+      "id": 3003,
+      "url": "https://feeds.example.org/3003.xml",
+      "title": "Kisah Pulau",
+      "description": "Stories from the island.",
+      "author": "Example Singapore",
+      "image": "https://images.example.org/3003.jpg",
+      "artwork": "https://images.example.org/3003-large.jpg",
+      "newestItemPublishTime": 1762819200,
+      "itunesId": null,
+      "trendScore": 8,
+      "language": "ms-sg",
+      "categories": {
+        "41": "Stories"
+      }
+    }
+  ],
+  "count": 3,
+  "max": "40",
+  "since": null,
+  "description": "Found matching feeds"
+}

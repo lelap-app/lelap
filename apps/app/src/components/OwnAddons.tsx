@@ -30,6 +30,7 @@ const NAMES: Record<HostedId, string> = {
   hardcover: 'Hardcover',
   gpodder: 'gPodder sync',
   lectures: 'Open lectures',
+  lepak: 'Lepak',
 };
 
 // A function, so `t()` reads the listener's language when the offer is drawn.
@@ -44,6 +45,9 @@ const description = (id: HostedId): string =>
     lectures: t(
       'Complete lecture courses from Open Yale Courses as books, one lecture per part, with Yale’s credit and licence on every course.',
     ),
+    lepak: t(
+      'Free podcasts in Malay and Indonesian, and from Singapore, from Podcast Index: stories in Cerita, talk in Sembang, history in Sejarah and Singapore shows in Singapura.',
+    ),
   })[id];
 
 /**
@@ -55,7 +59,7 @@ const OWN_SOURCES = new Set(['app.lelap.opds']);
 /**
  * Lelap's own optional add-ons not added yet: those that come with the app (the Open Library
  * reading log, OPDS), those on our catalog host that need the listener's account (Hardcover,
- * gPodder) and those there that need nothing (Open lectures).
+ * gPodder) and those there that need nothing (Open lectures, Lepak).
  */
 export function useOwnAddonOffers(
   addons: InstalledAddon[],

@@ -1,0 +1,118 @@
+{
+  "2001": {
+    "status": "true",
+    "query": {
+      "id": "2001"
+    },
+    "feed": {
+      "id": 2001,
+      "podcastGuid": "a1000000-0000-5000-8000-000000002001",
+      "title": "Sembang Sejarah",
+      "url": "https://feeds.example.org/2001.xml",
+      "link": "https://example.org/2001",
+      "description": "Kisah sejarah Melayu, setiap minggu.",
+      "author": "Contoh Media",
+      "ownerName": "Contoh Media",
+      "image": "https://images.example.org/2001.jpg",
+      "artwork": "https://images.example.org/2001-large.jpg",
+      "language": "ms",
+      "categories": {
+        "28": "History"
+      }
+    },
+    "description": "Found matching feed"
+  },
+  "2002": {
+    "status": "true",
+    "query": {
+      "id": "2002"
+    },
+    "feed": {
+      "id": 2002,
+      "podcastGuid": "a1000000-0000-5000-8000-000000002002",
+      "title": "Jejak Nusantara",
+      "url": "https://feeds.example.org/2002.xml",
+      "link": "https://example.org/2002",
+      "description": "Sejarah Indonesia dari arsip.",
+      "author": "Contoh Studio",
+      "ownerName": "Contoh Studio",
+      "image": "https://images.example.org/2002.jpg",
+      "artwork": "https://images.example.org/2002-large.jpg",
+      "language": "id-ID",
+      "categories": {
+        "28": "History"
+      }
+    },
+    "description": "Found matching feed"
+  },
+  "2004": {
+    "status": "true",
+    "query": {
+      "id": "2004"
+    },
+    "feed": {
+      "id": 2004,
+      "podcastGuid": "a1000000-0000-5000-8000-000000002004",
+      "title": "Riwayat Kota",
+      "url": "https://feeds.example.org/2004.xml",
+      "link": "https://example.org/2004",
+      "description": "Kota-kota lama dan orangnya.",
+      "author": "Contoh Radio",
+      "ownerName": "Contoh Radio",
+      "image": "https://images.example.org/2004.jpg",
+      "artwork": "https://images.example.org/2004-large.jpg",
+      "language": "ms-MY",
+      "categories": {
+        "28": "History"
+      }
+    },
+    "description": "Found matching feed"
+  },
+  "3001": {
+    "status": "true",
+    "query": {
+      "id": "3001"
+    },
+    "feed": {
+      "id": 3001,
+      "podcastGuid": "a1000000-0000-5000-8000-000000003001",
+      "title": "Kopi Talk",
+      "url": "https://feeds.example.org/3001.xml",
+      "link": "https://example.org/3001",
+      "description": "Conversations over coffee.",
+      "author": "Example Singapore",
+      "ownerName": "Example Singapore",
+      "image": "https://images.example.org/3001.jpg",
+      "artwork": "https://images.example.org/3001-large.jpg",
+      "language": "en-SG",
+      "categories": {
+        "77": "Society",
+        "78": "Culture"
+      }
+    },
+    "description": "Found matching feed"
+  },
+  "3003": {
+    "status": "true",
+    "query": {
+      "id": "3003"
+    },
+    "feed": {
+      "id": 3003,
+      "podcastGuid": "a1000000-0000-5000-8000-000000003003",
+      "title": "Kisah Pulau",
+      "url": "https://feeds.example.org/3003.xml",
+      "link": "https://example.org/3003",
+      "description": "Stories from the island.",
+      "author": "Example Singapore",
+      "ownerName": "Example Singapore",
+      "image": "https://images.example.org/3003.jpg",
+      "artwork": "https://images.example.org/3003-large.jpg",
+      "language": "ms-sg",
+      "categories": {
+        "41": "Stories"
+      }
+    },
+    "description": "Found matching feed"
+  }
+}

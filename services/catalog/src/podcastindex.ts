@@ -30,7 +30,7 @@ const Feed = z.object({
   url: lenient(z.string()),
   categories: lenient(z.record(z.string(), z.string()).nullable()),
 });
-type Feed = z.infer<typeof Feed>;
+export type Feed = z.infer<typeof Feed>;
 
 const EpisodeItem = z.object({
   guid: z.string().min(1).max(400),
@@ -84,10 +84,19 @@ function feedPreview(feed: Feed, guid: string): MetaPreview | null {
   return preview;
 }
 
+/** Filters `podcasts/trending` and `recent/feeds` take: language codes and category names. */
+export type FeedFilter = { lang?: string; cat?: string; max: number; ttl: number };
+
 export type PodcastIndex = {
   trending: () => Promise<MetaPreview[]>;
   search: (query: string) => Promise<MetaPreview[]>;
   meta: (id: string) => Promise<Meta | null>;
+  /** Feeds from a listing endpoint, not looked up yet. */
+  feeds: (path: 'podcasts/trending' | 'recent/feeds', filter: FeedFilter) => Promise<Feed[]>;
+  /** Feeds from `search/byterm`, which has no language filter. */
+  searchFeeds: (query: string, max: number) => Promise<Feed[]>;
+  /** Previews, looking up the GUID (and what the listing left out) of feeds that lack one. */
+  previews: (feeds: Feed[]) => Promise<MetaPreview[]>;
 };
 
 export function createPodcastIndex(
@@ -100,18 +109,22 @@ export function createPodcastIndex(
       headers: await authHeaders(credentials, upstream.now()),
     });
 
-  const guidOf = async (feed: Feed): Promise<string | undefined> => {
-    if (feed.podcastGuid) return feed.podcastGuid;
+  // `recent/feeds` lists no author, artwork or description: those come from the lookup.
+  const complete = async (feed: Feed): Promise<Feed> => {
+    if (feed.podcastGuid) return feed;
     const data = await get('podcasts/byfeedid', { id: String(feed.id) }, TTL.item);
     const parsed = FeedOne.safeParse(data);
-    return parsed.success ? (parseFeed(parsed.data.feed)?.podcastGuid ?? undefined) : undefined;
+    const found = parsed.success ? parseFeed(parsed.data.feed) : null;
+    if (!found) return feed;
+    const listed = Object.fromEntries(Object.entries(feed).filter(([, v]) => v !== undefined));
+    return { ...found, ...listed, podcastGuid: found.podcastGuid };
   };
 
   const previews = async (feeds: Feed[]): Promise<MetaPreview[]> => {
     const results = await Promise.allSettled(
-      feeds.map(async (feed) => {
-        const guid = await guidOf(feed);
-        return guid ? feedPreview(feed, guid) : null;
+      feeds.map(async (listed) => {
+        const feed = await complete(listed);
+        return feed.podcastGuid ? feedPreview(feed, feed.podcastGuid) : null;
       }),
     );
     return results.flatMap((result) =>
@@ -120,6 +133,16 @@ export function createPodcastIndex(
   };
 
   return {
+    previews,
+    async feeds(path, { lang, cat, max, ttl }) {
+      const params: Record<string, string> = { max: String(max) };
+      if (lang) params.lang = lang;
+      if (cat) params.cat = cat;
+      return parseFeeds(await get(path, params, ttl));
+    },
+    async searchFeeds(query, max) {
+      return parseFeeds(await get('search/byterm', { q: query, max: String(max) }, TTL.catalog));
+    },
     async trending() {
       const data = await get('podcasts/trending', { max: String(TRENDING_SIZE) }, TTL.catalog);
       return previews(parseFeeds(data));

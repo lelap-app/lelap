@@ -29,13 +29,14 @@ export const defaultAddons: string[] = configured
  * configure page. `add`: they need nothing, and Add installs the manifest straight away.
  */
 export const hostedAddons: {
-  id: 'hardcover' | 'gpodder' | 'lectures';
+  id: 'hardcover' | 'gpodder' | 'lectures' | 'lepak';
   base: string;
   setUp: 'configure' | 'add';
 }[] = [
   { id: 'hardcover', base: `https://catalog.${domain}/hardcover`, setUp: 'configure' },
   { id: 'gpodder', base: `https://catalog.${domain}/gpodder`, setUp: 'configure' },
   { id: 'lectures', base: `https://catalog.${domain}/lectures`, setUp: 'add' },
+  { id: 'lepak', base: `https://catalog.${domain}/lepak`, setUp: 'add' },
 ];
 
 const ownOrigins = new Set(

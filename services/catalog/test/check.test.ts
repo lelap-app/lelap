@@ -74,6 +74,14 @@ describe('the add-on test kit', () => {
     expect(report.problems, formatReport(report)).toEqual([]);
   });
 
+  it('passes Lepak', async () => {
+    const report = await check('lepak/', {
+      items: 0,
+      ids: [{ type: 'podcast', id: `podcast:${GUID}` }],
+    });
+    expect(report.problems, formatReport(report)).toEqual([]);
+  });
+
   it('passes Hardcover and gPodder before they are configured', async () => {
     for (const mount of ['hardcover/', 'gpodder/']) {
       const report = await check(mount);
