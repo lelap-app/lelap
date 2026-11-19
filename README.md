@@ -20,7 +20,7 @@ and on the web from one codebase, and every server piece can be self-hosted with
   Android a bedtime routine can turn the volume down, and after the timer the player offers to go
   back to when you last used it.
 - Boosts voices, skips silence (showing the time saved) and keeps loudness even, per book or per
-  show. In the browser, skip silence works on constant-bitrate MP3 files such as LibriVox's.
+  show. In the browser, skip silence works on constant-bitrate MP3 files such as LibriVox's, and on M4B, Opus, Ogg and FLAC files.
 - Opens the library in three groups: in progress, not started and finished.
 - Shows your listening: time today, this week and this year, streaks, finished books and a year
   in sound to share as an image.

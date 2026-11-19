@@ -34,6 +34,10 @@ describe('quietWindows', () => {
     expect(quiet.indexOf(false)).toBe(99);
   });
 
+  it('finds no windows at a sample rate of 0, as a closed decoder output reports', () => {
+    expect(quietWindows([new Float32Array(100)], 0)).toEqual([]);
+  });
+
   it('listens to the loudest channel', () => {
     const left = new Float32Array(20);
     const right = new Float32Array(20);

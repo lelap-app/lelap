@@ -350,7 +350,7 @@
   "In the browser the Jellyfin server must allow this site (CORS headers).": "",
   "In the browser the server must allow this site (CORS), and WebDAV books play in the Android app only: a browser can't send the login with audio.": "",
   "In the browser the server must allow this site (CORS), and some servers' books play in the Android app only: a browser can't send a login with audio.": "",
-  "In the browser, skip silence works on MP3 files with a constant bitrate, such as LibriVox’s. A file from a host that doesn’t let the browser read it plays without the effects.": "",
+  "In the browser, skip silence works on MP3 files with a constant bitrate, such as LibriVox’s, and on M4B, Opus, Ogg and FLAC files the browser can decode. A file from a host that doesn’t let the browser read it plays without the effects.": "",
   "In the last five minutes of a sleep timer, shake the phone for ten more.": "",
   "In the last five minutes, shake the phone for ten more.": "",
   "In your library as “{title}”.": "",

@@ -60,3 +60,4 @@ export * from './library/musicSuggestions';
 export * from './chunkedFile';
 export * from './locale';
 export * from './themes';
+export * from './webTracks';

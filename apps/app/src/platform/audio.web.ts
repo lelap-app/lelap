@@ -31,8 +31,9 @@ import { t } from '../i18n';
 import { OPFS_SCHEME, opfsImageUrl } from '../webCovers';
 import * as opfs from './opfs';
 import * as sound from './webaudio';
-import { blobBytes, type FileBytes, readHead, urlBytes } from './webfile';
+import { blobBytes, type FileBytes, type FileHead, openTrack, readHead, urlBytes } from './webfile';
 import { createSilenceSkipper } from './websilence';
+import * as tee from './webtee';
 
 export type {
   Bedtime,
@@ -139,8 +140,11 @@ function writeSavings(): void {
 const skipper = createSilenceSkipper(addSaved);
 // Counts loads of a part, so a file's tags read late don't reach the next part.
 let partLoads = 0;
-// The part whose first bytes were read; they are read only once an effect needs them.
+// The part whose first bytes were read; they are read only once an effect needs them. Skip
+// silence's tables (an M4B's can be megabytes) only once it is on.
 let partRead = -1;
+let partTracked = -1;
+let partHead: { file: FileBytes | null; head: FileHead | null } | null = null;
 let partSource: { audio: HTMLAudioElement; src: string; blob: Blob | null } | null = null;
 // A minutes timer counts wall time while playing; a chapter or episode timer stops at a place on
 // the book timeline (shake to extend is Android only: browsers ask before giving motion data).
@@ -470,9 +474,12 @@ function retire(): void {
 
 /** The element for a source: routed through the sound effects when they are on and may read it. */
 async function playerFor(src: string): Promise<HTMLAudioElement> {
-  const routed = sound.soundOn(effects()) && (await sound.canRoute(src));
+  const readable = await sound.canRoute(src);
+  const routed = sound.soundOn(effects()) && readable;
   if (element && sound.isRouted(element) !== routed) retire();
   const audio = player();
+  // Skip silence reads the bytes the element streams (M122), which needs a CORS request.
+  if (!routed) audio.crossOrigin = readable && skipsSilence() ? 'anonymous' : null;
   if (routed && !sound.isRouted(audio)) {
     audio.crossOrigin = 'anonymous';
     sound.route(audio, effects());
@@ -493,24 +500,36 @@ async function sourceFor(uri: string): Promise<{ src: string; blob: Blob | null 
 }
 
 /**
- * Reads the part's first bytes for its ReplayGain and its MP3 layout (M101), while it starts
- * playing: a download from OPFS, a stream only from a host that allows reading it.
+ * Reads the part's first bytes for its ReplayGain and where its sound lies (M101, M122), while it
+ * starts playing: a download from OPFS, a stream only from a host that allows reading it.
  */
 async function readPart(audio: HTMLAudioElement, src: string, blob: Blob | null): Promise<void> {
   const load = partLoads;
-  if (partRead === load) return;
-  partRead = load;
-  const file: FileBytes | null = blob
-    ? blobBytes(blob)
-    : (await sound.canRoute(src))
-      ? urlBytes(src)
+  if (partRead !== load) {
+    partRead = load;
+    partHead = null;
+    const file: FileBytes | null = blob
+      ? blobBytes(blob)
+      : (await sound.canRoute(src))
+        ? urlBytes(src)
+        : null;
+    const head = file ? await readHead(file).catch(() => null) : null;
+    if (load !== partLoads || audio !== element) return;
+    partHead = { file, head };
+    sound.setTagGain(audio, head ? replayGainDb(head.tags) : null);
+  }
+  const read = partHead;
+  if (!read || partTracked === load || !skipsSilence()) return;
+  partTracked = load;
+  const durationMs = Number.isFinite(audio.duration) ? audio.duration * 1000 : 0;
+  const track =
+    read.file && read.head
+      ? await openTrack(read.file, read.head, durationMs).catch(() => null)
       : null;
-  const head = file ? await readHead(file).catch(() => null) : null;
   if (load !== partLoads || audio !== element) return;
-  sound.setTagGain(audio, head ? replayGainDb(head.tags) : null);
-  skipper.attach(audio, file, head?.layout ?? null);
+  skipper.attach(audio, read.file, track);
   skipper.setOn(skipsSilence());
-  note(head?.layout ? 'silence-map' : 'silence-none');
+  note(track ? 'silence-map' : 'silence-none');
 }
 
 async function setPart(i: number, startMs: number, autoplay: boolean): Promise<void> {
@@ -527,6 +546,8 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
   const audio = await playerFor(src);
   // Until the new file is read, it plays at the listening speed without skipping.
   skipper.attach(audio, null, null);
+  // The service worker passes the stream on from the element's first request.
+  if (!blob && audio.crossOrigin && skipsSilence()) await tee.watch(src);
   audio.src = src;
   skipper.setSpeed(audio, speedNow());
   await new Promise<void>((resolve) => {
@@ -928,6 +949,30 @@ if (__DEV__) {
       pauseAfter: (ms: number) => skipper.map?.nextPause(ms, 30_000) ?? null,
       rate: () => element?.playbackRate ?? null,
       placeMs: () => positionMs(),
+      // M122: what kind of file is mapped, how far, the stream's bytes skip silence shared with
+      // the element and fetched itself, and the level playing now.
+      kind: () => skipper.kind,
+      knownUntil: (ms: number) => skipper.map?.knownUntil(ms) ?? null,
+      bytes: () => ({ ...tee.teeCounts }),
+      peak: () => sound.peakNow(element),
+      settings: (patch: Partial<PlayerSettings>) => setSettings({ ...settings, ...patch }),
+      // Plays one file as a book, for formats no catalog offers yet.
+      playUrl: (uri: string, durationMs: number, startMs = 0) =>
+        load(
+          {
+            bookId: `check:${uri}`,
+            title: uri,
+            author: null,
+            coverUri: null,
+            files: [{ uri, location: uri, title: uri, durationMs }],
+            chapters: [],
+            startIndex: 0,
+            startPositionMs: startMs,
+            speed: 1,
+            pausedAt: null,
+          },
+          true,
+        ),
     },
   });
 }

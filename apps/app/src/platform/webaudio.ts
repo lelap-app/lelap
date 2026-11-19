@@ -180,6 +180,20 @@ export function loudnessState(element: HTMLMediaElement | null): {
   return { gainDb: 20 * Math.log10(Math.max(gain, 1e-6)), levelDb: loudness.levelDb, tagGainDb };
 }
 
+/** The peak of the last `ms` the element played, for checking skip silence (M122); null unrouted. */
+export function peakNow(element: HTMLMediaElement | null, ms = 10): number | null {
+  const graph = element ? graphs.get(element) : undefined;
+  if (!graph) return null;
+  const samples = new Float32Array(graph.meter.fftSize);
+  graph.meter.getFloatTimeDomainData(samples);
+  const count = Math.min(samples.length, Math.round((graph.context.sampleRate * ms) / 1000));
+  let peak = 0;
+  for (let i = samples.length - count; i < samples.length; i++) {
+    peak = Math.max(peak, Math.abs(samples[i] ?? 0));
+  }
+  return peak;
+}
+
 // The target the gain glides to; a new glide starts only when it moves, so the param's list of
 // events stays short over hours.
 let glidingTo: { graph: Graph; db: number } | null = null;
