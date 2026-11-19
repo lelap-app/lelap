@@ -125,7 +125,7 @@ describe('configure pages', () => {
     const app = appWith(fake(() => undefined).fetch);
     const response = await app.fetch(new Request('https://addons.example/hardcover/configure'));
     expect(response.status).toBe(200);
-    expect(response.headers.get('content-security-policy')).toContain("form-action 'self'");
+    expect(response.headers.get('content-security-policy')).toContain("base-uri 'none'");
     expect(response.headers.get('cache-control')).toBe('no-store');
     const html = await response.text();
     expect(html).toContain('<form method="post"');
@@ -145,7 +145,7 @@ describe('configure pages', () => {
     expect(response.status).toBe(503);
   });
 
-  it('asks to be configured first and answers 401 until it is', async () => {
+  it('asks to be configured first and refuses until it is', async () => {
     const app = appWith(fake(() => undefined).fetch);
     const manifest = await app.fetch(new Request('https://addons.example/hardcover/manifest.json'));
     const served = (await manifest.json()) as Manifest;
@@ -159,11 +159,11 @@ describe('configure pages', () => {
     const response = await post(app, 'https://addons.example/hardcover/manifest.json', [
       event({ event: 'start' }),
     ]);
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(403);
     const garbage = await app.fetch(
       new Request('https://addons.example/hardcover/v1.nope/manifest.json'),
     );
-    expect(garbage.status).toBe(401);
+    expect(garbage.status).toBe(403);
   });
 });
 
@@ -262,7 +262,7 @@ describe('Hardcover', () => {
 
     const good = await configure(app, '/hardcover', { token: TOKEN });
     expect(good.response.status).toBe(200);
-    expect(good.url).toMatch(/^https:\/\/addons\.example\/hardcover\/v1\.[\w-]+\/manifest\.json$/);
+    expect(good.url).toMatch(/^https:\/\/addons\.example\/hardcover\/e2\.[\w-]+\/manifest\.json$/);
     expect(good.html).not.toContain('test-token');
     // The link copies on a tap, through one inline script under a nonce.
     expect(good.html).toMatch(/<script nonce="[a-f0-9]{32}">/);
@@ -354,6 +354,9 @@ describe('Hardcover', () => {
     const { url } = await configure(app, '/hardcover', { token: TOKEN });
     await post(app, url, [event({ event: 'rate', rating: 4.5 })]);
     expect(state.updates).toContainEqual({ rating: 4.5 });
+    // Revision 10: a rate without a rating takes it back.
+    await post(app, url, [event({ event: 'rate', at: 5 })]);
+    expect(state.updates).toContainEqual({ rating: null });
   });
 
   it('ignores episodes', async () => {
@@ -478,6 +481,28 @@ describe('gPodder', () => {
       expect(JSON.parse(uploads[1]?.body ?? '[]')).toHaveLength(1);
     });
   }
+
+  it('keeps links sealed before M102 working, and hears only the events it uses', async () => {
+    const { fetch, uploads } = server('gpodder');
+    const app = appWith(fetch);
+    const sealed = await sealerFor(SECRET, 'gpodder').seal({
+      flavor: 'gpodder',
+      server: 'https://gpodder.example.org',
+      username: 'me@home',
+      password: PASSWORD,
+    });
+    const url = `https://addons.example/gpodder/${sealed}/manifest.json`;
+    const manifest = (await (await app.fetch(new Request(url))).json()) as Manifest;
+    expect(manifest.resources).toEqual([
+      { name: 'scrobble', events: ['pause', 'progress', 'finish'] },
+    ]);
+    expect(manifest.protocolVersion).toBe(10);
+    const response = await post(app, url, [
+      event({ event: 'progress', item: episode, positionMs: 60_000, sessionStartMs: 0 }),
+    ]);
+    expect(response.status).toBe(200);
+    expect(uploads).toHaveLength(1);
+  });
 
   it('refuses a wrong login while configuring', async () => {
     const { fetch } = server('gpodder');

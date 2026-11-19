@@ -631,6 +631,13 @@ const resourceFields: Field[] = [
     required: false,
     meaning: 'Replaces the manifest’s `idPrefixes` for this resource.',
   },
+  {
+    name: 'events',
+    type: 'ScrobbleEventName[]',
+    required: false,
+    meaning:
+      'Revision 10, for `scrobble`: the events the add-on uses, such as `["finish", "rate"]`. The app sends only these. Absent means every event.',
+  },
 ];
 
 const catalogFields: Field[] = [
@@ -694,20 +701,22 @@ const scrobbleFields: Field[] = [
     name: 'sessionStartMs',
     type: 'integer ≥ 0',
     required: false,
-    meaning: 'For `progress`, `pause` and `finish`: where this listening session started.',
+    meaning:
+      'For `progress`, `pause` and `finish`: where this listening session started. Since revision 10 also on a `finish` heard with the Android app closed; a `finish` from Mark as finished has none.',
   },
   {
     name: 'resumed',
     type: 'boolean',
     required: false,
     meaning:
-      'Revision 9, on `start`: the listener carries on with a book begun before, 30 seconds or more in. A tracker that moves books to Currently reading can leave these alone.',
+      'Revision 9, on `start`: the listener carries on with a book begun before, 30 seconds or more in. A tracker that moves books to Currently reading can leave these alone. Since revision 10 only to an add-on that heard of the book before, or for a finished book.',
   },
   {
     name: 'rating',
     type: 'number',
     required: false,
-    meaning: 'For `rate`: 0.5 to 5 stars, in steps of 0.5.',
+    meaning:
+      'For `rate`: 0.5 to 5 stars, in steps of 0.5. Since revision 10, a `rate` without it means the listener took their rating back.',
   },
 ];
 
@@ -1329,14 +1338,22 @@ const toc: [string, string][] = [
       <code>start</code> when playing starts, <code>progress</code> about every five minutes while
       it plays, <code>pause</code> when it stops or another item takes over, and <code>finish</code>{' '}
       at the end, or when the listener marks a book as finished. <code>abandon</code> when the
-      listener chooses Stop reading in a book’s menu. <code>rate</code> is part of the protocol; the
-      app doesn’t send it yet.
+      listener chooses Stop reading in a book’s menu. Since revision 10, <code>rate</code> when the
+      listener rates a book on its page or in its menu, and a <code>rate</code> without{' '}
+      <code>rating</code> when they remove the rating.
+    </li>
+    <li>
+      Since revision 10, a Resource object’s <code>events</code> lists the events the add-on uses;
+      the app sends only those, and the rating control names the add-ons that hear a rating. A
+      podcast sync that needs only places can list <code>["pause", "progress", "finish"]</code>.
     </li>
     <li>
       Since revision 9, a <code>start</code> 30 seconds or more into a book carries{' '}
       <code>resumed: true</code>: the listener goes on with a book begun before. Moving a book to
       Currently reading on every <code>start</code> would sign in on every resume, and move a
-      finished book back when the listener plays its last minutes again.
+      finished book back when the listener plays its last minutes again. Since revision 10 the app
+      sends it only to an add-on it told about the book before, or for a book marked finished: a
+      book begun before the add-on was set up reaches it with its first <code>start</code>.
     </li>
     <li>
       Events wait on the device and go out when the add-on can be reached, so a train ride offline
@@ -1410,8 +1427,13 @@ const toc: [string, string][] = [
     meta’s <a href="#edition">editions</a>, a <code>start</code>’s <code>resumed</code>, a library’s{' '}
     <a href="#library-pages">pages</a>, and hands the settings of an add-on inside the app without{' '}
     <code>library</code> to <a href="#scrobble-settings">every one of its calls</a>; an app before
-    revision 9 ignores them. When an add-on declares a newer revision than the app knows, Settings →
-    Add-ons says so. Revision 9 comes with SDK 0.5.0; 0.4.0 covers revisions up to 8.
+    revision 9 ignores them. Revision 10 adds <code>events</code> on the{' '}
+    <a href="#scrobble">scrobble</a> resource, sends <code>rate</code> (without <code>rating</code>{' '}
+    when taken back), sends <code>resumed</code> only to an add-on that heard of the book, and{' '}
+    <code>sessionStartMs</code> on every <code>finish</code> that ends a session; an app before
+    revision 10 sends every event to every scrobbler. When an add-on declares a newer revision than
+    the app knows, Settings → Add-ons says so. Revision 9 comes with SDK 0.5.0; 0.4.0 covers
+    revisions up to 8. Revision 10 comes with the next SDK release, 0.6.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />

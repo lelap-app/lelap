@@ -1,5 +1,6 @@
 import {
   AddonError,
+  type Edition,
   type Manifest,
   type Meta,
   type ScrobbleEvent,
@@ -30,10 +31,12 @@ import {
   NO_LISTS,
   pickFields,
   reviveShown,
+  reviveStoredShown,
+  storeShown,
   type Shown,
   shownCatalogs,
 } from './hardcover-catalogs';
-import type { ConfigurableAddon } from './mount';
+import type { ScrobbleAddon } from './mount';
 
 // Hardcover (hardcover.app), a reading tracker with a GraphQL API. Listening moves a book to
 // "Currently reading" with its progress, a finished book to "Read", an abandoned one to "Did not
@@ -58,7 +61,7 @@ const WANT_TO_READ_CATALOG = {
 
 export const hardcoverManifest: Manifest = {
   id: 'app.lelap.hardcover',
-  version: '1.1.0',
+  version: '1.2.0',
   protocol: 1,
   name: 'Hardcover',
   description:
@@ -94,6 +97,14 @@ const BOOK = `query Book($id: Int!) {
       order_by: { users_count: desc }
       limit: 20
     ) { isbn_10 isbn_13 asin reading_format_id }
+  }
+}`;
+
+// Reading format 2 is audio. Contributions name the narrators.
+const AUDIO_EDITIONS = `query AudioEditions($id: Int!) {
+  editions(where: { book_id: { _eq: $id }, reading_format_id: { _eq: 2 } }, order_by: { users_count: desc }, limit: 20) {
+    id title release_date audio_seconds isbn_10 isbn_13 asin edition_format image { url } publisher { name }
+    contributions { contribution author { name } }
   }
 }`;
 
@@ -191,6 +202,8 @@ async function apply(gql: GraphQL, user: number, book: number, event: ScrobbleEv
   // Carrying on with a book already marked read, such as its last minutes again, isn't a new
   // reading; only a fresh start (revision 9: a start without `resumed`) is.
   if (userBook?.status_id === STATUS.read && carriesOn(event)) return;
+  // A rating taken back (revision 10) for a book not on a shelf leaves nothing to change.
+  if (event.event === 'rate' && event.rating === undefined && !userBook) return;
   const wanted =
     event.event === 'finish'
       ? STATUS.read
@@ -215,7 +228,7 @@ async function apply(gql: GraphQL, user: number, book: number, event: ScrobbleEv
   const update: Record<string, unknown> = {};
   // Listening again to a book marked read counts as reading it again.
   if (wanted !== null && userBook.status_id !== wanted) update.status_id = wanted;
-  if (event.event === 'rate' && event.rating !== undefined) update.rating = event.rating;
+  if (event.event === 'rate') update.rating = event.rating ?? null;
   if (Object.keys(update).length > 0)
     mutationId(
       (
@@ -280,6 +293,74 @@ export function latestPerItem(events: ScrobbleEvent[]): ScrobbleEvent[] {
   return [...last.values()];
 }
 
+type AudioEdition = {
+  id: number;
+  title?: string | null;
+  release_date?: string | null;
+  audio_seconds?: number | null;
+  isbn_10?: string | null;
+  isbn_13?: string | null;
+  asin?: string | null;
+  edition_format?: string | null;
+  image?: { url?: string | null } | null;
+  publisher?: { name?: string | null } | null;
+  contributions?:
+    { contribution?: string | null; author?: { name?: string | null } | null }[] | null;
+};
+
+/** Hardcover's audiobook editions of a work, as the item page lists them (M102). */
+export function audioEditions(list: AudioEdition[]): Edition[] {
+  const seen = new Set<string>();
+  return list.flatMap((e) => {
+    const key = String(e.id);
+    if (!Number.isInteger(e.id) || seen.has(key)) return [];
+    seen.add(key);
+    const year = Number(/^(\d{4})/.exec(e.release_date ?? '')?.[1]) || undefined;
+    const publisher = e.publisher?.name?.trim() || undefined;
+    const narrators = [
+      ...new Set(
+        (e.contributions ?? []).flatMap((c) =>
+          /narrat|reader/i.test(c.contribution ?? '') && c.author?.name?.trim()
+            ? [c.author.name.trim()]
+            : [],
+        ),
+      ),
+    ].slice(0, 20);
+    const name =
+      [publisher, year].filter(Boolean).join(', ') ||
+      e.edition_format?.trim() ||
+      e.title?.trim() ||
+      'Audiobook';
+    const isbn = e.isbn_13 ?? e.isbn_10;
+    const externalIds: Record<string, string> = {
+      ...(isbn ? { isbn } : {}),
+      ...(e.asin ? { asin: e.asin } : {}),
+    };
+    const cover = e.image?.url && /^https?:\/\//.test(e.image.url) ? e.image.url : undefined;
+    const edition: Edition = {
+      key,
+      name: name.slice(0, 200),
+      ...(year ? { year } : {}),
+      ...(narrators.length > 0 ? { narrators } : {}),
+      ...(publisher ? { publisher: publisher.slice(0, 200) } : {}),
+      ...(cover ? { cover } : {}),
+      ...(e.audio_seconds && e.audio_seconds > 0 ? { durationMs: e.audio_seconds * 1000 } : {}),
+      ...(Object.keys(externalIds).length > 0 ? { externalIds } : {}),
+    };
+    return [edition];
+  });
+}
+
+/** Settings as the SDK keeps them, or from a sealed link made before M102 (`shown` object). */
+export function reviveHardcover(value: unknown): HardcoverConfig | null {
+  const raw = value as { token?: unknown; shown?: unknown; trending?: unknown; lists?: unknown };
+  const token = raw?.token;
+  if (typeof token !== 'string' || token.length === 0) return null;
+  if (raw.shown !== undefined) return { token, shown: reviveShown(raw.shown) };
+  if (raw.trending === undefined && raw.lists === undefined) return { token };
+  return { token, shown: reviveStoredShown(raw.trending, raw.lists) };
+}
+
 export function hardcoverAddon(
   fetch: FetchLike,
   userAgent: string,
@@ -287,7 +368,7 @@ export function hardcoverAddon(
   cache: ResponseCache = memoryCache(),
   /** `CONFIG_SECRET`, which keys the cache's names for tokens. */
   secret?: string,
-): Omit<ConfigurableAddon<HardcoverConfig>, 'onError'> {
+): ScrobbleAddon<HardcoverConfig> {
   const client = (config: HardcoverConfig) => hardcoverClient(fetch, config.token, userAgent);
   const cachedFor = (config: HardcoverConfig) => tokenCache(cache, config.token, secret);
   // A token belongs to one account for good, so its user ID can be kept for a day.
@@ -310,45 +391,56 @@ export function hardcoverAddon(
     basePath: BASE_PATH,
     manifest: hardcoverManifest,
     manifestFor,
-    intro:
-      'Lelap moves books to Currently reading, Read or Did not finish as you listen, and shows your Want to read shelf, trending books and the lists you choose. For that it needs an API token from your Hardcover account.',
-    introLink: { href: NEW_TOKEN_URL, label: 'Make a token on Hardcover' },
-    steps: [
-      'Tap the button above. Hardcover opens its New API Key form with the right permissions already ticked. Sign in first if it asks.',
-      'Name the key, for example Lelap, and choose when it expires. When it runs out, Lelap asks you to set up again.',
-      'Create the key and copy it. It starts with hc_pat_, and Hardcover shows it only once.',
-      'Come back to this page and paste it below.',
+    text: {
+      intro:
+        'Lelap moves books to Currently reading, Read or Did not finish as you listen, sends your ratings, and shows your Want to read shelf, trending books and the lists you choose. For that it needs an API token from your Hardcover account.',
+      link: { href: NEW_TOKEN_URL, label: 'Make a token on Hardcover' },
+      steps: [
+        'Tap the button above. Hardcover opens its New API Key form with the right permissions already ticked. Sign in first if it asks.',
+        'Name the key, for example Lelap, and choose when it expires. When it runs out, Lelap asks you to set up again.',
+        'Create the key and copy it. It starts with hc_pat_, and Hardcover shows it only once.',
+        'Come back to this page and paste it below.',
+      ],
+      note: `Permissions it needs: ${SCOPES.join(', ')}. A token made before August 2026 has them all. To see or revoke your tokens later: hardcover.app → Settings → Hardcover API.`,
+    },
+    fields: [
+      {
+        key: 'token',
+        label: 'API token',
+        type: 'password',
+        required: true,
+        placeholder: 'hc_pat_…',
+      },
     ],
-    stepsNote: `Permissions it needs: ${SCOPES.join(', ')}. A token made before August 2026 has them all. To see or revoke your tokens later: hardcover.app → Settings → Hardcover API.`,
-    fields: [{ name: 'token', label: 'API token', type: 'password', placeholder: 'hc_pat_…' }],
     parse: (form) => {
-      const token = (form.token ?? '').trim();
+      const token = typeof form.token === 'string' ? form.token.trim() : '';
       if (token.length < 20)
         throw new AddonError(400, 'That does not look like a Hardcover token.');
-      return { token };
+      const config = reviveHardcover({ ...form, token });
+      if (!config) throw new AddonError(400, 'That does not look like a Hardcover token.');
+      return config;
     },
     check: async (config) => {
       await currentUser(client(config));
     },
-    pick: {
+    choose: {
       intro:
         'Choose the rows to show in Lelap. Each list is one row, in its own order. Everything here comes from Hardcover, read with your token only.',
       fields: async (config) => {
         const { available, canReadLists } = await listsOf(config);
         return pickFields(available, config.shown, canReadLists);
       },
-      apply: async (config, form) => {
+      apply: async (config, chosen) => {
         const { gql, user, available } = await listsOf(config);
-        const shown = await applyPicks(gql, user, available, form, config.shown);
+        const shown = await applyPicks(gql, user, available, chosen, config.shown);
         return { token: config.token, shown };
       },
     },
-    revive: (value) => {
-      const raw = value as { token?: unknown; shown?: unknown } | null;
-      const token = raw?.token;
-      if (typeof token !== 'string' || token.length === 0) return null;
-      return raw?.shown === undefined ? { token } : { token, shown: reviveShown(raw.shown) };
-    },
+    revive: reviveHardcover,
+    store: (config) => ({
+      token: config.token,
+      ...(config.shown ? storeShown(config.shown) : {}),
+    }),
     handlers: (config) => ({
       catalog: async ({ id }) => {
         const gql = client(config);
@@ -374,6 +466,11 @@ export function hardcoverAddon(
           return data.books[0] ?? null;
         });
         if (!book) return null;
+        // Apart from the book, so a field Hardcover renames costs the editions, not the page.
+        const editions = await cachedFor(config)(`editions:${bookId}`, TTL.item, async () => {
+          const data = await gql<{ editions: AudioEdition[] }>(AUDIO_EDITIONS, { id: bookId });
+          return audioEditions(data.editions);
+        }).catch(() => [] as Edition[]);
         const externalIds = editionIds(book.editions ?? []);
         const meta: Meta = {
           ...preview(book),
@@ -381,6 +478,8 @@ export function hardcoverAddon(
           ...(book.slug
             ? { link: `${HARDCOVER_SITE}/books/${encodeURIComponent(book.slug)}` }
             : {}),
+          // The item page lists editions from two on.
+          ...(editions.length > 1 ? { editions } : {}),
         };
         return { meta, cacheMaxAge: 3600 };
       },

@@ -7,6 +7,7 @@ import {
   type InstalledAddon,
   listAddons,
   localLookup,
+  listWanted,
   rememberWanted,
   SourceCache,
   streamAvailability,
@@ -24,7 +25,7 @@ import { useLibrary } from './player';
 import { profileId } from './profile';
 
 /** The add-ons this profile sees, read fresh: the background task has no React state. */
-function profileAddons(): InstalledAddon[] {
+export function profileAddons(): InstalledAddon[] {
   const hidden = new Set(getProfile(db, profileId)?.hiddenAddons ?? []);
   return listAddons(db).filter((a) => !hidden.has(a.url));
 }
@@ -112,13 +113,17 @@ const wantedShelves = (addons: InstalledAddon[]) =>
 export async function refreshWanted(): Promise<void> {
   const addons = profileAddons();
   const shelves = wantedShelves(addons);
-  if (shelves.length === 0) return;
-  const read = await Promise.allSettled(shelves.map((ref) => fetchCatalog(fetcher, ref)));
-  const works = read.flatMap((r) => (r.status === 'fulfilled' ? r.value.map(workOf) : []));
+  // Books from an import (M102) are wanted without a shelf.
+  const imported = listWanted(db, profileId).some((w) => w.from !== undefined);
+  if (shelves.length === 0 && !imported) return;
   const now = Date.now();
-  rememberWanted(db, profileId, works, now, {
-    prune: read.every((r) => r.status === 'fulfilled'),
-  });
+  if (shelves.length > 0) {
+    const read = await Promise.allSettled(shelves.map((ref) => fetchCatalog(fetcher, ref)));
+    const works = read.flatMap((r) => (r.status === 'fulfilled' ? r.value.map(workOf) : []));
+    rememberWanted(db, profileId, works, now, {
+      prune: read.every((r) => r.status === 'fulfilled'),
+    });
+  }
   const isLocal = localLookup(db, profileId);
   const news = await checkWanted(
     db,

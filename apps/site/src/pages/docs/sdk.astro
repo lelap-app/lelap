@@ -356,6 +356,19 @@ const toc: [string, string][] = [
       describes the flow for add-ons without the SDK.
     </li>
     <li>
+      New in the next SDK release, 0.6, for a service with tokens and lists: <code>url</code> fields
+      (http or https, without a login) and <code>choices</code> (a group of boxes, kept as a list of
+      the ticked values), <code>placeholder</code>, and <code>text</code> with an <code>intro</code>
+      , a <code>link</code>, numbered <code>steps</code> and a <code>note</code>.{' '}
+      <code>choose</code> adds a second page whose fields depend on the first, such as the lists in
+      the listener’s account; the first page’s settings ride along sealed for an hour, and Configure
+      from a configured link opens it directly. <code>manifest(config)</code> gives each listener
+      their own catalogs, and <code>legacy</code> keeps add-on addresses from before your add-on
+      used this configure working. Throw an <code>AddonError</code> from <code>check</code> or{' '}
+      <code>choose</code> to show its message on the page. The page after saving copies the address
+      with a tap. Lelap’s Hardcover and gPodder add-ons are built this way.
+    </li>
+    <li>
       The form and the page after it say who runs them: “This page is run by {'{host}'}, not by
       Lelap.” Lelap never appears as the sender, since the page asks for tokens and passwords. The
       pages use <code>PAGE_STYLE</code>, the stylesheet Lelap’s own configure pages use too, so
@@ -410,6 +423,13 @@ const toc: [string, string][] = [
     <code>setUpWithSettings(manifest)</code>, which tells whether an add-on inside the app is set up
     with its settings under Settings → Add-ons, its settings reaching every call. See{' '}
     <a href="/docs/protocol/#versions">Versions</a>.
+  </p>
+  <p>
+    Revision 10 comes with the next SDK release, 0.6. A <code>scrobble</code> resource can list the{' '}
+    <code>events</code> it uses, and <code>wantsScrobble(manifest, type, id, event)</code> tells
+    whether an event reaches it. A <code>rate</code> without <code>rating</code> means the listener
+    took their rating back, so a <code>scrobble</code> handler that keeps ratings should clear one
+    then.
   </p>
 
   <h2 id="errors">Errors</h2>

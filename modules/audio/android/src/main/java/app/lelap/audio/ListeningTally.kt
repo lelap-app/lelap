@@ -99,6 +99,18 @@ class AccountingLog(
     trim()
   }
 
+  /**
+   * Where the listening session of [bookId] began: the open one, else the one the last pause
+   * ended (the end of a book closes its session as it is logged). Null when none is known.
+   */
+  fun sessionStartOf(bookId: String): Pair<String, Long>? {
+    session?.takeIf { it.bookId == bookId }?.let { return it.startLocation to it.startPositionMs }
+    val pause = list.lastOrNull { it is SessionEvent && it.bookId == bookId && it.kind == PAUSE } as SessionEvent?
+    val location = pause?.startLocation ?: return null
+    val position = pause.startPositionMs ?: return null
+    return location to position
+  }
+
   /** Everything not yet acknowledged; from now on these records stay as they are. */
   fun take(): List<AccountingRecord> {
     sealedThrough = nextSeq - 1

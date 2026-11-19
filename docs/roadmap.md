@@ -111,7 +111,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M99 Languages 3](milestones/m99.md)                 | Planned     |             | Media3's own notification texts, saved English chapter names, raw native error details                         |
 | [M100 Server sources 3](milestones/m100.md)          | Planned     |             | Places sent while the app is closed, and Plex addresses that follow the server                                 |
 | [M101 Better sound 2](milestones/m101.md)            | Planned     |             | Skip silence and even loudness on the web, and steadier skip silence accounting                                |
-| [M102 Add-on protocol 4](milestones/m102.md)         | Planned     |             | Ratings, Android finish sessions, scrobblers on the SDK's configure and catalog upkeep                         |
+| [M102 Add-on protocol 4](milestones/m102.md)         | In progress |          12 | Ratings, Android finish sessions, scrobblers on the SDK's configure and catalog upkeep                         |
 | [M103 Podcasts 5](milestones/m103.md)                | Planned     |             | Alternate enclosures, podcast:integrity checks, chapter images on the lock screen                              |
 | [M104 Security hardening 3](milestones/m104.md)      | Done        |          10 | What M96's audit left: LAN addresses for add-ons, discovery, SMB signing, SDK sealing                          |
 | [M105 App polish 3](milestones/m105.md)              | In progress |           9 | What M80 left: podcast “new” badges, covers by their first bytes, a zoom key, chapter titles read again        |

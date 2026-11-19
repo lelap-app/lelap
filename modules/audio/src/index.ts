@@ -40,7 +40,13 @@ export type BookLoad = {
 };
 
 /** A book or episode that played to its end, possibly with the app closed. */
-export type FinishedItem = { bookId: string; at: number };
+export type FinishedItem = {
+  bookId: string;
+  at: number;
+  /** Where the listening session that reached the end began (M102), when the service saw one. */
+  startLocation?: string | null;
+  startPositionMs?: number | null;
+};
 
 /** Player settings that must also work with the app closed. */
 export type PlayerSettings = {

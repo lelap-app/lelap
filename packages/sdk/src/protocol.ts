@@ -17,9 +17,12 @@ export const PROTOCOL_VERSION = 1;
  * the app; 8 lets an add-on inside the app with `settings` and `scrobble` but no `library` be set up
  * under Settings → Add-ons, its settings reaching its `scrobble` calls; 9 adds `editions` on a meta,
  * `resumed` on a scrobble event and `next` for a library listed in pages, and hands the settings of
- * an add-on inside the app without `library` to every one of its calls.
+ * an add-on inside the app without `library` to every one of its calls; 10 adds `events` on the
+ * `scrobble` resource, sends `rate` (without `rating` when the listener takes it back), sends
+ * `resumed` only to an add-on that heard of the book before, and `sessionStartMs` on every
+ * `finish` that ends a session.
  */
-export const LATEST_PROTOCOL_VERSION = 9;
+export const LATEST_PROTOCOL_VERSION = 10;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
@@ -70,12 +73,22 @@ export const CatalogDefinition = z.object({
 });
 export type CatalogDefinition = z.infer<typeof CatalogDefinition>;
 
+export const SCROBBLE_EVENTS = ['start', 'progress', 'pause', 'finish', 'abandon', 'rate'] as const;
+export const ScrobbleEventName = z.enum(SCROBBLE_EVENTS);
+export type ScrobbleEventName = z.infer<typeof ScrobbleEventName>;
+
 export const ResourceDefinition = z.union([
   ResourceName,
   z.object({
     name: ResourceName,
     types: z.array(ContentType).optional(),
     idPrefixes: z.array(z.string().min(1)).optional(),
+    /**
+     * Since revision 10, for `scrobble`: the events the add-on uses, such as `['finish', 'rate']`.
+     * The app sends only these, and says by the rating control which add-ons hear a rating.
+     * Absent means every event. Other resources ignore it.
+     */
+    events: z.array(ScrobbleEventName).min(1).optional(),
   }),
 ]);
 export type ResourceDefinition = z.infer<typeof ResourceDefinition>;
@@ -592,10 +605,6 @@ export const ArtworkResponse = z.object({
 });
 export type ArtworkResponse = z.infer<typeof ArtworkResponse>;
 
-export const SCROBBLE_EVENTS = ['start', 'progress', 'pause', 'finish', 'abandon', 'rate'] as const;
-export const ScrobbleEventName = z.enum(SCROBBLE_EVENTS);
-export type ScrobbleEventName = z.infer<typeof ScrobbleEventName>;
-
 /** What was played. Never a source, stream or file URL. */
 export const ScrobbleItem = z.object({
   type: ContentType,
@@ -623,15 +632,24 @@ export const ScrobbleEvent = z.object({
   item: ScrobbleItem,
   /** Where the listener was on the whole-item timeline. */
   positionMs: Duration.optional(),
-  /** Where this listening session started, for `progress`, `pause` and `finish`. */
+  /**
+   * Where this listening session started, for `progress`, `pause` and `finish`. Since revision
+   * 10 also on a `finish` the Android app hears with the app closed; a `finish` from “Mark as
+   * finished” ends no session and has none.
+   */
   sessionStartMs: Duration.optional(),
   /**
    * Since revision 9, on `start`: the listener carries on with a book begun before, rather than
    * starting it. A tracker that moves books to “Currently reading” can leave these alone, so
-   * listening again to the end of a finished book doesn't move it back.
+   * listening again to the end of a finished book doesn't move it back. Since revision 10 the app
+   * sends it only to an add-on it told about the book before; an add-on that never heard of the
+   * book gets a plain `start`, so a book begun before it was set up still reaches it.
    */
   resumed: z.boolean().optional(),
-  /** For `rate`: 0.5 to 5 stars in steps of 0.5. */
+  /**
+   * For `rate`: 0.5 to 5 stars in steps of 0.5. Since revision 10 the app sends `rate` when the
+   * listener rates a book on its page; a `rate` without `rating` means they took the rating back.
+   */
   rating: z.number().min(0.5).max(5).multipleOf(0.5).optional(),
 });
 export type ScrobbleEvent = z.infer<typeof ScrobbleEvent>;
@@ -698,15 +716,22 @@ export function prefixesFor(manifest: Manifest, resource: ResourceName): string[
 
 /**
  * Whether the add-on wants scrobbles for this type. An `idPrefixes` on the `scrobble` entry itself
- * narrows it to those IDs; the manifest's own prefixes are for `meta` and `stream`.
+ * narrows it to those IDs; the manifest's own prefixes are for `meta` and `stream`. With `event`,
+ * also whether it takes that event (revision 10 `events`).
  */
-export function wantsScrobble(manifest: Manifest, type: ContentType, id?: string): boolean {
+export function wantsScrobble(
+  manifest: Manifest,
+  type: ContentType,
+  id?: string,
+  event?: ScrobbleEventName,
+): boolean {
   const definition = manifest.resources.find(
     (r) => (typeof r === 'string' ? r : r.name) === 'scrobble',
   );
   if (!definition) return false;
   if (typeof definition === 'string') return manifest.types.includes(type);
   if (!(definition.types ?? manifest.types).includes(type)) return false;
+  if (event !== undefined && definition.events && !definition.events.includes(event)) return false;
   const prefixes = definition.idPrefixes;
   return !prefixes || (id !== undefined && prefixes.some((prefix) => id.startsWith(prefix)));
 }

@@ -35,6 +35,7 @@ import { bookIdForKey, bookKey, parseEpisodeKey, recordDeletion, type TombstoneK
 import { type SoundOverrides, syncedOverrides } from '../sound';
 import { cleanChapters } from '../library/ownChapters';
 import { cleanOrder, SERIES_ORDER_PREFIX } from '../library/series';
+import { cleanRating, RATING_PREFIX } from '../ratings';
 
 /** Where a profile's source choices live in `settings` (see addons/sources.ts). */
 const SOURCE_PREFIX = 'source:';
@@ -232,6 +233,15 @@ export type Op =
       key: string;
       at: number;
       data: { books: string[] };
+    }
+  | {
+      /** A profile's own rating of a book (M102), or null for none. Older devices skip it. */
+      type: 'rating';
+      profile: string;
+      /** The book's synced name, as for tags. */
+      key: string;
+      at: number;
+      data: { rating: number | null };
     }
   | { type: 'delete'; kind: TombstoneKind; profile: string; key: string; at: number };
 
@@ -500,6 +510,24 @@ export function collectOps(db: Db, since: number): Op[] {
       data: { books: cleanOrder(s.value) },
     });
   }
+  const ratings = db
+    .select()
+    .from(settings)
+    .where(and(gt(settings.updatedAt, since), like(settings.key, `${RATING_PREFIX}%`)))
+    .all();
+  for (const s of ratings) {
+    const name = s.key.slice(RATING_PREFIX.length);
+    // A streamed book travels along, so the other device can make it first.
+    const bookId = bookIdForKey(db, name);
+    if (bookId) key(bookId);
+    ops.push({
+      type: 'rating',
+      profile: s.profileId,
+      key: name,
+      at: s.updatedAt,
+      data: { rating: cleanRating(s.value) },
+    });
+  }
   for (const t of db.select().from(bookTags).where(gt(bookTags.updatedAt, since)).all()) {
     const k = key(t.bookId);
     if (!k) continue;
@@ -608,6 +636,7 @@ const ORDER: Record<Op['type'], number> = {
   link: 3,
   source: 3,
   seriesOrder: 3,
+  rating: 3,
   delete: 4,
 };
 
@@ -979,6 +1008,9 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
         case 'seriesOrder':
           applySeriesOrder(tx, op, now);
           break;
+        case 'rating':
+          applyRating(tx, op, now);
+          break;
         case 'delete':
           applyDelete(tx, op);
           break;
@@ -1113,6 +1145,28 @@ function applySeriesOrder(db: Db, op: Extract<Op, { type: 'seriesOrder' }>, now:
   const local = db.select({ updatedAt: settings.updatedAt }).from(settings).where(where).get();
   if (local && local.updatedAt >= op.at) return;
   const value = JSON.stringify(cleanOrder(op.data.books));
+  db.insert(settings)
+    .values({ profileId: op.profile, key, value, updatedAt: op.at })
+    .onConflictDoUpdate({
+      target: [settings.profileId, settings.key],
+      set: { value, updatedAt: op.at },
+    })
+    .run();
+}
+
+/** Another device's rating of a book; kept by the book's name even when the book isn't here. */
+function applyRating(db: Db, op: Extract<Op, { type: 'rating' }>, now: number): void {
+  if (typeof op.data !== 'object' || op.data === null) return;
+  if (!isText(op.key) || !isText(op.profile, 256)) return;
+  if (typeof op.at !== 'number' || !Number.isFinite(op.at)) return;
+  const rating = op.data.rating === null ? null : cleanRating(op.data.rating);
+  if (op.data.rating !== null && rating === null) return;
+  if (!ensureProfile(db, op.profile, now)) return;
+  const key = `${RATING_PREFIX}${op.key}`;
+  const where = and(eq(settings.profileId, op.profile), eq(settings.key, key));
+  const local = db.select({ updatedAt: settings.updatedAt }).from(settings).where(where).get();
+  if (local && local.updatedAt >= op.at) return;
+  const value = JSON.stringify(rating);
   db.insert(settings)
     .values({ profileId: op.profile, key, value, updatedAt: op.at })
     .onConflictDoUpdate({

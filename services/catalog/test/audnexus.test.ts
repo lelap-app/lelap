@@ -194,6 +194,47 @@ describe('Open Library meta with Audnexus', () => {
   });
 });
 
+describe('Audnexus for editions', () => {
+  it('fills narrators, length and cover of other editions with an ASIN, a few only', async () => {
+    const other = 'B000000001';
+    const fetch = fakeFetch([
+      ...AUDNEXUS_ROUTES,
+      [path(`/books/${other}`), fixture(`audnexus-book-${ASIN}.json`)],
+      [path(`/books/${other}/chapters`), fixture(`audnexus-chapters-${ASIN}.json`)],
+      [(u) => u.hostname === 'api.audnex.us', { error: 'not found' }, 404],
+    ]);
+    const audnexus = createAudnexus(createUpstream(platform(fetch), 'Lelap/1 (test)'));
+    const editions = [
+      { key: 'own', name: 'Own', externalIds: { asin: ASIN } },
+      { key: 'other', name: 'Other', externalIds: { asin: other } },
+      {
+        key: 'told',
+        name: 'Told',
+        narrators: ['Kept'],
+        durationMs: 1,
+        cover: 'https://a.example/c.jpg',
+        externalIds: { asin: 'B000000002' },
+      },
+      ...['3', '4', '5'].map((n) => ({ key: n, name: n, externalIds: { asin: `B00000000${n}` } })),
+    ];
+    const { meta } = await audnexus.enrich({
+      id: 'ol:OL1W',
+      type: 'audiobook',
+      name: 'A work',
+      externalIds: { asin: ASIN },
+      editions,
+    });
+    const byKey = new Map(meta.editions?.map((e) => [e.key, e]));
+    expect(byKey.get('other')?.narrators).toEqual(['Nick Podehl']);
+    expect(byKey.get('other')?.durationMs).toBe(100_554_364);
+    expect(byKey.get('told')).toEqual(editions[2]);
+    // The work's own edition was asked already; of the rest, the first three are asked.
+    const asked = new Set(fetch.calls.map((c) => c.url.pathname.split('/')[2]));
+    expect(asked.has('B000000004')).toBe(true);
+    expect(asked.has('B000000005')).toBe(false);
+  });
+});
+
 describe('Audnexus requests', () => {
   it('pauses after a 429 for as long as Retry-After says', async () => {
     let now = 1_762_905_600_000;

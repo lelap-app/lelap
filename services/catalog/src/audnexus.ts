@@ -1,4 +1,4 @@
-import type { Chapter, Meta, Series } from '@lelap/sdk';
+import type { Chapter, Edition, Meta, Series } from '@lelap/sdk';
 import { z } from 'zod';
 
 import { htmlToText, httpUrl, truncate, unique, yearOf } from './text';
@@ -112,6 +112,9 @@ export function regionsFor(language: string | undefined): Region[] {
   return byLanguage[code] ?? ['us', 'uk'];
 }
 
+/** Editions besides the work's own that Audnexus is asked about per meta. */
+export const EDITIONS_FILLED = 3;
+
 export type Audnexus = {
   /** Asks each region in turn until one has the ASIN; `us` alone by default. */
   details: (asin: string, regions?: readonly Region[]) => Promise<Details>;
@@ -179,6 +182,40 @@ export function createAudnexus(upstream: Upstream): Audnexus {
     };
   };
 
+  /**
+   * Narrators, length and cover for editions with an ASIN that lack them (M102), from Audnexus.
+   * The first few only: each asks Audnexus twice, and the work's own ASIN was asked already.
+   */
+  const fillEditions = async (editions: Edition[], asked: string): Promise<Edition[]> => {
+    const wanting = editions
+      .filter((e) => {
+        const asin = e.externalIds?.asin;
+        return asin && asin !== asked && (!e.narrators?.length || !e.durationMs || !e.cover);
+      })
+      .slice(0, EDITIONS_FILLED);
+    const found = new Map(
+      await Promise.all(
+        wanting.map(async (e) => {
+          const asin = e.externalIds?.asin ?? '';
+          return [asin, await details(asin, regionsFor(e.language))] as const;
+        }),
+      ),
+    );
+    return editions.map((edition) => {
+      const asin = edition.externalIds?.asin;
+      const got = asin ? found.get(asin) : undefined;
+      if (got?.status !== 'ok') return edition;
+      const narrators = got.book ? names(got.book.narrators).slice(0, 20) : [];
+      const cover = httpUrl(got.book?.image);
+      return {
+        ...edition,
+        ...(!edition.narrators?.length && narrators.length > 0 ? { narrators } : {}),
+        ...(!edition.durationMs && got.durationMs ? { durationMs: got.durationMs } : {}),
+        ...(!edition.cover && cover ? { cover } : {}),
+      };
+    });
+  };
+
   return {
     details,
     async enrich(meta) {
@@ -197,6 +234,7 @@ export function createAudnexus(upstream: Upstream): Audnexus {
         enriched.durationMs = found.durationMs;
         if (found.chapters.length > 0) enriched.chapters = found.chapters;
       }
+      if (meta.editions?.length) enriched.editions = await fillEditions(meta.editions, asin);
       return { meta: enriched, failed: false };
     },
     async meta(id) {

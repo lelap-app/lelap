@@ -622,6 +622,26 @@ export async function checkAddon(input: string, options: CheckOptions = {}): Pro
         'warning',
       );
     const meta = MetaResponse.parse(answer.body).meta;
+    // The app keeps the listener's choice of edition by its key.
+    const keys = (meta.editions ?? []).map((e) => e.key);
+    keys.forEach((key, index) => {
+      if (keys.indexOf(key) !== index)
+        report(
+          'warning',
+          'meta',
+          answer.url,
+          `Two editions have the key “${key}”, so choosing one may show the other.`,
+          `meta.editions[${index}].key`,
+        );
+    });
+    if (meta.editions?.length === 1)
+      report(
+        'warning',
+        'meta',
+        answer.url,
+        'One edition only: the item page lists editions from two on, so this one is never shown.',
+        'meta.editions',
+      );
     if (meta.id !== item.id)
       report(
         'error',
@@ -830,6 +850,17 @@ function checkManifestSense(
   ) => void,
 ) {
   const names = manifest.resources.map((r) => (typeof r === 'string' ? r : r.name));
+  manifest.resources.forEach((r, index) => {
+    if (typeof r === 'string' || !r.events) return;
+    if (r.name !== 'scrobble')
+      report(
+        'warning',
+        'manifest',
+        url,
+        `Only scrobble takes events; ${r.name} ignores them.`,
+        `resources[${index}].events`,
+      );
+  });
   if (names.includes('catalog') && manifest.catalogs.length === 0)
     report(
       'warning',

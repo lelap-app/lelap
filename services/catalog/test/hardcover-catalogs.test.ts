@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../src/app';
 import { cacheOwner, editionIds, retryAfter } from '../src/scrobble/hardcover-api';
-import { DRAFT_MS } from '../src/scrobble/mount';
+const DRAFT_MS = 60 * 60 * 1000;
 import { listLink, MAX_LISTS } from '../src/scrobble/hardcover-catalogs';
 import { createSealer } from '../src/scrobble/sealed';
 import type { FetchLike, ResponseCache } from '../src/upstream';
@@ -136,6 +136,29 @@ function hardcover() {
         },
       });
     }
+    if (query.includes('query AudioEditions')) {
+      return json({
+        data: {
+          editions: [
+            {
+              id: 501,
+              release_date: '2010-03-01',
+              audio_seconds: 30_000,
+              asin: 'B002RI9ZQ4',
+              isbn_13: null,
+              publisher: { name: 'Blackstone Audio' },
+              image: { url: 'https://assets.hardcover.app/501.jpg' },
+              contributions: [
+                { contribution: 'Narrator', author: { name: 'Robert Bethune' } },
+                { contribution: null, author: { name: 'Henry David Thoreau' } },
+              ],
+            },
+            { id: 502, edition_format: 'Audible Audio', contributions: [] },
+            { id: 501, edition_format: 'twice' },
+          ],
+        },
+      });
+    }
     return json({ errors: [{ message: `unexpected ${query}` }] });
   };
   return {
@@ -182,7 +205,7 @@ const postForm = (app: App, path: string, form: URLSearchParams) =>
 const draftOf = (html: string) => /name="draft" value="([^"]+)"/.exec(html)?.[1] ?? '';
 const linkOf = (html: string) => /<code>([^<]+manifest\.json)<\/code>/.exec(html)?.[1] ?? '';
 const ticked = (html: string) =>
-  [...html.matchAll(/name="(\w+)" id="[^"]+" value="([^"]+)" checked/g)].map(
+  [...html.matchAll(/name="(\w+)" value="([^"]+)" checked/g)].map(
     ([, name, value]) => `${name}=${value}`,
   );
 
@@ -228,18 +251,20 @@ describe('Hardcover catalogs', () => {
     for (const name of ['Listen next', 'Favourites', 'Friends’ picks', 'Hardcover staff picks'])
       expect(html).toContain(name);
     expect(html).not.toContain('Other listener');
-    expect(ticked(html)).toEqual(['trending=month', 'trending=all', 'list=10', 'list=11']);
+    expect(ticked(html)).toEqual(['trending=month', 'trending=all', 'mine=10', 'mine=11']);
   });
 
   it('shows the chosen rows, credited to Hardcover', async () => {
     const app = appWith(hardcover().fetch);
     const { url, html } = await configure(app, READER, {
       trending: ['month'],
-      list: ['10', '20', '30'],
+      mine: ['10'],
+      followed: ['20'],
+      featured: ['30'],
       links: ['https://hardcover.app/@someone/lists/cosy'],
     });
     expect(html).not.toContain('reader-token');
-    expect(url).toMatch(/^https:\/\/addons\.example\/hardcover\/v1\.[\w-]+\/manifest\.json$/);
+    expect(url).toMatch(/^https:\/\/addons\.example\/hardcover\/e2\.[\w-]+\/manifest\.json$/);
     const manifest = (await (await get(app, url)).json()) as Manifest;
     expect(manifest.catalogs.map((c) => [c.id, c.name])).toEqual([
       ['want-to-read', 'Want to read'],
@@ -266,8 +291,15 @@ describe('Hardcover catalogs', () => {
     expect(notAList.html).toContain('is not a link to a Hardcover list');
 
     const many = await configure(app, READER, {
-      list: ['10', '11', '20', '30'],
-      links: Array.from({ length: MAX_LISTS }, () => 'https://hardcover.app/@someone/lists/cosy'),
+      mine: ['10', '11'],
+      followed: ['20'],
+      featured: ['30'],
+      // One text field: several links in it, apart by spaces.
+      links: [
+        Array.from({ length: MAX_LISTS }, () => 'https://hardcover.app/@someone/lists/cosy').join(
+          ' ',
+        ),
+      ],
     });
     expect(many.html).toContain(`Pick up to ${MAX_LISTS} lists.`);
   });
@@ -295,7 +327,7 @@ describe('Hardcover catalogs', () => {
 
   it('lists a list’s books in its own order, kept out of shared caches', async () => {
     const app = appWith(hardcover().fetch);
-    const { url } = await configure(app, READER, { list: ['10'] });
+    const { url } = await configure(app, READER, { mine: ['10'] });
     const response = await catalog(app, url, 'list-10');
     const body = (await response.json()) as { metas: MetaPreview[]; cacheMaxAge: number };
     expect(body.metas.map((m) => [m.id, m.name, m.cover])).toEqual([
@@ -309,7 +341,7 @@ describe('Hardcover catalogs', () => {
     const server = hardcover();
     const { cache, entries } = recordingCache();
     const app = appWith(server.fetch, cache);
-    const reader = await configure(app, READER, { list: ['10'] });
+    const reader = await configure(app, READER, { mine: ['10'] });
     expect(await names(await catalog(app, reader.url, 'list-10'))).toEqual([
       '10 first',
       '10 third',
@@ -338,7 +370,7 @@ describe('Hardcover catalogs', () => {
   it('asks to set up again when the token is refused, expired or lacks a scope', async () => {
     const server = hardcover();
     const app = appWith(server.fetch);
-    const { url } = await configure(app, READER, { trending: ['month'], list: ['10'] });
+    const { url } = await configure(app, READER, { trending: ['month'], mine: ['10'] });
 
     server.fail(401, { error: 'invalid_token', error_description: 'expired' });
     const expired = await catalog(app, url, 'list-10');
@@ -413,7 +445,7 @@ describe('Hardcover catalogs', () => {
       'trending-all',
     ]);
     // Configured, so the app installs it rather than opening the configure page.
-    expect(manifest.behaviorHints?.configurationRequired).toBeUndefined();
+    expect(manifest.behaviorHints?.configurationRequired).toBe(false);
     expect(manifest.behaviorHints?.configurable).toBe(true);
   });
 
@@ -421,11 +453,11 @@ describe('Hardcover catalogs', () => {
     const app = appWith(hardcover().fetch);
     const { response, html } = await configure(app, READER, {
       trending: ['all'],
-      list: ['20'],
+      followed: ['20'],
       links: ['https://hardcover.app/@someone/lists/secret'],
     });
     expect(response.status).toBe(400);
-    expect(ticked(html)).toEqual(['trending=all', 'list=20']);
+    expect(ticked(html)).toEqual(['trending=all', 'followed=20']);
     expect(html).toContain('value="https://hardcover.app/@someone/lists/secret"');
   });
 
@@ -437,11 +469,11 @@ describe('Hardcover catalogs', () => {
     ).text();
     const draft = draftOf(first);
     // A draft from the page's source is not an add-on link.
-    expect((await get(app, `${ORIGIN}/hardcover/${draft}/manifest.json`)).status).toBe(401);
+    expect((await get(app, `${ORIGIN}/hardcover/${draft}/manifest.json`)).status).toBe(403);
     now = DRAFT_MS + 1;
     const late = await postForm(app, '/hardcover/configure', new URLSearchParams({ draft }));
     expect(late.status).toBe(400);
-    expect(await late.text()).toContain('expired');
+    expect(await late.text()).toContain('ran out');
     // A finished link is not a draft either.
     const link = await createSealer(SECRET, 'hardcover')?.seal({ token: READER });
     const wrong = await postForm(
@@ -471,13 +503,13 @@ describe('Hardcover catalogs', () => {
   it('changes the rows from the link without asking for the token again', async () => {
     const app = appWith(hardcover().fetch);
     const { url } = await configure(app, READER, {
-      list: ['20'],
+      followed: ['20'],
       links: ['https://hardcover.app/@someone/lists/cosy'],
     });
     const html = await (await get(app, url.replace('manifest.json', 'configure'))).text();
     expect(html).toContain('name="draft"');
     expect(html).not.toContain('reader-token');
-    expect(ticked(html)).toEqual(['list=20', 'list=40']);
+    expect(ticked(html)).toEqual(['followed=20', 'linked=40']);
     expect(html).toContain('Added by link');
   });
 
@@ -493,6 +525,29 @@ describe('Hardcover catalogs', () => {
     expect(editionIds([{ isbn_13: '9780141036144', reading_format_id: 1 }])).toEqual({
       isbn: '9780141036144',
     });
+  });
+
+  it('lists the audiobook editions of a work, with their narrators', async () => {
+    const app = appWith(hardcover().fetch);
+    const { url } = await configure(app, READER, {});
+    const response = await get(
+      app,
+      url.replace('manifest.json', 'meta/audiobook/hardcover:42.json'),
+    );
+    const { meta } = (await response.json()) as { meta: { editions?: unknown[] } };
+    expect(meta.editions).toEqual([
+      {
+        key: '501',
+        name: 'Blackstone Audio, 2010',
+        year: 2010,
+        narrators: ['Robert Bethune'],
+        publisher: 'Blackstone Audio',
+        cover: 'https://assets.hardcover.app/501.jpg',
+        durationMs: 30_000_000,
+        externalIds: { asin: 'B002RI9ZQ4' },
+      },
+      { key: '502', name: 'Audible Audio' },
+    ]);
   });
 
   it('reads list links', () => {

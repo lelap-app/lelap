@@ -12,7 +12,8 @@ import { addonBase, type InstalledAddon, REQUEST_TIMEOUT_MS } from './addons/cli
 import type { Db } from './db';
 import type { IdGenerator } from './ids';
 import { bookLinks } from './library/links';
-import { books, downloads, episodes, podcasts, scrobbleOutbox } from './schema';
+import { deviceValue, setDeviceValue } from './profiles';
+import { books, downloads, episodes, libraryEntries, podcasts, scrobbleOutbox } from './schema';
 
 // Scrobbling: what the listener plays is reported to the add-ons that declare `scrobble`. Events
 // wait in an outbox on the device and go out in order, so listening offline is reported later
@@ -123,29 +124,65 @@ export function enqueueScrobble(
     addons: InstalledAddon[];
     event: Omit<ScrobbleEvent, 'eventId'>;
     newId: IdGenerator;
+    /** The library book, so a finished one keeps `resumed` for every add-on. */
+    bookId?: string;
   },
 ): ScrobbleEvent | null {
   const { profileId, addons, newId } = args;
+  // Going back into a finished book is never a fresh start, also for an add-on that never heard
+  // of it: it may have heard the finish before this device kept track.
+  const finished =
+    args.bookId !== undefined &&
+    (db
+      .select({ at: libraryEntries.finishedAt })
+      .from(libraryEntries)
+      .where(and(eq(libraryEntries.profileId, profileId), eq(libraryEntries.bookId, args.bookId)))
+      .get()?.at ?? null) !== null;
   const event = { ...args.event, eventId: newId() };
   if (!ScrobbleEventSchema.safeParse(event).success) return null;
-  const targets = addons.filter((a) => wantsScrobble(a.manifest, event.item.type, event.item.id));
+  const targets = addons.filter((a) =>
+    wantsScrobble(a.manifest, event.item.type, event.item.id, event.event),
+  );
   if (targets.length === 0) return null;
+  const item = scrobbleItemKey(event.item);
   db.transaction((tx) => {
     for (const addon of targets) {
+      const key = `${HEARD_PREFIX}${profileId}\n${addon.url}\n${item}`;
+      const heard = deviceValue(tx, key) !== null;
+      // Revision 10: `resumed` only to an add-on that heard of the book before, so a book begun
+      // before the add-on was set up still reaches it.
+      const sent: ScrobbleEvent = { ...event };
+      if (!heard && !finished) delete sent.resumed;
       tx.insert(scrobbleOutbox)
         .values({
           eventId: event.eventId,
           addonUrl: addon.url,
           profileId,
-          event,
+          event: sent,
           at: event.at,
           nextAttemptAt: event.at,
         })
         .onConflictDoNothing()
         .run();
+      if (!heard) setDeviceValue(tx, key, '1', event.at);
     }
   });
   return event;
+}
+
+// Which add-on heard of which book, per profile, on this device only: never synced, since every
+// device keeps its own outbox. Device values, so no migration.
+const HEARD_PREFIX = 'scrobbled:';
+
+/** What names a scrobbled item across events: its ID, else a work ID, else title and author. */
+export function scrobbleItemKey(item: ScrobbleItem): string {
+  if (item.id) return item.id;
+  if (item.episodeGuid) return `episode:${item.podcast?.feed ?? ''}\n${item.episodeGuid}`;
+  for (const prefix of ['ol', 'isbn', 'asin'] as const) {
+    const id = item.externalIds?.[prefix];
+    if (id) return `${prefix}:${id}`;
+  }
+  return `name:${item.name.toLowerCase()}\n${(item.author ?? '').toLowerCase()}`;
 }
 
 /** When the next event is due, or null when the outbox is empty. */

@@ -9,7 +9,7 @@ import {
   type WorkRef,
 } from '@lelap/core';
 import type { Badges, MetaPreview } from '@lelap/sdk';
-import { createContext, type ReactNode, useContext, useMemo } from 'react';
+import { createContext, type ReactNode, useContext, useMemo, useSyncExternalStore } from 'react';
 import { Text, View } from 'react-native';
 
 import { db } from '../db';
@@ -54,9 +54,46 @@ export function newEpisodesBadges(count: number, on: boolean): CoverBadge[] {
 /** Badges fit on a cover by its size: one on a list row's, two on a tile's, all on a large one. */
 export const badgesFor = (size: number) => (size < 100 ? 1 : size < 200 ? 2 : 3);
 
+// The rating an item page last showed, by item (M102). A catalog may rate from a summary that
+// lags behind the item page's own count (LibriVox's from archive.org), so its tile shows what the
+// listener saw on the page instead of a number a few tenths off. Kept while the app runs.
+const shownRatings = new Map<string, number | null>();
+const SHOWN_RATINGS_MAX = 500;
+let shownVersion = 0;
+const watchers = new Set<() => void>();
+
+/** Remembers the rating on an item page, or that it had none, for the item's tiles. */
+export function keepShownRating(meta: MetaPreview): void {
+  const key = `${meta.type}\n${meta.id}`;
+  const rating = meta.badges?.rating ?? null;
+  if (shownRatings.has(key) && shownRatings.get(key) === rating) return;
+  shownRatings.delete(key);
+  shownRatings.set(key, rating);
+  if (shownRatings.size > SHOWN_RATINGS_MAX)
+    shownRatings.delete(shownRatings.keys().next().value ?? '');
+  shownVersion++;
+  for (const watch of watchers) watch();
+}
+
+const subscribe = (watch: () => void) => {
+  watchers.add(watch);
+  return () => watchers.delete(watch);
+};
+
+/** The add-on's badges with the rating its item page showed, when the listener opened it. */
+function withShownRating(meta: MetaPreview): Badges | undefined {
+  const key = `${meta.type}\n${meta.id}`;
+  if (!shownRatings.has(key)) return meta.badges;
+  const rating = shownRatings.get(key) ?? null;
+  const rest: Badges = { ...meta.badges };
+  delete rest.rating;
+  return rating === null ? rest : { ...rest, rating };
+}
+
 /** The badges for a catalog item's cover: the add-on's data and this profile's own state. */
 export function useMetaBadges(meta: MetaPreview | undefined, size: number): CoverBadge[] {
   const source = useContext(BadgeSourceContext);
+  const version = useSyncExternalStore(subscribe, () => shownVersion);
   return useMemo(() => {
     const { on, listening } = source;
     if (!on || !meta) return [];
@@ -66,8 +103,9 @@ export function useMetaBadges(meta: MetaPreview | undefined, size: number): Cove
       name: meta.name,
       ...(meta.author ? { author: meta.author } : {}),
     };
-    return coverBadges(meta.badges, listening(work), badgesFor(size));
-  }, [source, meta, size]);
+    return coverBadges(withShownRating(meta), listening(work), badgesFor(size));
+    // `version` is the signal that an item page showed another rating.
+  }, [source, meta, size, version]);
 }
 
 /**

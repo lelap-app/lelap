@@ -1,4 +1,10 @@
-import { AddonError, type CatalogDefinition, type MetaPreview } from '@lelap/sdk';
+import {
+  AddonError,
+  type CatalogDefinition,
+  type Config,
+  type ConfigField,
+  type MetaPreview,
+} from '@lelap/sdk';
 
 import { TTL } from '../upstream';
 import {
@@ -9,7 +15,6 @@ import {
   preview,
   type TokenCache,
 } from './hardcover-api';
-import type { Field } from './mount';
 
 // Catalogs from Hardcover (M76): trending books, featured lists, the listener's own lists, the
 // lists they follow and public lists added by link. They run on the listener's own token only:
@@ -152,75 +157,79 @@ async function listByLink(gql: GraphQL, user: number, text: string): Promise<Lis
 
 const idOf = (list: ListRef) => String(list.id);
 
+/** The list groups of the choices page; one field each, since the SDK keys fields apart. */
+export const LIST_GROUPS = ['mine', 'followed', 'featured', 'linked'] as const;
+
 /** The second settings page: which trending rows and lists to show. */
 export function pickFields(
   available: Available,
   shown: Shown | undefined,
   canReadLists = true,
-): Field[] {
+): ConfigField[] {
   const chosen = new Set((shown?.lists ?? []).map(idOf));
   // A new link starts with the listener's own lists ticked, up to the limit.
   const ownByDefault = new Set(available.mine.slice(0, MAX_LISTS).map(idOf));
-  const ticked = (list: ListRef) => (shown ? chosen.has(idOf(list)) : ownByDefault.has(idOf(list)));
+  const ticked = (lists: ListRef[]) =>
+    lists.filter((l) => (shown ? chosen.has(idOf(l)) : ownByDefault.has(idOf(l)))).map(idOf);
   const known = new Set(
     [...available.mine, ...available.followed, ...available.featured].map(idOf),
   );
   const byLink = (shown?.lists ?? []).filter((l) => !known.has(idOf(l)));
-  const group = (label: string, lists: ListRef[], hint?: string): Field => ({
-    name: 'list',
+  const group = (key: string, label: string, lists: ListRef[]): ConfigField => ({
+    key,
     label,
-    type: 'checkbox',
-    required: false,
-    ...(hint ? { hint } : {}),
-    options: lists.map((l) => ({ value: idOf(l), label: l.name, checked: ticked(l) })),
+    type: 'choices',
+    options: lists.map((l) => ({ value: idOf(l), label: l.name })),
+    default: ticked(lists),
   });
   const trending = shown?.trending ?? DEFAULT_SHOWN.trending;
-  const fields: Field[] = [
+  const fields: ConfigField[] = [
     {
-      name: 'trending',
+      key: 'trending',
       label: 'Trending on Hardcover',
-      type: 'checkbox',
-      required: false,
+      type: 'choices',
       ...(canReadLists
         ? {}
         : {
-            hint: 'Your token lacks read:lists, so lists can’t be shown. Make one with it to add them.',
+            help: 'Your token lacks read:lists, so lists can’t be shown. Make one with it to add them.',
           }),
       options: [
-        { value: 'month', label: 'This month', checked: trending.includes('month') },
-        { value: 'all', label: 'All time', checked: trending.includes('all') },
+        { value: 'month', label: 'This month' },
+        { value: 'all', label: 'All time' },
       ],
+      default: [...trending],
     },
-    group('Your lists', available.mine),
-    group('Lists you follow', available.followed),
-    group('Featured on Hardcover', available.featured),
-    group('Added by link', byLink),
+    group('mine', 'Your lists', available.mine),
+    group('followed', 'Lists you follow', available.followed),
+    group('featured', 'Featured on Hardcover', available.featured),
+    group('linked', 'Added by link', byLink),
     {
-      name: 'links',
+      key: 'links',
       label: 'Add lists by link',
       type: 'text',
-      required: false,
       placeholder: `${HARDCOVER_SITE}/@someone/lists/some-list`,
-      hint: `Public lists, or your own. Separate several with spaces. Up to ${MAX_LISTS} lists in all.`,
+      help: `Public lists, or your own. Separate several with spaces. Up to ${MAX_LISTS} lists in all.`,
     },
   ];
   return fields.filter(
     (f) =>
-      (f.type !== 'checkbox' || (f.options?.length ?? 0) > 0) &&
-      (canReadLists || f.name !== 'links'),
+      (f.type !== 'choices' || (f.options?.length ?? 0) > 0) && (canReadLists || f.key !== 'links'),
   );
 }
+
+const values = (value: Config[string] | undefined): string[] =>
+  Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
 
 /** The listener's picks as settings; throws an `AddonError` (400) with what to fix. */
 export async function applyPicks(
   gql: GraphQL,
   user: number,
   available: Available,
-  form: (name: string) => string[],
+  chosen: Config,
   previous: Shown | undefined,
 ): Promise<Shown> {
-  const trending = (['month', 'all'] as const).filter((t) => form('trending').includes(t));
-  const ticked = new Set(form('list'));
+  const trending = (['month', 'all'] as const).filter((t) => values(chosen.trending).includes(t));
+  const ticked = new Set(LIST_GROUPS.flatMap((key) => values(chosen[key])));
   const offered = [
     ...available.mine,
     ...available.followed,
@@ -229,7 +238,7 @@ export async function applyPicks(
   ];
   const lists = new Map<number, ListRef>();
   for (const list of offered) if (ticked.has(idOf(list))) lists.set(list.id, list);
-  const links = form('links')
+  const links = values(chosen.links)
     .flatMap((value) => value.split(/[\s,]+/))
     .filter(Boolean);
   if (lists.size + links.length > MAX_LISTS)
@@ -239,6 +248,23 @@ export async function applyPicks(
     lists.set(list.id, list);
   }
   return { trending, lists: [...lists.values()] };
+}
+
+/** The choice as the SDK keeps it: trending rows, and lists as `id:name`. */
+export function storeShown(shown: Shown): Config {
+  return { trending: [...shown.trending], lists: shown.lists.map((l) => `${l.id}:${l.name}`) };
+}
+
+/** A choice kept by `storeShown`, or a link's from before M102 (`{ trending, lists }` objects). */
+export function reviveStoredShown(trending: unknown, lists: unknown): Shown {
+  const parsed = Array.isArray(lists)
+    ? lists.map((l: unknown) => {
+        if (typeof l !== 'string') return l;
+        const at = l.indexOf(':');
+        return { id: Number(l.slice(0, at)), name: l.slice(at + 1) };
+      })
+    : lists;
+  return reviveShown({ trending, lists: parsed });
 }
 
 /** How long answers are kept per token: hours, since each request counts against its limit. */

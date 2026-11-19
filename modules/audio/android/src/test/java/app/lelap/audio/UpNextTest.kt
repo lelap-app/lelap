@@ -34,8 +34,10 @@ class UpNextTest {
   }
 
   @Test fun `the finished log round-trips`() {
-    val log = listOf(Finished("a", 1), Finished("b", 2))
+    val log = listOf(Finished("a", 1), Finished("b", 2, "b/0.mp3", 61_000))
     assertEquals(log, UpNext.decodeFinished(UpNext.encodeFinished(log)))
     assertTrue(UpNext.decodeFinished("{").isEmpty())
+    // A log written before M102 has no session start.
+    assertEquals(listOf(Finished("c", 3)), UpNext.decodeFinished("""[{"bookId":"c","at":3}]"""))
   }
 }

@@ -1,7 +1,7 @@
 import { AddonError, type Manifest, type ScrobbleEvent } from '@lelap/sdk';
 
 import type { FetchLike } from '../upstream';
-import type { ConfigurableAddon } from './mount';
+import type { ScrobbleAddon } from './mount';
 
 // Episode actions for a gPodder-compatible server: gpodder.net's API 2, or the Nextcloud gPodder
 // Sync app, which AntennaPod and other podcast apps also read. Listening becomes a `play` action
@@ -20,13 +20,13 @@ export type GpodderConfig = {
 
 export const gpodderManifest: Manifest = {
   id: 'app.lelap.gpodder',
-  version: '1.0.0',
+  version: '1.1.0',
   protocol: 1,
   name: 'gPodder sync',
   description:
     'Reports the episodes you play to a gPodder-compatible server (gpodder.net or Nextcloud), so other podcast apps continue where you stopped.',
   types: ['episode'],
-  resources: ['scrobble'],
+  resources: [{ name: 'scrobble', events: ['pause', 'progress', 'finish'] }],
   catalogs: [],
   configurable: true,
 };
@@ -183,48 +183,65 @@ async function upload(fetch: FetchLike, config: GpodderConfig, body: unknown, us
   if (!response.ok) throw new AddonError(502, `The gPodder server answered ${response.status}`);
 }
 
-export function gpodderAddon(
-  fetch: FetchLike,
-  userAgent: string,
-): Omit<ConfigurableAddon<GpodderConfig>, 'onError'> {
+/** Settings from the SDK's config or a sealed link from before M102; null when they don't fit. */
+export function reviveGpodder(value: unknown): GpodderConfig | null {
+  const v = value as Partial<Record<keyof GpodderConfig, unknown>> | null;
+  if (!v || typeof v.server !== 'string' || typeof v.username !== 'string') return null;
+  if (typeof v.password !== 'string' || !v.username.trim() || !v.password) return null;
+  let server: string;
+  try {
+    server = serverUrl(v.server);
+  } catch {
+    return null;
+  }
+  return {
+    flavor: v.flavor === 'nextcloud' ? 'nextcloud' : 'gpodder',
+    server,
+    username: v.username.trim(),
+    password: v.password,
+  };
+}
+
+export function gpodderAddon(fetch: FetchLike, userAgent: string): ScrobbleAddon<GpodderConfig> {
   return {
     basePath: BASE_PATH,
     manifest: gpodderManifest,
-    intro:
-      'Enter the gPodder-compatible server that keeps your podcast places, such as gpodder.net or your Nextcloud with the gPodder Sync app. Use an app password where the server offers one.',
+    text: {
+      intro:
+        'Enter the gPodder-compatible server that keeps your podcast places, such as gpodder.net or your Nextcloud with the gPodder Sync app. Use an app password where the server offers one.',
+    },
     fields: [
       {
-        name: 'flavor',
+        key: 'flavor',
         label: 'Server type',
         type: 'select',
+        required: true,
         options: [
           { value: 'gpodder', label: 'gpodder.net API (also mygpo and compatible servers)' },
           { value: 'nextcloud', label: 'Nextcloud gPodder Sync' },
         ],
       },
-      { name: 'server', label: 'Server address', type: 'url', placeholder: 'https://gpodder.net' },
-      { name: 'username', label: 'User name', type: 'text' },
-      { name: 'password', label: 'Password or app password', type: 'password' },
+      {
+        key: 'server',
+        label: 'Server address',
+        type: 'url',
+        required: true,
+        placeholder: 'https://gpodder.net',
+      },
+      { key: 'username', label: 'User name', type: 'text', required: true },
+      { key: 'password', label: 'Password or app password', type: 'password', required: true },
     ],
     parse: (form) => {
-      const flavor: GpodderFlavor = form.flavor === 'nextcloud' ? 'nextcloud' : 'gpodder';
-      const username = (form.username ?? '').trim();
-      const password = form.password ?? '';
-      if (!username || !password) throw new AddonError(400, 'Enter a user name and password.');
-      return { flavor, server: serverUrl(form.server ?? ''), username, password };
+      const server = serverUrl(typeof form.server === 'string' ? form.server : '');
+      const config = reviveGpodder({ ...form, server });
+      if (!config) throw new AddonError(400, 'Enter a user name and password.');
+      return config;
     },
-    // An empty upload checks the address and the login without recording anything.
-    check: (config) => upload(fetch, config, [], userAgent),
-    revive: (value) => {
-      const v = value as Partial<GpodderConfig> | null;
-      if (!v || typeof v.server !== 'string' || typeof v.username !== 'string') return null;
-      if (typeof v.password !== 'string') return null;
-      return {
-        flavor: v.flavor === 'nextcloud' ? 'nextcloud' : 'gpodder',
-        server: v.server,
-        username: v.username,
-        password: v.password,
-      };
+    revive: reviveGpodder,
+    store: (config) => ({ ...config }),
+    check: async (config) => {
+      // An empty upload checks the address and the login without recording anything.
+      await upload(fetch, config, [], userAgent);
     },
     handlers: (config) => ({
       scrobble: async ({ events }) => {

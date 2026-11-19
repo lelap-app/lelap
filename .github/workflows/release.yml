@@ -75,6 +75,7 @@ jobs:
           abi: ${{ matrix.abi }}
           tag: ${{ github.ref_name }}
           domain: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
+          contact: ${{ vars.LELAP_CONTACT }}
       - id: report
         name: Report the SHA-256
         env:
@@ -397,6 +398,8 @@ jobs:
       - name: Export the bundle
         env:
           EXPO_PUBLIC_LELAP_DOMAIN: ${{ vars.LELAP_DOMAIN || 'lelap.app' }}
+          # As in the APKs, so an update's User-Agent is theirs.
+          EXPO_PUBLIC_LELAP_CONTACT: ${{ vars.LELAP_CONTACT }}
           APK_RUNTIME: ${{ needs.apk.outputs.runtime }}
         working-directory: apps/app
         run: |

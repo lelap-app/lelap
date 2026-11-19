@@ -1081,5 +1081,22 @@
   "Day when the phone is light, Night when it is dark.": "Siang apabila telefon cerah, Malam apabila gelap.",
   "For this profile only. Car mode stays light by day and dark at night.": "Untuk profil ini sahaja. Mod kereta kekal cerah pada siang hari dan gelap pada waktu malam.",
   "Text at 7:1 or more, stronger borders, wider focus rings and no text over covers.": "Teks pada 7:1 atau lebih, sempadan lebih jelas, gelang fokus lebih lebar dan tiada teks di atas kulit buku.",
-  "Zoom the position bar in or out, while it has focus": "Zum masuk atau keluar bar kedudukan, semasa ia difokuskan"
+  "Zoom the position bar in or out, while it has focus": "Zum masuk atau keluar bar kedudukan, semasa ia difokuskan",
+  "1 book on your to-read shelf is not here. Look it up in {names} for a Want to read row on Home? Its title and author go to them.": "1 buku di rak mahu dibaca anda tiada di sini. Cari dalam {names} untuk baris Mahu dibaca di Utama? Tajuk dan pengarangnya dihantar kepada mereka.",
+  "{n} books on your to-read shelf are not here. Look them up in {names} for a Want to read row on Home? Their titles and authors go to them.": "{n} buku di rak mahu dibaca anda tiada di sini. Cari dalam {names} untuk baris Mahu dibaca di Utama? Tajuk dan pengarangnya dihantar kepada mereka.",
+  "Clear": "Kosongkan",
+  "Clear Want to read from Goodreads": "Kosongkan Mahu dibaca daripada Goodreads",
+  "Clear Want to read from Goodreads?": "Kosongkan Mahu dibaca daripada Goodreads?",
+  "Import again to bring the books back.": "Import sekali lagi untuk membawa buku itu kembali.",
+  "Look up": "Cari",
+  "Looking up book {i} of {n}…": "Mencari buku {i} daripada {n}…",
+  "Not in the catalogs": "Tiada dalam katalog",
+  "Not rated": "Belum dinilai",
+  "Rate…": "Nilai…",
+  "Ratings go to {names}.": "Penilaian dihantar kepada {names}.",
+  "Remove rating": "Buang penilaian",
+  "Tap again for half a star less.": "Ketik sekali lagi untuk kurang setengah bintang.",
+  "Your rating": "Penilaian anda",
+  "{found} of {total} books are now on Want to read.": "{found} daripada {total} buku kini dalam Mahu dibaca.",
+  "{n} of 5 stars": "{n} daripada 5 bintang"
 }

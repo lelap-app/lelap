@@ -5,6 +5,7 @@ import {
   checkFields,
   type Config,
   type ConfigField,
+  type ConfigureText,
   configuredPage,
   configurePage,
   decodeConfig,
@@ -13,7 +14,7 @@ import {
   readForm,
   returnUrl,
 } from './config';
-import { type Extra, parseExtra, parseRoute } from './paths';
+import { type Extra, parseRoute } from './paths';
 import {
   type CatalogResponse,
   CatalogResponse as CatalogResponseSchema,
@@ -65,7 +66,36 @@ export type ConfigureOptions = {
    * account. Return a message to show it on the form; return nothing to accept it.
    */
   check?: (config: Config, request: Request) => Awaitable<string | null | undefined>;
+  /** What the form says above its fields: an intro, a link, steps and a note. */
+  text?: ConfigureText;
+  /**
+   * A second page once the first is accepted, with fields that depend on it, such as the lists in
+   * the listener's account. The first page's settings ride along sealed for an hour, never shown.
+   */
+  choose?: {
+    intro: string;
+    /** The fields, for the settings so far; a reconfigure starts from the link's own choices. */
+    fields: (config: Config, request: Request) => Awaitable<ConfigField[]>;
+    /**
+     * The settings with the choices in them, or a message to show on the page, which keeps the
+     * ticks and what was typed. Without it, the choices are added as they are.
+     */
+    apply?: (config: Config, chosen: Config, request: Request) => Awaitable<Config | string>;
+  };
+  /** The manifest for one listener's settings, such as catalogs that depend on them. */
+  manifest?: (config: Config) => Manifest;
+  /**
+   * Opens add-on addresses made before the add-on used this configure, so they keep working:
+   * a path segment starting with `prefix` (such as `v1.`) is handed to `open`, and its config is
+   * used as if it came from a token. Configuring again hands out a new token.
+   */
+  legacy?: { prefix: string; open: (segment: string) => Awaitable<Config | null> };
 };
+
+/** Longer tokens are refused, so an add-on address stays usable as a URL. */
+export const MAX_CONFIG_TOKEN = 4096;
+/** How long the second page keeps the first page's settings. */
+export const CHOOSE_DRAFT_MS = 60 * 60 * 1000;
 
 export type AddonHandlers = {
   manifest: Manifest;
@@ -99,6 +129,8 @@ export type AddonOptions = {
   validate?: boolean;
   /** Called with errors thrown by handlers, before the 500 response. */
   onError?: (error: unknown, request: Request) => void;
+  /** The clock, for tests; the second configure page runs out an hour after the first. */
+  now?: () => number;
 };
 
 export type Addon = {
@@ -137,7 +169,7 @@ function json(body: unknown, status = 200, maxAge?: number): Response {
   return new Response(JSON.stringify(body), { status, headers });
 }
 
-function html(body: string, status = 200): Response {
+function html(body: string, status = 200, nonce?: string): Response {
   return new Response(body, {
     status,
     headers: {
@@ -146,10 +178,18 @@ function html(body: string, status = 200): Response {
       // The page and its URLs can carry the listener's settings.
       'Referrer-Policy': 'no-referrer',
       'X-Content-Type-Options': 'nosniff',
-      'Content-Security-Policy':
-        "default-src 'none'; style-src 'unsafe-inline'; img-src https:; frame-ancestors 'none'; base-uri 'none'",
+      'Content-Security-Policy': `default-src 'none'; style-src 'unsafe-inline'; img-src https:; frame-ancestors 'none'; base-uri 'none'${
+        nonce ? `; script-src 'nonce-${nonce}'` : ''
+      }`,
     },
   });
+}
+
+function newNonce(): string {
+  const bytes = (
+    globalThis as unknown as { crypto: { getRandomValues(a: Uint8Array): Uint8Array } }
+  ).crypto.getRandomValues(new Uint8Array(16));
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 function checked<T>(schema: ZodType<T>, value: T, validate: boolean): T {
@@ -169,17 +209,27 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
   const configure = handlers.configure;
   if (configure) checkFields(configure.fields, configure.secret);
   const required = configure?.fields.some((f) => f.required) ?? false;
-  const served = (configured: boolean): Manifest => ({
-    ...declared,
-    protocolVersion: Math.max(declared.protocolVersion ?? 1, LATEST_PROTOCOL_VERSION),
+  const served = (config: Config | null, from: Manifest = declared): Manifest => ({
+    ...from,
+    protocolVersion: Math.max(from.protocolVersion ?? 1, LATEST_PROTOCOL_VERSION),
     ...(configure ? { configurable: true } : {}),
     behaviorHints: {
-      ...declared.behaviorHints,
+      ...from.behaviorHints,
       health: true,
-      ...(configure ? { configurable: true, configurationRequired: required && !configured } : {}),
+      ...(configure
+        ? { configurable: true, configurationRequired: required && config === null }
+        : {}),
     },
   });
-  const manifest = served(false);
+  const manifest = served(null);
+  // One listener's manifest, checked like the declared one; built once per request at most.
+  const manifestFor = (config: Config | null): Manifest =>
+    config && configure?.manifest
+      ? served(config, ManifestSchema.parse(configure.manifest(config)))
+      : config
+        ? served(config)
+        : manifest;
+  const now = options.now ?? Date.now;
   const base = (options.basePath ?? '').replace(/\/+$/, '');
   const validate = options.validate ?? true;
   const typesFor = (resource: string) => {
@@ -201,14 +251,19 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
     let config: Config | null = null;
     let token: string | null = null;
     const first = path.split('/')[0] ?? '';
-    if (isConfigToken(first)) {
+    const legacy = configure?.legacy;
+    const isLegacy = legacy !== undefined && first.length > 0 && first.startsWith(legacy.prefix);
+    if (isConfigToken(first) || isLegacy) {
       if (!configure) return json({ error: 'Not found' }, 404);
       token = first;
       path = path.slice(first.length + 1);
-      config = await decodeConfig(first, configure.secret, declared.id);
+      config = isLegacy
+        ? await legacy.open(first)
+        : await decodeConfig(first, configure.secret, declared.id);
       if (!config)
         return json({ error: 'These settings cannot be read. Configure the add-on again.' }, 403);
     }
+    const current = token ? manifestFor(config) : manifest;
 
     if (path === 'configure' && configure) return await serveConfigure(request, config);
     if (path === 'health') {
@@ -220,7 +275,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
       return json(body, 200, body.cacheMaxAge ?? 0);
     }
     if (path === 'manifest.json' && (request.method === 'GET' || request.method === 'HEAD'))
-      return json(token ? served(true) : manifest, 200, 3600);
+      return json(current, 200, 3600);
     if (required && !config) return json({ error: 'Configure this add-on first' }, 403);
 
     if (path === 'scrobble') {
@@ -249,7 +304,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
     switch (route.resource) {
       case 'catalog': {
         if (!handlers.catalog) break;
-        const known = manifest.catalogs.some((c) => c.type === route.type && c.id === route.id);
+        const known = current.catalogs.some((c) => c.type === route.type && c.id === route.id);
         if (!known) return json({ error: 'Unknown catalog' }, 404);
         const body = checked(
           CatalogResponseSchema,
@@ -296,33 +351,128 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
     const url = new URL(request.url);
     const allowed = (target: string | null | undefined) =>
       target && allowedReturn(target, configure.returnOrigins) ? target : undefined;
+    const choose = configure.choose;
     const page = {
       name: declared.name,
       description: declared.description,
       fields: configure.fields,
       host: url.host,
+      ...(configure.text ? { text: configure.text } : {}),
+      ...(choose ? { submit: 'Next' } : {}),
+      footnote: configure.secret
+        ? 'What you enter is sealed into the add-on’s address with a key only this add-on has. It is not stored on a server.'
+        : 'What you enter is kept in the add-on’s address, not on a server.',
     };
+    const withReturn = (returnTo: string | undefined) => (returnTo ? { returnTo } : {});
     if (request.method === 'GET' || request.method === 'HEAD') {
       const returnTo = allowed(url.searchParams.get('return'));
+      // Changing a link's choices needs no token typed again.
+      if (previous && choose && url.searchParams.get('start') === null) {
+        try {
+          return await choosePage(request, previous, page, returnTo, true);
+        } catch (error) {
+          if (!(error instanceof AddonError)) options.onError?.(error, request);
+          const message =
+            error instanceof AddonError ? error.message : 'Try again in a moment, or start here.';
+          return html(
+            configurePage({ ...page, values: previous, error: message, ...withReturn(returnTo) }),
+          );
+        }
+      }
       return html(
         configurePage({
           ...page,
           ...(previous ? { values: previous } : {}),
-          ...(returnTo ? { returnTo } : {}),
+          ...withReturn(returnTo),
         }),
       );
     }
     if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
-    // The form posts as `application/x-www-form-urlencoded`, which reads like catalog extras.
-    let values: Extra;
-    try {
-      values = parseExtra(await request.text());
-    } catch {
-      return html(configurePage({ ...page, error: 'The form could not be read.' }), 400);
+    const form = new URLSearchParams(await request.text());
+    const returnTo = allowed(form.get('return'));
+    // A problem the add-on could not put in words (its service is down) is logged, not shown.
+    const failed = (error: unknown) => {
+      if (error instanceof AddonError) return error.message;
+      options.onError?.(error, request);
+      return 'The add-on could not check these settings. Try again in a moment.';
+    };
+    const finish = async (config: Config): Promise<Response | string> => {
+      const newToken = await encodeConfig(config, configure.secret, declared.id);
+      if (newToken.length > MAX_CONFIG_TOKEN)
+        return 'That is too much for one address. Choose fewer.';
+      const manifestUrl = `${url.origin}${base}/${newToken}/manifest.json`;
+      if (returnTo)
+        return new Response(null, {
+          status: 303,
+          headers: { Location: returnUrl(returnTo, manifestUrl), 'Referrer-Policy': 'no-referrer' },
+        });
+      const nonce = newNonce();
+      return html(
+        configuredPage({ name: declared.name, manifestUrl, host: url.host, nonce }),
+        200,
+        nonce,
+      );
+    };
+
+    const draft = form.get('draft');
+    if (draft !== null && choose) {
+      const opened = await decodeConfig(draft, configure.secret, `${declared.id} draft`);
+      const until = Number(opened?.['~until']);
+      if (!opened || !Number.isFinite(until) || until < now())
+        return html(
+          configurePage({
+            ...page,
+            error: 'These settings ran out. Start again.',
+            ...withReturn(returnTo),
+          }),
+          400,
+        );
+      const config: Config = { ...opened };
+      delete config['~until'];
+      let fields: ConfigField[] = [];
+      let error: string;
+      try {
+        fields = await choose.fields(config, request);
+        const read = readForm(fields, form);
+        if ('error' in read) error = read.error;
+        else {
+          const applied = choose.apply
+            ? await choose.apply(config, read.config, request)
+            : { ...config, ...read.config };
+          if (typeof applied === 'string') error = applied;
+          else {
+            const done = await finish(applied);
+            if (typeof done !== 'string') return done;
+            error = done;
+          }
+        }
+      } catch (problem) {
+        error = failed(problem);
+      }
+      // Ticks and typed values stay as sent, never the defaults again.
+      const sent: Config = Object.fromEntries(
+        fields.map((f) => [
+          f.key,
+          f.type === 'choices' ? form.getAll(f.key) : (form.get(f.key) ?? ''),
+        ]),
+      );
+      if (fields.length === 0)
+        return html(configurePage({ ...page, error, ...withReturn(returnTo) }), 400);
+      return html(
+        configurePage({
+          ...page,
+          text: { intro: choose.intro },
+          fields,
+          values: sent,
+          error,
+          submit: 'Save',
+          hidden: { draft },
+          ...withReturn(returnTo),
+        }),
+        400,
+      );
     }
-    const form = { get: (name: string): string | null => values[name] ?? null };
-    const raw = form.get('return');
-    const returnTo = allowed(typeof raw === 'string' ? raw : null);
+
     const keep = new Set(configure.fields.filter((f) => f.type === 'password').map((f) => f.key));
     // An empty password field keeps the one already in the URL, so changing a setting does not
     // mean typing the password again.
@@ -332,20 +482,63 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
         if (keep.has(name) && (value === null || value === '') && previous) return previous[name];
         return value;
       },
+      getAll: (name) => form.getAll(name),
     });
     const again = (error: string, values: Config) =>
-      html(configurePage({ ...page, values, error, ...(returnTo ? { returnTo } : {}) }), 400);
+      html(configurePage({ ...page, values, error, ...withReturn(returnTo) }), 400);
     if ('error' in read) return again(read.error, previous ?? {});
-    const problem = await configure.check?.(read.config, request);
+    // The link's other settings, such as earlier choices, stay as they were.
+    const config: Config = { ...(previous ?? {}), ...read.config };
+    let problem: string | null | undefined;
+    try {
+      problem = await configure.check?.(config, request);
+    } catch (error) {
+      problem = failed(error);
+    }
     if (problem) return again(problem, read.config);
-    const newToken = await encodeConfig(read.config, configure.secret, declared.id);
-    const manifestUrl = `${url.origin}${base}/${newToken}/manifest.json`;
-    if (returnTo)
-      return new Response(null, {
-        status: 303,
-        headers: { Location: returnUrl(returnTo, manifestUrl), 'Referrer-Policy': 'no-referrer' },
-      });
-    return html(configuredPage({ name: declared.name, manifestUrl, host: url.host }));
+    if (!choose) {
+      const done = await finish(config);
+      return typeof done === 'string' ? again(done, read.config) : done;
+    }
+    try {
+      return await choosePage(request, config, page, returnTo, false);
+    } catch (error) {
+      return again(failed(error), read.config);
+    }
+  }
+
+  /**
+   * The second configure page for `config`, which rides along sealed with an expiry. From a
+   * configured link it opens first, with a way back to the first page.
+   */
+  async function choosePage(
+    request: Request,
+    config: Config,
+    page: Parameters<typeof configurePage>[0],
+    returnTo: string | undefined,
+    fromLink: boolean,
+  ): Promise<Response> {
+    const choose = configure?.choose;
+    if (!configure || !choose) throw new Error('No second page');
+    const fields = await choose.fields(config, request);
+    const sealed = await encodeConfig(
+      { ...config, '~until': String(now() + CHOOSE_DRAFT_MS) },
+      configure.secret,
+      `${declared.id} draft`,
+    );
+    const start = `configure?start=1${returnTo ? `&return=${encodeURIComponent(returnTo)}` : ''}`;
+    return html(
+      configurePage({
+        ...page,
+        text: { intro: choose.intro },
+        fields,
+        values: config,
+        submit: 'Save',
+        hidden: { draft: sealed },
+        ...(returnTo ? { returnTo } : {}),
+        ...(fromLink ? { restart: start } : {}),
+      }),
+    );
   }
 
   return {

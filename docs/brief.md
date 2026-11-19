@@ -173,7 +173,11 @@ GET  /configure           (the add-on's own settings page)
 - **IDs:** Open Library work IDs are canonical; meta add-ons return `externalIds`. Podcasts use
   `podcast:guid` and episode GUIDs.
 - **Configuration** lives on the add-on's `/configure` page; the app stores only the URL.
-- **Scrobble events** carry an `eventId`, the real timestamp and never the source URL.
+- **Scrobble events** carry an `eventId`, the real timestamp and never the source URL. Since
+  revision 10 a scrobbler lists the `events` it uses; the listener's own rating (per profile,
+  synced) goes out as `rate`, and `resumed` only to an add-on that heard of the book before (M102).
+- **Configure pages** of our Hardcover and gPodder add-ons run on the SDK's `configure` since M102,
+  so third-party add-ons get the same two-page flow; links sealed before it still open.
 
 First-party add-ons: Catalog (Open Library, Audnexus, Podcast Index), LibriVox, Internet Archive
 (old-time radio, lectures and readings that are public domain or Creative Commons; added by its

@@ -236,6 +236,12 @@ export type WantedWork = WorkRef & {
   playable: boolean;
   addedAt: number;
   checkedAt: number | null;
+  /**
+   * Where it came from when not from a want-to-read shelf, such as `goodreads` for an import
+   * (M102). Those stay until the listener removes them: no shelf lists them.
+   */
+  from?: string;
+  cover?: string;
 };
 
 function parseWanted(value: string): WantedWork | null {
@@ -251,6 +257,8 @@ function parseWanted(value: string): WantedWork | null {
       playable: v.playable === true,
       addedAt: typeof v.addedAt === 'number' ? v.addedAt : 0,
       checkedAt: typeof v.checkedAt === 'number' ? v.checkedAt : null,
+      ...(typeof v.from === 'string' ? { from: v.from } : {}),
+      ...(typeof v.cover === 'string' && /^https?:\/\//.test(v.cover) ? { cover: v.cover } : {}),
     };
   } catch {
     return null;
@@ -319,7 +327,7 @@ export function rememberWanted(
       );
     }
     for (const [key, old] of known) {
-      if (!prune || keep.has(key)) continue;
+      if (!prune || keep.has(key) || old.from !== undefined) continue;
       tx.delete(settings)
         .where(
           and(eq(settings.profileId, profileId), eq(settings.key, wantedKey(old.type, old.id))),
@@ -327,6 +335,52 @@ export function rememberWanted(
         .run();
     }
   });
+}
+
+/**
+ * Adds works the listener wants to read from elsewhere, such as a Goodreads import, marked with
+ * `from`. A work already wanted stays as it is. Returns how many were new.
+ */
+export function addWanted(
+  db: Db,
+  profileId: string,
+  works: (WorkRef & { cover?: string })[],
+  from: string,
+  now: number,
+): number {
+  const known = new Set(listWanted(db, profileId).map(workKey));
+  let added = 0;
+  db.transaction((tx) => {
+    for (const work of works) {
+      if (known.has(workKey(work))) continue;
+      known.add(workKey(work));
+      added++;
+      writeWanted(
+        tx,
+        profileId,
+        {
+          type: work.type,
+          id: work.id,
+          name: work.name,
+          ...(work.author ? { author: work.author } : {}),
+          ...(work.cover ? { cover: work.cover } : {}),
+          playable: false,
+          addedAt: now,
+          checkedAt: null,
+          from,
+        },
+        now,
+      );
+    }
+  });
+  return added;
+}
+
+/** Takes a work off the wanted list, such as one from an import the listener no longer wants. */
+export function removeWanted(db: Db, profileId: string, work: { type: string; id: string }): void {
+  db.delete(settings)
+    .where(and(eq(settings.profileId, profileId), eq(settings.key, wantedKey(work.type, work.id))))
+    .run();
 }
 
 /**

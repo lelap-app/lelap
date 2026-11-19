@@ -35,8 +35,14 @@ import { COLORS, Icon, IconButton } from '../src/components/Icon';
 import { addItem, playItem, queries, useAddons, useArtwork } from '../src/addons';
 import { sourceCache } from '../src/availability';
 import { BookCover, coverUri } from '../src/components/BookCover';
-import { badgeWords, useBookBadges, useMetaBadges } from '../src/components/CoverBadges';
+import {
+  badgeWords,
+  keepShownRating,
+  useBookBadges,
+  useMetaBadges,
+} from '../src/components/CoverBadges';
 import { DownloadButton } from '../src/components/DownloadButton';
+import { RatingRow } from '../src/components/Rating';
 import { db } from '../src/db';
 import { startDownload } from '../src/downloads';
 import { formatClock, formatDuration, locale } from '../src/format';
@@ -117,6 +123,10 @@ export default function ItemScreen() {
   const [ownPicked, setOwnPicked] = useState(true);
 
   const meta = useQuery(queries.meta(addons, type, id));
+  // Its tiles show the rating this page shows (M102).
+  useEffect(() => {
+    if (meta.data) keepShownRating(meta.data.meta);
+  }, [meta.data]);
   // The edition this profile chose (M66); the page shows it and asks for audio by its IDs too.
   // `version` is the signal to re-read the database.
   const editionKey = useMemo(() => getEditionChoice(db, profileId, type, id), [type, id, version]);
@@ -418,6 +428,7 @@ export default function ItemScreen() {
                   : t('In your library · streams while online')}
             </Text>
           )}
+          {saved && <RatingRow key={saved.book.id} bookId={saved.book.id} profile={profileId} />}
 
           {canDownload && (
             <DownloadButton

@@ -1,20 +1,36 @@
+/** One choice of a `select` or `choices` field: what is sent and what the listener reads. */
+export type ConfigOption = { value: string; label: string };
+
 /** One setting on an add-on's configure page. */
 export type ConfigField = {
   /** The key in the config object; letters, digits, `_` and `-`. */
   key: string;
   label: string;
-  /** `password` values are never shown again on the page and need `secret` to be set. */
-  type: 'text' | 'password' | 'select' | 'checkbox';
+  /**
+   * `password` values are never shown again on the page and need `secret` to be set. `url` is an
+   * http or https address without a login in it. `choices` is a group of boxes to tick, kept as a
+   * list of the ticked values.
+   */
+  type: 'text' | 'password' | 'url' | 'select' | 'checkbox' | 'choices';
   required?: boolean;
-  /** Choices for `select`. */
-  options?: string[];
-  default?: string | boolean;
+  /** Choices for `select` and `choices`: plain values, or values with a label. */
+  options?: (string | ConfigOption)[];
+  /** For `choices`, the values ticked at first. */
+  default?: string | boolean | string[];
   /** A short line under the field. */
   help?: string;
+  /** A hint inside an empty text, url or password field. */
+  placeholder?: string;
 };
 
-/** What the listener chose on the configure page. Checkboxes are booleans, the rest strings. */
-export type Config = Record<string, string | boolean>;
+/**
+ * What the listener chose on the configure page. Checkboxes are booleans, `choices` lists of the
+ * ticked values, the rest strings.
+ */
+export type Config = Record<string, string | boolean | string[]>;
+
+const optionOf = (option: string | ConfigOption): ConfigOption =>
+  typeof option === 'string' ? { value: option, label: option } : option;
 
 // Web APIs every supported runtime has (Workers, Deno, Bun, Node 20+), typed here because some
 // workspace packages compile the SDK without the DOM library.
@@ -98,8 +114,9 @@ function asConfig(value: unknown): Config | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   const config: Config = {};
   for (const [key, entry] of Object.entries(value)) {
-    if (typeof entry !== 'string' && typeof entry !== 'boolean') return null;
-    config[key] = entry;
+    const list = Array.isArray(entry) && entry.every((item) => typeof item === 'string');
+    if (typeof entry !== 'string' && typeof entry !== 'boolean' && !list) return null;
+    config[key] = entry as string | boolean | string[];
   }
   return config;
 }
@@ -170,20 +187,43 @@ export function checkFields(fields: ConfigField[], secret: string | undefined): 
     if (!/^[A-Za-z0-9_-]+$/.test(field.key)) throw new Error(`Bad config key: ${field.key}`);
     if (keys.has(field.key)) throw new Error(`Config key used twice: ${field.key}`);
     keys.add(field.key);
-    if (field.type === 'select' && !field.options?.length)
-      throw new Error(`The select field ${field.key} needs options`);
+    if ((field.type === 'select' || field.type === 'choices') && !field.options?.length)
+      throw new Error(`The ${field.type} field ${field.key} needs options`);
     if (field.type === 'password' && !secret)
       throw new Error(`The password field ${field.key} needs configure.secret to encrypt it`);
   }
 }
 
-/** Reads a submitted form into a config, or says what is missing. */
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === 'http:' || url.protocol === 'https:') && !url.username && !url.password
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reads a submitted form into a config, or says what is missing. `getAll`, when the form has it,
+ * reads the ticked boxes of a `choices` field.
+ */
 export function readForm(
   fields: ConfigField[],
-  form: { get(name: string): unknown },
+  form: { get(name: string): unknown; getAll?(name: string): unknown[] },
 ): { config: Config } | { error: string } {
   const config: Config = {};
   for (const field of fields) {
+    if (field.type === 'choices') {
+      const offered = new Set((field.options ?? []).map((o) => optionOf(o).value));
+      const sent = form.getAll ? form.getAll(field.key) : [form.get(field.key)];
+      const ticked = sent.filter((v): v is string => typeof v === 'string' && offered.has(v));
+      if (field.required && ticked.length === 0)
+        return { error: `Choose at least one for ${field.label}.` };
+      config[field.key] = [...new Set(ticked)];
+      continue;
+    }
     const raw = form.get(field.key);
     if (field.type === 'checkbox') {
       config[field.key] = raw !== null && raw !== undefined;
@@ -194,9 +234,11 @@ export function readForm(
       if (field.required) return { error: `${field.label} is required.` };
       continue;
     }
-    if (field.type === 'select' && !field.options?.includes(value))
+    if (field.type === 'select' && !(field.options ?? []).some((o) => optionOf(o).value === value))
       return { error: `Pick one of the choices for ${field.label}.` };
     if (value.length > 2000) return { error: `${field.label} is too long.` };
+    if (field.type === 'url' && !isHttpUrl(value))
+      return { error: `${field.label}: an http:// or https:// address, without a login in it.` };
     config[field.key] = value;
   }
   return { config };
@@ -268,13 +310,65 @@ function sender(host: string | undefined): string {
   return host ? `<p class="sender">This page is run by ${escape(host)}, not by Lelap.</p>` : '';
 }
 
-function page(title: string, body: string, host?: string): string {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)}</title><style>${PAGE_STYLE}</style></head><body><main>${body}${sender(host)}</main></body></html>`;
+/** A page the SDK serves; `script` runs under the nonce the page's policy names. */
+function page(title: string, body: string, host?: string, script?: string, nonce?: string): string {
+  const run = script && nonce ? `<script nonce="${escape(nonce)}">${script}</script>` : '';
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escape(title)}</title><style>${PAGE_STYLE}</style></head><body><main>${body}${sender(host)}</main>${run}</body></html>`;
+}
+
+/** Text above a configure form: what the add-on does, a link, numbered steps and a note. */
+export type ConfigureText = {
+  /** Shown under the heading; the manifest's description when absent. */
+  intro?: string;
+  /** Such as the service's page for making a token; a button when there are steps. */
+  link?: { href: string; label: string };
+  /** Numbered steps under the link, such as how to make and copy a token. */
+  steps?: string[];
+  /** A small line under the steps. */
+  note?: string;
+};
+
+function fieldHtml(field: ConfigField, current: Config[string] | undefined): string {
+  const id = `f-${field.key}`;
+  const help = field.help ? `<p class="help">${escape(field.help)}</p>` : '';
+  const required = field.required ? ' required' : '';
+  if (field.type === 'checkbox') {
+    const checked = current === true ? ' checked' : '';
+    return `<label class="check" for="${id}"><input type="checkbox" id="${id}" name="${escape(field.key)}"${checked}>${escape(field.label)}</label>${help}`;
+  }
+  if (field.type === 'choices') {
+    const ticked = new Set(Array.isArray(current) ? current : []);
+    const boxes = (field.options ?? [])
+      .map(optionOf)
+      .map(
+        (o, i) =>
+          `<label class="check" for="${id}-${i}"><input type="checkbox" id="${id}-${i}" name="${escape(field.key)}" value="${escape(o.value)}"${ticked.has(o.value) ? ' checked' : ''}>${escape(o.label)}</label>`,
+      )
+      .join('');
+    return `<fieldset><legend>${escape(field.label)}</legend>${boxes}${help}</fieldset>`;
+  }
+  if (field.type === 'select') {
+    const options = (field.options ?? [])
+      .map(optionOf)
+      .map(
+        (o) =>
+          `<option${o.value === current ? ' selected' : ''} value="${escape(o.value)}">${escape(o.label)}</option>`,
+      )
+      .join('');
+    return `<label for="${id}">${escape(field.label)}</label><select id="${id}" name="${escape(field.key)}"${required}>${options}</select>${help}`;
+  }
+  const value =
+    field.type === 'password' || typeof current !== 'string' ? '' : ` value="${escape(current)}"`;
+  const auto =
+    field.type === 'password' ? ' autocomplete="current-password"' : ' autocomplete="off"';
+  const hint = field.placeholder ? ` placeholder="${escape(field.placeholder)}"` : '';
+  return `<label for="${id}">${escape(field.label)}</label><input type="${field.type}" id="${id}" name="${escape(field.key)}"${value}${hint}${required}${auto}>${help}`;
 }
 
 /**
- * The configure form, filled with `values` (never with passwords). `host` is the add-on's host,
- * such as `addon.example.org`; the page says it runs there.
+ * A configure form, filled with `values` (never with passwords). `host` is the add-on's host,
+ * such as `addon.example.org`; the page says it runs there. `hidden` values ride along unseen,
+ * such as the first page's settings on a second one. `submit` names the button.
  */
 export function configurePage(args: {
   name: string;
@@ -284,56 +378,62 @@ export function configurePage(args: {
   error?: string;
   returnTo?: string;
   host?: string;
+  text?: ConfigureText;
+  hidden?: Record<string, string>;
+  submit?: string;
+  /** A line under the form, such as where the settings are kept. */
+  footnote?: string;
+  /** A link back to the first page, from a second one opened from a configured link. */
+  restart?: string;
 }): string {
-  const { name, description, fields, values = {}, error, returnTo, host } = args;
-  const inputs = fields
-    .map((field) => {
-      const id = `f-${field.key}`;
-      const help = field.help ? `<p class="help">${escape(field.help)}</p>` : '';
-      const required = field.required ? ' required' : '';
-      const current = values[field.key] ?? field.default;
-      if (field.type === 'checkbox') {
-        const checked = current === true ? ' checked' : '';
-        return `<label class="check" for="${id}"><input type="checkbox" id="${id}" name="${escape(field.key)}"${checked}>${escape(field.label)}</label>${help}`;
-      }
-      if (field.type === 'select') {
-        const options = (field.options ?? [])
-          .map(
-            (o) =>
-              `<option${o === current ? ' selected' : ''} value="${escape(o)}">${escape(o)}</option>`,
-          )
-          .join('');
-        return `<label for="${id}">${escape(field.label)}</label><select id="${id}" name="${escape(field.key)}"${required}>${options}</select>${help}`;
-      }
-      const value =
-        field.type === 'password' || typeof current !== 'string'
-          ? ''
-          : ` value="${escape(current)}"`;
-      const auto = field.type === 'password' ? ' autocomplete="current-password"' : '';
-      return `<label for="${id}">${escape(field.label)}</label><input type="${field.type}" id="${id}" name="${escape(field.key)}"${value}${required}${auto}>${help}`;
-    })
+  const { name, description, fields, values = {}, error, returnTo, host, text = {} } = args;
+  const inputs = fields.map((f) => fieldHtml(f, values[f.key] ?? f.default)).join('');
+  const hidden = Object.entries({
+    ...(args.hidden ?? {}),
+    ...(returnTo ? { return: returnTo } : {}),
+  })
+    .map(([key, value]) => `<input type="hidden" name="${escape(key)}" value="${escape(value)}">`)
     .join('');
-  const back = returnTo ? `<input type="hidden" name="return" value="${escape(returnTo)}">` : '';
   const problem = error ? `<p class="error" role="alert">${escape(error)}</p>` : '';
+  const link = text.link
+    ? `<p><a${text.steps ? ' class="button"' : ''} href="${escape(text.link.href)}" rel="noreferrer" target="_blank">${escape(text.link.label)}</a></p>`
+    : '';
+  const steps = text.steps?.length
+    ? `<ol>${text.steps.map((step) => `<li>${escape(step)}</li>`).join('')}</ol>`
+    : '';
+  const note = text.note ? `<p class="muted">${escape(text.note)}</p>` : '';
+  const footnote = args.footnote ? `<p class="muted">${escape(args.footnote)}</p>` : '';
+  const restart = args.restart
+    ? `<p><a href="${escape(args.restart)}">Change the other settings</a></p>`
+    : '';
   return page(
     `${name} settings`,
-    `<h1>${escape(name)}</h1><p>${escape(description)}</p>${problem}<form method="post">${inputs}${back}<button type="submit">Save</button></form>`,
+    `<h1>${escape(name)}</h1><p>${escape(text.intro ?? description)}</p>${link}${steps}${note}${problem}<form method="post">${inputs}${hidden}<button type="submit">${escape(args.submit ?? 'Save')}</button></form>${restart}${footnote}`,
     host,
   );
 }
 
-/** The page after saving: a button back to the app and the manifest URL to paste. */
+// Tap to copy; without a clipboard the address is selected to copy by hand.
+const COPY_SCRIPT = `const link=document.getElementById('link'),note=document.getElementById('note');link.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(link.textContent.trim());note.textContent='Copied.'}catch{getSelection().selectAllChildren(link);note.textContent='Selected: copy it with your browser.'}});`;
+
+/**
+ * The page after saving: a button back to the app and the manifest URL to copy with a tap. With
+ * `nonce`, the copy script runs under it; serve the page with that nonce in `script-src`.
+ */
 export function configuredPage(args: {
   name: string;
   manifestUrl: string;
   returnTo?: string;
   host?: string;
+  nonce?: string;
 }): string {
-  const { name, manifestUrl, returnTo, host } = args;
+  const { name, manifestUrl, returnTo, host, nonce } = args;
   const open = returnUrl(returnTo ?? APP_RETURN, manifestUrl);
   return page(
     `${name} is ready`,
-    `<h1>${escape(name)} is ready</h1><p>Open it in the app, or copy this address and paste it under Settings → Add-ons.</p><textarea readonly aria-label="Manifest URL">${escape(manifestUrl)}</textarea><p><a class="button" href="${escape(open)}">Open in the app</a></p><p class="muted">Keep the address to yourself: it holds your settings for this add-on.</p>`,
+    `<h1>${escape(name)} is ready</h1><p><a class="button" href="${escape(open)}">Open in the app</a></p><p>On the phone with the app, that adds it in one tap. Anywhere else, such as the web app, copy this address and paste it under Settings → Add-ons:</p><button type="button" class="copy" id="link" aria-label="Manifest URL"><code>${escape(manifestUrl)}</code></button><p class="copy-note" id="note" aria-live="polite">Tap the address to copy it.</p><p class="muted">Keep the address to yourself: it holds your settings for this add-on.</p>`,
     host,
+    COPY_SCRIPT,
+    nonce,
   );
 }

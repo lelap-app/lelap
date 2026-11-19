@@ -361,7 +361,14 @@ async function foldFinished(): Promise<boolean> {
   const done = await audio.takeFinished().catch(() => []);
   for (const item of done) {
     finishFromPlayer(db, playerProfile(), item.bookId, item.at);
-    trackFinished(item.bookId, item.at, playerProfile());
+    trackFinished(
+      item.bookId,
+      item.at,
+      playerProfile(),
+      typeof item.startLocation === 'string' && typeof item.startPositionMs === 'number'
+        ? { location: item.startLocation, positionMs: item.startPositionMs }
+        : undefined,
+    );
     serverPlacesFinished(item.bookId, item.at, playerProfile());
   }
   return done.length > 0;

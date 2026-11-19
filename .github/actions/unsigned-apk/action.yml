@@ -17,6 +17,10 @@ inputs:
   domain:
     description: The domain the app is built for
     required: true
+  contact:
+    description: An address for the User-Agent Open Library sees, such as a mailbox; may be empty
+    required: false
+    default: ''
 
 outputs:
   name:
@@ -99,6 +103,7 @@ runs:
       shell: bash
       env:
         EXPO_PUBLIC_LELAP_DOMAIN: ${{ inputs.domain }}
+        EXPO_PUBLIC_LELAP_CONTACT: ${{ inputs.contact }}
         DISTRIBUTION: ${{ inputs.distribution }}
         ABI: ${{ inputs.abi }}
         TAG: ${{ inputs.tag }}
