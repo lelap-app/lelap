@@ -46,7 +46,7 @@ const features: { icon: IconName; title: string; text: string }[] = [
     title: t(lang, 'Keeps going through calls'),
     text: t(
       lang,
-      'Lower the volume instead of stopping when a call comes in. Your choice, on Android.',
+      'When a call comes in, pause, or keep playing at a volume you choose. On Android.',
     ),
   },
   {
@@ -55,6 +55,14 @@ const features: { icon: IconName; title: string; text: string }[] = [
     text: t(
       lang,
       'Pick up on your laptop where you stopped on your phone. Pair devices with a code; sync is end-to-end encrypted.',
+    ),
+  },
+  {
+    icon: 'forward',
+    title: t(lang, 'Switch without starting over'),
+    text: t(
+      lang,
+      'Bring your places and finished books from Smart AudioBook Player, your podcasts and played episodes from AntennaPod, and your shelves and read books from Goodreads.',
     ),
   },
   {
@@ -70,7 +78,7 @@ const features: { icon: IconName; title: string; text: string }[] = [
     title: t(lang, 'Clearer voices'),
     text: t(
       lang,
-      'Voice boost brings soft and loud words closer together. On Android, skip silence shortens long pauses and shows the time it saved, and even loudness keeps every book at one level. Set per book or per show.',
+      'Voice boost brings soft and loud words closer together. Skip silence shortens long pauses and shows the time it saved, and even loudness keeps every book at one level. Set per book or per show. In the web app, skip silence works on MP3s with a constant bitrate, such as LibriVox’s.',
     ),
   },
   {
@@ -715,6 +723,15 @@ const compose = `services:
           {t(
             lang,
             'No. To continue on another device, pair it with a sync code. Skip that and everything stays on the one device.',
+          )}
+        </p>
+      </details>
+      <details>
+        <summary>{t(lang, 'Can I bring my progress from another player?')}</summary>
+        <p>
+          {t(
+            lang,
+            'Yes, as a one-off import in Settings → Backup → “Import from another app”. From Smart AudioBook Player come your places and finished books, but not yet your bookmarks. From AntennaPod come your subscriptions, played episodes and places. From Goodreads, shelves become tags and read books are marked finished, for the books already in your library. A summary shows what matched and what was left out.',
           )}
         </p>
       </details>
