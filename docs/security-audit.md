@@ -621,6 +621,11 @@ probe runs on its own connection with a 5 s timeout and logs only a verdict. Enf
 - GraphQL goes through `variables`; list links are parsed against hardcover.app; private lists
   are refused unless the listener owns them.
 - The web app refuses scrobbler settings, since it can't seal them (round 1, finding 6).
+- Since M92 (after this audit), a listener can sign in instead: OAuth with PKCE, `state` bound to
+  the browser in a sealed `HttpOnly` cookie and `iss` checked. The tokens are kept on the server
+  (a Durable Object per sign-in, or a file on Docker), sealed with AES-256-GCM under a random key
+  that only the listener's sealed address holds; the address carries the grant's ID and key,
+  never a token. Not yet audited.
 
 ### 47. Web app storage (Info, checked)
 

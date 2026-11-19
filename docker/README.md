@@ -104,7 +104,7 @@ Workers, and Cloudflare's dashboard shows the same.
 
 Back up the `sync-data` and `secrets` volumes (the catalog's). Sync holds encrypted messages only, but losing it
 means devices pair again; losing `CONFIG_SECRET` means listeners set up Hardcover and gPodder
-again. How, with a tested restore: [backup.md](backup.md).
+again, and so does losing the Hardcover sign-ins kept in `secrets` (`hardcover-grants/`). How, with a tested restore: [backup.md](backup.md).
 
 ## Settings
 

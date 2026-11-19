@@ -108,7 +108,7 @@ Don't swap these without updating `docs/brief.md` in the same pull request.
 - **App:** Expo (React Native) with react-native-web, Expo Router, NativeWind for styling.
 - **Native:** Kotlin Expo modules; Media3 for playback, WorkManager for downloads.
 - **Data:** SQLite everywhere through Drizzle ORM; zod for validation and protocol schemas.
-- **Backend:** TypeScript and Hono on Cloudflare Workers (D1, R2, Cache API); the same code runs
+- **Backend:** TypeScript and Hono on Cloudflare Workers (D1, R2, Cache API, Durable Objects); the same code runs
   in Docker for self-hosting.
 - **Site and docs:** Astro, static output on Cloudflare Pages.
 - **Monorepo:** pnpm workspaces. Changesets once the SDK is published.

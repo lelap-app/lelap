@@ -37,9 +37,9 @@ and on the web from one codebase, and every server piece can be self-hosted with
   add-ons: LibriVox, Open Library, Podcast Index, RSS feeds, the Internet Archive, or add-ons you
   write yourself.
 - Takes covers from the tags or from an image beside the audio, such as `cover.jpg`.
-- Shows Hardcover's trending books and your Hardcover lists as catalog rows, with your own token,
-  and keeps your Hardcover shelves and ratings and a gPodder server up to date as you listen. Both
-  are offered in Settings → Add-ons.
+- Shows Hardcover's trending books and your Hardcover lists as catalog rows, once you sign in to
+  Hardcover or paste your own token, and keeps your Hardcover shelves and ratings and a gPodder
+  server up to date as you listen. Both are offered in Settings → Add-ons.
 - Downloads to an SD card if you like (Android), and lists your own copy first on a book's
   catalog page.
 - Finds chapters at the long silences of a book without any (Android), and skips a podcast's

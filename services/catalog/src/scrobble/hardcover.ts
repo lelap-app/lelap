@@ -36,12 +36,15 @@ import {
   type Shown,
   shownCatalogs,
 } from './hardcover-catalogs';
+import { type Grants, isGrantId, isGrantKey, NO_GRANTS } from './hardcover-grants';
+import { AUTHORIZED_APPS_URL } from './hardcover-oauth';
 import type { ScrobbleAddon } from './mount';
 
 // Hardcover (hardcover.app), a reading tracker with a GraphQL API. Listening moves a book to
 // "Currently reading" with its progress, a finished book to "Read", an abandoned one to "Did not
 // finish". The "Want to read" shelf, trending books and the listener's chosen lists come back as
-// catalogs (M76). The listener's API token lives only in their sealed add-on URL.
+// catalogs (M76). The listener's API token lives only in their sealed add-on URL; a listener who
+// signed in (M92) has a grant there instead, whose tokens this server keeps encrypted.
 
 export { HARDCOVER_API, PREFIX } from './hardcover-api';
 export const BASE_PATH = '/hardcover';
@@ -49,8 +52,13 @@ export const BASE_PATH = '/hardcover';
 /** Hardcover's reading statuses. */
 export const STATUS = { wantToRead: 1, reading: 2, read: 3, didNotFinish: 5 } as const;
 
-/** `shown` is missing in links made before M76. */
-export type HardcoverConfig = { token: string; shown?: Shown };
+/**
+ * A pasted token, or a sign-in kept on this server (`grant`, with the `key` its tokens are
+ * encrypted with). `shown` is missing in links made before M76.
+ */
+export type HardcoverConfig = ({ token: string } | { grant: string; key: string }) & {
+  shown?: Shown;
+};
 
 const WANT_TO_READ_CATALOG = {
   type: 'audiobook',
@@ -356,12 +364,57 @@ export function audioEditions(list: AudioEdition[]): Edition[] {
 
 /** Settings as the SDK keeps them, or from a sealed link made before M102 (`shown` object). */
 export function reviveHardcover(value: unknown): HardcoverConfig | null {
-  const raw = value as { token?: unknown; shown?: unknown; trending?: unknown; lists?: unknown };
+  const raw = value as {
+    token?: unknown;
+    grant?: unknown;
+    key?: unknown;
+    shown?: unknown;
+    trending?: unknown;
+    lists?: unknown;
+  } | null;
   const token = raw?.token;
-  if (typeof token !== 'string' || token.length === 0) return null;
-  if (raw.shown !== undefined) return { token, shown: reviveShown(raw.shown) };
-  if (raw.trending === undefined && raw.lists === undefined) return { token };
-  return { token, shown: reviveStoredShown(raw.trending, raw.lists) };
+  // A token pasted on a signed-in link's first page wins over the sign-in.
+  const auth =
+    typeof token === 'string' && token.length > 0
+      ? { token }
+      : typeof raw?.grant === 'string' &&
+          typeof raw.key === 'string' &&
+          isGrantId(raw.grant) &&
+          isGrantKey(raw.key)
+        ? { grant: raw.grant, key: raw.key }
+        : null;
+  if (!raw || !auth) return null;
+  if (raw.shown !== undefined) return { ...auth, shown: reviveShown(raw.shown) };
+  if (raw.trending === undefined && raw.lists === undefined) return auth;
+  return { ...auth, shown: reviveStoredShown(raw.trending, raw.lists) };
+}
+
+/** The settings without `shown`, as the configure page keeps them. */
+const storeAuth = (config: HardcoverConfig) =>
+  'token' in config ? { token: config.token } : { grant: config.grant, key: config.key };
+
+/**
+ * A client for a signed-in listener: the grant's access token, renewed once more when Hardcover
+ * refuses it, in case it ran out early.
+ */
+function grantClient(
+  fetch: FetchLike,
+  grants: Grants,
+  ref: { id: string; key: string },
+  userAgent: string,
+): GraphQL {
+  return async <T>(query: string, variables?: Record<string, unknown>) => {
+    const access = await grants.access(ref);
+    try {
+      return await hardcoverClient(fetch, access, userAgent)<T>(query, variables);
+    } catch (error) {
+      if (!(error instanceof AddonError) || error.status !== 401 || error instanceof MissingScope)
+        throw error;
+      const renewed = await grants.access(ref, access);
+      if (renewed === access) throw error;
+      return hardcoverClient(fetch, renewed, userAgent)<T>(query, variables);
+    }
+  };
 }
 
 export function hardcoverAddon(
@@ -371,9 +424,17 @@ export function hardcoverAddon(
   cache: ResponseCache = memoryCache(),
   /** `CONFIG_SECRET`, which keys the cache's names for tokens. */
   secret?: string,
+  /** Sign-in with Hardcover (M92): where it starts, and the grants it makes. */
+  signIn?: { href: string; grants: Grants },
 ): ScrobbleAddon<HardcoverConfig> {
-  const client = (config: HardcoverConfig) => hardcoverClient(fetch, config.token, userAgent);
-  const cachedFor = (config: HardcoverConfig) => tokenCache(cache, config.token, secret);
+  const client = (config: HardcoverConfig): GraphQL => {
+    if ('token' in config) return hardcoverClient(fetch, config.token, userAgent);
+    if (!signIn) throw NO_GRANTS();
+    return grantClient(fetch, signIn.grants, { id: config.grant, key: config.key }, userAgent);
+  };
+  // A grant keeps its ID while its tokens change, so its answers are kept under the ID.
+  const cachedFor = (config: HardcoverConfig) =>
+    tokenCache(cache, 'token' in config ? config.token : `grant ${config.grant}`, secret);
   // A token belongs to one account for good, so its user ID can be kept for a day.
   const userOf = (gql: GraphQL, config: HardcoverConfig) =>
     cachedFor(config)('me', TTL.item, () => currentUser(gql));
@@ -395,8 +456,19 @@ export function hardcoverAddon(
     manifest: hardcoverManifest,
     manifestFor,
     text: {
-      intro:
-        'Lelap moves books to Currently reading, Read or Did not finish as you listen, sends your ratings, and shows your Want to read shelf, trending books and the lists you choose. For that it needs an API token from your Hardcover account.',
+      intro: signIn
+        ? 'Lelap moves books to Currently reading, Read or Did not finish as you listen, sends your ratings, and shows your Want to read shelf, trending books and the lists you choose. For that it signs in to your Hardcover account.'
+        : 'Lelap moves books to Currently reading, Read or Did not finish as you listen, sends your ratings, and shows your Want to read shelf, trending books and the lists you choose. For that it needs an API token from your Hardcover account.',
+      ...(signIn
+        ? {
+            signIn: {
+              href: signIn.href,
+              label: 'Sign in with Hardcover',
+              note: `Hardcover asks you to allow Lelap in; this server then keeps the sign-in, encrypted with a key only your add-on address holds. To sign Lelap out, use Revoke on hardcover.app under Settings → Hardcover API → Authorized apps (${AUTHORIZED_APPS_URL}).`,
+              other: 'Or paste a token you make yourself',
+            },
+          }
+        : {}),
       link: { href: NEW_TOKEN_URL, label: 'Make a token on Hardcover' },
       steps: [
         'Tap the button above. Hardcover opens its New API Key form with the right permissions already ticked. Sign in first if it asks.',
@@ -436,12 +508,12 @@ export function hardcoverAddon(
       apply: async (config, chosen) => {
         const { gql, user, available } = await listsOf(config);
         const shown = await applyPicks(gql, user, available, chosen, config.shown);
-        return { token: config.token, shown };
+        return { ...storeAuth(config), shown };
       },
     },
     revive: reviveHardcover,
     store: (config) => ({
-      token: config.token,
+      ...storeAuth(config),
       ...(config.shown ? storeShown(config.shown) : {}),
     }),
     handlers: (config) => ({

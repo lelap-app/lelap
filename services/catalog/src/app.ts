@@ -9,7 +9,9 @@ import {
 import { BASE_PATH, createLibrivoxAddon } from './librivox/addon';
 import type { PodcastIndexCredentials } from './podcastindex';
 import { BASE_PATH as GPODDER, gpodderAddon } from './scrobble/gpodder';
-import { BASE_PATH as HARDCOVER, hardcoverAddon } from './scrobble/hardcover';
+import { BASE_PATH as HARDCOVER, hardcoverAddon, hardcoverManifest } from './scrobble/hardcover';
+import { hardcoverOAuth } from './scrobble/hardcover-oauth';
+import { hardcoverSignIn } from './scrobble/hardcover-signin';
 import { serveScrobbleAddon } from './scrobble/mount';
 import { createSealer } from './scrobble/sealed';
 import { BASE_PATH as SERIES, createSeriesAddon } from './series/addon';
@@ -32,7 +34,25 @@ export type Env = {
    * `<origin>/addon`, separated by commas, such as `https://listen.example.org`.
    */
   APP_ORIGINS?: string;
+  /**
+   * Lelap's app at Hardcover (Developer Apps, a web app), for signing in instead of pasting a
+   * token. Its redirect URL is `<this origin>/hardcover/oauth/callback`. Sign-in is on when both
+   * are set and `CONFIG_SECRET` is; the secret is a Wrangler secret, never a var.
+   */
+  HARDCOVER_CLIENT_ID?: string;
+  HARDCOVER_CLIENT_SECRET?: string;
+  /**
+   * This service's public origin, such as `https://catalog.example.org`, for the Hardcover
+   * redirect URL when requests arrive under another (Docker behind a proxy). Workers leave it out.
+   */
+  CATALOG_ORIGIN?: string;
 };
+
+/** `CATALOG_ORIGIN` when it is an https origin. */
+export function catalogOrigin(env: Env): string | undefined {
+  const origin = env.CATALOG_ORIGIN?.trim().replace(/\/+$/, '');
+  return origin && /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(origin) ? origin : undefined;
+}
 
 /** The web app origins in `APP_ORIGINS`, https only. */
 export function returnOrigins(env: Env): string[] {
@@ -73,11 +93,44 @@ export function createApp(platform: Platform, env: Env): Hono {
     ...(platform.now ? { now: platform.now } : {}),
     ...(returnOrigins(env).length > 0 ? { returnOrigins: returnOrigins(env) } : {}),
   };
+  // Signing in to Hardcover (M92) needs the app's client, a place for grants and the sealing key.
+  const oauth = hardcoverOAuth(platform.fetch, {
+    clientId: env.HARDCOVER_CLIENT_ID,
+    clientSecret: env.HARDCOVER_CLIENT_SECRET,
+    userAgent: agent,
+    ...(platform.now ? { now: platform.now } : {}),
+  });
+  const grants = oauth && platform.grants ? platform.grants(oauth.refresh) : null;
+  const configSecret = env.CONFIG_SECRET?.trim();
+  const publicOrigin = catalogOrigin(env);
+  const signIn =
+    oauth && grants && configSecret && configSecret.length >= 32
+      ? hardcoverSignIn({
+          basePath: HARDCOVER,
+          addonId: hardcoverManifest.id,
+          secret: configSecret,
+          oauth,
+          grants,
+          settingsFor: (grant) => ({ grant: grant.id, key: grant.key }),
+          ...(returnOrigins(env).length > 0 ? { returnOrigins: returnOrigins(env) } : {}),
+          ...(publicOrigin ? { origin: publicOrigin } : {}),
+          ...(platform.now ? { now: platform.now } : {}),
+          onError,
+        })
+      : null;
   // On the SDK's configure since M102; links sealed before it (`v1.`) still open.
-  const hardcover = serveScrobbleAddon(
-    hardcoverAddon(platform.fetch, agent, platform.cache, env.CONFIG_SECRET),
+  const hardcoverServed = serveScrobbleAddon(
+    hardcoverAddon(
+      platform.fetch,
+      agent,
+      platform.cache,
+      env.CONFIG_SECRET,
+      signIn && grants ? { href: `${HARDCOVER}/oauth/start`, grants } : undefined,
+    ),
     { ...shared, legacy: createSealer(env.CONFIG_SECRET, 'hardcover') },
   );
+  const hardcover = async (request: Request) =>
+    (await signIn?.(request)) ?? hardcoverServed(request);
   const gpodder = serveScrobbleAddon(gpodderAddon(platform.userFetch ?? platform.fetch, agent), {
     ...shared,
     legacy: createSealer(env.CONFIG_SECRET, 'gpodder'),

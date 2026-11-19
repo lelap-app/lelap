@@ -46,6 +46,14 @@ services:
       # Seals listeners' Hardcover and gPodder tokens into their add-on URLs. Generated when
       # empty; keep it (and the secrets volume) stable, or those add-ons need setting up again.
       CONFIG_SECRET: ${CONFIG_SECRET:-}
+      # Optional: signing in to Hardcover instead of pasting a token, with your own app at
+      # Hardcover. Sign-ins are kept, encrypted, in the secrets volume.
+      HARDCOVER_CLIENT_ID: ${HARDCOVER_CLIENT_ID:-}
+      HARDCOVER_CLIENT_SECRET: ${HARDCOVER_CLIENT_SECRET:-}
+      # Its redirect URL is https://catalog.<LELAP_DOMAIN>/hardcover/oauth/callback; set
+      # CATALOG_ORIGIN when the catalog is public under another address.
+      LELAP_DOMAIN: ${LELAP_DOMAIN:-localhost}
+      CATALOG_ORIGIN: ${CATALOG_ORIGIN:-}
       # A gPodder server on your own network: true lets the gPodder add-on reach private addresses.
       SCROBBLE_ALLOW_PRIVATE: ${SCROBBLE_ALLOW_PRIVATE:-false}
       # The web app, which the Hardcover and gPodder configure pages may send the listener back to.
