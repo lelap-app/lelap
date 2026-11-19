@@ -79,6 +79,22 @@ object CastAuthProbe {
     return verdict
   }
 
+  /** A TLS certificate's SHA-256 in lowercase hex; null without one. */
+  fun fingerprint(certificate: ByteArray?): String? = certificate?.let {
+    MessageDigest.getInstance("SHA-256").digest(it).joinToString("") { b -> "%02x".format(b) }
+  }
+
+  /**
+   * Whether a session that failed device authentication may go on: only when the listener chose
+   * “Connect anyway” for the very TLS certificate this session's connection showed (M125), not
+   * for a discovery id that another device on the Wi-Fi could take over.
+   */
+  fun letIn(verdict: CastAuth.Verdict, sessionCertificate: ByteArray?, pinned: Set<String>): Boolean {
+    if (verdict !is CastAuth.Verdict.Untrusted) return true
+    val print = fingerprint(sessionCertificate) ?: return false
+    return print in pinned
+  }
+
   /** For logcat: words and numbers only, no device name or address. */
   fun describe(verdict: CastAuth.Verdict): String = when (verdict) {
     is CastAuth.Verdict.Trusted -> if (verdict.audioOnly) "trusted, audio only" else "trusted"

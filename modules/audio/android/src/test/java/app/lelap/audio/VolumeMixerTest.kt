@@ -43,3 +43,24 @@ class VolumeMixerTest {
     assertEquals(1f, applied.last(), 1e-6f)
   }
 }
+
+class VolumeMixerReceiverTest {
+  private val receiver = mutableListOf<Float>()
+  private val mixer = VolumeMixer(applyReceiver = { receiver += it }) {}
+
+  @Test fun theReceiverGetsTheFadeAndTheBedtimeVolumeButNotTheDuck() {
+    mixer.bedtime = 0.6f
+    assertEquals(0.6f, receiver.last(), 1e-6f)
+    mixer.duck = 0.2f
+    assertEquals(0.6f, receiver.last(), 1e-6f)
+    mixer.fade = 0.5f
+    assertEquals(0.3f, receiver.last(), 1e-6f)
+    assertEquals(0.3f, mixer.receiverLevel, 1e-6f)
+  }
+
+  @Test fun theReceiverIsBackAtFullWhenTheRoutineEnds() {
+    mixer.bedtime = 0.6f
+    mixer.bedtime = 1f
+    assertEquals(1f, receiver.last(), 1e-6f)
+  }
+}

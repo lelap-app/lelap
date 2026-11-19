@@ -40,6 +40,7 @@ describe('settings', () => {
       theme: 'night',
       accent: 'amber',
       customTheme: null,
+      castGroups: [],
     });
   });
 

@@ -87,14 +87,27 @@ class RemotePlayer(
     Log.i(TAG, "${link.device.kind} ${timing.what} ${timing.ms} ms")
   }
 
-  /** The sleep timer's fade, 1 for none; lowers the receiver's own volume where it says it. */
+  // The level last asked for; kept, since a receiver says its volume only after its first status.
+  private var fadeLevel = 1f
+
+  /**
+   * The sleep timer's fade times the bedtime routine's volume (M125), 1 for none; lowers the
+   * receiver's own volume where it says it, and puts it back at 1. A group's speakers keep their
+   * shares, as with the volume buttons.
+   */
   fun setFade(level: Float) {
-    val volume = fade.update(level, session.volume, SystemClock.elapsedRealtime()) ?: return
+    fadeLevel = level
+    applyFade()
+  }
+
+  private fun applyFade() {
+    val volume = fade.update(fadeLevel, session.volume, SystemClock.elapsedRealtime()) ?: return
     link.setVolume(volume)
   }
 
   private fun onStatus(status: RendererStatus) {
     run(session.onStatus(status))
+    if (fadeLevel < 1f || fade.isFading) applyFade()
   }
 
   private fun run(commands: List<RemoteSession.Command>) {

@@ -22,6 +22,7 @@ export * from './placeLink';
 export * from './clip';
 export * from './library/byProgress';
 export * from './settings';
+export * from './castGroups';
 export * from './sound';
 export * from './webSilence';
 export * from './webLoudness';

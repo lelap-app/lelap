@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
+import { CAST_GROUPS_KEPT, CastGroupSchema } from './castGroups';
 import type { Db } from './db';
 import { settings } from './schema';
 import { AccentChoiceSchema, CustomThemeSchema, ThemeChoiceSchema } from './themes';
@@ -96,6 +97,8 @@ export const SettingsSchema = z.object({
   accent: AccentChoiceSchema.default('amber'),
   /** The theme last read from a file, already checked for contrast; `theme: 'custom'` uses it. */
   customTheme: CustomThemeSchema.nullable().default(null),
+  /** Speaker groups played on (M125), newest first, for one tap in the Cast sheet. */
+  castGroups: z.array(CastGroupSchema).max(CAST_GROUPS_KEPT).default([]),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

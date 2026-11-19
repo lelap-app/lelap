@@ -53,10 +53,52 @@ interface Renderer {
   fun close()
 }
 
+/**
+ * A receiver that remembers the file it was last given and the speed it plays at, so a speaker
+ * that joins later can start the same file (M125). Everything else goes straight through.
+ */
+class RememberingRenderer(private val inner: Renderer) : Renderer {
+  @Volatile
+  var media: CastMedia? = null
+    private set
+
+  @Volatile
+  var speed: Float = 1f
+    private set
+
+  override fun load(media: CastMedia, startMs: Long, autoplay: Boolean, speed: Float) {
+    inner.load(media, startMs, autoplay, speed)
+    this.media = media
+    this.speed = speed
+  }
+
+  override fun play() = inner.play()
+
+  override fun pause() = inner.pause()
+
+  override fun seek(positionMs: Long) = inner.seek(positionMs)
+
+  override fun setSpeed(speed: Float) {
+    inner.setSpeed(speed)
+    this.speed = speed
+  }
+
+  override fun canPlayAt(speed: Float): Boolean = inner.canPlayAt(speed)
+
+  override fun setVolume(level: Float) = inner.setVolume(level)
+
+  override fun status(): RendererStatus = inner.status()
+
+  override fun close() = inner.close()
+}
+
 open class CastException(message: String) : Exception(message)
 
-/** A Google Cast speaker failed device authentication (M78); [device] can be let in by hand. */
-class CastUntrustedException(val device: CastDevice) : CastException(
+/**
+ * A Google Cast speaker failed device authentication (M78). [fingerprint] is the TLS certificate
+ * its connection showed, which “Connect anyway” pins (M125); null when it showed none.
+ */
+class CastUntrustedException(val device: CastDevice, val fingerprint: String?) : CastException(
   app.lelap.text.NativeText.current().t(
     "{name} didn’t prove it’s a genuine Google Cast device, so Lelap didn’t connect.",
     "name" to device.name,

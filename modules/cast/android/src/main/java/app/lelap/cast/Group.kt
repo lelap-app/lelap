@@ -42,6 +42,11 @@ class GroupSync(private val clock: () -> Long) {
     followers.remove(follower)
   }
 
+  /** A follower joined while the group plays (M125): it gets a moment to load before it is judged. */
+  fun joined(follower: Int) {
+    followers.getOrPut(follower, ::Follower).actedAt = clock()
+  }
+
   /** The whole group was just told to play, pause, seek or load: statuses lag it for a moment. */
   fun commanded() {
     holdUntil = clock() + COOLDOWN_MS
@@ -118,6 +123,8 @@ class GroupRenderer(
   clock: () -> Long,
   /** For `adb logcat -s LelapCast`: numbers only. */
   private val log: (String) -> Unit = { Log.i(TAG, it) },
+  /** A follower left by itself (lost, failed, silent), not through [remove]. */
+  private val onLeft: (Renderer) -> Unit = {},
 ) : Renderer {
   private class Member(val number: Int, val renderer: Renderer) {
     val thread: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "lelap-cast-group").apply { isDaemon = true } }
@@ -133,6 +140,9 @@ class GroupRenderer(
   private val sync = GroupSync(clock)
   private var leaderVolume: Float? = null
 
+  // Numbers are never reused, so GroupSync never mixes up a speaker that left with one that joined.
+  private var nextNumber = followers.size
+
   /** The speakers still in the group besides the first. */
   val followerCount: Int
     get() = members.size
@@ -143,9 +153,37 @@ class GroupRenderer(
     leave(member, "lost")
   }
 
-  private fun leave(member: Member, why: String) {
+  /**
+   * A speaker joins the group as it plays (M125). [catchUp] (a load at the leader's place) runs on
+   * its thread first; the future fails when it did, and the speaker then leaves. Call it on the
+   * thread the leader is called on.
+   */
+  fun add(renderer: Renderer, catchUp: ((Renderer) -> Unit)?): Future<Unit>? {
+    val member = Member(nextNumber++, renderer)
+    synchronized(sync) { sync.joined(member.number) }
+    // In the group before the load is queued, so nothing the group tells it overtakes the load.
+    members += member
+    if (catchUp == null) return null
+    return on(member) { r ->
+      try {
+        catchUp(r)
+      } catch (e: Exception) {
+        leave(member, "failed")
+        throw e
+      }
+    }
+  }
+
+  /** The listener took a follower out of the group: it stops, and the rest play on. */
+  fun remove(renderer: Renderer) {
+    val member = members.firstOrNull { it.renderer === renderer } ?: return
+    leave(member, "removed", notify = false)
+  }
+
+  private fun leave(member: Member, why: String, notify: Boolean = true) {
     if (!members.remove(member)) return
     synchronized(sync) { sync.forget(member.number) }
+    if (notify) onLeft(member.renderer)
     log("group: a speaker left ($why), ${members.size + 1} left")
     // Runs after whatever it was still doing; a call stuck on the network ends with the socket.
     runCatching { member.thread.execute { runCatching { member.renderer.close() } } }

@@ -109,6 +109,11 @@ const nativeLines = (): Record<string, string> => ({
   '{name} didn’t prove it’s a genuine Google Cast device, so Lelap didn’t connect.': t(
     '{name} didn’t prove it’s a genuine Google Cast device, so Lelap didn’t connect.',
   ),
+  // Speakers joining a group that plays (M125).
+  '{name} couldn’t join': t('{name} couldn’t join'),
+  '{name} only plays at 1×. Set the speed to 1× to add it.': t(
+    '{name} only plays at 1×. Set the speed to 1× to add it.',
+  ),
   '{name} cannot play media': t('{name} cannot play media'),
   'Connect the phone to the same Wi-Fi as the speaker': t(
     'Connect the phone to the same Wi-Fi as the speaker',

@@ -48,7 +48,7 @@ import { Scrubber, type ScrubMark } from './Scrubber';
 import { Sheet } from './Sheet';
 import { TextButton } from './TextButton';
 import { SoundSheet, useSound } from './SoundSheet';
-import { CASTING_SUPPORTED, useCasting } from '../casting';
+import { CASTING_SUPPORTED, useCastAvailable, useCasting } from '../casting';
 import { db, newId } from '../db';
 import { showAlert } from '../dialog';
 import { HeadphoneBanner } from '../devices';
@@ -245,6 +245,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
     | null
   >(null);
   const casting = useCasting();
+  const castAvailable = useCastAvailable();
   const [note, setNote] = useState('');
   const [lastBookmark, setLastBookmark] = useState<string | null>(null);
   // The bar covers the chapter; a tap on the note under it switches to the whole book.
@@ -682,7 +683,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
                 : t('{n} bookmarks', { n: bookmarks.length }),
             onPress: () => setSheet('bookmarks'),
           },
-          ...(CASTING_SUPPORTED
+          ...(CASTING_SUPPORTED && castAvailable
             ? [
                 {
                   key: 'cast',

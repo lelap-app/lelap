@@ -96,7 +96,8 @@ const effects = (): sound.SoundSettings => {
   };
 };
 
-const skipsSilence = () => chooseSound(book?.sound, settings).skipSilence;
+// Skip silence reads the file as it plays here, so it rests while a receiver plays (M125).
+const skipsSilence = () => chooseSound(book?.sound, settings).skipSilence && !remoting();
 // Skip silence and even loudness read the file's first bytes; nothing else does.
 const readsFile = () => skipsSilence() || effects().evenLoudness;
 
@@ -469,6 +470,7 @@ function player(): HTMLAudioElement {
   pageHideListened = true;
   setUpMediaSession();
   element = audio;
+  watchRemote(audio);
   return audio;
 }
 
@@ -504,11 +506,148 @@ function retire(): void {
   sound.release(old);
 }
 
+// Casting from the browser (M125) through the Remote Playback API: Chrome's Cast and Safari's
+// AirPlay. The browser lists the speakers and asks the listener; the page only learns whether one
+// is reachable and whether the element plays there. A remote session belongs to one element, so
+// while it lasts the element is kept for every part and the sound effects stay off: a receiver
+// plays the file itself, and an element routed through them can't be unrouted.
+
+/** Whether the browser can reach a speaker for the element, and whether it plays there. */
+export type WebCast = { available: boolean; state: RemotePlaybackState };
+
+let webCast: WebCast = { available: false, state: 'disconnected' };
+const webCastListeners = new Set<(cast: WebCast) => void>();
+let watchedRemote: RemotePlayback | null = null;
+// The element was taken out of the sound effects for casting, so they come back after.
+let leftEffects = false;
+
+const remoteOf = (audio: HTMLAudioElement | null): RemotePlayback | null =>
+  audio && 'remote' in audio && audio.remote ? audio.remote : null;
+
+function remoting(): boolean {
+  return webCast.state !== 'disconnected';
+}
+
+function setWebCast(next: Partial<WebCast>): void {
+  const merged = { ...webCast, ...next };
+  if (merged.available === webCast.available && merged.state === webCast.state) return;
+  const was = remoting();
+  webCast = merged;
+  if (was !== remoting()) remoteChanged();
+  for (const listener of webCastListeners) listener(webCast);
+}
+
+/** Follows the new element's remote playback; the one before is let go. */
+function watchRemote(audio: HTMLAudioElement): void {
+  const remote = remoteOf(audio);
+  watchedRemote?.cancelWatchAvailability().catch(() => {});
+  watchedRemote = remote;
+  if (!remote) {
+    setWebCast({ available: false, state: 'disconnected' });
+    return;
+  }
+  const follow = () => {
+    if (audio === element) setWebCast({ state: remote.state });
+  };
+  remote.addEventListener('connecting', follow);
+  remote.addEventListener('connect', follow);
+  remote.addEventListener('disconnect', follow);
+  setWebCast({ state: remote.state });
+  // Browsers that can't watch (some phones) still offer the prompt.
+  remote
+    .watchAvailability((available) => {
+      if (audio === element) setWebCast({ available });
+    })
+    .catch((e: unknown) => {
+      if (audio === element) {
+        setWebCast({ available: e instanceof DOMException && e.name === 'NotSupportedError' });
+      }
+    });
+}
+
+function remoteChanged(): void {
+  skipper.setOn(skipsSilence());
+  if (!remoting()) restoreEffects();
+}
+
+/** Back on this device: the part loads again at its place, so the sound effects apply once more. */
+function restoreEffects(): void {
+  if (!leftEffects) return;
+  leftEffects = false;
+  if (book && element && sound.soundOn(effects()) && !sound.isRouted(element)) {
+    void setPart(index, positionMs(), playing());
+  }
+}
+
+/** A fresh element, not routed, at the same place of the same part: one that can be cast. */
+function unrouted(old: HTMLAudioElement): HTMLAudioElement {
+  const source = partSource;
+  if (!source || source.audio !== old) return old;
+  const at = old.currentTime;
+  const wasPlaying = playing();
+  retire();
+  const audio = player();
+  audio.crossOrigin = null;
+  audio.src = source.src;
+  seekingForLoad = true;
+  // Before the metadata loads this sets where it starts.
+  audio.currentTime = at;
+  skipper.attach(audio, null, null);
+  skipper.setSpeed(audio, speedNow());
+  partSource = { ...source, audio };
+  leftEffects = true;
+  if (wasPlaying) void audio.play().catch(() => {});
+  return audio;
+}
+
+export function webCastState(): WebCast {
+  return webCast;
+}
+
+export function addWebCastListener(listener: (cast: WebCast) => void): Subscription {
+  webCastListeners.add(listener);
+  return { remove: () => webCastListeners.delete(listener) };
+}
+
+/**
+ * Shows the browser's list of speakers for the book playing, or its controls for the one that
+ * plays. Call it straight from a tap: browsers only show the list for one.
+ */
+export async function promptWebCast(): Promise<void> {
+  let audio = element;
+  if (!audio || !book) throw new Error(t('Start a book first, then cast it.'));
+  // Taken out of the sound effects first, without waiting, so the tap still counts.
+  const swapped = !remoting() && sound.isRouted(audio);
+  if (swapped) audio = unrouted(audio);
+  const remote = remoteOf(audio);
+  if (!remote) throw new Error(t('This browser can’t cast.'));
+  try {
+    await remote.prompt();
+  } catch (e) {
+    // Cancelled: the effects come back.
+    if (swapped && !remoting()) restoreEffects();
+    if (e instanceof DOMException && e.name === 'NotAllowedError') return;
+    if (e instanceof DOMException && e.name === 'NotFoundError') {
+      throw new Error(t('No speakers or TVs found. Check that they’re on the same Wi-Fi.'), {
+        cause: e,
+      });
+    }
+    if (e instanceof DOMException && e.name === 'NotSupportedError') {
+      throw new Error(
+        t('This book can’t be cast from the browser. Downloaded books play only here.'),
+        { cause: e },
+      );
+    }
+    throw e;
+  }
+}
+
 /** The element for a source: routed through the sound effects when they are on and may read it. */
 async function playerFor(src: string): Promise<HTMLAudioElement> {
   const readable = await sound.canRoute(src);
-  const routed = sound.soundOn(effects()) && readable;
-  if (element && sound.isRouted(element) !== routed) retire();
+  // A receiver plays on the element it was given, which keeps it whatever the effects say.
+  const routed = !remoting() && sound.soundOn(effects()) && readable;
+  if (element && !remoting() && sound.isRouted(element) !== routed) retire();
   const audio = player();
   // Skip silence reads the bytes the element streams (M122), which needs a CORS request.
   if (!routed) audio.crossOrigin = readable && skipsSilence() ? 'anonymous' : null;

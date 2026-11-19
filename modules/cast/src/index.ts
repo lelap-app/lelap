@@ -32,6 +32,8 @@ export type CastStatus = {
   /** 0..1, null when the receiver does not say. */
   volume: number | null;
   error: string | null;
+  /** The ids of the speakers that play now; one may have dropped out of a group (M125). */
+  members: string[] | null;
 };
 
 /**
@@ -79,7 +81,8 @@ export const LOCAL_NETWORK_DENIED = 'ERR_LOCAL_NETWORK';
 
 /**
  * A `connect()` refused because a Google Cast speaker failed device authentication; the message
- * names it. Connecting again with `anyway` lets that one speaker in for as long as the app runs.
+ * names it. Connecting again with `anyway` lets that one speaker in for as long as the app runs,
+ * while it shows the same TLS certificate (M125).
  */
 export const CAST_UNTRUSTED = 'ERR_CAST_UNTRUSTED';
 
@@ -98,6 +101,8 @@ declare class LelapCastModule extends NativeModule<LelapCastEvents> {
   localNetworkAccess(): Promise<LocalNetworkAccess>;
   requestLocalNetworkAccess(): Promise<LocalNetworkAccess>;
   connect(deviceIds: string[], anyway: boolean): Promise<Connected>;
+  join(deviceId: string, anyway: boolean): Promise<CastSession>;
+  leave(deviceId: string): Promise<CastSession>;
   session(): Promise<CastSession | null>;
   setVolume(level: number): Promise<void>;
   disconnect(): Promise<void>;
@@ -152,6 +157,19 @@ export function requestLocalNetworkAccess(): Promise<LocalNetworkAccess> {
  */
 export function connect(deviceIds: string[], anyway = false): Promise<Connected> {
   return native.connect(deviceIds, anyway);
+}
+
+/**
+ * Adds a speaker to the session that plays (M125); a single receiver becomes a group it leads.
+ * Rejects with `CAST_UNTRUSTED` like `connect()`, and `anyway` then lets that speaker in.
+ */
+export function join(deviceId: string, anyway = false): Promise<CastSession> {
+  return native.join(deviceId, anyway);
+}
+
+/** Takes a speaker other than the leading one out of the group; the rest play on. */
+export function leave(deviceId: string): Promise<CastSession> {
+  return native.leave(deviceId);
 }
 
 /** What the running session plays on, also after the app was closed and opened again. */
