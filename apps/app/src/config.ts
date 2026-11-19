@@ -23,6 +23,9 @@ export const defaultAddons: string[] = configured
   .map((url: string) => url.trim())
   .filter((url: string) => url !== '');
 
+/** Our catalog host. Its root lists the add-ons it serves, as manifest URLs. */
+export const catalogBase = `https://catalog.${domain}`;
+
 /**
  * Our own optional add-ons on the catalog host, never installed by default: the Add-ons screen and
  * the welcome offer them. `configure`: they need the listener's account, and Set up opens their
@@ -33,10 +36,10 @@ export const hostedAddons: {
   base: string;
   setUp: 'configure' | 'add';
 }[] = [
-  { id: 'hardcover', base: `https://catalog.${domain}/hardcover`, setUp: 'configure' },
-  { id: 'gpodder', base: `https://catalog.${domain}/gpodder`, setUp: 'configure' },
-  { id: 'lectures', base: `https://catalog.${domain}/lectures`, setUp: 'add' },
-  { id: 'lepak', base: `https://catalog.${domain}/lepak`, setUp: 'add' },
+  { id: 'hardcover', base: `${catalogBase}/hardcover`, setUp: 'configure' },
+  { id: 'gpodder', base: `${catalogBase}/gpodder`, setUp: 'configure' },
+  { id: 'lectures', base: `${catalogBase}/lectures`, setUp: 'add' },
+  { id: 'lepak', base: `${catalogBase}/lepak`, setUp: 'add' },
 ];
 
 const ownOrigins = new Set(

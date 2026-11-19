@@ -7,7 +7,7 @@ import {
   createInternetArchiveAddon,
 } from './internet-archive/addon';
 import { BASE_PATH as LECTURES, createLecturesAddon } from './lectures/addon';
-import { createLepakAddon, BASE_PATH as LEPAK } from './lepak/addon';
+import { BASE_PATH as LEPAK, createLepakAddon } from './lepak/addon';
 import { BASE_PATH, createLibrivoxAddon } from './librivox/addon';
 import type { PodcastIndexCredentials } from './podcastindex';
 import { BASE_PATH as GPODDER, gpodderAddon } from './scrobble/gpodder';
@@ -77,7 +77,8 @@ export function podcastIndexCredentials(env: Env): PodcastIndexCredentials | nul
 /**
  * The add-ons on one origin: the Catalog at the root, LibriVox under `/librivox`, the Internet
  * Archive under `/internet-archive`, whole series under `/series`, Open lectures under
- * `/lectures` and Lepak under `/lepak` (with Podcast Index keys only). Platform calls are injected, so a Node entry only has to pass its own `fetch` (and no cache).
+ * `/lectures` and Lepak under `/lepak` (with Podcast Index keys only). Platform calls are
+ * injected, so a Node entry only has to pass its own `fetch` (and no cache).
  */
 export function createApp(platform: Platform, env: Env): Hono {
   const upstream = createUpstream(platform, userAgent(env));

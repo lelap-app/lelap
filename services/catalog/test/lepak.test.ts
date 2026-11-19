@@ -17,7 +17,7 @@ const byFeedId = fixture('podcastindex-lepak-byfeedid.json') as Record<string, u
 
 // Podcast Index answers, as the shapes it returns: trending and recent feeds for History, trending
 // for the Singapore tags, and a search for “sejarah” in several languages.
-function setup() {
+function setup(fail: { recent?: boolean; lookup?: string } = {}) {
   const isRow = (endpoint: string, lang: string, cat: string | null) => (u: URL) =>
     u.pathname === `/api/1.0/${endpoint}` &&
     u.searchParams.get('lang')?.split(',').includes(lang) === true &&
@@ -46,6 +46,10 @@ function setup() {
     async (url: string, init: { headers: Record<string, string> }) => {
       const parsed = new URL(url);
       const id = parsed.searchParams.get('id') ?? '';
+      const failing =
+        (fail.recent === true && parsed.pathname === '/api/1.0/recent/feeds') ||
+        (parsed.pathname === '/api/1.0/podcasts/byfeedid' && id === fail.lookup);
+      if (failing) return new Response('{}', { status: 503 });
       if (parsed.pathname === '/api/1.0/podcasts/byfeedid' && byFeedId[id] !== undefined) {
         fetch.calls.push({ url: parsed, headers: init.headers });
         return new Response(JSON.stringify(byFeedId[id]));
@@ -85,7 +89,7 @@ describe('Lepak manifest', () => {
 
 describe('languages', () => {
   it('takes Malay and Indonesian in any region', () => {
-    for (const tag of ['ms', 'MS-my', 'id', 'id-ID', 'id_ID', 'in', 'ms-SG'])
+    for (const tag of ['ms', 'MS-my', 'id', 'id-ID', 'id_ID', 'in', 'in-ID', 'ms-SG'])
       expect(isMalayOrIndonesian(tag), tag).toBe(true);
     for (const tag of ['en', 'en-MY', 'ind', 'mt', '', 'zh-sg'])
       expect(isMalayOrIndonesian(tag), tag).toBe(false);
@@ -104,7 +108,7 @@ describe('Lepak rows', () => {
     const { calls, catalog } = setup();
     await catalog('sejarah');
     const trending = calls.find((c) => c.url.pathname === '/api/1.0/podcasts/trending');
-    expect(trending?.url.searchParams.get('lang')).toBe('ms,ms-my,ms-sg,ms-bn,id,id-id,in');
+    expect(trending?.url.searchParams.get('lang')).toBe('ms,ms-my,ms-sg,ms-bn,id,id-id,in,in-id');
     expect(trending?.url.searchParams.get('cat')).toBe('History');
     expect(trending?.url.searchParams.get('max')).toBe('40');
     expect(trending?.headers).toMatchObject({ 'X-Auth-Key': 'TESTKEY' });
@@ -149,11 +153,33 @@ describe('Lepak rows', () => {
     const { body } = await setup().get('catalog/podcast/sejarah.json');
     expect(body).toMatchObject({ cacheMaxAge: 24 * 60 * 60 });
   });
+
+  it('keeps the trending shows when recent feeds fail, for 5 minutes', async () => {
+    const { status, body } = await setup({ recent: true }).get('catalog/podcast/sejarah.json');
+    expect(status).toBe(200);
+    expect(CatalogResponse.parse(body).metas.map((m) => m.name)).toEqual([
+      'Sembang Sejarah',
+      'Jejak Nusantara',
+    ]);
+    expect(body).toMatchObject({ cacheMaxAge: 5 * 60 });
+  });
+
+  it('keeps a row briefly when a lookup fails', async () => {
+    const { body } = await setup({ lookup: '2002' }).get('catalog/podcast/sejarah.json');
+    expect(CatalogResponse.parse(body).metas.map((m) => m.name)).toEqual([
+      'Sembang Sejarah',
+      'Riwayat Kota',
+    ]);
+    expect(body).toMatchObject({ cacheMaxAge: 5 * 60 });
+  });
 });
 
 describe('Lepak search', () => {
   it('finds Malay, Indonesian and Singapore shows only', async () => {
-    const metas = await setup().catalog('lepak-search/search=sejarah');
+    const { calls, catalog } = setup();
+    const metas = await catalog('lepak-search/search=sejarah');
+    // The same question as the Catalog's podcast search, so one cached answer serves both.
+    expect(calls[0]?.url.search).toBe('?q=sejarah&max=30');
     expect(metas.map((m) => m.name)).toEqual(['Sembang Sejarah', 'Jejak Nusantara', 'Kopi Talk']);
   });
 

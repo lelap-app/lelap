@@ -44,8 +44,9 @@ packages/core   domain model, library logic, Drizzle schema, add-on client, sync
 packages/sdk    add-on SDK: protocol v1 as zod schemas, createAddon(), the work matcher, the
                 `lelap-sdk check` add-on test kit; MIT
 services/       Hono services on Cloudflare Workers: catalog (Catalog, LibriVox, Internet Archive,
-                Whole series, Open lectures and Lepak add-ons), proxy (feeds and covers for the web app), sync (encrypted oplog, D1), updates (signed
-                over-the-air bundles from R2), template
+                Whole series, Open lectures and Lepak add-ons), proxy (feeds and covers for the
+                web app), sync (encrypted oplog, D1), updates (signed over-the-air bundles from
+                R2), template
 modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer, sound effects
 modules/library Kotlin Expo module: folder access, tags and chapters for the local library; chapters
                 from silences

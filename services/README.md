@@ -77,7 +77,7 @@ The first-party add-ons, on one Worker (`lelap-catalog`):
 - **Lepak** (M131): free podcasts in Malay and Indonesian, and from Singapore, by language. Rows
   Cerita (Fiction, Drama, Stories), Sembang (Society, Culture, Comedy, Leisure), Sejarah (History)
   and Singapura (feeds that say `en-SG`, `zh-SG`, `ms-SG` or `ta-SG`), each trending first and
-  filled from recent feeds, cached for a day; a search kept to the same languages by each feed's
+  filled from recent feeds, cached for a day (5 minutes when part of it failed); a search kept to the same languages by each feed's
   own `language`; meta for `podcast:` IDs. Only served with both Podcast Index secrets set. Offered
   under Lelap's own add-ons, not installed by default.
 - **Whole series** (M127): the `series` resource of protocol revision 11, every book of a series

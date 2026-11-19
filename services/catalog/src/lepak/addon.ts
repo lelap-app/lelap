@@ -14,12 +14,13 @@ const SEARCH = 'lepak-search';
 const ROW_SIZE = 20;
 // A listing is filtered again after it arrives, so ask for more than a row holds.
 const LISTING_SIZE = 40;
-const SEARCH_SIZE = 60;
-const PAGE_SIZE = 30;
+// The Catalog's podcast search asks the same, so both share one cached answer.
+const SEARCH_SIZE = 30;
 
 // Region forms too: whether `lang=ms` also matches feeds that say `ms-MY` is not documented.
-// `in` is the old code for Indonesian, which some feed tools still write.
-const MALAY_INDONESIAN = 'ms,ms-my,ms-sg,ms-bn,id,id-id,in';
+// `in` is the old code for Indonesian, which some feed tools still write. RSS `<language>` takes
+// two-letter codes, so three-letter ones (`ind`, `msa`) are left out.
+const MALAY_INDONESIAN = 'ms,ms-my,ms-sg,ms-bn,id,id-id,in,in-id';
 const SINGAPORE = 'en-sg,zh-sg,ms-sg,ta-sg';
 
 type Row = {
@@ -80,6 +81,7 @@ export const lepakManifest: Manifest = {
   description:
     'Free podcasts in Malay and Indonesian, and from Singapore, from Podcast Index: Cerita for stories and drama, Sembang for talk, Sejarah for history, and Singapura.',
   types: ['podcast'],
+  // Meta too, so its shows open when a listener has removed the Catalog.
   resources: ['catalog', { name: 'meta', types: ['podcast'], idPrefixes: [PREFIX] }],
   idPrefixes: [PREFIX],
   catalogs: [
@@ -91,8 +93,15 @@ export const lepakManifest: Manifest = {
 const keptBy = (keep: (language: string) => boolean) => (feed: Feed) =>
   feed.language !== undefined && keep(feed.language);
 
-/** Trending shows first; recently updated ones fill the row when too few are trending. */
-async function rowFeeds(podcasts: PodcastIndex, row: Row): Promise<Feed[]> {
+/**
+ * Trending shows first; recently updated ones fill the row when too few are trending. `failed`
+ * when the top-up failed, so the row is kept briefly instead of for a day.
+ */
+async function rowFeeds(
+  podcasts: PodcastIndex,
+  row: Row,
+): Promise<{ feeds: Feed[]; failed: boolean }> {
+  // A day, not the Catalog's 6 hours: these lists are short and change slowly.
   const filter = {
     lang: row.lang,
     max: LISTING_SIZE,
@@ -100,16 +109,20 @@ async function rowFeeds(podcasts: PodcastIndex, row: Row): Promise<Feed[]> {
     ...(row.cat ? { cat: row.cat } : {}),
   };
   const kept = (await podcasts.feeds('podcasts/trending', filter)).filter(keptBy(row.keep));
+  let failed = false;
   if (kept.length < ROW_SIZE) {
     const seen = new Set(kept.map((f) => f.id));
-    const recent = await podcasts.feeds('recent/feeds', filter);
+    const recent = await podcasts.feeds('recent/feeds', filter).catch(() => {
+      failed = true;
+      return [];
+    });
     for (const feed of recent.filter(keptBy(row.keep))) {
       if (seen.has(feed.id)) continue;
       seen.add(feed.id);
       kept.push(feed);
     }
   }
-  return kept.slice(0, ROW_SIZE);
+  return { feeds: kept.slice(0, ROW_SIZE), failed };
 }
 
 export function createLepakAddon(upstream: Upstream, credentials: PodcastIndexCredentials): Addon {
@@ -121,15 +134,18 @@ export function createLepakAddon(upstream: Upstream, credentials: PodcastIndexCr
       async catalog({ id, extra }): Promise<CatalogResponse> {
         const row = rows.get(id);
         if (row) {
-          const metas = await podcasts.previews(await rowFeeds(podcasts, row));
-          return { metas, cacheMaxAge: TTL.item };
+          const { feeds, failed } = await rowFeeds(podcasts, row);
+          const metas = await podcasts.previews(feeds);
+          // Fewer previews than feeds: a lookup failed (or a feed has no GUID); ask again soon.
+          const whole = !failed && metas.length === feeds.length;
+          return { metas, cacheMaxAge: whole ? TTL.item : TTL.failure };
         }
         const search = extra.search?.trim() ?? '';
         if (id !== SEARCH || !search) return { metas: [], cacheMaxAge: TTL.catalog };
         // `search/byterm` has no language filter, so each feed's own `language` decides.
-        const feeds = (await podcasts.searchFeeds(search, SEARCH_SIZE))
-          .filter(keptBy((l) => isMalayOrIndonesian(l) || isSingaporean(l)))
-          .slice(0, PAGE_SIZE);
+        const feeds = (await podcasts.searchFeeds(search, SEARCH_SIZE)).filter(
+          keptBy((l) => isMalayOrIndonesian(l) || isSingaporean(l)),
+        );
         return { metas: await podcasts.previews(feeds), cacheMaxAge: TTL.catalog };
       },
       async meta({ type, id }) {

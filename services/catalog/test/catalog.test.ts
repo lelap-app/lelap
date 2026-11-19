@@ -169,6 +169,41 @@ describe('Podcast Index', () => {
     ]);
   });
 
+  it('takes what a listing leaves empty from the feed lookup', async () => {
+    const fetch = fakeFetch([
+      [
+        path('/api/1.0/podcasts/trending'),
+        { feeds: [{ id: 1002, title: 'Night Reading', artwork: '', image: '', author: '' }] },
+      ],
+      [
+        path('/api/1.0/podcasts/byfeedid'),
+        {
+          feed: {
+            id: 1002,
+            podcastGuid: 'c7e2f4d1-8a3b-5e6f-b1c2-d3e4f5a6b7c8',
+            title: 'Night Reading',
+            author: 'Example Readers',
+            artwork: 'https://images.example.org/night-reading.jpg',
+          },
+        },
+      ],
+    ]);
+    const addon = createCatalogAddon(
+      createUpstream(platform(fetch), 'Lelap/1 (test)'),
+      CREDENTIALS,
+    );
+    const response = await addon.fetch(new Request(`${BASE}/catalog/podcast/trending.json`));
+    expect(((await response.json()) as { metas: unknown[] }).metas).toEqual([
+      {
+        id: 'podcast:c7e2f4d1-8a3b-5e6f-b1c2-d3e4f5a6b7c8',
+        type: 'podcast',
+        name: 'Night Reading',
+        author: 'Example Readers',
+        cover: 'https://images.example.org/night-reading.jpg',
+      },
+    ]);
+  });
+
   it('maps search results', async () => {
     const { body } = await setup(true).get('catalog/podcast/podcast-search/search=garden.json');
     expect((body.metas as { id: string }[]).map((m) => m.id)).toEqual([`podcast:${GUID}`]);

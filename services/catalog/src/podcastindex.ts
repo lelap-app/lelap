@@ -116,7 +116,10 @@ export function createPodcastIndex(
     const parsed = FeedOne.safeParse(data);
     const found = parsed.success ? parseFeed(parsed.data.feed) : null;
     if (!found) return feed;
-    const listed = Object.fromEntries(Object.entries(feed).filter(([, v]) => v !== undefined));
+    // Empty strings too: a listing's `"artwork": ""` must not hide the lookup's cover.
+    const listed = Object.fromEntries(
+      Object.entries(feed).filter(([, v]) => v !== undefined && v !== null && v !== ''),
+    );
     return { ...found, ...listed, podcastGuid: found.podcastGuid };
   };
 

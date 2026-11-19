@@ -8,6 +8,11 @@ const GUID = '5b8a6a0e-2d1c-5c3b-9a55-0f3c2a8e1b01';
 const firstPage = (url: URL) =>
   (url.searchParams.get('page') ?? '1') === '1' && (url.searchParams.get('offset') ?? '0') === '0';
 
+const lepakFeeds = fixture('podcastindex-lepak-byfeedid.json') as Record<
+  string,
+  { feed: { podcastGuid: string } }
+>;
+
 // The upstream answers the first-party add-ons need for one round, from the fixtures. Searches
 // have one page; past it they answer nothing, as the real services do.
 function setup() {
@@ -24,6 +29,25 @@ function setup() {
     [path('/works/OL69612W.json'), fixture('openlibrary-work-OL69612W.json')],
     [path('/works/OL69612W/editions.json'), fixture('openlibrary-editions-OL21745884W.json')],
     [path('/authors/OL23767A.json'), fixture('openlibrary-author-OL23767A.json')],
+    // Lepak's rows ask with `lang`; Sejarah answers from its own fixtures, the others are empty.
+    [
+      (u) => u.pathname === '/api/1.0/podcasts/trending' && u.searchParams.get('cat') === 'History',
+      fixture('podcastindex-lepak-trending-sejarah.json'),
+    ],
+    [
+      (u) => u.pathname === '/api/1.0/podcasts/trending' && u.searchParams.has('lang'),
+      fixture('podcastindex-lepak-recent-empty.json'),
+    ],
+    [path('/api/1.0/recent/feeds'), fixture('podcastindex-lepak-recent-empty.json')],
+    ...Object.entries(lepakFeeds).flatMap(([id, body]): [(u: URL) => boolean, unknown][] => [
+      [(u) => u.pathname === '/api/1.0/podcasts/byfeedid' && u.searchParams.get('id') === id, body],
+      [
+        (u) =>
+          u.pathname === '/api/1.0/podcasts/byguid' &&
+          u.searchParams.get('guid') === body.feed.podcastGuid,
+        body,
+      ],
+    ]),
     [path('/api/1.0/podcasts/trending'), fixture('podcastindex-trending.json')],
     [
       (u) => u.pathname === '/api/1.0/podcasts/byfeedid' && u.searchParams.get('id') === '1001',
@@ -76,7 +100,7 @@ describe('the add-on test kit', () => {
 
   it('passes Lepak', async () => {
     const report = await check('lepak/', {
-      items: 0,
+      items: 1,
       ids: [{ type: 'podcast', id: `podcast:${GUID}` }],
     });
     expect(report.problems, formatReport(report)).toEqual([]);
