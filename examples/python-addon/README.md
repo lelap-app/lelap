@@ -19,7 +19,7 @@ python3 addon.py            # http://localhost:8787/manifest.json, PORT to chang
 python3 -m unittest         # the tests
 ```
 
-To try it in Lelap, open **Settings → Add-ons**, paste the manifest URL and add it. A phone needs a
+To try it in Lelap, open **Settings → Library and sources → Add-ons**, paste the manifest URL and add it. A phone needs a
 URL it can reach, and the web app needs HTTPS: put the server behind a reverse proxy with a
 certificate, or deploy it. The docs' hosting page covers both.
 

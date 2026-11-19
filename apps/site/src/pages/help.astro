@@ -66,7 +66,7 @@ const sections: { id: string; title: string }[] = [
 
       <h3>How do I add one?</h3>
       <p>
-        In Settings → Add-ons, paste the add-on’s address, the one ending in{' '}
+        In Settings → Library and sources → Add-ons, paste the add-on’s address, the one ending in{' '}
         <code>/manifest.json</code>. Some add-ons have a setup page of their own that gives you the
         address. To remove one, use its menu in the same list.
       </p>
@@ -107,25 +107,25 @@ const sections: { id: string; title: string }[] = [
 
       <h3>Can I play my own files?</h3>
       <p>
-        Yes. On Android, choose a folder in Settings → Library. Or play from your own server in
-        Settings → Servers: WebDAV, S3-compatible, Jellyfin, Emby, Plex, Navidrome or
-        Audiobookshelf, and on Android also SMB and SFTP. The app talks to your server directly and
-        keeps the passwords on your device.
+        Yes. On Android, choose a folder in Settings → Library and sources. Or add your own server
+        there under Servers: WebDAV, S3-compatible, Jellyfin, Emby, Plex, Navidrome, Audiobookshelf
+        or an OPDS catalog such as Calibre’s, and on Android also SMB and SFTP. The app talks to
+        your server directly and keeps the passwords on your device.
       </p>
 
       <h3>How does sync work?</h3>
       <p>
-        In Settings → Sync, show a pairing code on one device and join with it on the other. Your
-        places and podcasts are encrypted on your device before they leave it, so the sync server
-        can’t read them. You can <a href="/#selfhost">run your own sync server</a>.
+        In Settings → People and devices → Sync, show a pairing code on one device and join with it
+        on the other. Your places and podcasts are encrypted on your device before they leave it, so
+        the sync server can’t read them. You can <a href="/#selfhost">run your own sync server</a>.
       </p>
 
       <h3>How do I move to a new phone?</h3>
       <p>
-        Use sync, or Settings → Backup → Export library on the old phone and Import library on the
-        new one. The file holds your places, bookmarks, lists, tags, podcasts and add-on addresses;
-        keep it private, as add-on addresses can hold your keys for them. Passwords for your servers
-        and the sync key are not in it, so enter those again.
+        Use sync, or Settings → Backup and updates → Export library on the old phone and Import
+        library on the new one. The file holds your places, bookmarks, lists, tags, podcasts and
+        add-on addresses; keep it private, as add-on addresses can hold your keys for them.
+        Passwords for your servers and the sync key are not in it, so enter those again.
       </p>
     </section>
 
@@ -136,14 +136,14 @@ const sections: { id: string; title: string }[] = [
       <p>
         Tap Sleep in the player and choose minutes or the end of the chapter. It fades out over the
         last minute. On Android, shake the phone in the last five minutes for ten more. When you
-        press Play again, smart rewind (Settings → Playback) goes back a few seconds, so you find
+        press Play again, smart rewind (Settings → Listening) goes back a few seconds, so you find
         your place.
       </p>
 
       <h3>Can I listen offline?</h3>
       <p>
         Yes. Download a book or an episode and it plays without a connection. On Android, Settings →
-        Downloads has the rules, such as Wi-Fi only.
+        Downloads and storage has the rules, such as Wi-Fi only.
       </p>
     </section>
 
@@ -153,8 +153,8 @@ const sections: { id: string; title: string }[] = [
       <h3>An add-on did not answer</h3>
       <p>
         Add-ons run on their makers’ servers and can be slow or offline. Pull Home down to try
-        again. Settings → Add-ons shows how each add-on’s requests went. If one of our own add-ons
-        stays down, tell us on GitHub.
+        again. Settings → Library and sources → Add-ons shows how each add-on’s requests went. If
+        one of our own add-ons stays down, tell us on GitHub.
       </p>
 
       <h3>How do I report a bug?</h3>

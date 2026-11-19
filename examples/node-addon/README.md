@@ -20,7 +20,7 @@ npm start     # http://localhost:8787/manifest.json
 npm test
 ```
 
-To try it in Lelap, open **Settings → Add-ons**, paste the manifest URL and add it. A phone needs a
+To try it in Lelap, open **Settings → Library and sources → Add-ons**, paste the manifest URL and add it. A phone needs a
 URL it can reach, and the web app needs HTTPS: put the server behind a reverse proxy with a
 certificate, or deploy it. The docs' hosting page covers both.
 

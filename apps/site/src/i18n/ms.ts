@@ -35,8 +35,8 @@ export const ms: Record<string, string> = {
   'Can I bring my progress from another player?':
     'Bolehkah saya membawa kemajuan saya daripada pemain audio lain?',
   'Can I write my own add-on?': 'Bolehkah saya menulis alat tambah sendiri?',
-  'Car mode shows a large cover and five big buttons. Android Auto shows the covers saved on your phone.':
-    'Mod kereta memaparkan kulit buku yang besar dan lima butang besar. Android Auto memaparkan kulit buku yang disimpan pada telefon anda.',
+  'Car mode shows a large cover and five big buttons. Android Auto shows the covers saved on your phone and plays your lists.':
+    'Mod kereta memaparkan kulit buku yang besar dan lima butang besar. Android Auto memaparkan kulit buku yang disimpan pada telefon anda dan memainkan senarai anda.',
   'Cast to the living room': 'Hantar ke ruang tamu',
   Catalogs: 'Katalog',
 
@@ -151,8 +151,8 @@ export const ms: Record<string, string> = {
   'Phone, tablet or laptop': 'Telefon, tablet atau komputer riba',
   'Pick up on your laptop where you stopped on your phone. Pair devices with a code; sync is end-to-end encrypted.':
     'Sambung di komputer riba dari tempat anda berhenti di telefon. Gandingkan peranti dengan kod; segerak disulitkan hujung ke hujung.',
-  'Play straight from your WebDAV, S3-compatible, Jellyfin, Emby, Plex, Navidrome or Audiobookshelf server, and on Android from SMB and SFTP. The app talks to it directly and keeps the credentials on your device.':
-    'Main terus dari pelayan WebDAV, storan serasi S3, Jellyfin, Emby, Plex, Navidrome atau Audiobookshelf anda, dan di Android dari SMB dan SFTP. Aplikasi berhubung terus dengannya dan menyimpan butiran log masuk dalam peranti anda.',
+  'Play straight from your WebDAV, S3-compatible, Jellyfin, Emby, Plex, Navidrome or Audiobookshelf server, or an OPDS catalog such as Calibre’s, and on Android from SMB and SFTP. The app talks to it directly and keeps the credentials on your device.':
+    'Main terus dari pelayan WebDAV, storan serasi S3, Jellyfin, Emby, Plex, Navidrome atau Audiobookshelf anda, atau katalog OPDS seperti katalog Calibre, dan di Android dari SMB dan SFTP. Aplikasi berhubung terus dengannya dan menyimpan butiran log masuk dalam peranti anda.',
   'Playlists, tags and Up Next': 'Senarai main, tag dan Seterusnya',
   'Please include:': 'Sila sertakan:',
   Primary: 'Navigasi utama',
@@ -210,8 +210,8 @@ export const ms: Record<string, string> = {
   'Try the Android beta': 'Cuba beta Android',
   'Until the first stable release, use the <code>beta</code> tag of each image.':
     'Sehingga keluaran stabil pertama, gunakan tag <code>beta</code> bagi setiap imej.',
-  'Voice boost brings soft and loud words closer together. Skip silence shortens long pauses and shows the time it saved, and even loudness keeps every book at one level. Set per book or per show. In the web app, skip silence works on MP3s with a constant bitrate, such as LibriVox’s.':
-    'Penguat suara merapatkan perkataan yang perlahan dan yang kuat. Langkau senyap memendekkan jeda yang panjang dan menunjukkan masa yang dijimatkan, dan kenyaringan sekata mengekalkan setiap buku pada satu tahap. Tetapkan bagi setiap buku atau setiap rancangan. Dalam aplikasi web, langkau senyap berfungsi pada fail MP3 dengan kadar bit tetap, seperti fail LibriVox.',
+  'Voice boost brings soft and loud words closer together. Skip silence shortens long pauses and shows the time it saved, and even loudness keeps every book at one level. Set per book or per show. In the web app, skip silence works on M4B, Opus, Vorbis and FLAC files, and on MP3s with a constant bitrate, such as LibriVox’s.':
+    'Penguat suara merapatkan perkataan yang perlahan dan yang kuat. Langkau senyap memendekkan jeda yang panjang dan menunjukkan masa yang dijimatkan, dan kenyaringan sekata mengekalkan setiap buku pada satu tahap. Tetapkan bagi setiap buku atau setiap rancangan. Dalam aplikasi web, langkau senyap berfungsi pada fail M4B, Opus, Vorbis dan FLAC, dan pada fail MP3 dengan kadar bit tetap, seperti fail LibriVox.',
   'We ship the .apk directly so releases don’t wait on store review. The app checks for updates itself, or you can follow releases with Obtainium.':
     'Kami mengedarkan .apk secara terus supaya keluaran tidak perlu menunggu semakan gedung aplikasi. Aplikasi menyemak kemas kini sendiri, atau anda boleh mengikuti keluaran dengan Obtainium.',
   'Web app': 'Aplikasi web',
@@ -224,8 +224,8 @@ export const ms: Record<string, string> = {
   'Why isn’t it on Google Play?': 'Mengapa ia tiada di Google Play?',
   'Works fully offline': 'Berfungsi sepenuhnya luar talian',
   'Works with a screen reader': 'Berfungsi dengan pembaca skrin',
-  'Yes, as a one-off import in Settings → Backup → “Import from another app”. From Smart AudioBook Player come your places and finished books, but not yet your bookmarks. From AntennaPod come your subscriptions, played episodes and places. From Goodreads, shelves become tags and read books are marked finished, for the books already in your library. A summary shows what matched and what was left out.':
-    'Boleh, melalui import sekali sahaja di Tetapan → Sandaran → “Import daripada aplikasi lain”. Daripada Smart AudioBook Player dibawa kedudukan anda dan buku yang selesai didengar, tetapi belum lagi penanda anda. Daripada AntennaPod dibawa langganan, episod yang sudah dimainkan dan kedudukan anda. Daripada Goodreads, rak menjadi tag dan buku yang sudah dibaca ditanda selesai, bagi buku yang sudah ada dalam pustaka anda. Ringkasan menunjukkan apa yang sepadan dan apa yang tertinggal.',
+  'Yes, as a one-off import in Settings → Backup and updates → “Import from another app”. From Smart AudioBook Player come your places and finished books, but not yet your bookmarks. From AntennaPod come your subscriptions, played episodes and places. From Goodreads, shelves become tags and read books are marked finished, for the books already in your library. A summary shows what matched and what was left out.':
+    'Boleh, melalui import sekali sahaja di Tetapan → Sandaran dan kemas kini → “Import daripada aplikasi lain”. Daripada Smart AudioBook Player dibawa kedudukan anda dan buku yang selesai didengar, tetapi belum lagi penanda anda. Daripada AntennaPod dibawa langganan, episod yang sudah dimainkan dan kedudukan anda. Daripada Goodreads, rak menjadi tag dan buku yang sudah dibaca ditanda selesai, bagi buku yang sudah ada dalam pustaka anda. Ringkasan menunjukkan apa yang sepadan dan apa yang tertinggal.',
   'Yes. An add-on is a small HTTP service that returns JSON. The <a href="/docs/" hreflang="en">add-on docs</a> cover the protocol and the SDK, which is on npm as <code>@lelap/sdk</code>.':
     'Ya. Alat tambah ialah perkhidmatan HTTP kecil yang memulangkan JSON. <a href="/docs/" hreflang="en">Dokumentasi alat tambah</a> (dalam bahasa Inggeris) merangkumi protokol dan SDK, yang ada di npm sebagai <code>@lelap/sdk</code>.',
   'Yes. The code is open source, and the hosted web app at {host} is free to use.':

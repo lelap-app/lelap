@@ -29,7 +29,7 @@ npx wrangler dev
 ```
 
 Open <http://localhost:8787/manifest.json> to check the manifest (the base URL redirects there). To try it in Lelap, open
-**Settings → Add-ons**, paste the manifest URL and add it. A phone needs a URL it can reach: use
+**Settings → Library and sources → Add-ons**, paste the manifest URL and add it. A phone needs a URL it can reach: use
 your computer's LAN address with `wrangler dev --ip 0.0.0.0`, or deploy first.
 
 ## Deploy

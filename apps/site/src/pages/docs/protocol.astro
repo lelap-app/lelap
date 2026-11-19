@@ -670,7 +670,7 @@ const healthFields: Field[] = [
     name: 'message',
     type: 'string',
     required: false,
-    meaning: 'Up to 300 characters, shown in Settings → Add-ons. No secrets.',
+    meaning: 'Up to 300 characters, shown in Settings → Library and sources → Add-ons. No secrets.',
   },
   { name: 'cacheMaxAge', type: 'integer ≥ 0', required: false, meaning: 'Seconds to cache.' },
 ];
@@ -1450,11 +1450,11 @@ const toc: [string, string][] = [
   <h3 id="scrobble-settings">Add-ons inside the app with settings</h3>
   <p>
     Since revision 8, an add-on inside the app with <code>scrobble</code> and <code>settings</code>{' '}
-    but no <code>library</code> is set up under Settings → Add-ons, with the form its{' '}
-    <code>settings</code> describe. Since revision 9 that holds for every add-on inside the app with{' '}
-    <code>settings</code> and no <code>library</code>, and the values reach all of its calls:{' '}
-    <code>catalog</code>, <code>meta</code>, <code>stream</code> and <code>artwork</code> get them
-    as <code>args.settings</code> too, in the same sandbox, which also reaches the hosts of{' '}
+    but no <code>library</code> is set up under Settings → Library and sources → Add-ons, with the
+    form its <code>settings</code> describe. Since revision 9 that holds for every add-on inside the
+    app with <code>settings</code> and no <code>library</code>, and the values reach all of its
+    calls: <code>catalog</code>, <code>meta</code>, <code>stream</code> and <code>artwork</code> get
+    them as <code>args.settings</code> too, in the same sandbox, which also reaches the hosts of{' '}
     <code>url</code> fields marked <code>host</code>. Before it is set up, its calls go without
     settings. Addresses in its answers that are off those hosts (a cover, a stream, a link) are left
     out, as for a library’s files: one could carry a setting elsewhere. A library source’s settings
@@ -1500,9 +1500,9 @@ const toc: [string, string][] = [
     <a href="#moved">settings</a>, <a href="#locate">locating files</a> before they stream and{' '}
     <a href="#whole-series">whole series</a>; an app before revision 11 ignores the settings and
     refuses a manifest that lists <code>locate</code> or <code>series</code>. When an add-on
-    declares a newer revision than the app knows, Settings → Add-ons says so. Revision 9 comes with
-    SDK 0.5.0; 0.4.0 covers revisions up to 8. Revisions 10 and 11 come with the next SDK release,
-    0.6.
+    declares a newer revision than the app knows, Settings → Library and sources → Add-ons says so.
+    Revision 9 comes with SDK 0.5.0; 0.4.0 covers revisions up to 8. Revisions 10 and 11 come with
+    the next SDK release, 0.6.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />
@@ -1538,7 +1538,8 @@ const toc: [string, string][] = [
     </li>
     <li>
       Without a usable <code>return</code>, show the manifest URL to copy. The listener pastes it
-      under Settings → Add-ons, which also accepts the whole <code>lelap://addon?…</code> link.
+      under Settings → Library and sources → Add-ons, which also accepts the whole{' '}
+      <code>lelap://addon?…</code> link.
     </li>
     <li>
       The app matches the new manifest to an installed add-on by <code>id</code>. If one exists, it
@@ -1561,11 +1562,11 @@ const toc: [string, string][] = [
 
   <h2 id="health">Health</h2>
   <p>
-    Settings → Add-ons shows each add-on’s last response time and last error, from the requests the
-    app makes anyway. It stays on the device. An add-on with <code>behaviorHints.health</code> also
-    answers <code>GET /health</code>, which the app asks when Settings opens and when the listener
-    taps Check now. Answer quickly, and with <code>200</code> even when the status is{' '}
-    <code>down</code>.
+    Settings → Library and sources → Add-ons shows each add-on’s last response time and last error,
+    from the requests the app makes anyway. It stays on the device. An add-on with{' '}
+    <code>behaviorHints.health</code> also answers <code>GET /health</code>, which the app asks when
+    Settings opens and when the listener taps Check now. Answer quickly, and with <code>200</code>{' '}
+    even when the status is <code>down</code>.
   </p>
   <FieldTable fields={healthFields} />
   <CodeBlock code={healthExample} label="GET /health" />
@@ -1636,8 +1637,9 @@ const toc: [string, string][] = [
   <p>
     Since revision 3, an add-on can also be a single JavaScript file that runs inside the app, for
     sources on the listener's own network that have no server for an add-on: a NAS, a shelf of files
-    behind a small web server. The listener pastes the file's address in Settings → Add-ons; the app
-    keeps the code on the device and shows its fingerprint before installing.
+    behind a small web server. The listener pastes the file's address in Settings → Library and
+    sources → Add-ons; the app keeps the code on the device and shows its fingerprint before
+    installing.
   </p>
   <ul>
     <li>
@@ -1673,12 +1675,12 @@ const toc: [string, string][] = [
   <p>
     Since revision 5, an add-on inside the app can be a source for the listener’s own library, next
     to WebDAV and S3: it lists the books and files on a server, and the app scans them into the
-    library with places, downloads and offline play. The listener adds it in Settings → Servers →
-    Add a server, where it shows as a kind of its own and asks for what <code>settings</code>{' '}
-    describes. Lelap ships five with the app: HTTP folder, which reads the folder listings of
-    servers such as nginx, Apache and Caddy; Subsonic, for Navidrome, Airsonic-Advanced, Gonic and
-    other servers that speak the Subsonic API; Emby; Plex; and OPDS, for Calibre’s content server
-    and other OPDS catalogs.
+    library with places, downloads and offline play. The listener adds it in Settings → Library and
+    sources → Add a server, where it shows as a kind of its own and asks for what{' '}
+    <code>settings</code> describes. Lelap ships five with the app: HTTP folder, which reads the
+    folder listings of servers such as nginx, Apache and Caddy; Subsonic, for Navidrome,
+    Airsonic-Advanced, Gonic and other servers that speak the Subsonic API; Emby; Plex; and OPDS,
+    for Calibre’s content server and other OPDS catalogs.
   </p>
   <ul>
     <li>
