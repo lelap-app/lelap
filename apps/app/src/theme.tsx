@@ -51,7 +51,8 @@ function apply(): void {
     look.customTheme,
     Appearance.getColorScheme() === 'light',
   );
-  const nextKey = `${next.id}:${next.name ?? ''}:${next.dark}:${Object.values(next.colors).join('')}`;
+  // The accent too: a file theme hides it, but car mode falls back to it.
+  const nextKey = `${next.id}:${next.name ?? ''}:${next.dark}:${next.highContrast}:${look.accent}:${Object.values(next.colors).join('')}`;
   if (nextKey === key) return;
   current = next;
   key = nextKey;
