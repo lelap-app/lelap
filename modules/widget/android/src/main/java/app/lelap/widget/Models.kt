@@ -8,7 +8,10 @@ data class WidgetModel(
   val title: String,
   /** The chapter, else the author. */
   val subtitle: String?,
-  /** The author under the chapter, on the tall widget only. */
+  /**
+   * On the tall widget only: while a list plays, what comes next in it (M119); else the author
+   * under the chapter.
+   */
   val detail: String?,
   val playing: Boolean,
   val coverUri: String?,
@@ -40,7 +43,7 @@ object Models {
       hasBook = now != null,
       title = title,
       subtitle = subtitle,
-      detail = now?.author?.takeIf { now.chapter != null },
+      detail = now?.let { listLine(it, text) } ?: now?.author?.takeIf { now.chapter != null },
       playing = playing,
       coverUri = now?.coverUri,
       skipSeconds = seconds,
@@ -49,6 +52,13 @@ object Models {
       forwardLabel = text.t("Forward {n} seconds", "n" to seconds),
       openLabel = text.t("{what}. Opens the player.", "what" to listOfNotNull(title, subtitle).joinToString(", ")),
     )
+  }
+
+  /** The list line; the small widget has no room for it. */
+  private fun listLine(now: NowPlayingSnapshot, text: NativeCatalog): String? {
+    val list = now.list ?: return null
+    return now.listNext?.let { text.t("Next in list: {title}", "title" to it) }
+      ?: text.t("From the list “{name}”", "name" to list)
   }
 
   fun tile(now: NowPlayingSnapshot?, text: NativeCatalog = NativeCatalog.ENGLISH): TileModel = when {

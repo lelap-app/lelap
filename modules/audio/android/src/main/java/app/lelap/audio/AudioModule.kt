@@ -171,12 +171,22 @@ class AudioModule : Module() {
       sendCommand(promise, Commands.CANCEL_SLEEP_TIMER)
     }.runOnQueue(Queues.MAIN)
 
-    AsyncFunction("setQueue") { queueJson: String, listNext: Int, promise: Promise ->
+    AsyncFunction("setQueue") { queueJson: String, listNext: Int, listJson: String, promise: Promise ->
       val args = Bundle().apply {
         putString(Commands.KEY_QUEUE_JSON, queueJson)
         putInt(Commands.KEY_LIST_NEXT, listNext)
+        putString(Commands.KEY_LIST_JSON, listJson)
       }
       sendCommand(promise, Commands.SET_QUEUE, args)
+    }.runOnQueue(Queues.MAIN)
+
+    // Same process, on the main thread where the service writes it: a list picked in Android Auto
+    // (M119), taken once, for the app to follow.
+    AsyncFunction("takeListStarted") {
+      val prefs = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE)
+      val json = prefs.getString(Commands.PREF_LIST_STARTED, null)
+      prefs.edit().remove(Commands.PREF_LIST_STARTED).apply()
+      json
     }.runOnQueue(Queues.MAIN)
 
     // Same process: the places of books the service replaced by itself, oldest first.

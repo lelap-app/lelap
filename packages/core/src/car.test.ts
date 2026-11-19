@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createTestDb } from '../test/db';
 import { seedBook } from '../test/seed';
-import { carShelves } from './car';
+import { carLists, carShelves } from './car';
 import type { Db } from './db';
 import { setFinished } from './library/queries';
 import { episodeBook, listEpisodes, saveFeed, subscribe } from './podcasts/repository';
@@ -11,6 +11,8 @@ import { parseFeed } from './podcasts/rss';
 import { DEFAULT_PROFILE_ID as ME } from './profiles';
 import { saveProgress } from './progress';
 import { bookFiles, books } from './schema';
+import { setFollowedList } from './listPlay';
+import { addToPlaylist, createPlaylist, setPlaylistKeepFinished } from './organise';
 import { addToUpNext } from './upNext';
 
 let n = 0;
@@ -92,5 +94,40 @@ describe('car shelves', () => {
     addToUpNext(db, ME, beta, 'last', 1);
     addToUpNext(db, ME, alpha, 'last', 2);
     expect(carShelves(db, ME).upNext).toEqual([beta, alpha]);
+  });
+
+  it('offers each list with where it stands and the items around it', () => {
+    const gamma = seedBook(db, 'Gamma', [{ location: 'gamma/1', durationMs: 1000 }]);
+    const id = createPlaylist(db, ME, newId, { name: 'Trip', rule: null }, 1);
+    for (const book of [alpha, beta, gamma]) addToPlaylist(db, ME, id, book, 2);
+    setFinished(db, ME, alpha, true, 3);
+    expect(carLists(db, ME)).toEqual([
+      {
+        id,
+        name: 'Trip',
+        keepFinished: false,
+        order: null,
+        start: beta,
+        items: [
+          { bookId: beta, fromStart: false },
+          { bookId: gamma, fromStart: false },
+        ],
+      },
+    ]);
+    // A list that keeps finished items plays them again from the start.
+    setPlaylistKeepFinished(db, ME, id, true, 4);
+    setFollowedList(db, ME, { listId: id, bookId: gamma, order: null }, 5);
+    const [kept] = carLists(db, ME);
+    expect(kept?.start).toBe(gamma);
+    expect(kept?.items.map((i) => i.bookId)).toEqual([alpha, beta, gamma]);
+    expect(kept?.items[0]?.fromStart).toBe(true);
+  });
+
+  it('keeps a smart list in the order it shows now', () => {
+    const id = createPlaylist(db, ME, newId, { name: 'New', rule: { status: 'notStarted' } }, 1);
+    const [list] = carLists(db, ME);
+    expect(list?.id).toBe(id);
+    expect(list?.order).toEqual(list?.items.map((i) => i.bookId));
+    expect(list?.order).toHaveLength(2);
   });
 });

@@ -21,11 +21,14 @@ const nativeLines = (): Record<string, string> => ({
   'Sleep timer end of chapter': t('Sleep timer end of chapter'),
   'Sleep timer on': t('Sleep timer on'),
   'Next in list': t('Next in list'),
+  'Previous in list': t('Previous in list'),
   // Android Auto's shelves.
   'Continue listening': t('Continue listening'),
   'On this phone': t('On this phone'),
   Podcasts: t('Podcasts'),
   'Up Next': t('Up Next'),
+  Lists: t('Lists'),
+  'Play list': t('Play list'),
   // Download and chapter-finding notifications.
   Downloading: t('Downloading'),
   Cancel: t('Cancel'),
@@ -181,6 +184,9 @@ const nativeLines = (): Record<string, string> => ({
   'Not playing': t('Not playing'),
   Playing: t('Playing'),
   Paused: t('Paused'),
+  // The tall widget's list line (M119).
+  'Next in list: {title}': t('Next in list: {title}'),
+  'From the list “{name}”': t('From the list “{name}”'),
 });
 
 let subscribed = false;

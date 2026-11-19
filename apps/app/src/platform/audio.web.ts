@@ -7,6 +7,7 @@ import type {
   PlayerDiagnostic,
   PlayerSettings,
   PlayerState,
+  QueueList,
   ServiceAccounting,
   SleepPlace,
   SleepTimerMode,
@@ -42,6 +43,7 @@ export type {
   PlayerDiagnostic,
   PlayerSettings,
   PlayerState,
+  QueueList,
   ServiceAccounting,
   SleepPlace,
   SleepTimerMode,
@@ -720,9 +722,30 @@ export async function cancelSleepTimer(): Promise<void> {
   emit();
 }
 
-// The browser's media session has no room for Next in list; the player screen has it.
-export async function setQueue(next: BookLoad[]): Promise<void> {
+// The list's steps go through the app on the web (`setListKeys`), so the list itself is unused.
+export async function setQueue(
+  next: BookLoad[],
+  listNext: number | null = null,
+  list: QueueList | null = null,
+): Promise<void> {
+  void listNext;
+  void list;
   queue = [...next];
+}
+
+/** The list's steps for the media keys (M119); the app moves through the list itself. */
+export type ListKeys = { previous: boolean; next: boolean; step: (forward: boolean) => void };
+
+let listKeys: ListKeys | null = null;
+
+/** While a list plays, ⏮ and ⏭ go to its previous and next item; null gives them back. */
+export function setListKeys(keys: ListKeys | null): void {
+  listKeys = keys;
+}
+
+// Android Auto is not on the web.
+export async function takeListStarted(): Promise<null> {
+  return null;
 }
 
 // The web player runs inside the app, which saves every place itself; there is no car here.
@@ -806,9 +829,14 @@ function setUpMediaSession(): void {
   const session = navigator.mediaSession;
   session.setActionHandler('play', () => void play());
   session.setActionHandler('pause', () => void pause());
-  // ⏮ and ⏭ skip by the interval, as on Android's lock screen.
-  session.setActionHandler('previoustrack', () => void skip(false));
-  session.setActionHandler('nexttrack', () => void skip(true));
+  // ⏮ and ⏭ skip by the interval, as on Android's lock screen; while a list plays they step
+  // through it (M119), and the browser's seek buttons beside them keep the skip by time.
+  session.setActionHandler('previoustrack', () =>
+    listKeys?.previous ? listKeys.step(false) : void skip(false),
+  );
+  session.setActionHandler('nexttrack', () =>
+    listKeys?.next ? listKeys.step(true) : void skip(true),
+  );
   session.setActionHandler('seekbackward', () => void skip(false));
   session.setActionHandler('seekforward', () => void skip(true));
   // The browser's media overlay and the system's media controls can drag within the chapter (the

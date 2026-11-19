@@ -196,7 +196,8 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   unload(): Promise<void>;
   castTo(): Promise<void>;
   stopCasting(resume: boolean | null): Promise<void>;
-  setQueue(queueJson: string, listNext: number): Promise<void>;
+  setQueue(queueJson: string, listNext: number, listJson: string): Promise<void>;
+  takeListStarted(): Promise<string | null>;
   takeFinished(): Promise<FinishedItem[]>;
   takeEarlierPlaces(): Promise<JournalEntry[]>;
   takeAccounting(): Promise<ServiceAccounting>;
@@ -303,12 +304,49 @@ export function cancelSleepTimer(): Promise<void> {
 }
 
 /**
+ * The list that plays, as the service follows it (M119): its name for the widget, the item
+ * playing from it (null while Up Next plays in between) and a few items before that, nearest
+ * first, for Previous in list on the notification and in the car.
+ */
+export type QueueList = {
+  id: string;
+  title: string;
+  at: string | null;
+  before: BookLoad[];
+  keepsFinished: boolean;
+};
+
+/**
  * What plays after the current book when it hands over: Up Next in order, then the rest of the
  * list that plays (M112). `listNext` is where in `queue` the list's next item is, for the
  * notification's Next in list; null without a list.
  */
-export function setQueue(queue: BookLoad[], listNext: number | null = null): Promise<void> {
-  return native.setQueue(JSON.stringify(queue), listNext ?? -1);
+export function setQueue(
+  queue: BookLoad[],
+  listNext: number | null = null,
+  list: QueueList | null = null,
+): Promise<void> {
+  return native.setQueue(JSON.stringify(queue), listNext ?? -1, list ? JSON.stringify(list) : '');
+}
+
+/** A list picked in Android Auto (M119), which the app then follows; null when none was. */
+export type ListStarted = { listId: string; bookId: string; order: string[] | null };
+
+/** The list picked in the car since the last call, once. */
+export async function takeListStarted(): Promise<ListStarted | null> {
+  const json = await native.takeListStarted();
+  if (!json) return null;
+  try {
+    const value = JSON.parse(json) as Partial<ListStarted>;
+    if (typeof value.listId !== 'string' || typeof value.bookId !== 'string') return null;
+    return {
+      listId: value.listId,
+      bookId: value.bookId,
+      order: Array.isArray(value.order) ? value.order.filter((id) => typeof id === 'string') : null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /** Books that ended since the last call, for the app to mark finished. */
@@ -354,6 +392,19 @@ export type CarLibrary = {
   onPhone: BookLoad[];
   podcasts: BookLoad[];
   upNext: BookLoad[];
+  /** The Lists shelf (M119): each list with its items around where it stands. */
+  lists: CarLibraryList[];
+};
+
+export type CarLibraryList = {
+  id: string;
+  title: string;
+  keepsFinished: boolean;
+  /** A smart list's order, handed back with `takeListStarted` when played from the car. */
+  order: string[] | null;
+  /** Where Play list starts. */
+  start: string | null;
+  items: BookLoad[];
 };
 
 /** Hands the service what Android Auto lists, so it can answer with the app closed. */

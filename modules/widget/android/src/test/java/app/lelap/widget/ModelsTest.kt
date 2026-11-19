@@ -111,4 +111,12 @@ class ModelsTest {
     assertEquals(2, Models.sampleSize(640, 640, 320))
     assertEquals(4, Models.sampleSize(1400, 1000, 320))
   }
+
+  @Test fun theTallWidgetSaysWhatComesNextInTheList() {
+    val next = Models.widget(NowPlayingSnapshot.decode("""{"bookId":"b1","title":"T","chapter":"C","author":"A","list":"Road trip","listNext":"Emma"}"""))
+    assertEquals("Next in list: Emma", next.detail)
+    assertEquals("C", next.subtitle)
+    val last = Models.widget(NowPlayingSnapshot.decode("""{"bookId":"b1","title":"T","list":"Road trip"}"""))
+    assertEquals("From the list “Road trip”", last.detail)
+  }
 }

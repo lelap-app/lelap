@@ -122,6 +122,20 @@ export function listAllBooks(
 }
 
 /**
+ * The visible books and episodes with these ids, in no particular order: a list that plays reads
+ * only its own items, not the whole library (M119).
+ */
+export function listBooksById(db: Db, profileId: string, ids: readonly string[]): LibraryBook[] {
+  const unique = [...new Set(ids)];
+  const found: LibraryBook[] = [];
+  // Within SQLite's limit on bound values, for a very long list.
+  for (let at = 0; at < unique.length; at += 500) {
+    found.push(...selectBooks(db, profileId, inArray(books.id, unique.slice(at, at + 500))));
+  }
+  return found;
+}
+
+/**
  * Books in the Library; podcast episodes are listed under their podcast instead. `show: 'hidden'`
  * is the Hidden view.
  */

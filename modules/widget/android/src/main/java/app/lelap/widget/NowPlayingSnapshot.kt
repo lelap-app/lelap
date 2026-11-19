@@ -16,6 +16,9 @@ data class NowPlayingSnapshot(
   val coverUri: String?,
   val playing: Boolean,
   val skipMs: Long,
+  /** The list that plays (M119) and its next item's title; null without one. */
+  val list: String? = null,
+  val listNext: String? = null,
 ) {
   companion object {
     const val PREFS = "lelap_now_playing"
@@ -35,6 +38,8 @@ data class NowPlayingSnapshot(
         coverUri = o.optStringOrNull("coverUri"),
         playing = o.optBoolean("playing", false),
         skipMs = o.optLong("skipMs", DEFAULT_SKIP_MS).takeIf { it > 0 } ?: DEFAULT_SKIP_MS,
+        list = o.optStringOrNull("list"),
+        listNext = o.optStringOrNull("listNext"),
       )
     }
 
