@@ -7,10 +7,12 @@ import {
   LibraryResponse,
   LocateResponse,
   offersLibrary,
+  offersSettingOptions,
   offersSignin,
   readSettings,
   settingHosts,
   SigninResult,
+  SettingsOptions,
   SigninStart,
 } from '@lelap/sdk';
 import { describe, expect, it } from 'vitest';
@@ -29,6 +31,7 @@ type Handlers = {
   place?: (args: unknown) => Promise<unknown>;
   signin?: (args: unknown) => Promise<unknown>;
   locate?: (args: unknown) => Promise<unknown>;
+  settings?: (args: unknown) => Promise<unknown>;
 };
 
 /**
@@ -811,6 +814,10 @@ describe('Plex', () => {
         return LibraryResponse.parse(await loaded.handlers.library({ settings: read.settings }));
       },
       place: (place: unknown) => loaded.handlers.place?.({ settings: values, place }),
+      options: async () => {
+        hosts();
+        return SettingsOptions.parse(await loaded.handlers.settings?.({ settings: values }));
+      },
       locate: async (files: { path: string; url: string }[]) => {
         hosts();
         return LocateResponse.parse(
@@ -986,6 +993,30 @@ describe('Plex', () => {
     await expect(source.list()).rejects.toThrow(
       'The Plex server has no music library called “Films”. It has “Music”, “Audiobooks”.',
     );
+  });
+
+  it('lists the music libraries to pick from once signed in', async () => {
+    expect(manifest && offersSettingOptions(manifest)).toBe(true);
+    await expect(run({}, world().answer).options()).rejects.toThrow('Sign in with Plex first.');
+    const source = await signedIn(world().answer);
+    // Music libraries only: audiobooks live there on Plex, never among films.
+    expect((await source.options()).options).toEqual({
+      libraries: [
+        { value: 'Music', label: 'Music' },
+        { value: 'Audiobooks', label: 'Audiobooks' },
+      ],
+    });
+  });
+
+  it('takes the libraries picked from the list, and names typed before with commas', async () => {
+    const source = await signedIn(world().answer);
+    source.values.libraries = 'Audiobooks';
+    expect((await source.list()).files).toHaveLength(4);
+    source.values.libraries = 'Audiobooks\nFilms';
+    await expect(source.list()).rejects.toThrow('no music library called “Films”');
+    // A form saved before the list: names separated by commas.
+    source.values.libraries = 'Audiobooks, Films';
+    await expect(source.list()).rejects.toThrow('no music library called “Films”');
   });
 
   it('needs a sign-in before anything is listed', async () => {

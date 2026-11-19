@@ -81,7 +81,9 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
 - **Revision 11** (from the next version, 0.6), for add-ons inside the app: `settings` on a
   `LibraryResponse`, new values for the add-on's own fields such as a server's new address; and
   the `locate` resource, with `LocateRequest`, `LocateResponse`, `locatePath` and `offersLocate`,
-  which says where a book's files stream from just before it plays. For any add-on, the `series`
+  which says where a book's files stream from just before it plays; `choice` settings, a list to
+  pick from, with their own `options` or those the `settings` resource lists (`SettingsOptions`,
+  `settingsPath`, `offersSettingOptions`, `choiceOptions`, `choiceValues`). For any add-on, the `series`
   resource lists a whole series in reading order: `SeriesResponse`, `SeriesList`, `seriesPath`,
   `offersSeries`, and `orderSeriesVolumes`, the order the app shows. `lelap-sdk check --series
 name/author` checks one.
@@ -92,7 +94,7 @@ name/author` checks one.
   are for CI. `checkAddon(url, { fetch })` from `@lelap/sdk/check` does the same in your tests,
   without a server, and stays out of bundles that import the SDK's root; see
   [Checking an add-on](https://lelap.app/docs/checking/).
-- **Paths:** `catalogPath`, `metaPath`, `streamPath`, `libraryPath`, `placePath`, `locatePath`, `seriesPath`, `parseRoute`, `encodeExtra`,
+- **Paths:** `catalogPath`, `metaPath`, `streamPath`, `libraryPath`, `placePath`, `locatePath`, `settingsPath`, `seriesPath`, `parseRoute`, `encodeExtra`,
   `parseExtra`.
 - **Helpers:** `supports`, `prefixesFor`, `hasParts`, `isConfigurable`, `needsConfiguration`,
   `offersHealth`, `encodeConfig`, `decodeConfig`, `CORS_HEADERS`, `PROTOCOL_VERSION`,

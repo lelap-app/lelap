@@ -20,8 +20,9 @@ export const PROTOCOL_VERSION = 1;
  * an add-on inside the app without `library` to every one of its calls; 10 adds `events` on the
  * `scrobble` resource, sends `rate` (without `rating` when the listener takes it back), sends
  * `resumed` only to an add-on that heard of the book before, and `sessionStartMs` on every
- * `finish` that ends a session; 11 adds a library's `settings` and the `locate` resource, for
- * add-ons inside the app, and the `series` resource: every book of a series, in order.
+ * `finish` that ends a session; 11 adds a library's `settings`, the `locate` resource, `choice`
+ * settings and the `settings` resource that lists their options, for add-ons inside the app, and
+ * the `series` resource: every book of a series, in order.
  */
 export const LATEST_PROTOCOL_VERSION = 11;
 
@@ -40,6 +41,7 @@ export const RESOURCES = [
   'signin',
   'locate',
   'series',
+  'settings',
 ] as const;
 export const ResourceName = z.enum(RESOURCES);
 export type ResourceName = z.infer<typeof ResourceName>;
@@ -166,7 +168,30 @@ export const QueryParams = z
   .refine((query) => Object.keys(query).length <= 16, 'At most 16 query parameters');
 export type QueryParams = z.infer<typeof QueryParams>;
 
-export const SETTING_TYPES = ['text', 'url', 'password', 'signin'] as const;
+export const SETTING_TYPES = ['text', 'url', 'password', 'signin', 'choice'] as const;
+
+const noControl = (value: string) =>
+  [...value].every((c) => c.charCodeAt(0) >= 0x20 && c.charCodeAt(0) !== 0x7f);
+
+/**
+ * Since revision 11: one option of a `choice` setting. `value` is what the add-on gets back, such
+ * as a library's name or ID; `label` is what the listener reads.
+ */
+export const ChoiceOption = z.object({
+  value: z
+    .string()
+    .min(1)
+    .max(200)
+    .refine(noControl, 'Values have no control characters')
+    .refine((value) => value === value.trim(), 'Values have no spaces at the ends'),
+  label: z.string().min(1).max(120),
+  /** A short line under the label, such as what the library holds. */
+  detail: z.string().max(200).optional(),
+});
+export type ChoiceOption = z.infer<typeof ChoiceOption>;
+
+const distinctValues = (options: ChoiceOption[]) =>
+  new Set(options.map((o) => o.value)).size === options.length;
 
 /**
  * Since revision 5: one field of the form the app shows when the listener adds an add-on inside
@@ -196,10 +221,29 @@ export const SettingField = z
      * `sandbox.hosts`. The listener typed it, so the listener chose it.
      */
     host: z.boolean().optional(),
+    /**
+     * For `choice` (revision 11): the options to pick from. Without them, the app asks the
+     * add-on's `settings` resource, such as for the libraries a server has after signing in.
+     */
+    options: z.array(ChoiceOption).max(200).optional(),
+    /**
+     * For `choice`: the listener may pick several. The value is then the picked values, one per
+     * line; `choiceValues` splits it.
+     */
+    multiple: z.boolean().optional(),
   })
   .refine((field) => field.host !== true || field.type === 'url', {
     message: 'Only url fields can grant a host',
     path: ['host'],
+  })
+  .refine(
+    (field) =>
+      field.type === 'choice' || (field.options === undefined && field.multiple === undefined),
+    { message: 'Only choice fields have options', path: ['options'] },
+  )
+  .refine((field) => distinctValues(field.options ?? []), {
+    message: 'Option values must differ',
+    path: ['options'],
   });
 export type SettingField = z.infer<typeof SettingField>;
 
@@ -293,6 +337,23 @@ export const Manifest = z
         message: 'One signin field at most, with the signin resource',
       });
     }
+    const lists = resourceNames(manifest.resources).includes('settings');
+    if (!manifest.sandbox && lists) {
+      context.addIssue({
+        code: 'custom',
+        path: ['resources'],
+        message: 'Only add-ons inside the app list setting options',
+      });
+    }
+    (manifest.settings ?? []).forEach((field, index) => {
+      if (field.type === 'choice' && field.options === undefined && !lists) {
+        context.addIssue({
+          code: 'custom',
+          path: ['settings', index, 'options'],
+          message: 'A choice field needs options or the settings resource',
+        });
+      }
+    });
   });
 export type Manifest = z.infer<typeof Manifest>;
 
@@ -672,6 +733,20 @@ export const SigninResult = z.object({
 export type SigninResult = z.infer<typeof SigninResult>;
 
 /**
+ * Since revision 11, for add-ons inside the app with the `settings` resource: the answer to
+ * `settings/…/options.json`, the options of its `choice` fields by key, such as the libraries a
+ * server has. The handler gets the form's values so far as `args.settings`, and may reach the
+ * hosts they grant. The app asks after the sign-in of an add-on that comes with it, when the
+ * setup form of an add-on set up with settings opens with saved values, and when the listener asks
+ * for the list again. Keys of other fields are ignored, and a field's own `options`
+ * in the manifest come first.
+ */
+export const SettingsOptions = z.object({
+  options: z.record(z.string(), z.array(ChoiceOption).max(200)),
+});
+export type SettingsOptions = z.infer<typeof SettingsOptions>;
+
+/**
  * One picture of an item. The app picks the best square cover itself and draws any badges from the
  * item's `badges`.
  */
@@ -924,7 +999,9 @@ export function readSettings(
     const raw = input[field.key] ?? '';
     const sealed = field.type === 'password' || field.type === 'signin';
     const value = sealed ? raw : raw.trim();
-    if (value.length > (sealed ? 4096 : 2048)) {
+    // A choice may hold up to 200 values of 200 characters, one per line.
+    const most = sealed ? 4096 : field.type === 'choice' ? 200 * 201 : 2048;
+    if (value.length > most) {
       return { error: `${field.label} is too long.` };
     }
     if (field.required && value === '') {
@@ -936,9 +1013,62 @@ export function readSettings(
     if (field.type === 'url' && value !== '' && !isHttpUrl(value)) {
       return { error: `${field.label}: an http:// or https:// address, without a login in it.` };
     }
+    if (field.type === 'choice') {
+      const picked = [...new Set(choiceValues(value))];
+      if (picked.length > 1 && field.multiple !== true) {
+        return { error: `${field.label}: pick one.` };
+      }
+      // Options from the `settings` resource can change on the server, so only the manifest's own
+      // options are a fixed list to check against.
+      const known = field.options?.map((o) => o.value);
+      if (known && picked.some((v) => !known.includes(v))) {
+        return { error: `${field.label}: pick from the list.` };
+      }
+      settings[field.key] = picked.join('\n');
+      continue;
+    }
     settings[field.key] = value;
   }
   return { settings };
+}
+
+/** The values picked in a `choice` field (revision 11): one per line, without empty lines. */
+export function choiceValues(value: string | undefined): string[] {
+  return (value ?? '')
+    .split('\n')
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Whether the app asks the add-on for its `choice` fields' options (revision 11): inside the app,
+ * with the `settings` resource and a choice field.
+ */
+export function offersSettingOptions(manifest: Manifest): boolean {
+  return (
+    manifest.sandbox !== undefined &&
+    resourceNames(manifest.resources).includes('settings') &&
+    (manifest.settings ?? []).some((f) => f.type === 'choice')
+  );
+}
+
+/**
+ * Each `choice` field's options: its own from the manifest, else those the `settings` resource
+ * gave. A choice field with neither gets an empty list.
+ */
+export function choiceOptions(
+  fields: SettingField[],
+  loaded: SettingsOptions['options'] = {},
+): Record<string, ChoiceOption[]> {
+  const options: Record<string, ChoiceOption[]> = {};
+  for (const field of fields) {
+    if (field.type !== 'choice') continue;
+    const given = field.options ?? loaded[field.key] ?? [];
+    // A value listed twice would pick both at once.
+    const seen = new Set<string>();
+    options[field.key] = given.filter((o) => !seen.has(o.value) && seen.add(o.value));
+  }
+  return options;
 }
 
 /**

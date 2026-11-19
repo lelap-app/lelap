@@ -6,12 +6,13 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { sourceManifest } from '../src/addonSources';
+import { AddonChoice, useChoiceOptions } from '../src/components/AddonChoice';
 import { IconButton } from '../src/components/Icon';
 import { TextButton } from '../src/components/TextButton';
 import { hint } from '../src/a11y';
 import { t } from '../src/i18n';
 import { activeProfile } from '../src/profile';
-import { scrobblerForm, scrobblersWork, setUpScrobbler } from '../src/scrobblers';
+import { scrobblerForm, scrobblersWork, settingOptions, setUpScrobbler } from '../src/scrobblers';
 import { READABLE } from '../src/layout';
 import { useColors } from '../src/theme';
 
@@ -33,6 +34,14 @@ export default function ScrobblerScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const fields = manifest?.settings ?? [];
+  const choices = useChoiceOptions(
+    scrobblersWork ? manifest : null,
+    form.again ? null : form.values,
+    (settings) =>
+      manifest
+        ? settingOptions(url, manifest, settings)
+        : Promise.resolve({ status: 404, body: null }),
+  );
 
   const save = async () => {
     const read = readSettings(fields, values);
@@ -101,24 +110,41 @@ export default function ScrobblerScreen() {
                   {t('Enter the keys again: this device can’t open the ones saved before.')}
                 </Text>
               )}
-              {fields.map((field) => (
-                <View key={field.key} className="gap-1">
-                  <Text className="text-sm text-soft">{field.label}</Text>
-                  <TextInput
+              {fields.map((field) =>
+                field.type === 'choice' ? (
+                  <AddonChoice
+                    key={field.key}
+                    field={field}
+                    options={choices.options[field.key] ?? []}
                     value={values[field.key] ?? ''}
-                    onChangeText={(v) => setValues((current) => ({ ...current, [field.key]: v }))}
-                    accessibilityLabel={field.label}
-                    {...hint(field.help)}
-                    {...(field.placeholder === undefined ? {} : { placeholder: field.placeholder })}
-                    placeholderTextColor={colors.muted}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    secureTextEntry={field.type === 'password'}
-                    className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
+                    onChange={(v) => setValues((current) => ({ ...current, [field.key]: v }))}
+                    loading={choices.loading}
+                    error={choices.error}
+                    {...(choices.asks && field.options === undefined
+                      ? { onLoad: () => void choices.load(values) }
+                      : {})}
                   />
-                  {field.help && <Text className="text-xs text-muted">{field.help}</Text>}
-                </View>
-              ))}
+                ) : (
+                  <View key={field.key} className="gap-1">
+                    <Text className="text-sm text-soft">{field.label}</Text>
+                    <TextInput
+                      value={values[field.key] ?? ''}
+                      onChangeText={(v) => setValues((current) => ({ ...current, [field.key]: v }))}
+                      accessibilityLabel={field.label}
+                      {...hint(field.help)}
+                      {...(field.placeholder === undefined
+                        ? {}
+                        : { placeholder: field.placeholder })}
+                      placeholderTextColor={colors.muted}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      secureTextEntry={field.type === 'password'}
+                      className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
+                    />
+                    {field.help && <Text className="text-xs text-muted">{field.help}</Text>}
+                  </View>
+                ),
+              )}
               <Text className="text-xs text-muted">
                 {t(
                   'Runs on this device, in a sandbox. It can reach only {hosts}, and what you enter stays sealed on this device.',

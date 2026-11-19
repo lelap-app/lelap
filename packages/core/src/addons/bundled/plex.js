@@ -14,6 +14,9 @@
 // Since M100 (revision 11) a listing whose addresses no longer answer hands back the ones plex.tv
 // names now, and the app lists again with them; and before a book streams, `locate` moves its
 // files to the address that answers as this server now, at home or away.
+//
+// Since M118 (revision 11) the listener picks the music libraries from a list: the `settings`
+// resource lists them once signed in. A form saved before keeps its names, separated by commas.
 
 const PRODUCT = 'Lelap';
 const VERSION = '1.0.0';
@@ -332,38 +335,70 @@ async function connectOrMove(settings, first) {
   return { s: connected.s, moved: null };
 }
 
-/** The music libraries to take books from: those named, or those named like audiobooks. */
-async function sectionsOf(s, names) {
+/** The server's music libraries, where audiobooks live on Plex. */
+async function musicOf(s) {
   const reply = await pms(s, '/library/sections');
-  const music = list(reply && reply.MediaContainer && reply.MediaContainer.Directory).filter(
+  return list(reply && reply.MediaContainer && reply.MediaContainer.Directory).filter(
     (d) => d && d.type === 'artist' && d.key !== undefined,
   );
-  const shown = music.map((d) => `“${d.title}”`).join(', ') || 'none';
-  const wanted = String(names || '')
+}
+
+const titleOf = (d) => String(d.title || '').trim();
+
+/**
+ * The libraries picked: one per line from the list, or, from a form saved before the list, names
+ * separated by commas.
+ */
+function pickedNames(value, music) {
+  const lines = String(value || '')
+    .split('\n')
+    .map((n) => n.trim())
+    .filter(Boolean);
+  const known = (name) => music.some((d) => titleOf(d).toLowerCase() === name.toLowerCase());
+  if (lines.length !== 1 || known(lines[0]) || !lines[0].includes(',')) return lines;
+  return lines[0]
     .split(',')
     .map((n) => n.trim())
     .filter(Boolean);
+}
+
+/** The music libraries to take books from: those picked, or those named like audiobooks. */
+async function sectionsOf(s, names) {
+  const music = await musicOf(s);
+  const shown = music.map((d) => `“${d.title}”`).join(', ') || 'none';
+  const wanted = pickedNames(names, music);
   if (wanted.length === 0) {
-    const books = music.filter((d) => BOOKISH.test(String(d.title || '')));
+    const books = music.filter((d) => BOOKISH.test(titleOf(d)));
     if (books.length === 0) {
       throw new Error(
-        `Name the music libraries that hold your audiobooks under Libraries. This server has ${shown}.`,
+        `Pick the music libraries that hold your audiobooks under Libraries. This server has ${shown}.`,
       );
     }
     return books;
   }
   return wanted.map((name) => {
-    const found = music.find(
-      (d) =>
-        String(d.title || '')
-          .trim()
-          .toLowerCase() === name.toLowerCase(),
-    );
+    const found = music.find((d) => titleOf(d).toLowerCase() === name.toLowerCase());
     if (!found) {
       throw new Error(`The Plex server has no music library called “${name}”. It has ${shown}.`);
     }
     return found;
   });
+}
+
+/** The music libraries to pick from in the form, once signed in. */
+async function settingOptions(settings) {
+  if (!accountOf(settings)) throw new Error('Sign in with Plex first.');
+  const s = await connect(settings);
+  const seen = new Set();
+  const libraries = [];
+  for (const d of await musicOf(s)) {
+    const title = titleOf(d);
+    // The add-on finds libraries by name, so two of one name are one choice.
+    if (!title || seen.has(title.toLowerCase())) continue;
+    seen.add(title.toLowerCase());
+    libraries.push({ value: title, label: title });
+  }
+  return { options: { libraries } };
 }
 
 /** A section's tracks, page by page; `until` stops early once a page has what it looks for. */
@@ -661,7 +696,7 @@ addon({
     description:
       'Audiobooks in the music libraries of your Plex Media Server, played from the server itself. Places are kept with your Plex account.',
     types: ['audiobook'],
-    resources: ['library', 'place', 'signin', 'locate'],
+    resources: ['library', 'place', 'signin', 'locate', 'settings'],
     catalogs: [],
     sandbox: { hosts: ['plex.tv:443'] },
     settings: [
@@ -695,15 +730,16 @@ addon({
       {
         key: 'libraries',
         label: 'Libraries',
-        type: 'text',
-        placeholder: 'Audiobooks',
-        help: 'The music libraries that hold your audiobooks, separated by commas. Every music library with “book” in its name when left empty.',
+        type: 'choice',
+        multiple: true,
+        help: 'The music libraries that hold your audiobooks, listed once you sign in. Every music library with “book” in its name when you pick none.',
       },
     ],
   },
   library: (args) => library(args.settings || {}),
   place: (args) => place(args.settings || {}, args.place),
   locate: (args) => locate(args.settings || {}, args.locate),
+  settings: (args) => settingOptions(args.settings || {}),
   signin: (args) =>
     args.id === 'start'
       ? signinStart(args.settings || {})

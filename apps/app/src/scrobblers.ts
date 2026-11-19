@@ -25,7 +25,7 @@ import { codeFingerprint, sourceManifest } from './addonSources';
 import { clientName, scrobblerStandInSetting } from './config';
 import { db, newId } from './db';
 import { t } from './i18n';
-import { callAddonScrobble, callAddonWithSettings } from './sandbox';
+import { callAddonScrobble, callAddonSettings, callAddonWithSettings } from './sandbox';
 
 // Scrobblers inside the app (M61, protocol revision 8), such as the Open Library reading log: set
 // up with their settings under Settings → Library and sources → Add-ons, kept sealed on this device, and handed their
@@ -70,6 +70,19 @@ const given = (manifest: Manifest, settings: Settings) =>
 async function call(url: string, manifest: Manifest, settings: Settings, events: ScrobbleEvent[]) {
   const sandbox = given(manifest, settings);
   return callAddonScrobble({ addonUrl: url, ...sandbox, events });
+}
+
+/**
+ * Asks an add-on set up with settings for the options of its `choice` fields (revision 11), with
+ * the form's values so far, in the same sandbox as its other calls.
+ */
+export async function settingOptions(
+  manifestUrl: string,
+  manifest: Manifest,
+  settings: Settings,
+): Promise<{ status: number; body: unknown }> {
+  const sandbox = given(manifest, settings);
+  return callAddonSettings({ addonUrl: manifestUrl, sandboxId: 'settings-options', ...sandbox });
 }
 
 /**

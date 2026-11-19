@@ -93,6 +93,15 @@ export function locatePath(type: ContentType = 'audiobook'): string {
 }
 
 /**
+ * Since revision 11: the call that asks an add-on inside the app for the options of its `choice`
+ * settings, with the form's values so far. Only the sandbox makes it; there is no such route over
+ * HTTP.
+ */
+export function settingsPath(type: ContentType = 'audiobook'): string {
+  return `settings/${type}/options.json`;
+}
+
+/**
  * Since revision 8: the call that hands an add-on inside the app a batch of `ScrobbleEvent`s with
  * its settings. Only the sandbox makes it; over HTTP an add-on takes `POST /scrobble`.
  */

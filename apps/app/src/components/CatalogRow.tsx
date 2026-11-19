@@ -1,6 +1,7 @@
 import { type CatalogRef, fetchCatalog } from '@lelap/core';
 import type { MetaPreview } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 
 import { t } from '../i18n';
@@ -8,6 +9,7 @@ import { Icon } from './Icon';
 import { fetcher } from '../addons';
 import { useAskWhenVisible, useAvailability } from '../availability';
 import { MetaTile } from './MetaCard';
+import { sessionCovers } from '../sessionCovers';
 import { useColors } from '../theme';
 
 const TILE = 120;
@@ -36,7 +38,12 @@ export function CatalogRow({
   const colors = useColors();
   const { data, isPending, isError } = useQuery(catalogQuery(catalogRef));
   const availability = useAvailability();
-  const visible = useAskWhenVisible();
+  const { onViewableItemsChanged: askVisible, viewabilityConfig } = useAskWhenVisible();
+  // Tiles on screen also note their covers, which suggestion tiles may then show (M118).
+  const onViewableItemsChanged = useRef((info: { viewableItems: { item?: unknown }[] }) => {
+    askVisible(info);
+    sessionCovers.add(info.viewableItems.map((token) => (token.item ?? {}) as MetaPreview));
+  }).current;
   if (isError || (data && data.length === 0)) return null;
 
   return (
@@ -64,7 +71,8 @@ export function CatalogRow({
           initialNumToRender={HOME_FIRST_DRAWN}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-          {...visible}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
           // A new lookup means the cache learned something; re-render the tiles.
           extraData={availability}
           renderItem={({ item }) => (

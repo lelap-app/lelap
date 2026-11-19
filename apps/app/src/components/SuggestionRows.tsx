@@ -1,4 +1,9 @@
-import { candidatesFrom, recommendationCatalogs, suggestionRows } from '@lelap/core';
+import {
+  candidatesFrom,
+  recommendationCatalogs,
+  suggestionRows,
+  suggestionTile,
+} from '@lelap/core';
 import type { MetaPreview } from '@lelap/sdk';
 import { useQueries } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -10,6 +15,7 @@ import { useAvailability } from '../availability';
 import { db } from '../db';
 import { useLibrary } from '../player';
 import { profileId } from '../profile';
+import { useSessionCovers } from '../sessionCovers';
 import { catalogQuery, HOME_FIRST_DRAWN } from './CatalogRow';
 import { MetaTile } from './MetaCard';
 import { TextButton } from './TextButton';
@@ -21,19 +27,12 @@ const dataOf = (results: { data?: MetaPreview[] | undefined }[]) => results.map(
 
 const itemKey = (m: MetaPreview) => `${m.type} ${m.id}`;
 
-/** Without its cover, so the tile shows the title's letter instead of loading a picture. */
-function withoutCover(meta: MetaPreview): MetaPreview {
-  const rest = { ...meta };
-  delete rest.cover;
-  return rest;
-}
-
 /**
  * “Because you finished …” rows. They are worked out on the device from the catalog pages Home
  * loads anyway (the same queries, so the same requests), and their tiles ask nothing new: no
  * artwork and no source lookups that Home's own rows would not make. A cover shows only for items
- * Home's rows draw from the start; deeper in a page, which covers load would follow what the
- * profile finished.
+ * Home's rows draw from the start or showed on screen this session (M118); for others, which
+ * covers load would follow what the profile finished.
  */
 export function SuggestionRows({
   onOpen,
@@ -50,6 +49,8 @@ export function SuggestionRows({
     combine: dataOf,
   });
   const availability = useAvailability();
+  const covers = useSessionCovers();
+  const extra = useMemo(() => [availability, covers.size], [availability, covers.size]);
   // `version` is the signal to re-read the database: a book finished, added or removed.
   const rows = useMemo(
     () => suggestionRows(db, profileId, candidatesFrom(refs, pages)),
@@ -79,10 +80,11 @@ export function SuggestionRows({
         keyExtractor={itemKey}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-        extraData={availability}
+        // A cover Home's rows showed since is one more to draw.
+        extraData={extra}
         renderItem={({ item }) => (
           <MetaTile
-            meta={drawn.has(itemKey(item)) ? item : withoutCover(item)}
+            meta={suggestionTile(item, covers, drawn.has(itemKey(item)))}
             width={TILE}
             availability={availability(item)}
             onPress={onOpen}

@@ -12,6 +12,8 @@ import {
   PROTOCOL_VERSION,
   ScrobbleRequest,
   SeriesResponse,
+  SettingField,
+  SettingsOptions,
   scrobblePath,
   seriesPath,
   SigninResult,
@@ -22,6 +24,7 @@ import {
   locatePath,
   metaPath,
   placePath,
+  settingsPath,
   signinPath,
   streamPath,
 } from '@lelap/sdk';
@@ -214,6 +217,7 @@ signin/audiobook/start.json                 → SigninStart          (revision 7
 signin/audiobook/check.json                 → SigninResult         (revision 7, inside the app only)
 scrobble/audiobook/all.json                 ← { events, settings } (revision 8, inside the app only)
 locate/audiobook/all.json                   ← LocateRequest → LocateResponse (revision 11, inside the app only)
+settings/audiobook/options.json             → SettingsOptions      (revision 11, inside the app only)
 GET /configure                              → your settings page  (HTML)
 `;
 
@@ -315,6 +319,23 @@ const plexLibrary = example(LibraryResponse, {
   ],
   headers: { 'X-Plex-Token': 'aB3dE5gH7jK9mN1pQ2rS' },
   webQuery: { 'X-Plex-Token': 'aB3dE5gH7jK9mN1pQ2rS' },
+});
+
+const choiceField = example(SettingField, {
+  key: 'libraries',
+  label: 'Libraries',
+  type: 'choice',
+  multiple: true,
+  help: 'The music libraries that hold your audiobooks.',
+});
+
+const settingsOptions = example(SettingsOptions, {
+  options: {
+    libraries: [
+      { value: 'Audiobooks', label: 'Audiobooks', detail: '412 tracks' },
+      { value: 'Kids', label: 'Kids', detail: '96 tracks' },
+    ],
+  },
 });
 
 const movedLibrary = example(LibraryResponse, {
@@ -549,10 +570,10 @@ const settingFields: Field[] = [
   { name: 'label', type: 'string', required: true, meaning: 'The field’s name on the form.' },
   {
     name: 'type',
-    type: '"text" | "url" | "password" | "signin"',
+    type: '"text" | "url" | "password" | "signin" | "choice"',
     required: true,
     meaning:
-      '`url` takes an `http` or `https` address without a login in it; `password` is hidden as it is typed. `signin` (revision 7) is a button, not a field: the add-on’s sign-in fills it, and it is sealed like a password.',
+      '`url` takes an `http` or `https` address without a login in it; `password` is hidden as it is typed. `signin` (revision 7) is a button, not a field: the add-on’s sign-in fills it, and it is sealed like a password. `choice` (revision 11) is a list to pick from; see “Choices from the server” below.',
   },
   {
     name: 'required',
@@ -568,6 +589,20 @@ const settingFields: Field[] = [
     required: false,
     meaning:
       'For `url`: the add-on may reach the host of the address typed, for this server only, as if it were in `sandbox.hosts`.',
+  },
+  {
+    name: 'options',
+    type: 'ChoiceOption[]',
+    required: false,
+    meaning:
+      'For `choice` (revision 11): up to 200 options, each a `value` the add-on gets back, a `label` the listener reads and an optional `detail` line. Without them the app asks the `settings` resource.',
+  },
+  {
+    name: 'multiple',
+    type: 'boolean',
+    required: false,
+    meaning:
+      'For `choice`: the listener may pick several. The value is then the picked values, one per line (`choiceValues` splits it).',
   },
 ];
 
@@ -1809,6 +1844,37 @@ const toc: [string, string][] = [
   </ul>
   <CodeBlock code={signinStart} label={signinPath('start')} />
   <CodeBlock code={signinResult} label={signinPath('check')} />
+
+  <h3 id="choices">Choices from the server</h3>
+  <p>
+    Since revision 11, a setting of type <code>choice</code> is a list to pick from instead of a
+    name to type, such as the libraries on a Plex server. Its options are fixed in the manifest as{' '}
+    <code>options</code>, or come from the add-on when they depend on the server: then the add-on
+    lists the <code>settings</code> resource, and the app calls <code>{settingsPath()}</code> after
+    the sign-in of an add-on that comes with the app fills the form, when the setup form of an
+    add-on <a href="#scrobble-settings">set up with settings</a> opens with saved values, and when
+    the listener asks for the list again. An app before revision 11 refuses a manifest that lists{' '}
+    <code>settings</code> or has a choice field.
+  </p>
+  <ul>
+    <li>
+      The <code>settings</code> handler gets the form so far as <code>args.settings</code>, in a
+      sandbox of its own that closes after the answer, and may reach <code>sandbox.hosts</code> and
+      the hosts the form’s addresses grant. It answers a <code>SettingsOptions</code>: the options
+      of its choice fields, by key. A field with its own <code>options</code> keeps them.
+    </li>
+    <li>
+      An error, such as “Sign in first”, shows under the field. A value already picked that is no
+      longer in the list stays picked and shows as it is, so the listener can take it off.
+    </li>
+    <li>
+      With <code>multiple</code> the listener picks several, and the value is the picked values, one
+      per line. Choice values are plain settings, not sealed. Fixed options are checked when the
+      form is sent; options from the add-on aren’t, since the server can change them.
+    </li>
+  </ul>
+  <CodeBlock code={choiceField} label="A choice field in settings" />
+  <CodeBlock code={settingsOptions} label={settingsPath()} />
 
   <h3 id="moved">Settings from a listing</h3>
   <p>

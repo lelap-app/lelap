@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { createAddon } from './addon';
 import { checkAddon } from './check';
-import { locatePath, parseRoute, seriesPath } from './paths';
+import { locatePath, parseRoute, seriesPath, settingsPath } from './paths';
 import {
+  choiceOptions,
+  choiceValues,
   LATEST_PROTOCOL_VERSION,
   LibraryResponse,
   LocateRequest,
@@ -11,7 +13,11 @@ import {
   Manifest,
   offersLocate,
   offersSeries,
+  offersSettingOptions,
+  readSettings,
   SeriesResponse,
+  SettingField,
+  SettingsOptions,
 } from './protocol';
 
 // Revision 11 (M100): a library listing may hand back new settings, and an add-on inside the app
@@ -153,5 +159,131 @@ describe('series', () => {
     expect(report.notes).toContain(
       'No series to check the series resource with; pass one with --series.',
     );
+  });
+});
+
+describe('choice settings', () => {
+  const listed = {
+    ...inApp,
+    resources: ['library', 'settings'],
+    settings: [
+      ...inApp.settings,
+      { key: 'libraries', label: 'Libraries', type: 'choice' as const, multiple: true },
+    ],
+  };
+
+  it('take options from the manifest or from the settings resource', () => {
+    expect(offersSettingOptions(Manifest.parse(listed))).toBe(true);
+    const fixed = {
+      ...inApp,
+      settings: [
+        {
+          key: 'speed',
+          label: 'Speed',
+          type: 'choice' as const,
+          options: [
+            { value: 'slow', label: 'Slow' },
+            { value: 'fast', label: 'Fast' },
+          ],
+        },
+      ],
+    };
+    expect(Manifest.safeParse(fixed).success).toBe(true);
+    expect(offersSettingOptions(Manifest.parse(fixed))).toBe(false);
+    // Neither: nothing to pick from.
+    expect(Manifest.safeParse({ ...listed, resources: ['library'] }).success).toBe(false);
+  });
+
+  it('are for add-ons inside the app, and only choice fields have options', () => {
+    const web = { ...listed, sandbox: undefined, settings: undefined, resources: ['settings'] };
+    expect(Manifest.safeParse(web).success).toBe(false);
+    expect(
+      SettingField.safeParse({ key: 'a', label: 'A', type: 'text', options: [] }).success,
+    ).toBe(false);
+    expect(
+      SettingField.safeParse({
+        key: 'a',
+        label: 'A',
+        type: 'choice',
+        options: [
+          { value: 'x', label: 'X' },
+          { value: 'x', label: 'Y' },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('keep several values one per line, and check fixed options', () => {
+    const fields = Manifest.parse(listed).settings ?? [];
+    const read = readSettings(fields, {
+      url: 'http://nas.local',
+      libraries: ' Books \nKids\n\nBooks',
+    });
+    expect(read).toEqual({ settings: { url: 'http://nas.local', libraries: 'Books\nKids' } });
+    expect(choiceValues('Books\nKids')).toEqual(['Books', 'Kids']);
+    expect(choiceValues(undefined)).toEqual([]);
+
+    const one = SettingField.parse({
+      key: 'speed',
+      label: 'Speed',
+      type: 'choice',
+      options: [{ value: 'slow', label: 'Slow' }],
+    });
+    expect(readSettings([one], { speed: 'slow\nslow' })).toEqual({ settings: { speed: 'slow' } });
+    expect(readSettings([one], { speed: 'fast' })).toEqual({ error: 'Speed: pick from the list.' });
+    expect(readSettings([{ ...one, options: undefined }], { speed: 'a\nb' })).toEqual({
+      error: 'Speed: pick one.',
+    });
+  });
+
+  it('are asked at their own path and answered by key', () => {
+    expect(settingsPath()).toBe('settings/audiobook/options.json');
+    expect(parseRoute(settingsPath())).toBeNull();
+    const answer = SettingsOptions.parse({
+      options: { libraries: [{ value: 'Books', label: 'Books', detail: '12 artists' }] },
+    });
+    const fields = Manifest.parse(listed).settings ?? [];
+    expect(choiceOptions(fields, answer.options)).toEqual({
+      libraries: [{ value: 'Books', label: 'Books', detail: '12 artists' }],
+    });
+    expect(choiceOptions(fields)).toEqual({ libraries: [] });
+    // A value is kept trimmed, so one with spaces at the ends could never be picked.
+    expect(
+      SettingsOptions.safeParse({ options: { a: [{ value: ' A', label: 'A' }] } }).success,
+    ).toBe(false);
+    expect(SettingsOptions.safeParse({ options: { a: [{ value: '', label: 'A' }] } }).success).toBe(
+      false,
+    );
+  });
+
+  it('are checked by lelap-sdk check', async () => {
+    const manifest = {
+      ...listed,
+      protocolVersion: 10,
+      resources: ['library', 'settings'],
+      settings: [
+        {
+          key: 'speed',
+          label: 'Speed',
+          type: 'choice' as const,
+          options: [{ value: 'slow', label: 'Slow' }],
+        },
+      ],
+    };
+    const report = await checkAddon('https://addon.test/manifest.json', {
+      fetch: async () =>
+        new Response(JSON.stringify(manifest), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'max-age=60',
+          },
+        }),
+    });
+    expect(report.problems.map((p) => [p.level, p.field])).toEqual([
+      ['warning', 'protocolVersion'],
+      ['warning', 'resources'],
+      ['warning', 'settings[0].options'],
+    ]);
   });
 });

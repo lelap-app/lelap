@@ -16,6 +16,7 @@ import {
   type ScrobbleEvent,
   scrobblePath,
   type Settings,
+  settingsPath,
   signinPath,
 } from '@lelap/sdk';
 
@@ -398,6 +399,24 @@ export async function callAddonSignin(args: {
   return call(serverBox(args), signinPath(args.step), args.settings, {
     signin: args.state === undefined ? {} : { state: args.state },
   });
+}
+
+/**
+ * Asks an add-on for the options of its `choice` settings (revision 11), with the form's values so
+ * far and the hosts they grant, in a sandbox of its own that closes afterwards: one shared with a
+ * sign-in or with live calls would start again whenever the form's hosts differ.
+ */
+export async function callAddonSettings(args: {
+  addonUrl: string;
+  sandboxId: string;
+  hosts: string[];
+  settings: Settings;
+}): Promise<{ status: number; body: unknown }> {
+  try {
+    return await call(serverBox(args), settingsPath(), args.settings);
+  } finally {
+    closeServerSandbox(args.addonUrl, args.sandboxId);
+  }
 }
 
 // The one sandbox of an add-on set up with settings: its scrobbles and, since revision 9, every

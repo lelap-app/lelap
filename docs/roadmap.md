@@ -126,7 +126,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M114 Add-on test kit](milestones/m114.md)           | Done        |           2 | A command in the SDK that checks an add-on against protocol v1 and says what's wrong                                                                          |
 | [M115 Series 2](milestones/m115.md)                  | In progress |           6 | Series leftovers from M109; hidden volumes, streamed books on other devices, faster lists                                                                     |
 | [M117 Themes 2](milestones/m117.md)                  | Done        |           5 | High contrast in theme files, a file theme's own accent in car mode, and a live theme switch                                                                  |
-| [M118 App polish 4](milestones/m118.md)              | Planned     |             | What M105 left for a decision or a sample: suggestion covers, Plex library list, Library reads, SABP bookmarks                                                |
+| [M118 App polish 4](milestones/m118.md)              | In progress |           4 | What M105 left for a decision or a sample: suggestion covers, Plex library list, Library reads                                                                |
 | [M119 Lists 3](milestones/m119.md)                   | Done        |          11 | Lists in Android Auto, Previous in list off the phone, the list on the widget, lighter reads                                                                  |
 | [M120 Big screens 3](milestones/m120.md)             | Done        |          11 | What M113 left: drag to a list on Android and from catalog tiles, drop on the Library's list cards                                                            |
 | [M121 Podcasts 7](milestones/m121.md)                | Done        |           7 | Integrity checks for web downloads, the smaller file with the app closed, chapter images on the web                                                           |
@@ -165,6 +165,12 @@ when it is planned.
 - **Wear OS:** control playback from the watch (tile and app: play, pause, skip, the sleep timer),
   and maybe play downloads on it. Was M89; set aside on 2026-11-18 until there is a watch to test
   on.
+- **Smart AudioBook Player bookmarks (left from M34, then M118):** bookmarks are a paid feature in
+  that app, so no sample with known places has turned up. The one public sample is a `<root>` of
+  `<bookmark>` elements, each with `<title/>`, `<description/>`, `<fileName>` and
+  `<filePosition>` (141 for a preface), and whether `filePosition` is seconds or milliseconds is
+  unknown. The import waits for someone to send a real `bookmarks.sabp.xml` with places they
+  know.
 
 - **Rules of hooks in lint (left from M117):** colours outside a class come from `useColors()`
   since M117, and nothing checks where a hook is called. `eslint-plugin-react-hooks` would catch
