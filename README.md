@@ -19,8 +19,8 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Remembers speed per book, rewinds smartly after pauses, and fades out with the sleep timer. On
   Android a bedtime routine can turn the volume down, and after the timer the player offers to go
   back to when you last used it.
-- Boosts voices, and on Android skips silence (showing the time saved) and keeps loudness even,
-  per book or per show.
+- Boosts voices, skips silence (showing the time saved) and keeps loudness even, per book or per
+  show. In the browser, skip silence works on constant-bitrate MP3 files such as LibriVox's.
 - Opens the library in three groups: in progress, not started and finished.
 - Shows your listening: time today, this week and this year, streaks, finished books and a year
   in sound to share as an image.
@@ -29,6 +29,8 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Lists each series in reading order, with the numbers you're missing and the next book at the end
   of one.
 - Rates books in half stars, and marks new podcast episodes.
+- Plays a show's smallest file on mobile data when its feed offers several, and on Android checks
+  a download against the hash the feed gives.
 - Syncs progress between devices with a pairing code. No account, end-to-end encrypted.
 - Plays from your own files and folders; your own WebDAV, S3-compatible, Jellyfin, Emby, Plex,
   Navidrome (or other Subsonic) or Audiobookshelf server; SMB and SFTP shares on Android; and
@@ -44,13 +46,13 @@ and on the web from one codebase, and every server piece can be self-hosted with
   intro and outro. You can edit any book's chapters.
 - Shares a place, a bookmark or the last 30 seconds as a link; whoever opens it plays their own
   copy. Shows a podcast's chapter pictures and soundbites.
-- Casts to Sonos, DLNA, Google Cast and FCast speakers without Google's SDK, with the lock screen,
-  headphones and sleep timer controlling the speaker.
+- Casts to Sonos, DLNA, Google Cast and FCast speakers without Google's SDK, to one speaker or
+  several at once, with the lock screen, headphones and sleep timer controlling them.
 - Has a car mode with a large cover and big buttons, upright or sideways in a holder, and works in
   Android Auto with the covers on your phone.
 - Comes in five themes (Night, Dusk, Day, Sepia and High contrast) with six accent colours, or
   follows the phone's light or dark setting.
-- Works with TalkBack and at the largest text size, and uses the width of tablets and laptops.
+- Works with TalkBack and at the largest text size, and uses the width of tablets, foldables and laptops.
 - Profiles for a household, and the app in English and Bahasa Melayu.
 
 ## Repository layout
