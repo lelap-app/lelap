@@ -24,12 +24,18 @@ export const defaultAddons: string[] = configured
   .filter((url: string) => url !== '');
 
 /**
- * Our own add-ons that need the listener's account, so they are never installed by default: the
- * Add-ons screen offers them, and "Set up" opens their configure page on the catalog host.
+ * Our own optional add-ons on the catalog host, never installed by default: the Add-ons screen and
+ * the welcome offer them. `configure`: they need the listener's account, and Set up opens their
+ * configure page. `add`: they need nothing, and Add installs the manifest straight away.
  */
-export const hostedAddons: { id: 'hardcover' | 'gpodder'; base: string }[] = [
-  { id: 'hardcover', base: `https://catalog.${domain}/hardcover` },
-  { id: 'gpodder', base: `https://catalog.${domain}/gpodder` },
+export const hostedAddons: {
+  id: 'hardcover' | 'gpodder' | 'lectures';
+  base: string;
+  setUp: 'configure' | 'add';
+}[] = [
+  { id: 'hardcover', base: `https://catalog.${domain}/hardcover`, setUp: 'configure' },
+  { id: 'gpodder', base: `https://catalog.${domain}/gpodder`, setUp: 'configure' },
+  { id: 'lectures', base: `https://catalog.${domain}/lectures`, setUp: 'add' },
 ];
 
 const ownOrigins = new Set(

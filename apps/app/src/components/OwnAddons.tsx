@@ -1,20 +1,50 @@
 import { bundledAddons, type InstalledAddon, listRoots } from '@lelap/core';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Linking, Platform, Pressable, Text, View } from 'react-native';
 
+import { confirmAddon } from '../addonInstall';
 import { hostedAddons } from '../config';
 import { db } from '../db';
+import { showAlert } from '../dialog';
 import { t } from '../i18n';
+import { useLibrary } from '../player';
 import { bundledScrobblers, scrobblersWork } from '../scrobblers';
 
 type Offer = {
   key: string;
   name: string;
   description: string;
+  /** The button: Set up for one that needs settings, Add for one that needs nothing. */
+  action: string;
+  /** The button's name for a screen reader, with the add-on's name. */
+  actionLabel: string;
   /** Null where it can't be set up, such as a cookie login in a browser. */
   setUp: (() => void) | null;
   note: string | null;
 };
+
+type HostedId = (typeof hostedAddons)[number]['id'];
+
+const NAMES: Record<HostedId, string> = {
+  hardcover: 'Hardcover',
+  gpodder: 'gPodder sync',
+  lectures: 'Open lectures',
+};
+
+// A function, so `t()` reads the listener's language when the offer is drawn.
+const description = (id: HostedId): string =>
+  ({
+    hardcover: t(
+      'Keeps your Hardcover shelves up to date as you listen, and shows your Want to read shelf, trending books and your lists.',
+    ),
+    gpodder: t(
+      'Reports the episodes you play to a gPodder-compatible server, so other podcast apps continue where you stopped.',
+    ),
+    lectures: t(
+      'Complete lecture courses from Open Yale Courses as books, one lecture per part, with Yale’s credit and licence on every course.',
+    ),
+  })[id];
 
 /**
  * Library sources that come with the app and are offered here too, since a listener may not look
@@ -24,20 +54,34 @@ const OWN_SOURCES = new Set(['app.lelap.opds']);
 
 /**
  * Lelap's own optional add-ons not added yet: those that come with the app (the Open Library
- * reading log, OPDS) and those on our catalog host that need the listener's account (Hardcover,
- * gPodder).
+ * reading log, OPDS), those on our catalog host that need the listener's account (Hardcover,
+ * gPodder) and those there that need nothing (Open lectures).
  */
 export function useOwnAddonOffers(
   addons: InstalledAddon[],
   { pasteBelow }: { pasteBelow: boolean },
 ): Offer[] {
   const router = useRouter();
+  const { refresh } = useLibrary();
+  const queryClient = useQueryClient();
+  const add = async (manifestUrl: string) => {
+    try {
+      if ((await confirmAddon(manifestUrl)) === 'added') {
+        refresh();
+        void queryClient.invalidateQueries();
+      }
+    } catch (error) {
+      showAlert(t('Cannot add'), error instanceof Error ? error.message : String(error));
+    }
+  };
   const bundled = bundledScrobblers()
     .filter((s) => !addons.some((a) => a.url === s.url))
     .map<Offer>((s) => ({
       key: s.url,
       name: s.manifest.name,
       description: s.manifest.description,
+      action: t('Set up'),
+      actionLabel: t('Set up {name}', { name: s.manifest.name }),
       setUp: scrobblersWork
         ? () => router.push({ pathname: '/scrobbler', params: { url: s.url } })
         : null,
@@ -57,6 +101,8 @@ export function useOwnAddonOffers(
       key: a.url,
       name: a.manifest.name,
       description: a.manifest.description,
+      action: t('Set up'),
+      actionLabel: t('Set up {name}', { name: a.manifest.name }),
       setUp: () => router.push({ pathname: '/server', params: { addon: a.url } }),
       note:
         Platform.OS === 'web'
@@ -66,31 +112,40 @@ export function useOwnAddonOffers(
   // Added once an installed add-on's link starts with the base.
   const hosted = hostedAddons
     .filter((h) => !addons.some((a) => a.url.startsWith(`${h.base}/`)))
-    .map<Offer>((h) => ({
-      key: h.id,
-      name: h.id === 'hardcover' ? 'Hardcover' : 'gPodder sync',
-      description:
-        h.id === 'hardcover'
-          ? t(
-              'Keeps your Hardcover shelves up to date as you listen, and shows your Want to read shelf, trending books and your lists.',
-            )
-          : t(
-              'Reports the episodes you play to a gPodder-compatible server, so other podcast apps continue where you stopped.',
-            ),
-      setUp: () => void Linking.openURL(`${h.base}/configure`),
-      note:
-        Platform.OS !== 'web'
-          ? t('Opens a page on our server for your account; Lelap adds it when you are done.')
-          : pasteBelow
-            ? t('Opens a page on our server for your account; paste the link it gives you below.')
-            : t(
-                'Opens a page on our server for your account; paste the link it gives you in Settings → Library and sources → Add-ons.',
-              ),
-    }));
+    .map<Offer>((h) =>
+      h.setUp === 'add'
+        ? {
+            key: h.id,
+            name: NAMES[h.id],
+            description: description(h.id),
+            action: t('Add'),
+            actionLabel: t('Add {name}', { name: NAMES[h.id] }),
+            setUp: () => void add(`${h.base}/manifest.json`),
+            note: null,
+          }
+        : {
+            key: h.id,
+            name: NAMES[h.id],
+            description: description(h.id),
+            action: t('Set up'),
+            actionLabel: t('Set up {name}', { name: NAMES[h.id] }),
+            setUp: () => void Linking.openURL(`${h.base}/configure`),
+            note:
+              Platform.OS !== 'web'
+                ? t('Opens a page on our server for your account; Lelap adds it when you are done.')
+                : pasteBelow
+                  ? t(
+                      'Opens a page on our server for your account; paste the link it gives you below.',
+                    )
+                  : t(
+                      'Opens a page on our server for your account; paste the link it gives you in Settings → Library and sources → Add-ons.',
+                    ),
+          },
+    );
   return [...bundled, ...sources, ...hosted];
 }
 
-/** One offer: its name, a Set up button, what it does and how setting it up works. */
+/** One offer: its name, a Set up or Add button, what it does and how setting it up works. */
 export function OwnAddonOffer({ offer }: { offer: Offer }) {
   return (
     <View className="gap-1 border-b border-line py-4">
@@ -100,10 +155,10 @@ export function OwnAddonOffer({ offer }: { offer: Offer }) {
           <Pressable
             onPress={offer.setUp}
             accessibilityRole="button"
-            accessibilityLabel={t('Set up {name}', { name: offer.name })}
+            accessibilityLabel={offer.actionLabel}
             className="min-h-12 justify-center rounded-full border border-line px-3 active:bg-raised"
           >
-            <Text className="text-sm text-amber">{t('Set up')}</Text>
+            <Text className="text-sm text-amber">{offer.action}</Text>
           </Pressable>
         )}
       </View>
