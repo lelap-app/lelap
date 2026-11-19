@@ -4,6 +4,8 @@ import {
   chapterJump,
   deleteBookmark,
   getBook,
+  isUndoableJump,
+  UNDO_SHOWN_MS,
   getSettings,
   listBookmarks,
   parseSeries,
@@ -16,7 +18,7 @@ import {
   resetOwnChapters,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -39,6 +41,8 @@ import { NextInSeries } from './NextInSeries';
 import { ListBanner } from './ListBanner';
 import { openSeriesOf } from '../series';
 import { ChaptersSheet } from './ChaptersSheet';
+import { HistorySheet } from './HistorySheet';
+import { UndoBar, type UndoNotice } from './UndoBar';
 import { Icon, IconButton, type IconName } from './Icon';
 import { Scrubber, type ScrubMark } from './Scrubber';
 import { Sheet } from './Sheet';
@@ -49,6 +53,8 @@ import { db, newId } from '../db';
 import { showAlert } from '../dialog';
 import { HeadphoneBanner } from '../devices';
 import { formatClock, formatLeft } from '../format';
+import * as history from '../history';
+import { onHistory } from '../history';
 import * as audio from '../platform/audio';
 import { askLocalNetwork, useLocalNetworkCause } from '../localNetwork';
 import {
@@ -236,6 +242,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
     | 'cast'
     | 'jump'
     | 'soundbites'
+    | 'history'
     | null
   >(null);
   const casting = useCasting();
@@ -274,6 +281,34 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
   );
   const soundbites = useMemo(() => (bookId ? soundbitesOf(bookId) : []), [bookId, version]);
   const canShare = useMemo(() => (bookId ? canSharePlace(bookId) : false), [bookId, version]);
+
+  // After a jump of more than a minute, from here or from headphones and the notification while
+  // the player is open, the bar offers to go back (M138). Only the listener's tap moves the place.
+  const [undo, setUndo] = useState<UndoNotice | null>(null);
+  const clearUndo = useCallback(() => setUndo(null), []);
+  // The way back is a seek of its own; it doesn't offer going back again.
+  const goingBackTo = useRef<number | null>(null);
+  useEffect(() => {
+    setUndo(null);
+    if (!bookId) return;
+    return onHistory((e) => {
+      if (e.bookId !== bookId) return;
+      if (goingBackTo.current !== null && e.toMs === goingBackTo.current) {
+        goingBackTo.current = null;
+        return;
+      }
+      if (!isUndoableJump(e) || Date.now() - e.at > UNDO_SHOWN_MS) return;
+      setUndo({
+        text: t('Moved from {place}.', { place: formatClock(e.fromMs) }),
+        undoText: t('Go back'),
+        shownMs: UNDO_SHOWN_MS,
+        undo: () => {
+          goingBackTo.current = e.fromMs;
+          void seekToBookPosition(bookId, e.fromMs);
+        },
+      });
+    });
+  }, [bookId]);
   // An episode's chapters file may change the picture as it plays (M88).
   const chapterImage = useChapterImage(
     bookId,
@@ -323,11 +358,12 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
     setSheet(null);
   };
 
-  const seek = (bookPositionMs: number) => void seekToBookPosition(bookId, bookPositionMs);
-  const previousChapter = () => seek(chapterJump(chapters, position, false) ?? 0);
+  const seek = (bookPositionMs: number, action: 'seek' | 'chapter' = 'seek') =>
+    void seekToBookPosition(bookId, bookPositionMs, action);
+  const previousChapter = () => seek(chapterJump(chapters, position, false) ?? 0, 'chapter');
   const nextChapter = () => {
     const next = chapterJump(chapters, position, true);
-    if (next !== null) seek(next);
+    if (next !== null) seek(next, 'chapter');
   };
 
   const changeSpeed = (speed: number) => {
@@ -408,14 +444,13 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
         )}
       </View>
       <HeadphoneBanner className="mt-2" />
-      {Platform.OS === 'android' && (
-        <SleepStopBanner
-          className="mt-2"
-          bookId={bookId}
-          positionMs={position}
-          playing={state.playing}
-        />
-      )}
+      {/* The web player logs its timer's stop too (M138), so the offer shows there as well. */}
+      <SleepStopBanner
+        className="mt-2"
+        bookId={bookId}
+        positionMs={position}
+        playing={state.playing}
+      />
       <ListBanner className="mt-2" />
       <NextInSeries
         className="mt-2"
@@ -516,7 +551,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
           value={String(skipSeconds)}
           label={t('Back {n} seconds', { n: skipSeconds })}
           compact={compact}
-          onPress={() => void audio.skip(false)}
+          onPress={() => void history.skip(false)}
         />
         {chapters.length > 0 ? (
           <Control
@@ -529,7 +564,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
           <View className={compact ? 'w-12' : 'w-14'} />
         )}
         <PressScale
-          onPress={() => void (state.playing ? audio.pause() : audio.play())}
+          onPress={() => void history.playPause(state.playing)}
           accessibilityRole="button"
           accessibilityLabel={state.playing ? t('Pause') : t('Play')}
           style={{
@@ -553,7 +588,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
           value={String(skipSeconds)}
           label={t('Forward {n} seconds', { n: skipSeconds })}
           compact={compact}
-          onPress={() => void audio.skip(true)}
+          onPress={() => void history.skip(true)}
         />
       </View>
 
@@ -632,6 +667,12 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
               ]
             : []),
           {
+            key: 'history',
+            icon: 'history',
+            label: t('History'),
+            onPress: () => setSheet('history'),
+          },
+          {
             key: 'bookmarks',
             icon: 'bookmark',
             label:
@@ -657,240 +698,252 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
   );
 
   return (
-    // Scrolls only when large text no longer fits on the screen.
-    <ScrollView
-      scrollEnabled={!scrubbing}
-      className="flex-1 bg-night"
-      contentContainerStyle={{
-        flexGrow: 1,
-        paddingTop: top + 4,
-        paddingBottom: insets.bottom + 12,
-        paddingHorizontal: 24 + (landscape ? Math.max(insets.left, insets.right) : 0),
-      }}
-    >
-      {landscape ? (
-        <View className="flex-1 flex-row items-center gap-8">
-          <View className="flex-1 items-center justify-center">{cover}</View>
-          <View className="flex-1 justify-center">
-            {header}
-            {details}
+    <View className="flex-1 bg-night">
+      {/* Scrolls only when large text no longer fits on the screen. */}
+      <ScrollView
+        scrollEnabled={!scrubbing}
+        className="flex-1 bg-night"
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingTop: top + 4,
+          paddingBottom: insets.bottom + 12,
+          paddingHorizontal: 24 + (landscape ? Math.max(insets.left, insets.right) : 0),
+        }}
+      >
+        {landscape ? (
+          <View className="flex-1 flex-row items-center gap-8">
+            <View className="flex-1 items-center justify-center">{cover}</View>
+            <View className="flex-1 justify-center">
+              {header}
+              {details}
+            </View>
           </View>
-        </View>
-      ) : (
-        <>
-          {header}
-          {coverless ? (
-            <View className="flex-1" />
-          ) : (
-            <View className="min-h-48 flex-1 items-center justify-center py-4">{cover}</View>
-          )}
-          {details}
-        </>
-      )}
-
-      <ChaptersSheet
-        visible={sheet === 'chapters'}
-        chapters={chapters}
-        current={current}
-        onPick={(startMs) => {
-          seek(startMs);
-          setSheet(null);
-        }}
-        onClose={() => setSheet(null)}
-        silences={{
-          found: detail.foundChapters,
-          canFind,
-          scan: scans.get(bookId),
-          onFind: () => void findChapters(bookId),
-          onStop: () => void stopFindingChapters(bookId),
-          onRemove: () => {
-            removeFoundChapters(db, bookId);
-            refresh();
-            void reloadBook(bookId, false).catch(() => {});
-          },
-        }}
-        own={{
-          own: detail.ownChapters,
-          onEdit: () => {
-            setSheet(null);
-            router.push({ pathname: '/chapters', params: { book: bookId } });
-          },
-          onReset: () =>
-            showAlert(
-              t('Back to the book’s chapters?'),
-              t('Your own chapters for this book go, on your other devices too.'),
-              [
-                { text: t('Cancel'), style: 'cancel' },
-                {
-                  text: t('Reset'),
-                  style: 'destructive',
-                  onPress: () => {
-                    resetOwnChapters(db, profileId, bookId, Date.now());
-                    refresh();
-                    void updateChapters(bookId).catch(() => {});
-                  },
-                },
-              ],
-            ),
-        }}
-      />
-      <BookmarksSheet
-        visible={sheet === 'bookmarks'}
-        bookmarks={bookmarks}
-        onPick={(b) => {
-          seek(b.bookPositionMs);
-          setSheet(null);
-        }}
-        onDelete={(id) => {
-          deleteBookmark(db, profileId, id);
-          refresh();
-        }}
-        onSaveNote={(id, text) => {
-          setBookmarkNote(db, profileId, id, text, Date.now());
-          refresh();
-        }}
-        canShare={canShare}
-        onShare={(b) => void sharePlace(bookId, b.bookPositionMs)}
-        onShareHere={() => void sharePlace(bookId, position)}
-        onShareClip={() =>
-          void sharePlace(bookId, Math.max(0, position - CLIP_BACK_MS), Math.max(1_000, position))
-        }
-        onClose={() => setSheet(null)}
-      />
-      <CastSheet visible={sheet === 'cast'} bookId={bookId} onClose={() => setSheet(null)} />
-      <SoundbitesSheet
-        visible={sheet === 'soundbites'}
-        soundbites={soundbites}
-        onPlay={(s) => {
-          setSheet(null);
-          void playClip(bookId, s.startMs, s.startMs + s.durationMs);
-        }}
-        onClose={() => setSheet(null)}
-      />
-      <Sheet visible={sheet === 'speed'} title={t('Speed')} onClose={() => setSheet(null)}>
-        <View className="flex-row flex-wrap gap-2 pb-2">
-          {SPEED_STEPS.map((s) => (
-            <Chip key={s} label={`${s}×`} onPress={() => changeSpeed(s)} />
-          ))}
-        </View>
-      </Sheet>
-      <Sheet visible={sheet === 'sleep'} title={t('Sleep timer')} onClose={() => setSheet(null)}>
-        {timer !== null && (
-          <Text className="pb-3 text-amber">
-            {state.sleepTimerMode === 'chapter'
-              ? t('Stops at the end of this chapter, in {time}', { time: formatClock(timer) })
-              : state.sleepTimerMode === 'episode'
-                ? t('Stops at the end of this episode, in {time}', { time: formatClock(timer) })
-                : t('Stops in {time}', { time: formatClock(timer) })}
-          </Text>
+        ) : (
+          <>
+            {header}
+            {coverless ? (
+              <View className="flex-1" />
+            ) : (
+              <View className="min-h-48 flex-1 items-center justify-center py-4">{cover}</View>
+            )}
+            {details}
+          </>
         )}
-        <View className="gap-1 pb-2">
-          {SLEEP_MINUTES.map((m) => (
-            <SleepOption
-              key={m}
-              label={t('{n} minutes', { n: m })}
-              onPress={() => {
-                void audio.startSleepTimer(m);
-                setSheet(null);
-              }}
-            />
-          ))}
-          <SleepOption
-            label={endMode === 'episode' ? t('End of episode') : t('End of chapter')}
-            active={state.sleepTimerMode === endMode}
-            onPress={() => {
-              void audio.startSleepTimerAtEnd(endMode);
+
+        <ChaptersSheet
+          visible={sheet === 'chapters'}
+          chapters={chapters}
+          current={current}
+          onPick={(startMs) => {
+            seek(startMs, 'chapter');
+            setSheet(null);
+          }}
+          onClose={() => setSheet(null)}
+          silences={{
+            found: detail.foundChapters,
+            canFind,
+            scan: scans.get(bookId),
+            onFind: () => void findChapters(bookId),
+            onStop: () => void stopFindingChapters(bookId),
+            onRemove: () => {
+              removeFoundChapters(db, bookId);
+              refresh();
+              void reloadBook(bookId, false).catch(() => {});
+            },
+          }}
+          own={{
+            own: detail.ownChapters,
+            onEdit: () => {
               setSheet(null);
-            }}
-          />
+              router.push({ pathname: '/chapters', params: { book: bookId } });
+            },
+            onReset: () =>
+              showAlert(
+                t('Back to the book’s chapters?'),
+                t('Your own chapters for this book go, on your other devices too.'),
+                [
+                  { text: t('Cancel'), style: 'cancel' },
+                  {
+                    text: t('Reset'),
+                    style: 'destructive',
+                    onPress: () => {
+                      resetOwnChapters(db, profileId, bookId, Date.now());
+                      refresh();
+                      void updateChapters(bookId).catch(() => {});
+                    },
+                  },
+                ],
+              ),
+          }}
+        />
+        <BookmarksSheet
+          visible={sheet === 'bookmarks'}
+          bookmarks={bookmarks}
+          onPick={(b) => {
+            seek(b.bookPositionMs);
+            setSheet(null);
+          }}
+          onDelete={(id) => {
+            deleteBookmark(db, profileId, id);
+            refresh();
+          }}
+          onSaveNote={(id, text) => {
+            setBookmarkNote(db, profileId, id, text, Date.now());
+            refresh();
+          }}
+          canShare={canShare}
+          onShare={(b) => void sharePlace(bookId, b.bookPositionMs)}
+          onShareHere={() => void sharePlace(bookId, position)}
+          onShareClip={() =>
+            void sharePlace(bookId, Math.max(0, position - CLIP_BACK_MS), Math.max(1_000, position))
+          }
+          onClose={() => setSheet(null)}
+        />
+        <CastSheet visible={sheet === 'cast'} bookId={bookId} onClose={() => setSheet(null)} />
+        <HistorySheet
+          visible={sheet === 'history'}
+          bookId={bookId}
+          onPick={(at) => {
+            seek(at);
+            setSheet(null);
+          }}
+          onClose={() => setSheet(null)}
+        />
+        <SoundbitesSheet
+          visible={sheet === 'soundbites'}
+          soundbites={soundbites}
+          onPlay={(s) => {
+            setSheet(null);
+            void playClip(bookId, s.startMs, s.startMs + s.durationMs);
+          }}
+          onClose={() => setSheet(null)}
+        />
+        <Sheet visible={sheet === 'speed'} title={t('Speed')} onClose={() => setSheet(null)}>
+          <View className="flex-row flex-wrap gap-2 pb-2">
+            {SPEED_STEPS.map((s) => (
+              <Chip key={s} label={`${s}×`} onPress={() => changeSpeed(s)} />
+            ))}
+          </View>
+        </Sheet>
+        <Sheet visible={sheet === 'sleep'} title={t('Sleep timer')} onClose={() => setSheet(null)}>
           {timer !== null && (
-            <View className="mt-2 border-t border-line pt-2">
+            <Text className="pb-3 text-amber">
+              {state.sleepTimerMode === 'chapter'
+                ? t('Stops at the end of this chapter, in {time}', { time: formatClock(timer) })
+                : state.sleepTimerMode === 'episode'
+                  ? t('Stops at the end of this episode, in {time}', { time: formatClock(timer) })
+                  : t('Stops in {time}', { time: formatClock(timer) })}
+            </Text>
+          )}
+          <View className="gap-1 pb-2">
+            {SLEEP_MINUTES.map((m) => (
               <SleepOption
-                label={t('Turn off')}
-                muted
+                key={m}
+                label={t('{n} minutes', { n: m })}
                 onPress={() => {
-                  void audio.cancelSleepTimer();
+                  void history.timer(() => audio.startSleepTimer(m));
                   setSheet(null);
                 }}
               />
-            </View>
-          )}
-        </View>
-        {Platform.OS === 'android' && shakeToExtend && (
-          <Text className="pb-2 text-sm text-muted">
-            {t('In the last five minutes, shake the phone for ten more.')}
-          </Text>
-        )}
-      </Sheet>
-      <Sheet visible={sheet === 'jump'} title={t('Jump to')} onClose={() => setSheet(null)}>
-        <View className="gap-3 pb-2">
-          <View className="flex-row flex-wrap gap-2">
-            {[-5, -1, 1, 5].map((minutes) => (
-              <Chip
-                key={minutes}
-                label={`${minutes > 0 ? '+' : '−'}${t('{n} min', { n: Math.abs(minutes) })}`}
-                onPress={() => jump(position + minutes * 60_000)}
-              />
             ))}
-          </View>
-          <Text className="text-sm text-muted">
-            {detail.book.source === 'feed'
-              ? t(
-                  'Now at {time} in the episode. Type a time to go there, such as 2:14:30, 14:30 or 90 (minutes).',
-                  { time: formatClock(position) },
-                )
-              : t(
-                  'Now at {time} in the book. Type a time to go there, such as 2:14:30, 14:30 or 90 (minutes).',
-                  { time: formatClock(position) },
-                )}
-          </Text>
-          <View className="flex-row gap-2">
-            <TextInput
-              value={jumpText}
-              onChangeText={setJumpText}
-              onSubmitEditing={() => jumpTarget !== null && jump(jumpTarget)}
-              placeholder="2:14:30"
-              accessibilityLabel={t('Time to jump to')}
-              placeholderTextColor={colors.muted}
-              keyboardType="numbers-and-punctuation"
-              returnKeyType="go"
-              autoFocus
-              className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+            <SleepOption
+              label={endMode === 'episode' ? t('End of episode') : t('End of chapter')}
+              active={state.sleepTimerMode === endMode}
+              onPress={() => {
+                void history.timer(() => audio.startSleepTimerAtEnd(endMode));
+                setSheet(null);
+              }}
             />
-            <Pressable
-              disabled={jumpTarget === null}
-              onPress={() => jumpTarget !== null && jump(jumpTarget)}
-              accessibilityRole="button"
-              className={`min-h-12 justify-center rounded-lg px-4 ${jumpTarget === null ? 'bg-line' : 'bg-amber'}`}
-            >
-              <Text className={jumpTarget === null ? 'text-muted' : 'font-semibold text-ink'}>
-                {t('Go')}
-              </Text>
-            </Pressable>
+            {timer !== null && (
+              <View className="mt-2 border-t border-line pt-2">
+                <SleepOption
+                  label={t('Turn off')}
+                  muted
+                  onPress={() => {
+                    void history.timer(audio.cancelSleepTimer);
+                    setSheet(null);
+                  }}
+                />
+              </View>
+            )}
           </View>
-        </View>
-      </Sheet>
-      <SoundSheet
-        visible={sheet === 'sound'}
-        bookId={bookId}
-        sound={sound}
-        onClose={() => setSheet(null)}
-      />
-      <Sheet visible={sheet === 'note'} title={t('Bookmark saved')} onClose={saveNote}>
-        <TextInput
-          value={note}
-          onChangeText={setNote}
-          placeholder={t('Add a note (optional)')}
-          accessibilityLabel={t('Note')}
-          placeholderTextColor={colors.muted}
-          autoFocus
-          onSubmitEditing={saveNote}
-          className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
+          {Platform.OS === 'android' && shakeToExtend && (
+            <Text className="pb-2 text-sm text-muted">
+              {t('In the last five minutes, shake the phone for ten more.')}
+            </Text>
+          )}
+        </Sheet>
+        <Sheet visible={sheet === 'jump'} title={t('Jump to')} onClose={() => setSheet(null)}>
+          <View className="gap-3 pb-2">
+            <View className="flex-row flex-wrap gap-2">
+              {[-5, -1, 1, 5].map((minutes) => (
+                <Chip
+                  key={minutes}
+                  label={`${minutes > 0 ? '+' : '−'}${t('{n} min', { n: Math.abs(minutes) })}`}
+                  onPress={() => jump(position + minutes * 60_000)}
+                />
+              ))}
+            </View>
+            <Text className="text-sm text-muted">
+              {detail.book.source === 'feed'
+                ? t(
+                    'Now at {time} in the episode. Type a time to go there, such as 2:14:30, 14:30 or 90 (minutes).',
+                    { time: formatClock(position) },
+                  )
+                : t(
+                    'Now at {time} in the book. Type a time to go there, such as 2:14:30, 14:30 or 90 (minutes).',
+                    { time: formatClock(position) },
+                  )}
+            </Text>
+            <View className="flex-row gap-2">
+              <TextInput
+                value={jumpText}
+                onChangeText={setJumpText}
+                onSubmitEditing={() => jumpTarget !== null && jump(jumpTarget)}
+                placeholder="2:14:30"
+                accessibilityLabel={t('Time to jump to')}
+                placeholderTextColor={colors.muted}
+                keyboardType="numbers-and-punctuation"
+                returnKeyType="go"
+                autoFocus
+                className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+              />
+              <Pressable
+                disabled={jumpTarget === null}
+                onPress={() => jumpTarget !== null && jump(jumpTarget)}
+                accessibilityRole="button"
+                className={`min-h-12 justify-center rounded-lg px-4 ${jumpTarget === null ? 'bg-line' : 'bg-amber'}`}
+              >
+                <Text className={jumpTarget === null ? 'text-muted' : 'font-semibold text-ink'}>
+                  {t('Go')}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </Sheet>
+        <SoundSheet
+          visible={sheet === 'sound'}
+          bookId={bookId}
+          sound={sound}
+          onClose={() => setSheet(null)}
         />
-        <View className="flex-row justify-end gap-2 py-3">
-          <Chip label={t('Done')} onPress={saveNote} />
-        </View>
-      </Sheet>
-    </ScrollView>
+        <Sheet visible={sheet === 'note'} title={t('Bookmark saved')} onClose={saveNote}>
+          <TextInput
+            value={note}
+            onChangeText={setNote}
+            placeholder={t('Add a note (optional)')}
+            accessibilityLabel={t('Note')}
+            placeholderTextColor={colors.muted}
+            autoFocus
+            onSubmitEditing={saveNote}
+            className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
+          />
+          <View className="flex-row justify-end gap-2 py-3">
+            <Chip label={t('Done')} onPress={saveNote} />
+          </View>
+        </Sheet>
+      </ScrollView>
+      <UndoBar notice={undo} onDone={clearUndo} />
+    </View>
   );
 }

@@ -7,7 +7,7 @@ import { t } from '../i18n';
 import { FadeIn } from './Motion';
 import { Icon } from './Icon';
 import { usePlayerBeside } from '../layout';
-import * as audio from '../platform/audio';
+import { playPause } from '../history';
 import { playerProfile, usePlayerState } from '../player';
 import { profileId } from '../profile';
 import { ROW_BUTTON } from './TextButton';
@@ -51,7 +51,7 @@ export function MiniPlayer({ inset = true }: { inset?: boolean }) {
             </Text>
           </View>
           <Pressable
-            onPress={() => void (state.playing ? audio.pause() : audio.play())}
+            onPress={() => void playPause(state.playing)}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel={state.playing ? t('Pause') : t('Play')}

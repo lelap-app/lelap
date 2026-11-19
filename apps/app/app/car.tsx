@@ -18,6 +18,7 @@ import { PressScale } from '../src/components/Motion';
 import { db } from '../src/db';
 import { HeadphoneBanner } from '../src/devices';
 import { formatClock } from '../src/format';
+import * as history from '../src/history';
 import * as audio from '../src/platform/audio';
 import { useSideways } from '../src/platform/orientation';
 import {
@@ -192,9 +193,13 @@ export default function CarMode() {
   const cycleSleep = () => {
     const to = NEXT_STEP[step];
     setPressed(to);
-    if (to === 'off') void audio.cancelSleepTimer();
-    else if (to === 'end') void audio.startSleepTimerAtEnd(endMode);
-    else void audio.startSleepTimer(Number(to));
+    void history.timer(() =>
+      to === 'off'
+        ? audio.cancelSleepTimer()
+        : to === 'end'
+          ? audio.startSleepTimerAtEnd(endMode)
+          : audio.startSleepTimer(Number(to)),
+    );
   };
 
   const landscape = dims.width > dims.height;
@@ -352,7 +357,7 @@ export default function CarMode() {
           size={skipSize}
           palette={palette}
           disabled={!bookId}
-          onPress={() => void audio.skip(false)}
+          onPress={() => void history.skip(false)}
         />
         <RoundButton
           icon={state.playing ? 'pause' : 'play'}
@@ -361,7 +366,7 @@ export default function CarMode() {
           palette={palette}
           primary
           disabled={!bookId}
-          onPress={() => void (state.playing ? audio.pause() : audio.play())}
+          onPress={() => void history.playPause(state.playing)}
         />
         <RoundButton
           icon="skipForward"
@@ -370,7 +375,7 @@ export default function CarMode() {
           size={skipSize}
           palette={palette}
           disabled={!bookId}
-          onPress={() => void audio.skip(true)}
+          onPress={() => void history.skip(true)}
         />
       </View>
       <View className="flex-row gap-4">
@@ -384,7 +389,7 @@ export default function CarMode() {
           height={landscape ? 80 : 88}
           disabled={!bookId || (!next && !toListNext)}
           onPress={() => {
-            if (bookId && next) void seekToBookPosition(bookId, next.startMs);
+            if (bookId && next) void seekToBookPosition(bookId, next.startMs, 'chapter');
             else if (toListNext) void stepList(true);
           }}
         />

@@ -203,9 +203,10 @@ class PlaybackService : MediaLibraryService() {
     mixer.bedtime = Bedtime.decode(p.getString(Commands.PREF_BEDTIME, null))?.gain ?: 1f
   }
 
-  // The listener's last touch of the player (M86): the last moment they surely were awake, offered
-  // when the sleep timer stops playback. Only their own commands count, never auto-advance.
-  private var lastInteraction: PlaceMark? = null
+  // The notification's and car's Back after a jump made away from the app (M138).
+  private val backOffer = BackOffer(SystemClock::elapsedRealtime)
+  private var buttonsBack: Boolean? = null
+  private val backExpired = Runnable { if (backOffer.expire()) updateSleepButton() }
 
   private var queue: List<BookLoad> = emptyList()
   /** Where the followed list's next item is in [queue]; -1 without a list (M112). */
@@ -302,7 +303,8 @@ class PlaybackService : MediaLibraryService() {
         remote?.setFade(it)
       },
       onFinished = {
-        keepSleepPlace()
+        // The timer's stop goes into the history; the app offers going back from it (M86, M138).
+        placeNow()?.let { (bookId, at) -> record(bookId, PlaybackHistory.SLEEP, PlaybackHistory.SLEEP_TIMER, at, at) }
         clearBoundary()
         // A receiver is paused straight away; it holds no audio focus to give up.
         val r = remote
@@ -537,7 +539,6 @@ class PlaybackService : MediaLibraryService() {
     saveQueue(rest, after)
     loadBook(next, autoplay = play)
     locateStarted(next.playlist)
-    noteInteraction()
     updateSleepButton()
   }
 
@@ -551,7 +552,6 @@ class PlaybackService : MediaLibraryService() {
     saveQueue(step.queue, step.listNext)
     loadBook(step.play, autoplay = play)
     locateStarted(step.play.playlist)
-    noteInteraction()
     updateSleepButton()
   }
 
@@ -926,12 +926,16 @@ class PlaybackService : MediaLibraryService() {
     if (known != null && known != C.TIME_UNSET) known else current?.files?.getOrNull(i)?.durationMs ?: 0L
   }
 
-  /** Back or forward by [deltaMs]: always the listener's own press (a controller or the widget). */
-  private fun skipBy(deltaMs: Long) {
+  /**
+   * Back or forward by [deltaMs]: always the listener's own press (a controller or the widget),
+   * logged from [source]; null for the app, which logs its own.
+   */
+  private fun skipBy(deltaMs: Long, source: String?) {
     if (player.mediaItemCount == 0) return
+    val before = placeNow()
     val (index, position) = SeekRules.skip(active.currentMediaItemIndex, active.currentPosition, deltaMs, durations())
     active.seekTo(index, position)
-    noteInteraction()
+    jumped(before, PlaybackHistory.SKIP, source)
   }
 
   private fun chapterTitleAt(playlist: BookPlaylist, index: Int, positionMs: Long): String? {
@@ -965,21 +969,28 @@ class PlaybackService : MediaLibraryService() {
    * the next part) use the players directly. So its commands are the listener's touches.
    */
   private inner class SkippingPlayer(private val base: Player = player) : ForwardingPlayer(base) {
-    private fun touched(command: () -> Unit) {
+    /** A press of Play or Pause from a controller, for the history (M138). */
+    private fun pressed(action: String, command: () -> Unit) {
+      val source = currentSource()
       command()
-      noteInteraction()
+      placeNow()?.let { (bookId, at) -> if (source != null) record(bookId, action, source, at, at) }
     }
 
-    override fun play() = touched { super.play() }
-    override fun pause() = touched { super.pause() }
-    override fun setPlayWhenReady(playWhenReady: Boolean) = touched { super.setPlayWhenReady(playWhenReady) }
-    override fun seekTo(positionMs: Long) = touched { super.seekTo(positionMs) }
-    override fun seekTo(mediaItemIndex: Int, positionMs: Long) = touched { super.seekTo(mediaItemIndex, positionMs) }
-    override fun seekToDefaultPosition() = touched { super.seekToDefaultPosition() }
-    override fun seekToDefaultPosition(mediaItemIndex: Int) = touched { super.seekToDefaultPosition(mediaItemIndex) }
-    override fun setPlaybackSpeed(speed: Float) = touched { super.setPlaybackSpeed(speed) }
-    override fun setPlaybackParameters(playbackParameters: PlaybackParameters) =
-      touched { super.setPlaybackParameters(playbackParameters) }
+    /** A seek from a controller: the history, and Back on the notification after a long one. */
+    private fun sought(command: () -> Unit) {
+      val before = placeNow()
+      command()
+      jumped(before, PlaybackHistory.SEEK, currentSource())
+    }
+
+    override fun play() = pressed(PlaybackHistory.PLAY) { super.play() }
+    override fun pause() = pressed(PlaybackHistory.PAUSE) { super.pause() }
+    override fun setPlayWhenReady(playWhenReady: Boolean) =
+      pressed(if (playWhenReady) PlaybackHistory.PLAY else PlaybackHistory.PAUSE) { super.setPlayWhenReady(playWhenReady) }
+    override fun seekTo(positionMs: Long) = sought { super.seekTo(positionMs) }
+    override fun seekTo(mediaItemIndex: Int, positionMs: Long) = sought { super.seekTo(mediaItemIndex, positionMs) }
+    override fun seekToDefaultPosition() = sought { super.seekToDefaultPosition() }
+    override fun seekToDefaultPosition(mediaItemIndex: Int) = sought { super.seekToDefaultPosition(mediaItemIndex) }
 
     private val skipCommands = intArrayOf(
       Player.COMMAND_SEEK_TO_PREVIOUS, Player.COMMAND_SEEK_TO_NEXT,
@@ -1006,12 +1017,12 @@ class PlaybackService : MediaLibraryService() {
     }
 
     override fun isCommandAvailable(command: Int) = availableCommands.contains(command)
-    override fun seekToPrevious() = skipBy(-skipIntervalMs)
-    override fun seekToNext() = skipBy(skipIntervalMs)
-    override fun seekToPreviousMediaItem() = skipBy(-skipIntervalMs)
-    override fun seekToNextMediaItem() = skipBy(skipIntervalMs)
-    override fun seekBack() = skipBy(-skipIntervalMs)
-    override fun seekForward() = skipBy(skipIntervalMs)
+    override fun seekToPrevious() = skipBy(-skipIntervalMs, currentSource())
+    override fun seekToNext() = skipBy(skipIntervalMs, currentSource())
+    override fun seekToPreviousMediaItem() = skipBy(-skipIntervalMs, currentSource())
+    override fun seekToNextMediaItem() = skipBy(skipIntervalMs, currentSource())
+    override fun seekBack() = skipBy(-skipIntervalMs, currentSource())
+    override fun seekForward() = skipBy(skipIntervalMs, currentSource())
     override fun getSeekBackIncrement() = skipIntervalMs
     override fun getSeekForwardIncrement() = skipIntervalMs
   }
@@ -1077,24 +1088,59 @@ class PlaybackService : MediaLibraryService() {
     publishExtras()
   }
 
-  /** Where the listener is now, for [SleepPlace]; null with no book. */
-  private fun placeMark(): PlaceMark? {
+  /** The book and its whole-book place now, for the history; null with no book. */
+  private fun placeNow(): Pair<String, Long>? {
     val bookId = current?.bookId ?: return null
     if (player.mediaItemCount == 0) return null
-    return PlaceMark(bookId, System.currentTimeMillis(), bookPositionNow(timelineDurations()))
+    return bookId to bookPositionNow(timelineDurations())
   }
 
-  /** The listener touched the player: they were surely awake here. */
-  private fun noteInteraction() {
-    placeMark()?.let { lastInteraction = it }
+  /**
+   * Where the command being handled came from, for the history; null for the app, which logs its
+   * own taps, and for the service's own moves.
+   */
+  private fun currentSource(): String? = sourceOf(session.controllerForCurrentRequest)
+
+  private fun sourceOf(controller: MediaSession.ControllerInfo?): String? {
+    if (controller == null) return null
+    return PlaybackHistory.sourceOf(
+      packageName = controller.packageName,
+      ownPackage = packageName,
+      isApp = controller.connectionHints.getBoolean(Commands.HINT_APP, false),
+      isNotification = session.isMediaNotificationController(controller),
+      isCar = session.isAutomotiveController(controller) || session.isAutoCompanionController(controller),
+    )
   }
 
-  /** The timer stops playback: keep where, and where the listener last used the player, for the app. */
-  private fun keepSleepPlace() {
-    val place = placeMark()?.let { SleepPlace.at(it, lastInteraction) }
-    val edit = prefs.edit()
-    if (place == null) edit.remove(Commands.PREF_SLEEP_PLACE) else edit.putString(Commands.PREF_SLEEP_PLACE, place.encode())
-    edit.apply()
+  /** Keeps an action for the app's history, also while the app is closed (M138). */
+  private fun record(bookId: String, action: String, source: String, fromMs: Long, toMs: Long) {
+    val entry = HistoryReport(bookId, action, source, System.currentTimeMillis(), fromMs, toMs)
+    prefs.edit().putString(Commands.PREF_HISTORY, PlaybackHistory.append(prefs.getString(Commands.PREF_HISTORY, null), entry)).apply()
+  }
+
+  /** A skip or seek moved the place from [before]: logged, and Back offered after a long one away from the app. */
+  private fun jumped(before: Pair<String, Long>?, action: String, source: String?) {
+    val after = placeNow() ?: return
+    if (before == null || before.first != after.first) return
+    if (source != null) record(after.first, action, source, before.second, after.second)
+    if (backOffer.jumped(after.first, before.second, after.second, external = source != null)) updateSleepButton()
+    handler.removeCallbacks(backExpired)
+    backOffer.offer?.let { handler.postDelayed(backExpired, (it.untilMs - SystemClock.elapsedRealtime()).coerceAtLeast(0L)) }
+  }
+
+  /** The notification's or car's Back: to where the listener was before the jump. */
+  private fun goBack(source: String?) {
+    val offer = backOffer.offer ?: return
+    backOffer.clear()
+    handler.removeCallbacks(backExpired)
+    val before = placeNow()
+    if (before?.first == offer.bookId) {
+      val target = SleepBoundary.fileTarget(offer.fromMs, timelineDurations())
+      // A place on a file's end is the next file's start, so the file doesn't end again.
+      if (target.atFileEnd && target.index + 1 < active.mediaItemCount) active.seekTo(target.index + 1, 0L) else active.seekTo(target.index, target.positionMs)
+      placeNow()?.let { (bookId, at) -> if (source != null) record(bookId, PlaybackHistory.SEEK, source, before.second, at) }
+    }
+    updateSleepButton()
   }
 
   /** The notification's sleep timer button: 15 min → 30 min → end of chapter → off. */
@@ -1120,11 +1166,13 @@ class PlaybackService : MediaLibraryService() {
     val step = SleepCycle.current(sleepTimer.isActive, sleepTimer.mode, sleepPressed)
     val offersNext = listNext in queue.indices
     val offersPrevious = ListSteps.offersPrevious(following, current?.bookId)
+    val offersBack = backOffer.offer != null
     if (step == sleepButtonStep && skipIntervalMs == buttonsSkipMs && offersNext == buttonsListNext &&
-      offersPrevious == buttonsListPrevious
+      offersPrevious == buttonsListPrevious && offersBack == buttonsBack
     ) {
       return
     }
+    buttonsBack = offersBack
     sleepButtonStep = step
     buttonsSkipMs = skipIntervalMs
     buttonsListNext = offersNext
@@ -1166,7 +1214,20 @@ class PlaybackService : MediaLibraryService() {
     } else {
       null
     }
-    session.setMediaButtonPreferences(listOfNotNull(back, forward, previous, next, sleep))
+    // For 30 s after a long jump away from the app (M138): Back, in the sleep button's place.
+    val undo = if (offersBack) {
+      CommandButton.Builder(CommandButton.ICON_UNDEFINED)
+        .setCustomIconResId(R.drawable.lelap_go_back)
+        .setDisplayName(NativeText.t(this, "Back to where you were"))
+        .setSessionCommand(SessionCommand(Commands.GO_BACK, Bundle.EMPTY))
+        .setSlots(CommandButton.SLOT_OVERFLOW)
+        .build()
+    } else {
+      null
+    }
+    session.setMediaButtonPreferences(
+      if (undo != null) listOfNotNull(back, forward, undo, previous, next) else listOfNotNull(back, forward, previous, next, sleep),
+    )
   }
 
   /**
@@ -1293,7 +1354,7 @@ class PlaybackService : MediaLibraryService() {
     sleepTimer.extend(SHAKE_EXTENSION_MS)
     clearBoundary()
     shake.reset()
-    noteInteraction()
+    placeNow()?.let { (bookId, at) -> record(bookId, PlaybackHistory.TIMER, PlaybackHistory.SHAKE, at, at) }
     publishExtras()
   }
 
@@ -1645,6 +1706,7 @@ class PlaybackService : MediaLibraryService() {
             .add(SessionCommand(Commands.CYCLE_SLEEP_TIMER, Bundle.EMPTY))
             .add(SessionCommand(Commands.NEXT_IN_LIST, Bundle.EMPTY))
             .add(SessionCommand(Commands.PREVIOUS_IN_LIST, Bundle.EMPTY))
+            .add(SessionCommand(Commands.GO_BACK, Bundle.EMPTY))
             .build(),
           MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS,
         )
@@ -1663,6 +1725,7 @@ class PlaybackService : MediaLibraryService() {
         .add(SessionCommand(Commands.SKIP, Bundle.EMPTY))
         .add(SessionCommand(Commands.NEXT_IN_LIST, Bundle.EMPTY))
         .add(SessionCommand(Commands.PREVIOUS_IN_LIST, Bundle.EMPTY))
+        .add(SessionCommand(Commands.GO_BACK, Bundle.EMPTY))
         .build()
       return MediaSession.ConnectionResult.accept(
         commands,
@@ -1719,17 +1782,15 @@ class PlaybackService : MediaLibraryService() {
           // The listener's own timer replaces the routine's, and its volume with it.
           mixer.bedtime = 1f
           startSleepTimer(mode, args.getLong(Commands.KEY_DURATION_MS))
-          noteInteraction()
         }
-        Commands.CANCEL_SLEEP_TIMER -> {
-          cancelSleepTimer()
-          noteInteraction()
-        }
+        Commands.CANCEL_SLEEP_TIMER -> cancelSleepTimer()
         Commands.CYCLE_SLEEP_TIMER -> {
           mixer.bedtime = 1f
           cycleSleepTimer()
-          noteInteraction()
+          val source = sourceOf(controller)
+          placeNow()?.let { (bookId, at) -> if (source != null) record(bookId, PlaybackHistory.TIMER, source, at, at) }
         }
+        Commands.GO_BACK -> goBack(sourceOf(controller))
         // Another profile is listening now and has nothing to play: clear the lock screen and
         // notification. The place was journaled at the pause before this.
         Commands.UNLOAD -> {
@@ -1742,7 +1803,7 @@ class PlaybackService : MediaLibraryService() {
           player.clearMediaItems()
           current = null
           forgetJournaledBook()
-          lastInteraction = null
+          backOffer.clear()
         }
         Commands.SET_QUEUE -> {
           val json = args.getString(Commands.KEY_QUEUE_JSON).orEmpty()
@@ -1758,7 +1819,7 @@ class PlaybackService : MediaLibraryService() {
           // A player with nothing loaded can't seek; Play would start the book, so load it paused.
           val loaded = player.mediaItemCount == 0 && journalLoad()?.let { loadBook(it, autoplay = false) } != null
           val forward = args.getBoolean(Commands.KEY_FORWARD, true)
-          skipBy(if (forward) skipIntervalMs else -skipIntervalMs)
+          skipBy(if (forward) skipIntervalMs else -skipIntervalMs, sourceOf(controller))
           // The listener picked this place; Play shouldn't rewind from it for the old pause.
           if (loaded) pausedAt = null
         }
@@ -1770,11 +1831,9 @@ class PlaybackService : MediaLibraryService() {
               SessionResult(SessionError(SessionError.ERROR_BAD_VALUE, "The player could not read this book")),
             )
           val autoplay = args.getBoolean(Commands.KEY_AUTOPLAY, false)
-          // A touch in another book says nothing about this one.
-          if (lastInteraction?.bookId != load.playlist.bookId) lastInteraction = null
+          // Back belongs to the book it was offered in.
+          if (backOffer.offer?.bookId != load.playlist.bookId) backOffer.clear()
           loadBook(load, autoplay)
-          // The listener's Play from the library: it plays through ExoPlayer, not the session.
-          if (autoplay) noteInteraction()
         }
         else -> return Futures.immediateFuture(
           SessionResult(SessionError(SessionError.ERROR_NOT_SUPPORTED, "Unknown command ${customCommand.customAction}")),

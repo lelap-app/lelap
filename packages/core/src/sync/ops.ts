@@ -20,6 +20,7 @@ import {
   libraryEntries,
   ownChapters,
   listeningLog,
+  playbackHistory,
   playlists,
   scrobbleOutbox,
   podcasts,
@@ -1456,6 +1457,7 @@ function applyDelete(db: Db, op: Extract<Op, { type: 'delete' }>): void {
         ownChapters,
         playlists,
         listeningLog,
+        playbackHistory,
         scrobbleOutbox,
       ]) {
         db.delete(table).where(eq(table.profileId, op.key)).run();

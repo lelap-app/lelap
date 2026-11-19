@@ -54,8 +54,12 @@ object Commands {
   /** In [AUDIO_PREFS]: the [Bedtime] window the app set (absent when off), and the last night it started a timer. */
   const val PREF_BEDTIME = "bedtime"
   const val PREF_BEDTIME_NIGHT = "bedtimeNight"
-  /** In [AUDIO_PREFS]: the [SleepPlace] the timer last left, until the app offers it (M86). */
-  const val PREF_SLEEP_PLACE = "sleepPlace"
+  /** In [AUDIO_PREFS]: [PlaybackHistory]'s actions made away from the app, until the app takes them (M138). */
+  const val PREF_HISTORY = "history"
+  /** The notification's and car's Back after a long jump made away from the app; see [BackOffer]. */
+  const val GO_BACK = "app.lelap.audio.GO_BACK"
+  /** In the app's own controller's connection hints: its commands are logged by the app itself. */
+  const val HINT_APP = "lelapApp"
   /** [BedtimeAlarm]'s broadcast to a running service: the bedtime window opens now. */
   const val BEDTIME_NOW = "app.lelap.audio.BEDTIME_NOW"
   /** In [AUDIO_PREFS]: whether the app's diagnostics log is on, and the service's [Diagnostics] events. */

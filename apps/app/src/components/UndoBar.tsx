@@ -4,8 +4,11 @@ import { AccessibilityInfo, Text, View } from 'react-native';
 import { t } from '../i18n';
 import { TextButton } from './TextButton';
 
-/** What the bar says, and what Undo takes back; none for a plain notice. */
-export type UndoNotice = { text: string; undo?: () => void };
+/**
+ * What the bar says, and what Undo takes back; none for a plain notice. [undoText] names the
+ * button when “Undo” says less than the task, such as “Go back”; [shownMs] keeps the bar longer.
+ */
+export type UndoNotice = { text: string; undo?: () => void; undoText?: string; shownMs?: number };
 
 /** How long the bar stays; long enough to reach Undo with TalkBack. */
 const SHOWN_MS = 8000;
@@ -16,7 +19,7 @@ export function UndoBar({ notice, onDone }: { notice: UndoNotice | null; onDone:
     if (!notice) return;
     // TalkBack hears it at once, so the listener knows the row went away and why.
     AccessibilityInfo.announceForAccessibility(notice.text);
-    const timer = setTimeout(onDone, SHOWN_MS);
+    const timer = setTimeout(onDone, notice.shownMs ?? SHOWN_MS);
     return () => clearTimeout(timer);
   }, [notice, onDone]);
   if (!notice) return null;
@@ -28,7 +31,7 @@ export function UndoBar({ notice, onDone }: { notice: UndoNotice | null; onDone:
       <Text className="flex-1 text-paper">{notice.text}</Text>
       {notice.undo && (
         <TextButton
-          text={t('Undo')}
+          text={notice.undoText ?? t('Undo')}
           onPress={() => {
             notice.undo?.();
             onDone();
