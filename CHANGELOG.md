@@ -2,6 +2,127 @@
 
 What changed in each Lelap release, newest first.
 
+## 0.1.0-beta.13 (2026-11-19)
+
+This beta changes the app’s Android code for playback and casting, so it needs the new APK; an
+over-the-air update can’t bring it to older APKs. The app offers the APK as usual. At first start
+the app’s database adds a table for each book’s playback history. No new permissions.
+
+### New
+
+- Each book keeps a short playback history on your device: plays, pauses, skips, seeks, chapter
+  jumps and sleep timer stops, and where each came from (the app, the notification, headphones,
+  the car, a watch, the widget, media keys or a shake). Quick skips within 5 s are one entry. It
+  keeps the last 50 per book, none older than 30 days, and isn’t synced. Open it with History in
+  the player; a tap on an entry goes back to the place before it without playing. (#234)
+- After a skip, seek or chapter jump of more than a minute, the player says “Moved from …” with Go
+  back for 10 s. (#234)
+- On Android, for 30 s after a long jump made away from the app, the notification’s sleep timer
+  button becomes “Back to where you were”, and Android Auto shows it too. (#234)
+- The web app can cast through the browser: the Cast tool appears when Chrome (Google Cast) or
+  Safari (AirPlay) can reach a speaker, and opens the browser’s own list. Sound effects and skip
+  silence rest while casting. Downloaded books play only in the browser. (#238)
+- Speakers you played on together show at the top of the Cast sheet as one row, “Played together
+  before”, with Forget. While a book plays, other speakers have Add and the ones in the group have
+  Take out; a speaker that joins starts at the group’s place and is kept in step. (#238)
+- After signing in to Plex, the server form lists the server’s music libraries to tick, instead of
+  names to type. A server added before keeps its typed names. (#236)
+
+### Improved
+
+- The bedtime routine’s quieter volume and the sleep timer’s fade now reach a cast speaker too, and
+  the speaker’s own volume comes back when the timer ends. In a group each speaker keeps its
+  share. (#238)
+- “Back to when you last used it” after the sleep timer now reads the playback history, so it also
+  knows presses from the notification with the app closed. It shows in the web app too. (#234)
+- “Because you finished …” tiles show their cover when Home showed that cover earlier in the same
+  session, not only for the first ten books of a row. Nothing is saved or synced for it. (#236)
+
+### Fixed
+
+- An FCast receiver that answers pings and then goes quiet no longer runs the place on: it stops
+  6 s after the receiver’s last word, and after 15 s the phone takes over, paused. (#238)
+- “Connect anyway” now trusts the certificate the refused speaker showed, not its name on the
+  network, so another device that takes over the name is asked about again. (#238)
+
+### Self-hosting and add-on developers
+
+- Sync: no D1 migration, and the sync Worker hasn’t changed.
+- Catalog service: a new add-on, Lepak (`/lepak/manifest.json`), with Malay, Indonesian and
+  Singapore podcasts from Podcast Index in four rows (Cerita, Sembang, Sejarah and Singapura) and a
+  search of its own. It is served only when `PODCASTINDEX_KEY` and `PODCASTINDEX_SECRET` are set,
+  and the app offers it under Lelap’s own add-ons, off by default, only when the catalog lists it.
+  The hosted catalog has no Podcast Index keys yet, so the app doesn’t offer Lepak there; it
+  appears once they are set. Feed lookups now fill fields a Podcast Index listing leaves empty,
+  such as covers. These deployed with the merges to `main`. (#237)
+- Protocol revision 11 gains `choice` settings: fixed `options`, or options the add-on’s new
+  `settings` resource lists for the form so far. An app before revision 11 refuses a manifest that
+  lists `settings` or has a choice field. (#236)
+- Coming with the next SDK release (0.6, not on npm yet; `@lelap/sdk` 0.5.0 is the current one):
+  the `choice` settings and the `settings` resource (`ChoiceOption`, `SettingsOptions`,
+  `settingsPath`, `choiceOptions`, `choiceValues`, `offersSettingOptions`), and `lelap-sdk check`
+  warnings for them. Until then they run from the repository. (#236)
+
+### Known issues
+
+- Playback history is untested on Android: skips from the notification, headphones, watches and
+  the car, and the notification’s “Back to where you were”. That button may crowd the
+  notification’s controls on some phones; if it does, it will leave the notification and stay in
+  the car. (#234)
+- Headphone and watch detection is untested on real devices: whether their skips and pauses show
+  in History as “headphones” and “watch”. (#234)
+- Plex libraries from a list haven’t been tried against a real Plex server. (#236)
+- An FCast receiver that goes silent, and one left paused for a long time, are untested on a real
+  receiver. (#238)
+- The bedtime volume and the sleep timer’s fade on a cast speaker or a group are untested on real
+  speakers. (#238)
+- Remembered groups, Add and Take out are untested on real speakers. (#238)
+- Casting from the web app is untested in Chrome and Safari with a real speaker or TV. (#238)
+- “Connect anyway” by certificate is untested against a real receiver that isn’t a Google device.
+  Google Cast device authentication with Google’s bundled roots is still untested against a real
+  Nest speaker. (#212, #238)
+- Playing on several speakers is untested on real speakers. (#212)
+- The new Settings has only been tried in the web app: not on Android, with TalkBack or on a
+  tablet. (#227)
+- Sign in with Hardcover hasn’t been tried with a real Hardcover account, nor has renewing the
+  sign-in after a week. (#221)
+- Places sent with the app closed to Subsonic, Plex, Emby, Jellyfin or Audiobookshelf are untested
+  on a phone and a real server. (#210, #222)
+- A Plex book or download that finds the server’s address away from home is untested on a real
+  Plex server. (#210, #222)
+- Skip silence and even loudness in the web app have only been tried in Chromium, not in Firefox or
+  Safari. (#209, #229)
+- OPDS hasn’t been tried against a real Calibre server. Calibre may not list M4B books at all,
+  since it doesn’t know their file type. Calibre’s default login over http (Digest) isn’t
+  supported: set Calibre to Basic. (#230)
+- In the web app, Open lectures courses that stream from Yale can’t be downloaded or use the sound
+  effects, because Yale’s server doesn’t let the browser read its files. They stream as usual; the
+  three courses from archive.org download. Downloads on a phone are untested. (#231)
+- Dragging onto a list on an Android tablet is untested on a real tablet. (#228)
+- Lists in Android Auto, and playing a list with the app closed or while casting, haven’t been
+  tried in a car or on a phone. (#204, #225)
+- Books from a server with a login play on Android through a new reader, untested on a phone.
+  (#210)
+- Foldable layouts are untested on a real foldable, and the dividers on a tablet with a finger.
+  (#206, #228)
+- Clearing made-up chapter names at first start, and getting typed names back from sync, are
+  untested on a real library. (#211, #219)
+- Episode file choices with the app closed, integrity checks and chapter pictures on the lock
+  screen and in the car are untested on a phone. (#208, #220)
+- Themes on Android, including theme files and car mode’s accent, haven’t been looked at on a
+  phone. (#199, #216)
+- Whole series pages and reading series from the files’ tags are untested on a phone. (#196, #218)
+- Ratings sent to Hardcover, and Hardcover’s audiobook editions, haven’t been tried against the
+  live service. (#203)
+- Car mode sideways, and the tap on a podcast’s place opening a map app, are untested on a phone.
+  (#194, #198)
+- SMB requires signing for logged-in sessions. A Samba server that maps a login to its guest
+  account may stop working. (#191)
+- Shared place links open in the web app; opening them in the Android app isn’t switched on yet.
+  (#187)
+- Some new Malay lines, here and in earlier betas, haven’t been checked by a native speaker.
+  (#211, #227, #234, #238)
+
 ## 0.1.0-beta.12 (2026-11-19)
 
 This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t

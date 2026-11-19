@@ -16,9 +16,11 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Plays audiobooks and podcasts in the background, with the screen off. On Android a call pauses
   it or lowers the volume to a level you choose.
 - Downloads for offline listening, and works fully in airplane mode.
-- Remembers speed per book, rewinds smartly after pauses, and fades out with the sleep timer. On
-  Android a bedtime routine can turn the volume down, and after the timer the player offers to go
-  back to when you last used it.
+- Remembers speed per book, rewinds smartly after pauses, and fades out with the sleep timer; after
+  the timer the player offers to go back to when you last used it. On Android a bedtime routine can
+  turn the volume down, on a cast speaker too.
+- Keeps a short history of each book's plays, pauses, skips and jumps on the device. After a long
+  jump, one tap goes back; on Android the notification and Android Auto offer it too.
 - Boosts voices, skips silence (showing the time saved) and keeps loudness even, per book or per
   show. In the browser, skip silence works on constant-bitrate MP3 files such as LibriVox's, and on M4B, Opus, Ogg and FLAC files.
 - Opens the library in three groups: in progress, not started and finished.
@@ -48,7 +50,9 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Shares a place, a bookmark or the last 30 seconds as a link; whoever opens it plays their own
   copy. Shows a podcast's chapter pictures and soundbites.
 - Casts to Sonos, DLNA, Google Cast and FCast speakers without Google's SDK, to one speaker or
-  several at once, with the lock screen, headphones and sleep timer controlling them.
+  several at once, with the lock screen, headphones and sleep timer controlling them. Speakers you
+  played on together come back as one choice. The web app casts through the browser: Google Cast
+  in Chrome, AirPlay in Safari.
 - Has a car mode with a large cover and big buttons, upright or sideways in a holder, and works in
   Android Auto with the covers on your phone and your lists.
 - Comes in five themes (Night, Dusk, Day, Sepia and High contrast) with six accent colours, or
