@@ -29,7 +29,11 @@ export const ms: Record<string, string> = {
   'Audio never passes through our servers': 'Audio tidak pernah melalui pelayan kami',
   Beta: 'Beta',
   'Bring your own files': 'Bawa fail anda sendiri',
+  'Bring your places and finished books from Smart AudioBook Player, your podcasts and played episodes from AntennaPod, and your shelves and read books from Goodreads.':
+    'Bawa kedudukan anda dan buku yang selesai didengar daripada Smart AudioBook Player, podcast dan episod yang sudah dimainkan daripada AntennaPod, serta rak dan buku yang sudah dibaca daripada Goodreads.',
   'Built for long listens.': 'Dibina untuk sesi mendengar yang panjang.',
+  'Can I bring my progress from another player?':
+    'Bolehkah saya membawa kemajuan saya daripada pemain audio lain?',
   'Can I write my own add-on?': 'Bolehkah saya menulis alat tambah sendiri?',
   'Car mode shows a large cover and five big buttons. Android Auto shows the covers saved on your phone.':
     'Mod kereta memaparkan kulit buku yang besar dan lima butang besar. Android Auto memaparkan kulit buku yang disimpan pada telefon anda.',
@@ -196,6 +200,7 @@ export const ms: Record<string, string> = {
   'The signed APK from our own downloads host. Once installed, the app checks for updates itself.':
     'APK bertandatangan daripada hos muat turun kami sendiri. Setelah dipasang, aplikasi menyemak kemas kini sendiri.',
   'The work you hold rights to': 'Karya yang anda pegang haknya',
+  'Switch without starting over': 'Tukar aplikasi tanpa bermula semula',
   'Theme: dark': 'Tema: gelap',
   'Theme: follows the system': 'Tema: ikut sistem',
   'Theme: light': 'Tema: cerah',
@@ -219,6 +224,8 @@ export const ms: Record<string, string> = {
   'Why isn’t it on Google Play?': 'Mengapa ia tiada di Google Play?',
   'Works fully offline': 'Berfungsi sepenuhnya luar talian',
   'Works with a screen reader': 'Berfungsi dengan pembaca skrin',
+  'Yes, as a one-off import in Settings → Backup → “Import from another app”. From Smart AudioBook Player come your places and finished books, but not yet your bookmarks. From AntennaPod come your subscriptions, played episodes and places. From Goodreads, shelves become tags and read books are marked finished, for the books already in your library. A summary shows what matched and what was left out.':
+    'Boleh, melalui import sekali sahaja di Tetapan → Sandaran → “Import daripada aplikasi lain”. Daripada Smart AudioBook Player dibawa kedudukan anda dan buku yang selesai didengar, tetapi belum lagi penanda anda. Daripada AntennaPod dibawa langganan, episod yang sudah dimainkan dan kedudukan anda. Daripada Goodreads, rak menjadi tag dan buku yang sudah dibaca ditanda selesai, bagi buku yang sudah ada dalam pustaka anda. Ringkasan menunjukkan apa yang sepadan dan apa yang tertinggal.',
   'Yes. An add-on is a small HTTP service that returns JSON. The <a href="/docs/" hreflang="en">add-on docs</a> cover the protocol and the SDK, which is on npm as <code>@lelap/sdk</code>.':
     'Ya. Alat tambah ialah perkhidmatan HTTP kecil yang memulangkan JSON. <a href="/docs/" hreflang="en">Dokumentasi alat tambah</a> (dalam bahasa Inggeris) merangkumi protokol dan SDK, yang ada di npm sebagai <code>@lelap/sdk</code>.',
   'Yes. The code is open source, and the hosted web app at {host} is free to use.':

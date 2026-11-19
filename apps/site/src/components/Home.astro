@@ -58,6 +58,14 @@ const features: { icon: IconName; title: string; text: string }[] = [
     ),
   },
   {
+    icon: 'forward',
+    title: t(lang, 'Switch without starting over'),
+    text: t(
+      lang,
+      'Bring your places and finished books from Smart AudioBook Player, your podcasts and played episodes from AntennaPod, and your shelves and read books from Goodreads.',
+    ),
+  },
+  {
     icon: 'gauge',
     title: t(lang, 'Smart rewind, speed, chapters'),
     text: t(
@@ -715,6 +723,15 @@ const compose = `services:
           {t(
             lang,
             'No. To continue on another device, pair it with a sync code. Skip that and everything stays on the one device.',
+          )}
+        </p>
+      </details>
+      <details>
+        <summary>{t(lang, 'Can I bring my progress from another player?')}</summary>
+        <p>
+          {t(
+            lang,
+            'Yes, as a one-off import in Settings → Backup → “Import from another app”. From Smart AudioBook Player come your places and finished books, but not yet your bookmarks. From AntennaPod come your subscriptions, played episodes and places. From Goodreads, shelves become tags and read books are marked finished, for the books already in your library. A summary shows what matched and what was left out.',
           )}
         </p>
       </details>
