@@ -502,7 +502,7 @@ describe('gPodder', () => {
     expect(manifest.resources).toEqual([
       { name: 'scrobble', events: ['pause', 'progress', 'finish'] },
     ]);
-    expect(manifest.protocolVersion).toBe(10);
+    expect(manifest.protocolVersion).toBeGreaterThanOrEqual(10);
     const response = await post(app, url, [
       event({ event: 'progress', item: episode, positionMs: 60_000, sessionStartMs: 0 }),
     ]);

@@ -35,11 +35,13 @@ import {
   updateRemoteRoot,
   upsertRoot,
   withAddonLogin,
+  withListedSettings,
 } from '@lelap/core';
 import { idsFromTags } from '@lelap/sdk';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
+import { forgetLocated } from './addonLocate';
 import { codeFingerprint, listAddonLibrary, sourceManifest } from './addonSources';
 import { withKey } from './audiobookshelf';
 import { db, newId } from './db';
@@ -424,8 +426,9 @@ async function scanAudiobookshelf(
  */
 async function scanAddonSource(
   root: Root,
-  remote: Extract<NonNullable<Root['remote']>, { type: 'addon' }>,
+  source: Extract<NonNullable<Root['remote']>, { type: 'addon' }>,
 ): Promise<AddonScan> {
+  let remote = source;
   if (root.needsLogin)
     throw new Error(t('The login for {name} is needed again.', { name: remote.name }));
   const manifest = sourceManifest(remote.addonUrl);
@@ -436,12 +439,32 @@ async function scanAddonSource(
       t('The add-on for {name} changed. Log in again to use it.', { name: remote.name }),
     );
   }
-  const response = await listAddonLibrary({
-    addonUrl: remote.addonUrl,
-    manifest,
-    sandboxId: root.id,
-    settings: addonSettings(remote),
+  const list = (from: typeof remote) =>
+    listAddonLibrary({
+      addonUrl: remote.addonUrl,
+      manifest,
+      sandboxId: root.id,
+      settings: addonSettings(from),
+    });
+  let response = await list(remote);
+  // New settings from the listing (revision 11), such as a Plex server's new address. Only an
+  // add-on that comes with the app may change the hosts it reaches, as with a sign-in.
+  const moved = withListedSettings(remote, manifest, response.settings, {
+    hosts: codeFingerprint(remote.addonUrl) === null,
   });
+  if (moved) {
+    const before = addonSourceHosts(manifest, remote.settings).join(' ');
+    updateRemoteRoot(db, root.id, moved, Date.now());
+    remote = moved;
+    // Nothing listed because the old address didn't answer: once more, on the new one.
+    if (
+      response.files.length === 0 &&
+      addonSourceHosts(manifest, moved.settings).join(' ') !== before
+    ) {
+      response = await list(moved);
+    }
+  }
+  forgetLocated(root.id);
   const login = addonLogin(remote);
   const headers = response.headers ?? {};
   const query = response.query ?? {};

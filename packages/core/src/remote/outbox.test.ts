@@ -14,6 +14,7 @@ import {
   placeOwner,
   placeToSend,
   queuePlace,
+  queueSavedPlace,
   startsBeforePlace,
 } from './outbox';
 
@@ -107,6 +108,17 @@ describe('the place outbox', () => {
     queuePlace(db, rootId, { event: 'pause', bookId, at: 2_000, positionMs: 8_000 });
     placeDone(db, sending);
     expect(duePlaces(db, 2_000)).toMatchObject([{ positionMs: 8_000 }]);
+  });
+
+  it('queues a place saved with the app closed as a pause, never over a newer one', () => {
+    const { db, rootId, bookId } = library();
+    queueSavedPlace(db, rootId, { bookId, positionMs: 7_000.4, at: 1_000 });
+    expect(duePlaces(db, 1_000)).toMatchObject([{ event: 'pause', positionMs: 7_000 }]);
+    queuePlace(db, rootId, { event: 'progress', bookId, at: 3_000, positionMs: 9_000 });
+    queueSavedPlace(db, rootId, { bookId, positionMs: 8_000, at: 2_000 });
+    expect(duePlaces(db, 3_000)).toMatchObject([{ event: 'progress', positionMs: 9_000 }]);
+    queueSavedPlace(db, rootId, { bookId, positionMs: 12_000, at: 4_000 });
+    expect(duePlaces(db, 4_000)).toMatchObject([{ event: 'pause', positionMs: 12_000 }]);
   });
 
   it('drops places a month old, and those of a removed server', () => {

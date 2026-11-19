@@ -15,6 +15,7 @@ import {
 } from '@lelap/core';
 import { Platform } from 'react-native';
 
+import { locatedUri } from './addonLocate';
 import { codeFingerprint, declaredHosts, sourceManifest } from './addonSources';
 import { db } from './db';
 
@@ -50,8 +51,11 @@ export function fileAccess(
     const trusted = sameAddonCode(remote, codeFingerprint(remote.addonUrl));
     const manifest = trusted ? sourceManifest(remote.addonUrl) : null;
     const hosts = manifest ? addonSourceHosts(manifest, remote.settings) : [];
+    // Where the add-on located the file before the book loaded (M100); left out: no login.
+    const located = file.rootId ? locatedUri(file.rootId, file.uri) : undefined;
+    if (located === null) return { uri: file.uri, headers: {} };
     // The stored address never has the login in it; it is added here, as late as possible.
-    return addonFileAccess(file.uri, addonLogin(remote), hosts, Platform.OS !== 'web');
+    return addonFileAccess(located ?? file.uri, addonLogin(remote), hosts, Platform.OS !== 'web');
   }
   if (!remote && file.bookId) {
     return { uri: file.uri, headers: streamHeadersFor(db, file.bookId, file.uri, declaredHosts) };

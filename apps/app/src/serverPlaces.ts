@@ -15,6 +15,7 @@ import {
   placeOwner,
   placeToSend,
   queuePlace,
+  queueSavedPlace,
   RemoteError,
   reportAudiobookshelfProgress,
   reportJellyfinProgress,
@@ -39,13 +40,16 @@ import { callAddonPlace } from './sandbox';
 // start and pause, about every five minutes while playing, and at the end of a book. Only for the
 // server's owner: the profile that added it, else the first one. Each place waits in the outbox
 // until the server takes it (M65), so one reported offline goes out later; a scan in between
-// settles any difference (the newest place wins).
+// settles any difference (the newest place wins). Places the playback service saved with the app
+// closed join them when its journal is folded in, and the background refresh sends what waits for
+// Jellyfin and Audiobookshelf while the app stays closed (M100).
+
+type Root = ReturnType<typeof listRoots>[number];
 
 const tracker = new ScrobbleTracker();
 const send = (url: string, init?: RequestInit) => fetch(url, init);
 
 type Part = TimelineFile & { uri: string; rootId: string | null };
-type Root = ReturnType<typeof listRoots>[number];
 
 let timeline: { key: string; files: Part[] } | null = null;
 function partsOf(bookId: string, profile: string): Part[] {
@@ -116,6 +120,23 @@ export function trackServerPlaces(state: PlayerState, profile: string): void {
 /** The player finished a book: the server hears so too. */
 export function serverPlacesFinished(bookId: string, at: number, profile: string): void {
   report([tracker.finished(bookId, at, 0)], profile);
+}
+
+/**
+ * A place the playback service saved while the app's JavaScript didn't run, taken from its
+ * journal: it waits for the book's server as a pause.
+ */
+export function queueJournalPlace(
+  place: { bookId: string; fileLocation: string; filePositionMs: number; savedAt: number },
+  profile: string,
+): void {
+  const parts = partsOf(place.bookId, profile);
+  const rootId = parts[0]?.rootId;
+  if (!rootId || parts.some((p) => p.rootId !== rootId)) return;
+  const server = serverOf(rootId);
+  if (!server || server.owner !== profile || server.root.needsLogin) return;
+  const positionMs = toBookPosition(parts, place.fileLocation, place.filePositionMs);
+  queueSavedPlace(db, rootId, { bookId: place.bookId, positionMs, at: place.savedAt });
 }
 
 type Place = ReturnType<typeof placeToSend> & { retried: boolean };
@@ -195,7 +216,7 @@ const isPermanent = (error: unknown) =>
 
 const LATE_MS = 30_000;
 
-async function sendDue(now: number, all: boolean): Promise<void> {
+async function sendDue(now: number, all: boolean, addons: boolean): Promise<void> {
   // One failure per server per round: the rest of its places wait with it.
   const unreachable = new Set<string>();
   const rows: PendingPlace[] = duePlaces(db, now, all);
@@ -206,6 +227,8 @@ async function sendDue(now: number, all: boolean): Promise<void> {
       placeDone(db, row);
       continue;
     }
+    // Without the app's screen there is no sandbox to run an add-on in: those wait, untouched.
+    if (!addons && server.root.remote?.type === 'addon') continue;
     if (server.root.needsLogin || unreachable.has(row.rootId)) {
       placeFailed(db, row, now);
       continue;
@@ -234,9 +257,10 @@ let allAfter = false;
 
 /**
  * Sends the places that are due and plans the next try. `all` sends every waiting place now,
- * such as when the app comes to the front. Never throws; offline is normal.
+ * such as when the app comes to the front. `addons` false leaves add-on servers' places waiting,
+ * for a background run, which has no sandbox. Never throws; offline is normal.
  */
-export function flushServerPlaces(all = false): Promise<void> {
+export function flushServerPlaces(all = false, addons = true): Promise<void> {
   if (sending) {
     if (all) allAfter = true;
     return sending;
@@ -245,7 +269,7 @@ export function flushServerPlaces(all = false): Promise<void> {
     let everything = all;
     try {
       for (;;) {
-        await sendDue(Date.now(), everything);
+        await sendDue(Date.now(), everything, addons);
         if (!allAfter) break;
         allAfter = false;
         everything = true;

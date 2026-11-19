@@ -6,8 +6,10 @@ import * as TaskManager from 'expo-task-manager';
 import { refreshWanted } from './availability';
 import { db } from './db';
 import { loadDiagnosticsSwitch, logDiagnostic } from './diagnostics';
+import { foldJournal } from './player';
 import { refreshPodcasts } from './podcasts';
 import { loadActiveProfile } from './profile';
+import { flushServerPlaces } from './serverPlaces';
 import { syncOnce } from './sync';
 
 const TASK = 'lelap-background-refresh';
@@ -22,6 +24,10 @@ TaskManager.defineTask(TASK, async () => {
     loadActiveProfile();
     // The app reads the switch when its UI opens, which a background run never does.
     loadDiagnosticsSwitch();
+    // Places the player saved with the app closed reach Jellyfin and Audiobookshelf (M100);
+    // add-on servers need the sandbox, which only runs with the app's screen.
+    await foldJournal(false).catch(() => {});
+    await flushServerPlaces(true, false);
     // New episodes, then auto-downloads (inside refreshPodcasts), then sync.
     await refreshPodcasts(true, true);
     await syncOnce();

@@ -431,6 +431,13 @@ const toc: [string, string][] = [
     took their rating back, so a <code>scrobble</code> handler that keeps ratings should clear one
     then.
   </p>
+  <p>
+    Revision 11 comes with it too, for add-ons inside the app. A <code>LibraryResponse</code> can
+    carry <code>settings</code>, new values for the add-on’s own fields, and the <code>locate</code>{' '}
+    resource (<code>LocateRequest</code>, <code>LocateResponse</code>, <code>locatePath</code>,{' '}
+    <code>offersLocate</code>) says where a book’s files stream from just before it plays. See{' '}
+    <a href="/docs/protocol/#locate">Locating files</a>.
+  </p>
 
   <h2 id="errors">Errors</h2>
   <p>

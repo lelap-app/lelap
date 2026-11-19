@@ -10,6 +10,10 @@
 // addresses). Before the server's token goes to an address, that address must say it is the
 // server plex.tv named. Audio streams from the server with `X-Plex-Token` as a header, or in the
 // address in the browser (`webQuery`), sealed on the phone either way.
+//
+// Since M100 (revision 11) a listing whose addresses no longer answer hands back the ones plex.tv
+// names now, and the app lists again with them; and before a book streams, `locate` moves its
+// files to the address that answers as this server now, at home or away.
 
 const PRODUCT = 'Lelap';
 const VERSION = '1.0.0';
@@ -230,7 +234,11 @@ async function serverLogin(settings, account) {
     const own = server.owned === true;
     const token = server.accessToken || (own ? account.token : '');
     if (!token) throw new Error('plex.tv gave no token for this server. Sign in again.');
-    return { token: String(token), machine: String(server.clientIdentifier) };
+    return {
+      token: String(token),
+      machine: String(server.clientIdentifier),
+      addresses: addressesOf(server),
+    };
   }
   const token = account.server || (account.owned ? account.token : '');
   if (!token) throw new Error('plex.tv did not answer. Try again later.');
@@ -282,15 +290,46 @@ const pms = async (s, path, params = {}) => {
 };
 
 async function connect(settings, first) {
+  const { s } = await connectOrMove(settings, first);
+  if (!s) throw new Error('The Plex server has a new address. Scan it again.');
+  return s;
+}
+
+/**
+ * The server's addresses as plex.tv names them now, where they differ from the form's; null when
+ * plex.tv wasn't asked or names the same ones.
+ */
+function movedAddresses(settings, addresses) {
+  if (!addresses) return null;
+  const moved = {};
+  const known = [baseOf(settings.url), baseOf(settings.remote)];
+  if (addresses.local && !known.includes(baseOf(addresses.local))) moved.url = addresses.local;
+  if (addresses.away && !known.includes(baseOf(addresses.away))) moved.remote = addresses.away;
+  return Object.keys(moved).length > 0 ? moved : null;
+}
+
+/**
+ * Connects through the form's addresses. When none answers as the server but plex.tv names other
+ * addresses now, such as after the internet provider gave the home a new one, `moved` has them
+ * and `s` is null: the app saves them and lists again, and only then may the add-on reach them.
+ */
+async function connectOrMove(settings, first) {
   const account = accountOf(settings);
   if (!account) throw new Error('Sign in with Plex first.');
   const login = await serverLogin(settings, account);
-  const base = await reachable(settings, account, login, first);
+  let base;
+  try {
+    base = await reachable(settings, account, login, first);
+  } catch (error) {
+    const moved = movedAddresses(settings, login.addresses);
+    if (moved) return { s: null, moved };
+    throw error;
+  }
   connected = {
     key: JSON.stringify([settings.account, settings.url, settings.remote, settings.server]),
     s: { base, client: account.client, token: login.token },
   };
-  return connected.s;
+  return { s: connected.s, moved: null };
 }
 
 /** The music libraries to take books from: those named, or those named like audiobooks. */
@@ -481,7 +520,8 @@ function filesOf(s, found) {
 }
 
 async function library(settings) {
-  const s = await connect(settings);
+  const { s, moved } = await connectOrMove(settings);
+  if (!s) return { files: [], settings: moved };
   const sections = await sectionsOf(s, settings.libraries);
   const found = [];
   for (const section of sections) found.push(...(await tracksOf(s, section)));
@@ -491,6 +531,68 @@ async function library(settings) {
     headers: { 'X-Plex-Token': s.token },
     webQuery: { 'X-Plex-Token': s.token },
   };
+}
+
+/**
+ * The first of the form's addresses that answers as this server, all asked at once so the one at
+ * home doesn't hold up the one away. Null when only other servers answered; an error when none did.
+ * No token goes with these questions.
+ */
+function answering(settings, account, first) {
+  const bases = [...new Set([first, settings.url, settings.remote].map(baseOf).filter(Boolean))]
+    // Only the form's addresses.
+    .filter((base) => base === baseOf(settings.url) || base === baseOf(settings.remote));
+  if (bases.length === 0)
+    return Promise.reject(new Error('Sign in again: Lelap has no address for the server.'));
+  return new Promise((resolve, reject) => {
+    let left = bases.length;
+    let other = false;
+    let last = null;
+    const settle = () => {
+      if (--left > 0) return;
+      if (other) resolve(null);
+      else reject(last || new Error('The Plex server did not answer.'));
+    };
+    for (const base of bases) {
+      lelap
+        .fetch(`${base}/identity`, { headers: plexHeaders(account.client, '') })
+        .then((response) => json(response, 'The Plex server'))
+        .then(
+          (reply) => {
+            const id = reply && reply.MediaContainer && reply.MediaContainer.machineIdentifier;
+            if (id === account.machine) resolve(base);
+            else other = true;
+            settle();
+          },
+          (error) => {
+            last = error;
+            settle();
+          },
+        );
+    }
+  });
+}
+
+/**
+ * Before a book streams (revision 11): its files at the address that answers as this server now.
+ * Where only another server answers, none: the app then sends no token with them.
+ */
+async function locate(settings, request) {
+  const account = accountOf(settings);
+  if (!account || !account.machine) throw new Error('Sign in with Plex first.');
+  const files = list(request && request.files);
+  const first = files.length > 0 ? baseOf(files[0].url) : null;
+  const base = await answering(settings, account, first);
+  if (!base) return { files: [] };
+  const located = [];
+  for (const file of files) {
+    const url = httpUrl(file.url);
+    // Only the server's own paths move; the rest stay as listed.
+    if (url && url.pathname.startsWith('/library/')) {
+      located.push({ path: String(file.path), url: `${base}${url.pathname}${url.search}` });
+    }
+  }
+  return { files: located };
 }
 
 const LIBRARY = 'com.plexapp.plugins.library';
@@ -554,12 +656,12 @@ addon({
     id: 'app.lelap.plex',
     version: '1.0.0',
     protocol: 1,
-    protocolVersion: 7,
+    protocolVersion: 11,
     name: 'Plex',
     description:
       'Audiobooks in the music libraries of your Plex Media Server, played from the server itself. Places are kept with your Plex account.',
     types: ['audiobook'],
-    resources: ['library', 'place', 'signin'],
+    resources: ['library', 'place', 'signin', 'locate'],
     catalogs: [],
     sandbox: { hosts: ['plex.tv:443'] },
     settings: [
@@ -601,6 +703,7 @@ addon({
   },
   library: (args) => library(args.settings || {}),
   place: (args) => place(args.settings || {}, args.place),
+  locate: (args) => locate(args.settings || {}, args.locate),
   signin: (args) =>
     args.id === 'start'
       ? signinStart(args.settings || {})

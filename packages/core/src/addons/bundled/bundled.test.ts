@@ -5,6 +5,7 @@ import { runInNewContext } from 'node:vm';
 import {
   applySignin,
   LibraryResponse,
+  LocateResponse,
   offersLibrary,
   offersSignin,
   readSettings,
@@ -27,6 +28,7 @@ type Handlers = {
   library: (args: unknown) => Promise<unknown>;
   place?: (args: unknown) => Promise<unknown>;
   signin?: (args: unknown) => Promise<unknown>;
+  locate?: (args: unknown) => Promise<unknown>;
 };
 
 /**
@@ -707,6 +709,8 @@ describe('Plex', () => {
       machine?: string;
       plexTv?: boolean;
       pages?: number;
+      /** Addresses where nothing answers any more. */
+      gone?: string[];
     } = {},
   ) {
     const calls: Call[] = [];
@@ -735,6 +739,7 @@ describe('Plex', () => {
         return { status: 404, body: '' };
       }
       if (address.origin === HOME && options.home === false) throw new Error('timed out');
+      if (options.gone?.includes(address.origin)) throw new Error('timed out');
       if (address.pathname === '/identity') {
         if (headers['X-Plex-Token']) throw new Error('A token went to an unchecked address.');
         const body = JSON.parse(plex('identity')) as {
@@ -806,6 +811,12 @@ describe('Plex', () => {
         return LibraryResponse.parse(await loaded.handlers.library({ settings: read.settings }));
       },
       place: (place: unknown) => loaded.handlers.place?.({ settings: values, place }),
+      locate: async (files: { path: string; url: string }[]) => {
+        hosts();
+        return LocateResponse.parse(
+          await loaded.handlers.locate?.({ settings: values, locate: { files } }),
+        );
+      },
     };
   }
 
@@ -1035,6 +1046,60 @@ describe('Plex', () => {
     });
     expect(big.saved.map((s) => s.params.get('key'))).toEqual(['112']);
     expect(big.calls.filter((c) => c.url.includes('/library/sections/2/all'))).toHaveLength(1);
+  });
+
+  it('hands back the addresses plex.tv names when the form’s no longer answer', async () => {
+    const OLD_HOME = 'https://192-168-1-5.0f1e2d3c4b5a69788796a5b4c3d2e1f0.plex.direct:32400';
+    const OLD_AWAY = 'https://203-0-113-1.0f1e2d3c4b5a69788796a5b4c3d2e1f0.plex.direct:32400';
+    const signed = await signedIn(world().answer);
+    const tv = world({ gone: [OLD_HOME, OLD_AWAY] });
+    const source = run({ ...signed.values, url: OLD_HOME, remote: OLD_AWAY }, tv.answer);
+    const first = await source.list();
+    expect(first).toEqual({ files: [], settings: { url: HOME, remote: AWAY } });
+    // Nothing reached the new addresses before the app let it.
+    expect(tv.calls.some((c) => c.url.startsWith(HOME) || c.url.startsWith(AWAY))).toBe(false);
+    // The app saves them as it does a sign-in's, then lists again.
+    Object.assign(source.values, applySignin(fields, source.values, first, { hosts: true }));
+    const again = await source.list();
+    expect(again.files).toHaveLength(4);
+    expect(again.settings).toBeUndefined();
+    expect(again.files[0]?.url.startsWith(`${HOME}/`)).toBe(true);
+  });
+
+  it('still fails when the form’s addresses are the ones plex.tv names', async () => {
+    const source = await signedIn(world().answer);
+    const down = world({ gone: [HOME, AWAY] });
+    await expect(run(source.values, down.answer).list()).rejects.toThrow('timed out');
+  });
+
+  it('moves a book’s files to the address that answers before it streams', async () => {
+    const source = await signedIn(world().answer);
+    const files = [
+      { path: 'A/B/001.mp3', url: `${HOME}/library/parts/313/1763434800/file.mp3` },
+      { path: 'A/B/cover.jpg', url: `${HOME}/library/metadata/111/thumb/1` },
+    ];
+    const away = world({ home: false });
+    const located = await run(source.values, away.answer).locate(files);
+    expect(located.files).toEqual([
+      { path: 'A/B/001.mp3', url: `${AWAY}/library/parts/313/1763434800/file.mp3` },
+      { path: 'A/B/cover.jpg', url: `${AWAY}/library/metadata/111/thumb/1` },
+    ]);
+    // Only the identity, without a token, and never plex.tv.
+    expect(away.calls.every((c) => new URL(c.url).pathname === '/identity')).toBe(true);
+    expect(away.calls.every((c) => !c.headers['X-Plex-Token'])).toBe(true);
+
+    const home = world();
+    const there = await run(source.values, home.answer).locate(files);
+    expect(there.files[0]?.url.startsWith(`${HOME}/`)).toBe(true);
+  });
+
+  it('locates nothing where another server answers, and fails where none does', async () => {
+    const source = await signedIn(world().answer);
+    const file = { path: 'A/B/001.mp3', url: `${HOME}/library/parts/313/1763434800/file.mp3` };
+    const other = world({ machine: 'ffffffffffffffffffffffffffffffff' });
+    expect(await run(source.values, other.answer).locate([file])).toEqual({ files: [] });
+    const none = world({ gone: [HOME, AWAY] });
+    await expect(run(source.values, none.answer).locate([file])).rejects.toThrow('timed out');
   });
 
   it('saves a place through the address away when the book was listed at home', async () => {

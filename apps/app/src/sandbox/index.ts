@@ -9,6 +9,8 @@ import {
 } from '@lelap/core';
 import {
   libraryPath,
+  type LocateRequest,
+  locatePath,
   type PlaceReport,
   placePath,
   type ScrobbleEvent,
@@ -35,6 +37,8 @@ const CALL_TIMEOUT_MS = 20_000;
 const LIBRARY_TIMEOUT_MS = 10 * 60_000;
 // A place report may first have to find the server, at home or away, or list it again.
 const PLACE_TIMEOUT_MS = 60_000;
+// The listener waits for this one: a book doesn't start until it answers or gives up.
+const LOCATE_TIMEOUT_MS = 8_000;
 const FETCH_TIMEOUT_MS = 20_000;
 const MAX_RESPONSE_CHARS = 5_000_000;
 // Fetches in flight per add-on, across its sandboxes; the rest wait their turn. A library listing
@@ -215,6 +219,7 @@ async function call(
     signin?: { state?: string };
     events?: ScrobbleEvent[];
     library?: { cursor?: string };
+    locate?: LocateRequest;
     timeoutMs?: number;
   } = {},
 ): Promise<{ status: number; body: unknown }> {
@@ -251,6 +256,7 @@ async function call(
         ...(extra.signin ? { signin: extra.signin } : {}),
         ...(extra.events ? { events: extra.events } : {}),
         ...(extra.library ? { library: extra.library } : {}),
+        ...(extra.locate ? { locate: extra.locate } : {}),
       }),
     );
   });
@@ -323,6 +329,23 @@ export async function callAddonPlace(args: {
   return call(serverBox(args), placePath(), args.settings, {
     place: args.place,
     timeoutMs: PLACE_TIMEOUT_MS,
+  });
+}
+
+/**
+ * Asks an add-on where a book of its server streams from now (revision 11), in that server's own
+ * sandbox and with its settings, before the book plays.
+ */
+export async function callAddonLocate(args: {
+  addonUrl: string;
+  sandboxId: string;
+  hosts: string[];
+  settings: Settings;
+  locate: LocateRequest;
+}): Promise<{ status: number; body: unknown }> {
+  return call(serverBox(args), locatePath(), args.settings, {
+    locate: args.locate,
+    timeoutMs: LOCATE_TIMEOUT_MS,
   });
 }
 

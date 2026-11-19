@@ -74,6 +74,14 @@ export function signinPath(step: 'start' | 'check', type: ContentType = 'audiobo
 }
 
 /**
+ * Since revision 11: the call that hands an add-on inside the app a `LocateRequest` before a book
+ * of its library streams. Only the sandbox makes it; there is no such route over HTTP.
+ */
+export function locatePath(type: ContentType = 'audiobook'): string {
+  return `locate/${type}/all.json`;
+}
+
+/**
  * Since revision 8: the call that hands an add-on inside the app a batch of `ScrobbleEvent`s with
  * its settings. Only the sandbox makes it; over HTTP an add-on takes `POST /scrobble`.
  */
