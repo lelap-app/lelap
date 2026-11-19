@@ -1,10 +1,10 @@
 import { bundledAddons, type InstalledAddon, listRoots } from '@lelap/core';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Linking, Platform, Pressable, Text, View } from 'react-native';
 
 import { confirmAddon } from '../addonInstall';
-import { hostedAddons } from '../config';
+import { catalogBase, hostedAddons } from '../config';
 import { db } from '../db';
 import { showAlert } from '../dialog';
 import { t } from '../i18n';
@@ -30,6 +30,7 @@ const NAMES: Record<HostedId, string> = {
   hardcover: 'Hardcover',
   gpodder: 'gPodder sync',
   lectures: 'Open lectures',
+  lepak: 'Lepak',
 };
 
 // A function, so `t()` reads the listener's language when the offer is drawn.
@@ -44,6 +45,9 @@ const description = (id: HostedId): string =>
     lectures: t(
       'Complete lecture courses from Open Yale Courses as books, one lecture per part, with Yale’s credit and licence on every course.',
     ),
+    lepak: t(
+      'Free podcasts in Malay and Indonesian, and from Singapore, from Podcast Index: stories in Cerita, talk in Sembang, history in Sejarah and Singapore shows in Singapura.',
+    ),
   })[id];
 
 /**
@@ -55,7 +59,7 @@ const OWN_SOURCES = new Set(['app.lelap.opds']);
 /**
  * Lelap's own optional add-ons not added yet: those that come with the app (the Open Library
  * reading log, OPDS), those on our catalog host that need the listener's account (Hardcover,
- * gPodder) and those there that need nothing (Open lectures).
+ * gPodder) and those there that need nothing (Open lectures, Lepak).
  */
 export function useOwnAddonOffers(
   addons: InstalledAddon[],
@@ -74,6 +78,21 @@ export function useOwnAddonOffers(
       showAlert(t('Cannot add'), error instanceof Error ? error.message : String(error));
     }
   };
+  // A server without Podcast Index keys doesn't serve Lepak; its root lists what it does serve.
+  // Unknown (offline, still loading): offer them all.
+  const served = useQuery({
+    queryKey: ['catalog-listing', catalogBase],
+    queryFn: async (): Promise<string[] | null> => {
+      const response = await fetch(`${catalogBase}/`);
+      if (!response.ok) return null;
+      const body = (await response.json()) as { addons?: unknown };
+      return Array.isArray(body.addons)
+        ? body.addons.filter((a): a is string => typeof a === 'string')
+        : null;
+    },
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+  }).data;
   const bundled = bundledScrobblers()
     .filter((s) => !addons.some((a) => a.url === s.url))
     .map<Offer>((s) => ({
@@ -112,6 +131,7 @@ export function useOwnAddonOffers(
   // Added once an installed add-on's link starts with the base.
   const hosted = hostedAddons
     .filter((h) => !addons.some((a) => a.url.startsWith(`${h.base}/`)))
+    .filter((h) => h.setUp !== 'add' || !served || served.includes(`${h.base}/manifest.json`))
     .map<Offer>((h) =>
       h.setUp === 'add'
         ? {

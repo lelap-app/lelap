@@ -58,6 +58,7 @@ The first-party add-ons, on one Worker (`lelap-catalog`):
 | `/librivox/manifest.json`         | LibriVox (`app.lelap.librivox`)                 | archive.org's `librivoxaudio` collection                        |
 | `/internet-archive/manifest.json` | Internet Archive (`app.lelap.internet-archive`) | archive.org beyond LibriVox: old-time radio, lectures, readings |
 | `/series/manifest.json`           | Whole series (`app.lelap.series`)               | Wikidata                                                        |
+| `/lepak/manifest.json`            | Lepak (`app.lelap.lepak`)                       | Podcast Index, when configured                                  |
 | `/`                               | JSON listing the manifests                      |                                                                 |
 
 - **LibriVox**: "New on LibriVox" and "Most listened" (with `genre` and `skip`), search, meta and
@@ -73,6 +74,12 @@ The first-party add-ons, on one Worker (`lelap-catalog`):
 - **Catalog**: Open Library search and meta for `ol:` IDs. With both Podcast Index secrets set it
   also lists trending podcasts, podcast search and meta for `podcast:` IDs with episodes; without
   them those catalogs are left out of the manifest.
+- **Lepak** (M131): free podcasts in Malay and Indonesian, and from Singapore, by language. Rows
+  Cerita (Fiction, Drama, Stories), Sembang (Society, Culture, Comedy, Leisure), Sejarah (History)
+  and Singapura (feeds that say `en-SG`, `zh-SG`, `ms-SG` or `ta-SG`), each trending first and
+  filled from recent feeds, cached for a day (5 minutes when part of it failed); a search kept to the same languages by each feed's
+  own `language`; meta for `podcast:` IDs. Only served with both Podcast Index secrets set. Offered
+  under Lelap's own add-ons, not installed by default.
 - **Whole series** (M127): the `series` resource of protocol revision 11, every book of a series
   in reading order. It finds the series on Wikidata by name (`wbsearchentities`), then reads its
   written works with four small SPARQL queries: ordinal, first release, original language, titles

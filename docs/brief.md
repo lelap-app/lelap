@@ -212,7 +212,8 @@ First-party add-ons: Catalog (Open Library, Audnexus, Podcast Index), LibriVox, 
 (Wikidata), Internet Archive
 (old-time radio, lectures and readings that are public domain or Creative Commons; added by its
 manifest URL, not by default), Open lectures (complete Open Yale Courses from a hand-kept list,
-offered under Lelap's own add-ons, M132), the Hardcover and gPodder scrobblers, and inside the app the Open
+offered under Lelap's own add-ons, M132), Lepak (Malay, Indonesian and Singapore podcasts from
+Podcast Index by language, offered the same way, M131), the Hardcover and gPodder scrobblers, and inside the app the Open
 Library reading log scrobbler, whose archive.org keys stay sealed on the phone. RSS, local files
 and the user's own storage (WebDAV, SMB, SFTP, S3, Jellyfin, Audiobookshelf) are built into the
 app; see Decisions.

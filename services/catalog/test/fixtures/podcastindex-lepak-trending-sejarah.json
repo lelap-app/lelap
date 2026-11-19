@@ -1,0 +1,57 @@
+{
+  "status": "true",
+  "feeds": [
+    {
+      "id": 2001,
+      "url": "https://feeds.example.org/2001.xml",
+      "title": "Sembang Sejarah",
+      "description": "Kisah sejarah Melayu, setiap minggu.",
+      "author": "Contoh Media",
+      "image": "https://images.example.org/2001.jpg",
+      "artwork": "https://images.example.org/2001-large.jpg",
+      "newestItemPublishTime": 1762819200,
+      "itunesId": null,
+      "trendScore": 8,
+      "language": "ms",
+      "categories": {
+        "28": "History"
+      }
+    },
+    {
+      "id": 2002,
+      "url": "https://feeds.example.org/2002.xml",
+      "title": "Jejak Nusantara",
+      "description": "Sejarah Indonesia dari arsip.",
+      "author": "Contoh Studio",
+      "image": "https://images.example.org/2002.jpg",
+      "artwork": "https://images.example.org/2002-large.jpg",
+      "newestItemPublishTime": 1762819200,
+      "itunesId": null,
+      "trendScore": 8,
+      "language": "id-ID",
+      "categories": {
+        "28": "History"
+      }
+    },
+    {
+      "id": 2003,
+      "url": "https://feeds.example.org/2003.xml",
+      "title": "History Hour",
+      "description": "Not in Malay.",
+      "author": "Example Media",
+      "image": "https://images.example.org/2003.jpg",
+      "artwork": "https://images.example.org/2003-large.jpg",
+      "newestItemPublishTime": 1762819200,
+      "itunesId": null,
+      "trendScore": 8,
+      "language": "en",
+      "categories": {
+        "28": "History"
+      }
+    }
+  ],
+  "count": 3,
+  "max": "40",
+  "since": null,
+  "description": "Found matching feeds"
+}

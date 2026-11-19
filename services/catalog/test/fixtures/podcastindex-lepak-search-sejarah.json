@@ -1,0 +1,87 @@
+{
+  "status": "true",
+  "feeds": [
+    {
+      "id": 2001,
+      "podcastGuid": "a1000000-0000-5000-8000-000000002001",
+      "title": "Sembang Sejarah",
+      "url": "https://feeds.example.org/2001.xml",
+      "link": "https://example.org/2001",
+      "description": "Kisah sejarah Melayu, setiap minggu.",
+      "author": "Contoh Media",
+      "ownerName": "Contoh Media",
+      "image": "https://images.example.org/2001.jpg",
+      "artwork": "https://images.example.org/2001-large.jpg",
+      "language": "ms",
+      "categories": {
+        "28": "History"
+      }
+    },
+    {
+      "id": 4001,
+      "podcastGuid": "a1000000-0000-5000-8000-000000004001",
+      "title": "Sejarah Talk",
+      "url": "https://feeds.example.org/4001.xml",
+      "link": "https://example.org/4001",
+      "description": "An English show with a Malay word in its name.",
+      "author": "Example Media",
+      "ownerName": "Example Media",
+      "image": "https://images.example.org/4001.jpg",
+      "artwork": "https://images.example.org/4001-large.jpg",
+      "language": "en",
+      "categories": {
+        "28": "History"
+      }
+    },
+    {
+      "id": 2002,
+      "podcastGuid": "a1000000-0000-5000-8000-000000002002",
+      "title": "Jejak Nusantara",
+      "url": "https://feeds.example.org/2002.xml",
+      "link": "https://example.org/2002",
+      "description": "Sejarah Indonesia dari arsip.",
+      "author": "Contoh Studio",
+      "ownerName": "Contoh Studio",
+      "image": "https://images.example.org/2002.jpg",
+      "artwork": "https://images.example.org/2002-large.jpg",
+      "language": "id-ID",
+      "categories": {
+        "28": "History"
+      }
+    },
+    {
+      "id": 3001,
+      "podcastGuid": "a1000000-0000-5000-8000-000000003001",
+      "title": "Kopi Talk",
+      "url": "https://feeds.example.org/3001.xml",
+      "link": "https://example.org/3001",
+      "description": "Conversations over coffee.",
+      "author": "Example Singapore",
+      "ownerName": "Example Singapore",
+      "image": "https://images.example.org/3001.jpg",
+      "artwork": "https://images.example.org/3001-large.jpg",
+      "language": "en-SG",
+      "categories": {
+        "77": "Society",
+        "78": "Culture"
+      }
+    },
+    {
+      "id": 4002,
+      "podcastGuid": "a1000000-0000-5000-8000-000000004002",
+      "title": "No Language",
+      "url": "https://feeds.example.org/4002.xml",
+      "link": "https://example.org/4002",
+      "description": "No language given.",
+      "author": "Example",
+      "ownerName": "Example",
+      "image": "https://images.example.org/4002.jpg",
+      "artwork": "https://images.example.org/4002-large.jpg",
+      "language": null,
+      "categories": {}
+    }
+  ],
+  "count": 5,
+  "query": "sejarah",
+  "description": "Found matching feeds"
+}

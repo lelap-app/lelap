@@ -1,0 +1,45 @@
+{
+  "status": "true",
+  "feeds": [
+    {
+      "id": 2002,
+      "url": "https://feeds.example.org/2002.xml",
+      "title": "Jejak Nusantara",
+      "newestItemPublishTime": 1762819200,
+      "oldestItemPublishTime": 1700000000,
+      "itunesId": null,
+      "language": "id-ID",
+      "categories": {
+        "28": "History"
+      }
+    },
+    {
+      "id": 2004,
+      "url": "https://feeds.example.org/2004.xml",
+      "title": "Riwayat Kota",
+      "newestItemPublishTime": 1762819200,
+      "oldestItemPublishTime": 1700000000,
+      "itunesId": null,
+      "language": "ms-MY",
+      "categories": {
+        "28": "History"
+      }
+    },
+    {
+      "id": 2005,
+      "url": "https://feeds.example.org/2005.xml",
+      "title": "Old Tales",
+      "newestItemPublishTime": 1762819200,
+      "oldestItemPublishTime": 1700000000,
+      "itunesId": null,
+      "language": "en-US",
+      "categories": {
+        "28": "History"
+      }
+    }
+  ],
+  "count": 3,
+  "max": "40",
+  "since": null,
+  "description": "Found matching feeds"
+}

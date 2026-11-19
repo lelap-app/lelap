@@ -97,6 +97,18 @@ describe('the worker app', () => {
     expect(fetch.calls[0]?.headers['User-Agent']).toBe('Lelap/1 (+https://example.org/source)');
   });
 
+  it('serves Lepak only with Podcast Index keys', async () => {
+    const without = setup().app;
+    expect((await without.request('https://addons.test/lepak/manifest.json')).status).toBe(404);
+    const withKeys = setup({ PODCASTINDEX_KEY: 'k', PODCASTINDEX_SECRET: 's' }).app;
+    const root = (await (await withKeys.request('https://addons.test/')).json()) as {
+      addons: string[];
+    };
+    expect(root.addons).toContain('https://addons.test/lepak/manifest.json');
+    const lepak = await withKeys.request('https://addons.test/lepak/manifest.json');
+    expect(((await lepak.json()) as { id: string }).id).toBe('app.lelap.lepak');
+  });
+
   it('reads settings from the environment', () => {
     expect(userAgent({})).toBe('Lelap/1');
     expect(podcastIndexCredentials({ PODCASTINDEX_KEY: 'k' })).toBeNull();

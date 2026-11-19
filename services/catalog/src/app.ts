@@ -7,6 +7,7 @@ import {
   createInternetArchiveAddon,
 } from './internet-archive/addon';
 import { BASE_PATH as LECTURES, createLecturesAddon } from './lectures/addon';
+import { BASE_PATH as LEPAK, createLepakAddon } from './lepak/addon';
 import { BASE_PATH, createLibrivoxAddon } from './librivox/addon';
 import type { PodcastIndexCredentials } from './podcastindex';
 import { BASE_PATH as GPODDER, gpodderAddon } from './scrobble/gpodder';
@@ -75,9 +76,9 @@ export function podcastIndexCredentials(env: Env): PodcastIndexCredentials | nul
 
 /**
  * The add-ons on one origin: the Catalog at the root, LibriVox under `/librivox`, the Internet
- * Archive under `/internet-archive`, whole series under `/series` and Open lectures under
- * `/lectures`. Platform
- * calls are injected, so a Node entry only has to pass its own `fetch` (and no cache).
+ * Archive under `/internet-archive`, whole series under `/series`, Open lectures under
+ * `/lectures` and Lepak under `/lepak` (with Podcast Index keys only). Platform calls are
+ * injected, so a Node entry only has to pass its own `fetch` (and no cache).
  */
 export function createApp(platform: Platform, env: Env): Hono {
   const upstream = createUpstream(platform, userAgent(env));
@@ -85,7 +86,9 @@ export function createApp(platform: Platform, env: Env): Hono {
   const internetArchive = createInternetArchiveAddon(upstream);
   const series = createSeriesAddon(upstream);
   const lectures = createLecturesAddon();
-  const catalog = createCatalogAddon(upstream, podcastIndexCredentials(env));
+  const podcastIndex = podcastIndexCredentials(env);
+  const catalog = createCatalogAddon(upstream, podcastIndex);
+  const lepak = podcastIndex ? createLepakAddon(upstream, podcastIndex) : null;
   const agent = userAgent(env);
   // Never log a request or its body here: it may carry a listener's settings.
   const onError = (error: unknown) =>
@@ -160,6 +163,7 @@ export function createApp(platform: Platform, env: Env): Hono {
           manifest(`${INTERNET_ARCHIVE}/manifest.json`),
           manifest(`${SERIES}/manifest.json`),
           manifest(`${LECTURES}/manifest.json`),
+          ...(lepak ? [manifest(`${LEPAK}/manifest.json`)] : []),
         ],
         configure: [manifest(`${HARDCOVER}/configure`), manifest(`${GPODDER}/configure`)],
       },
@@ -181,6 +185,10 @@ export function createApp(platform: Platform, env: Env): Hono {
   app.all(`${SERIES}/*`, (c) => series.fetch(c.req.raw));
   app.all(LECTURES, (c) => lectures.fetch(c.req.raw));
   app.all(`${LECTURES}/*`, (c) => lectures.fetch(c.req.raw));
+  if (lepak) {
+    app.all(LEPAK, (c) => lepak.fetch(c.req.raw));
+    app.all(`${LEPAK}/*`, (c) => lepak.fetch(c.req.raw));
+  }
   app.all(`${BASE_PATH}/*`, (c) => librivox.fetch(c.req.raw));
   app.all('*', (c) => catalog.fetch(c.req.raw));
   return app;
