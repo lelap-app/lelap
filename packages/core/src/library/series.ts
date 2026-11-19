@@ -274,15 +274,17 @@ function build(db: Db, profileId: string): Built {
   }
 
   const { find, join } = joiner();
+  // Hidden books only fill gaps: a mis-tagged copy the listener hid joins no two series.
+  const shown = all.filter((m) => !m.hidden);
   const index = createWorkIndex(
-    all.map((m) => ({
+    shown.map((m) => ({
       item: m,
       title: m.book.title,
       authors: splitAuthors(m.book.author),
       series: m.number,
     })),
   );
-  for (const m of all) {
+  for (const m of shown) {
     if (m.number === null) continue;
     for (const { item } of index.find({
       title: m.book.title,
@@ -347,7 +349,8 @@ function build(db: Db, profileId: string): Built {
       name,
       author: mostCommon(usual.map((b) => splitAuthors(b.book.author)[0] ?? null)),
       books: order.length > 0 ? applyOrder(usual, order) : usual,
-      missing: missingNumbers([...usual.map((b) => b.number), ...hiddenNumbers]),
+      // Up to the highest number listed, as before: a hidden book only fills a gap.
+      missing: missingNumbers(usual.map((b) => b.number)).filter((n) => !hiddenNumbers.has(n)),
       ordered: order.length > 0,
     });
   }

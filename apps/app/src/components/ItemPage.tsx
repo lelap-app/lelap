@@ -250,6 +250,8 @@ export function ItemPage({
   const download = async () => {
     const bookId = item && stream ? addItem(item, stream) : saved?.book.id;
     if (!bookId) return;
+    // Lists kept for this library version (series, M115) see the added book.
+    if (item && stream) refresh();
     await startDownload(bookId, work ?? null);
   };
   const progress =

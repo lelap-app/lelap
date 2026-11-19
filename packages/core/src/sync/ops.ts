@@ -96,6 +96,11 @@ export type BookSnapshot = {
    * tags. Older devices leave it out.
    */
   series?: string | null;
+  /**
+   * When the series was last set: the first part's `updatedAt`. The book's own time also moves
+   * with a download, which says nothing about the series.
+   */
+  seriesAt?: number;
 };
 
 export type EpisodeSnapshot = {
@@ -291,7 +296,7 @@ function bookSnapshot(db: Db, bookId: string): BookSnapshot | null {
   const book = db.select().from(books).where(eq(books.id, bookId)).get();
   if (book?.source !== 'addon') return null;
   const first = db
-    .select({ kindTags: bookFiles.kindTags })
+    .select({ kindTags: bookFiles.kindTags, updatedAt: bookFiles.updatedAt })
     .from(bookFiles)
     .where(eq(bookFiles.bookId, bookId))
     .orderBy(asc(bookFiles.idx))
@@ -299,6 +304,7 @@ function bookSnapshot(db: Db, bookId: string): BookSnapshot | null {
     .get();
   return {
     series: first?.kindTags?.series ?? null,
+    seriesAt: first?.updatedAt ?? book.updatedAt,
     title: book.title,
     author: book.author,
     kind: book.kind,
@@ -736,24 +742,21 @@ const seriesTags = (series: string | null): KindTags => ({
  * added it again from a meta that names another series, or none.
  */
 function applyBookSeries(db: Db, op: Extract<Op, { type: 'book' }>, bookId: string): void {
-  const { series } = op.data;
+  const { series, seriesAt } = op.data;
   if (series !== null && !isText(series, 1000)) return;
-  const book = db
-    .select({ source: books.source, updatedAt: books.updatedAt })
-    .from(books)
-    .where(eq(books.id, bookId))
-    .get();
-  if (book?.source !== 'addon' || book.updatedAt > op.at) return;
+  const at = typeof seriesAt === 'number' && Number.isFinite(seriesAt) ? seriesAt : op.at;
+  const book = db.select({ source: books.source }).from(books).where(eq(books.id, bookId)).get();
+  if (book?.source !== 'addon') return;
   const first = db
-    .select({ id: bookFiles.id, kindTags: bookFiles.kindTags })
+    .select({ id: bookFiles.id, kindTags: bookFiles.kindTags, updatedAt: bookFiles.updatedAt })
     .from(bookFiles)
     .where(eq(bookFiles.bookId, bookId))
     .orderBy(asc(bookFiles.idx))
     .limit(1)
     .get();
-  if (!first || (first.kindTags?.series ?? null) === series) return;
+  if (!first || first.updatedAt >= at || (first.kindTags?.series ?? null) === series) return;
   db.update(bookFiles)
-    .set({ kindTags: { ...(first.kindTags ?? seriesTags(null)), series } })
+    .set({ kindTags: { ...(first.kindTags ?? seriesTags(null)), series }, updatedAt: at })
     .where(eq(bookFiles.id, first.id))
     .run();
 }

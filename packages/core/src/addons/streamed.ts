@@ -17,7 +17,8 @@ import { saveStreamHeaders } from './streamHeaders';
 
 export type StreamedBookArgs = {
   addonUrl: string;
-  meta: Meta | MetaPreview;
+  /** The item's full meta: what it leaves out, such as a series, the book loses (M115). */
+  meta: Meta;
   stream: Stream;
   now: number;
   newId: IdGenerator;

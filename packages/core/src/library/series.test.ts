@@ -160,19 +160,21 @@ describe('reading order', () => {
   });
 });
 
+const shelf = [
+  book('dune-3', 'Children of Dune', 'Frank Herbert', 'Dune #3'),
+  book('dune-1', 'Dune', 'Frank Herbert', 'Dune #1, Dune Chronicles #1'),
+  book('dune-5', 'Chapterhouse: Dune', 'Frank Herbert', 'Dune #5'),
+  book('dune-x', 'The Road to Dune', 'Frank Herbert', 'Dune'),
+  book('expanse-1', 'Leviathan Wakes', 'James S. A. Corey', 'The Expanse #1'),
+  book('alone', 'Project Hail Mary', 'Andy Weir', null),
+];
+
 describe('series in the library', () => {
   let db: Db;
 
   beforeEach(() => {
     db = createTestDb();
-    scan(db, [
-      book('dune-3', 'Children of Dune', 'Frank Herbert', 'Dune #3'),
-      book('dune-1', 'Dune', 'Frank Herbert', 'Dune #1, Dune Chronicles #1'),
-      book('dune-5', 'Chapterhouse: Dune', 'Frank Herbert', 'Dune #5'),
-      book('dune-x', 'The Road to Dune', 'Frank Herbert', 'Dune'),
-      book('expanse-1', 'Leviathan Wakes', 'James S. A. Corey', 'The Expanse #1'),
-      book('alone', 'Project Hail Mary', 'Andy Weir', null),
-    ]);
+    scan(db, shelf);
   });
 
   it('lists every series by name, with its books in order and its gaps', () => {
@@ -194,7 +196,11 @@ describe('series in the library', () => {
     hideBooks(db, ME, [idOf(db, 'dune-3')], 5);
     expect(titles(db, 'dune')).toEqual(['Dune', 'Chapterhouse: Dune', 'The Road to Dune']);
     expect(getSeries(db, ME, 'dune')?.missing).toEqual([2, 4]);
-    // A series of hidden books only is not listed.
+    // A hidden book past the highest listed one makes no gaps, and a series of hidden books
+    // only is not listed.
+    scan(db, [...shelf, book('dune-9', 'Dune 9', 'Frank Herbert', 'Dune #9')]);
+    hideBooks(db, ME, [idOf(db, 'dune-9')], 5);
+    expect(getSeries(db, ME, 'dune')?.missing).toEqual([2, 4]);
     hideBooks(db, ME, [idOf(db, 'expanse-1')], 6);
     expect(listSeries(db, ME).map((s) => s.name)).toEqual(['Dune', 'Dune Chronicles']);
   });
@@ -392,6 +398,8 @@ describe('series in the library', () => {
       };
       send();
       expect(getSeries(other, ME, 'rocinante')?.books.map((b) => b.number)).toEqual([2]);
+      // A download there later moves the book's own time, which says nothing about the series.
+      other.update(books).set({ updatedAt: 90 }).run();
       add(db, [{ name: 'Rocinante', position: '3' }], 7);
       send();
       expect(getSeries(other, ME, 'rocinante')?.books.map((b) => b.number)).toEqual([3]);

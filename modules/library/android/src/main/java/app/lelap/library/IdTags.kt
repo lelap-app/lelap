@@ -130,11 +130,15 @@ object IdTags {
     }
 
     // The number comes from the same family as the name (M115): `SERIES` with only a movement
-    // number has none, as the movement may count something else.
-    fun tags() = FileTags(
-      ids, isrc, narrator, mediaKind, genre,
-      if (series != null) seriesText(series, seriesPart) else seriesText(movement, movementPart),
-    )
+    // number takes none, as the movement may count something else. A family with both wins.
+    fun tags(): FileTags {
+      val text = when {
+        series != null && seriesPart != null -> seriesText(series, seriesPart)
+        movement != null && movementPart != null -> seriesText(movement, movementPart)
+        else -> seriesText(series ?: movement, null)
+      }
+      return FileTags(ids, isrc, narrator, mediaKind, genre, text)
+    }
   }
 
   private fun exactly(read: (Long, Int) -> ByteArray, size: Long, offset: Long, length: Int): ByteArray {
