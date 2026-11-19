@@ -128,7 +128,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M117 Themes 2](milestones/m117.md)                  | Done        |           5 | High contrast in theme files, a file theme's own accent in car mode, and a live theme switch                                   |
 | [M118 App polish 4](milestones/m118.md)              | Planned     |             | What M105 left for a decision or a sample: suggestion covers, Plex library list, Library reads, SABP bookmarks                 |
 | [M119 Lists 3](milestones/m119.md)                   | Done        |          11 | Lists in Android Auto, Previous in list off the phone, the list on the widget, lighter reads                                   |
-| [M120 Big screens 3](milestones/m120.md)             | Planned     |             | What M113 left: drag to a list on Android and from catalog tiles, drop on the Library's list cards                             |
+| [M120 Big screens 3](milestones/m120.md)             | Done        |          11 | What M113 left: drag to a list on Android and from catalog tiles, drop on the Library's list cards                             |
 | [M121 Podcasts 7](milestones/m121.md)                | Done        |           7 | Integrity checks for web downloads, the smaller file with the app closed, chapter images on the web                            |
 | [M122 Better sound 3](milestones/m122.md)            | Planned     |             | Skip silence on the web for every format, without reading streams twice, and on cast receivers                                 |
 | [M123 Server sources 4](milestones/m123.md)          | Done        |          11 | Add-on servers' places with the app closed, sent after each pause; located addresses for books started without the app         |

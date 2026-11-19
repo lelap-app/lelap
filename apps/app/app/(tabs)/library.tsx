@@ -14,6 +14,7 @@ import {
   listPlaylistsWithCounts,
   listTags,
   localRoot,
+  type Playlist,
   listRoots,
   listSeries,
   markNotMusic,
@@ -25,7 +26,7 @@ import {
   type SmartRule,
   unhideBooks,
 } from '@lelap/core';
-import { useRouter } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useNetworkState } from 'expo-network';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -60,8 +61,63 @@ import { chooseFolder, scanLibrary } from '../../src/scan';
 import { Pill } from '../../src/components/Pill';
 import { TextButton } from '../../src/components/TextButton';
 import { LIST_COLUMN } from '../../src/layout';
+import { DropTarget, useDragging } from '../../src/drag';
+import { useListDrop } from '../../src/listDrop';
 import { startupMark } from '../../src/startup';
 import { useColors } from '../../src/theme';
+
+/**
+ * A list at the top of the Library: opens it, and takes a book, an episode or a catalog item
+ * dragged onto it (M120), for windows where the rail's lists are out of reach.
+ */
+function ListCard({ list, count }: { list: Playlist; count: number }) {
+  const colors = useColors();
+  const router = useRouter();
+  const dragging = useDragging();
+  // A Library left behind another tab or screen still measures; it takes no drop then.
+  const focused = useIsFocused();
+  const { takes, drop, adding, added } = useListDrop(list);
+  return (
+    <DropTarget onDrop={drop} enabled={takes && focused}>
+      {(over) => {
+        const lit = takes && (over || adding || added);
+        const frame = lit
+          ? 'border-amber'
+          : takes && dragging
+            ? 'border-line'
+            : 'border-transparent';
+        return (
+          <Pressable
+            onPress={() => router.push({ pathname: '/list', params: { id: list.id } })}
+            accessibilityRole="button"
+            className={`min-h-12 w-40 flex-row items-center gap-2.5 rounded-xl border bg-raised p-2.5 active:opacity-80 ${frame}`}
+          >
+            <View
+              className={`h-10 w-10 items-center justify-center rounded-lg ${list.rule ? 'bg-[#2d3a63]' : 'bg-amber'}`}
+            >
+              <Icon
+                name={added ? 'check' : list.rule ? 'moon' : 'chapters'}
+                size={20}
+                color={list.rule ? '#dce3f5' : colors.ink}
+              />
+            </View>
+            <View className="flex-1">
+              <Text
+                numberOfLines={1}
+                className={`text-sm font-semibold ${lit ? 'text-amber' : 'text-paper'}`}
+              >
+                {list.name}
+              </Text>
+              <Text className="text-xs text-muted">
+                {added ? t('Added') : `${count} · ${list.rule ? t('smart list') : t('list')}`}
+              </Text>
+            </View>
+          </Pressable>
+        );
+      }}
+    </DropTarget>
+  );
+}
 
 /** `progress` is the grouped view (M79); Title and Author are flat lists; Series lists series (M109). */
 type LibraryView = 'progress' | 'title' | 'author' | 'series';
@@ -549,30 +605,7 @@ export default function LibraryScreen() {
                 contentContainerStyle={{ gap: 10, paddingHorizontal: 16 }}
               >
                 {lists.map(({ list, count }) => (
-                  <Pressable
-                    key={list.id}
-                    onPress={() => router.push({ pathname: '/list', params: { id: list.id } })}
-                    accessibilityRole="button"
-                    className="min-h-12 w-40 flex-row items-center gap-2.5 rounded-xl bg-raised p-2.5 active:opacity-80"
-                  >
-                    <View
-                      className={`h-10 w-10 items-center justify-center rounded-lg ${list.rule ? 'bg-[#2d3a63]' : 'bg-amber'}`}
-                    >
-                      <Icon
-                        name={list.rule ? 'moon' : 'chapters'}
-                        size={20}
-                        color={list.rule ? '#dce3f5' : colors.ink}
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <Text numberOfLines={1} className="text-sm font-semibold text-paper">
-                        {list.name}
-                      </Text>
-                      <Text className="text-xs text-muted">
-                        {count} · {list.rule ? t('smart list') : t('list')}
-                      </Text>
-                    </View>
-                  </Pressable>
+                  <ListCard key={list.id} list={list} count={count} />
                 ))}
                 <Pressable
                   onPress={() => setChoosingList(true)}

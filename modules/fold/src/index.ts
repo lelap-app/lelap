@@ -7,6 +7,8 @@ export type Hinge = {
   separating: boolean;
   start: number;
   end: number;
+  /** The window the hinge was measured in, in points (M120). */
+  window: { width: number; height: number };
 };
 
 type Events = {

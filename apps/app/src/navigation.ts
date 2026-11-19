@@ -3,6 +3,7 @@ import type { useRouter } from 'expo-router';
 import { useSyncExternalStore } from 'react';
 
 import { columnsNow, playerBesideNow } from './layout';
+import { profileId } from './profile';
 
 type Router = ReturnType<typeof useRouter>;
 
@@ -11,11 +12,12 @@ export type Page =
   | { pathname: '/item'; params: { type: string; id: string } }
   | { pathname: '/podcast'; params: { id?: string; item?: string } };
 
-let detail: Page | null = null;
+// The page and the profile it was opened for: another listener never finds it open (M120).
+let detail: { page: Page; profile: string } | null = null;
 const listeners = new Set<() => void>();
 
 function setDetail(page: Page | null): void {
-  detail = page;
+  detail = page ? { page, profile: profileId } : null;
   for (const l of listeners) l();
 }
 
@@ -26,13 +28,24 @@ function subscribe(listener: () => void): () => void {
 
 const readDetail = () => detail;
 
-/** The page in the middle column, or null when it is closed. */
+/** The page in the middle column, or null when it is closed or was opened by another profile. */
 export function useDetail(): Page | null {
-  return useSyncExternalStore(subscribe, readDetail, readDetail);
+  const current = useSyncExternalStore(subscribe, readDetail, readDetail);
+  return current?.profile === profileId ? current.page : null;
+}
+
+/** Puts a page into the middle column, as when a full-screen page moves there on widening. */
+export function showDetail(page: Page): void {
+  setDetail(page);
 }
 
 export function closeDetail(): void {
   setDetail(null);
+}
+
+/** Closes a page another profile opened, after a profile switch. */
+export function closeStaleDetail(): void {
+  if (detail && detail.profile !== profileId) setDetail(null);
 }
 
 /**

@@ -4,7 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { I18nManager, Text, useWindowDimensions, View } from 'react-native';
+import { I18nManager, Text, View } from 'react-native';
 
 import { AddonReviewHost } from '../src/addonReview';
 import { currentLanguage, subscribeLanguage } from '../src/i18n';
@@ -25,6 +25,8 @@ import { PlayerProvider, useLibrary } from '../src/player';
 import { BadgeSourceProvider } from '../src/components/CoverBadges';
 import { HandoffBanner } from '../src/components/HandoffBanner';
 import { DetailPane } from '../src/components/DetailPane';
+import { DragHost } from '../src/drag';
+import { HingeSide } from '../src/components/HingeSide';
 import { PlayerBelow, PlayerPane } from '../src/components/PlayerPane';
 import { InstalledAppHost } from '../src/installed';
 import { ShortcutsHost } from '../src/shortcuts';
@@ -68,6 +70,8 @@ function ProfileGate() {
   );
 }
 
+const FLAT = { kind: 'none' } as const;
+
 export default function RootLayout() {
   const { ready, error } = useDbReady();
   // Text is read at render time, so a new language (a switch, or another profile) redraws it all.
@@ -79,8 +83,7 @@ export default function RootLayout() {
   const pathname = usePathname();
   const hinge = useFold();
   // The full-screen player and car mode cover the whole window, across the hinge.
-  const fold = pathname === '/player' || pathname === '/car' ? ({ kind: 'none' } as const) : hinge;
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const fold = pathname === '/player' || pathname === '/car' ? FLAT : hinge;
   // Before anything reads or saves: the profile this device used last.
   const profileLoaded = useMemo(() => {
     if (ready) loadActiveProfile();
@@ -126,31 +129,33 @@ export default function RootLayout() {
               <View
                 style={
                   fold.kind === 'book'
-                    ? { width: I18nManager.isRTL ? windowWidth - fold.end : fold.start }
+                    ? { width: I18nManager.isRTL ? fold.width - fold.end : fold.start }
                     : fold.kind === 'tabletop'
                       ? { height: fold.start }
                       : { flex: 1 }
                 }
               >
-                <Stack
-                  key={look}
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: theme.colors.night },
-                    ...(reduced ? { animation: 'none' } : {}),
-                  }}
-                >
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen
-                    name="player"
-                    options={{
-                      presentation: 'modal',
-                      animation: reduced ? 'none' : 'slide_from_bottom',
+                <HingeSide fold={fold} side="first">
+                  <Stack
+                    key={look}
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: { backgroundColor: theme.colors.night },
+                      ...(reduced ? { animation: 'none' } : {}),
                     }}
-                  />
-                  <Stack.Screen name="who" options={{ presentation: 'modal' }} />
-                  <Stack.Screen name="car" options={{ animation: reduced ? 'none' : 'fade' }} />
-                </Stack>
+                  >
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen
+                      name="player"
+                      options={{
+                        presentation: 'modal',
+                        animation: reduced ? 'none' : 'slide_from_bottom',
+                      }}
+                    />
+                    <Stack.Screen name="who" options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="car" options={{ animation: reduced ? 'none' : 'fade' }} />
+                  </Stack>
+                </HingeSide>
               </View>
               {fold.kind !== 'none' && (
                 <View
@@ -164,11 +169,13 @@ export default function RootLayout() {
                 />
               )}
               <DetailPane key={`detail ${look}`} />
-              {fold.kind === 'tabletop' ? (
-                <PlayerBelow key={look} height={windowHeight - fold.end} />
-              ) : (
-                <PlayerPane key={look} />
-              )}
+              <HingeSide fold={fold} side="second">
+                {fold.kind === 'tabletop' ? (
+                  <PlayerBelow key={look} height={fold.height - fold.end} />
+                ) : (
+                  <PlayerPane key={look} />
+                )}
+              </HingeSide>
             </View>
           </BadgeSourceProvider>
           <ShortcutsHost key={look} />
@@ -178,6 +185,7 @@ export default function RootLayout() {
           <AddonReviewHost />
           <SandboxHost />
           <ProfileGate />
+          <DragHost />
           <StatusBar style={theme.dark ? 'light' : 'dark'} />
         </PlayerProvider>
       </QueryClientProvider>

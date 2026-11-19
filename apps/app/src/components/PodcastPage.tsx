@@ -685,8 +685,8 @@ export function PodcastPage({
             );
           const e = row.episode;
           return (
-            // On the web a mouse can drag the episode onto a list in the rail (M113).
-            <Draggable item={{ kind: 'episode', id: e.id }}>
+            // The episode can be dragged onto a list, on the web and on a tablet (M113, M120).
+            <Draggable item={{ kind: 'episode', id: e.id }} label={e.title}>
               <Pressable
                 onPress={() =>
                   void run(async () => {

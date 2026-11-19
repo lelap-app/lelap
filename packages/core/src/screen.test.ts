@@ -4,8 +4,10 @@ import {
   clampPane,
   columnsFor,
   DIVIDER_WIDTH,
+  dragStarts,
   type Fold,
   foldLayout,
+  insetsBeside,
   isWide,
   type KeyPress,
   PANE_LIMITS,
@@ -17,6 +19,7 @@ import {
   shortcutFor,
   sliderKey,
   stepSpeed,
+  zoneAt,
 } from './screen';
 
 const press = (key: string, extra: Partial<KeyPress> = {}): KeyPress => ({
@@ -214,13 +217,27 @@ describe('foldLayout', () => {
       kind: 'book',
       start: 420,
       end: 440,
+      width: 860,
+      height: 900,
     });
   });
 
   it('puts the player below a horizontal hinge on a table', () => {
     expect(foldLayout(fold({ orientation: 'horizontal', start: 440, end: 440 }), 412, 880)).toEqual(
-      { kind: 'tabletop', start: 440, end: 440 },
+      { kind: 'tabletop', start: 440, end: 440, width: 412, height: 880 },
     );
+  });
+
+  it('lays out from the window measured with the hinge', () => {
+    // React Native still has the folded window; the hinge came with the unfolded one.
+    const ahead = fold({ start: 420, end: 440, window: { width: 860, height: 900 } });
+    expect(foldLayout(ahead, 412, 900)).toEqual({
+      kind: 'book',
+      start: 420,
+      end: 440,
+      width: 860,
+      height: 900,
+    });
   });
 
   it('keeps one pane when a side would be too small', () => {
@@ -231,12 +248,56 @@ describe('foldLayout', () => {
   });
 });
 
+describe('insetsBeside', () => {
+  const insets = { top: 24, right: 0, bottom: 48, left: 0 };
+  const sideways = { top: 24, right: 48, bottom: 0, left: 10 };
+  const book = { kind: 'book', start: 420, end: 440, width: 860, height: 900 } as const;
+
+  it("keeps the window's insets without a hinge", () => {
+    expect(insetsBeside(insets, { kind: 'none' }, 'first')).toBe(insets);
+  });
+
+  it("leaves the navigation bar to the half below a tabletop's hinge", () => {
+    const tabletop = { ...book, kind: 'tabletop' } as const;
+    expect(insetsBeside(insets, tabletop, 'first')).toEqual({ ...insets, bottom: 0 });
+    expect(insetsBeside(insets, tabletop, 'second')).toEqual({ ...insets, top: 0 });
+  });
+
+  it('gives each side of a book only its outer edges', () => {
+    expect(insetsBeside(sideways, book, 'first')).toEqual({ ...sideways, right: 0 });
+    expect(insetsBeside(sideways, book, 'second')).toEqual({ ...sideways, left: 0 });
+    expect(insetsBeside(sideways, book, 'first', true)).toEqual({ ...sideways, left: 0 });
+  });
+});
+
 describe('drag to a list', () => {
   it('reads back what it wrote', () => {
     expect(readDrag(writeDrag({ kind: 'episode', id: 'e1' }))).toEqual({
       kind: 'episode',
       id: 'e1',
     });
+    expect(readDrag(writeDrag({ kind: 'work', type: 'audiobook', id: 'lv:1' }))).toEqual({
+      kind: 'work',
+      type: 'audiobook',
+      id: 'lv:1',
+    });
+  });
+
+  it('starts on Android after a short hold, before the menu', () => {
+    expect(dragStarts(100, 20, 0)).toBe(false);
+    expect(dragStarts(300, 2, 1)).toBe(false);
+    expect(dragStarts(300, 0, 8)).toBe(true);
+    expect(dragStarts(600, 0, 8)).toBe(false);
+  });
+
+  it('finds the list under the pointer', () => {
+    const zones = [
+      { key: 'a', x: 0, y: 100, width: 88, height: 60 },
+      { key: 'b', x: 0, y: 160, width: 88, height: 60 },
+    ];
+    expect(zoneAt(zones, 40, 120)).toBe('a');
+    expect(zoneAt(zones, 40, 160)).toBe('b');
+    expect(zoneAt(zones, 200, 120)).toBeNull();
   });
 
   it('takes nothing else', () => {
@@ -244,5 +305,6 @@ describe('drag to a list', () => {
     expect(readDrag('{"kind":"file","id":"x"}')).toBeNull();
     expect(readDrag('{"kind":"book","id":""}')).toBeNull();
     expect(readDrag('null')).toBeNull();
+    expect(readDrag('{"kind":"work","id":"x"}')).toBeNull();
   });
 });

@@ -1,12 +1,13 @@
 import type { Availability } from '@lelap/core';
 import type { MetaPreview } from '@lelap/sdk';
-import { memo } from 'react';
+import { memo, type ReactElement } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 
 import { t } from '../i18n';
 import { useArtwork } from '../addons';
 import { formatDuration } from '../format';
 import { BookCover } from './BookCover';
+import { Draggable } from '../drag';
 import { useMetaBadges, withBadges } from './CoverBadges';
 import { useTheme } from '../theme';
 
@@ -49,6 +50,19 @@ export function SourceBadge({ availability }: { availability: Availability | und
   );
 }
 
+/**
+ * A catalog item that can be dragged onto a list, which adds it to the library first (M120). A
+ * show is followed from its page, not added to a list.
+ */
+function DragWork({ meta, children }: { meta: MetaPreview; children: ReactElement }) {
+  if (meta.type === 'podcast') return children;
+  return (
+    <Draggable item={{ kind: 'work', type: meta.type, id: meta.id }} label={meta.name}>
+      {children}
+    </Draggable>
+  );
+}
+
 /** A catalog item as a cover tile, for rows and grids. */
 export const MetaTile = memo(function MetaTile({
   meta,
@@ -67,31 +81,33 @@ export const MetaTile = memo(function MetaTile({
   const cover = useArtwork(meta, { ask: askArtwork });
   const badges = useMetaBadges(meta, width);
   return (
-    <Pressable
-      onPress={() => onPress(meta)}
-      accessibilityRole="button"
-      accessibilityLabel={withBadges(
-        [meta.name, meta.author, availability && badgeLabel(availability)],
-        badges,
-      )}
-      style={{ width }}
-      className="gap-1 active:opacity-70"
-    >
-      <View>
-        <BookCover uri={cover} title={meta.name} size={width} badges={badges} />
-        <View className="absolute bottom-1.5 inset-x-1.5">
-          <SourceBadge availability={availability} />
+    <DragWork meta={meta}>
+      <Pressable
+        onPress={() => onPress(meta)}
+        accessibilityRole="button"
+        accessibilityLabel={withBadges(
+          [meta.name, meta.author, availability && badgeLabel(availability)],
+          badges,
+        )}
+        style={{ width }}
+        className="gap-1 active:opacity-70"
+      >
+        <View>
+          <BookCover uri={cover} title={meta.name} size={width} badges={badges} />
+          <View className="absolute bottom-1.5 inset-x-1.5">
+            <SourceBadge availability={availability} />
+          </View>
         </View>
-      </View>
-      <Text numberOfLines={2} className="text-sm text-paper">
-        {meta.name}
-      </Text>
-      {meta.author !== undefined && (
-        <Text numberOfLines={1} className="text-xs text-muted">
-          {meta.author}
+        <Text numberOfLines={2} className="text-sm text-paper">
+          {meta.name}
         </Text>
-      )}
-    </Pressable>
+        {meta.author !== undefined && (
+          <Text numberOfLines={1} className="text-xs text-muted">
+            {meta.author}
+          </Text>
+        )}
+      </Pressable>
+    </DragWork>
   );
 });
 
@@ -108,32 +124,34 @@ export const MetaListRow = memo(function MetaListRow({
   const cover = useArtwork(meta);
   const badges = useMetaBadges(meta, 56);
   return (
-    <Pressable
-      onPress={() => onPress(meta)}
-      accessibilityRole="button"
-      accessibilityLabel={withBadges(
-        [
-          meta.name,
-          meta.author,
-          meta.durationMs ? formatDuration(meta.durationMs) : null,
-          availability && badgeLabel(availability),
-        ],
-        badges,
-      )}
-      className="flex-row items-center gap-3 px-4 py-2 active:bg-raised"
-    >
-      <BookCover uri={cover} title={meta.name} size={56} badges={badges} />
-      <View className="flex-1 gap-1">
-        <Text numberOfLines={2} className="text-base text-paper">
-          {meta.name}
-        </Text>
-        <Text numberOfLines={1} className="text-sm text-muted">
-          {[meta.author, meta.durationMs ? formatDuration(meta.durationMs) : undefined]
-            .filter(Boolean)
-            .join(' · ')}
-        </Text>
-        <SourceBadge availability={availability} />
-      </View>
-    </Pressable>
+    <DragWork meta={meta}>
+      <Pressable
+        onPress={() => onPress(meta)}
+        accessibilityRole="button"
+        accessibilityLabel={withBadges(
+          [
+            meta.name,
+            meta.author,
+            meta.durationMs ? formatDuration(meta.durationMs) : null,
+            availability && badgeLabel(availability),
+          ],
+          badges,
+        )}
+        className="flex-row items-center gap-3 px-4 py-2 active:bg-raised"
+      >
+        <BookCover uri={cover} title={meta.name} size={56} badges={badges} />
+        <View className="flex-1 gap-1">
+          <Text numberOfLines={2} className="text-base text-paper">
+            {meta.name}
+          </Text>
+          <Text numberOfLines={1} className="text-sm text-muted">
+            {[meta.author, meta.durationMs ? formatDuration(meta.durationMs) : undefined]
+              .filter(Boolean)
+              .join(' · ')}
+          </Text>
+          <SourceBadge availability={availability} />
+        </View>
+      </Pressable>
+    </DragWork>
   );
 });

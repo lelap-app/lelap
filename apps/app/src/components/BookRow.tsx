@@ -105,8 +105,8 @@ export const BookRow = memo(function BookRow({
     if (event.nativeEvent.actionName === 'swipe') swipe?.onSwipe(book);
   };
   return (
-    // On the web a mouse can drag the row onto a list in the rail (M113).
-    <Draggable item={{ kind: 'book', id: book.id }}>
+    // The row can be dragged onto a list: with a mouse on the web (M113), held on a tablet (M120).
+    <Draggable item={{ kind: 'book', id: book.id }} label={book.title}>
       <View onLayout={(e) => (width.current = e.nativeEvent.layout.width)}>
         {swipe && (
           // Shown only while the row moves, so no edge of it shows between rows at rest.

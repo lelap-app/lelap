@@ -51,7 +51,10 @@ function subscribeFold(listener: () => void): () => void {
 
 const readHinge = () => hinge;
 
-/** Where the panes go around a foldable's hinge; `none` on a flat screen and on the web. */
+/**
+ * Where the panes go around a foldable's hinge; `none` on a flat screen and on the web. The hinge
+ * brings the window it was measured in, which wins over a window size that hasn't caught up (M120).
+ */
 export function useFold(): FoldLayout {
   const current = useSyncExternalStore(subscribeFold, readHinge, readHinge);
   const { width, height } = useWindowDimensions();
@@ -136,7 +139,7 @@ export function usePaneWidths(): { player: number; detail: number } {
   return useMemo(() => {
     if (folded.kind === 'book') {
       // Coordinates are from the left; in a right-to-left layout the player sits on the left.
-      return { player: I18nManager.isRTL ? folded.start : width - folded.end, detail: 0 };
+      return { player: I18nManager.isRTL ? folded.start : folded.width - folded.end, detail: 0 };
     }
     return paneWidths(width, columns, current);
   }, [current, width, columns, folded]);
