@@ -1,60 +1,28 @@
-import {
-  addToPlaylist,
-  type DragItem,
-  episodeBook,
-  listPlaylists,
-  type Playlist,
-} from '@lelap/core';
+import { listPlaylists, type Playlist } from '@lelap/core';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { AccessibilityInfo, Pressable, ScrollView, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { t } from '../i18n';
-import { db, newId } from '../db';
-import { showAlert } from '../dialog';
+import { db } from '../db';
 import { DropTarget, useDragging } from '../drag';
+import { useListDrop } from '../listDrop';
 import { useLibrary } from '../player';
 import { profileId } from '../profile';
 import { Icon } from './Icon';
 import { useColors } from '../theme';
 
-/** One list in the rail: opens it, and on the web takes a book or an episode dropped on it. */
+/** One list in the rail: opens it, and takes a book, an episode or a catalog item dropped on it. */
 function RailList({ list }: { list: Playlist }) {
   const colors = useColors();
   const router = useRouter();
-  const { refresh } = useLibrary();
   const dragging = useDragging();
-  const [added, setAdded] = useState(false);
-  // A smart list picks its own books, so it takes no drop.
-  const takes = list.rule === null;
-  useEffect(() => {
-    if (!added) return;
-    const timer = setTimeout(() => setAdded(false), 1500);
-    return () => clearTimeout(timer);
-  }, [added]);
-
-  const drop = (item: DragItem) => {
-    if (!takes) return;
-    const now = Date.now();
-    try {
-      const bookId = item.kind === 'episode' ? episodeBook(db, item.id, now, newId) : item.id;
-      const fresh = addToPlaylist(db, profileId, list.id, bookId, now);
-      refresh();
-      setAdded(true);
-      AccessibilityInfo.announceForAccessibility(
-        fresh
-          ? t('Added to {name}', { name: list.name })
-          : t('Already in {name}', { name: list.name }),
-      );
-    } catch (error) {
-      showAlert(t('Lists'), error instanceof Error ? error.message : String(error));
-    }
-  };
+  const { takes, drop, adding, added } = useListDrop(list);
 
   return (
-    <DropTarget onDrop={drop} enabled={takes}>
+    <DropTarget onDrop={drop} enabled={takes} rail>
       {(over) => {
-        const lit = takes && (over || added);
+        const lit = takes && (over || adding || added);
         // Lit while a drag is over it and just after a drop: where it lands, not a choice.
         const frame = lit
           ? 'border-amber bg-night'
@@ -87,8 +55,8 @@ function RailList({ list }: { list: Playlist }) {
 }
 
 /**
- * The listener's lists under the rail's tabs (M113), so a book or an episode can be dragged onto
- * one with a mouse. Hidden while there are none.
+ * The listener's lists under the rail's tabs (M113), so a book, an episode or a catalog item can
+ * be dragged onto one. Hidden while there are none.
  */
 export function RailLists() {
   const { version } = useLibrary();

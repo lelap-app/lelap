@@ -1,7 +1,18 @@
 package app.lelap.fold
 
-/** A hinge in window points: `Fold` in packages/core/src/screen.ts, which decides the layout. */
-data class Hinge(val vertical: Boolean, val separating: Boolean, val start: Double, val end: Double)
+/**
+ * A hinge in window points: `Fold` in packages/core/src/screen.ts, which decides the layout. The
+ * window it was measured in comes along (M120): React Native's own window size can arrive a frame
+ * later, and the layout takes both from here.
+ */
+data class Hinge(
+  val vertical: Boolean,
+  val separating: Boolean,
+  val start: Double,
+  val end: Double,
+  val windowWidth: Double,
+  val windowHeight: Double,
+)
 
 object Folds {
   /**
@@ -24,7 +35,8 @@ object Folds {
     val end = if (vertical) right else bottom
     val size = if (vertical) windowWidth else windowHeight
     if (end < start || start <= 0 || end >= size) return null
-    return Hinge(vertical, separating, start / density.toDouble(), end / density.toDouble())
+    val d = density.toDouble()
+    return Hinge(vertical, separating, start / d, end / d, windowWidth / d, windowHeight / d)
   }
 
   fun toMap(hinge: Hinge): Map<String, Any> =
@@ -33,5 +45,6 @@ object Folds {
       "separating" to hinge.separating,
       "start" to hinge.start,
       "end" to hinge.end,
+      "window" to mapOf("width" to hinge.windowWidth, "height" to hinge.windowHeight),
     )
 }

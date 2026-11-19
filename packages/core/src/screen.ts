@@ -86,32 +86,70 @@ export type Fold = {
   /** The hinge's edges: x for a vertical hinge, y for a horizontal one. Equal for a seamless fold. */
   start: number;
   end: number;
+  /**
+   * The window the hinge was measured in (M120). The hinge can arrive a frame before React
+   * Native's new window size, so the layout takes both from here.
+   */
+  window?: { width: number; height: number };
 };
 
 /**
  * How the screens sit around a hinge: `book` puts the screens left of it and the player right of
  * it; `tabletop` the screens above and the player below, on the half that lies on the table.
+ * `width` and `height` are the window's, as measured with the hinge.
  */
 export type FoldLayout =
-  { kind: 'none' } | { kind: 'book' | 'tabletop'; start: number; end: number };
+  | { kind: 'none' }
+  | { kind: 'book' | 'tabletop'; start: number; end: number; width: number; height: number };
 
 /** Each side of a book fold needs this much width, and each half of a tabletop this much height. */
 export const FOLD_MIN_SIDE = { book: 280, tabletop: 200 } as const;
 
-/** Where the panes go around a fold, or `none` when the window is flat and seamless. */
+/**
+ * Where the panes go around a fold, or `none` when the window is flat and seamless. The window
+ * measured with the hinge wins over `width` and `height`, which may still be the last window's.
+ */
 export function foldLayout(fold: Fold | null, width: number, height: number): FoldLayout {
   if (!fold || !fold.separating || fold.end < fold.start) return { kind: 'none' };
   const kind = fold.orientation === 'vertical' ? 'book' : 'tabletop';
-  const size = kind === 'book' ? width : height;
+  const w = Math.round(fold.window?.width ?? width);
+  const h = Math.round(fold.window?.height ?? height);
+  const size = kind === 'book' ? w : h;
   // A hinge too near an edge leaves no room for one side: better one pane across it.
   if (fold.start < FOLD_MIN_SIDE[kind] || size - fold.end < FOLD_MIN_SIDE[kind]) {
     return { kind: 'none' };
   }
-  return { kind, start: Math.round(fold.start), end: Math.round(fold.end) };
+  return { kind, start: Math.round(fold.start), end: Math.round(fold.end), width: w, height: h };
 }
 
-/** What can be dragged onto a list in the rail (M113): a book in the library or an episode. */
-export type DragItem = { kind: 'book' | 'episode'; id: string };
+/** Safe-area insets in points, as react-native-safe-area-context gives them. */
+export type Insets = { top: number; right: number; bottom: number; left: number };
+
+/**
+ * The insets one side of a hinge keeps (M120): the window's, less the edge that faces the hinge,
+ * so the screens above a tabletop's hinge leave no room for the navigation bar at the window's
+ * bottom. `first` is the screens' side, which a right-to-left layout puts right of a book's hinge.
+ */
+export function insetsBeside(
+  insets: Insets,
+  fold: FoldLayout,
+  side: 'first' | 'second',
+  rtl = false,
+): Insets {
+  if (fold.kind === 'none') return insets;
+  if (fold.kind === 'tabletop') {
+    return side === 'first' ? { ...insets, bottom: 0 } : { ...insets, top: 0 };
+  }
+  const left = (side === 'first') !== rtl;
+  return left ? { ...insets, right: 0 } : { ...insets, left: 0 };
+}
+
+/**
+ * What can be dragged onto a list (M113, M120): a book in the library, an episode, or a catalog
+ * item, which the drop adds to the library first, as Play does.
+ */
+export type DragItem =
+  { kind: 'book' | 'episode'; id: string } | { kind: 'work'; type: string; id: string };
 
 /** The drag's data type, so a list only takes drags from Lelap itself. */
 export const DRAG_TYPE = 'application/x-lelap-item';
@@ -125,12 +163,40 @@ export function readDrag(data: string): DragItem | null {
   try {
     const value: unknown = JSON.parse(data);
     if (typeof value !== 'object' || value === null) return null;
-    const { kind, id } = value as Record<string, unknown>;
-    if ((kind !== 'book' && kind !== 'episode') || typeof id !== 'string' || !id) return null;
-    return { kind, id };
+    const { kind, id, type } = value as Record<string, unknown>;
+    if (typeof id !== 'string' || !id) return null;
+    if (kind === 'book' || kind === 'episode') return { kind, id };
+    if (kind === 'work' && typeof type === 'string' && type) return { kind, type, id };
+    return null;
   } catch {
     return null;
   }
+}
+
+/**
+ * On Android a row is dragged by pressing it, holding a moment and moving (M120). A quick move
+ * scrolls the list; holding still until the long press opens the row's menu.
+ */
+export const DRAG_HOLD_MS = { min: 250, max: 500 } as const;
+
+/** How far the pointer moves, in points, before a held row starts its drag. */
+export const DRAG_SLOP = 4;
+
+/** Whether a press held `heldMs` and then moved by `dx`, `dy` starts dragging the row. */
+export function dragStarts(heldMs: number, dx: number, dy: number): boolean {
+  return heldMs >= DRAG_HOLD_MS.min && heldMs < DRAG_HOLD_MS.max && Math.hypot(dx, dy) >= DRAG_SLOP;
+}
+
+/** A place that takes a drop, in page points. */
+export type DropZone = { key: string; x: number; y: number; width: number; height: number };
+
+/** The zone under the pointer, or null; where two overlap, the last one wins. */
+export function zoneAt(zones: readonly DropZone[], x: number, y: number): string | null {
+  for (let i = zones.length - 1; i >= 0; i--) {
+    const z = zones[i];
+    if (z && x >= z.x && x < z.x + z.width && y >= z.y && y < z.y + z.height) return z.key;
+  }
+  return null;
 }
 
 /** The speeds the player offers, slowest first. */

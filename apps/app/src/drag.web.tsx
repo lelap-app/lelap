@@ -11,8 +11,6 @@ import {
 } from 'react';
 import { View } from 'react-native';
 
-export const DRAG = true;
-
 // While a row is dragged, the rail marks the lists that take it.
 let dragging = false;
 const listeners = new Set<() => void>();
@@ -40,18 +38,28 @@ export function useDragging(): boolean {
   return useSyncExternalStore(subscribe, readDragging, readDragging);
 }
 
-/** A row the mouse can drag onto a list in the rail, through the browser's own drag and drop. */
-export function Draggable({ item, children }: { item: DragItem; children: ReactNode }) {
+/**
+ * A row or a tile the mouse can drag onto a list, through the browser's own drag and drop. The
+ * browser draws the drag itself, so `label` is the native app's.
+ */
+export function Draggable({
+  item,
+  children,
+}: {
+  item: DragItem;
+  label: string;
+  children: ReactNode;
+}) {
   // react-native-web hands a View's ref the DOM element.
   const ref = useRef<HTMLElement | null>(null);
-  const { kind, id } = item;
+  const data = writeDrag(item);
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
     node.draggable = true;
     const start = (event: DragEvent) => {
       if (!event.dataTransfer) return;
-      event.dataTransfer.setData(DRAG_TYPE, writeDrag({ kind, id }));
+      event.dataTransfer.setData(DRAG_TYPE, data);
       event.dataTransfer.effectAllowed = 'copy';
       setDragging(true);
     };
@@ -63,11 +71,11 @@ export function Draggable({ item, children }: { item: DragItem; children: ReactN
       node.removeEventListener('dragstart', start);
       node.removeEventListener('dragend', end);
     };
-  }, [kind, id]);
+  }, [data]);
   return createElement(View, { ref: ref as unknown as Ref<ComponentRef<typeof View>> }, children);
 }
 
-/** A list in the rail that takes a dragged book or episode; `children` draws it, lit while over. */
+/** A list that takes a dragged item; `children` draws it, lit while over. */
 export function DropTarget({
   onDrop,
   enabled,
@@ -75,6 +83,8 @@ export function DropTarget({
 }: {
   onDrop: (item: DragItem) => void;
   enabled: boolean;
+  /** Only Android's own drag needs to know; the browser finds the list under the pointer. */
+  rail?: boolean;
   children: (over: boolean) => ReactNode;
 }) {
   const ref = useRef<HTMLElement | null>(null);
@@ -119,4 +129,9 @@ export function DropTarget({
     { ref: ref as unknown as Ref<ComponentRef<typeof View>> },
     children(over),
   );
+}
+
+/** The browser draws what is dragged; nothing to add. */
+export function DragHost() {
+  return null;
 }

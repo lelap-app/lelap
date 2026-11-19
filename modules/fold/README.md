@@ -10,6 +10,9 @@ screen (half open, or a hinge that hides part of it) and where its edges are, in
   hinge and the player below; no control sits under the hinge.
 - It listens to the activity on screen from `start()` on, and again for a new activity after the
   app was in the background. A device without a hinge never sends an event.
+- Each event carries the window's size in points with the hinge (M120). The hinge can arrive a
+  frame before React Native's new window size, so the layout takes both from the event, and a
+  resized window with the same hinge sends an event too.
 - `Folds` turns the feature's pixel bounds into points and is tested on the JVM:
   `cd apps/app/android && ./gradlew :lelap-fold:testDebugUnitTest`.
 

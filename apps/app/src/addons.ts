@@ -2,6 +2,7 @@ import {
   addonBase,
   addStreamedBook,
   checkHealth,
+  chosenEdition,
   type AddonHealth,
   type Fetcher,
   fetchArtwork,
@@ -9,21 +10,28 @@ import {
   fetchMeta,
   fetchStreams,
   findSources,
+  findStreamedBook,
+  findYourCopy,
+  getEditionChoice,
   getProfile,
+  getSourceChoice,
   type FoundStream,
   HealthTracker,
   type InstalledAddon,
   listAddons,
+  pickSource,
   splitLocalUrl,
   syncAddons,
   trackedFetcher,
+  withEdition,
 } from '@lelap/core';
-import { type ContentType, type Meta, offersHealth, supports } from '@lelap/sdk';
+import { CONTENT_TYPES, type ContentType, type Meta, offersHealth, supports } from '@lelap/sdk';
 import { QueryClient, useQuery } from '@tanstack/react-query';
 import { useMemo, useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 
 import { defaultAddons } from './config';
+import { t } from './i18n';
 import { db, newId } from './db';
 import { logAddonFailure } from './diagnostics';
 import { profileId } from './profile';
@@ -88,15 +96,17 @@ export function configurePageUrl(manifestUrl: string): string {
 /** The content types the app shows. */
 export const SHOWN_TYPES: ContentType[] = ['audiobook', 'podcast'];
 
-/** Installed add-ons, re-read whenever the library version changes. */
+/** Installed add-ons this profile sees, read now. */
+function visibleAddons(): InstalledAddon[] {
+  const hidden = new Set(getProfile(db, profileId)?.hiddenAddons ?? []);
+  return listAddons(db).filter((a) => !hidden.has(a.url));
+}
+
 /** Installed add-ons this profile sees, re-read whenever the library version changes. */
 export function useAddons(): InstalledAddon[] {
   const { version } = useLibrary();
   // `version` is the signal to re-read the database.
-  return useMemo(() => {
-    const hidden = new Set(getProfile(db, profileId)?.hiddenAddons ?? []);
-    return listAddons(db).filter((a) => !hidden.has(a.url));
-  }, [version]);
+  return useMemo(() => visibleAddons(), [version]);
 }
 
 /** Every installed add-on, for grown-ups choosing what a profile sees. */
@@ -127,6 +137,42 @@ export async function playItem(meta: Meta, found: FoundStream): Promise<string> 
   const bookId = addItem(meta, found);
   await playBook(bookId);
   return bookId;
+}
+
+const isType = (value: string): value is ContentType =>
+  (CONTENT_TYPES as readonly string[]).includes(value);
+
+/**
+ * The library's book for a catalog item, added first as Play adds it but without playing (M120):
+ * the listener's own copy of the work, else the source and edition chosen on its page, else the
+ * first source found. Throws when no add-on has audio for it.
+ */
+export async function addWork(type: string, id: string): Promise<string> {
+  const known = findStreamedBook(db, type, id);
+  if (known) return known;
+  if (!isType(type)) throw new Error(t('This item was not found.'));
+  const addons = visibleAddons();
+  const found = await queryClient.fetchQuery(queries.meta(addons, type, id));
+  if (!found) throw new Error(t('This item was not found.'));
+  const work = withEdition(
+    found.meta,
+    chosenEdition(found.meta, getEditionChoice(db, profileId, type, id)),
+  );
+  const position = Number.parseFloat(work.series?.[0]?.position ?? '');
+  const yours = findYourCopy(db, {
+    type,
+    id,
+    title: work.name,
+    author: work.author ?? null,
+    externalIds: work.externalIds,
+    series: Number.isInteger(position) ? position : null,
+  });
+  if (yours && yours.how !== 'offer') return yours.bookId;
+  const sources = await queryClient.fetchQuery(queries.sources(addons, type, id, work.externalIds));
+  const choice = getSourceChoice(db, profileId, type, id);
+  const stream = sources.found[pickSource(sources.found, [choice])];
+  if (!stream) throw new Error(t('No audio for this book yet'));
+  return addItem(work, stream);
 }
 
 export const queries = {
