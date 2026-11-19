@@ -15,6 +15,9 @@ data class NowPlaying(
   val coverUri: String?,
   val playing: Boolean,
   val skipMs: Long,
+  /** The list that plays (M119), and the title of its next item; null without one, or at its end. */
+  val list: String? = null,
+  val listNext: String? = null,
 ) {
   fun encode(): String = JSONObject()
     .put("bookId", bookId)
@@ -24,6 +27,8 @@ data class NowPlaying(
     .putOpt("coverUri", coverUri)
     .put("playing", playing)
     .put("skipMs", skipMs)
+    .putOpt("list", list)
+    .putOpt("listNext", listNext)
     .toString()
 
   companion object {

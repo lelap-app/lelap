@@ -3,10 +3,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createTestDb } from '../test/db';
 import { seedBook } from '../test/seed';
 import type { Db } from './db';
-import { setFinished } from './library/queries';
+import { listBooksById, setFinished } from './library/queries';
 import {
   followedList,
   followedListItems,
+  listEarlier,
   listPlayOrder,
   listPrevious,
   listStart,
@@ -135,6 +136,25 @@ describe('playing a list', () => {
     const items = listPlayOrder(db, ME, list);
     expect(ids(items)).toEqual(order);
     expect(ids(listUpcoming(items, c, false))).toEqual([a, b]);
+  });
+
+  it('gives what comes before an item, nearest first, for Previous away from the phone', () => {
+    const id = handMade();
+    const items = listPlayOrder(db, ME, must(getPlaylist(db, ME, id)));
+    expect(ids(listEarlier(items, c, false))).toEqual([b, a]);
+    expect(listEarlier(items, a, false)).toEqual([]);
+    setFinished(db, ME, b, true, 3);
+    const after = listPlayOrder(db, ME, must(getPlaylist(db, ME, id)));
+    expect(ids(listEarlier(after, c, false))).toEqual([a]);
+    expect(ids(listEarlier(after, c, true))).toEqual([b, a]);
+  });
+
+  it('reads only the items of a hand-made list', () => {
+    const id = handMade();
+    const list = must(getPlaylist(db, ME, id));
+    expect(ids(listBooksById(db, ME, [c, a, 'gone'])).sort()).toEqual([a, c].sort());
+    expect(listBooksById(db, ME, [])).toEqual([]);
+    expect(ids(listPlayOrder(db, ME, list))).toEqual([a, b, c]);
   });
 
   it('remembers the followed list per profile and forgets a deleted list', () => {

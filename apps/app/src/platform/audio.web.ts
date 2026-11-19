@@ -7,6 +7,7 @@ import type {
   PlayerDiagnostic,
   PlayerSettings,
   PlayerState,
+  QueueList,
   ServiceAccounting,
   SleepPlace,
   SleepTimerMode,
@@ -42,6 +43,7 @@ export type {
   PlayerDiagnostic,
   PlayerSettings,
   PlayerState,
+  QueueList,
   ServiceAccounting,
   SleepPlace,
   SleepTimerMode,
@@ -720,9 +722,20 @@ export async function cancelSleepTimer(): Promise<void> {
   emit();
 }
 
-// The browser's media session has no room for Next in list; the player screen has it.
-export async function setQueue(next: BookLoad[]): Promise<void> {
+// The web steps through a list only in the app's list banner; ⏮/⏭ stay the skip by time (M112).
+export async function setQueue(
+  next: BookLoad[],
+  listNext: number | null = null,
+  list: QueueList | null = null,
+): Promise<void> {
+  void listNext;
+  void list;
   queue = [...next];
+}
+
+// Android Auto is not on the web.
+export async function takeListStarted(): Promise<null> {
+  return null;
 }
 
 // The web player runs inside the app, which saves every place itself; there is no car here.
@@ -806,7 +819,7 @@ function setUpMediaSession(): void {
   const session = navigator.mediaSession;
   session.setActionHandler('play', () => void play());
   session.setActionHandler('pause', () => void pause());
-  // ⏮ and ⏭ skip by the interval, as on Android's lock screen.
+  // ⏮ and ⏭ skip by the interval, as on Android's lock screen, also while a list plays.
   session.setActionHandler('previoustrack', () => void skip(false));
   session.setActionHandler('nexttrack', () => void skip(true));
   session.setActionHandler('seekbackward', () => void skip(false));

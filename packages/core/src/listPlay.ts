@@ -1,6 +1,6 @@
 import type { Db } from './db';
 import { listeningStatus } from './library/byProgress';
-import type { LibraryBook } from './library/queries';
+import { type LibraryBook, listBooksById } from './library/queries';
 import { getPlaylist, type Playlist, playlistBooks, readLibrary, smartBooks } from './organise';
 import { deviceValue, setDeviceValue } from './profiles';
 
@@ -72,9 +72,11 @@ export function listPlayOrder(
   follow: ListFollow | null = followedList(db, profileId),
 ): LibraryBook[] {
   if (!list.rule) return playlistBooks(db, profileId, list);
-  const library = readLibrary(db, profileId);
-  if (follow?.listId !== list.id || !follow.order) return smartBooks(library, list.rule);
-  const byId = new Map(library.books.map((b) => [b.id, b]));
+  if (follow?.listId !== list.id || !follow.order) {
+    return smartBooks(readLibrary(db, profileId), list.rule);
+  }
+  // Only the books in the order, not the whole library, on each refresh while it plays (M119).
+  const byId = new Map(listBooksById(db, profileId, follow.order).map((b) => [b.id, b]));
   return follow.order
     .map((id) => byId.get(id))
     .filter((b): b is LibraryBook => b !== undefined && !b.missing);
@@ -109,20 +111,30 @@ export function listUpcoming(
   return items.slice(at + 1).filter((b) => keepFinished || !finished(b));
 }
 
+/**
+ * What comes before `bookId` in the list, nearest first; finished items only when the list keeps
+ * them. The playback service gets a few, for Previous in list away from the phone (M119).
+ */
+export function listEarlier(
+  items: readonly LibraryBook[],
+  bookId: string,
+  keepFinished: boolean,
+): LibraryBook[] {
+  const at = items.findIndex((b) => b.id === bookId);
+  if (at <= 0) return [];
+  return items
+    .slice(0, at)
+    .reverse()
+    .filter((b) => keepFinished || !finished(b));
+}
+
 /** The item before `bookId` in the list, for Previous in the player; null at the top. */
 export function listPrevious(
   items: readonly LibraryBook[],
   bookId: string,
   keepFinished: boolean,
 ): LibraryBook | null {
-  const at = items.findIndex((b) => b.id === bookId);
-  if (at <= 0) return null;
-  return (
-    items
-      .slice(0, at)
-      .reverse()
-      .find((b) => keepFinished || !finished(b)) ?? null
-  );
+  return listEarlier(items, bookId, keepFinished)[0] ?? null;
 }
 
 /** Whether an item plays from its start: a finished one in a list that keeps them, unless heard again part way. */

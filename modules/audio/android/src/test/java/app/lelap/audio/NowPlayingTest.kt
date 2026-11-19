@@ -24,4 +24,11 @@ class NowPlayingTest {
     assertFalse(json.has("chapter"))
     assertFalse(json.has("coverUri"))
   }
+
+  @Test fun encodesTheListLine() {
+    val json = JSONObject(NowPlaying("b1", "Moby Dick", null, null, null, true, 15_000L, "Road trip", "Emma").encode())
+    assertEquals("Road trip", json.getString("list"))
+    assertEquals("Emma", json.getString("listNext"))
+    assertFalse(JSONObject(NowPlaying("b1", "T", null, null, null, true, 15_000L).encode()).has("list"))
+  }
 }

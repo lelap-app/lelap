@@ -1,6 +1,7 @@
 import {
   automaticEpisodeFiles,
   bookSound,
+  carLists,
   carShelves,
   continueListening,
   episodeBook,
@@ -32,6 +33,7 @@ import {
   listStart,
   listUpcoming,
   listPrevious,
+  listEarlier,
   playsFromStart,
   type LibraryBook,
   type ListFollow,
@@ -575,6 +577,8 @@ function artworksOf(bookId: string): Pick<audio.BookLoad, 'artworks'> {
 
 // Enough for a long drive with the app closed; the app sends the queue again on every change.
 const QUEUE_LIMIT = 25;
+// Previous in list away from the phone (M119): a few steps back, until the app sends more.
+const BEFORE_LIMIT = 5;
 
 // The book last told to hand over while a list plays, so that is sent once per book.
 let lastHandedOver: string | null = null;
@@ -596,6 +600,18 @@ async function sendQueue(): Promise<void> {
   const loaded = (await audio.getState()).bookId;
   const upNext = listUpNext(db, profileId).map((i) => i.bookId);
   const now = Date.now();
+  // A list picked in Android Auto (M119): the service plays along it; the app follows it too.
+  // The service may have moved along the list since, so any of its items may be playing now.
+  const started = await audio.takeListStarted().catch(() => null);
+  const startedList = started ? getPlaylist(db, profileId, started.listId) : null;
+  if (started && startedList && loaded) {
+    const items = listPlayOrder(db, profileId, startedList, started);
+    if (items.some((b) => b.id === loaded)) {
+      setFollowedList(db, profileId, { ...started, bookId: loaded }, now);
+      lastHandedOver = loaded;
+      onFollowChange();
+    }
+  }
   let following = followedListItems(db, profileId, now);
   if (following && loaded) {
     const { follow, items } = following;
@@ -635,15 +651,28 @@ async function sendQueue(): Promise<void> {
   };
   for (const bookId of upNext) if (!add(bookId)) break;
   let listNext: number | null = null;
+  let list: audio.QueueList | null = null;
   if (following) {
-    const { follow, list, items } = following;
-    for (const book of listUpcoming(items, follow.bookId, list.keepFinished)) {
+    const { follow, list: playlist, items } = following;
+    const keep = playlist.keepFinished;
+    for (const book of listUpcoming(items, follow.bookId, keep)) {
       const at = queue.length;
-      add(book.id, playsFromStart(book, list.keepFinished));
+      add(book.id, playsFromStart(book, keep));
       if (listNext === null && queue.length > at) listNext = at;
     }
+    // The list's own item playing, with what comes before it, for Previous in list (M119).
+    const at = loaded && items.some((b) => b.id === loaded) ? loaded : null;
+    // While Up Next plays in between: what lies before the list's next item, for once it starts.
+    const from = at ?? listUpcoming(items, follow.bookId, keep)[0]?.id;
+    const before = from
+      ? listEarlier(items, from, keep)
+          .slice(0, BEFORE_LIMIT)
+          .map((b) => bookLoad(b.id, { fromStart: playsFromStart(b, keep), following: true }))
+          .filter((b): b is audio.BookLoad => b !== null)
+      : [];
+    list = { id: playlist.id, title: playlist.name, at, before, keepsFinished: keep };
   }
-  await audio.setQueue(queue, listNext).catch(() => {});
+  await audio.setQueue(queue, listNext, list).catch(() => {});
 }
 
 /**
@@ -653,11 +682,27 @@ async function sendQueue(): Promise<void> {
 async function syncCar(): Promise<void> {
   if (playerProfile() !== profileId) return;
   const shelves = carShelves(db, profileId);
+  // A book often sits on several shelves and lists; each is read once.
+  const read = new Map<string, audio.BookLoad | null>();
+  const once = (id: string, options: { fromStart?: boolean; following: boolean }) => {
+    const key = `${id}:${options.fromStart ? 1 : 0}:${options.following ? 1 : 0}`;
+    if (!read.has(key)) read.set(key, bookLoad(id, options));
+    return read.get(key) ?? null;
+  };
   // A book picked in the car plays on its own, as in the app outside a list.
   const loads = (ids: string[]) =>
-    ids
-      .map((id) => bookLoad(id, { following: false }))
-      .filter((b): b is audio.BookLoad => b !== null);
+    ids.map((id) => once(id, { following: false })).filter((b): b is audio.BookLoad => b !== null);
+  // A list's items hand over to the next one, as when it plays in the app (M119).
+  const lists = carLists(db, profileId).map((list) => ({
+    id: list.id,
+    title: list.name,
+    keepsFinished: list.keepFinished,
+    order: list.order,
+    start: list.start,
+    items: list.items
+      .map((item) => once(item.bookId, { fromStart: item.fromStart, following: true }))
+      .filter((b): b is audio.BookLoad => b !== null),
+  }));
   // An episode needs its library book before it can play; it is made here, like on first play.
   const episodes = shelves.latestEpisodes.map(
     (e) => e.bookId ?? episodeBook(db, e.episodeId, Date.now(), newId),
@@ -668,6 +713,7 @@ async function syncCar(): Promise<void> {
       onPhone: loads(shelves.onPhone),
       podcasts: loads(episodes),
       upNext: loads(shelves.upNext),
+      lists,
     })
     .catch(() => {});
 }

@@ -3,7 +3,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import type { Db } from './db';
 import type { IdGenerator } from './ids';
 import { listeningStatus } from './library/byProgress';
-import { type LibraryBook, listAllBooks } from './library/queries';
+import { type LibraryBook, listAllBooks, listBooksById } from './library/queries';
 import { bookTags, playlists, type SmartRule } from './schema';
 import { isShelf } from './kids';
 import { bookIdForKey, bookKey, recordDeletion } from './sync/keys';
@@ -259,16 +259,23 @@ export function movePlaylistItem(
 }
 
 /** The books in a list that are on this device: in order for hand-made lists. */
+/**
+ * A list's books in its order. A hand-made list reads only its own books unless the caller has
+ * read the library already; a smart list needs the whole library for its rule.
+ */
 export function playlistBooks(
   db: Db,
   profileId: string,
   list: Playlist,
-  library: Library = readLibrary(db, profileId),
+  library?: Library,
 ): LibraryBook[] {
-  if (list.rule) return smartBooks(library, list.rule);
-  const all = new Map(library.books.map((b) => [b.id, b]));
-  return list.items
-    .map((key) => bookIdForKey(db, key))
+  if (list.rule) return smartBooks(library ?? readLibrary(db, profileId), list.rule);
+  const ids = list.items.map((key) => bookIdForKey(db, key));
+  const known = ids.filter((id): id is string => id !== null);
+  const all = new Map(
+    (library?.books ?? listBooksById(db, profileId, known)).map((b) => [b.id, b]),
+  );
+  return ids
     .map((bookId) => (bookId ? all.get(bookId) : undefined))
     .filter((b): b is LibraryBook => b !== undefined && !b.missing);
 }

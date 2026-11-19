@@ -28,11 +28,15 @@ class CarLibraryTest {
     onPhone = listOf(load("b")),
     podcasts = listOf(load("ep", handsOver = true)),
     upNext = listOf(load("c")),
+    lists = listOf(
+      CarList("l1", "Road trip", keepsFinished = false, order = null, start = "b", items = listOf(load("a"), load("b"), load("c"))),
+    ),
   )
 
-  @Test fun `the root offers four browsable shelves`() {
+  @Test fun `the root offers five browsable shelves`() {
     val shelves = CarLibrary.children(CarLibrary.ROOT, snapshot, null)!!
-    assertEquals(listOf("continue", "phone", "podcasts", "upnext"), shelves.map { it.id })
+    assertEquals(listOf("continue", "phone", "podcasts", "upnext", "lists"), shelves.map { it.id })
+    assertEquals("Lists", shelves[4].title)
     assertEquals("Continue listening", shelves[0].title)
     assertTrue(shelves.all { it.browsable && !it.playable })
   }
@@ -122,5 +126,46 @@ class CarLibraryTest {
     val capped = PositionJournal.appendEarlier(json, JournalEntry("c", "loc", 4, 4), max = 2)
     assertEquals(listOf("a", "c"), PositionJournal.decodeEntries(capped).map { it.bookId })
     assertTrue(PositionJournal.decodeEntries("[").isEmpty())
+  }
+
+  @Test fun `the Lists shelf has each list, with Play list first and then its items`() {
+    val lists = CarLibrary.children(CarLibrary.LISTS, snapshot, null)!!
+    assertEquals(listOf("list:l1"), lists.map { it.id })
+    assertTrue(lists[0].browsable && !lists[0].playable)
+    assertEquals(listOf("list:l1"), CarLibrary.listIds(snapshot))
+    val items = CarLibrary.children("list:l1", snapshot, null)!!
+    assertEquals(listOf("listplay:l1/b", "list:l1/a", "list:l1/b", "list:l1/c"), items.map { it.id })
+    assertEquals("Play list", items[0].title)
+    assertEquals("Title b", items[0].subtitle)
+    assertTrue(items.all { it.playable })
+    assertEquals("Road trip", CarLibrary.item("list:l1", snapshot, null)?.title)
+    assertEquals("Play list", CarLibrary.item("listplay:l1/b", snapshot, null)?.title)
+    assertEquals("Title c", CarLibrary.item("list:l1/c", snapshot, null)?.title)
+    assertNull(CarLibrary.children("list:gone", snapshot, null))
+  }
+
+  @Test fun `a list item picked in the car brings the list after and before it`() {
+    val start = CarLibrary.resolveList("list:l1/b", snapshot, null)!!
+    assertEquals("b", start.load.playlist.bookId)
+    assertTrue(start.load.handsOver)
+    assertEquals(listOf("c"), start.after.map { it.playlist.bookId })
+    assertEquals(listOf("a"), start.before.map { it.playlist.bookId })
+    assertTrue(start.after.all { it.handsOver } && start.before.all { it.handsOver })
+    assertEquals("b", CarLibrary.resolveList("listplay:l1/b", snapshot, null)?.load?.playlist?.bookId)
+    // The journal's newer place wins, still handing over.
+    val journal = load("b", pausedAt = 500).copy(startPositionMs = 900)
+    val resumed = CarLibrary.resolveList("list:l1/b", snapshot, journal)!!.load
+    assertEquals(900L, resumed.startPositionMs)
+    assertTrue(resumed.handsOver)
+    assertNull(CarLibrary.resolveList("phone/b", snapshot, null))
+    assertNull(CarLibrary.resolveList("list:l1/zz", snapshot, null))
+    // Other shelves don't play list items.
+    assertNull(CarLibrary.resolve("list:l1/b", snapshot, null))
+  }
+
+  @Test fun `lists survive the snapshot's round trip`() {
+    val smart = snapshot.copy(lists = snapshot.lists + CarList("l2", "New", true, listOf("c", "a"), null, emptyList()))
+    assertEquals(smart, CarLibrary.decode(CarLibrary.encode(smart)))
+    assertEquals(emptyList<CarList>(), CarLibrary.decode("{}").lists)
   }
 }

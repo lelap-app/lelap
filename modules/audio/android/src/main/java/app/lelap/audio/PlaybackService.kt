@@ -174,6 +174,7 @@ class PlaybackService : MediaLibraryService() {
       for (shelf in CarLibrary.children(CarLibrary.ROOT, CarSnapshot(), null).orEmpty()) {
         session.notifyChildrenChanged(shelf.id, Int.MAX_VALUE, null)
       }
+      for (id in CarLibrary.listIds(carSnapshot())) session.notifyChildrenChanged(id, Int.MAX_VALUE, null)
     }
   }
   // The profile's language changed (modules/text): rename the buttons and the car's shelves.
@@ -210,6 +211,9 @@ class PlaybackService : MediaLibraryService() {
   /** Where the followed list's next item is in [queue]; -1 without a list (M112). */
   private var listNext = -1
   private var buttonsListNext: Boolean? = null
+  /** The followed list, for Previous in list and the widget's list line (M119); null without one. */
+  private var following: ListPlay? = null
+  private var buttonsListPrevious: Boolean? = null
 
   private var skipIntervalMs = 30_000L
   private var smartRewind = true
@@ -334,6 +338,7 @@ class PlaybackService : MediaLibraryService() {
     focus.interruption = rules.interruption
     queue = UpNext.decodeQueue(prefs.getString(Commands.PREF_QUEUE, null))
     listNext = prefs.getInt(Commands.PREF_LIST_NEXT, -1).takeIf { it in queue.indices } ?: -1
+    following = ListPlay.decode(prefs.getString(Commands.PREF_LIST, null))
     Accounting.edit(this) { tally.recover(it) }
     player.addListener(object : Player.Listener {
       override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -512,9 +517,15 @@ class PlaybackService : MediaLibraryService() {
     }
     val (next, rest) = UpNext.afterEnd(currentHandsOver, queue)
     if (next == null) return
+    // A finished item comes back with Previous in list only where the list plays them again.
+    following = following?.let {
+      val again = if (it.keepsFinished) BookLoad(ended, 0, 0L, handsOver = true) else null
+      ListSteps.moved(it, again, next.playlist.bookId, nextInList = listNext == 0)
+    }
     saveQueue(rest, UpNext.listNextAfterHead(listNext, rest))
     loadBook(next, autoplay = true)
     locateStarted(next.playlist)
+    updateSleepButton()
   }
 
   /** Next in list (M112): the list's next item now, playing if this one was. */
@@ -522,10 +533,39 @@ class PlaybackService : MediaLibraryService() {
     val (next, rest, after) = UpNext.skipToListNext(listNext, queue)
     if (next == null) return
     val play = active.playWhenReady
+    following = following?.let { ListSteps.moved(it, liveLoad(), next.playlist.bookId, nextInList = true) }
     saveQueue(rest, after)
     loadBook(next, autoplay = play)
     locateStarted(next.playlist)
     noteInteraction()
+    updateSleepButton()
+  }
+
+  /** Previous in list (M119): the list's item before this one, which comes next again after it. */
+  private fun skipToListPrevious() {
+    val list = following ?: return
+    val here = liveLoad() ?: return
+    val step = ListSteps.previous(list, queue, listNext, here) ?: return
+    val play = active.playWhenReady
+    following = step.list
+    saveQueue(step.queue, step.listNext)
+    loadBook(step.play, autoplay = play)
+    locateStarted(step.play.playlist)
+    noteInteraction()
+    updateSleepButton()
+  }
+
+  /** The loaded book at its live place, to come back to. */
+  private fun liveLoad(): BookLoad? {
+    val playlist = current ?: return null
+    if (player.mediaItemCount == 0) return null
+    return BookLoad(
+      playlist,
+      active.currentMediaItemIndex,
+      active.currentPosition,
+      pausedAt = System.currentTimeMillis(),
+      handsOver = true,
+    )
   }
 
   private fun saveQueue(list: List<BookLoad>, nextInList: Int) {
@@ -534,8 +574,10 @@ class PlaybackService : MediaLibraryService() {
     prefs.edit()
       .putString(Commands.PREF_QUEUE, encodeQueue(list))
       .putInt(Commands.PREF_LIST_NEXT, nextInList)
+      .putString(Commands.PREF_LIST, following?.encode().orEmpty())
       .apply()
     updateSleepButton()
+    publishNowPlaying()
   }
 
   /** Adds an event to the diagnostics log, only while the app has the log on. */
@@ -731,8 +773,13 @@ class PlaybackService : MediaLibraryService() {
     account()
     current = playlist
     currentHandsOver = load.handsOver
-    // A book picked in the car plays on its own; Next in list leaves until the app sends a list.
-    if (listNext >= 0) saveQueue(queue, -1)
+    // A book picked in the car plays on its own: the list leaves, with its items in the queue,
+    // until the app sends a list. Up Next stays.
+    if (listNext >= 0 || following != null) {
+      following = null
+      saveQueue(if (listNext >= 0) queue.take(listNext) else queue, -1)
+    }
+    prefs.edit().remove(Commands.PREF_LIST_STARTED).apply()
     pausedAt = null
     placeChangedAt = load.pausedAt ?: 0L
     player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
@@ -749,6 +796,29 @@ class PlaybackService : MediaLibraryService() {
     handler.post { placeBoundary() }
     locateStarted(playlist)
     return MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, start)
+  }
+
+  /**
+   * A list's item picked in Android Auto (M119): it plays like a book picked there, and the service
+   * follows the list on from it, Up Next first, then tells the app which list it follows.
+   */
+  private fun carPlayList(start: CarListStart): MediaSession.MediaItemsWithStartPosition {
+    val upNext = if (listNext >= 0) queue.take(listNext) else queue
+    val bookId = start.load.playlist.bookId
+    val (rest, next) = ListSteps.startQueue(upNext, bookId, start.after)
+    val items = carPlay(start.load)
+    following = ListPlay(
+      id = start.list.id,
+      title = start.list.title,
+      at = bookId,
+      before = start.before.take(ListSteps.BEFORE_LIMIT),
+      keepsFinished = start.list.keepsFinished,
+    )
+    saveQueue(rest, next)
+    prefs.edit()
+      .putString(Commands.PREF_LIST_STARTED, ListSteps.encodeStarted(start.list.id, bookId, start.list.order))
+      .apply()
+    return items
   }
 
   // Every book the player gets passes here (the app, the car, playback resumption), so the wake
@@ -1049,10 +1119,16 @@ class PlaybackService : MediaLibraryService() {
   private fun updateSleepButton() {
     val step = SleepCycle.current(sleepTimer.isActive, sleepTimer.mode, sleepPressed)
     val offersNext = listNext in queue.indices
-    if (step == sleepButtonStep && skipIntervalMs == buttonsSkipMs && offersNext == buttonsListNext) return
+    val offersPrevious = ListSteps.offersPrevious(following, current?.bookId)
+    if (step == sleepButtonStep && skipIntervalMs == buttonsSkipMs && offersNext == buttonsListNext &&
+      offersPrevious == buttonsListPrevious
+    ) {
+      return
+    }
     sleepButtonStep = step
     buttonsSkipMs = skipIntervalMs
     buttonsListNext = offersNext
+    buttonsListPrevious = offersPrevious
     val seconds = skipIntervalMs / 1_000L
     val back = CommandButton.Builder(SkipIcons.back(skipIntervalMs))
       .setPlayerCommand(Player.COMMAND_SEEK_BACK)
@@ -1080,7 +1156,17 @@ class PlaybackService : MediaLibraryService() {
     } else {
       null
     }
-    session.setMediaButtonPreferences(listOfNotNull(back, forward, next, sleep))
+    // And the item before it (M119), so the list can be gone back through away from the phone.
+    val previous = if (offersPrevious) {
+      CommandButton.Builder(CommandButton.ICON_PREVIOUS)
+        .setDisplayName(NativeText.t(this, "Previous in list"))
+        .setSessionCommand(SessionCommand(Commands.PREVIOUS_IN_LIST, Bundle.EMPTY))
+        .setSlots(CommandButton.SLOT_OVERFLOW)
+        .build()
+    } else {
+      null
+    }
+    session.setMediaButtonPreferences(listOfNotNull(back, forward, previous, next, sleep))
   }
 
   /**
@@ -1121,6 +1207,8 @@ class PlaybackService : MediaLibraryService() {
         coverUri = playlist.coverUri,
         playing = !stopping && p.playWhenReady && p.playbackState != Player.STATE_ENDED,
         skipMs = skipIntervalMs,
+        list = following?.title,
+        listNext = following?.let { queue.getOrNull(listNext)?.playlist?.title },
       ).encode()
     }
     if (encoded == lastNowPlaying) return
@@ -1556,6 +1644,7 @@ class PlaybackService : MediaLibraryService() {
           MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
             .add(SessionCommand(Commands.CYCLE_SLEEP_TIMER, Bundle.EMPTY))
             .add(SessionCommand(Commands.NEXT_IN_LIST, Bundle.EMPTY))
+            .add(SessionCommand(Commands.PREVIOUS_IN_LIST, Bundle.EMPTY))
             .build(),
           MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS,
         )
@@ -1573,6 +1662,7 @@ class PlaybackService : MediaLibraryService() {
         .add(SessionCommand(Commands.SETTLE_ACCOUNTING, Bundle.EMPTY))
         .add(SessionCommand(Commands.SKIP, Bundle.EMPTY))
         .add(SessionCommand(Commands.NEXT_IN_LIST, Bundle.EMPTY))
+        .add(SessionCommand(Commands.PREVIOUS_IN_LIST, Bundle.EMPTY))
         .build()
       return MediaSession.ConnectionResult.accept(
         commands,
@@ -1657,9 +1747,11 @@ class PlaybackService : MediaLibraryService() {
         Commands.SET_QUEUE -> {
           val json = args.getString(Commands.KEY_QUEUE_JSON).orEmpty()
           val decoded = UpNext.decodeQueue(json)
+          following = ListPlay.decode(args.getString(Commands.KEY_LIST_JSON))
           saveQueue(decoded, args.getInt(Commands.KEY_LIST_NEXT, -1).takeIf { it in decoded.indices } ?: -1)
         }
         Commands.NEXT_IN_LIST -> skipToListNext()
+        Commands.PREVIOUS_IN_LIST -> skipToListPrevious()
         Commands.START_CAST -> return startRemote()
         Commands.SETTLE_ACCOUNTING -> account()
         Commands.SKIP -> {
@@ -1790,6 +1882,8 @@ class PlaybackService : MediaLibraryService() {
       startPositionMs: Long,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
       val picked = mediaItems.singleOrNull()?.takeIf { it.localConfiguration == null }
+      picked?.let { CarLibrary.resolveList(it.mediaId, carSnapshot(), journalLoad()) }
+        ?.let { return Futures.immediateFuture(carPlayList(it)) }
       val load = picked?.let { CarLibrary.resolve(it.mediaId, carSnapshot(), journalLoad()) }
         ?: return super.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
       return Futures.immediateFuture(carPlay(load))

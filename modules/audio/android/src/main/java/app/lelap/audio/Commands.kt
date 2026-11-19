@@ -39,6 +39,13 @@ object Commands {
   /** The notification's, lock screen's and car's Next in list: plays the list's next item now. */
   const val NEXT_IN_LIST = "app.lelap.audio.NEXT_IN_LIST"
   const val PREF_LIST_NEXT = "listNext"
+  /** M119: with [SET_QUEUE], the followed [ListPlay] as JSON; empty without a list. */
+  const val KEY_LIST_JSON = "list"
+  const val PREF_LIST = "listPlay"
+  /** The notification's and car's Previous in list: plays the list's item before this one. */
+  const val PREVIOUS_IN_LIST = "app.lelap.audio.PREVIOUS_IN_LIST"
+  /** In [AUDIO_PREFS]: a list picked in Android Auto, until the app takes it and follows it. */
+  const val PREF_LIST_STARTED = "listStarted"
   /** In [AUDIO_PREFS]: the queue, and the books that ended while the app may have been closed. */
   const val PREF_QUEUE = "upNextQueue"
   const val PREF_FINISHED = "finished"
