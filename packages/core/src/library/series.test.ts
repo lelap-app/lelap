@@ -160,19 +160,21 @@ describe('reading order', () => {
   });
 });
 
+const shelf = [
+  book('dune-3', 'Children of Dune', 'Frank Herbert', 'Dune #3'),
+  book('dune-1', 'Dune', 'Frank Herbert', 'Dune #1, Dune Chronicles #1'),
+  book('dune-5', 'Chapterhouse: Dune', 'Frank Herbert', 'Dune #5'),
+  book('dune-x', 'The Road to Dune', 'Frank Herbert', 'Dune'),
+  book('expanse-1', 'Leviathan Wakes', 'James S. A. Corey', 'The Expanse #1'),
+  book('alone', 'Project Hail Mary', 'Andy Weir', null),
+];
+
 describe('series in the library', () => {
   let db: Db;
 
   beforeEach(() => {
     db = createTestDb();
-    scan(db, [
-      book('dune-3', 'Children of Dune', 'Frank Herbert', 'Dune #3'),
-      book('dune-1', 'Dune', 'Frank Herbert', 'Dune #1, Dune Chronicles #1'),
-      book('dune-5', 'Chapterhouse: Dune', 'Frank Herbert', 'Dune #5'),
-      book('dune-x', 'The Road to Dune', 'Frank Herbert', 'Dune'),
-      book('expanse-1', 'Leviathan Wakes', 'James S. A. Corey', 'The Expanse #1'),
-      book('alone', 'Project Hail Mary', 'Andy Weir', null),
-    ]);
+    scan(db, shelf);
   });
 
   it('lists every series by name, with its books in order and its gaps', () => {
@@ -190,9 +192,37 @@ describe('series in the library', () => {
     expect(dune?.ordered).toBe(false);
   });
 
-  it('leaves out books the profile hid', () => {
+  it('leaves out books the profile hid, but counts their numbers as no gap', () => {
     hideBooks(db, ME, [idOf(db, 'dune-3')], 5);
     expect(titles(db, 'dune')).toEqual(['Dune', 'Chapterhouse: Dune', 'The Road to Dune']);
+    expect(getSeries(db, ME, 'dune')?.missing).toEqual([2, 4]);
+    // A hidden book past the highest listed one makes no gaps, and a series of hidden books
+    // only is not listed.
+    scan(db, [...shelf, book('dune-9', 'Dune 9', 'Frank Herbert', 'Dune #9')]);
+    hideBooks(db, ME, [idOf(db, 'dune-9')], 5);
+    expect(getSeries(db, ME, 'dune')?.missing).toEqual([2, 4]);
+    hideBooks(db, ME, [idOf(db, 'expanse-1')], 6);
+    expect(listSeries(db, ME).map((s) => s.name)).toEqual(['Dune', 'Dune Chronicles']);
+  });
+
+  it('offers no hidden number to look for, and plays the next book after it', () => {
+    scan(db, [
+      book('dune-1', 'Dune', 'Frank Herbert', 'Dune #1'),
+      book('dune-2', 'Dune Messiah', 'Frank Herbert', 'Dune #2'),
+      book('dune-3', 'Children of Dune', 'Frank Herbert', 'Dune #3'),
+    ]);
+    hideBooks(db, ME, [idOf(db, 'dune-2')], 5);
+    expect(nextInSeries(db, ME, idOf(db, 'dune-1'))?.book?.title).toBe('Children of Dune');
+  });
+
+  it('keeps the result for one library version', () => {
+    const first = listSeries(db, ME, 1);
+    expect(listSeries(db, ME, 1)).toBe(first);
+    hideBooks(db, ME, [idOf(db, 'dune-3')], 5);
+    // The same version: what was worked out before, until the library says it changed.
+    expect(getSeries(db, ME, 'dune', 1)?.books).toHaveLength(4);
+    expect(getSeries(db, ME, 'dune', 2)?.books).toHaveLength(3);
+    expect(listSeries(db, 'someone-else', 2)).not.toBe(listSeries(db, ME, 2));
   });
 
   it('keeps a listener’s own order, and goes back to the usual one', () => {
@@ -293,6 +323,19 @@ describe('series in the library', () => {
     expect(getSeries(db, ME, 'standalones')?.books.map((b) => b.number)).toEqual([7]);
   });
 
+  it('takes the series of a work confirmed with “In your library?”, which keeps the title', () => {
+    linkBook(db, idOf(db, 'alone'), { type: 'audiobook', id: 'ol:phm' }, 5, null, 'Hail #2');
+    expect(getSeries(db, ME, 'hail')?.books.map((b) => [b.book.title, b.number])).toEqual([
+      ['Project Hail Mary', 2],
+    ]);
+    // It syncs with the link; older devices send none.
+    const other = createTestDb();
+    scan(other, [book('alone', 'Project Hail Mary', 'Andy Weir', null)]);
+    const links = collectOps(db, 0).filter((o) => o.type === 'link');
+    applyOps(other, links, 10, newId);
+    expect(getSeries(other, ME, 'hail')?.books).toHaveLength(1);
+  });
+
   describe('next in the series', () => {
     it('offers the next number when the library lacks it', () => {
       expect(nextInSeries(db, ME, idOf(db, 'dune-1'))).toMatchObject({
@@ -324,6 +367,49 @@ describe('series in the library', () => {
       expect(nextInSeries(db, ME, idOf(db, 'alone'))).toBeNull();
       // An unnumbered book at the end has nothing after it.
       expect(nextInSeries(db, ME, idOf(db, 'dune-x'))).toBeNull();
+    });
+  });
+
+  describe('a streamed book', () => {
+    const stream: Stream = { sourceKey: 'lv:7', name: 'LibriVox', url: 'https://a.example/7.mp3' };
+    const add = (target: Db, series: Meta['series'], now: number) =>
+      addStreamedBook(target, {
+        addonUrl: 'https://addon.example/manifest.json',
+        meta: { id: 'lv:7', type: 'audiobook', name: 'Caliban’s War', author: 'J. Corey', series },
+        stream,
+        now,
+        newId,
+      });
+
+    it('loses its series when its add-on no longer names one', () => {
+      add(db, [{ name: 'The Expanse', position: '2' }], 5);
+      expect(getSeries(db, ME, 'expanse')?.books).toHaveLength(2);
+      add(db, undefined, 6);
+      expect(getSeries(db, ME, 'expanse')?.books).toHaveLength(1);
+    });
+
+    it('carries its series to another device, and a newer one later', () => {
+      add(db, [{ name: 'Rocinante', position: '2' }], 5);
+      const other = createTestDb();
+      const send = () => {
+        const bookOps = collectOps(db, 0).filter((o) => o.type === 'book');
+        expect(bookOps).toHaveLength(1);
+        applyOps(other, bookOps, 100, newId);
+      };
+      send();
+      expect(getSeries(other, ME, 'rocinante')?.books.map((b) => b.number)).toEqual([2]);
+      // A download there later moves the book's own time, which says nothing about the series.
+      other.update(books).set({ updatedAt: 90 }).run();
+      add(db, [{ name: 'Rocinante', position: '3' }], 7);
+      send();
+      expect(getSeries(other, ME, 'rocinante')?.books.map((b) => b.number)).toEqual([3]);
+      // An older device's snapshot says nothing about the series.
+      const [op] = collectOps(db, 0).filter((o) => o.type === 'book');
+      if (op?.type !== 'book') throw new Error('no book');
+      const older = { ...op.data };
+      delete older.series;
+      applyOps(other, [{ ...op, at: 80, data: older }], 100, newId);
+      expect(getSeries(other, ME, 'rocinante')?.books.map((b) => b.number)).toEqual([3]);
     });
   });
 

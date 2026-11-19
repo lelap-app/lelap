@@ -121,6 +121,26 @@ class KindTagsTest {
   }
 
   @Test
+  fun takesTheNumberFromTheSameFamilyAsTheName() {
+    // A series name with only a movement number: the movement may count something else.
+    val mixed = IdTags.parseAll("book.mp3", id3(4, txxx("SERIES", "Dune"), text("MVIN", "4")))
+    assertEquals("Dune", mixed.series)
+    // Both families: the series tags win, each with its own number.
+    val both = IdTags.parseAll(
+      "book.mp3",
+      id3(4, text("MVNM", "Movement"), text("MVIN", "4"), txxx("SERIES", "Dune"), txxx("SERIES-PART", "2")),
+    )
+    assertEquals("Dune #2", both.series)
+    // A series name without its number, and a movement with both: the movement says more.
+    val numbered = IdTags.parseAll(
+      "book.mp3",
+      id3(4, txxx("SERIES", "Dune"), text("MVNM", "Dune"), text("MVIN", "4")),
+    )
+    assertEquals("Dune #4", numbered.series)
+    assertEquals("Discworld #3", IdTags.parseAll("book.flac", flac("MOVEMENTNAME=Discworld", "MOVEMENT=3", "SERIESPART=9")).series)
+  }
+
+  @Test
   fun readsTheSeriesFromMp4AndFlac() {
     val book = IdTags.parseAll(
       "book.m4b",

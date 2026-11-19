@@ -161,6 +161,8 @@ export const JellyfinItem = z.object({
   ProviderIds: z.record(z.string(), z.string().nullish()).nullish(),
   Genres: z.array(z.string()).nullish(),
   ProductionYear: n,
+  /** An audiobook's series, as Jellyfin's book metadata keeps it; Jellyfin gives no number. */
+  SeriesName: s,
   UserData: z
     .object({ PlaybackPositionTicks: n, Played: z.boolean().nullish(), LastPlayedDate: s })
     .nullish(),
@@ -332,6 +334,8 @@ export function jellyfinScan(
         year: item.ProductionYear != null ? String(item.ProductionYear) : null,
         narrator: narrators.join(', ') || null,
         mediaKind: item.Type === 'AudioBook' ? 'audiobook' : null,
+        // Only an audiobook's (M115): for music it is no book series.
+        series: (item.Type === 'AudioBook' && item.SeriesName?.trim()) || null,
       },
     });
     const cover = item.ImageTags?.Primary
