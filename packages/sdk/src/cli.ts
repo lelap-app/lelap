@@ -4,6 +4,7 @@ import {
   type CheckReport,
   checkAddon,
   formatReport,
+  manifestUrlOf,
 } from './check';
 import { CONTENT_TYPES, type ContentType } from './protocol';
 
@@ -51,10 +52,10 @@ function parseArgs(args: string[]): Parsed | string {
       i += 1;
       return next;
     };
-    const count = (name: string): number | string => {
+    const count = (name: string, least: number): number | string => {
       const raw = value();
-      const n = Number(raw);
-      return Number.isInteger(n) && n >= 0 ? n : `${name} takes a whole number.`;
+      const n = raw === undefined || raw.trim() === '' ? NaN : Number(raw);
+      return Number.isInteger(n) && n >= least ? n : `${name} takes a whole number from ${least}.`;
     };
     switch (arg) {
       case '--json':
@@ -69,7 +70,7 @@ function parseArgs(args: string[]): Parsed | string {
       case '--items':
       case '--pages':
       case '--timeout': {
-        const n = count(arg);
+        const n = count(arg, arg === '--timeout' ? 1 : 0);
         if (typeof n === 'string') return n;
         if (arg === '--items') options.items = n;
         else if (arg === '--pages') options.pages = n;
@@ -104,13 +105,18 @@ function parseArgs(args: string[]): Parsed | string {
 
 /** Runs `lelap-sdk` with its arguments (without `node` and the script) and returns the exit code. */
 export async function runCli(args: string[], io: CliIo): Promise<number> {
-  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+  const first = args[0];
+  if (first === undefined || first === '--help' || first === '-h' || args[1] === '--help') {
     io.write(USAGE);
-    return args.length === 0 ? EXIT.usage : EXIT.ok;
+    return first === undefined ? EXIT.usage : EXIT.ok;
   }
   const parsed = parseArgs(args);
   if (typeof parsed === 'string') {
     io.write(`${parsed}\n\n${USAGE}`);
+    return EXIT.usage;
+  }
+  if (!manifestUrlOf(parsed.url)) {
+    io.write(`Not an add-on address: ${parsed.url}\n\n${USAGE}`);
     return EXIT.usage;
   }
   let report: CheckReport;
@@ -120,8 +126,8 @@ export async function runCli(args: string[], io: CliIo): Promise<number> {
       ...(io.fetch ? { fetch: io.fetch } : {}),
     });
   } catch (error) {
-    io.write(`${error instanceof Error ? error.message : String(error)}\n`);
-    return EXIT.usage;
+    io.write(`The check failed: ${error instanceof Error ? error.message : String(error)}\n`);
+    return EXIT.problems;
   }
   io.write(parsed.json ? `${JSON.stringify(report, null, 2)}\n` : formatReport(report));
   const failed = !report.ok || (parsed.strict && report.warnings > 0);

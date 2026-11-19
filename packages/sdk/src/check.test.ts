@@ -176,6 +176,35 @@ describe('checkAddon', () => {
     expect(report.problems[0]?.message).toBe('No answer within 0.0 s; the app gives up then.');
   });
 
+  it('gives up on a fetch that ignores the signal', async () => {
+    const report = await checkAddon(BASE, { timeoutMs: 20, fetch: () => new Promise(() => {}) });
+    expect(report.problems[0]?.message).toBe('No answer within 0.0 s; the app gives up then.');
+  });
+
+  it('keeps a query in the address on every request', async () => {
+    const asked: string[] = [];
+    const report = await checkAddon(`${BASE}/sub/manifest.json?key=1`, {
+      fetch: (url, init) => {
+        asked.push(url);
+        const request = new Request(url, init);
+        return good.fetch(new Request(request.url.replace('/sub/', '/'), request));
+      },
+    });
+    expect(report.ok).toBe(true);
+    expect(asked[0]).toBe(`${BASE}/sub/manifest.json?key=1`);
+    expect(asked.every((url) => url.startsWith(`${BASE}/sub/`) && url.endsWith('?key=1'))).toBe(
+      true,
+    );
+  });
+
+  it('says when the request budget stopped it', async () => {
+    const report = await checkAddon(BASE, { fetch: viaFetch(good.fetch), maxRequests: 3 });
+    expect(report.requests).toBe(3);
+    expect(report.problems.map((p) => p.message)).toEqual([
+      expect.stringMatching(/^Stopped after 3 requests/),
+    ]);
+  });
+
   it('checks the configure page and skips resources that need settings', async () => {
     const configured = createAddon({
       manifest,
@@ -289,7 +318,11 @@ describe('runCli', () => {
     expect((await run(['check', BASE, '--items', 'many'])).code).toBe(EXIT.usage);
     expect((await run(['check', BASE, '--id', 'book:x'])).code).toBe(EXIT.usage);
     expect((await run(['check', 'ftp://a.test'])).code).toBe(EXIT.usage);
+    expect((await run(['check', BASE, '--timeout', '0'])).code).toBe(EXIT.usage);
+    expect((await run(['check', BASE, '--items', ''])).code).toBe(EXIT.usage);
     expect((await run(['--help'])).code).toBe(EXIT.ok);
+    // A search for "-h" is a search, not a request for help.
+    expect((await run(['check', BASE, '--search', '-h'])).code).toBe(EXIT.ok);
   });
 
   it('checks an item passed with --id', async () => {

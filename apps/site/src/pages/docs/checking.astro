@@ -20,15 +20,27 @@ Broken example 1.0.0 (org.example.broken)
 http://localhost:8787/manifest.json
 
 error   cors  http://localhost:8787/manifest.json
-        No Access-Control-Allow-Origin header: the web app cannot read this answer. The same at 4 more addresses.
+        No Access-Control-Allow-Origin header: the web app cannot read this answer. The same at 5 more addresses.
+warning caching  http://localhost:8787/manifest.json
+        No cacheMaxAge and no Cache-Control max-age: the app and caches ask again every time. The same at 5 more addresses.
 error   catalog  http://localhost:8787/catalog/audiobook/classics.json
-        metas[1].id: IDs look like prefix:value. Got "raven".
+        metas[1].id: IDs look like prefix:value. Got "raven". The same at 2 more addresses.
+error   catalog  http://localhost:8787/catalog/audiobook/classics.json
+        metas[1].name: Too small: expected string to have >=1 characters. Got "". The same at 2 more addresses.
+warning paging  http://localhost:8787/catalog/audiobook/classics/skip=2.json
+        skip=2 brings only items earlier pages listed. skip counts items, so it should start after the first 2, or answer an empty list past the end.
+error   paging  http://localhost:8787/catalog/audiobook/classics/skip=100000.json
+        skip=100000 still brings the first items; paging never ends. Answer an empty list past the end.
+error   catalog  http://localhost:8787/catalog/audiobook/lelap-check-unknown.json
+        Answered 500 for a catalog it does not list; expected 404.
 error   ids  http://localhost:8787/meta/audiobook/example%3Araven.json
         meta.id: Asked for example:raven and got example:Raven. The app keeps an item by the ID it asked for, so it must come back unchanged.
 warning stream  http://localhost:8787/stream/audiobook/example%3Araven.json
         streams[0].url: Plain http: the web app, on https, cannot play it. Use https.
+error   meta  http://localhost:8787/meta/audiobook/example%3Alelap-check-unknown.json
+        Answered 500 for an ID it does not know; expected 404.
 
-Failed: 3 errors, 1 warning, 7 requests.
+Failed: 7 errors, 3 warnings, 8 requests.
 `;
 
 const json = `
@@ -36,9 +48,9 @@ const json = `
   "url": "http://localhost:8787/manifest.json",
   "addon": { "id": "org.example.broken", "name": "Broken example", "version": "1.0.0" },
   "ok": false,
-  "errors": 3,
-  "warnings": 1,
-  "requests": 7,
+  "errors": 7,
+  "warnings": 3,
+  "requests": 8,
   "problems": [
     {
       "level": "error",
@@ -190,7 +202,7 @@ const toc: [string, string][] = [
     </li>
     <li>
       <strong>Paging that ends.</strong> For catalogs with <code>skip</code>, each page brings new
-      items, and a <code>skip</code> far past the end answers an empty list.
+      items, and a <code>skip</code> far past the end doesn’t bring the first items again.
     </li>
     <li>
       <strong>IDs that come back.</strong> Items from the catalogs are asked for by ID,

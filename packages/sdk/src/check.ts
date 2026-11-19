@@ -202,7 +202,13 @@ const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 export async function checkAddon(input: string, options: CheckOptions = {}): Promise<CheckReport> {
   const manifestUrl = manifestUrlOf(input);
   if (!manifestUrl) throw new Error(`Not an add-on address: ${input}`);
-  const base = manifestUrl.slice(0, -'manifest.json'.length);
+  // A query, such as a key, goes with every request, as the app sends it.
+  const queryAt = manifestUrl.indexOf('?');
+  const query = queryAt < 0 ? '' : manifestUrl.slice(queryAt);
+  const base = manifestUrl.slice(
+    0,
+    (queryAt < 0 ? manifestUrl.length : queryAt) - 'manifest.json'.length,
+  );
   const fetcher: CheckFetch = options.fetch ?? ((url, init) => globalThis.fetch(url, init));
   const perCatalog = options.items ?? 2;
   const pages = Math.max(1, options.pages ?? 3);
@@ -244,22 +250,42 @@ export async function checkAddon(input: string, options: CheckOptions = {}): Pro
     absolute = false,
   ): Promise<Answer | null> {
     if (requests >= maxRequests) {
-      if (!stopped) notes.push(`Stopped after ${maxRequests} requests.`);
+      if (!stopped)
+        report(
+          'warning',
+          'http',
+          base,
+          `Stopped after ${maxRequests} requests, so not everything was checked. Check fewer items with --items or --pages.`,
+        );
       stopped = true;
       return null;
     }
     requests += 1;
-    const url = absolute ? path : new URL(path, base).toString();
+    const url = absolute ? path : `${new URL(path, base).toString()}${query}`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const started = Date.now();
+    // An add-on's own fetch may ignore the signal, so the wait itself gives up too.
+    const timedOut = new Promise<never>((_resolve, reject) =>
+      controller.signal.addEventListener('abort', () => reject(new Error('timed out'))),
+    );
     try {
-      const response = await fetcher(url, {
-        ...init,
-        signal: controller.signal,
-        headers: { Accept: 'application/json', ...(init.headers as Record<string, string>) },
-      });
-      const text = init.method === 'OPTIONS' ? '' : await response.text();
+      const { response, text } = await Promise.race([
+        (async () => {
+          const response = await fetcher(url, {
+            ...init,
+            signal: controller.signal,
+            headers: { Accept: 'application/json', ...(init.headers as Record<string, string>) },
+          });
+          // Audio is never read: a host that ignores Range would send the whole file.
+          if (init.method === 'OPTIONS' || kind === 'audio') {
+            await response.body?.cancel().catch(() => undefined);
+            return { response, text: '' };
+          }
+          return { response, text: await response.text() };
+        })(),
+        timedOut,
+      ]);
       const elapsed = Date.now() - started;
       if (elapsed > slowMs)
         report(
