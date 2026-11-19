@@ -8,11 +8,12 @@ import { DEFAULT_PROFILE_ID as ME } from '../src/profiles';
 import { bookFiles } from '../src/schema';
 
 // What series cost in M43's 10,000 books when a third of them name one (M115): worked out each
-// time, and kept for one library version. `pnpm --filter @lelap/core bench`.
+// time, and kept for one library version. `pnpm --filter @lelap/core bench`. Budgets as in
+// library.bench.ts (M106): about three times the median in docs/milestones/m115.md.
 
-const results: { what: string; median: number }[] = [];
+const results: { what: string; median: number; budget?: number | undefined }[] = [];
 
-function measure(what: string, run: () => unknown, runs = 15): void {
+function measure(what: string, run: () => unknown, runs = 15, budget?: number): void {
   run();
   const times: number[] = [];
   for (let i = 0; i < runs; i++) {
@@ -24,12 +25,22 @@ function measure(what: string, run: () => unknown, runs = 15): void {
   results.push({
     what,
     median: Math.round((times[Math.floor(times.length / 2)] ?? 0) * 100) / 100,
+    budget,
   });
 }
 
 afterAll(() => {
-  const lines = results.map((r) => `${r.what.padEnd(48)} ${String(r.median).padStart(9)} ms`);
-  process.stdout.write(`\nMedian time per run:\n${lines.join('\n')}\n\n`);
+  const over = (r: (typeof results)[number]) => r.budget !== undefined && r.median > r.budget;
+  const lines = results.map((r) => {
+    const budget =
+      r.budget === undefined ? '' : `  budget ${r.budget} ms${over(r) ? '  OVER' : ''}`;
+    return `${r.what.padEnd(48)} ${String(r.median).padStart(9)} ms${budget}`;
+  });
+  process.stdout.write(`\nMedian per run:\n${lines.join('\n')}\n\n`);
+  expect(
+    results.filter(over).map((r) => r.what),
+    'over budget',
+  ).toEqual([]);
 });
 
 describe('series in 10,000 books', () => {
@@ -58,15 +69,18 @@ describe('series in 10,000 books', () => {
   it('Series view, series page, next in the series', () => {
     expect(listSeries(db, ME).length).toBe(400);
     const key = listSeries(db, ME)[0]?.key ?? '';
-    measure('listSeries, worked out', () => listSeries(db, ME), 5);
+    measure('listSeries, worked out', () => listSeries(db, ME), 5, 400);
     measure('getSeries, worked out', () => getSeries(db, ME, key), 5);
     measure('nextInSeries, worked out', () => nextInSeries(db, ME, 'bench-book-0'), 5);
     let version = 0;
     measure('listSeries, new library version each time', () => listSeries(db, ME, ++version), 5);
-    measure('listSeries, same library version', () => listSeries(db, ME, version));
+    measure('listSeries, same library version', () => listSeries(db, ME, version), 15, 1);
     measure('getSeries, same library version', () => getSeries(db, ME, key, version));
-    measure('nextInSeries, same library version', () =>
-      nextInSeries(db, ME, 'bench-book-0', version),
+    measure(
+      'nextInSeries, same library version',
+      () => nextInSeries(db, ME, 'bench-book-0', version),
+      15,
+      1,
     );
   });
 });
