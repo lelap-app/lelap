@@ -7,7 +7,9 @@ import {
   hideBooks,
   isKidsProfile,
   type LibraryBook,
+  listAllBooks,
   listBooks,
+  listBooksFrom,
   type ListeningStatus,
   listPlaylistsWithCounts,
   listTags,
@@ -58,6 +60,7 @@ import { chooseFolder, scanLibrary } from '../../src/scan';
 import { Pill } from '../../src/components/Pill';
 import { TextButton } from '../../src/components/TextButton';
 import { LIST_COLUMN } from '../../src/layout';
+import { startupMark } from '../../src/startup';
 
 /** `progress` is the grouped view (M79); Title and Author are flat lists; Series lists series (M109). */
 type LibraryView = 'progress' | 'title' | 'author' | 'series';
@@ -117,6 +120,14 @@ function GroupTitle({
   );
 }
 
+let rowsMarked = false;
+/** The first time the Library has rows to show, for the start's timings (M106). */
+function markLibraryRows() {
+  if (rowsMarked) return;
+  rowsMarked = true;
+  startupMark('library-rows');
+}
+
 export default function LibraryScreen() {
   const network = useNetworkState();
   const { version, refresh } = useLibrary();
@@ -137,17 +148,15 @@ export default function LibraryScreen() {
   const hasRoots = useMemo(() => listRoots(db).length > 0, [version]);
   const grouped = view === 'progress' && !showHidden;
   const bySeries = view === 'series' && !showHidden;
+  // Read once for the list and the lists' counts: the biggest read of the first draw (M106).
+  const all = useMemo(() => listAllBooks(db, profileId), [version]);
   // The Hidden view stays one flat list; in the grouped view each group sorts itself.
-  const books = useMemo(
-    () =>
-      listBooks(
-        db,
-        profileId,
-        view === 'progress' ? 'recent' : view === 'series' ? 'title' : view,
-        showHidden ? 'hidden' : 'visible',
-      ),
-    [view, version, showHidden],
-  );
+  const books = useMemo(() => {
+    const sort = view === 'progress' ? 'recent' : view === 'series' ? 'title' : view;
+    return showHidden
+      ? listBooks(db, profileId, sort, 'hidden')
+      : listBooksFrom(db, profileId, all, sort);
+  }, [view, all, showHidden]);
   // Read again on `version`, so switching profiles shows the new listener's choice.
   const [toggled, setToggled] = useState(0);
   const finishedOpen = useMemo(
@@ -191,8 +200,11 @@ export default function LibraryScreen() {
   // Only what this profile sees in its Library (a kids profile sees its shelf).
   const music = useMemo(() => books.filter((b) => musicIds.has(b.id)), [books, musicIds]);
   const next = useMemo(() => continueListening(db, profileId), [version]);
-  const lists = useMemo(() => listPlaylistsWithCounts(db, profileId), [version]);
+  const lists = useMemo(() => listPlaylistsWithCounts(db, profileId, all), [all]);
   const tags = useMemo(() => listTags(db, profileId), [version]);
+  useEffect(() => {
+    if (rows.length > 0) markLibraryRows();
+  }, [rows]);
 
   const [choosingList, setChoosingList] = useState(false);
   const makeList = (name: string, rule: SmartRule | null) => {

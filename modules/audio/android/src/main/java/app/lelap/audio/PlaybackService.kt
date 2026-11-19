@@ -61,10 +61,8 @@ import java.util.TimeZone
 import org.json.JSONArray
 import org.json.JSONObject
 
-private const val TIMER_TICK_MS = 250L
-private const val CHAPTER_TICK_MS = 1_000L
 // A chapter or episode timer's end moves with seeks and speed; the app hears it this often.
-private const val BOUNDARY_PUBLISH_TICKS = 20
+private const val BOUNDARY_PUBLISH_MS = 5_000L
 // How long the sensor may hold accelerometer samples before handing them over; a shake answers
 // this much later at most.
 private const val SHAKE_BATCH_US = 200_000
@@ -100,7 +98,7 @@ class PlaybackService : MediaLibraryService() {
   private var boundaryMessage: PlayerMessage? = null
   // A podcast's outro (M45): the message that ends the episode where its outro starts.
   private var outroMessage: PlayerMessage? = null
-  private var ticksSincePublish = 0
+  private var boundaryPublishedAt = 0L
 
   // The step the notification's sleep timer button last started, and the button's last state.
   private var sleepPressed: SleepStep? = null
@@ -225,10 +223,15 @@ class PlaybackService : MediaLibraryService() {
   // is not what the listener hears: no pause, and no place from it.
   private var handingOver = false
 
+  // Wakes at the next chapter mark rather than every second (M106); seeks and speed restart it.
   private val chapterTicker = object : Runnable {
     override fun run() {
       updateChapterTitle()
-      if (active.isPlaying) handler.postDelayed(this, CHAPTER_TICK_MS)
+      val p = active
+      val playlist = current ?: return
+      if (!p.isPlaying) return
+      val wait = Battery.chapterTickMs(playlist, p.currentMediaItemIndex, p.currentPosition, p.playbackParameters.speed)
+      handler.postDelayed(this, wait)
     }
   }
 
@@ -247,12 +250,13 @@ class PlaybackService : MediaLibraryService() {
     }
   }
 
+  // Every 5 s until the fade, then every quarter second (M106); seeks and speed restart it.
   private val timerTicker = object : Runnable {
     override fun run() {
       sleepTimer.tick()
       updateShakeListening()
-      if (sleepBoundaryMs != null && ++ticksSincePublish >= BOUNDARY_PUBLISH_TICKS) publishExtras()
-      if (sleepTimer.isRunning) handler.postDelayed(this, TIMER_TICK_MS)
+      if (sleepBoundaryMs != null && SystemClock.elapsedRealtime() - boundaryPublishedAt >= BOUNDARY_PUBLISH_MS) publishExtras()
+      if (sleepTimer.isRunning) handler.postDelayed(this, Battery.sleepTickMs(sleepTimer.remainingMs))
     }
   }
 
@@ -374,6 +378,7 @@ class PlaybackService : MediaLibraryService() {
           writeJournal(PositionJournal.Event.SPEED)
         }
         if (sleepBoundaryMs != null) publishExtras()
+        retime()
       }
 
       override fun onEvents(player: Player, events: Player.Events) = publishNowPlaying()
@@ -573,6 +578,7 @@ class PlaybackService : MediaLibraryService() {
         placeOutro()
         remote?.setOutro(remoteOutroAt())
         updateChapterTitle()
+        retime()
         // A chapter timer moves to the end of the chapter playing now.
         if (sleepBoundaryMs != null) placeBoundary()
         writeJournal(PositionJournal.Event.ITEM_CHANGE)
@@ -724,7 +730,14 @@ class PlaybackService : MediaLibraryService() {
     return MediaSession.MediaItemsWithStartPosition(mediaItems(playlist), index, start)
   }
 
-  private fun mediaItems(playlist: BookPlaylist): List<MediaItem> = playlist.files.mapIndexed { index, file ->
+  // Every book the player gets passes here (the app, the car, playback resumption), so the wake
+  // mode follows the files: a finished download no longer needs the Wi-Fi lock (M106).
+  private fun mediaItems(playlist: BookPlaylist): List<MediaItem> {
+    player.setWakeMode(Battery.wakeModeFor(playlist.files.map { it.uri }))
+    return itemsOf(playlist)
+  }
+
+  private fun itemsOf(playlist: BookPlaylist): List<MediaItem> = playlist.files.mapIndexed { index, file ->
     val uri = Uri.parse(file.uri)
     MediaItem.Builder()
       .setMediaId(file.location)
@@ -1123,6 +1136,8 @@ class PlaybackService : MediaLibraryService() {
     val chapters = current?.chapters.orEmpty().map { it.startMs }
     val boundary = SleepBoundary.boundaryMs(mode, bookPositionNow(durations), chapters, durations)
     sleepBoundaryMs = boundary
+    // The time left changed: the next tick may now fall inside the fade.
+    if (sleepTimer.isRunning) startTicker()
     val target = SleepBoundary.fileTarget(boundary, durations)
     // The book's own end is caught by onBookEnded, which also keeps Up Next from starting.
     if (target.atFileEnd && target.index >= player.mediaItemCount - 1) return
@@ -1145,7 +1160,7 @@ class PlaybackService : MediaLibraryService() {
     boundaryMessage?.cancel()
     boundaryMessage = null
     sleepBoundaryMs = null
-    ticksSincePublish = 0
+    boundaryPublishedAt = SystemClock.elapsedRealtime()
   }
 
   /** A shake near the end of the timer: ten more minutes, at full volume again. */
@@ -1186,7 +1201,7 @@ class PlaybackService : MediaLibraryService() {
 
   private fun startTicker() {
     handler.removeCallbacks(timerTicker)
-    handler.postDelayed(timerTicker, TIMER_TICK_MS)
+    handler.postDelayed(timerTicker, Battery.sleepTickMs(sleepTimer.remainingMs))
   }
 
   private fun onPlayingChanged(isPlaying: Boolean) {
@@ -1225,6 +1240,8 @@ class PlaybackService : MediaLibraryService() {
         System.currentTimeMillis(),
       )
     }
+    // A seek or the next file: the next chapter mark is somewhere else now.
+    retime()
     if (reason != Player.DISCONTINUITY_REASON_SEEK) return
     placeChangedAt = System.currentTimeMillis()
     writeJournal(PositionJournal.Event.SEEK)
@@ -1234,6 +1251,15 @@ class PlaybackService : MediaLibraryService() {
       placeBoundary()
       publishExtras()
     }
+  }
+
+  /** Plans the chapter and sleep timer ticks again after a jump or a new speed. */
+  private fun retime() {
+    if (active.isPlaying) {
+      handler.removeCallbacks(chapterTicker)
+      handler.post(chapterTicker)
+    }
+    if (sleepTimer.isRunning) startTicker()
   }
 
   /** The receiver's player, heard like ExoPlayer but without audio focus: the phone plays nothing. */
@@ -1267,6 +1293,7 @@ class PlaybackService : MediaLibraryService() {
       val speed = remote?.requestedSpeed ?: playbackParameters.speed
       current?.let { current = PositionJournal.withSpeed(it, speed) }
       writeJournal(PositionJournal.Event.SPEED)
+      retime()
     }
 
     override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) =
@@ -1441,7 +1468,7 @@ class PlaybackService : MediaLibraryService() {
 
   private fun publishExtras() {
     if (!::session.isInitialized) return
-    ticksSincePublish = 0
+    boundaryPublishedAt = SystemClock.elapsedRealtime()
     updateShakeListening()
     updateSleepButton()
     session.setSessionExtras(

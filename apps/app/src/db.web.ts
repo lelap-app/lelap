@@ -16,6 +16,8 @@ import { getRandomBytes } from 'expo-crypto';
 import { useEffect, useState } from 'react';
 import initSqlJs, { type Database } from 'sql.js';
 
+import { startupMark } from './startup';
+
 // The web keeps SQLite in memory (sql.js) and saves it to the origin private file system (OPFS)
 // shortly after each change, as chunk files of which only the changed ones are written (M67).
 // expo-sqlite's web build needs cross-origin isolation, which would block covers and audio from
@@ -132,12 +134,14 @@ let opening: Promise<void> | null = null;
 
 function open(): Promise<void> {
   opening ??= (async () => {
+    startupMark('db-open');
     if (!(await holdTabLock())) {
       throw new Error(t('Lelap is open in another tab or window. Close that one and reload this.'));
     }
     const SQL = await initSqlJs({
       locateFile: () => (typeof wasmUrl === 'string' ? wasmUrl : wasmUrl.uri),
     });
+    startupMark('sqljs-ready');
     const root = await opfsRoot();
     saved = root
       ? new ChunkedFile(chunkStore(await root.getDirectoryHandle(FOLDER, { create: true })))
@@ -145,6 +149,7 @@ function open(): Promise<void> {
     // A missing chunk throws here: starting empty would save over the rest of the library.
     const chunks = saved ? await saved.load() : null;
     const old = !chunks && root ? await readOldFile(root) : null;
+    startupMark('db-read');
     sqlite = new SQL.Database(chunks ?? old ?? undefined);
     const database = drizzle(sqlite, { schema });
     real = database;
@@ -154,6 +159,7 @@ function open(): Promise<void> {
     await migrateSafely(database, () =>
       migrate(database as unknown as ExpoSQLiteDatabase<typeof schema>, migrations),
     );
+    startupMark('db-migrated');
     // In full when there are no chunks yet; otherwise only what the migrations changed.
     // Not through save(), which swallows errors: the old file goes only once the chunks are in.
     savedChanges = 0;
@@ -166,9 +172,14 @@ function open(): Promise<void> {
     });
     // Ask the browser not to evict the library under storage pressure.
     void navigator.storage?.persist?.();
+    startupMark('db-ready');
   })();
   return opening;
 }
+
+// Started as soon as this file loads, so reading the library overlaps the rest of the start
+// instead of waiting for the first render (M106). The hook below reports how it went.
+if (typeof window !== 'undefined') open().catch(() => {});
 
 export function useDbReady(): { ready: boolean; error: Error | null } {
   const [status, setStatus] = useState<{ ready: boolean; error: Error | null }>({

@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { createTestDb } from '../test/db';
 import { seedBook } from '../test/seed';
 import { addToShelf, kidCanSee, removeFromShelf, shelfBookIds } from './kids';
-import { continueListening, listBooks, setFinished } from './library/queries';
+import {
+  continueListening,
+  listAllBooks,
+  listBooks,
+  listBooksFrom,
+  setFinished,
+} from './library/queries';
 import { createPlaylist, listPlaylists } from './organise';
 import { createProfile } from './profiles';
 import { saveProgress } from './progress';
@@ -36,6 +42,9 @@ describe('kids profile', () => {
     );
     setFinished(db, kid, grownUp, false, 5);
     expect(listBooks(db, kid, 'title').map((b) => b.id)).toEqual([story]);
+    expect(listBooksFrom(db, kid, listAllBooks(db, kid), 'title').map((b) => b.id)).toEqual([
+      story,
+    ]);
     expect(continueListening(db, kid)).toBeNull();
 
     removeFromShelf(db, kid, story, 6);

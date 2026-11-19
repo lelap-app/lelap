@@ -69,6 +69,7 @@ import {
   serverPlacesFinished,
   trackServerPlaces,
 } from './serverPlaces';
+import { startupMark } from './startup';
 
 export const IDLE: audio.PlayerState = {
   connected: false,
@@ -92,6 +93,8 @@ export const IDLE: audio.PlayerState = {
 };
 
 const SAVE_INTERVAL_MS = 10_000;
+// In the background the player reports every 10 s (M106); one that lands a moment early still saves.
+const SAVE_SLACK_MS = 1_000;
 
 type Library = {
   /** Bumped whenever stored library data may have changed; screens re-read on change. */
@@ -669,6 +672,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const start = async () => {
       const folded = foldJournal().catch(logCaught);
       await Promise.race([folded, new Promise((resolve) => setTimeout(resolve, JOURNAL_WAIT_MS))]);
+      startupMark('journal-folded');
       setJournalFolded(true);
       // The startup load still waits for the journal, so it starts at the newest place.
       await folded;
@@ -772,7 +776,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const paused = wasPlaying.current && !state.playing;
     wasPlaying.current = state.playing;
     const now = Date.now();
-    if (!paused && !(state.playing && now - lastSave.current >= SAVE_INTERVAL_MS)) return;
+    if (!paused && !(state.playing && now - lastSave.current >= SAVE_INTERVAL_MS - SAVE_SLACK_MS))
+      return;
     lastSave.current = now;
     if (audio.countsInService) {
       void foldServiceAccounting(playerProfile()).then((added) => {

@@ -13,7 +13,7 @@ import {
 } from '@lelap/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   PermissionsAndroid,
   Platform,
@@ -39,6 +39,7 @@ import { openCatalog, openItem, openPlayer } from '../../src/navigation';
 import { canNotify } from '../../src/platform/downloads';
 import { playBook, useLibrary } from '../../src/player';
 import { profileId } from '../../src/profile';
+import { startupMark } from '../../src/startup';
 import { Pill } from '../../src/components/Pill';
 import { SuggestionRows } from '../../src/components/SuggestionRows';
 import { TextButton } from '../../src/components/TextButton';
@@ -67,8 +68,17 @@ function WantedAlertsHint({ onDone }: { onDone: () => void }) {
   );
 }
 
+let homeMarked = false;
+/** The first time Home is on screen, for the start's timings (M106). */
+function markHome() {
+  if (homeMarked) return;
+  homeMarked = true;
+  startupMark('home-drawn');
+}
+
 export default function HomeScreen() {
   const { version, refresh } = useLibrary();
+  useEffect(markHome, []);
   // `version` is the signal to re-read the database.
   const profiles = useMemo(() => listProfiles(db), [version]);
   const me = useMemo(() => getProfile(db, profileId), [version]);

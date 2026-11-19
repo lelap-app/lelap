@@ -9,12 +9,15 @@ import { utf8ToBytes } from '@noble/hashes/utils.js';
  * Writing the manifest is the commit: a save cut short leaves the old manifest and its chunks
  * whole, and the next save clears the strays.
  *
- * A chunk counts as changed when its bytes differ from the last load or save, kept in memory
- * (M80): hashing every chunk took about a second per save at 10,000 books on plain http.
+ * A chunk counts as changed when its fingerprint differs from the one of the last load or save
+ * (M106): two 32-bit hashes of different make, so a change slips through about once in 2^64.
+ * M80 kept a whole copy to compare with instead, 49 MB at 10,000 books; SHA-256 before that took
+ * about a second per save on plain http.
  */
 
 export const CHUNK_BYTES = 256 * 1024;
 export const MANIFEST = 'manifest.json';
+const READS_AT_ONCE = 16;
 
 /** A folder of files; `write` replaces a file in one step (OPFS `createWritable` does). */
 export type ChunkStore = {
@@ -61,27 +64,54 @@ const chunksOf = (bytes: Uint8Array, size: number): Uint8Array[] => {
   return chunks;
 };
 
-/** Whether two chunks hold the same bytes; four at a time where both line up. */
-export function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  let i = 0;
-  if (a.byteOffset % 4 === 0 && b.byteOffset % 4 === 0) {
-    const words = a.length >>> 2;
-    const x = new Uint32Array(a.buffer, a.byteOffset, words);
-    const y = new Uint32Array(b.buffer, b.byteOffset, words);
-    for (let w = 0; w < words; w++) if (x[w] !== y[w]) return false;
-    i = words << 2;
+/**
+ * A chunk's fingerprint: a murmur3-style and an xxHash-style 32-bit hash, which mix differently,
+ * so a change has to fool both. Not for anything an attacker controls; only for noticing change.
+ */
+export function chunkPrint(bytes: Uint8Array): [number, number] {
+  let a = 0x9747b28c ^ bytes.length;
+  let b = 0x165667b1 + bytes.length;
+  const whole = bytes.length >>> 2;
+  // Whole words straight from memory where they line up, as most chunks do.
+  const words =
+    bytes.byteOffset % 4 === 0 ? new Uint32Array(bytes.buffer, bytes.byteOffset, whole) : null;
+  for (let w = 0; w < whole; w++) {
+    const at = w << 2;
+    const k = words
+      ? (words[w] as number) | 0
+      : (bytes[at] as number) |
+        ((bytes[at + 1] as number) << 8) |
+        ((bytes[at + 2] as number) << 16) |
+        ((bytes[at + 3] as number) << 24) |
+        0;
+    let m = Math.imul(k, 0xcc9e2d51);
+    m = (m << 15) | (m >>> 17);
+    a ^= Math.imul(m, 0x1b873593);
+    a = (a << 13) | (a >>> 19);
+    a = (Math.imul(a, 5) + 0xe6546b64) | 0;
+    b = (b + Math.imul(k, 0x85ebca77)) | 0;
+    b = Math.imul((b << 13) | (b >>> 19), 0x9e3779b1);
   }
-  for (; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
+  for (let i = whole << 2; i < bytes.length; i++) {
+    const k = (bytes[i] as number) | 0x100;
+    a = Math.imul(a ^ k, 0x01000193);
+    b = Math.imul((b + k) | 0, 0x9e3779b1);
+  }
+  a ^= a >>> 16;
+  a = Math.imul(a, 0x85ebca6b);
+  a ^= a >>> 13;
+  b ^= b >>> 15;
+  b = Math.imul(b, 0xc2b2ae3d);
+  b ^= b >>> 16;
+  return [a >>> 0, b >>> 0];
 }
 
 export type SaveResult = { chunksWritten: number; bytesWritten: number };
 
 export class ChunkedFile {
   private manifest: Manifest | null = null;
-  // A copy of what the manifest names, to compare the next save with.
-  private last: Uint8Array = new Uint8Array(0);
+  // The fingerprint of each chunk the manifest names, two numbers each, to compare the next save with.
+  private prints = new Uint32Array(0);
   // Never reused, so a save never overwrites a file the current manifest names.
   private generation = 0;
 
@@ -101,17 +131,26 @@ export class ChunkedFile {
     if (!manifest) throw new Error('The saved library’s list of parts can’t be read.');
     this.generation = manifest.generation;
     const bytes = new Uint8Array(manifest.size);
-    for (const [i, name] of manifest.chunks.entries()) {
-      const chunk = await this.store.read(name);
-      const start = i * manifest.chunkBytes;
-      const length = Math.min(manifest.chunkBytes, manifest.size - start);
-      if (!chunk || chunk.length !== length) throw new Error(`The saved library lost part ${i}.`);
-      bytes.set(chunk, start);
+    // A few reads at a time: one after another, each waits for the file system (M106).
+    for (let from = 0; from < manifest.chunks.length; from += READS_AT_ONCE) {
+      const names = manifest.chunks.slice(from, from + READS_AT_ONCE);
+      const read = await Promise.all(names.map((name) => this.store.read(name)));
+      for (const [j, chunk] of read.entries()) {
+        const i = from + j;
+        const start = i * manifest.chunkBytes;
+        const length = Math.min(manifest.chunkBytes, manifest.size - start);
+        if (!chunk || chunk.length !== length) throw new Error(`The saved library lost part ${i}.`);
+        bytes.set(chunk, start);
+      }
     }
     // A manifest made with another chunk size is rewritten in full on the next save.
     if (manifest.chunkBytes === this.chunkBytes) {
       this.manifest = manifest;
-      this.last = bytes.slice();
+      this.prints = new Uint32Array(manifest.chunks.length * 2);
+      for (let i = 0; i < manifest.chunks.length; i++) {
+        const start = i * this.chunkBytes;
+        this.remember(i, bytes.subarray(start, start + this.chunkBytes));
+      }
     }
     return bytes;
   }
@@ -122,17 +161,16 @@ export class ChunkedFile {
     const generation = this.generation + 1;
     const chunks = chunksOf(bytes, this.chunkBytes);
     const names: string[] = [];
-    const changed: number[] = [];
+    const prints = new Uint32Array(chunks.length * 2);
     let bytesWritten = 0;
     let chunksWritten = 0;
     for (const [i, chunk] of chunks.entries()) {
       const old = previous?.chunks[i];
-      const start = i * this.chunkBytes;
-      // Compared at its saved length: a last chunk that shrank or grew is a new file.
-      if (
-        old !== undefined &&
-        sameBytes(chunk, this.last.subarray(start, start + this.chunkBytes))
-      ) {
+      const [a, b] = chunkPrint(chunk);
+      prints[i * 2] = a;
+      prints[i * 2 + 1] = b;
+      // The length is part of the print: a last chunk that shrank or grew is a new file.
+      if (old !== undefined && this.prints[i * 2] === a && this.prints[i * 2 + 1] === b) {
         names.push(old);
       } else {
         const name = `${i}.${generation}`;
@@ -140,7 +178,6 @@ export class ChunkedFile {
         names.push(name);
         bytesWritten += chunk.length;
         chunksWritten++;
-        changed.push(i);
       }
     }
     const manifest: Manifest = {
@@ -152,18 +189,16 @@ export class ChunkedFile {
     };
     await this.store.write(MANIFEST, utf8ToBytes(JSON.stringify(manifest)));
     this.manifest = manifest;
-    // Only the written chunks are copied, unless the size changed.
-    if (this.last.length !== bytes.length) {
-      this.last = bytes.slice();
-    } else {
-      for (const i of changed) {
-        const start = i * this.chunkBytes;
-        this.last.set(bytes.subarray(start, start + this.chunkBytes), start);
-      }
-    }
+    this.prints = prints;
     this.generation = generation;
     await this.prune();
     return { chunksWritten, bytesWritten };
+  }
+
+  private remember(i: number, chunk: Uint8Array): void {
+    const [a, b] = chunkPrint(chunk);
+    this.prints[i * 2] = a;
+    this.prints[i * 2 + 1] = b;
   }
 
   /** Removes chunk files the manifest no longer names, such as those of a save cut short. */

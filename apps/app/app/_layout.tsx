@@ -38,6 +38,7 @@ import { registerBackgroundRefresh } from '../src/background';
 import { COLORS } from '../src/components/Icon';
 import { ThemeRoot, useTheme, useThemeKey } from '../src/theme';
 import { useFold } from '../src/layout';
+import { startupMark } from '../src/startup';
 
 /** Installs the default add-ons on first start and refreshes manifests on every start. */
 function AddonSync() {
@@ -87,7 +88,9 @@ export default function RootLayout() {
     return ready;
   }, [ready]);
   useEffect(() => {
-    if (ready) startDiagnostics();
+    if (!ready) return;
+    startupMark('root-ready');
+    startDiagnostics();
   }, [ready]);
 
   if (error) {
