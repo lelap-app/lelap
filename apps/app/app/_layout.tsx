@@ -1,7 +1,7 @@
 import '../global.css';
 
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { I18nManager, Text, useWindowDimensions, View } from 'react-native';
@@ -76,7 +76,10 @@ export default function RootLayout() {
   const theme = useTheme();
   // A new theme draws the screens again, as a new language does.
   const look = `${language} ${useThemeKey()}`;
-  const fold = useFold();
+  const pathname = usePathname();
+  const hinge = useFold();
+  // The full-screen player and car mode cover the whole window, across the hinge.
+  const fold = pathname === '/player' || pathname === '/car' ? ({ kind: 'none' } as const) : hinge;
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   // Before anything reads or saves: the profile this device used last.
   const profileLoaded = useMemo(() => {

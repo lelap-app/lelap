@@ -1,6 +1,6 @@
 import { usePathname, useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { BackHandler, View } from 'react-native';
 
 import { t } from '../i18n';
 import { useColumns, usePaneWidths } from '../layout';
@@ -20,14 +20,24 @@ export function DetailPane() {
   const router = useRouter();
   const { detail: width } = usePaneWidths();
 
+  const covered = pathname === '/player' || pathname === '/car';
   useEffect(() => {
-    if (page && columns < 3) {
-      closeDetail();
-      router.push(page);
-    }
-  }, [page, columns, router]);
+    if (!page || columns === 3) return;
+    closeDetail();
+    if (!covered) router.push(page);
+  }, [page, columns, covered, router]);
 
-  if (!page || columns < 3 || pathname === '/player' || pathname === '/car') return null;
+  // On a tablet, Back closes the column before it leaves the screen beside it.
+  useEffect(() => {
+    if (!page || columns < 3 || covered) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      closeDetail();
+      return true;
+    });
+    return () => sub.remove();
+  }, [page, columns, covered]);
+
+  if (!page || columns < 3 || covered) return null;
   return (
     <>
       <Divider pane="detail" width={width} label={t('Page width')} />

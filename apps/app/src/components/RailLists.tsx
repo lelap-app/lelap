@@ -11,6 +11,7 @@ import { AccessibilityInfo, Pressable, ScrollView, Text, View } from 'react-nati
 
 import { t } from '../i18n';
 import { db, newId } from '../db';
+import { showAlert } from '../dialog';
 import { DropTarget, useDragging } from '../drag';
 import { useLibrary } from '../player';
 import { profileId } from '../profile';
@@ -33,15 +34,23 @@ function RailList({ list }: { list: Playlist }) {
   const drop = (item: DragItem) => {
     if (!takes) return;
     const now = Date.now();
-    const bookId = item.kind === 'episode' ? episodeBook(db, item.id, now, newId) : item.id;
-    addToPlaylist(db, profileId, list.id, bookId, now);
-    refresh();
-    setAdded(true);
-    AccessibilityInfo.announceForAccessibility(t('Added to {name}', { name: list.name }));
+    try {
+      const bookId = item.kind === 'episode' ? episodeBook(db, item.id, now, newId) : item.id;
+      const fresh = addToPlaylist(db, profileId, list.id, bookId, now);
+      refresh();
+      setAdded(true);
+      AccessibilityInfo.announceForAccessibility(
+        fresh
+          ? t('Added to {name}', { name: list.name })
+          : t('Already in {name}', { name: list.name }),
+      );
+    } catch (error) {
+      showAlert(t('Lists'), error instanceof Error ? error.message : String(error));
+    }
   };
 
   return (
-    <DropTarget onDrop={drop}>
+    <DropTarget onDrop={drop} enabled={takes}>
       {(over) => {
         const lit = takes && (over || added);
         // Lit while a drag is over it and just after a drop: where it lands, not a choice.

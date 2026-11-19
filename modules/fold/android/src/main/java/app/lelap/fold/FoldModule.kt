@@ -21,7 +21,8 @@ private const val CHANGE_EVENT = "onChange"
 class FoldModule : Module() {
   private var tracker: WindowInfoTrackerCallbackAdapter? = null
   private var activity: Activity? = null
-  private var hinge: Hinge? = null
+  // Written on the main thread, read by `current()` on the JavaScript thread.
+  @Volatile private var hinge: Hinge? = null
   private val listener = Consumer<WindowLayoutInfo> { info -> onLayout(info) }
 
   override fun definition() = ModuleDefinition {

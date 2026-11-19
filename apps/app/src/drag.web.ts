@@ -28,6 +28,12 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+// A row that scrolls out of a long list mid-drag never hears its own dragend.
+if (typeof window !== 'undefined') {
+  window.addEventListener('dragend', () => setDragging(false));
+  window.addEventListener('drop', () => setDragging(false));
+}
+
 const readDragging = () => dragging;
 
 export function useDragging(): boolean {
@@ -64,9 +70,11 @@ export function Draggable({ item, children }: { item: DragItem; children: ReactN
 /** A list in the rail that takes a dragged book or episode; `children` draws it, lit while over. */
 export function DropTarget({
   onDrop,
+  enabled,
   children,
 }: {
   onDrop: (item: DragItem) => void;
+  enabled: boolean;
   children: (over: boolean) => ReactNode;
 }) {
   const ref = useRef<HTMLElement | null>(null);
@@ -75,7 +83,7 @@ export function DropTarget({
   drop.current = onDrop;
   useEffect(() => {
     const node = ref.current;
-    if (!node) return;
+    if (!node || !enabled) return;
     // Only Lelap's own drags: a file or a link dropped here does nothing.
     const ours = (event: DragEvent) => event.dataTransfer?.types.includes(DRAG_TYPE) === true;
     const enter = (event: DragEvent) => {
@@ -105,7 +113,7 @@ export function DropTarget({
       node.removeEventListener('dragleave', leave);
       node.removeEventListener('drop', take);
     };
-  }, []);
+  }, [enabled]);
   return createElement(
     View,
     { ref: ref as unknown as Ref<ComponentRef<typeof View>> },

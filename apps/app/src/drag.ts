@@ -20,6 +20,7 @@ export function DropTarget({
   children,
 }: {
   onDrop: (item: DragItem) => void;
+  enabled: boolean;
   children: (over: boolean) => ReactNode;
 }) {
   return children(false);
