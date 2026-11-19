@@ -412,6 +412,9 @@ describe('Hardcover catalogs', () => {
       'trending-month',
       'trending-all',
     ]);
+    // Configured, so the app installs it rather than opening the configure page.
+    expect(manifest.behaviorHints?.configurationRequired).toBeUndefined();
+    expect(manifest.behaviorHints?.configurable).toBe(true);
   });
 
   it('keeps the ticks and typed links when the choices page shows an error', async () => {

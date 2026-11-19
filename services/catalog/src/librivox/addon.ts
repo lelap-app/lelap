@@ -15,7 +15,9 @@ import {
   lookupQuery,
   metadataUrl,
   parseItem,
+  parseDocs,
   parseSearch,
+  searchDocs,
   PREFIX,
   searchUrl,
   toMeta,
@@ -79,9 +81,8 @@ const SORTS: Record<string, string> = { new: 'publicdate desc', popular: 'downlo
 
 const STOP_WORDS = new Set(['the', 'an', 'and', 'of', 'or', 'to', 'in', 'on', 'for', 'with']);
 
-function pageOf(skip: string | undefined): number {
-  const value = Math.max(0, parseInt(skip ?? '0', 10) || 0);
-  return Math.floor(value / PAGE_SIZE) + 1;
+function skipOf(skip: string | undefined): number {
+  return Math.max(0, parseInt(skip ?? '0', 10) || 0);
 }
 
 export function createLibrivoxAddon(upstream: Upstream): Addon {
@@ -131,16 +132,22 @@ export function createLibrivoxAddon(upstream: Upstream): Addon {
           const genre = extra.genre && GENRES.includes(extra.genre) ? extra.genre : undefined;
           query = genre ? genreQuery(genre) : '';
         }
-        const data = await upstream.json(
-          searchUrl({
-            query,
-            rows: PAGE_SIZE,
-            page: pageOf(extra.skip),
-            ...(sort ? { sort } : {}),
-          }),
-          { ttl: TTL.catalog },
-        );
-        const metas = parseSearch(data).flatMap((doc) => toPreview(doc) ?? []);
+        // archive.org pages by page number only. A skip between pages starts inside one page and
+        // takes the rest from the next, so a short last page never comes back.
+        const skip = skipOf(extra.skip);
+        const page = Math.floor(skip / PAGE_SIZE) + 1;
+        const offset = skip % PAGE_SIZE;
+        const docsOf = async (number: number) =>
+          searchDocs(
+            await upstream.json(
+              searchUrl({ query, rows: PAGE_SIZE, page: number, ...(sort ? { sort } : {}) }),
+              { ttl: TTL.catalog },
+            ),
+          );
+        let docs = (await docsOf(page)).slice(offset);
+        if (offset > 0 && docs.length === PAGE_SIZE - offset)
+          docs = [...docs, ...(await docsOf(page + 1))];
+        const metas = parseDocs(docs.slice(0, PAGE_SIZE)).flatMap((doc) => toPreview(doc) ?? []);
         return { metas, cacheMaxAge: TTL.catalog };
       },
       async meta({ id }) {

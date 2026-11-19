@@ -130,13 +130,21 @@ export function lookupQuery(titleWords: string[], authorWords: string[]): string
   return authorWords.length > 0 ? `${title} AND creator:(${authorWords.join(' AND ')})` : title;
 }
 
-export function parseSearch(data: unknown): SearchDoc[] {
+/** The documents of one answer as archive.org sent them, unchecked, so they can be counted. */
+export function searchDocs(data: unknown): unknown[] {
   const parsed = SearchResponse.safeParse(data);
-  if (!parsed.success) return [];
-  return parsed.data.response.docs.flatMap((doc) => {
+  return parsed.success ? parsed.data.response.docs : [];
+}
+
+export function parseDocs(docs: unknown[]): SearchDoc[] {
+  return docs.flatMap((doc) => {
     const result = SearchDoc.safeParse(doc);
     return result.success ? [result.data] : [];
   });
+}
+
+export function parseSearch(data: unknown): SearchDoc[] {
+  return parseDocs(searchDocs(data));
 }
 
 export function parseItem(data: unknown): Item | null {

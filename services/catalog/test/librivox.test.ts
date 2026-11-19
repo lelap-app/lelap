@@ -125,6 +125,29 @@ describe('LibriVox catalogs', () => {
     expect(unknownGenre?.get('sort[]')).toBe('publicdate desc');
   });
 
+  it('starts a skip between pages inside one page and ends past the last', async () => {
+    // 40 recordings: a full page of 30, then 10.
+    const doc = (n: number) => ({ identifier: `book_${n}`, title: `Book ${n}` });
+    const all = Array.from({ length: 40 }, (_, n) => doc(n));
+    const page = (n: number) => (u: URL) =>
+      u.pathname === '/advancedsearch.php' && u.searchParams.get('page') === String(n);
+    const { get, fetch } = setup([
+      [page(1), { response: { docs: all.slice(0, 30) } }],
+      [page(2), { response: { docs: all.slice(30) } }],
+      [path('/advancedsearch.php'), { response: { docs: [] } }],
+    ]);
+    const ids = async (skip: number) =>
+      ((await get(`catalog/audiobook/new/skip=${skip}.json`)).body.metas as MetaPreview[]).map(
+        (m) => m.id,
+      );
+    expect(await ids(25)).toEqual(Array.from({ length: 15 }, (_, n) => `librivox:book_${n + 25}`));
+    expect(fetch.calls.map((c) => c.url.searchParams.get('page'))).toEqual(['1', '2']);
+    expect(await ids(30)).toHaveLength(10);
+    expect(await ids(35)).toEqual([35, 36, 37, 38, 39].map((n) => `librivox:book_${n}`));
+    expect(await ids(40)).toEqual([]);
+    expect(await ids(1000)).toEqual([]);
+  });
+
   it('skips search documents without a title', () => {
     const docs = parseSearch({ response: { docs: [{ identifier: 'a' }, { title: 'No id' }] } });
     expect(docs.map(toPreview)).toEqual([null]);

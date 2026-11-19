@@ -61,19 +61,12 @@ describe('the add-on test kit', () => {
     expect(report.problems, formatReport(report)).toEqual([]);
   });
 
-  it('passes LibriVox, but for paging off a page boundary', async () => {
+  it('passes LibriVox', async () => {
     const report = await check('librivox/', {
       items: 0,
       ids: [{ type: 'audiobook', id: 'librivox:secret_garden_librivox' }],
     });
-    // Known, kept for M102: it rounds skip down to its page of 30, so after a short last page the
-    // next skip lands on that page again.
-    expect(
-      report.problems.map((p) => [p.level, p.kind, p.url]),
-      formatReport(report),
-    ).toEqual([
-      ['warning', 'paging', 'https://addons.test/librivox/catalog/audiobook/new/skip=3.json'],
-    ]);
+    expect(report.problems, formatReport(report)).toEqual([]);
   });
 
   it('passes the Internet Archive', async () => {
@@ -81,17 +74,11 @@ describe('the add-on test kit', () => {
     expect(report.problems, formatReport(report)).toEqual([]);
   });
 
-  it('finds what Hardcover and gPodder answer before they are configured', async () => {
-    // Known, kept for M102: the manifest offers health and catalogs without saying it needs
-    // configuring first, and both answer 401 until it is.
-    const hardcover = await check('hardcover/');
-    expect(hardcover.problems.map((p) => [p.level, p.kind, p.message])).toEqual([
-      ['error', 'health', 'Answered 401; expected 200.'],
-      ['error', 'catalog', 'Answered 401; expected 200.'],
-    ]);
-    const gpodder = await check('gpodder/');
-    expect(gpodder.problems.map((p) => [p.level, p.kind, p.message])).toEqual([
-      ['error', 'health', 'Answered 401; expected 200.'],
-    ]);
+  it('passes Hardcover and gPodder before they are configured', async () => {
+    for (const mount of ['hardcover/', 'gpodder/']) {
+      const report = await check(mount);
+      expect(report.problems, formatReport(report)).toEqual([]);
+      expect(report.notes.join(' ')).toContain('must be configured first');
+    }
   });
 });
