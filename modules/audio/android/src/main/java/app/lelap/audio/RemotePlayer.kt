@@ -101,8 +101,9 @@ class RemotePlayer(
   }
 
   private fun applyFade() {
-    val volume = fade.update(fadeLevel, session.volume, SystemClock.elapsedRealtime()) ?: return
-    link.setVolume(volume)
+    fade.update(fadeLevel, session.volume, SystemClock.elapsedRealtime())?.let(link::setVolume)
+    // A speaker that joins a group meanwhile is lowered as much as the others.
+    link.setFadeScale(if (fade.isFading) fadeLevel.coerceIn(0f, 1f) else 1f)
   }
 
   private fun onStatus(status: RendererStatus) {

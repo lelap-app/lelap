@@ -154,9 +154,10 @@ export function rememberedGroups(): CastGroup[] {
   return getSettings(db, profileId).castGroups;
 }
 
-function remember(session: CastSession): void {
-  if (session.members.length < 2) return;
-  const ids = session.members.map((m) => m.id);
+// The speakers the listener chose: at the start, or the whole group once one joined. A group
+// that one speaker left isn't kept as a new one.
+function remember(ids: string[]): void {
+  if (ids.length < 2) return;
   setSetting(db, profileId, 'castGroups', rememberCastGroup(rememberedGroups(), ids), Date.now());
 }
 
@@ -192,7 +193,7 @@ export async function startCasting(
           : t('Couldn’t reach {names}; the others play.', { names: unreached.join(', ') }),
     });
     await local.castTo();
-    remember(session);
+    remember(devices.map((d) => d.id));
   } catch (e) {
     // Without local network access the sheet shows its explanation instead of an error line.
     const error = isLocalNetworkDenied(e) ? null : message(e);
@@ -213,8 +214,10 @@ export async function joinSpeaker(device: CastDevice, anyway = false): Promise<v
   refused = null;
   try {
     const session = await cast.join(device.id, anyway);
+    // The session may have ended while the speaker joined.
+    if (snapshot.device?.id !== session.id) return;
     update({ device: session });
-    remember(session);
+    remember(session.members.map((m) => m.id));
   } catch (e) {
     const error = isLocalNetworkDenied(e) ? null : message(e);
     const untrusted = isUntrusted(e);
@@ -230,8 +233,7 @@ export async function leaveSpeaker(device: CastDevice): Promise<void> {
   update({ error: null, untrusted: false, notice: null });
   try {
     const session = await cast.leave(device.id);
-    update({ device: session });
-    remember(session);
+    if (snapshot.device?.id === session.id) update({ device: session });
   } catch (e) {
     update({ error: message(e) });
     throw e;

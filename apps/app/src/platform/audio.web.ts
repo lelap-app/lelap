@@ -623,6 +623,9 @@ export async function promptWebCast(): Promise<void> {
   if (!remote) throw new Error(t('This browser can’t cast.'));
   try {
     await remote.prompt();
+    // Some browsers resolve when their list closes without a choice: nothing casts, so the
+    // effects come back.
+    if (swapped && !remoting()) restoreEffects();
   } catch (e) {
     // Cancelled: the effects come back.
     if (swapped && !remoting()) restoreEffects();
@@ -878,6 +881,9 @@ async function applyEffects(): Promise<void> {
   const part = partSource;
   if (part && part.audio === audio && readsFile()) void readPart(part.audio, part.src, part.blob);
   if (audio && sound.isRouted(audio)) sound.update(audio, now);
+  // While a receiver plays the part isn't reloaded: that would restart it there (M125). The
+  // effects come on once casting ends.
+  else if (audio && remoting()) leftEffects = true;
   else if (audio && book && sound.soundOn(effects()) && (await sound.canRoute(audio.currentSrc))) {
     // A plain element cannot take the effects: reload the part, routed, at the same place.
     await setPart(index, positionMs(), playing());

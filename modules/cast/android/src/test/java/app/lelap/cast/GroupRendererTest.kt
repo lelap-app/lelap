@@ -134,6 +134,19 @@ class GroupRendererTest {
   }
 
   @Test
+  fun duringAFadeASpeakerThatJoinsIsLoweredAndGetsItsVolumeBackWhenTakenOut() {
+    val group = GroupRenderer(Fake("a", playing(0L, volume = 0.3f)), emptyList(), { now }, {})
+    group.scale = 0.5f
+    val joining = Fake("b", playing(0L, volume = 0.4f))
+    group.add(joining) { it.load(media, 0L, true, 1f) }!!.get()
+    assertEquals(listOf("load 0", "volume 0.2"), joining.calls.toList())
+    group.remove(joining)
+    val deadline = System.currentTimeMillis() + 2_000L
+    while (!joining.closed && System.currentTimeMillis() < deadline) Thread.sleep(10L)
+    assertEquals("volume 0.4", joining.calls.last())
+  }
+
+  @Test
   fun aSpeakerTakenOutStopsWithoutBeingReportedAsLost() {
     val left = mutableListOf<Renderer>()
     val follower = Fake("b", playing(0L))

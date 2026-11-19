@@ -72,7 +72,7 @@ class FCastTest {
     val watch = FCastWatch(0L)
     watch.heard(3_000L, pong = true)
     assertEquals(4_000L, watch.placeUntil(4_000L))
-    assertEquals(6_000L, watch.placeUntil(20_000L))
+    assertEquals(9_000L, watch.placeUntil(20_000L))
   }
 
   @Test

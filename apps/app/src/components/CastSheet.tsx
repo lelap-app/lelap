@@ -151,11 +151,11 @@ export function CastSheet({
     }
   };
 
-  const play = (chosen: CastDevice[]) => {
+  const play = (chosen: CastDevice[], busy?: string) => {
     const book = bookLoad(bookId);
     const first = chosen[0];
     if (!book || !first) return;
-    void connect(first.id, () => startCasting(chosen, book));
+    void connect(busy ?? first.id, () => startCasting(chosen, book));
   };
 
   // Joining or leaving keeps the sheet open: the listener may add or take out more.
@@ -270,7 +270,10 @@ export function CastSheet({
                   label={t('Connect anyway')}
                   onPress={() => {
                     const book = bookLoad(bookId);
-                    if (book) void connect('anyway', () => connectAnyway(book));
+                    if (!book) return;
+                    // A speaker refused while joining keeps the sheet open, like Add.
+                    if (casting.device) void change('anyway', () => connectAnyway(book));
+                    else void connect('anyway', () => connectAnyway(book));
                   }}
                 />
               </View>
@@ -335,7 +338,7 @@ export function CastSheet({
             return (
               <View key={busy} className="flex-row items-center gap-2">
                 <Pressable
-                  onPress={() => play(g.members)}
+                  onPress={() => play(g.members, busy)}
                   disabled={connecting !== null}
                   accessibilityRole="button"
                   className="min-h-12 flex-1 flex-row items-center gap-3 py-3 active:opacity-60"
@@ -349,7 +352,7 @@ export function CastSheet({
                       {t('Played together before')}
                     </Text>
                   </View>
-                  {connecting === g.members[0]?.id && <ActivityIndicator color={colors.amber} />}
+                  {connecting === busy && <ActivityIndicator color={colors.amber} />}
                 </Pressable>
                 <Chip
                   label={t('Forget')}

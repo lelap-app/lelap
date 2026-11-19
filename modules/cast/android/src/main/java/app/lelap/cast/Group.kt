@@ -134,7 +134,18 @@ class GroupRenderer(
 
     /** Polls in a row it gave no status for. */
     var silent = 0
+
+    /** Still loading after it joined: its polls wait behind the load, which isn't silence. */
+    @Volatile
+    var catchingUp = false
   }
+
+  /**
+   * How far the receivers' volumes are lowered by a fade or the bedtime routine, 1 for not (M125).
+   * A speaker that joins is lowered as much; one taken out gets its volume back before it stops.
+   */
+  @Volatile
+  var scale: Float = 1f
 
   private val members = CopyOnWriteArrayList(followers.mapIndexed { i, r -> Member(i, r) })
   private val sync = GroupSync(clock)
@@ -162,14 +173,24 @@ class GroupRenderer(
     val member = Member(nextNumber++, renderer)
     synchronized(sync) { sync.joined(member.number) }
     // In the group before the load is queued, so nothing the group tells it overtakes the load.
+    member.catchingUp = true
     members += member
-    if (catchUp == null) return null
     return on(member) { r ->
       try {
-        catchUp(r)
+        catchUp?.invoke(r)
+        // Lowered like the others while a fade or the bedtime routine holds them down.
+        val lowered = scale
+        if (lowered < 1f) {
+          r.status().volume?.let { v ->
+            r.setVolume(v * lowered)
+            member.volume = v * lowered
+          }
+        }
       } catch (e: Exception) {
         leave(member, "failed")
         throw e
+      } finally {
+        member.catchingUp = false
       }
     }
   }
@@ -177,6 +198,12 @@ class GroupRenderer(
   /** The listener took a follower out of the group: it stops, and the rest play on. */
   fun remove(renderer: Renderer) {
     val member = members.firstOrNull { it.renderer === renderer } ?: return
+    // It leaves at the volume it had before a fade or the bedtime routine lowered it.
+    val lowered = scale
+    val volume = member.volume
+    if (lowered in 0.01f..0.999f && volume != null) {
+      on(member) { r -> r.setVolume((volume / lowered).coerceIn(0f, 1f)) }
+    }
     leave(member, "removed", notify = false)
   }
 
@@ -248,7 +275,7 @@ class GroupRenderer(
         null
       }
       if (s?.volume != null) m.volume = s.volume
-      m.silent = if (s == null) m.silent + 1 else 0
+      m.silent = if (s != null || m.catchingUp) 0 else m.silent + 1
       m.number to s
     }
     for (m in list) if (m.silent >= SILENT_POLLS) leave(m, "silent")

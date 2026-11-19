@@ -14,6 +14,7 @@ import java.util.concurrent.FutureTask
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** A file for the receiver as the player knows it; [CastLink] turns it into a URL the receiver can fetch. */
@@ -212,6 +213,7 @@ class CastLink private constructor(
   private var leader: RememberingRenderer? = null
 
   // Guarded by the cast thread: the group, once there is one, and each follower's client by id.
+  @Volatile
   private var group: GroupRenderer? = null
   private val followers = mutableMapOf<String, Renderer>()
 
@@ -291,21 +293,54 @@ class CastLink private constructor(
     if (closed) throw CastException(NativeText.current().t("Not casting"))
     if (members.any { it.id == member.id }) return
     val probe = probe(member)
-    val joining = follower(member)
+    // Set when the speaker was lost, or the wait gave up, before the cast thread added it.
+    val gone = AtomicBoolean(false)
+    var joining: Renderer? = null
     val loaded = try {
-      if (probe != null) checkTrust(member, probe, joining, pinned)
-      worker.submit(Callable { addFollower(member, joining) }).get(JOIN_WAIT_S, TimeUnit.SECONDS)
+      val r = rendererFor(member) {
+        gone.set(true)
+        joining?.let { j -> group?.drop(j) }
+      }
+      joining = r
+      if (probe != null) checkTrust(member, probe, r, pinned)
+      val task = worker.submit(Callable { addFollower(member, r, gone) })
+      try {
+        task.get(JOIN_WAIT_S, TimeUnit.SECONDS)
+      } catch (e: TimeoutException) {
+        gone.set(true)
+        task.cancel(false)
+        throw e
+      }
     } catch (e: Exception) {
-      runCatching { joining.close() }
+      gone.set(true)
+      joining?.let { r ->
+        runCatching { r.close() }
+        // In case the cast thread added it just as the wait gave up.
+        later { removeRenderer(r) }
+      }
       throw unwrap(e)
     }
     try {
       loaded?.get(GroupRenderer.COMMAND_WAIT_S, TimeUnit.SECONDS)
     } catch (e: Exception) {
-      later { removeFollower(member.id) }
+      joining?.let { r -> later { removeRenderer(r) } }
       throw CastException(NativeText.current().t("{name} couldn’t join", "name" to member.name))
     }
   }
+
+  /**
+   * The sleep timer's fade times the bedtime volume, as far as the receiver was lowered by it
+   * (M125); a speaker that joins meanwhile is lowered as much, one that is taken out gets its
+   * volume back first.
+   */
+  fun setFadeScale(scale: Float) {
+    if (scale == fadeScale) return
+    fadeScale = scale
+    later { group?.scale = scale }
+  }
+
+  @Volatile
+  private var fadeScale = 1f
 
   /** Takes a speaker other than the leading one out of the group; it stops and the rest play on. */
   fun leave(memberId: String) {
@@ -314,8 +349,9 @@ class CastLink private constructor(
   }
 
   // On the cast thread. The future is the new speaker's catch-up load, null when nothing plays.
-  private fun addFollower(member: CastDevice, joining: Renderer): java.util.concurrent.Future<Unit>? {
+  private fun addFollower(member: CastDevice, joining: Renderer, gone: AtomicBoolean): java.util.concurrent.Future<Unit>? {
     if (closed) throw CastException(NativeText.current().t("Not casting"))
+    if (gone.get()) throw CastException(NativeText.current().t("{name} couldn’t join", "name" to member.name))
     val first = leader ?: throw CastException(NativeText.current().t("Not casting"))
     val media = first.media
     if (media != null && !joining.canPlayAt(first.speed)) {
@@ -346,8 +382,13 @@ class CastLink private constructor(
     rest,
     clock = { System.nanoTime() / 1_000_000L },
     // A speaker that dropped out is no longer listed as playing.
-    onLeft = { gone -> later { followers.entries.firstOrNull { it.value === gone }?.key?.let(::removeFollower) } },
-  )
+    onLeft = { gone -> later { removeRenderer(gone) } },
+  ).also { it.scale = fadeScale }
+
+  // On the cast thread.
+  private fun removeRenderer(r: Renderer) {
+    followers.entries.firstOrNull { it.value === r }?.key?.let(::removeFollower)
+  }
 
   // On the cast thread.
   private fun removeFollower(memberId: String) {

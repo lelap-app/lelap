@@ -98,7 +98,8 @@ class FCastWatch(start: Long) {
 
   companion object {
     const val PING_EVERY_MS = 3_000L
-    const val GRACE_MS = 3_000L
+    /** Two pings: a pong comes at least one ping apart, so one alone would stall the place for a moment. */
+    const val GRACE_MS = 2 * PING_EVERY_MS
 
     /** As for Google Cast: Chromium gives up on a channel after 10 s; we wait a little longer. */
     const val LOST_AFTER_MS = 15_000L
