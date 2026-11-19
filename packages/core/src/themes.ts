@@ -308,8 +308,10 @@ export type CarPalette = {
 /**
  * Car mode follows the phone's light or dark for glare: by day the day theme, at night the
  * listener's theme when it is dark and the night theme when it is not. The accent always follows.
+ * High contrast stays as it is day and night: it is chosen for the eyes, not for the light.
  */
 export function carTheme(theme: Theme, accent: AccentId, systemLight: boolean): Theme {
+  if (theme.highContrast) return theme;
   if (systemLight) return theme.dark ? builtInTheme('day', accent) : theme;
   return theme.dark ? theme : builtInTheme('night', accent);
 }
@@ -319,7 +321,8 @@ export function carPalette(theme: Theme): CarPalette {
   return {
     background: c.night,
     surface: c.raised,
-    border: c.line,
+    // On paper the line colour is too faint to outline a button; halfway to muted holds its shape.
+    border: theme.dark ? c.line : blend(c.muted, c.night, 0.5),
     text: c.paper,
     secondary: c.soft,
     accentText: c.amber,

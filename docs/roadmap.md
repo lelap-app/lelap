@@ -125,6 +125,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M113 Big screens 2](milestones/m113.md)             | Planned     |             | What M44 left: foldables, wider desktop layouts, resizable panes, drag to lists                          |
 | [M114 Add-on test kit](milestones/m114.md)           | Done        |           2 | A command in the SDK that checks an add-on against protocol v1 and says what's wrong                     |
 | [M115 Series 2](milestones/m115.md)                  | Planned     |             | Series leftovers from M109; hidden volumes, streamed books on other devices, faster lists                |
+| [M117 Themes 2](milestones/m117.md)                  | Planned     |             | High contrast in theme files, a file theme's own accent in car mode, and a live theme switch             |
 
 <!-- milestones:end -->
 

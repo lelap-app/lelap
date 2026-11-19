@@ -13,6 +13,7 @@ import {
   statsPalette,
   type StatsPalette,
   type Theme,
+  THEME_FILE_MAX_BYTES,
   type ThemeChoice,
   themeToFile,
   TOKENS,
@@ -50,7 +51,7 @@ function apply(): void {
     look.customTheme,
     Appearance.getColorScheme() === 'light',
   );
-  const nextKey = `${next.id}:${Object.values(next.colors).join('')}`;
+  const nextKey = `${next.id}:${next.name ?? ''}:${next.dark}:${Object.values(next.colors).join('')}`;
   if (nextKey === key) return;
   current = next;
   key = nextKey;
@@ -104,8 +105,10 @@ export function ThemeRoot({ children }: { children: ReactNode }) {
   const theme = useTheme();
   return (
     <View
-      className="flex-1 bg-night"
-      style={Platform.OS === 'web' ? undefined : vars(variables(theme))}
+      style={[
+        { flex: 1, backgroundColor: theme.colors.night },
+        Platform.OS === 'web' ? undefined : vars(variables(theme)),
+      ]}
     >
       {children}
     </View>
@@ -165,7 +168,11 @@ export async function pickThemeFile(): Promise<CustomTheme | null> {
   });
   const asset = picked.canceled ? undefined : picked.assets[0];
   if (!asset) return null;
-  const read = parseThemeFile(await readPickedText(asset));
+  // Refused before it is read: a theme file is a few hundred bytes.
+  const read =
+    asset.size !== undefined && asset.size > THEME_FILE_MAX_BYTES
+      ? parseThemeFile(' '.repeat(THEME_FILE_MAX_BYTES + 1))
+      : parseThemeFile(await readPickedText(asset));
   if (read.ok) return read.theme;
   showAlert(
     t('Lelap can’t use this theme'),

@@ -52,6 +52,8 @@ describe('themes', () => {
     expect(carTheme(day, 'rose', true)).toBe(day);
     expect(carTheme(day, 'rose', false).id).toBe('night');
     expect(carPalette(carTheme(day, 'rose', false)).accent).toBe('#f292a6');
+    const contrast = builtInTheme('contrast', 'rose');
+    expect(carTheme(contrast, 'rose', true)).toBe(contrast);
   });
 });
 
