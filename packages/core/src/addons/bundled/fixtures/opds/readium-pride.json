@@ -1,0 +1,30 @@
+{
+  "@context": "https://readium.org/webpub-manifest/context.jsonld",
+  "metadata": {
+    "@type": "http://schema.org/Audiobook",
+    "title": "Pride and Prejudice",
+    "author": "Jane Austen",
+    "duration": 3900
+  },
+  "links": [{ "rel": "self", "href": "manifest.json", "type": "application/audiobook+json" }],
+  "readingOrder": [
+    {
+      "href": "01-chapters-1-5.mp3",
+      "type": "audio/mpeg",
+      "duration": 1500.5,
+      "title": "Chapters 1 to 5"
+    },
+    {
+      "href": "02-chapters-6-10.mp3",
+      "type": "audio/mpeg",
+      "duration": 1200,
+      "title": "Chapters 6 to 10"
+    },
+    {
+      "href": "https://cdn.example.org/pride/03.mp3",
+      "type": "audio/mpeg",
+      "duration": 1199.5,
+      "title": "Chapters 11 to 15"
+    }
+  ]
+}

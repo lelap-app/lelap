@@ -174,8 +174,12 @@ export default function ServerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { refresh } = useLibrary();
-  // `?root=` enters the login again for a server whose password this phone can't open.
-  const { root: rootId } = useLocalSearchParams<{ root?: string }>();
+  // `?root=` enters the login again for a server whose password this phone can't open; `?addon=`
+  // opens the form of an add-on inside the app, such as OPDS from Lelap's own add-ons.
+  const { root: rootId, addon: chosenAddon } = useLocalSearchParams<{
+    root?: string;
+    addon?: string;
+  }>();
   const [existing] = useState(() => listRoots(db).find((r) => r.id === rootId)?.remote ?? null);
   const dav = existing?.type === 'webdav' ? existing : null;
   const smb = existing?.type === 'smb' ? existing : null;
@@ -190,7 +194,9 @@ export default function ServerScreen() {
       ? addonKind(addonRoot.addonUrl)
       : existing && existing.type !== 'addon'
         ? existing.type
-        : 'webdav',
+        : chosenAddon && kinds.some((k) => k.url === chosenAddon)
+          ? addonKind(chosenAddon)
+          : 'webdav',
   );
   const addonUrl = kind.startsWith('addon:') ? kind.slice('addon:'.length) : null;
   const chosenSource = addonUrl ? (kinds.find((k) => k.url === addonUrl) ?? null) : null;

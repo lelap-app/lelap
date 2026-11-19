@@ -1,8 +1,9 @@
-import type { InstalledAddon } from '@lelap/core';
+import { bundledAddons, type InstalledAddon, listRoots } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { Linking, Platform, Pressable, Text, View } from 'react-native';
 
 import { hostedAddons } from '../config';
+import { db } from '../db';
 import { t } from '../i18n';
 import { bundledScrobblers, scrobblersWork } from '../scrobblers';
 
@@ -16,8 +17,15 @@ type Offer = {
 };
 
 /**
+ * Library sources that come with the app and are offered here too, since a listener may not look
+ * for them under “Add a server” (M128).
+ */
+const OWN_SOURCES = new Set(['app.lelap.opds']);
+
+/**
  * Lelap's own optional add-ons not added yet: those that come with the app (the Open Library
- * reading log) and those on our catalog host that need the listener's account (Hardcover, gPodder).
+ * reading log, OPDS) and those on our catalog host that need the listener's account (Hardcover,
+ * gPodder).
  */
 export function useOwnAddonOffers(
   addons: InstalledAddon[],
@@ -38,6 +46,22 @@ export function useOwnAddonOffers(
         : t(
             'This works in the Android app only: it signs in with a cookie, which a browser keeps from the page.',
           ),
+    }));
+  // Offered until one server of its kind is added; “Add a server” adds more.
+  const servers = listRoots(db).flatMap((r) =>
+    r.remote?.type === 'addon' ? [r.remote.addonUrl] : [],
+  );
+  const sources = bundledAddons()
+    .filter((a) => OWN_SOURCES.has(a.manifest.id) && !servers.includes(a.url))
+    .map<Offer>((a) => ({
+      key: a.url,
+      name: a.manifest.name,
+      description: a.manifest.description,
+      setUp: () => router.push({ pathname: '/server', params: { addon: a.url } }),
+      note:
+        Platform.OS === 'web'
+          ? t('In the browser the server must allow this site (CORS) and use https.')
+          : t('Runs on this phone, so it reaches a server on your home network.'),
     }));
   // Added once an installed add-on's link starts with the base.
   const hosted = hostedAddons
@@ -63,7 +87,7 @@ export function useOwnAddonOffers(
                 'Opens a page on our server for your account; paste the link it gives you in Settings → Add-ons.',
               ),
     }));
-  return [...bundled, ...hosted];
+  return [...bundled, ...sources, ...hosted];
 }
 
 /** One offer: its name, a Set up button, what it does and how setting it up works. */

@@ -1,0 +1,41 @@
+{
+  "metadata": { "title": "Audiobooks" },
+  "links": [
+    { "rel": "self", "href": "/catalog/audiobooks.json?page=2", "type": "application/opds+json" },
+    { "rel": "previous", "href": "/catalog/audiobooks.json", "type": "application/opds+json" }
+  ],
+  "publications": [
+    {
+      "metadata": {
+        "title": "The Time Machine",
+        "author": { "name": "H. G. Wells" },
+        "modified": "2026-09-02T12:00:00Z"
+      },
+      "links": [
+        {
+          "rel": "http://opds-spec.org/acquisition/open-access",
+          "href": "/audio/time-machine.mp3",
+          "type": "audio/mpeg"
+        },
+        {
+          "rel": "http://opds-spec.org/acquisition",
+          "href": "/drm/time-machine.lcpl",
+          "type": "application/vnd.readium.lcp.license.v1.0+json",
+          "properties": { "indirectAcquisition": [{ "type": "application/audiobook+lcp" }] }
+        }
+      ],
+      "images": [{ "href": "https://images.example.org/time-machine.jpg", "type": "image/jpeg" }]
+    },
+    {
+      "metadata": { "title": "Locked book", "author": "Someone" },
+      "links": [
+        {
+          "rel": "http://opds-spec.org/acquisition",
+          "href": "/drm/locked.mp3",
+          "type": "audio/mpeg",
+          "properties": { "indirectAcquisition": [{ "type": "audio/mpeg" }] }
+        }
+      ]
+    }
+  ]
+}

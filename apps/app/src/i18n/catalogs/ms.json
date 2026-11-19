@@ -1170,5 +1170,7 @@
   "The phone’s sound output failed. Press play to try again.": "Output bunyi telefon gagal. Tekan main untuk cuba lagi.",
   "This file is copy-protected, so Lelap can’t play it.": "Fail ini dilindungi salinan, jadi Lelap tidak dapat memainkannya.",
   "The file could not be played. Press play to try again.": "Fail tidak dapat dimainkan. Tekan main untuk cuba lagi.",
-  "The browser did not let playback start. Press play again.": "Pelayar tidak membenarkan main balik bermula. Tekan main sekali lagi."
+  "The browser did not let playback start. Press play again.": "Pelayar tidak membenarkan main balik bermula. Tekan main sekali lagi.",
+  "In the browser the server must allow this site (CORS) and use https.": "Dalam pelayar, pelayan mesti membenarkan laman ini (CORS) dan menggunakan https.",
+  "Runs on this phone, so it reaches a server on your home network.": "Berjalan dalam telefon ini, jadi ia dapat mencapai pelayan pada rangkaian rumah anda."
 }
