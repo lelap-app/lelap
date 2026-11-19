@@ -280,10 +280,10 @@ const toc: [string, string][] = [
 
   <h2 id="ci">In GitHub Actions</h2>
   <p>
-    Add <code>@lelap/sdk</code> as a dev dependency (<code>npm install --save-dev @lelap/sdk</code>
-    ), then start your add-on in the job and check it. For an add-on in another language, start it
-    the same way and run the command with <code>npx @lelap/sdk check</code>. Pin actions to a
-    commit, as here.
+    Once SDK 0.6 is on npm, add it as a dev dependency with{' '}
+    <code>npm install --save-dev @lelap/sdk</code>, then start your add-on in the job and check it.
+    For an add-on in another language, start it the same way and run the command with{' '}
+    <code>npx @lelap/sdk check</code>. Pin actions to a commit, as here.
   </p>
   <CodeBlock code={workflow} label=".github/workflows/addon-check.yml" />
 
@@ -291,7 +291,7 @@ const toc: [string, string][] = [
   <p>
     The command is <code>checkAddon</code> from <code>@lelap/sdk/check</code>, which takes a{' '}
     <code>fetch</code>. Pass your add-on’s own and it needs no server, so it runs in your unit
-    tests. The repository’s tests run it against every one of the{' '}
+    tests. It comes with SDK 0.6 too. The repository’s tests run it against every one of the{' '}
     <a href="/docs/samples/">samples</a> and {site.name}’s own add-ons.
   </p>
   <CodeBlock code={vitest} label="src/addon.test.ts" />
