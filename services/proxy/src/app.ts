@@ -59,14 +59,36 @@ function targetOf(raw: string | undefined, base?: URL): URL {
   return url;
 }
 
-/** Reads at most `limit` bytes; anything longer is refused rather than cut. */
-async function readLimited(response: Response, limit: number): Promise<Uint8Array> {
+const join = (chunks: Uint8Array[], total: number): Uint8Array => {
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body;
+};
+
+/**
+ * Reads at most `limit` bytes; anything longer is refused rather than cut. `head`, when given,
+ * sees the first `bytes` (or the whole body, if shorter) before the rest is read, and may throw
+ * to stop the download there.
+ */
+async function readLimited(
+  response: Response,
+  limit: number,
+  head?: { bytes: number; check: (start: Uint8Array) => void },
+): Promise<Uint8Array> {
   const declared = Number(response.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > limit) throw new Refused(413, 'Too large.');
   const reader = response.body?.getReader();
-  if (!reader) return new Uint8Array();
+  if (!reader) {
+    head?.check(new Uint8Array());
+    return new Uint8Array();
+  }
   const chunks: Uint8Array[] = [];
   let total = 0;
+  let checked = !head;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -76,13 +98,18 @@ async function readLimited(response: Response, limit: number): Promise<Uint8Arra
       throw new Refused(413, 'Too large.');
     }
     chunks.push(value);
+    if (!checked && head && total >= head.bytes) {
+      checked = true;
+      try {
+        head.check(join(chunks, total).subarray(0, head.bytes));
+      } catch (error) {
+        await reader.cancel();
+        throw error;
+      }
+    }
   }
-  const body = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
+  const body = join(chunks, total);
+  if (!checked) head?.check(body);
   return body;
 }
 
@@ -107,6 +134,9 @@ export function looksLikeText(body: Uint8Array): boolean {
     return false;
   }
 }
+
+/** Bytes `imageTypeOf` needs from the start of a file. */
+export const IMAGE_HEAD_BYTES = 12;
 
 const ascii = (body: Uint8Array, at: number, length: number) =>
   String.fromCharCode(...body.subarray(at, at + length));
@@ -217,11 +247,18 @@ export function createApp(platform: Platform, env: Env): Hono {
     const response = await upstream(url, { Accept: 'image/*' });
     if (!response.ok) throw new Refused(502, `The image answered HTTP ${response.status}.`);
     // Some podcast hosts send artwork as application/octet-stream: the first bytes decide, and
-    // the answer carries the type they name. Media types are refused before anything is read.
+    // the answer carries the type they name. A media type is refused before anything is read,
+    // anything else after its first bytes, so audio sent under another type is never fetched.
     if (isMedia(response.headers.get('content-type') ?? ''))
       throw new Refused(415, 'Not an image.');
-    const body = await readLimited(response, LIMITS.coverBytes);
-    const type = imageTypeOf(body);
+    let type: string | null = null;
+    const body = await readLimited(response, LIMITS.coverBytes, {
+      bytes: IMAGE_HEAD_BYTES,
+      check: (start) => {
+        type = imageTypeOf(start);
+        if (!type) throw new Refused(415, 'Not an image.');
+      },
+    });
     if (!type) throw new Refused(415, 'Not an image.');
     const result = new Response(body, {
       status: 200,

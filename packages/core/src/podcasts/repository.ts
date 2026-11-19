@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, or, sql } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { StoredChapter } from '../schema';
@@ -98,7 +98,7 @@ export function saveFeed(
       } else {
         const id = newId();
         tx.insert(episodes)
-          .values({ id, podcastId, guid: episode.guid, ...row })
+          .values({ id, podcastId, guid: episode.guid, addedAt: now, ...row })
           .run();
         added.push(id);
       }
@@ -124,45 +124,69 @@ export function feedCache(db: Db, feedUrl: string): FeedCache | null {
 
 export function subscribe(db: Db, profileId: string, podcastId: string, now: number): void {
   db.insert(subscriptions)
-    .values({ profileId, podcastId, subscribedAt: now, seenAt: now, updatedAt: now })
+    .values({ profileId, podcastId, subscribedAt: now, seenAt: now, newSince: now, updatedAt: now })
     .onConflictDoNothing()
     .run();
 }
 
+/** When a profile last looked at a podcast, and since when its episodes can be new. */
+export type SeenClock = { seenAt: number; newSince: number };
+
 /**
  * Notes that this profile looked at the podcast now, so its episodes so far are no longer new.
- * Returns when it looked before, or null if it never did.
+ * Returns the clock as it was before, or null when there is none.
  */
 export function markPodcastSeen(
   db: Db,
   profileId: string,
   podcastId: string,
   now: number,
-): number | null {
+): SeenClock | null {
   const where = and(eq(subscriptions.profileId, profileId), eq(subscriptions.podcastId, podcastId));
-  const before = db.select({ seenAt: subscriptions.seenAt }).from(subscriptions).where(where).get();
+  const before = db
+    .select({ seenAt: subscriptions.seenAt, newSince: subscriptions.newSince })
+    .from(subscriptions)
+    .where(where)
+    .get();
   if (!before) return null;
-  db.update(subscriptions).set({ seenAt: now }).where(where).run();
-  return before.seenAt;
+  db.update(subscriptions)
+    .set({ seenAt: now, newSince: before.newSince ?? now })
+    .where(where)
+    .run();
+  return before.seenAt === null || before.newSince === null
+    ? null
+    : { seenAt: before.seenAt, newSince: before.newSince };
 }
 
 /**
- * Starts the clock for subscriptions that have none, such as those from before M105 or another
- * device's: their episodes so far are not new, only those that arrive from now on.
+ * Starts the clock for subscriptions that have none, such as those from before M105: only
+ * episodes that arrive from now on can be new.
  */
 export function startSeenClocks(db: Db, now: number): void {
-  db.update(subscriptions).set({ seenAt: now }).where(isNull(subscriptions.seenAt)).run();
+  db.update(subscriptions)
+    .set({ seenAt: now, newSince: now })
+    .where(or(isNull(subscriptions.seenAt), isNull(subscriptions.newSince)))
+    .run();
 }
 
-/** An episode counts as new while it is unstarted and came out after the listener last looked. */
+/**
+ * An episode is new while it is unstarted, arrived on this device after the listener last
+ * looked, and came out after counting started (or has no date).
+ */
 export function isNewEpisode(
-  episode: { publishedAt: number | null; finished: boolean; positionMs: number },
-  seenAt: number | null,
+  episode: {
+    publishedAt: number | null;
+    addedAt: number | null;
+    finished: boolean;
+    positionMs: number;
+  },
+  clock: SeenClock | null,
 ): boolean {
   return (
-    seenAt !== null &&
-    episode.publishedAt !== null &&
-    episode.publishedAt > seenAt &&
+    clock !== null &&
+    episode.addedAt !== null &&
+    episode.addedAt > clock.seenAt &&
+    (episode.publishedAt ?? episode.addedAt) > clock.newSince &&
     !episode.finished &&
     episode.positionMs === 0
   );
@@ -253,6 +277,8 @@ export type Subscription = {
   subscribedAt: number;
   /** When this profile last opened the podcast's page here; null before it started counting. */
   seenAt: number | null;
+  /** Since when episodes can be new here (see `isNewEpisode`). */
+  newSince: number | null;
   latestAt: number | null;
   unplayed: number;
   /** Unstarted episodes published since `seenAt`, for the cover's “new” badge (M105). */
@@ -277,13 +303,15 @@ export function listSubscriptions(db: Db, profileId: string, podcastId?: string)
       skipOutroMs: subscriptions.skipOutroMs,
       subscribedAt: subscriptions.subscribedAt,
       seenAt: subscriptions.seenAt,
+      newSince: subscriptions.newSince,
       latestAt: sql<number | null>`max(${episodes.publishedAt})`,
       // count() of a column skips nulls: every episode, less those this profile finished.
       unplayed: sql<number>`count(${episodes.id}) - count(${libraryEntries.finishedAt})`.mapWith(
         Number,
       ),
-      // The same rule as `isNewEpisode`; a null `seen_at` makes the comparison null, so none.
-      newEpisodes: sql<number>`count(case when ${episodes.publishedAt} > ${subscriptions.seenAt}
+      // The same rule as `isNewEpisode`; a null clock makes the comparison null, so none.
+      newEpisodes: sql<number>`count(case when ${episodes.addedAt} > ${subscriptions.seenAt}
+        and coalesce(${episodes.publishedAt}, ${episodes.addedAt}) > ${subscriptions.newSince}
         and ${libraryEntries.finishedAt} is null and coalesce(${progress.bookPositionMs}, 0) = 0
         then 1 end)`.mapWith(Number),
     })
@@ -362,6 +390,8 @@ export type EpisodeItem = {
   title: string;
   description: string | null;
   publishedAt: number | null;
+  /** When it was first stored on this device (M105); null before then. */
+  addedAt: number | null;
   season: number | null;
   number: number | null;
   durationMs: number;
@@ -402,6 +432,7 @@ export function listEpisodes(db: Db, profileId: string, podcastId: string): Epis
       title: episode.title,
       description: episode.description,
       publishedAt: episode.publishedAt,
+      addedAt: episode.addedAt,
       season: episode.season,
       number: episode.number,
       durationMs: episode.durationMs,

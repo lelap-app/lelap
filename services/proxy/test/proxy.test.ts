@@ -145,6 +145,23 @@ describe('cover proxy', () => {
     expect((await octets.get(coverUrl('https://cdn.example.org/a'))).status).toBe(415);
   });
 
+  it('stops reading a body sent under another type once its first bytes are not an image', async () => {
+    let pulls = 0;
+    const endless = new ReadableStream<Uint8Array>({
+      pull: (controller) => {
+        pulls++;
+        controller.enqueue(
+          new Uint8Array([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        );
+      },
+    });
+    const octets = setup(
+      () => new Response(endless, { headers: { 'Content-Type': 'application/octet-stream' } }),
+    );
+    expect((await octets.get(coverUrl('https://cdn.example.org/episode'))).status).toBe(415);
+    expect(pulls).toBeLessThan(4);
+  });
+
   it('allows artwork up to the cover limit', async () => {
     const big = new Uint8Array(LIMITS.coverBytes);
     big.set(PNG);

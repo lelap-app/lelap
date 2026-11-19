@@ -13,6 +13,7 @@ import {
   listEpisodes,
   mapLink,
   markPodcastSeen,
+  type SeenClock,
   schema,
   setAutoDownload,
   setFinished,
@@ -291,7 +292,7 @@ export default function PodcastScreen() {
   // When the listener last looked, kept while the page is open so its new episodes stay marked;
   // the page notes this visit at once, so the Podcasts tab's badge is gone on the way back.
   const subscribed = sub !== null;
-  const [seenBefore, setSeenBefore] = useState<{ id: string; at: number | null } | null>(null);
+  const [seenBefore, setSeenBefore] = useState<{ id: string; at: SeenClock | null } | null>(null);
   const noted = useRef<string | null>(null);
   useEffect(() => {
     if (!podcastId || !subscribed || noted.current === podcastId) return;
