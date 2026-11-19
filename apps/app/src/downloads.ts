@@ -73,8 +73,10 @@ export async function startDownload(
 ): Promise<void> {
   const first = listDownloads(db).length === 0;
   // An episode downloads the file its show plays; the smaller one on mobile data only when
-  // downloads may use it.
-  pickEpisodeFile(bookId, onMobileData() && !currentRules().wifiOnly);
+  // downloads may use it. A loaded episode downloads the file it plays, so the stream stays.
+  if ((await audio.getState().catch(() => null))?.bookId !== bookId) {
+    pickEpisodeFile(bookId, onMobileData() && !currentRules().wifiOnly);
+  }
   const plan = planDownload(db, bookId);
   // A browser's quota is often a few gigabytes: a book that can't fit isn't started.
   if (!native.RULES_APPLY) {

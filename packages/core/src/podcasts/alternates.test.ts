@@ -74,6 +74,22 @@ describe('alternate enclosures', () => {
     expect(audioFileLabel(must(files[1]))).toBe('Small');
   });
 
+  it('keeps alternates that look alike apart', () => {
+    const alike = { mime: 'audio/mpeg', size: 1, bitrate: null, title: null, integrity: null };
+    const files = audioFilesOf({
+      url: 'https://cdn.example.org/a.mp3',
+      mime: 'audio/mpeg',
+      size: 3,
+      extras: {
+        alternates: [
+          { ...alike, url: 'https://cdn.example.org/b.mp3', default: false },
+          { ...alike, url: 'https://cdn.example.org/c.mp3', default: false },
+        ],
+      },
+    });
+    expect(files.map((f) => f.key)).toEqual(['enclosure', 'alt:audio/mpeg ', 'alt:audio/mpeg #2']);
+  });
+
   it('picks the feed’s file, the smallest on mobile data, or the show’s choice', () => {
     const files = audioFilesOf(leeks);
     expect(pickAudioFile(files, null, false)?.key).toBe('enclosure');

@@ -181,7 +181,6 @@ function People({ persons }: { persons: FeedPerson[] }) {
   );
 }
 
-/** Seconds to skip at one end of every episode; set once for the show. */
 /**
  * Which of an episode's files plays (M103), for a show that offers alternates: automatic, the
  * smallest, or one the show names, held for every episode.
@@ -238,6 +237,7 @@ function AudioChoiceRow({
   );
 }
 
+/** Seconds to skip at one end of every episode; set once for the show. */
 function TrimRow({
   label,
   hint,

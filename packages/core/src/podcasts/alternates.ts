@@ -93,8 +93,10 @@ export function audioFilesOf(episode: {
   ];
   for (const a of alternates) {
     if (a.url === episode.url) continue;
-    const key = alternateKey(a);
-    if (files.some((f) => f.key === key)) continue;
+    // Two alternates that look alike (no title, same type and bitrate) keep apart by their order.
+    const base = alternateKey(a);
+    let key = base;
+    for (let i = 2; files.some((f) => f.key === key); i++) key = `${base}#${i}`;
     files.push({
       url: a.url,
       mime: a.mime,

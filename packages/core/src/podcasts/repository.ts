@@ -97,7 +97,7 @@ export function saveFeed(
           const listed = audioFilesOf(episode).some((f) => f.url === file?.uri);
           if (file && !listed) {
             tx.update(bookFiles)
-              .set({ uri: episode.url, relPath: episode.url, updatedAt: now })
+              .set({ uri: episode.url, relPath: episode.url, size: episode.size, updatedAt: now })
               .where(location)
               .run();
           }
@@ -131,8 +131,9 @@ export function feedCache(db: Db, feedUrl: string): FeedCache | null {
     .from(episodes)
     .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
     .where(and(eq(podcasts.feedUrl, feedUrl), isNotNull(episodes.extras)))
-    // The last full read touched it; episodes that left the feed keep what they had.
-    .orderBy(desc(episodes.updatedAt))
+    // The newest is still in the feed, so the last full read wrote it; episodes that left the
+    // feed keep what they had.
+    .orderBy(desc(episodes.publishedAt))
     .limit(1)
     .get();
   if (episode && episode.extras?.alternates === undefined) {
