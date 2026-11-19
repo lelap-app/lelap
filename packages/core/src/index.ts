@@ -21,6 +21,8 @@ export * from './clip';
 export * from './library/byProgress';
 export * from './settings';
 export * from './sound';
+export * from './webSilence';
+export * from './webLoudness';
 export * from './headphones';
 export * as schema from './schema';
 export * from './addons';

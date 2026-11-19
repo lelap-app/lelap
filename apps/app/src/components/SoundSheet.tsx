@@ -26,10 +26,6 @@ export type SoundKey = DeviceSoundKey | BookSoundKey;
 
 type SoundOption<K extends SoundKey> = { key: K; label: string; detail: string };
 
-// Skip silence and even loudness run in the Android service; Web Audio can't drop pauses cheaply.
-const ON_THIS_PLATFORM = (key: SoundKey) =>
-  Platform.OS === 'android' || (key !== 'skipSilence' && key !== 'evenLoudness');
-
 /** Voice boost, skip silence and even loudness: a default in Settings, and per book or show. */
 export const bookSoundOptions = (): SoundOption<BookSoundKey>[] =>
   (
@@ -52,7 +48,7 @@ export const bookSoundOptions = (): SoundOption<BookSoundKey>[] =>
         detail: t('Plays every book and episode at about the same volume.'),
       },
     ] satisfies SoundOption<BookSoundKey>[]
-  ).filter((o) => ON_THIS_PLATFORM(o.key));
+  );
 
 export const deviceSoundOptions = (): SoundOption<DeviceSoundKey>[] => [
   {
@@ -137,7 +133,7 @@ function useSilenceSaved(bookId: string | null, visible: boolean, on: boolean): 
   const [saved, setSaved] = useState(0);
   useEffect(() => {
     setSaved(0);
-    if (!bookId || !visible || Platform.OS !== 'android') return;
+    if (!bookId || !visible) return;
     let live = true;
     const read = () =>
       void audio
@@ -225,7 +221,9 @@ export function SoundSheet({
         <Text className="py-4 text-sm text-muted">
           {Platform.OS === 'android'
             ? t('Sound effects play on this phone. Speakers you cast to play without them.')
-            : t('Skip silence and even loudness are in the Android app only.')}
+            : t(
+                'In the browser, skip silence works on MP3 files with a constant bitrate, such as LibriVox’s. A file from a host that doesn’t let the browser read it plays without the effects.',
+              )}
         </Text>
       </ScrollView>
     </Sheet>

@@ -68,6 +68,46 @@ class BetterSoundTest {
     assertEquals(0L, frames.observe(5L))
   }
 
+  @Test fun skippedSilenceGoesToTheBookWhoseStreamItCameFrom() {
+    val ledger = SilenceLedger()
+    // Before any known stream nothing is counted.
+    ledger.add(100L, 1_000)
+    ledger.startStream("a")
+    ledger.add(500L, 1_000)
+    // The service banks on switching books, before the flush counts the old stream's tail.
+    assertEquals(mapOf("a" to 500_000L), ledger.take())
+    ledger.add(250L, 1_000)
+    ledger.startStream("b")
+    ledger.add(1_000L, 2_000)
+    // A flush Media3 doesn't name (a reset) keeps the book.
+    ledger.startStream(null)
+    ledger.add(1_000L, 2_000)
+    assertEquals(mapOf("a" to 250_000L, "b" to 1_000_000L), ledger.take())
+    assertEquals(emptyMap<String, Long>(), ledger.take())
+  }
+
+  @Test fun eachPartKeepsItsOwnReplayGain() {
+    val gains = StreamGains(max = 2)
+    gains.put("part 1", -4f)
+    gains.put("part 2", null)
+    assertEquals(-4f, gains.gainDb("part 1"), 0f)
+    assertTrue(gains.gainDb("part 2").isNaN())
+    // Unknown, or long gone: measured instead.
+    gains.put("part 3", 2f)
+    assertTrue(gains.gainDb("part 1").isNaN())
+    assertTrue(gains.gainDb("other").isNaN())
+    assertEquals(2f, gains.gainDb("part 3"), 0f)
+  }
+
+  @Test fun replayGainComesFromAFormatsMetadata() {
+    val metadata = androidx.media3.common.Metadata(
+      androidx.media3.extractor.metadata.id3.TextInformationFrame("TXXX", "REPLAYGAIN_TRACK_GAIN", listOf("-7.5 dB")),
+      androidx.media3.extractor.metadata.vorbis.VorbisComment("REPLAYGAIN_ALBUM_GAIN", "-3 dB"),
+    )
+    assertEquals(-3f, ReplayGain.gainDb(metadata)!!, 0f)
+    assertNull(ReplayGain.gainDb(null as androidx.media3.common.Metadata?))
+  }
+
   @Test fun timeSavedCountsAtTheListeningSpeed() {
     val savings = SilenceSavings()
     savings.add("b", 4_000_000L, 1f)

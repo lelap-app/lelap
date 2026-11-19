@@ -29,6 +29,38 @@ class SkippedFrames {
 }
 
 /**
+ * Media time skip silence left out, per book, counted on the playback thread (M101). The book is
+ * the one whose audio the processors are on: it changes at a flush that starts another book's
+ * stream, after the old stream's last count, so a book switch never hands its tail to the next.
+ */
+class SilenceLedger {
+  private val byBook = LinkedHashMap<String, Long>()
+  private var book: String? = null
+
+  /** Frames left out of the stream playing now; before any known book they count for nothing. */
+  @Synchronized
+  fun add(frames: Long, sampleRate: Int) {
+    val id = book ?: return
+    if (frames <= 0L || sampleRate <= 0) return
+    byBook[id] = (byBook[id] ?: 0L) + frames * 1_000_000L / sampleRate
+  }
+
+  /** A flush starts a stream of [bookId]; null (a stream Media3 doesn't name) keeps the book. */
+  @Synchronized
+  fun startStream(bookId: String?) {
+    if (bookId != null) book = bookId
+  }
+
+  /** Media time left out per book since the last call, in microseconds. */
+  @Synchronized
+  fun take(): Map<String, Long> {
+    val out = LinkedHashMap(byBook)
+    byBook.clear()
+    return out
+  }
+}
+
+/**
  * Listening time skip silence saved (M84), per book, kept on this phone like the listening log.
  * Media time left out counts at the speed it would have played at: a second of silence skipped
  * at 2× saves half a second. The newest [max] books are kept.

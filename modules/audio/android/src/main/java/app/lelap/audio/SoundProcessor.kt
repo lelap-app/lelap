@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Timeline
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.AudioProcessorChain
 import androidx.media3.common.audio.BaseAudioProcessor
@@ -12,10 +13,10 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.ForwardingAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.roundToInt
 
 /**
@@ -24,8 +25,13 @@ import kotlin.math.roundToInt
  * sink or rebuffers.
  */
 @OptIn(UnstableApi::class)
-class SoundProcessor(val chain: SoundChain, private val tally: SilenceTally? = null) : BaseAudioProcessor() {
+class SoundProcessor(
+  val chain: SoundChain,
+  private val tally: SilenceTally? = null,
+  private val gains: StreamGains? = null,
+) : BaseAudioProcessor() {
   private var buffer = FloatArray(0)
+  private var book: String? = null
 
   /** The sample rate of the stream it plays now; 0 before one is configured. */
   val sampleRate: Int
@@ -67,12 +73,69 @@ class SoundProcessor(val chain: SoundChain, private val tally: SilenceTally? = n
   }
 
   override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
+    // A flush that names its stream starts a part (or a seek in one): its ReplayGain applies from
+    // its first sample, and another book is measured afresh (M101).
+    val uid = streamMetadata.periodUid
+    if (gains != null && uid != null) {
+      chain.replayGainDb = gains.gainDb(uid)
+      val next = StreamBook.of(streamMetadata)
+      if (next != null && next != book) {
+        if (book != null) chain.restartLoudness()
+        book = next
+      }
+    }
     chain.reset()
   }
 
   override fun onReset() {
     chain.reset()
     buffer = FloatArray(0)
+  }
+}
+
+/** The book a stream belongs to, from the media item its period plays. */
+@OptIn(UnstableApi::class)
+object StreamBook {
+  fun of(metadata: AudioProcessor.StreamMetadata): String? {
+    val uid = metadata.periodUid ?: return null
+    val timeline = metadata.timeline
+    return try {
+      val period = timeline.getPeriodByUid(uid, Timeline.Period())
+      timeline.getWindow(period.windowIndex, Timeline.Window())
+        .mediaItem.mediaMetadata.extras?.getString(Commands.METADATA_BOOK_ID)
+    } catch (e: RuntimeException) {
+      // A period the timeline no longer has.
+      null
+    }
+  }
+}
+
+/**
+ * ReplayGain per stream (M101), read from each part's format as the renderer hands it to the
+ * sink, ahead of its audio, and picked up by [SoundProcessor] at the flush that starts the part.
+ */
+class StreamGains(private val max: Int = 16) {
+  private val byPeriod = LinkedHashMap<Any, Float>()
+
+  @Synchronized
+  fun put(periodUid: Any, gainDb: Float?) {
+    byPeriod.remove(periodUid)
+    byPeriod[periodUid] = gainDb ?: Float.NaN
+    while (byPeriod.size > max) byPeriod.remove(byPeriod.keys.first())
+  }
+
+  /** The part's gain in dB; NaN when it has none or isn't known, so the level is measured. */
+  @Synchronized
+  fun gainDb(periodUid: Any): Float = byPeriod[periodUid] ?: Float.NaN
+}
+
+/** Passes each part's ReplayGain on to [StreamGains] as the renderer configures the sink. */
+@OptIn(UnstableApi::class)
+class SoundAudioSink(sink: AudioSink, private val gains: StreamGains) : ForwardingAudioSink(sink) {
+  override fun configure(config: AudioSink.AudioSinkConfig) {
+    val uid = config.mediaPeriodId?.periodUid
+    if (uid != null) gains.put(uid, ReplayGain.gainDb(config.format.metadata))
+    super.configure(config)
   }
 }
 
@@ -97,25 +160,25 @@ object SilenceRules {
 }
 
 /**
- * Media time skip silence left out (M84). Media3's count of skipped frames starts again at every
- * flush, so it is looked at with every buffer and just before each flush ([SilenceFlushWatch]).
- * Looks happen on the playback thread; [takeSkippedUs] on any.
+ * Media time skip silence left out (M84), per book (M101). Media3's count of skipped frames
+ * starts again at every flush, so it is looked at with every buffer and just before each flush
+ * ([SilenceFlushWatch]), which also says whose stream comes next. Looks happen on the playback
+ * thread; [takeSkippedUs] on any.
  */
 @OptIn(UnstableApi::class)
 class SilenceTally(val silence: SilenceSkippingAudioProcessor) {
   private val frames = SkippedFrames()
-  private val skippedUs = AtomicLong()
+  private val ledger = SilenceLedger()
 
-  fun observe(sampleRate: Int) = add(frames.observe(silence.skippedFrames), sampleRate)
+  fun observe(sampleRate: Int) = ledger.add(frames.observe(silence.skippedFrames), sampleRate)
 
-  fun flush(sampleRate: Int) = add(frames.flush(silence.skippedFrames), sampleRate)
-
-  /** Media time left out since the last call, in microseconds. */
-  fun takeSkippedUs(): Long = skippedUs.getAndSet(0L)
-
-  private fun add(count: Long, sampleRate: Int) {
-    if (count > 0L && sampleRate > 0) skippedUs.addAndGet(count * 1_000_000L / sampleRate)
+  fun flush(sampleRate: Int, nextBook: String?) {
+    ledger.add(frames.flush(silence.skippedFrames), sampleRate)
+    ledger.startStream(nextBook)
   }
+
+  /** Media time left out per book since the last call, in microseconds. */
+  fun takeSkippedUs(): Map<String, Long> = ledger.take()
 }
 
 /**
@@ -130,7 +193,8 @@ class SilenceFlushWatch(private val tally: SilenceTally, private val rate: () ->
 
   override fun queueInput(inputBuffer: ByteBuffer) = Unit
 
-  override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) = tally.flush(rate())
+  override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) =
+    tally.flush(rate(), StreamBook.of(streamMetadata))
 }
 
 /**
@@ -166,16 +230,21 @@ class SoundAudioProcessorChain(processor: SoundProcessor, private val tally: Sil
 
 /** Plays through [SoundAudioProcessorChain]; `ExoPlayer.setSkipSilenceEnabled` switches skip silence. */
 @OptIn(UnstableApi::class)
-class SoundRenderersFactory(context: Context, private val chain: SoundAudioProcessorChain) :
-  DefaultRenderersFactory(context) {
+class SoundRenderersFactory(
+  context: Context,
+  private val chain: SoundAudioProcessorChain,
+  private val gains: StreamGains,
+) : DefaultRenderersFactory(context) {
   override fun buildAudioSink(
     context: Context,
     enableFloatOutput: Boolean,
     enableAudioOutputPlaybackParams: Boolean,
-  ): AudioSink =
+  ): AudioSink = SoundAudioSink(
     DefaultAudioSink.Builder(context)
       .setEnableFloatOutput(enableFloatOutput)
       .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
       .setAudioProcessorChain(chain)
-      .build()
+      .build(),
+    gains,
+  )
 }

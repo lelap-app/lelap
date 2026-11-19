@@ -1,5 +1,13 @@
 package app.lelap.audio
 
+import androidx.annotation.OptIn
+import androidx.media3.common.Metadata
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.container.MdtaMetadataEntry
+import androidx.media3.extractor.metadata.id3.InternalFrame
+import androidx.media3.extractor.metadata.id3.TextInformationFrame
+import androidx.media3.extractor.metadata.vorbis.VorbisComment
+
 /**
  * ReplayGain from a file's tags (M84), for even loudness. Tags come as name and value, whatever
  * the container: ID3 `TXXX`, Vorbis comments (FLAC, Ogg, Opus) and MP4 freeform atoms all name
@@ -21,6 +29,27 @@ object ReplayGain {
       ?: decibels(byName["REPLAYGAIN_TRACK_GAIN"])
       ?: r128(byName["R128_ALBUM_GAIN"])
       ?: r128(byName["R128_TRACK_GAIN"])
+  }
+
+  /** The gain from a format's metadata, whatever the container. */
+  @OptIn(UnstableApi::class)
+  fun gainDb(metadata: Metadata?): Float? {
+    if (metadata == null) return null
+    val tags = (0 until metadata.length()).mapNotNull { i ->
+      when (val entry = metadata.get(i)) {
+        is TextInformationFrame -> entry.description?.let { it to entry.values.firstOrNull().orEmpty() }
+        is VorbisComment -> entry.key to entry.value
+        is InternalFrame -> entry.description to entry.text
+        is MdtaMetadataEntry ->
+          if (entry.typeIndicator == MdtaMetadataEntry.TYPE_INDICATOR_STRING) {
+            entry.key.substringAfterLast(':') to String(entry.value, Charsets.UTF_8)
+          } else {
+            null
+          }
+        else -> null
+      }
+    }
+    return gainDb(tags)
   }
 
   private fun decibels(value: String?): Float? {
