@@ -53,6 +53,16 @@ export type BookLoad = {
    * and the car show each from its start; `uri` null goes back to the cover.
    */
   artworks?: { startMs: number; uri: string | null }[];
+  /**
+   * The book's server keeps places (M123): after a pause the service asks the app to send it,
+   * through `@lelap/headless`, also with the app closed.
+   */
+  serverPlaces?: boolean;
+  /**
+   * The book's add-on server says where its files stream from now (M123): when the service starts
+   * the book by itself (Up Next, Android Auto, the widget), it asks the app to locate them.
+   */
+  locate?: boolean;
   /** Only an update of the book already loaded: the service ignores it for any other book. */
   onlyIfLoaded?: boolean;
 };

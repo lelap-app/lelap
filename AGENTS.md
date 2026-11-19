@@ -54,6 +54,7 @@ modules/bluetooth Kotlin Expo module: connected Bluetooth audio devices, battery
 modules/netfs   Kotlin Expo module: SMB (smbj) and SFTP (sshj) servers; listing, Media3 data source;
                 the add-on sandbox's fetch
 modules/text    Kotlin Expo module: translated lines for notifications, widget and tile, kept for when closed
+modules/headless Kotlin Expo module: add-on sandboxes without a screen, server tasks the playback service asks for
 modules/fold    Kotlin Expo module: a foldable's hinge from Jetpack WindowManager, for the layout
 examples/       add-on samples: plain Node, Python (stdlib), seasonal catalogs, a source add-on
                 that maps its files to works; tested in CI

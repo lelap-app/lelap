@@ -2,7 +2,14 @@ import { type ComponentType, type Ref, useEffect, useRef, useSyncExternalStore }
 import { View } from 'react-native';
 import { WebView, type WebViewProps } from 'react-native-webview';
 
-import { attachSandbox, type Box, currentBoxes, sandboxMessage, subscribeBoxes } from './index';
+import {
+  attachSandbox,
+  type Box,
+  currentBoxes,
+  sandboxMessage,
+  screenMounted,
+  subscribeBoxes,
+} from './index';
 
 // Android: one hidden WebView per running in-app add-on. It loads only the inline page; any
 // navigation is refused, and it has no file or content access and keeps nothing between runs.
@@ -41,7 +48,10 @@ function Sandbox({ box }: { box: Box }) {
 
 /** Mounted once at the root; invisible. */
 export function SandboxHost() {
-  const boxes = useSyncExternalStore(subscribeBoxes, currentBoxes, currentBoxes);
+  const all = useSyncExternalStore(subscribeBoxes, currentBoxes, currentBoxes);
+  useEffect(() => screenMounted(), []);
+  // Those started while no screen was up keep their own WebView (M123).
+  const boxes = all.filter((box) => !box.screenless);
   if (boxes.length === 0) return null;
   return (
     <View

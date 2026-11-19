@@ -48,6 +48,13 @@ data class BookPlaylist(
   val sound: SoundOverrides = SoundOverrides(),
   /** An episode's chapter pictures (M103), for the lock screen and the car. */
   val artworks: List<ArtworkMark> = emptyList(),
+  /** The book's server keeps places (M123): a pause asks the app to send it, also when closed. */
+  val serverPlaces: Boolean = false,
+  /**
+   * The book's add-on server says where its files stream from now (M123): a book the service
+   * starts by itself asks the app, also when closed.
+   */
+  val locate: Boolean = false,
 )
 
 /**
@@ -228,6 +235,8 @@ object PositionJournal {
     .put("privateUris", p.privateUris)
     .put("sound", p.sound.toJson())
     .put("artworks", JSONArray(p.artworks.map { JSONObject().put("startMs", it.startMs).put("uri", it.uri ?: JSONObject.NULL) }))
+    .put("serverPlaces", p.serverPlaces)
+    .put("locate", p.locate)
 
   private fun decodePlaylist(o: JSONObject): BookPlaylist {
     val files = o.getJSONArray("files")
@@ -265,6 +274,8 @@ object PositionJournal {
           ArtworkMark(m.getLong("startMs"), m.optStringOrNull("uri"))
         }
       } ?: emptyList(),
+      serverPlaces = o.optBoolean("serverPlaces", false),
+      locate = o.optBoolean("locate", false),
     )
   }
 

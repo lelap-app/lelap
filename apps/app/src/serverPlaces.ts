@@ -41,8 +41,9 @@ import { callAddonPlace } from './sandbox';
 // server's owner: the profile that added it, else the first one. Each place waits in the outbox
 // until the server takes it (M65), so one reported offline goes out later; a scan in between
 // settles any difference (the newest place wins). Places the playback service saved with the app
-// closed join them when its journal is folded in, and the background refresh sends what waits for
-// Jellyfin and Audiobookshelf while the app stays closed (M100).
+// closed join them when its journal is folded in (M100). With the app closed, the service asks for
+// a server task after each pause, and the background refresh sends what waits about hourly; add-on
+// servers' places go too, in a sandbox without a screen (M123).
 
 type Root = ReturnType<typeof listRoots>[number];
 
@@ -61,6 +62,17 @@ function partsOf(bookId: string, profile: string): Part[] {
 /** Forgets the cached parts of the playing book; a scan may have changed them. */
 export function forgetServerPlaceParts(): void {
   timeline = null;
+}
+
+/**
+ * Whether a book's server keeps places for `profile`, so the service asks for a server task after
+ * each pause (M123).
+ */
+export function keepsServerPlaces(files: { rootId: string | null }[], profile: string): boolean {
+  const rootId = files[0]?.rootId;
+  if (!rootId || files.some((f) => f.rootId !== rootId)) return false;
+  const server = serverOf(rootId);
+  return !!server && server.owner === profile && !server.root.needsLogin;
 }
 
 /** Whether an add-on server takes places, with the login entered for the add-on it runs. */
@@ -218,7 +230,7 @@ const isPermanent = (error: unknown) =>
 
 const LATE_MS = 30_000;
 
-async function sendDue(now: number, all: boolean, addons: boolean): Promise<void> {
+async function sendDue(now: number, all: boolean): Promise<void> {
   // One failure per server per round: the rest of its places wait with it.
   const unreachable = new Set<string>();
   const rows: PendingPlace[] = duePlaces(db, now, all);
@@ -229,8 +241,6 @@ async function sendDue(now: number, all: boolean, addons: boolean): Promise<void
       placeDone(db, row);
       continue;
     }
-    // Without the app's screen there is no sandbox to run an add-on in: those wait, untouched.
-    if (!addons && server.root.remote?.type === 'addon') continue;
     if (server.root.needsLogin || unreachable.has(row.rootId)) {
       placeFailed(db, row, now);
       continue;
@@ -256,31 +266,24 @@ let sending: Promise<void> | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 // Asked for every waiting place while a round was running: one more round after it.
 let allAfter = false;
-// Asked with add-on servers while a background round left them out: the next round takes them.
-let addonsAfter = false;
 
 /**
  * Sends the places that are due and plans the next try. `all` sends every waiting place now,
- * such as when the app comes to the front. `addons` false leaves add-on servers' places waiting,
- * for a background run, which has no sandbox. Never throws; offline is normal.
+ * such as when the app comes to the front or a server task runs. Never throws; offline is normal.
  */
-export function flushServerPlaces(all = false, addons = true): Promise<void> {
+export function flushServerPlaces(all = false): Promise<void> {
   if (sending) {
     if (all) allAfter = true;
-    if (addons) addonsAfter = true;
     return sending;
   }
   sending = (async () => {
     let everything = all;
-    let withAddons = addons;
     try {
       for (;;) {
-        await sendDue(Date.now(), everything, withAddons);
-        if (!allAfter && !(addonsAfter && !withAddons)) break;
-        everything = everything || allAfter;
-        withAddons = withAddons || addonsAfter;
+        await sendDue(Date.now(), everything);
+        if (!allAfter) break;
+        everything = true;
         allAfter = false;
-        addonsAfter = false;
       }
     } catch {
       // The outbox keeps the places; the next flush tries again.

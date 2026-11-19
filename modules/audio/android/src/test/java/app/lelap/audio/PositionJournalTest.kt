@@ -121,6 +121,28 @@ class PositionJournalTest {
   }
 
   @Test
+  fun keepsTheServerTasksThroughTheQueueAndTheJournal() {
+    val json = """
+      {"bookId":"b","title":"T","author":null,"coverUri":null,"speed":1,
+       "files":[{"uri":"https://plex.example:32400/library/parts/1/file.mp3","location":"loc","title":"x","durationMs":5}],
+       "chapters":[],"startIndex":0,"startPositionMs":0,"serverPlaces":true,"locate":true}
+    """.trimIndent()
+    val load = PositionJournal.decodeLoad(json)!!
+    assertTrue(load.playlist.serverPlaces)
+    assertTrue(load.playlist.locate)
+    assertEquals(load, PositionJournal.decodeLoad(PositionJournal.encodeLoad(load)))
+    val (_, playlist) = PositionJournal.decode(
+      PositionJournal.encodeEntry(JournalEntry("b", "loc", 0L, 1L)),
+      PositionJournal.encodePlaylist(load.playlist),
+    )!!
+    assertEquals(load.playlist, playlist)
+    // A queue written before M123: no tasks.
+    val older = PositionJournal.decodeLoad(json.replace(",\"serverPlaces\":true,\"locate\":true", ""))!!
+    assertFalse(older.playlist.serverPlaces)
+    assertFalse(older.playlist.locate)
+  }
+
+  @Test
   fun keepsAFilesOwnNameForCasting() {
     val json = """
       {"bookId":"b","title":"T","author":null,"coverUri":null,"speed":1,

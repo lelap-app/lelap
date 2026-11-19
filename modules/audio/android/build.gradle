@@ -23,6 +23,8 @@ dependencies {
   implementation project(':lelap-cast')
   // SMB and SFTP files (M62): a data source of their own, with the login as headers.
   implementation project(':lelap-netfs')
+  // Places and located addresses with the app closed (M123): the app's server tasks.
+  implementation project(':lelap-headless')
   implementation "androidx.media3:media3-exoplayer:$media3Version"
   implementation "androidx.media3:media3-session:$media3Version"
   implementation "androidx.media3:media3-datasource:$media3Version"

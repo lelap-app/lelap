@@ -1,0 +1,22 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'app.lelap.headless'
+version = '0.0.0'
+
+android {
+  namespace 'app.lelap.headless'
+  defaultConfig {
+    versionCode 1
+    versionName '0.0.0'
+    // expo-task-manager keeps the consumer's class name and makes it again by reflection.
+    consumerProguardFiles 'proguard-rules.pro'
+  }
+}
+
+dependencies {
+  implementation 'androidx.work:work-runtime-ktx:2.10.1'
+  testImplementation 'junit:junit:4.13.2'
+}
