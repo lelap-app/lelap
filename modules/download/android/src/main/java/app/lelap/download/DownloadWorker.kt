@@ -78,7 +78,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
           if (Netfs.handles(file.url)) {
             NetDownload.fetch(file.url, folder, file.name, file.size, job.headers, { Messages.describe(applicationContext, it) }, progress)
           } else {
-            Http.fetch(file.url, folder, file.name, file.size, job.headers, NativeText.get(applicationContext), progress)
+            Http.fetch(file.url, folder, file.name, file.size, job.headers, NativeText.get(applicationContext), file.integrity, progress)
           }
           finished += folder.length(file.name) ?: 0L
         }

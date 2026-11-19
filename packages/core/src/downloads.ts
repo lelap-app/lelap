@@ -2,6 +2,7 @@ import type { Meta } from '@lelap/sdk';
 import { and, asc, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 
 import type { Db } from './db';
+import { episodeFileIntegrity } from './podcasts/alternates';
 import { bookFiles, books, downloads, libraryRoots } from './schema';
 
 /** What the native worker downloads for one book. Files land in `<directory>/<bookId>/`. */
@@ -9,7 +10,14 @@ export type DownloadPlan = {
   bookId: string;
   title: string;
   /** `rootId` is set for files on a server, so the app can sign them or add the login. */
-  files: { url: string; name: string; size: number; rootId: string | null }[];
+  files: {
+    url: string;
+    name: string;
+    size: number;
+    rootId: string | null;
+    /** The feed's SRI hash of an episode's file (M103), which the worker checks when it is in. */
+    integrity?: string;
+  }[];
   cover: { url: string; name: string } | null;
   /** 0 when the add-on gave no sizes. */
   bytesTotal: number;
@@ -103,13 +111,17 @@ export function planDownload(db: Db, bookId: string): DownloadPlan {
     .orderBy(asc(bookFiles.idx))
     .all();
   if (parts.length === 0) throw new DownloadError('This book has no files to download.');
-  const files = parts.map((p) => ({
-    url: p.downloadUri ?? p.uri,
-    // A server file's name comes from its path, not from a signed link.
-    name: partFileName(p.idx, p.uri.split('?')[0] ?? p.uri, p.name),
-    size: p.size,
-    rootId: p.rootId,
-  }));
+  const files = parts.map((p) => {
+    const integrity = book.source === 'feed' ? episodeFileIntegrity(db, bookId, p.uri) : null;
+    return {
+      url: p.downloadUri ?? p.uri,
+      // A server file's name comes from its path, not from a signed link.
+      name: partFileName(p.idx, p.uri.split('?')[0] ?? p.uri, p.name),
+      size: p.size,
+      rootId: p.rootId,
+      ...(integrity ? { integrity } : {}),
+    };
+  });
   return {
     bookId,
     title: book.title,

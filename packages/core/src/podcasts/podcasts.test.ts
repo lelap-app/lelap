@@ -98,6 +98,7 @@ describe('RSS', () => {
         soundbites: [],
         location: null,
         value: [],
+        alternates: [],
       },
     });
   });
@@ -149,6 +150,7 @@ describe('Atom', () => {
           soundbites: [],
           location: null,
           value: [],
+          alternates: [],
         },
       },
       expect.objectContaining({

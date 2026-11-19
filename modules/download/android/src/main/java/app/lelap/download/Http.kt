@@ -28,6 +28,7 @@ object Http {
     expectedSize: Long,
     headers: Map<String, String> = emptyMap(),
     text: NativeCatalog = NativeCatalog.ENGLISH,
+    integrity: String? = null,
     onBytes: suspend (Long) -> Unit,
   ) {
     val part = name + PART_SUFFIX
@@ -60,6 +61,11 @@ object Http {
         }
       } finally {
         connection.disconnect()
+      }
+      // Checked before it gets its name: a file under its own name counts as downloaded.
+      if (integrity != null && Integrity.check(folder.input(part), integrity) == Integrity.Result.MISMATCH) {
+        folder.delete(part)
+        throw PermanentFailure(text.t("The file doesn’t match the checksum in the feed, so it was not kept. It may have changed on the way."))
       }
       folder.rename(part, name)
       return

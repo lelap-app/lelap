@@ -1,4 +1,5 @@
 import type { StoredChapter } from '../schema';
+import { alternatesOf, type FeedAlternate } from './alternates';
 import { asArray, htmlToText, isNode, textOf, type XmlNode } from './xml';
 
 /** `podcast:person`: who hosts, guests or produces a show or an episode. */
@@ -74,6 +75,8 @@ export type EpisodeExtras = {
   soundbites?: FeedSoundbite[];
   location?: FeedLocation | null;
   value?: FeedValue[];
+  /** Every audio `podcast:alternateEnclosure` (M103); missing in rows stored before then. */
+  alternates?: FeedAlternate[];
 };
 
 const isHttp = (url: string) => /^https?:\/\//i.test(url);
@@ -187,6 +190,7 @@ export function episodeExtrasOf(item: XmlNode): EpisodeExtras {
     soundbites: soundbitesOf(item),
     location: locationOf(item),
     value: valueOf(item),
+    alternates: alternatesOf(item),
   };
 }
 

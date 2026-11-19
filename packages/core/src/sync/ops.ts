@@ -149,6 +149,8 @@ export type Op =
         skipIntroMs?: number;
         skipOutroMs?: number;
         subscribedAt: number;
+        /** Since M103; absent from older devices, which then keep what this device has. */
+        audioChoice?: string | null;
       } & Partial<SoundOverrides>;
     }
   | {
@@ -456,6 +458,7 @@ export function collectOps(db: Db, since: number): Op[] {
         skipIntroMs: sub.skipIntroMs,
         skipOutroMs: sub.skipOutroMs,
         subscribedAt: sub.subscribedAt,
+        audioChoice: sub.audioChoice,
         voiceEq: sub.voiceEq,
         skipSilence: sub.skipSilence,
         evenLoudness: sub.evenLoudness,
@@ -623,6 +626,13 @@ export type Handoff = { bookId: string; profileId: string; bookPositionMs: numbe
 const MAX_TRIM_MS = 10 * 60_000;
 
 /** A show's intro and outro from another device, when it sent them (M45), kept to a sane range. */
+/** The show's file choice (M103) when the operation carries one a reader can use. */
+function audioChoiceOf(data: { audioChoice?: unknown }): { audioChoice?: string | null } {
+  const choice = data.audioChoice;
+  if (choice === null) return { audioChoice: null };
+  return typeof choice === 'string' && choice.length <= 200 ? { audioChoice: choice } : {};
+}
+
 function trimOf(data: { skipIntroMs?: number; skipOutroMs?: number }) {
   const clamp = (ms: number) => Math.min(MAX_TRIM_MS, Math.max(0, Math.round(ms)));
   return {
@@ -918,6 +928,7 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
             autoDownload: op.data.autoDownload,
             keepLatest: op.data.keepLatest,
             ...trimOf(op.data),
+            ...audioChoiceOf(op.data),
             ...syncedOverrides(op.data),
             updatedAt: op.at,
           };

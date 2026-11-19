@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { StoredChapter } from '../schema';
@@ -15,6 +15,7 @@ import {
   subscriptions,
 } from '../schema';
 import { recordDeletion } from '../sync/keys';
+import { audioFilesOf } from './alternates';
 import { isPlaceholderFeed } from './placeholder';
 import type { EpisodeExtras, PodcastExtras } from './podcasting';
 import type { ParsedFeed } from './rss';
@@ -88,12 +89,18 @@ export function saveFeed(
       const found = known.get(episode.guid);
       if (found) {
         tx.update(episodes).set(row).where(eq(episodes.id, found.id)).run();
-        // A moved enclosure: the episode's book streams from the new address.
+        // A moved enclosure: the episode's book streams from the new address. A file the
+        // listener's choice picked among the alternates (M103) stays while the feed lists it.
         if (found.bookId) {
-          tx.update(bookFiles)
-            .set({ uri: episode.url, relPath: episode.url, updatedAt: now })
-            .where(eq(bookFiles.location, episodeFileLocation(podcastId, episode.guid)))
-            .run();
+          const location = eq(bookFiles.location, episodeFileLocation(podcastId, episode.guid));
+          const file = tx.select({ uri: bookFiles.uri }).from(bookFiles).where(location).get();
+          const listed = audioFilesOf(episode).some((f) => f.url === file?.uri);
+          if (file && !listed) {
+            tx.update(bookFiles)
+              .set({ uri: episode.url, relPath: episode.url, updatedAt: now })
+              .where(location)
+              .run();
+          }
         }
       } else {
         const id = newId();
@@ -114,9 +121,21 @@ export function feedCache(db: Db, feedUrl: string): FeedCache | null {
     .where(eq(podcasts.feedUrl, feedUrl))
     .get();
   if (!row) return null;
-  // Stored before Podcasting 2.0 fields (M23) or M75's soundbites and value were read: fetch the
-  // whole feed once to fill them in.
+  // Stored before Podcasting 2.0 fields (M23), M75's soundbites and value or M103's alternates
+  // were read: fetch the whole feed once to fill them in.
   if (row.extras === null || row.extras.value === undefined) {
+    return { etag: null, lastModified: null };
+  }
+  const episode = db
+    .select({ extras: episodes.extras })
+    .from(episodes)
+    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .where(and(eq(podcasts.feedUrl, feedUrl), isNotNull(episodes.extras)))
+    // The last full read touched it; episodes that left the feed keep what they had.
+    .orderBy(desc(episodes.updatedAt))
+    .limit(1)
+    .get();
+  if (episode && episode.extras?.alternates === undefined) {
     return { etag: null, lastModified: null };
   }
   return { etag: row.etag, lastModified: row.lastModified };
@@ -274,6 +293,8 @@ export type Subscription = {
   keepLatest: number;
   skipIntroMs: number;
   skipOutroMs: number;
+  /** Which of an episode's files to play (M103); null is automatic. */
+  audioChoice: string | null;
   subscribedAt: number;
   /** When this profile last opened the podcast's page here; null before it started counting. */
   seenAt: number | null;
@@ -301,6 +322,7 @@ export function listSubscriptions(db: Db, profileId: string, podcastId?: string)
       keepLatest: subscriptions.keepLatest,
       skipIntroMs: subscriptions.skipIntroMs,
       skipOutroMs: subscriptions.skipOutroMs,
+      audioChoice: subscriptions.audioChoice,
       subscribedAt: subscriptions.subscribedAt,
       seenAt: subscriptions.seenAt,
       newSince: subscriptions.newSince,
@@ -395,6 +417,9 @@ export type EpisodeItem = {
   season: number | null;
   number: number | null;
   durationMs: number;
+  /** The feed's own file, for choosing among alternates (M103). */
+  url: string;
+  mime: string | null;
   size: number;
   bookId: string | null;
   positionMs: number;
@@ -436,6 +461,8 @@ export function listEpisodes(db: Db, profileId: string, podcastId: string): Epis
       season: episode.season,
       number: episode.number,
       durationMs: episode.durationMs,
+      url: episode.url,
+      mime: episode.mime,
       size: episode.size,
       bookId: episode.bookId,
       positionMs: positionMs ?? 0,

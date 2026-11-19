@@ -52,6 +52,8 @@ import { savedCatalogCover } from './catalogCovers';
 import { coverUri } from './components/BookCover';
 import { db, newId } from './db';
 import { logCaught } from './diagnostics';
+import { pickEpisodeFile } from './episodeFiles';
+import { chapterImagesRead } from './podcasting';
 import * as audio from './platform/audio';
 import { profileId, setProfileId } from './profile';
 import { prepareAudiobookshelfBook } from './audiobookshelf';
@@ -384,6 +386,8 @@ async function load(
   if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
   // A newer place from Audiobookshelf's own player is taken first.
   await prepareAudiobookshelfBook(bookId, profileId);
+  // An episode streams the file its show's choice and the connection call for (M103).
+  pickEpisodeFile(bookId);
   const book = bookLoad(bookId, { fromStart });
   if (!book) throw new Error('The files of this book are not available.');
   // What the service heard so far belongs to the profile it played for, which may change here:
@@ -448,7 +452,17 @@ export function bookLoad(
     ...trim,
     // The book's or show's own sound (M84), for the same reason.
     sound: setOverrides(bookSound(db, profileId, bookId).overrides),
+    ...(detail.book.source === 'feed' ? artworksOf(bookId) : {}),
   };
+}
+
+/** An episode's chapter pictures for the lock screen and the car (M103), when read already. */
+function artworksOf(bookId: string): Pick<audio.BookLoad, 'artworks'> {
+  if (Platform.OS !== 'android') return {};
+  const images = chapterImagesRead(bookId);
+  return images.length > 0
+    ? { artworks: images.map((i) => ({ startMs: i.startMs, uri: i.img })) }
+    : {};
 }
 
 // Enough for a long drive with the app closed; the app sends the queue again on every change.

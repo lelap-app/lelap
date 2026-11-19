@@ -87,6 +87,10 @@ const nativeLines = (): Record<string, string> => ({
     'The server sent the download through too many addresses.',
   ),
   'The connection closed early.': t('The connection closed early.'),
+  'The file doesn’t match the checksum in the feed, so it was not kept. It may have changed on the way.':
+    t(
+      'The file doesn’t match the checksum in the feed, so it was not kept. It may have changed on the way.',
+    ),
   'The download does not match the release. Try again.': t(
     'The download does not match the release. Try again.',
   ),

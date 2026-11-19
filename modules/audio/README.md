@@ -39,6 +39,9 @@ Kotlin Expo module for Android playback.
 - Intro and outro (M45): a podcast's `BookLoad` carries the seconds to skip. `SeekRules` starts
   an episode past its intro and keeps smart rewind out of it; a player message at the outro's
   start seeks to the end, so the episode is logged as played and Up Next goes on.
+- Chapter pictures (M103): an episode's `BookLoad` may carry its chapters file's pictures
+  (`artworks`); `ChapterArtwork` picks the one for the place, and the chapter ticker swaps the
+  item's artwork with its title, so the notification, lock screen and car show it.
 - Media button preferences: back and forward by the skip interval (`SkipIcons` picks Media3's
   icon with the seconds) and the sleep timer button. Phones, watches and cars all read them.
 - Casting (M50): `RemotePlayer` becomes the session's player while a receiver plays, through the
