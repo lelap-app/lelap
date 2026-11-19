@@ -12,7 +12,7 @@ export const COURSES: Course[] = [
     department: 'African American Studies',
     page: '/african-american-studies/afam-162',
     description:
-      'The purpose of this course is to examine the African American experience in the United States from 1863 to the present (2010). Prominent themes include the end of the Civil War and the beginning of Reconstruction; African Americans’ urbanization experiences; the development of the modern civil rights movement and its aftermath; and the thought and leadership of Booker T. Washington, Ida B. Wells-Barnett, W.E.B. Du Bois, Marcus Garvey, Martin Luther King Jr., and Malcolm X. Warning: Some of the lectures in this course contain graphic content and/or adult language that some users may find disturbing. Please note: This course was captured in 2010.',
+      'The purpose of this course is to examine the African American experience in the United States from 1863 to the present (2010). Prominent themes include the end of the Civil War and the beginning of Reconstruction; African Americans’ urbanization experiences; the development of the modern civil rights movement and its aftermath; and the thought and leadership of Booker T. Washington, Ida B. Wells-Barnett, W.E.B. Du Bois, Marcus Garvey, Martin Luther King Jr., and Malcolm X.\n\nWarning: Some of the lectures in this course contain graphic content and/or adult language that some users may find disturbing.\n\nPlease note: This course was captured in 2010.',
     archive: 'oyc_African_American_History',
     host: 'yale',
     lectures: [
@@ -202,7 +202,7 @@ export const COURSES: Course[] = [
     department: 'American Studies',
     page: '/american-studies/amst-246',
     description:
-      'This course examines major works by Hemingway, Fitzgerald, and Faulkner, exploring their interconnections on three analytic scales: the macro history of the United States and the world; the formal and stylistic innovations of modernism; and the small details of sensory input and psychic life. Warning: Some of the lectures in this course contain graphic content and/or adult language that some users may find disturbing.',
+      'This course examines major works by Hemingway, Fitzgerald, and Faulkner, exploring their interconnections on three analytic scales: the macro history of the United States and the world; the formal and stylistic innovations of modernism; and the small details of sensory input and psychic life.\n\nWarning: Some of the lectures in this course contain graphic content and/or adult language that some users may find disturbing.',
     archive: 'oyc_Hemingway__Fitzgerald__Faulkner',
     host: 'yale',
     lectures: [

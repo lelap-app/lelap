@@ -86,7 +86,6 @@ export function metaOf(course: Course): Meta {
     language: 'en',
     genres: [course.department],
     link: `${YALE}${course.page}`,
-    externalIds: { oyc: course.code },
   };
 }
 

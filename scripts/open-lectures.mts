@@ -349,7 +349,14 @@ async function main() {
       term: row.term,
       department: row.department,
       page: row.path,
-      description: curly(decode(about.replace(/<\/p>\s*<p>/g, '\n\n'))),
+      // One paragraph per <p> (or <br><br>), kept apart by a blank line.
+      description: curly(
+        about
+          .split(/<\/p>\s*<p[^>]*>|<br\s*\/?>\s*<br\s*\/?>/i)
+          .map(decode)
+          .filter((paragraph) => paragraph !== '')
+          .join('\n\n'),
+      ),
       archive: identifier,
       host,
       lectures: parts,

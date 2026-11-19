@@ -279,7 +279,7 @@ export default function WelcomeScreen() {
         </Text>
         <Text className="text-base text-soft">
           {t(
-            'Lelap’s own add-ons for services you may already use. Each needs your account there; leave them for later if you like.',
+            'Lelap’s own optional add-ons. Some connect a service you may already use and need your account there; others add more to listen to. Leave them for later if you like.',
           )}
         </Text>
         {offers.length === 0 ? (
