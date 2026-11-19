@@ -2,6 +2,135 @@
 
 What changed in each Lelap release, newest first.
 
+## 0.1.0-beta.11 (2026-11-19)
+
+This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t
+bring it to older APKs. The app offers the APK as usual. At first start the app’s database makes
+room for a show’s episode file choice and for a confirmed work’s series, and clears chapter names
+that an earlier scan made up (“Chapter 3”, “Bab 3”), so they show in your profile’s language. No
+new permissions. The app now includes Jetpack WindowManager, which reads a foldable’s hinge.
+
+### New
+
+- Play on several speakers: tick two or more in the Cast sheet, of any kind (a Sonos and a Nest
+  speaker, say), and the book plays on all of them. The first one ticked leads, and the others are
+  moved back in step when they drift more than 1 s. Volume keeps each speaker’s share. A speaker
+  that can’t be reached or goes quiet leaves the group, and the rest play on. (#212)
+- Skip silence and even loudness in the web app, in the Sound sheet and Settings as on Android.
+  Skip silence works on MP3 files with a constant bitrate, such as LibriVox’s. Even loudness reads
+  a file’s ReplayGain tags, or measures the book and brings it towards one level. A file from a
+  host that doesn’t let the browser read it plays without the effects. The audio still goes
+  straight from its host to the browser. (#209)
+- Episode file: a show whose feed offers other files of each episode, such as a smaller AAC or
+  Opus file, gets an Episode file row on its page: Automatic, Smallest, the feed’s own file or one
+  of the others. Automatic plays the feed’s own file, and the smallest one on mobile data. The
+  choice is per show and profile, and syncs. Switching keeps your place and bookmarks; a
+  downloaded episode keeps the file it downloaded. (#208)
+- Chapter pictures from a podcast’s chapters file show on the lock screen, in the notification and
+  in Android Auto as each chapter starts, with the cover where a chapter has none. (#208)
+- A third column on wide screens: from 1400 points wide, a book’s or a show’s page opens between
+  the list and the player. ✕ or Back closes it. The lines before the page and the player can be
+  dragged, or moved with ← and → when they have focus; Home resets them. The widths are kept on
+  the device. (#206)
+- Foldables: half open like a book, the screens end at the hinge and the player starts after it.
+  Half open on a table, the screens sit above the hinge and the player below. Nothing is drawn
+  under the hinge. (#206)
+- In the web app, the side rail lists your lists under the tabs, and a book or an episode can be
+  dragged onto a hand-made one. The list lights up and says Added. (#206)
+
+### Improved
+
+- Google Cast speakers must now prove they are genuine Google Cast devices before Lelap connects.
+  When one doesn’t, the Cast sheet says so and offers Connect anyway, which lets in that one
+  speaker until the app restarts. (#212)
+- Downloads check a file against the hash its feed gives (`podcast:integrity`). A file that
+  doesn’t match isn’t kept, and Downloads says why. (#208)
+- A chapter without a title is named in the language of the profile looking at it: “Chapter 3” in
+  English, “Bab 3” in Bahasa Melayu, and “Part 3” for chapters found from silences. This holds in
+  the chapter list, the player, car mode, bookmarks, the notification, the widget and Android
+  Auto. (#211)
+- The notification’s play and pause descriptions follow the profile’s language. (#211)
+- Failed downloads and moves, storage errors, app updates, casting faults and the line under the
+  player show a translated line for what went wrong, instead of Android’s own error text. The web
+  player does the same. (#211)
+- A place saved with Lelap closed (paused from the notification, the lock screen or the car) now
+  reaches the book’s server. It goes when the app next opens, and for Jellyfin and Audiobookshelf
+  also from the background refresh, about once an hour. It never replaces a newer place. (#210)
+- Plex: when your server’s address changes, a scan finds the new one through plex.tv without a
+  new sign-in. Before a book streams, Lelap checks which address answers as your server, so books
+  play away from home without a rescan. (#210)
+- Books from a server with a login follow the server’s redirects, and the login goes only to the
+  book’s own server. (#210)
+- A streamed book’s series now syncs, so another device shows it under Series without playing it
+  first. Jellyfin audiobooks get their series from the server. Saying yes to “In your library?”
+  keeps the work’s series, while the book keeps its own title and cover. (#214)
+- The web app starts sooner with a large library. With 10,000 books, in headless Chrome on an
+  Apple M1 Max with the production build, the Library showed its rows in 0.34 s instead of 0.85 s
+  and Home in 0.27 s instead of 0.65 s, and the app held 47 MB less memory. A save takes about
+  18 ms longer. (#213)
+- Fewer wakeups while a book plays on Android: the sleep timer ticks every 5 s until its last
+  minute, the lock screen’s chapter title is checked at the next chapter mark, the app hears the
+  player every 10 s in the background, and downloaded and local books no longer hold a Wi-Fi lock.
+  Battery use on a phone hasn’t been measured yet. (#213)
+
+### Fixed
+
+- A book you hid no longer shows its number as missing in its series, and Next in the series
+  doesn’t ask you to look for it. (#214)
+- Files tagged with a series name and only a movement number (`MVIN`) no longer take that number
+  as the book’s number in the series. (#214)
+- A streamed book added again from an add-on that no longer names a series loses the old one.
+  (#214)
+- On Android, the time skip silence saved goes to the right book when books switch, and each
+  part’s ReplayGain applies from its first sample instead of a moment late. (#209)
+
+### Self-hosting and add-on developers
+
+- Sync: no D1 migration, and the sync Worker hasn’t changed. A show’s episode file choice and the
+  series of streamed books and confirmed works travel as new fields on existing operations, which
+  older app versions leave alone. (#208, #214)
+- Protocol revision 11, for add-ons inside the app: a library listing can return `settings` (new
+  values for the add-on’s own fields, such as a server’s new address), and a new `locate`
+  resource says where a book’s files stream from just before it plays. (#210)
+- The protocol now says an add-on may leave a chapter’s title empty; the app names it in the
+  listener’s language. (#211)
+- Coming with the next SDK release (0.6, not on npm yet; `@lelap/sdk` 0.5.0 is the current one):
+  protocol revisions 10 and 11, the larger configure page, sealed settings bound to the add-on’s
+  ID, and `lelap-sdk check`. Until then they run from the repository. (#191, #200, #203, #210)
+- The app already speaks revision 11: the web app since these changes reached `main`, and the
+  Android app with this beta. (#210)
+
+### Known issues
+
+- Google Cast device authentication now uses Google’s bundled roots and is untested against a
+  real Nest speaker. If a genuine speaker is refused, Connect anyway lets it in. (#212)
+- Playing on several speakers is untested on real speakers. (#212)
+- Books from a server with a login now play on Android through a new reader, untested on a phone.
+  (#210)
+- Places saved with the app closed reaching Jellyfin, Audiobookshelf or Plex are untested on a
+  phone and a real server. (#210)
+- Foldable layouts are untested on a real foldable, and the dividers on a tablet with a finger.
+  (#206)
+- Skip silence and even loudness in the web app have only been tried in Chromium. (#209)
+- Clearing made-up chapter names at first start is untested on a real library. (#211)
+- Episode file choices, integrity checks and chapter pictures on the lock screen and in the car
+  are untested on a phone. (#208)
+- The new notification texts in Bahasa Melayu are untested on a phone, and some new Malay lines
+  haven’t been checked by a native speaker. (#211)
+- Themes on Android: the themes haven’t been looked at on a phone. (#199)
+- Android Auto covers rely on the access each car app gets per list. Covers in Android Auto
+  haven’t been tried in a car with this change. (#194)
+- Playing a list with the app closed, in the car and while casting is untested. (#204)
+- Reading series from the files’ tags is untested on a phone. (#196, #214)
+- Ratings sent to Hardcover, and Hardcover’s audiobook editions, haven’t been tried against the
+  live service. (#203)
+- Car mode sideways, and the tap on a podcast’s place opening a map app, are untested on a phone.
+  (#194, #198)
+- SMB requires signing for logged-in sessions. A Samba server that maps a login to its guest
+  account may stop working. (#191)
+- Shared place links open in the web app; opening them in the Android app isn’t switched on yet.
+  (#187)
+
 ## 0.1.0-beta.10 (2026-11-19)
 
 This beta changes the app’s Android code, so it needs the new APK; an over-the-air update can’t
