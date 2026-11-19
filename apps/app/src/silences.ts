@@ -13,7 +13,6 @@ import { AppState } from 'react-native';
 
 import { queryClient } from './addons';
 import { db, newId } from './db';
-import { t } from './i18n';
 import * as library from './platform/library';
 import { updateChapters, useLibrary } from './player';
 import { profileId } from './profile';
@@ -90,7 +89,8 @@ async function foldScans(onChange: () => void): Promise<Map<string, SilenceScan>
             durationMs: f.durationMs > 0 ? f.durationMs : (scanned[i]?.durationMs ?? 0),
             silences: scanned[i]?.silences ?? [],
           })),
-          (n) => t('Part {n}', { n }),
+          // Saved untitled: they are named “Part 3” where they show, in each profile's language.
+          () => '',
         )
       : [];
     if (chapters.length > 0 && saveFoundChapters(db, scan.bookId, chapters, Date.now(), newId)) {

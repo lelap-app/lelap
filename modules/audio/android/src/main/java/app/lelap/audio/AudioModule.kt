@@ -13,6 +13,7 @@ import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
+import app.lelap.text.NativeText
 import com.google.common.util.concurrent.ListenableFuture
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
@@ -468,7 +469,7 @@ class AudioModule : Module() {
       "waitingForCall" to extras.getBoolean(Commands.EXTRA_WAITING_FOR_FOCUS, false),
       "sleepTimerRemainingMs" to timerRemaining?.toDouble(),
       "sleepTimerMode" to timerRemaining?.let { extras.getString(Commands.EXTRA_SLEEP_TIMER_MODE) },
-      "error" to c.playerError?.let { "${it.errorCodeName}: ${it.message}" },
+      "error" to c.playerError?.let { PlayerErrors.text(it.errorCode, it.message, NativeText.get(context)) },
     )
   }
 }

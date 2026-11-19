@@ -328,8 +328,8 @@ export function audiobookshelfScan(
     const itemId = encodeURIComponent(item.id);
     // Without a title the book is named after its folder on the server, not its item ID.
     const title = meta?.title?.trim() || lastSegment(item.path) || null;
-    const bookChapters = (item.media.chapters ?? []).map((c, i) => ({
-      title: c.title?.trim() || `Chapter ${i + 1}`,
+    const bookChapters = (item.media.chapters ?? []).map((c) => ({
+      title: c.title?.trim() ?? '',
       startMs: ms(c.start),
     }));
     if (tracks.length > 1 && bookChapters.length > 0) {

@@ -1,4 +1,4 @@
-import { getBook, parseTime, setOwnChapters, toBookPosition } from '@lelap/core';
+import { chaptersOf, getBook, parseTime, setOwnChapters, toBookPosition } from '@lelap/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Text, TextInput, View } from 'react-native';
@@ -45,8 +45,9 @@ export default function EditChaptersScreen() {
   const { refresh } = useLibrary();
   const { book: bookId = '' } = useLocalSearchParams<{ book?: string }>();
   const detail = useMemo(() => getBook(db, profileId, bookId), [bookId]);
+  // As saved: an untitled chapter keeps an empty field, its name only the placeholder.
   const [rows, setRows] = useState<Row[]>(() =>
-    (detail?.chapters ?? []).map((c) => row(c.title, c.startMs)),
+    detail ? chaptersOf(db, profileId, bookId).map((c) => row(c.title, c.startMs)) : [],
   );
   // Where the player is in this book, for a chapter that starts here.
   const here =
@@ -91,7 +92,6 @@ export default function EditChaptersScreen() {
       bookId,
       rows.map((r) => ({ title: r.title, startMs: startOf(r) ?? 0 })),
       detail.book.durationMs,
-      (n) => t('Chapter {n}', { n }),
       Date.now(),
     );
     refresh();

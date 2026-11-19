@@ -93,3 +93,52 @@ describe('0002_addons', () => {
     expect(db.select().from(schema.downloads).all()).toEqual([]);
   });
 });
+
+describe('0027_chapter_names', () => {
+  it('empties made-up chapter names in either language, and keeps real ones', async () => {
+    const source = fileURLToPath(new URL('../drizzle', import.meta.url));
+    const before = mkdtempSync(join(tmpdir(), 'lelap-m99-'));
+    cpSync(source, before, { recursive: true });
+    const journalPath = join(before, 'meta', '_journal.json');
+    const journal = JSON.parse(readFileSync(journalPath, 'utf8')) as { entries: { tag: string }[] };
+    journal.entries = journal.entries.filter((e) => e.tag < '0027');
+    writeFileSync(journalPath, JSON.stringify(journal));
+
+    const SQL = await initSqlJs();
+    const db = drizzle(new SQL.Database(), { schema });
+    migrate(db, { migrationsFolder: before });
+    const bookId = seedBook(db, 'Novel', [{ location: 'n/01.mp3', durationMs: 9_000 }]);
+    const titles = ['Prologue', 'Chapter 2', 'Bab 3', 'Chapter 7'];
+    db.update(schema.bookFiles)
+      .set({ chaptersJson: titles.map((title, i) => ({ title, startMs: i * 1000 })) })
+      .run();
+    const rows = [
+      ...titles.map((title, idx) => ({ id: `c${idx}`, idx, title, found: false })),
+      { id: 'p', idx: 4, title: 'Bahagian 5', found: true },
+      { id: 'q', idx: 5, title: 'Part 6', found: false },
+    ];
+    db.insert(schema.chapters)
+      .values(rows.map((c) => ({ ...c, bookId, startMs: c.idx * 1000, updatedAt: 0 })))
+      .run();
+    db.insert(schema.ownChapters)
+      .values([
+        { profileId: ME, bookKey: 'a', chapters: [{ title: 'Bab 1', startMs: 0 }], updatedAt: 1 },
+        { profileId: ME, bookKey: 'b', chapters: null, updatedAt: 1 },
+      ])
+      .run();
+
+    migrate(db, { migrationsFolder: source });
+
+    const stored = db.select().from(schema.chapters).orderBy(schema.chapters.idx).all();
+    // “Chapter 7” in the fourth place is a real title; only a found chapter is a “Part”.
+    expect(stored.map((c) => c.title)).toEqual(['Prologue', '', '', 'Chapter 7', '', 'Part 6']);
+    expect(db.select().from(schema.bookFiles).get()?.chaptersJson).toEqual([
+      { title: 'Prologue', startMs: 0 },
+      { title: '', startMs: 1000 },
+      { title: '', startMs: 2000 },
+      { title: 'Chapter 7', startMs: 3000 },
+    ]);
+    const own = db.select().from(schema.ownChapters).orderBy(schema.ownChapters.bookKey).all();
+    expect(own.map((o) => o.chapters)).toEqual([[{ title: '', startMs: 0 }], null]);
+  });
+});

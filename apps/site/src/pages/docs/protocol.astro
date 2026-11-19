@@ -1332,7 +1332,8 @@ const toc: [string, string][] = [
   <FieldTable fields={partFields} />
   <p>
     With parts, each part becomes a chapter. A single file uses its own <code>chapters</code>, or
-    the meta’s.
+    the meta’s. Leave a chapter’s <code>title</code> empty when it has none: the app names it
+    “Chapter 3” in the listener’s language.
   </p>
   <CodeBlock code={streams} label={`GET ${streamUrl}`} />
   <h3 id="resolve">Links that expire</h3>

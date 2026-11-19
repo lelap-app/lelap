@@ -11,6 +11,7 @@ import {
   type StoredChapter,
 } from '../schema';
 import { presentFiles } from './bookFiles';
+import { namedChapters } from './chapterNames';
 import { compareNatural } from './files';
 import { kidFilter } from '../kids';
 import { linkedMetaByKey } from './links';
@@ -167,6 +168,7 @@ export function continueListening(db: Db, profileId: string): LibraryBook | null
 export type BookDetail = {
   book: LibraryBook;
   files: ReturnType<typeof presentFiles>;
+  /** Ready to show: untitled ones are named in the profile's language (M99). */
   chapters: StoredChapter[];
   /** The chapters are the listener's own, edited by hand (M85), and may be reset. */
   ownChapters: boolean;
@@ -205,7 +207,7 @@ export function getBook(db: Db, profileId: string, bookId: string): BookDetail |
   return {
     book,
     files: presentFiles(db, bookId),
-    chapters: own ?? list.map(({ title, startMs }) => ({ title, startMs })),
+    chapters: namedChapters(own ?? list).map(({ title, startMs }) => ({ title, startMs })),
     ownChapters: own !== null,
     foundChapters: own === null && list.length > 0 && list.every((c) => c.found),
     speed: entry?.speed ?? 1,

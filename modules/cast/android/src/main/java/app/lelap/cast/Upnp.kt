@@ -1,5 +1,6 @@
 package app.lelap.cast
 
+import app.lelap.text.NativeCatalog
 import app.lelap.text.NativeText
 import java.io.StringReader
 import java.net.URI
@@ -132,13 +133,18 @@ object Upnp {
     return response.childElements().associate { localName(it.tagName) to it.textContent.orEmpty() }
   }
 
-  /** The UPnP error of a SOAP fault, such as `701 Transition not available`. */
-  fun parseFault(xml: String): String? {
+  /**
+   * A refused action in the profile's language. The fault's own description is the device's
+   * English, so only its number is passed on.
+   */
+  fun refusal(code: String?, status: Int, text: NativeCatalog = NativeText.current()): String =
+    if (code != null) text.t("The speaker refused the command (UPnP error {code}).", "code" to code)
+    else text.t("The speaker answered HTTP {status}.", "status" to status)
+
+  /** The number of a SOAP fault's UPnP error, such as `701`. */
+  fun faultCode(xml: String): String? {
     val doc = parse(xml) ?: return null
-    val elements = doc.allElements()
-    val code = elements.firstOrNull { localName(it.tagName) == "errorCode" }?.textContent?.trim()
-    val text = elements.firstOrNull { localName(it.tagName) == "errorDescription" }?.textContent?.trim()
-    return listOfNotNull(code, text).joinToString(" ").ifEmpty { null }
+    return doc.allElements().firstOrNull { localName(it.tagName) == "errorCode" }?.textContent?.trim()?.ifEmpty { null }
   }
 
   fun call(controlUrl: String, serviceType: String, action: String, args: List<Pair<String, String>>): Map<String, String> {
@@ -152,7 +158,7 @@ object Upnp {
       envelope(serviceType, action, args).toByteArray(Charsets.UTF_8),
     )
     val text = response.text()
-    if (response.status != 200) throw CastException("$action failed: ${parseFault(text) ?: "HTTP ${response.status}"}")
+    if (response.status != 200) throw CastException(refusal(faultCode(text), response.status))
     return parseResponse(text, action) ?: emptyMap()
   }
 

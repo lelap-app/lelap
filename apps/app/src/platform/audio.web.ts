@@ -25,6 +25,7 @@ import {
   trimmedStart,
 } from '@lelap/core';
 
+import { t } from '../i18n';
 import { OPFS_SCHEME, opfsImageUrl } from '../webCovers';
 import * as opfs from './opfs';
 import * as sound from './webaudio';
@@ -393,7 +394,7 @@ function player(): HTMLAudioElement {
       void setPart(index, lastPositionMs, lastPlaying);
       return;
     }
-    error = audio.error ? `Media error ${audio.error.code}: ${audio.error.message}` : 'Cannot play';
+    error = mediaErrorText(audio.error?.code ?? null);
     note('error', audio.error?.code ?? null);
     emit();
   });
@@ -585,6 +586,17 @@ export async function takeJournal(): Promise<JournalEntry | null> {
   }
 }
 
+/**
+ * The line under the player for a `MediaError` code. The browser's own message is English for
+ * developers, so only the kind of failure is shown; diagnostics keep the code.
+ */
+function mediaErrorText(code: number | null): string {
+  if (code === 2) return t('No answer from the server.');
+  if (code === 3)
+    return t('This file can’t be read. It may be damaged, or in a format Lelap does not play.');
+  return t('The file could not be played. Press play to try again.');
+}
+
 export async function play(): Promise<void> {
   if (!element || !book) return;
   if (ended) await setPart(0, book.skipIntroMs ?? 0, false);
@@ -598,7 +610,10 @@ export async function play(): Promise<void> {
   pausedAt = null;
   await sound.resume(element);
   await element.play().catch((e: unknown) => {
-    error = e instanceof Error ? e.message : String(e);
+    error =
+      e instanceof Error && e.name === 'NotAllowedError'
+        ? t('The browser did not let playback start. Press play again.')
+        : mediaErrorText(e instanceof Error && e.name === 'NotSupportedError' ? 3 : null);
     note('play-refused', e instanceof Error ? (PLAY_REFUSED[e.name] ?? 0) : 0);
     emit();
   });

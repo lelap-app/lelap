@@ -310,8 +310,8 @@ export function jellyfinScan(
       uri: `${base}/Audio/${encodeURIComponent(item.Id)}/stream?static=true`,
     });
     const { authors, narrators } = jellyfinPeople(item);
-    const chapters: StoredChapter[] = (item.Chapters ?? []).map((c, i) => ({
-      title: c.Name?.trim() || `Chapter ${i + 1}`,
+    const chapters: StoredChapter[] = (item.Chapters ?? []).map((c) => ({
+      title: c.Name?.trim() ?? '',
       startMs: msOf(c.StartPositionTicks),
     }));
     tags.set(location, {

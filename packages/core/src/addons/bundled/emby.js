@@ -348,8 +348,9 @@ function filesOf(s, items, pictures) {
       const ids = idsOf(item);
       const chapters = list(item.Chapters)
         .filter((c) => c && c.MarkerType !== 'IntroStart' && c.MarkerType !== 'IntroEnd')
-        .map((c, n) => ({
-          title: String(c.Name || '').trim() || `Chapter ${n + 1}`,
+        // An untitled chapter stays empty: the app names it in the listener's language.
+        .map((c) => ({
+          title: String(c.Name || '').trim(),
           startMs: msOf(c.StartPositionTicks),
         }));
       const id = enc(item.Id);

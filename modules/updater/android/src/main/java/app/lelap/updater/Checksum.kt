@@ -8,6 +8,9 @@ import java.security.MessageDigest
 
 /** SHA-256 checks for downloaded APKs. Pure, so it is tested on the JVM. */
 object Checksum {
+  /** More bytes came than the release has. */
+  class TooLarge : IOException("The download is larger than the release.")
+
   fun sha256(file: File): String {
     val digest = MessageDigest.getInstance("SHA-256")
     file.inputStream().use { input ->
@@ -32,7 +35,7 @@ object Checksum {
       val n = input.read(buffer)
       if (n < 0) return total
       total += n
-      if (total > limit) throw IOException("The download is larger than the release.")
+      if (total > limit) throw TooLarge()
       output.write(buffer, 0, n)
     }
   }

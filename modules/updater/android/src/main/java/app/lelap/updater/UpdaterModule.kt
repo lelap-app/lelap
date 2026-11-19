@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import app.lelap.text.NativeText
+import app.lelap.text.Reasons
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
@@ -73,6 +74,19 @@ class UpdaterModule : Module() {
   }
 
   private fun download(url: String, target: File, size: Long) {
+    try {
+      fetch(url, target, size)
+    } catch (e: IOException) {
+      target.delete()
+      // Android's own messages follow the phone's language, so only a known kind of failure is named.
+      throw UpdateException(
+        if (e is Checksum.TooLarge) NativeText.t(context, "The download is larger than the release.")
+        else Reasons.of(e, NativeText.get(context)) ?: NativeText.t(context, "The download failed."),
+      )
+    }
+  }
+
+  private fun fetch(url: String, target: File, size: Long) {
     var current = URL(url)
     repeat(MAX_REDIRECTS) {
       if (current.protocol != "https") throw UpdateException(NativeText.t(context, "Updates come only over https."))
@@ -87,12 +101,7 @@ class UpdaterModule : Module() {
           return@repeat
         }
         if (code != 200) throw UpdateException(NativeText.t(context, "The server answered HTTP {status}.", "status" to code))
-        try {
-          c.inputStream.use { input -> target.outputStream().use { Checksum.copyLimited(input, it, size) } }
-        } catch (e: IOException) {
-          target.delete()
-          throw UpdateException(e.message ?: NativeText.t(context, "The download failed."))
-        }
+        c.inputStream.use { input -> target.outputStream().use { Checksum.copyLimited(input, it, size) } }
         return
       } finally {
         c.disconnect()

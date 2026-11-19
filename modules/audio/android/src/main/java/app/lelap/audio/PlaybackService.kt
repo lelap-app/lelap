@@ -179,6 +179,8 @@ class PlaybackService : MediaLibraryService() {
       sleepButtonStep = null
       updateSleepButton()
       session.notifyChildrenChanged(CarLibrary.ROOT, Int.MAX_VALUE, null)
+      setMediaNotificationProvider(notificationProvider())
+      triggerNotificationUpdate()
     }
   }
   // The bedtime window opens now (BedtimeAlarm): a book already playing gets the routine. A new
@@ -395,6 +397,7 @@ class PlaybackService : MediaLibraryService() {
       "Now playing",
       NotificationManager.IMPORTANCE_LOW,
     )
+    setMediaNotificationProvider(notificationProvider())
     session = builder.build()
     prefs.registerOnSharedPreferenceChangeListener(carListener)
     ContextCompat.registerReceiver(
@@ -419,6 +422,12 @@ class PlaybackService : MediaLibraryService() {
   }
 
   override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession = session
+
+  /**
+   * Media3 reads its play and pause descriptions from resources as it draws, in the context's
+   * language; this one has the profile's, and a new one is made on a switch.
+   */
+  private fun notificationProvider() = DefaultMediaNotificationProvider.Builder(NativeText.localized(this)).build()
 
   override fun onTaskRemoved(rootIntent: Intent?) {
     account(durable = true)

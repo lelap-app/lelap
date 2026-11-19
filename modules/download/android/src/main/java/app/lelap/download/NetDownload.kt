@@ -2,7 +2,8 @@ package app.lelap.download
 
 import app.lelap.netfs.NetFailure
 import app.lelap.netfs.Netfs
-import java.io.IOException
+import app.lelap.text.NativeText
+import app.lelap.text.ShownException
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.ensureActive
 
@@ -39,7 +40,7 @@ object NetDownload {
             while (position < length) {
               coroutineContext.ensureActive()
               val n = opened.file.read(position, buffer, 0, minOf(BUFFER_BYTES.toLong(), length - position).toInt())
-              if (n <= 0) throw IOException("The file ended early.")
+              if (n <= 0) throw ShownException(NativeText.current().t("The connection closed early."))
               out.write(buffer, 0, n)
               position += n
               onBytes(position)

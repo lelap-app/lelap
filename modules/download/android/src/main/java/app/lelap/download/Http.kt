@@ -1,7 +1,7 @@
 package app.lelap.download
 
 import app.lelap.text.NativeCatalog
-import java.io.IOException
+import app.lelap.text.ShownException
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.coroutines.coroutineContext
@@ -48,7 +48,7 @@ object Http {
           Resume.COMPLETE -> Unit
           Resume.DISCARD -> {
             folder.delete(part)
-            if (discarded) throw IOException(text.t("The server does not continue downloads (HTTP {status}).", "status" to code))
+            if (discarded) throw ShownException(text.t("The server does not continue downloads (HTTP {status}).", "status" to code))
             discarded = true
             continue
           }
@@ -56,7 +56,7 @@ object Http {
             refreshed = true
             continue
           }
-          Resume.RETRY -> throw IOException("HTTP $code")
+          Resume.RETRY -> throw ShownException(text.t("The server answered HTTP {status}.", "status" to code))
           Resume.FAIL -> throw PermanentFailure(text.t("The server answered HTTP {status}.", "status" to code))
         }
       } finally {
@@ -128,6 +128,6 @@ object Http {
       }
     }
     // A cut connection can look like a normal end; the next run continues from here.
-    if (length >= 0 && written < length) throw IOException(text.t("The connection closed early."))
+    if (length >= 0 && written < length) throw ShownException(text.t("The connection closed early."))
   }
 }

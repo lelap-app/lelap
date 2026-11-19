@@ -1,13 +1,14 @@
 package app.lelap.download
 
+import app.lelap.text.NativeText
+import app.lelap.text.ShownException
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
-import org.json.JSONArray
-import org.json.JSONObject
 
 /**
  * One book's files in one place: the app's private storage or a folder the listener chose. Names
@@ -51,7 +52,7 @@ class FileFolder(val dir: File, private val keep: Set<String> = emptySet()) : Bo
   override fun input(name: String): InputStream = FileInputStream(File(dir, name))
 
   override fun rename(from: String, to: String) {
-    if (!File(dir, from).renameTo(File(dir, to))) throw IOException("Could not save $to.")
+    if (!File(dir, from).renameTo(File(dir, to))) throw ShownException(NativeText.current().t("Could not save {name}.", "name" to to))
   }
 
   override fun delete(name: String) {
@@ -110,7 +111,7 @@ object BookMove {
       }
       if (to.length(temporary) != size) {
         to.delete(temporary)
-        throw IOException("The copy of $name came out the wrong size.")
+        throw ShownException(NativeText.current().t("The copy of {name} came out the wrong size.", "name" to name))
       }
       to.rename(temporary, name)
     }

@@ -14,9 +14,12 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import app.lelap.netfs.LocalNetwork
 import app.lelap.netfs.Messages
+import app.lelap.netfs.NetFailure
 import app.lelap.netfs.NetLogin
 import app.lelap.netfs.Netfs
 import app.lelap.text.NativeText
+import app.lelap.text.Reasons
+import app.lelap.text.ShownException
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -59,7 +62,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     return withContext(Dispatchers.IO) {
       try {
-        val folder = place.folder(job.bookId, create = true) ?: throw IOException("No folder for the book.")
+        val folder = place.folder(job.bookId, create = true)
+          ?: throw ShownException(NativeText.t(applicationContext, "Could not make the book’s folder in the download folder."))
         var finished = 0L
         var lastReport = 0L
         for (file in job.files) {
@@ -133,9 +137,13 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
   private fun noLocalNetwork(job: DownloadJob): Boolean =
     LocalNetwork.blocks(Build.VERSION.SDK_INT, job.localNetwork, LocalNetwork.granted(applicationContext))
 
-  private fun keptFailing(e: Exception): String = e.message?.let {
+  // Android's own messages follow the phone's language, so only a known kind of failure is named.
+  private fun keptFailing(e: Exception): String = reason(e)?.let {
     NativeText.t(applicationContext, "The download kept failing: {reason}", "reason" to it)
   } ?: NativeText.t(applicationContext, "The download failed.")
+
+  private fun reason(e: Exception): String? =
+    if (e is NetFailure) Messages.describe(applicationContext, e) else Reasons.of(e, NativeText.get(applicationContext))
 
   private fun noLocalNetworkText(): String = NativeText.t(
     applicationContext,

@@ -5,6 +5,7 @@ import android.net.wifi.WifiManager
 import android.os.PowerManager
 import android.util.Log
 import app.lelap.text.NativeText
+import app.lelap.text.Reasons
 import java.util.concurrent.Callable
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.ExecutionException
@@ -208,7 +209,7 @@ class CastLink private constructor(
     val status = try {
       r.status()
     } catch (e: Exception) {
-      lastStatus?.copy(error = e.message) ?: return
+      lastStatus?.copy(error = message(e)) ?: return
     }
     lastStatus = status
     for (listener in listeners) listener.onStatus(status)
@@ -276,6 +277,8 @@ class CastLink private constructor(
     }
   }
 
+  // Android's own messages follow the phone's language, so only a known kind of failure is named.
   private fun message(e: Throwable): String =
-    if (e is CastException) e.message.orEmpty() else (e.message ?: NativeText.current().t("Casting failed"))
+    if (e is CastException) e.message.orEmpty()
+    else Reasons.of(e, NativeText.current()) ?: NativeText.current().t("Casting failed")
 }

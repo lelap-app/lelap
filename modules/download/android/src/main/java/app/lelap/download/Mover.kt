@@ -16,8 +16,9 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import app.lelap.text.NativeText
+import app.lelap.text.Reasons
+import app.lelap.text.ShownException
 import java.io.File
-import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -128,7 +129,12 @@ class MoveWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         // IOException, and the runtime exceptions the Storage Access Framework throws when a card
         // goes mid-call. Every book keeps its files where its job says; originals are only ever
         // deleted after the job points at their copies.
-        Mover.setError(context, NativeText.t(context, "Moving downloads stopped: {reason}", "reason" to (e.message ?: "")))
+        val reason = Reasons.of(e, NativeText.get(context))
+        Mover.setError(
+          context,
+          reason?.let { NativeText.t(context, "Moving downloads stopped: {reason}", "reason" to it) }
+            ?: NativeText.t(context, "Moving downloads stopped."),
+        )
         // A failed result would fail the moves queued behind this one; the error is kept above.
         Result.success()
       }
@@ -148,9 +154,9 @@ class MoveWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
     val bytes = source?.list()?.values?.sum() ?: 0L
     val space = to.space()
     if (source != null && space != null && space.first < bytes) {
-      throw IOException(NativeText.t(context, "There is not enough space in the new folder."))
+      throw ShownException(NativeText.t(context, "There is not enough space in the new folder."))
     }
-    val folder = if (source == null) null else to.folder(job.bookId, create = true) ?: throw IOException("No folder for the book.")
+    val folder = if (source == null) null else to.folder(job.bookId, create = true) ?: throw ShownException(NativeText.t(context, "Could not make the book’s folder in the download folder."))
     var lastReport = 0L
     val worker = this
     val names = if (source == null || folder == null) {
