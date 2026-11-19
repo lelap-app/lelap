@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  clampPane,
+  columnsFor,
+  DIVIDER_WIDTH,
+  type Fold,
+  foldLayout,
   isWide,
   type KeyPress,
+  PANE_LIMITS,
+  paneWidths,
   playerPaneWidth,
+  RAIL_WIDTH,
+  readDrag,
+  writeDrag,
   shortcutFor,
   sliderKey,
   stepSpeed,
@@ -125,5 +135,114 @@ describe('sliderKey', () => {
   it('leaves other keys alone', () => {
     expect(sliderKey(' ', 0.5, 0.05)).toBeNull();
     expect(sliderKey('k', 0.5, 0.05)).toBeNull();
+  });
+});
+
+describe('columnsFor', () => {
+  it('gives phones one column and laptops two', () => {
+    expect(columnsFor(412, 915)).toBe(1);
+    expect(columnsFor(768, 1024)).toBe(2);
+    expect(columnsFor(1280, 800)).toBe(2);
+  });
+
+  it('adds a third column on very wide windows', () => {
+    expect(columnsFor(1400, 900)).toBe(3);
+    expect(columnsFor(1920, 1080)).toBe(3);
+  });
+
+  it('keeps a wide but short window on one', () => {
+    expect(columnsFor(1920, 400)).toBe(1);
+  });
+});
+
+describe('paneWidths', () => {
+  const none = { player: null, detail: null };
+
+  it('keeps the default player width with two columns', () => {
+    expect(paneWidths(1280, 2, none)).toEqual({ player: playerPaneWidth(1280), detail: 0 });
+    expect(paneWidths(768, 2, none).player).toBe(340);
+  });
+
+  it('shares the rest between the list and the page with three', () => {
+    // 1920 − 88 for the rail − 24 for two dividers − 440 for the player: half for the page.
+    expect(paneWidths(1920, 3, none)).toEqual({ player: 440, detail: 684 });
+  });
+
+  it('keeps a dragged width within the limits', () => {
+    expect(paneWidths(1920, 3, { player: 9999, detail: 10 })).toEqual({
+      player: PANE_LIMITS.player.max,
+      detail: PANE_LIMITS.detail.min,
+    });
+  });
+
+  it('narrows the page, then the player, to keep the list readable', () => {
+    const { player, detail } = paneWidths(1400, 3, { player: 560, detail: 760 });
+    expect(player).toBe(560);
+    expect(detail).toBe(1400 - RAIL_WIDTH - 2 * DIVIDER_WIDTH - 560 - PANE_LIMITS.list);
+    expect(paneWidths(768, 2, { player: 560, detail: null }).player).toBe(
+      768 - RAIL_WIDTH - DIVIDER_WIDTH - PANE_LIMITS.list,
+    );
+    // Never narrower than the player's least, even if the list then has a little less.
+    expect(paneWidths(720, 2, { player: 560, detail: null }).player).toBe(PANE_LIMITS.player.min);
+  });
+
+  it('has nothing beside a single column', () => {
+    expect(paneWidths(400, 1, none)).toEqual({ player: 0, detail: 0 });
+  });
+
+  it('rounds a dragged width', () => {
+    expect(clampPane('player', 401.6)).toBe(402);
+  });
+});
+
+describe('foldLayout', () => {
+  const fold = (f: Partial<Fold>): Fold => ({
+    orientation: 'vertical',
+    separating: true,
+    start: 420,
+    end: 420,
+    ...f,
+  });
+
+  it('ignores a flat, seamless screen', () => {
+    expect(foldLayout(null, 840, 900)).toEqual({ kind: 'none' });
+    expect(foldLayout(fold({ separating: false }), 840, 900)).toEqual({ kind: 'none' });
+  });
+
+  it('splits a half-open book at the hinge', () => {
+    expect(foldLayout(fold({ start: 419.6, end: 440.2 }), 860, 900)).toEqual({
+      kind: 'book',
+      start: 420,
+      end: 440,
+    });
+  });
+
+  it('puts the player below a horizontal hinge on a table', () => {
+    expect(foldLayout(fold({ orientation: 'horizontal', start: 440, end: 440 }), 412, 880)).toEqual(
+      { kind: 'tabletop', start: 440, end: 440 },
+    );
+  });
+
+  it('keeps one pane when a side would be too small', () => {
+    expect(foldLayout(fold({ start: 200, end: 200 }), 860, 900)).toEqual({ kind: 'none' });
+    expect(foldLayout(fold({ orientation: 'horizontal', start: 700, end: 700 }), 412, 880)).toEqual(
+      { kind: 'none' },
+    );
+  });
+});
+
+describe('drag to a list', () => {
+  it('reads back what it wrote', () => {
+    expect(readDrag(writeDrag({ kind: 'episode', id: 'e1' }))).toEqual({
+      kind: 'episode',
+      id: 'e1',
+    });
+  });
+
+  it('takes nothing else', () => {
+    expect(readDrag('https://example.com')).toBeNull();
+    expect(readDrag('{"kind":"file","id":"x"}')).toBeNull();
+    expect(readDrag('{"kind":"book","id":""}')).toBeNull();
+    expect(readDrag('null')).toBeNull();
   });
 });

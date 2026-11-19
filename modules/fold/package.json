@@ -1,0 +1,18 @@
+{
+  "name": "@lelap/fold",
+  "private": true,
+  "version": "0.0.0",
+  "description": "A foldable's hinge from Jetpack WindowManager, for the app's layout.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "expo": "*"
+  },
+  "devDependencies": {
+    "expo": "~58.0.25",
+    "typescript": "~6.0.3"
+  }
+}

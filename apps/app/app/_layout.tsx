@@ -4,7 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Text, View } from 'react-native';
+import { I18nManager, Text, useWindowDimensions, View } from 'react-native';
 
 import { AddonReviewHost } from '../src/addonReview';
 import { currentLanguage, subscribeLanguage } from '../src/i18n';
@@ -24,7 +24,8 @@ import { SilenceSync } from '../src/silences';
 import { PlayerProvider, useLibrary } from '../src/player';
 import { BadgeSourceProvider } from '../src/components/CoverBadges';
 import { HandoffBanner } from '../src/components/HandoffBanner';
-import { PlayerPane } from '../src/components/PlayerPane';
+import { DetailPane } from '../src/components/DetailPane';
+import { PlayerBelow, PlayerPane } from '../src/components/PlayerPane';
 import { InstalledAppHost } from '../src/installed';
 import { ShortcutsHost } from '../src/shortcuts';
 import { PodcastSync } from '../src/podcasts';
@@ -36,6 +37,7 @@ import { OtaRunner } from '../src/ota';
 import { registerBackgroundRefresh } from '../src/background';
 import { COLORS } from '../src/components/Icon';
 import { ThemeRoot, useTheme, useThemeKey } from '../src/theme';
+import { useFold } from '../src/layout';
 
 /** Installs the default add-ons on first start and refreshes manifests on every start. */
 function AddonSync() {
@@ -74,6 +76,8 @@ export default function RootLayout() {
   const theme = useTheme();
   // A new theme draws the screens again, as a new language does.
   const look = `${language} ${useThemeKey()}`;
+  const fold = useFold();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   // Before anything reads or saves: the profile this device used last.
   const profileLoaded = useMemo(() => {
     if (ready) loadActiveProfile();
@@ -105,10 +109,24 @@ export default function RootLayout() {
           <SyncRunner />
           <OtaRunner />
           <DeviceRunner />
-          {/* On a wide screen the player stands at the end, beside whichever screen is open. */}
+          {/*
+            On a wide screen the player stands at the end, beside whichever screen is open, with
+            a book's page between them on a very wide one. Around a foldable's hinge the hinge
+            splits them instead, and nothing is drawn under it (M113).
+          */}
           <BadgeSourceProvider>
-            <View className="flex-1 flex-row bg-night">
-              <View className="flex-1">
+            <View
+              className={`flex-1 bg-night ${fold.kind === 'tabletop' ? 'flex-col' : 'flex-row'}`}
+            >
+              <View
+                style={
+                  fold.kind === 'book'
+                    ? { width: I18nManager.isRTL ? windowWidth - fold.end : fold.start }
+                    : fold.kind === 'tabletop'
+                      ? { height: fold.start }
+                      : { flex: 1 }
+                }
+              >
                 <Stack
                   key={look}
                   screenOptions={{
@@ -129,7 +147,23 @@ export default function RootLayout() {
                   <Stack.Screen name="car" options={{ animation: reduced ? 'none' : 'fade' }} />
                 </Stack>
               </View>
-              <PlayerPane key={look} />
+              {fold.kind !== 'none' && (
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  style={
+                    fold.kind === 'book'
+                      ? { width: fold.end - fold.start }
+                      : { height: fold.end - fold.start }
+                  }
+                />
+              )}
+              <DetailPane key={`detail ${look}`} />
+              {fold.kind === 'tabletop' ? (
+                <PlayerBelow key={look} height={windowHeight - fold.end} />
+              ) : (
+                <PlayerPane key={look} />
+              )}
             </View>
           </BadgeSourceProvider>
           <ShortcutsHost key={look} />

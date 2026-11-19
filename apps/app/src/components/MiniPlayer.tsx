@@ -6,7 +6,7 @@ import { hint } from '../a11y';
 import { t } from '../i18n';
 import { FadeIn } from './Motion';
 import { COLORS, Icon } from './Icon';
-import { useWide } from '../layout';
+import { usePlayerBeside } from '../layout';
 import * as audio from '../platform/audio';
 import { playerProfile, usePlayerState } from '../player';
 import { profileId } from '../profile';
@@ -20,9 +20,9 @@ export function MiniPlayer({ inset = true }: { inset?: boolean }) {
   const state = usePlayerState();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  // On a wide screen the whole player is beside the list instead.
-  const wide = useWide();
-  if (wide || !state.bookId || state.partIndex < 0) return null;
+  // On a wide screen, or below a tabletop's hinge, the whole player has a pane instead.
+  const beside = usePlayerBeside();
+  if (beside || !state.bookId || state.partIndex < 0) return null;
   // Another profile's book stays loaded until this profile plays something; don't show it.
   if (playerProfile() !== profileId) return null;
   const progress = state.durationMs > 0 ? state.positionMs / state.durationMs : 0;

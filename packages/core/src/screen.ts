@@ -13,6 +13,126 @@ export function playerPaneWidth(width: number): number {
   return Math.round(Math.min(440, Math.max(340, width * 0.36)));
 }
 
+/**
+ * A window at least this wide gets a third column (M113): a book's page between the list and the
+ * player, so neither is stretched across a 1920 px screen.
+ */
+export const THREE_COLUMNS_MIN_WIDTH = 1400;
+
+export type Columns = 1 | 2 | 3;
+
+/** How many columns a window gets: one on phones, the list and the player, or a page between. */
+export function columnsFor(width: number, height: number): Columns {
+  if (!isWide(width, height)) return 1;
+  return width >= THREE_COLUMNS_MIN_WIDTH ? 3 : 2;
+}
+
+/** The rail's width, kept out of the room the columns share. */
+export const RAIL_WIDTH = 88;
+
+/** The width of the line between two panes, which takes the drag. */
+export const DIVIDER_WIDTH = 12;
+
+/** How far a dragged divider can move each pane; the list keeps at least `list`. */
+export const PANE_LIMITS = {
+  player: { min: 300, max: 560 },
+  detail: { min: 360, max: 760 },
+  list: 320,
+} as const;
+
+/** Widths the listener dragged the dividers to on this device; null keeps the default. */
+export type PaneChoice = { player: number | null; detail: number | null };
+
+export type Pane = 'player' | 'detail';
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+/** A dragged width within the pane's limits, rounded to a whole point. */
+export function clampPane(pane: Pane, width: number): number {
+  return Math.round(clamp(width, PANE_LIMITS[pane].min, PANE_LIMITS[pane].max));
+}
+
+/**
+ * The player's and the page's widths for a window: the listener's choice or the default, then
+ * narrowed (the page first) until the list keeps its room. `detail` is 0 without a third column.
+ */
+export function paneWidths(
+  width: number,
+  columns: Columns,
+  choice: PaneChoice,
+): { player: number; detail: number } {
+  if (columns === 1) return { player: 0, detail: 0 };
+  const room = width - RAIL_WIDTH - DIVIDER_WIDTH * (columns - 1);
+  let player = clampPane('player', choice.player ?? playerPaneWidth(width));
+  let detail = columns === 3 ? clampPane('detail', choice.detail ?? (room - player) / 2) : 0;
+  let over = PANE_LIMITS.list + player + detail - room;
+  if (over > 0 && columns === 3) {
+    const by = Math.min(over, detail - PANE_LIMITS.detail.min);
+    detail -= by;
+    over -= by;
+  }
+  if (over > 0) player = Math.max(PANE_LIMITS.player.min, player - over);
+  return { player: Math.round(player), detail: Math.round(detail) };
+}
+
+/**
+ * A foldable's hinge, as Android's Jetpack WindowManager reports it, in window points. A
+ * `vertical` hinge splits the window left and right (a book), a `horizontal` one top and bottom.
+ * `separating` is true when the screen is half open or the hinge hides part of it.
+ */
+export type Fold = {
+  orientation: 'vertical' | 'horizontal';
+  separating: boolean;
+  /** The hinge's edges: x for a vertical hinge, y for a horizontal one. Equal for a seamless fold. */
+  start: number;
+  end: number;
+};
+
+/**
+ * How the screens sit around a hinge: `book` puts the screens left of it and the player right of
+ * it; `tabletop` the screens above and the player below, on the half that lies on the table.
+ */
+export type FoldLayout =
+  { kind: 'none' } | { kind: 'book' | 'tabletop'; start: number; end: number };
+
+/** Each side of a book fold needs this much width, and each half of a tabletop this much height. */
+export const FOLD_MIN_SIDE = { book: 280, tabletop: 200 } as const;
+
+/** Where the panes go around a fold, or `none` when the window is flat and seamless. */
+export function foldLayout(fold: Fold | null, width: number, height: number): FoldLayout {
+  if (!fold || !fold.separating || fold.end < fold.start) return { kind: 'none' };
+  const kind = fold.orientation === 'vertical' ? 'book' : 'tabletop';
+  const size = kind === 'book' ? width : height;
+  // A hinge too near an edge leaves no room for one side: better one pane across it.
+  if (fold.start < FOLD_MIN_SIDE[kind] || size - fold.end < FOLD_MIN_SIDE[kind]) {
+    return { kind: 'none' };
+  }
+  return { kind, start: Math.round(fold.start), end: Math.round(fold.end) };
+}
+
+/** What can be dragged onto a list in the rail (M113): a book in the library or an episode. */
+export type DragItem = { kind: 'book' | 'episode'; id: string };
+
+/** The drag's data type, so a list only takes drags from Lelap itself. */
+export const DRAG_TYPE = 'application/x-lelap-item';
+
+export function writeDrag(item: DragItem): string {
+  return JSON.stringify(item);
+}
+
+/** The dragged item, or null for anything else dropped on a list. */
+export function readDrag(data: string): DragItem | null {
+  try {
+    const value: unknown = JSON.parse(data);
+    if (typeof value !== 'object' || value === null) return null;
+    const { kind, id } = value as Record<string, unknown>;
+    if ((kind !== 'book' && kind !== 'episode') || typeof id !== 'string' || !id) return null;
+    return { kind, id };
+  } catch {
+    return null;
+  }
+}
+
 /** The speeds the player offers, slowest first. */
 export const SPEED_STEPS = [0.8, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3] as const;
 

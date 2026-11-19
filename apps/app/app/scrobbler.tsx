@@ -12,6 +12,7 @@ import { hint } from '../src/a11y';
 import { t } from '../src/i18n';
 import { activeProfile } from '../src/profile';
 import { scrobblerForm, scrobblersWork, setUpScrobbler } from '../src/scrobblers';
+import { READABLE } from '../src/layout';
 
 /**
  * `/scrobbler?url=…`: sets up a scrobbler inside the app (M61), such as the Open Library reading
@@ -55,6 +56,7 @@ export default function ScrobblerScreen() {
       className="flex-1 bg-night"
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
+        ...READABLE,
         paddingTop: insets.top + 8,
         paddingHorizontal: 16,
         paddingBottom: 24,

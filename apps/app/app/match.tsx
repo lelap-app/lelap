@@ -14,6 +14,7 @@ import { MetaListRow } from '../src/components/MetaCard';
 import { db } from '../src/db';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
+import { LIST_COLUMN } from '../src/layout';
 
 /**
  * Match with catalog… (M56): the listener searches the add-ons' catalogs and picks the work a
@@ -76,7 +77,11 @@ export default function MatchScreen() {
       data={query.length >= 2 ? (results.data ?? []) : []}
       keyExtractor={(m) => m.id}
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
+      contentContainerStyle={{
+        ...LIST_COLUMN,
+        paddingTop: insets.top + 8,
+        paddingBottom: insets.bottom + 24,
+      }}
       ListHeaderComponent={
         <View className="gap-3 px-4 pb-3">
           <View className="-ms-2 self-start">

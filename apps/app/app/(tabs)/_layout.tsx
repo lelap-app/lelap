@@ -1,4 +1,4 @@
-import { needsFirstStart } from '@lelap/core';
+import { needsFirstStart, RAIL_WIDTH } from '@lelap/core';
 import { Redirect } from 'expo-router';
 import { BottomTabBar, Tabs } from 'expo-router/js-tabs';
 import { useState } from 'react';
@@ -12,6 +12,7 @@ import { profileId } from '../../src/profile';
 import { useSourceCacheAddons } from '../../src/availability';
 import { COLORS, Icon, type IconName } from '../../src/components/Icon';
 import { MiniPlayer } from '../../src/components/MiniPlayer';
+import { RailLists } from '../../src/components/RailLists';
 import { useWide } from '../../src/layout';
 
 // React Navigation's tab bar is 49 points tall whatever the font size; this much more per
@@ -51,7 +52,14 @@ export default function TabsLayout() {
     <Tabs
       tabBar={(props) =>
         wide ? (
-          <BottomTabBar {...props} />
+          // The rail: the tabs, then the lists, which take a dragged book or episode (M113).
+          <View
+            style={{ width: RAIL_WIDTH, paddingBottom: insets.bottom }}
+            className="border-e border-line bg-raised"
+          >
+            <BottomTabBar {...props} />
+            <RailLists />
+          </View>
         ) : (
           <View>
             <MiniPlayer inset={false} />
@@ -69,11 +77,16 @@ export default function TabsLayout() {
               tabBarLabelPosition: 'below-icon' as const,
             }
           : {}),
-        tabBarStyle: {
-          backgroundColor: COLORS.raised,
-          ...(wide ? { borderColor: COLORS.line } : { borderTopColor: COLORS.line }),
-          ...tall,
-        },
+        tabBarStyle: wide
+          ? // The rail's box draws the background and the line; the tabs keep to their height.
+            {
+              backgroundColor: COLORS.raised,
+              borderWidth: 0,
+              flexGrow: 0,
+              minWidth: 0,
+              paddingBottom: 8,
+            }
+          : { backgroundColor: COLORS.raised, borderTopColor: COLORS.line, ...tall },
         tabBarActiveTintColor: COLORS.amber,
         tabBarInactiveTintColor: COLORS.muted,
         tabBarIcon: ({ color }) => (

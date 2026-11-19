@@ -32,6 +32,7 @@ import { playBook, playList, useFollowedList, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { TextButton } from '../src/components/TextButton';
 import { Pill } from '../src/components/Pill';
+import { LIST_COLUMN } from '../src/layout';
 
 const HOUR = 3_600_000;
 
@@ -260,7 +261,7 @@ export default function ListScreen() {
       <FlatList
         data={books}
         keyExtractor={(b) => b.id}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ ...LIST_COLUMN, paddingBottom: 24 }}
         ListHeaderComponent={
           <View className="gap-2 px-4 pb-3">
             <View className="flex-row items-center justify-between">

@@ -23,6 +23,7 @@ import { db } from '../src/db';
 import { switchProfile, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { TextButton, Toggle } from '../src/components/TextButton';
+import { READABLE } from '../src/layout';
 
 /** One profile: name, avatar, PIN, kids limits, delete. */
 export default function ProfileScreen() {
@@ -85,6 +86,7 @@ export default function ProfileScreen() {
       className="flex-1 bg-night"
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
+        ...READABLE,
         paddingTop: insets.top + 8,
         paddingHorizontal: 16,
         paddingBottom: 32,

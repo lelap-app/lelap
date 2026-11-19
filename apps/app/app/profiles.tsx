@@ -12,6 +12,7 @@ import { db, newId } from '../src/db';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { TextButton, Toggle } from '../src/components/TextButton';
+import { READABLE } from '../src/layout';
 
 /** Everyone who listens on this device (and, with sync, the household). */
 export default function ProfilesScreen() {
@@ -51,6 +52,7 @@ export default function ProfilesScreen() {
       className="flex-1 bg-night"
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
+        ...READABLE,
         paddingTop: insets.top + 8,
         paddingHorizontal: 16,
         paddingBottom: 32,
