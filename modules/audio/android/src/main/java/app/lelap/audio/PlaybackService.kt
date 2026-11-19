@@ -33,7 +33,6 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
-import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.PlayerMessage
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -148,37 +147,21 @@ class PlaybackService : MediaLibraryService() {
       if (field?.bookId != value?.bookId) bankSilence()
       field = value
       applySound()
-      // A new speed, chapters or intro keep the files' resolved addresses.
       if (sameFiles) return
       // Only this book's own files get its server's login, never another host.
       headersByUri = value?.takeIf { it.headers.isNotEmpty() }
         ?.let { book -> book.files.associate { file -> file.uri to book.headers } }
         .orEmpty()
-      // Signed links and redirects change; each book's files are resolved again.
-      resolvedUris.clear()
     }
 
   @Volatile private var headersByUri: Map<String, Map<String, String>> = emptyMap()
 
-  // Where each file with a login ends up after redirects. Media3 sends the same headers after a
-  // redirect, to any host, so the redirects are followed first and the login is sent only when
-  // the file stays on its own server.
-  private val resolvedUris = java.util.concurrent.ConcurrentHashMap<String, Pair<String, Boolean>>()
-
-  private fun withBookHeaders(upstream: DataSource.Factory): DataSource.Factory =
-    ResolvingDataSource.Factory(upstream) { spec ->
-      val uri = spec.uri.toString()
-      val headers = headersByUri[uri] ?: return@Factory spec
-      // SMB and SFTP have no redirects; the login only ever reaches native code.
-      if (Netfs.handles(uri)) return@Factory spec.withAdditionalHeaders(headers)
-      val resolved = resolvedUris[uri]
-        ?: runCatching { LoginRedirects.resolve(uri, headers) }.getOrNull()?.also { resolvedUris[uri] = it }
-        // Unreachable now: as before, the login goes with the file's own address.
-        ?: return@Factory spec.withAdditionalHeaders(headers)
-      val (target, sameServer) = resolved
-      val moved = if (target == uri) spec else spec.buildUpon().setUri(android.net.Uri.parse(target)).build()
-      if (sameServer) moved.withAdditionalHeaders(headers) else moved
-    }
+  // Media3 sends the same headers after a redirect, to any host, so a file with a login is read
+  // by LoginDataSource, which follows the redirects of every request itself (M100). SMB and SFTP
+  // have no redirects; their login only ever reaches native code.
+  private fun withBookHeaders(upstream: DataSource.Factory): DataSource.Factory = DataSource.Factory {
+    BookFileDataSource(upstream.createDataSource(), { uri -> headersByUri[uri] }, Netfs::handles)
+  }
   private var currentHandsOver = false
 
   // The app writes the car snapshot straight into the preferences; Android Auto then re-reads it.

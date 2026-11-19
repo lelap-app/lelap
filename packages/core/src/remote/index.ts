@@ -70,6 +70,7 @@ export {
   placeOwner,
   placeToSend,
   queuePlace,
+  queueSavedPlace,
   startsBeforePlace,
 } from './outbox';
 export {
@@ -79,6 +80,7 @@ export {
   addonLibraryScan,
   fillTags,
   type TagHints,
+  addonLocateRequest,
   addonPlaceReport,
   addonFileAccess,
   addonLogin,
@@ -89,7 +91,9 @@ export {
   headersFor,
   sameAddonCode,
   sharedHeaders,
+  locatedAddresses,
   withAddonLogin,
+  withListedSettings,
   withQuery,
 } from './addon';
 export {

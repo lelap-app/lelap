@@ -4,8 +4,8 @@
 // only from the hosts the add-on declared. The bootstrap answers the same routes as a web add-on.
 //
 // Since M57 the add-on's code runs in a worker inside the page. A worker can't navigate, open a
-// window or add an element, so a server's settings, which reach `library`, `place` and `signin`
-// calls (since M61 a scrobbler's `scrobble` calls, and since M66 every call of an add-on set up
+// window or add an element, so a server's settings, which reach `library`, `place`, `signin` and
+// `locate` calls (since M61 a scrobbler's `scrobble` calls, and since M66 every call of an add-on set up
 // with settings) as `settings`, can't leave in an address either. Where a worker can't start, the code runs in the
 // page as before and the app never hands it settings (`isolated: false`).
 
@@ -48,7 +48,7 @@ const ADDON_SIDE = `
     }
     return p.length === 3 ? r : null;
   };
-  var handle = function (id, path, settings, place, signin, events, library) {
+  var handle = function (id, path, settings, place, signin, events, library, locate) {
     Promise.resolve().then(function () {
       if (!def) throw new Error('The file never called addon({...}).');
       var r = route(path);
@@ -62,6 +62,7 @@ const ADDON_SIDE = `
       if (r.resource === 'library') r.library = Object.freeze(library || {});
       if (r.resource === 'place') r.place = place || null;
       if (r.resource === 'signin') r.signin = signin || {};
+      if (r.resource === 'locate') r.locate = locate || { files: [] };
       return Promise.resolve(h(r)).then(function (b) {
         return b == null ? { status: 404, body: { error: 'Not found' } } : { status: 200, body: b };
       });
@@ -94,7 +95,7 @@ const ADDON_SIDE = `
         json: function () { return Promise.resolve(JSON.parse(m.text)); }
       });
     } else if (m.t === 'call') {
-      handle(m.id, m.path, m.settings, m.place, m.signin, m.events, m.library);
+      handle(m.id, m.path, m.settings, m.place, m.signin, m.events, m.library, m.locate);
     }
   };
   self.onerror = function (msg) { post({ t: 'log', message: String(msg) }); };

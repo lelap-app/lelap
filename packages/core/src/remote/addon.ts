@@ -1,5 +1,8 @@
 import {
+  applySignin,
   type LibraryResponse,
+  type LocateRequest,
+  type LocateResponse,
   type Manifest,
   normalizeIds,
   type PlaceReport,
@@ -332,4 +335,72 @@ export function addonPlaceReport(
     at: at.when,
     finished: at.finished,
   };
+}
+
+/**
+ * The server with the settings a library listing handed back (revision 11), such as a Plex
+ * server's new address; null when nothing changes. They are taken like a sign-in's: for the
+ * form's own fields, and address fields that grant a host only with `hosts`, which the app gives
+ * the add-ons that come with it. A name the app made from the old address follows the new one.
+ */
+export function withListedSettings(
+  remote: AddonSource,
+  manifest: Manifest,
+  listed: LibraryResponse['settings'],
+  options: { hosts: boolean },
+): AddonSource | null {
+  if (!listed) return null;
+  const fields = manifest.settings ?? [];
+  const current = addonSettings(remote);
+  const next = applySignin(fields, current, { settings: listed }, { hosts: options.hosts });
+  if (fields.every((f) => (next[f.key] ?? '') === (current[f.key] ?? ''))) return null;
+  const login = addonLogin(remote);
+  const rebuild = (settings: Settings) =>
+    addonSource({
+      addonUrl: remote.addonUrl,
+      manifest,
+      key: remote.key,
+      settings,
+      headers: login.headers,
+      query: login.query,
+      webQuery: login.webQuery,
+      ...(remote.codeSha ? { codeSha: remote.codeSha } : {}),
+      ...(remote.profileId ? { profileId: remote.profileId } : {}),
+    });
+  const updated = rebuild(next);
+  const named = remote.name === rebuild(current).name;
+  return { ...remote, ...updated, name: named ? updated.name : remote.name };
+}
+
+/**
+ * What the add-on's `locate` handler gets before a book streams (revision 11): the book's files by
+ * the path the library listed them under and their listed address. Null when the files are not
+ * all this server's.
+ */
+export function addonLocateRequest(
+  rootLocation: string,
+  files: { location: string; uri: string }[],
+): LocateRequest | null {
+  const prefix = `${rootLocation}/`;
+  if (files.length === 0 || files.some((f) => !f.location.startsWith(prefix))) return null;
+  return { files: files.map((f) => ({ path: f.location.slice(prefix.length), url: f.uri })) };
+}
+
+/**
+ * Where each listed address streams from now, by the address it was listed with, from the add-on's
+ * `locate` answer: the new address, or null for a file it left out or moved off its own hosts,
+ * which then streams without the login.
+ */
+export function locatedAddresses(
+  request: LocateRequest,
+  response: LocateResponse,
+  hosts: string[],
+): Map<string, string | null> {
+  const byPath = new Map(response.files.map((f) => [f.path, f.url]));
+  const located = new Map<string, string | null>();
+  for (const file of request.files) {
+    const url = byPath.get(file.path);
+    located.set(file.url, url !== undefined && hostAllowed(url, hosts) ? url : null);
+  }
+  return located;
 }

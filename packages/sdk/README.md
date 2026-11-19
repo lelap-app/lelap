@@ -2,7 +2,7 @@
 
 Types, zod schemas and a request handler for [Lelap](https://github.com/lelap-app/lelap) add-ons.
 An add-on is a stateless HTTP service that answers with JSON: catalogs, metadata and audio sources
-for the Lelap player. The SDK speaks protocol v1, revision 9 (revision 10 from the next version, 0.6), so your code is a manifest and a
+for the Lelap player. The SDK speaks protocol v1, revision 9 (revisions 10 and 11 from the next version, 0.6), so your code is a manifest and a
 handler for each resource.
 
 ```sh
@@ -78,6 +78,10 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
   `wantsScrobble(manifest, type, id, event)` reads; a `rate` without `rating` takes a rating back.
   The configure page gains `url` and `choices` fields, `text` (intro, link, steps, note), a second
   page with `choose`, a `manifest` per listener and `legacy` for addresses made before.
+- **Revision 11** (from the next version, 0.6), for add-ons inside the app: `settings` on a
+  `LibraryResponse`, new values for the add-on's own fields such as a server's new address; and
+  the `locate` resource, with `LocateRequest`, `LocateResponse`, `locatePath` and `offersLocate`,
+  which says where a book's files stream from just before it plays.
 - **Add-on test kit** (from the next version, 0.6): `npx @lelap/sdk check <url>` fetches an
   add-on's manifest and everything it declares, validates each answer with these schemas, and
   checks what schemas can't see: CORS, speed, caching, paging that ends, IDs that come back and
@@ -85,7 +89,7 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
   are for CI. `checkAddon(url, { fetch })` from `@lelap/sdk/check` does the same in your tests,
   without a server, and stays out of bundles that import the SDK's root; see
   [Checking an add-on](https://lelap.app/docs/checking/).
-- **Paths:** `catalogPath`, `metaPath`, `streamPath`, `libraryPath`, `placePath`, `parseRoute`, `encodeExtra`,
+- **Paths:** `catalogPath`, `metaPath`, `streamPath`, `libraryPath`, `placePath`, `locatePath`, `parseRoute`, `encodeExtra`,
   `parseExtra`.
 - **Helpers:** `supports`, `prefixesFor`, `hasParts`, `isConfigurable`, `needsConfiguration`,
   `offersHealth`, `encodeConfig`, `decodeConfig`, `CORS_HEADERS`, `PROTOCOL_VERSION`,

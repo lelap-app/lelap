@@ -20,9 +20,10 @@ export const PROTOCOL_VERSION = 1;
  * an add-on inside the app without `library` to every one of its calls; 10 adds `events` on the
  * `scrobble` resource, sends `rate` (without `rating` when the listener takes it back), sends
  * `resumed` only to an add-on that heard of the book before, and `sessionStartMs` on every
- * `finish` that ends a session.
+ * `finish` that ends a session; 11 adds a library's `settings` and the `locate` resource, for
+ * add-ons inside the app.
  */
-export const LATEST_PROTOCOL_VERSION = 10;
+export const LATEST_PROTOCOL_VERSION = 11;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
@@ -37,6 +38,7 @@ export const RESOURCES = [
   'library',
   'place',
   'signin',
+  'locate',
 ] as const;
 export const ResourceName = z.enum(RESOURCES);
 export type ResourceName = z.infer<typeof ResourceName>;
@@ -261,6 +263,13 @@ export const Manifest = z
         code: 'custom',
         path: ['resources'],
         message: 'Only add-ons inside the app keep places',
+      });
+    }
+    if (!manifest.sandbox && resourceNames(manifest.resources).includes('locate')) {
+      context.addIssue({
+        code: 'custom',
+        path: ['resources'],
+        message: 'Only add-ons inside the app locate their files',
       });
     }
     const keys = (manifest.settings ?? []).map((f) => f.key);
@@ -532,6 +541,15 @@ export const LibraryResponse = z.object({
    * keeps the first page, so put the most useful files there.
    */
   next: z.string().min(1).max(1024).optional(),
+  /**
+   * Since revision 11: new values for the add-on's own settings fields, by key, such as a server's
+   * new address that its account service names. The app saves them before it reads `files`, so
+   * files on a new address are kept. Address fields that grant a host change only for the add-ons
+   * that come with the app. When the listing has no files and the values changed, the app asks
+   * `library` once more with them; a listing with `settings` and still no files keeps the
+   * library as it was. From the first page only.
+   */
+  settings: z.record(z.string(), z.string().max(4096)).optional(),
   cacheMaxAge: CacheMaxAge,
 });
 export type LibraryResponse = z.infer<typeof LibraryResponse>;
@@ -556,6 +574,28 @@ export const PlaceReport = z.object({
   finished: z.boolean(),
 });
 export type PlaceReport = z.infer<typeof PlaceReport>;
+
+/**
+ * Since revision 11, for add-ons with `library` and the `locate` resource: what the app hands the
+ * add-on's `locate` handler, next to `settings`, before it streams a book of its library. The
+ * files are those of the book, in order, as the library listed them.
+ */
+export const LocateRequest = z.object({
+  files: z.array(PlaceFile).min(1).max(5000),
+});
+export type LocateRequest = z.infer<typeof LocateRequest>;
+
+/**
+ * Since revision 11: the answer to `locate`, the addresses to stream the book's files from now,
+ * such as on the server's address that answers away from home. Each `url` must be on one of the
+ * add-on's hosts. A file left out streams from its listed address without the library's
+ * `headers`, `query` and `webQuery`, such as when another server answers there. When the call
+ * fails or takes longer than 8 seconds, the app streams from the listed addresses as before.
+ */
+export const LocateResponse = z.object({
+  files: z.array(PlaceFile).max(5000),
+});
+export type LocateResponse = z.infer<typeof LocateResponse>;
 
 /**
  * Since revision 7, for add-ons with the `signin` resource: the answer to `signin/…/start.json`.
@@ -789,6 +829,11 @@ export function scrobblesWithSettings(manifest: Manifest): boolean {
 /** Whether the add-on keeps the listener's places with its library's source (revision 6). */
 export function offersPlaces(manifest: Manifest): boolean {
   return offersLibrary(manifest) && resourceNames(manifest.resources).includes('place');
+}
+
+/** Whether the add-on is asked where its library's files are before a book streams (revision 11). */
+export function offersLocate(manifest: Manifest): boolean {
+  return offersLibrary(manifest) && resourceNames(manifest.resources).includes('locate');
 }
 
 /** The values of an add-on's settings form, by field key. */

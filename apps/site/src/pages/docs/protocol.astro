@@ -4,6 +4,8 @@ import {
   HealthResponse,
   LATEST_PROTOCOL_VERSION,
   LibraryResponse,
+  LocateRequest,
+  LocateResponse,
   Manifest,
   MetaResponse,
   PlaceReport,
@@ -15,6 +17,7 @@ import {
   StreamResponse,
   catalogPath,
   libraryPath,
+  locatePath,
   metaPath,
   placePath,
   signinPath,
@@ -207,6 +210,7 @@ place/audiobook/all.json                    ← PlaceReport          (revision 6
 signin/audiobook/start.json                 → SigninStart          (revision 7, inside the app only)
 signin/audiobook/check.json                 → SigninResult         (revision 7, inside the app only)
 scrobble/audiobook/all.json                 ← { events, settings } (revision 8, inside the app only)
+locate/audiobook/all.json                   ← LocateRequest → LocateResponse (revision 11, inside the app only)
 GET /configure                              → your settings page  (HTML)
 `;
 
@@ -308,6 +312,32 @@ const plexLibrary = example(LibraryResponse, {
   ],
   headers: { 'X-Plex-Token': 'aB3dE5gH7jK9mN1pQ2rS' },
   webQuery: { 'X-Plex-Token': 'aB3dE5gH7jK9mN1pQ2rS' },
+});
+
+const movedLibrary = example(LibraryResponse, {
+  files: [],
+  settings: {
+    url: 'https://192-168-1-21.0f1e….plex.direct:32400',
+    remote: 'https://203-0-113-9.0f1e….plex.direct:32400',
+  },
+});
+
+const locateRequest = example(LocateRequest, {
+  files: [
+    {
+      path: 'Frances Hodgson Burnett/The Secret Garden/002 Chapter 2.mp3',
+      url: 'https://192-168-1-20.0f1e.plex.direct:32400/library/parts/312/1763434800/file.mp3',
+    },
+  ],
+});
+
+const locateResponse = example(LocateResponse, {
+  files: [
+    {
+      path: 'Frances Hodgson Burnett/The Secret Garden/002 Chapter 2.mp3',
+      url: 'https://203-0-113-7.0f1e.plex.direct:32400/library/parts/312/1763434800/file.mp3',
+    },
+  ],
 });
 
 const configuredManifest = example(Manifest, {
@@ -1431,9 +1461,12 @@ const toc: [string, string][] = [
     <a href="#scrobble">scrobble</a> resource, sends <code>rate</code> (without <code>rating</code>{' '}
     when taken back), sends <code>resumed</code> only to an add-on that heard of the book, and{' '}
     <code>sessionStartMs</code> on every <code>finish</code> that ends a session; an app before
-    revision 10 sends every event to every scrobbler. When an add-on declares a newer revision than
-    the app knows, Settings → Add-ons says so. Revision 9 comes with SDK 0.5.0; 0.4.0 covers
-    revisions up to 8. Revision 10 comes with the next SDK release, 0.6.
+    revision 10 sends every event to every scrobbler. Revision 11 adds a library’s{' '}
+    <a href="#moved">settings</a> and <a href="#locate">locating files</a> before they stream; an
+    app before revision 11 ignores the settings and refuses a manifest that lists{' '}
+    <code>locate</code>. When an add-on declares a newer revision than the app knows, Settings →
+    Add-ons says so. Revision 9 comes with SDK 0.5.0; 0.4.0 covers revisions up to 8. Revisions 10
+    and 11 come with the next SDK release, 0.6.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />
@@ -1607,8 +1640,9 @@ const toc: [string, string][] = [
     </li>
     <li>
       The app sends the headers with the audio on the phone (playing, downloading, casting through
-      the phone) only to those hosts, drops them when a redirect leaves the server, and leaves out
-      any file or cover elsewhere: an address could otherwise carry a setting off.
+      the phone) only to those hosts, drops them when a redirect leaves the server (on every
+      request, since a server may redirect elsewhere each time), and leaves out any file or cover
+      elsewhere: an address could otherwise carry a setting off.
     </li>
     <li>
       A browser can’t send headers with audio, so books that need them play in the Android app,
@@ -1660,9 +1694,10 @@ const toc: [string, string][] = [
     with the <code>place</code> resource also gets a <code>PlaceReport</code> in its{' '}
     <code>place</code> handler, as <code>args.place</code> next to <code>args.settings</code>, when
     the listener starts, pauses, plays on for about five minutes or finishes a book. The newest
-    place wins. Only the profile that added the server sends places, and a report that fails is not
-    sent again: the next scan settles it. There is no HTTP route for <code>{placePath()}</code>;
-    only the sandbox calls it.
+    place wins. Only the profile that added the server sends places. A report that fails waits on
+    the phone and goes again later, the latest one per book; places the Android app saved with the
+    app closed go once it opens. There is no HTTP route for <code>{placePath()}</code>; only the
+    sandbox calls it.
   </p>
   <CodeBlock code={placeReport} label="PlaceReport" />
 
@@ -1711,6 +1746,35 @@ const toc: [string, string][] = [
   </ul>
   <CodeBlock code={signinStart} label={signinPath('start')} />
   <CodeBlock code={signinResult} label={signinPath('check')} />
+
+  <h3 id="moved">Settings from a listing</h3>
+  <p>
+    Since revision 11, a listing can carry <code>settings</code>: new values for the add-on’s own
+    fields, by key, as a sign-in’s result does. The app saves them before it reads the files, so
+    files on a new address are kept. Address fields marked <code>host</code> change only for add-ons
+    that come with the app, such as Plex when plex.tv names new addresses for the server; any other
+    add-on can change its other fields only. When the listing has no files and the settings changed,
+    the app asks <code>library</code> once more with them, so the add-on reaches a new address only
+    after it is saved. A listing with <code>settings</code> and still no files keeps the library as
+    it was, books and login, until a scan lists it. Give <code>settings</code> on the first page.
+  </p>
+  <CodeBlock code={movedLibrary} label={`GET /${libraryPath()}, after the server moved`} />
+
+  <h3 id="locate">Locating files before they stream</h3>
+  <p>
+    Since revision 11, an add-on with the <code>locate</code> resource is asked where a book’s files
+    are each time the listener starts one that streams from its server, at most once a minute. Its{' '}
+    <code>locate</code> handler gets a <code>LocateRequest</code> as <code>args.locate</code> next
+    to <code>args.settings</code>, the book’s files as the library listed them, and answers the
+    addresses to stream from now, such as the server’s address away from home once the one at home
+    stops answering. A file left out streams from its listed address without the library’s{' '}
+    <code>headers</code>, <code>query</code> and <code>webQuery</code>: leave out files where
+    another server answers, and no login goes there. When the call fails or takes longer than 8
+    seconds, the files stream from their listed addresses as before. Downloaded files aren’t asked
+    for. There is no HTTP route for <code>{locatePath()}</code>; only the sandbox calls it.
+  </p>
+  <CodeBlock code={locateRequest} label="LocateRequest" />
+  <CodeBlock code={locateResponse} label="LocateResponse" />
 
   <h2 id="speed">Making it fast</h2>
   <p>

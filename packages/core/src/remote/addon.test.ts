@@ -20,6 +20,7 @@ import {
   type AddonSource,
   addonFileAccess,
   addonLibraryScan,
+  addonLocateRequest,
   addonLogin,
   addonPlaceReport,
   addonRootLocation,
@@ -28,9 +29,11 @@ import {
   addonSourceHosts,
   fillTags,
   headersFor,
+  locatedAddresses,
   sameAddonCode,
   sharedHeaders,
   withAddonLogin,
+  withListedSettings,
   withQuery,
 } from './addon';
 
@@ -500,5 +503,103 @@ describe('revision 7: a sign-in, and the token in the address only in the browse
         });
       }
     }
+  });
+});
+
+describe('revision 11: settings from a listing, and files located before they stream', () => {
+  const plex: Manifest = {
+    ...manifest,
+    protocolVersion: 11,
+    resources: ['library', 'place', 'signin', 'locate'],
+    sandbox: { hosts: ['plex.tv:443'] },
+    settings: [
+      { key: 'account', label: 'Plex account', type: 'signin', required: true },
+      { key: 'url', label: 'Address at home', type: 'url', host: true },
+      { key: 'remote', label: 'Address away', type: 'url', host: true },
+      { key: 'libraries', label: 'Libraries', type: 'text' },
+    ],
+  };
+  const HOME = 'https://192-168-1-20.abc.plex.direct:32400';
+  const AWAY = 'https://203-0-113-7.abc.plex.direct:32400';
+  const MOVED = 'https://203-0-113-99.abc.plex.direct:32400';
+  const remote = addonSource({
+    addonUrl: 'lelap-local://app.lelap.plex/manifest.json',
+    manifest: plex,
+    key: 'k11',
+    settings: { account: '{"token":"t"}', url: HOME, remote: AWAY, libraries: '' },
+    headers: { 'X-Plex-Token': 'server' },
+    profileId: ME,
+  });
+
+  it('takes a new address from a bundled add-on, keeping the login and naming it anew', () => {
+    const moved = withListedSettings(remote, plex, { url: MOVED }, { hosts: true });
+    expect(moved?.settings).toEqual({ url: MOVED, remote: AWAY, libraries: '' });
+    expect(moved?.name).toBe('Test source · 203-0-113-99.abc.plex.direct:32400');
+    expect(moved?.key).toBe('k11');
+    expect(moved?.profileId).toBe(ME);
+    expect(moved && addonLogin(moved).headers).toEqual({ 'X-Plex-Token': 'server' });
+    expect(moved && addonSettings(moved).account).toBe('{"token":"t"}');
+  });
+
+  it('lets any other add-on change plain fields, never the hosts it reaches', () => {
+    expect(withListedSettings(remote, plex, { url: MOVED }, { hosts: false })).toBeNull();
+    const named = withListedSettings(
+      remote,
+      plex,
+      { url: MOVED, libraries: 'Audiobooks', other: 'x' },
+      { hosts: false },
+    );
+    expect(named?.settings).toEqual({ url: HOME, remote: AWAY, libraries: 'Audiobooks' });
+  });
+
+  it('changes nothing for the same values, and keeps a name the listener gave', () => {
+    expect(withListedSettings(remote, plex, { url: HOME }, { hosts: true })).toBeNull();
+    expect(withListedSettings(remote, plex, undefined, { hosts: true })).toBeNull();
+    const renamed = { ...remote, name: 'Shelf' };
+    expect(withListedSettings(renamed, plex, { url: MOVED }, { hosts: true })?.name).toBe('Shelf');
+  });
+
+  it('asks for a book’s files by their listed paths, and only for this server’s', () => {
+    const root = addonRootLocation('k11');
+    const files = [
+      { location: `${root}/A/B/001.mp3`, uri: `${HOME}/library/parts/1/file.mp3` },
+      { location: `${root}/A/B/002.mp3`, uri: `${HOME}/library/parts/2/file.mp3` },
+    ];
+    expect(addonLocateRequest(root, files)).toEqual({
+      files: [
+        { path: 'A/B/001.mp3', url: `${HOME}/library/parts/1/file.mp3` },
+        { path: 'A/B/002.mp3', url: `${HOME}/library/parts/2/file.mp3` },
+      ],
+    });
+    expect(
+      addonLocateRequest(root, [...files, { location: '/sdcard/x.mp3', uri: 'x' }]),
+    ).toBeNull();
+    expect(addonLocateRequest(root, [])).toBeNull();
+  });
+
+  it('streams from the located address on its hosts, and without the login where left out', () => {
+    const hosts = addonSourceHosts(plex, { url: HOME, remote: AWAY });
+    const request = {
+      files: [
+        { path: 'A/B/001.mp3', url: `${HOME}/library/parts/1/file.mp3` },
+        { path: 'A/B/002.mp3', url: `${HOME}/library/parts/2/file.mp3` },
+        { path: 'A/B/003.mp3', url: `${HOME}/library/parts/3/file.mp3` },
+      ],
+    };
+    const located = locatedAddresses(
+      request,
+      {
+        files: [
+          { path: 'A/B/001.mp3', url: `${AWAY}/library/parts/1/file.mp3` },
+          { path: 'A/B/002.mp3', url: 'https://elsewhere.example/library/parts/2/file.mp3' },
+        ],
+      },
+      hosts,
+    );
+    expect([...located]).toEqual([
+      [`${HOME}/library/parts/1/file.mp3`, `${AWAY}/library/parts/1/file.mp3`],
+      [`${HOME}/library/parts/2/file.mp3`, null],
+      [`${HOME}/library/parts/3/file.mp3`, null],
+    ]);
   });
 });

@@ -56,13 +56,19 @@ import { pickEpisodeFile } from './episodeFiles';
 import { chapterImagesRead } from './podcasting';
 import * as audio from './platform/audio';
 import { profileId, setProfileId } from './profile';
+import { locateAddonBook } from './addonLocate';
 import { prepareAudiobookshelfBook } from './audiobookshelf';
 import { askLocalNetwork } from './localNetwork';
 import { fileAccess } from './remote';
 import { onRootScanned } from './scan';
 import { flushScrobbles, foldServiceAccounting, trackFinished, trackPlayerState } from './scrobble';
 import { checkServerAfterError } from './serverCheck';
-import { flushServerPlaces, serverPlacesFinished, trackServerPlaces } from './serverPlaces';
+import {
+  flushServerPlaces,
+  queueJournalPlace,
+  serverPlacesFinished,
+  trackServerPlaces,
+} from './serverPlaces';
 
 export const IDLE: audio.PlayerState = {
   connected: false,
@@ -149,13 +155,30 @@ const JOURNAL_WAIT_MS = 1_500;
  */
 export const playerProfile = () => deviceValue(db, PLAYER_PROFILE) ?? profileId;
 
-/** Folds the service's journal into the database, for places saved while the app was closed. */
-async function foldJournal(): Promise<void> {
+/**
+ * Folds the service's journal into the database, for places saved while the app was closed. A
+ * place newer than the app knew goes to the book's server too (M100), unless the book plays on:
+ * then the player's own reports follow. `send` false leaves sending them to the caller.
+ */
+export async function foldJournal(send = true): Promise<void> {
   // Books the service replaced by itself (Up Next, Android Auto) first: they are older.
   const earlier = await audio.takeEarlierPlaces().catch(() => []);
-  for (const place of earlier) saveProgress(db, playerProfile(), place, 'journal');
   const entry = await audio.takeJournal();
-  if (entry) saveProgress(db, playerProfile(), entry, 'journal');
+  const places = entry ? [...earlier, entry] : earlier;
+  if (places.length === 0) return;
+  const profile = playerProfile();
+  const saved = places.filter((place) => saveProgress(db, profile, place, 'journal'));
+  if (saved.length === 0) return;
+  // Asking the player starts its service, so only when there is a place to send.
+  const playing = await Promise.race([
+    audio.getState().catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), JOURNAL_WAIT_MS)),
+  ]);
+  for (const place of saved) {
+    if (playing?.playing && playing.bookId === place.bookId) continue;
+    queueJournalPlace(place, profile);
+  }
+  if (send) void flushServerPlaces();
 }
 
 /** Saves the place playing right now, before anything replaces it. */
@@ -386,6 +409,8 @@ async function load(
   if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
   // A newer place from Audiobookshelf's own player is taken first.
   await prepareAudiobookshelfBook(bookId, profileId);
+  // An add-on server says where the files are now, such as Plex away from home (M100).
+  await locateAddonBook(bookId, profileId);
   // An episode streams the file its show's choice and the connection call for (M103).
   pickEpisodeFile(bookId);
   const book = bookLoad(bookId, { fromStart });

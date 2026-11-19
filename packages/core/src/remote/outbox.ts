@@ -1,4 +1,4 @@
-import { and, asc, eq, lte } from 'drizzle-orm';
+import { and, asc, eq, lt, lte } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import { DEFAULT_PROFILE_ID, getProfile } from '../profiles';
@@ -25,6 +25,32 @@ export function queuePlace(db: Db, rootId: string, event: TrackedEvent): void {
   db.insert(placeOutbox)
     .values({ rootId, bookId: event.bookId, ...values })
     .onConflictDoUpdate({ target: [placeOutbox.rootId, placeOutbox.bookId], set: values })
+    .run();
+}
+
+/**
+ * Notes a place the playback service saved while the app's JavaScript did not run (M100), found
+ * when its journal is folded in. It goes as a pause, and never replaces a newer place that waits.
+ */
+export function queueSavedPlace(
+  db: Db,
+  rootId: string,
+  place: { bookId: string; positionMs: number; at: number },
+): void {
+  const values = {
+    event: 'pause' as const,
+    positionMs: Math.max(0, Math.round(place.positionMs)),
+    at: Math.round(place.at),
+    attempts: 0,
+    nextAttemptAt: Math.round(place.at),
+  };
+  db.insert(placeOutbox)
+    .values({ rootId, bookId: place.bookId, ...values })
+    .onConflictDoUpdate({
+      target: [placeOutbox.rootId, placeOutbox.bookId],
+      set: values,
+      setWhere: lt(placeOutbox.at, values.at),
+    })
     .run();
 }
 
