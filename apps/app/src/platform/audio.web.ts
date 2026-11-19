@@ -17,6 +17,7 @@ import {
   mediaSpan,
   outroStartMs,
   PLAY_REFUSED,
+  replayGainDb,
   shouldRefreshLink,
   sleepBoundaryMs,
   sleepFileTarget,
@@ -27,6 +28,8 @@ import {
 import { OPFS_SCHEME, opfsImageUrl } from '../webCovers';
 import * as opfs from './opfs';
 import * as sound from './webaudio';
+import { blobBytes, type FileBytes, readHead, urlBytes } from './webfile';
+import { createSilenceSkipper } from './websilence';
 
 export type {
   Bedtime,
@@ -74,15 +77,67 @@ let settings: PlayerSettings = {
   shakeToExtend: false,
 };
 
-/**
- * The effects for the book loaded: its own voice boost over the listener's default (M84). Skip
- * silence and even loudness are Android only; Web Audio has no cheap way to drop pauses.
- */
-const effects = (): sound.SoundSettings => ({
-  mono: settings.mono,
-  volumeBoost: settings.volumeBoost,
-  voiceEq: chooseSound(book?.sound, settings).voiceEq,
-});
+/** The effects for the book loaded: its own choices over the listener's defaults (M84, M101). */
+const effects = (): sound.SoundSettings => {
+  const chosen = chooseSound(book?.sound, settings);
+  return {
+    mono: settings.mono,
+    volumeBoost: settings.volumeBoost,
+    voiceEq: chosen.voiceEq,
+    evenLoudness: chosen.evenLoudness,
+  };
+};
+
+const skipsSilence = () => chooseSound(book?.sound, settings).skipSilence;
+// Skip silence and even loudness read the file's first bytes; nothing else does.
+const readsFile = () => skipsSilence() || effects().evenLoudness;
+
+// Listening time skip silence saved per book (M101), kept in this browser like Android keeps it
+// on the phone; the newest books stay.
+const SILENCE_KEY = 'lelap.silenceSaved';
+const SILENCE_BOOKS = 300;
+
+function readSavings(): [string, number][] {
+  try {
+    const raw = localStorage.getItem(SILENCE_KEY);
+    return raw ? (JSON.parse(raw) as [string, number][]) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Saved in memory as it adds up and written with the journal, not with every pause.
+let savings: Map<string, number> | null = null;
+let savingsChanged = false;
+
+function addSaved(ms: number): void {
+  const id = book?.bookId;
+  if (!id || ms <= 0) return;
+  savings ??= new Map(readSavings());
+  const total = (savings.get(id) ?? 0) + ms;
+  // The book saved to last moves to the end, so the oldest one goes first.
+  savings.delete(id);
+  savings.set(id, total);
+  while (savings.size > SILENCE_BOOKS) savings.delete(savings.keys().next().value ?? '');
+  savingsChanged = true;
+}
+
+function writeSavings(): void {
+  if (!savings || !savingsChanged) return;
+  savingsChanged = false;
+  try {
+    localStorage.setItem(SILENCE_KEY, JSON.stringify([...savings]));
+  } catch {
+    // Storage full or blocked: the time saved is only shown, nothing depends on it.
+  }
+}
+
+const skipper = createSilenceSkipper(addSaved);
+// Counts loads of a part, so a file's tags read late don't reach the next part.
+let partLoads = 0;
+// The part whose first bytes were read; they are read only once an effect needs them.
+let partRead = -1;
+let partSource: { audio: HTMLAudioElement; src: string; blob: Blob | null } | null = null;
 // A minutes timer counts wall time while playing; a chapter or episode timer stops at a place on
 // the book timeline (shake to extend is Android only: browsers ask before giving motion data).
 let sleepMode: SleepTimerMode | null = null;
@@ -121,13 +176,12 @@ function offsetOf(i: number): number {
 
 const durations = () => (book?.files ?? []).map((f) => f.durationMs);
 
+// The listening speed: inside a pause skip silence plays the element faster than this.
+const speedNow = () => book?.speed ?? 1;
+
 function untilBoundary(): number | null {
   if (sleepBoundary === null) return null;
-  return remainingToBoundary(
-    sleepBoundary,
-    offsetOf(index) + positionMs(),
-    element?.playbackRate ?? 1,
-  );
+  return remainingToBoundary(sleepBoundary, offsetOf(index) + positionMs(), speedNow());
 }
 
 /** Finds the end of the chapter (or episode) playing now; seeks call it again. */
@@ -203,7 +257,7 @@ function state(): PlayerState {
     partCount: book?.files.length ?? 0,
     positionMs: positionMs(),
     durationMs: duration || file?.durationMs || 0,
-    speed: element?.playbackRate ?? 1,
+    speed: element ? speedNow() : 1,
     duckOnInterruption: settings.duckOnInterruption,
     waitingForCall: false,
     sleepTimerRemainingMs:
@@ -227,6 +281,7 @@ function writeJournal(): void {
     savedAt: placeChangedAt,
   };
   lastJournal = Date.now();
+  writeSavings();
   try {
     localStorage.setItem(JOURNAL_KEY, JSON.stringify(entry));
   } catch {
@@ -402,6 +457,7 @@ function retire(): void {
   const old = element;
   if (!old) return;
   element = null;
+  skipper.detach();
   old.pause();
   old.removeAttribute('src');
   old.load();
@@ -423,12 +479,34 @@ async function playerFor(src: string): Promise<HTMLAudioElement> {
 }
 
 /** A downloaded file is read from OPFS; anything else plays from its URL. */
-async function sourceFor(uri: string): Promise<string> {
+async function sourceFor(uri: string): Promise<{ src: string; blob: Blob | null }> {
   if (objectUrl) URL.revokeObjectURL(objectUrl);
   objectUrl = null;
-  if (!uri.startsWith('file://')) return uri;
-  objectUrl = URL.createObjectURL(await opfs.readFile(uri.slice('file://'.length)));
-  return objectUrl;
+  if (!uri.startsWith('file://')) return { src: uri, blob: null };
+  const blob = await opfs.readFile(uri.slice('file://'.length));
+  objectUrl = URL.createObjectURL(blob);
+  return { src: objectUrl, blob };
+}
+
+/**
+ * Reads the part's first bytes for its ReplayGain and its MP3 layout (M101), while it starts
+ * playing: a download from OPFS, a stream only from a host that allows reading it.
+ */
+async function readPart(audio: HTMLAudioElement, src: string, blob: Blob | null): Promise<void> {
+  const load = partLoads;
+  if (partRead === load) return;
+  partRead = load;
+  const file: FileBytes | null = blob
+    ? blobBytes(blob)
+    : (await sound.canRoute(src))
+      ? urlBytes(src)
+      : null;
+  const head = file ? await readHead(file).catch(() => null) : null;
+  if (load !== partLoads || audio !== element) return;
+  sound.setTagGain(audio, head ? replayGainDb(head.tags) : null);
+  skipper.attach(audio, file, head?.layout ?? null);
+  skipper.setOn(skipsSilence());
+  note(head?.layout ? 'silence-map' : 'silence-none');
 }
 
 async function setPart(i: number, startMs: number, autoplay: boolean): Promise<void> {
@@ -440,10 +518,13 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
   error = null;
   lastPositionMs = startMs;
   lastPlaying = autoplay;
-  const src = await sourceFor(file.uri);
+  partLoads++;
+  const { src, blob } = await sourceFor(file.uri);
   const audio = await playerFor(src);
+  // Until the new file is read, it plays at the listening speed without skipping.
+  skipper.attach(audio, null, null);
   audio.src = src;
-  audio.playbackRate = book?.speed ?? 1;
+  skipper.setSpeed(audio, speedNow());
   await new Promise<void>((resolve) => {
     const ready = () => {
       audio.removeEventListener('loadedmetadata', ready);
@@ -455,6 +536,8 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
   });
   seekingForLoad = true;
   audio.currentTime = startMs / 1000;
+  partSource = { audio, src, blob };
+  if (readsFile()) void readPart(audio, src, blob);
   if (autoplay) {
     await sound.resume(audio);
     await audio.play().catch(() => {});
@@ -463,6 +546,12 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
 }
 
 export async function load(next: BookLoad, autoplay: boolean): Promise<void> {
+  // Time saved so far belongs to the book that played; the next one is measured afresh.
+  skipper.detach();
+  if (book?.bookId !== next.bookId) {
+    sound.restartLoudness();
+    sound.setTagGain(element, null);
+  }
   book = next;
   pausedAt = next.pausedAt;
   placeChangedAt = next.pausedAt ?? 0;
@@ -539,7 +628,7 @@ export async function skipToPart(i: number): Promise<void> {
 
 export async function setSpeed(speed: number): Promise<void> {
   if (book) book = { ...book, speed };
-  if (element) element.playbackRate = speed;
+  skipper.setSpeed(element, speed);
   emit();
 }
 
@@ -561,17 +650,20 @@ export async function updateBook(next: BookLoad): Promise<void> {
 async function applyEffects(): Promise<void> {
   const audio = element;
   const now = effects();
+  skipper.setOn(skipsSilence());
+  const part = partSource;
+  if (part && part.audio === audio && readsFile()) void readPart(part.audio, part.src, part.blob);
   if (audio && sound.isRouted(audio)) sound.update(audio, now);
-  else if (audio && book && sound.soundOn(now) && (await sound.canRoute(audio.currentSrc))) {
+  else if (audio && book && sound.soundOn(effects()) && (await sound.canRoute(audio.currentSrc))) {
     // A plain element cannot take the effects: reload the part, routed, at the same place.
     await setPart(index, positionMs(), playing());
   }
 }
 
-/** Skip silence is Android only, so the web saves nothing. */
+/** Listening time skip silence saved in the book in this browser. */
 export async function silenceSavedMs(bookId: string): Promise<number> {
-  void bookId;
-  return 0;
+  savings ??= new Map(readSavings());
+  return Math.round(savings.get(bookId) ?? 0);
 }
 
 export async function skip(forward: boolean): Promise<void> {
@@ -657,7 +749,9 @@ export async function takeDiagnostics(): Promise<PlayerDiagnostic[]> {
 }
 
 export async function unload(): Promise<void> {
+  skipper.detach();
   writeJournal();
+  writeSavings();
   element?.pause();
   if (element) element.removeAttribute('src');
   book = null;
@@ -772,4 +866,17 @@ function updateMediaSession(now: PlayerState): void {
       // Not every browser has position state; the controls work without it.
     }
   }
+}
+
+// For checking skip silence and even loudness from a dev build's console (M101).
+if (__DEV__) {
+  Object.assign(globalThis, {
+    lelapSound: {
+      loudness: () => sound.loudnessState(element),
+      fast: () => skipper.fast,
+      pauseAfter: (ms: number) => skipper.map?.nextPause(ms, 30_000) ?? null,
+      rate: () => element?.playbackRate ?? null,
+      placeMs: () => positionMs(),
+    },
+  });
 }

@@ -110,7 +110,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M98 Developer verification](milestones/m98.md)      | Planned     |             | Google's developer verification for sideloaded apps                                                            |
 | [M99 Languages 3](milestones/m99.md)                 | Planned     |             | Media3's own notification texts, saved English chapter names, raw native error details                         |
 | [M100 Server sources 3](milestones/m100.md)          | Planned     |             | Places sent while the app is closed, and Plex addresses that follow the server                                 |
-| [M101 Better sound 2](milestones/m101.md)            | Planned     |             | Skip silence and even loudness on the web, and steadier skip silence accounting                                |
+| [M101 Better sound 2](milestones/m101.md)            | Done        |           9 | Skip silence and even loudness on the web, and steadier skip silence accounting                                |
 | [M102 Add-on protocol 4](milestones/m102.md)         | In progress |          12 | Ratings, Android finish sessions, scrobblers on the SDK's configure and catalog upkeep                         |
 | [M103 Podcasts 5](milestones/m103.md)                | Done        |           7 | Alternate enclosures, podcast:integrity checks, chapter images on the lock screen                              |
 | [M104 Security hardening 3](milestones/m104.md)      | Done        |          10 | What M96's audit left: LAN addresses for add-ons, discovery, SMB signing, SDK sealing                          |
@@ -130,6 +130,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M119 Lists 3](milestones/m119.md)                   | Planned     |             | What M112 left: lists in Android Auto, Previous in list off the phone, the list on the widget                  |
 | [M120 Big screens 3](milestones/m120.md)             | Planned     |             | What M113 left: drag to a list on Android and from catalog tiles, drop on the Library's list cards             |
 | [M121 Podcasts 7](milestones/m121.md)                | Planned     |             | Integrity checks for web downloads, the smaller file with the app closed, chapter images on the web            |
+| [M122 Better sound 3](milestones/m122.md)            | Planned     |             | Skip silence on the web for every format, without reading streams twice, and on cast receivers                 |
 
 <!-- milestones:end -->
 
