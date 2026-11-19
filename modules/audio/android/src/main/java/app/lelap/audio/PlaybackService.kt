@@ -773,10 +773,11 @@ class PlaybackService : MediaLibraryService() {
     account()
     current = playlist
     currentHandsOver = load.handsOver
-    // A book picked in the car plays on its own; Next in list leaves until the app sends a list.
+    // A book picked in the car plays on its own: the list leaves, with its items in the queue,
+    // until the app sends a list. Up Next stays.
     if (listNext >= 0 || following != null) {
       following = null
-      saveQueue(queue, -1)
+      saveQueue(if (listNext >= 0) queue.take(listNext) else queue, -1)
     }
     prefs.edit().remove(Commands.PREF_LIST_STARTED).apply()
     pausedAt = null

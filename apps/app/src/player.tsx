@@ -601,11 +601,16 @@ async function sendQueue(): Promise<void> {
   const upNext = listUpNext(db, profileId).map((i) => i.bookId);
   const now = Date.now();
   // A list picked in Android Auto (M119): the service plays along it; the app follows it too.
+  // The service may have moved along the list since, so any of its items may be playing now.
   const started = await audio.takeListStarted().catch(() => null);
-  if (started && started.bookId === loaded && getPlaylist(db, profileId, started.listId)) {
-    setFollowedList(db, profileId, started, now);
-    lastHandedOver = loaded;
-    onFollowChange();
+  const startedList = started ? getPlaylist(db, profileId, started.listId) : null;
+  if (started && startedList && loaded) {
+    const items = listPlayOrder(db, profileId, startedList, started);
+    if (items.some((b) => b.id === loaded)) {
+      setFollowedList(db, profileId, { ...started, bookId: loaded }, now);
+      lastHandedOver = loaded;
+      onFollowChange();
+    }
   }
   let following = followedListItems(db, profileId, now);
   if (following && loaded) {
@@ -657,8 +662,10 @@ async function sendQueue(): Promise<void> {
     }
     // The list's own item playing, with what comes before it, for Previous in list (M119).
     const at = loaded && items.some((b) => b.id === loaded) ? loaded : null;
-    const before = at
-      ? listEarlier(items, at, keep)
+    // While Up Next plays in between: what lies before the list's next item, for once it starts.
+    const from = at ?? listUpcoming(items, follow.bookId, keep)[0]?.id;
+    const before = from
+      ? listEarlier(items, from, keep)
           .slice(0, BEFORE_LIMIT)
           .map((b) => bookLoad(b.id, { fromStart: playsFromStart(b, keep), following: true }))
           .filter((b): b is audio.BookLoad => b !== null)
