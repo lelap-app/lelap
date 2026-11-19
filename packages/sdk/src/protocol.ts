@@ -545,8 +545,9 @@ export const LibraryResponse = z.object({
    * Since revision 11: new values for the add-on's own settings fields, by key, such as a server's
    * new address that its account service names. The app saves them before it reads `files`, so
    * files on a new address are kept. Address fields that grant a host change only for the add-ons
-   * that come with the app. When the listing has no files and the new values gave the add-on
-   * other hosts, the app asks `library` once more with them. From the first page only.
+   * that come with the app. When the listing has no files and the values changed, the app asks
+   * `library` once more with them; a listing with `settings` and still no files keeps the
+   * library as it was. From the first page only.
    */
   settings: z.record(z.string(), z.string().max(4096)).optional(),
   cacheMaxAge: CacheMaxAge,

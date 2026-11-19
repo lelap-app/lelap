@@ -453,16 +453,19 @@ async function scanAddonSource(
     hosts: codeFingerprint(remote.addonUrl) === null,
   });
   if (moved) {
-    const before = addonSourceHosts(manifest, remote.settings).join(' ');
     updateRemoteRoot(db, root.id, moved, Date.now());
     remote = moved;
     // Nothing listed because the old address didn't answer: once more, on the new one.
-    if (
-      response.files.length === 0 &&
-      addonSourceHosts(manifest, moved.settings).join(' ') !== before
-    ) {
-      response = await list(moved);
-    }
+    if (response.files.length === 0) response = await list(moved);
+  }
+  // Still nothing but new settings: the server moved and isn't listed yet. Its books and login
+  // stay as they are until a scan finds it.
+  if (response.files.length === 0 && response.settings) {
+    throw new Error(
+      t('{name} has a new address that did not answer yet. Scan again later.', {
+        name: remote.name,
+      }),
+    );
   }
   forgetLocated(root.id);
   const login = addonLogin(remote);

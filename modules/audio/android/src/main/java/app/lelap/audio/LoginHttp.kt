@@ -2,6 +2,7 @@ package app.lelap.audio
 
 import java.io.IOException
 import java.io.InputStream
+import java.io.InterruptedIOException
 import java.net.HttpURLConnection
 
 /**
@@ -69,20 +70,27 @@ object LoginHttp {
     val status = connection.responseCode
     val at = connection.url.toString()
     if (status !in 200..299) return Answer(connection, status, at, -1L, null)
-    val stream = connection.inputStream
-    var left = contentLength(connection.getHeaderField("Content-Length"), connection.getHeaderField("Content-Range"))
-    if (status == 200 && position > 0L) {
-      skipFully(stream, position)
-      if (left >= 0L) left = (left - position).coerceAtLeast(0L)
+    try {
+      val stream = connection.inputStream
+      var left = contentLength(connection.getHeaderField("Content-Length"), connection.getHeaderField("Content-Range"))
+      if (status == 200 && position > 0L) {
+        skipFully(stream, position)
+        if (left >= 0L) left = (left - position).coerceAtLeast(0L)
+      }
+      if (length >= 0L) left = if (left < 0L) length else minOf(left, length)
+      return Answer(connection, status, at, left, stream)
+    } catch (e: IOException) {
+      connection.disconnect()
+      throw e
     }
-    if (length >= 0L) left = if (left < 0L) length else minOf(left, length)
-    return Answer(connection, status, at, left, stream)
   }
 
   private fun skipFully(stream: InputStream, count: Long) {
     var left = count
     val buffer = ByteArray(8192)
     while (left > 0L) {
+      // A seek given up on, such as by the next one, stops the skipping too.
+      if (Thread.interrupted()) throw InterruptedIOException()
       val read = stream.read(buffer, 0, minOf(buffer.size.toLong(), left).toInt())
       if (read < 0) throw IOException("The file ended before the place asked for.")
       left -= read

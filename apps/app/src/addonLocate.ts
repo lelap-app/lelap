@@ -61,13 +61,20 @@ export async function locateAddonBook(bookId: string, profile: string): Promise<
       locate: request,
     });
     const parsed = LocateResponse.safeParse(body);
-    if (status !== 200 || !parsed.success) return;
-    for (const [uri, to] of locatedAddresses(request, parsed.data, hosts)) {
-      located.set(keyOf(rootId, uri), to);
-      askedAt.set(keyOf(rootId, uri), now);
+    if (status === 200 && parsed.success) {
+      for (const [uri, to] of locatedAddresses(request, parsed.data, hosts)) {
+        located.set(keyOf(rootId, uri), to);
+        askedAt.set(keyOf(rootId, uri), now);
+      }
+      return;
     }
   } catch {
-    // Offline, or the add-on gave up: the addresses of the last scan, as before.
+    // Offline, or the add-on gave up: below.
+  }
+  // The addresses of the last scan, as before, and no waiting again for a minute.
+  for (const file of request.files) {
+    located.delete(keyOf(rootId, file.url));
+    askedAt.set(keyOf(rootId, file.url), now);
   }
 }
 

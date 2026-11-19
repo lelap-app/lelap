@@ -1753,9 +1753,10 @@ const toc: [string, string][] = [
     fields, by key, as a sign-in’s result does. The app saves them before it reads the files, so
     files on a new address are kept. Address fields marked <code>host</code> change only for add-ons
     that come with the app, such as Plex when plex.tv names new addresses for the server; any other
-    add-on can change its other fields only. When the listing has no files and the new settings gave
-    the add-on other hosts, the app asks <code>library</code> once more with them, so the add-on
-    reaches a new address only after it is saved. Give <code>settings</code> on the first page.
+    add-on can change its other fields only. When the listing has no files and the settings changed,
+    the app asks <code>library</code> once more with them, so the add-on reaches a new address only
+    after it is saved. A listing with <code>settings</code> and still no files keeps the library as
+    it was, books and login, until a scan lists it. Give <code>settings</code> on the first page.
   </p>
   <CodeBlock code={movedLibrary} label={`GET /${libraryPath()}, after the server moved`} />
 

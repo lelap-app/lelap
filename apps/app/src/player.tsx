@@ -161,18 +161,23 @@ export const playerProfile = () => deviceValue(db, PLAYER_PROFILE) ?? profileId;
  * then the player's own reports follow. `send` false leaves sending them to the caller.
  */
 export async function foldJournal(send = true): Promise<void> {
-  const playing = await audio.getState().catch(() => null);
-  const fold = (place: audio.JournalEntry) => {
-    const profile = playerProfile();
-    if (!saveProgress(db, profile, place, 'journal')) return;
-    if (playing?.playing && playing.bookId === place.bookId) return;
-    queueJournalPlace(place, profile);
-  };
   // Books the service replaced by itself (Up Next, Android Auto) first: they are older.
   const earlier = await audio.takeEarlierPlaces().catch(() => []);
-  for (const place of earlier) fold(place);
   const entry = await audio.takeJournal();
-  if (entry) fold(entry);
+  const places = entry ? [...earlier, entry] : earlier;
+  if (places.length === 0) return;
+  const profile = playerProfile();
+  const saved = places.filter((place) => saveProgress(db, profile, place, 'journal'));
+  if (saved.length === 0) return;
+  // Asking the player starts its service, so only when there is a place to send.
+  const playing = await Promise.race([
+    audio.getState().catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), JOURNAL_WAIT_MS)),
+  ]);
+  for (const place of saved) {
+    if (playing?.playing && playing.bookId === place.bookId) continue;
+    queueJournalPlace(place, profile);
+  }
   if (send) void flushServerPlaces();
 }
 

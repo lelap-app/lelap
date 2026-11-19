@@ -133,6 +133,8 @@ export function queueJournalPlace(
   const parts = partsOf(place.bookId, profile);
   const rootId = parts[0]?.rootId;
   if (!rootId || parts.some((p) => p.rootId !== rootId)) return;
+  // A file the book no longer has would put the place at its start.
+  if (!parts.some((p) => p.location === place.fileLocation)) return;
   const server = serverOf(rootId);
   if (!server || server.owner !== profile || server.root.needsLogin) return;
   const positionMs = toBookPosition(parts, place.fileLocation, place.filePositionMs);
@@ -254,6 +256,8 @@ let sending: Promise<void> | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 // Asked for every waiting place while a round was running: one more round after it.
 let allAfter = false;
+// Asked with add-on servers while a background round left them out: the next round takes them.
+let addonsAfter = false;
 
 /**
  * Sends the places that are due and plans the next try. `all` sends every waiting place now,
@@ -263,16 +267,20 @@ let allAfter = false;
 export function flushServerPlaces(all = false, addons = true): Promise<void> {
   if (sending) {
     if (all) allAfter = true;
+    if (addons) addonsAfter = true;
     return sending;
   }
   sending = (async () => {
     let everything = all;
+    let withAddons = addons;
     try {
       for (;;) {
-        await sendDue(Date.now(), everything, addons);
-        if (!allAfter) break;
+        await sendDue(Date.now(), everything, withAddons);
+        if (!allAfter && !(addonsAfter && !withAddons)) break;
+        everything = everything || allAfter;
+        withAddons = withAddons || addonsAfter;
         allAfter = false;
-        everything = true;
+        addonsAfter = false;
       }
     } catch {
       // The outbox keeps the places; the next flush tries again.

@@ -777,6 +777,7 @@
   "The add-on answered {status}.": "Alat tambah menjawab {status}.",
   "The add-on for this server is no longer on this device.": "Alat tambah untuk pelayan ini tiada lagi dalam peranti ini.",
   "The add-on’s list of files is not valid.": "Senarai fail alat tambah ini tidak sah.",
+  "{name} has a new address that did not answer yet. Scan again later.": "{name} mempunyai alamat baharu yang belum menjawab. Imbas semula kemudian.",
   "The login for {name} is needed again.": "Log masuk untuk {name} diperlukan semula.",
   "The password for {name} is needed again.": "Kata laluan untuk {name} diperlukan semula.",
   "The private key can’t be read. Check its passphrase.": "Kunci peribadi tidak dapat dibaca. Semak frasa laluannya.",
