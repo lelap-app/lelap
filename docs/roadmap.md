@@ -88,7 +88,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M75 Podcasts 3](milestones/m75.md)                  | Done        |           4 | More Podcasting 2.0 tags, Atom content and logging from the background refresh                                           |
 | [M76 Hardcover catalogs](milestones/m76.md)          | Done        |           8 | Trending books, featured lists and your own Hardcover lists as catalogs, on your own token                               |
 | [M77 Hide from library](milestones/m77.md)           | Done        |          15 | Hide items from the library and bring them back; suggestions to hide what looks like music                               |
-| [M78 Casting 4](milestones/m78.md)                   | Planned     |             | Speaker groups across protocols, and Cast device authentication enforced                                                 |
+| [M78 Casting 4](milestones/m78.md)                   | Done        |          11 | Speaker groups across protocols, and Cast device authentication enforced                                                 |
 | [M79 Library by progress](milestones/m79.md)         | Done        |           4 | The Library in three groups, In progress, Not started and Finished, each in its own order                                |
 | [M80 App polish 2](milestones/m80.md)                | In progress |           7 | A zoomed scrubber, matched covers kept offline, faster web saves, player tools at 320 dp                                 |
 | [M81 Test round 2](milestones/m81.md)                | Planned     |             | A full phone round over adb and the fixes it finds, the gate for v0.1.0                                                  |
@@ -133,6 +133,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M122 Better sound 3](milestones/m122.md)            | Planned     |             | Skip silence on the web for every format, without reading streams twice, and on cast receivers                           |
 | [M123 Server sources 4](milestones/m123.md)          | Planned     |             | Add-on servers' places with the app closed, located addresses for books started without the app                          |
 | [M124 Languages 4](milestones/m124.md)               | Planned     |             | Chapter names that follow a language switch at once, and the last English failure texts                                  |
+| [M125 Casting 5](milestones/m125.md)                 | Planned     |             | An FCast receiver that goes silent, tuned receiver waits, Cast on the web, bedtime volume while casting                  |
 
 <!-- milestones:end -->
 

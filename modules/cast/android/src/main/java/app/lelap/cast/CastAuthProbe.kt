@@ -9,20 +9,14 @@ import javax.net.ssl.SSLSocket
 
 /**
  * Runs device authentication against a Cast receiver on a connection of its own, so a receiver
- * that dislikes the challenge can't end the session that plays. Report only: the verdict goes to
- * logcat, and casting goes on whatever it says, until it has been tried on real receivers.
+ * that dislikes the challenge can't end the session that plays. [CastLink] waits for the verdict
+ * and connects only to a trusted receiver, unless the listener chose “Connect anyway” (M78).
  */
 object CastAuthProbe {
-  /**
-   * Google's Cast root certificates. Empty: they belong here only after their fingerprints are
-   * checked against Chromium's `components/cast_certificate` and a real receiver's chain.
-   */
-  val roots: List<X509Certificate> = emptyList()
-
   private const val TIMEOUT_MS = 5_000
 
   /** Blocks for up to a few seconds; never on main. */
-  fun run(device: CastDevice, roots: List<X509Certificate> = this.roots): CastAuth.Verdict = try {
+  fun run(device: CastDevice, roots: List<X509Certificate> = CastRoots.all): CastAuth.Verdict = try {
     val context = SSLContext.getInstance("TLS")
     context.init(null, arrayOf(TrustDevice), SecureRandom())
     (context.socketFactory.createSocket() as SSLSocket).use { socket ->
@@ -58,8 +52,7 @@ object CastAuthProbe {
 
   /** For logcat: words and numbers only, no device name or address. */
   fun describe(verdict: CastAuth.Verdict): String = when (verdict) {
-    CastAuth.Verdict.Trusted -> "trusted"
-    is CastAuth.Verdict.Unanchored -> "signature ok, not anchored: ${verdict.reason}"
+    is CastAuth.Verdict.Trusted -> if (verdict.audioOnly) "trusted, audio only" else "trusted"
     is CastAuth.Verdict.Untrusted -> "untrusted: ${verdict.reason}"
   }
 }

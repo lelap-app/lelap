@@ -18,7 +18,8 @@ import org.junit.Test
 /**
  * Fixtures in `resources/castauth`, made with openssl for these tests only: a root, an
  * intermediate and a device certificate under it, the device key, an unrelated root and a TLS
- * certificate. None of them is Google's.
+ * certificate; and a root with a device certificate under it that carries Cast's audio-only
+ * policy, for the same device key (M78). None of them is Google's.
  */
 class CastAuthTest {
   private val nonce = ByteArray(16) { it.toByte() }
@@ -105,20 +106,62 @@ class CastAuthTest {
     assertNull(CastAuth.parse(noSignature))
   }
 
+  private val trusted = CastAuth.Verdict.Trusted(audioOnly = false)
+
   @Test
   fun aSignedAnswerChainedToARootIsTrusted() {
-    assertEquals(CastAuth.Verdict.Trusted, CastAuth.verify(response(), nonce, peer, listOf(root), now))
+    assertEquals(trusted, CastAuth.verify(response(), nonce, peer, listOf(root), now))
   }
 
   @Test
   fun sha1SignaturesFromOlderReceiversAreChecked() {
     val r = response(signature = sign(nonce + peer.encoded, "SHA1withRSA"), hash = CastAuth.HASH_SHA1)
-    assertEquals(CastAuth.Verdict.Trusted, CastAuth.verify(r, nonce, peer, listOf(root), now))
+    assertEquals(trusted, CastAuth.verify(r, nonce, peer, listOf(root), now))
   }
 
   @Test
-  fun withoutRootsAGoodSignatureProvesNothing() {
-    assertTrue(CastAuth.verify(response(), nonce, peer, emptyList(), now) is CastAuth.Verdict.Unanchored)
+  fun withoutRootsAGoodSignatureIsNotEnough() {
+    assertEquals(CastAuth.Verdict.Untrusted("no Cast root certificates"), CastAuth.verify(response(), nonce, peer, emptyList(), now))
+  }
+
+  @Test
+  fun firmwareThatEchoesNoNonceSignsTheTlsCertificateAlone() {
+    // As Chromium's sender accepts: the signature is over the echoed nonce, here none.
+    val r = response(signature = sign(peer.encoded), senderNonce = null)
+    assertEquals(trusted, CastAuth.verify(r, nonce, peer, listOf(root), now))
+    // Echoing none but signed over our nonce doesn't match what it echoed.
+    assertEquals(CastAuth.Verdict.Untrusted("bad signature"), CastAuth.verify(response(senderNonce = null), nonce, peer, listOf(root), now))
+  }
+
+  @Test
+  fun theAudioOnlyPolicyIsRead() {
+    val audioRoot = cert("audio-root.pem")
+    val audioDevice = cert("audio-device.pem")
+    val r = CastAuth.Response(sign(nonce + peer.encoded), audioDevice.encoded, emptyList(), CastAuth.SIGNATURE_RSASSA_PKCS1V15, nonce, CastAuth.HASH_SHA256)
+    assertEquals(CastAuth.Verdict.Trusted(audioOnly = true), CastAuth.verify(r, nonce, peer, listOf(audioRoot), now))
+  }
+
+  @Test
+  fun aLeafCannotStandInForAnIntermediate() {
+    // The device certificate offered as its own intermediate under another root: no path.
+    val r = response(intermediates = listOf(device.encoded))
+    assertEquals(CastAuth.Verdict.Untrusted("chain not trusted"), CastAuth.verify(r, nonce, peer, listOf(otherRoot), now))
+  }
+
+  @Test
+  fun googlesTwoCastRootsLoadWithTheirFingerprints() {
+    val roots = CastRoots.all
+    assertEquals(listOf("Cast Root CA", "Eureka Root CA"), roots.map { r -> r.subjectX500Principal.name.substringAfter("CN=").substringBefore(",") })
+    val sha256 = roots.map { CastRoots.hex(java.security.MessageDigest.getInstance("SHA-256").digest(it.encoded)) }
+    assertEquals(
+      listOf(
+        "809af14700b3fe2611ad597eb1584d6354313b64ccdb3390f097fa3e5826d6ca",
+        "caf6d1e37b532203e01a76bf07187bb731ccd38801565ab2211a2c0ab7f3bc46",
+      ),
+      sha256,
+    )
+    // Our test chain is not Google's.
+    assertEquals(CastAuth.Verdict.Untrusted("chain not trusted"), CastAuth.verify(response(), nonce, peer, roots, now))
   }
 
   @Test
@@ -134,7 +177,6 @@ class CastAuthTest {
   fun theAnswerMustBeForOurNonceAndThisConnection() {
     val other = ByteArray(16) { 7 }
     assertEquals(CastAuth.Verdict.Untrusted("another nonce"), CastAuth.verify(response(senderNonce = other), nonce, peer, listOf(root), now))
-    assertEquals(CastAuth.Verdict.Untrusted("no nonce in the answer"), CastAuth.verify(response(senderNonce = null), nonce, peer, listOf(root), now))
     // Signed for another TLS certificate: a relayed answer from a real device.
     val relayed = response(signature = sign(nonce + root.encoded))
     assertEquals(CastAuth.Verdict.Untrusted("bad signature"), CastAuth.verify(relayed, nonce, peer, listOf(root), now))

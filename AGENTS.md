@@ -47,7 +47,7 @@ modules/audio   Kotlin Expo module: Media3 playback service, focus, sleep timer,
 modules/library Kotlin Expo module: folder access, tags and chapters for the local library; chapters
                 from silences
 modules/download Kotlin Expo module: WorkManager downloads with Wi-Fi and charging rules, into a chosen folder
-modules/cast    Kotlin Expo module: casting over UPnP, an own Cast v2 client and FCast; LAN file server
+modules/cast    Kotlin Expo module: casting over UPnP, an own Cast v2 client and FCast; speaker groups; LAN file server
 modules/updater Kotlin Expo module: in-app APK updates through PackageInstaller
 modules/widget  Kotlin module: home screen widget and Quick Settings tile, no JavaScript API
 modules/bluetooth Kotlin Expo module: connected Bluetooth audio devices, battery, car detection

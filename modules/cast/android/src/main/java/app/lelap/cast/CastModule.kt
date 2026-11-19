@@ -18,6 +18,9 @@ class CastFailedException(message: String) : CodedException(message)
 /** Android 17 without local network access: JavaScript shows the explanation and asks. */
 class LocalNetworkDeniedException : CodedException("ERR_LOCAL_NETWORK", "Local network access is off", null)
 
+/** A Google Cast speaker failed device authentication: JavaScript offers “Connect anyway”. */
+class CastUntrustedCodedException(message: String) : CodedException("ERR_CAST_UNTRUSTED", message, null)
+
 /**
  * Bridges JavaScript to discovery and to the [CastLink]. Playback itself goes through the
  * playback service, whose media session plays through the link while casting (M50); this side
@@ -84,26 +87,36 @@ class CastModule : Module() {
 
     AsyncFunction("requestLocalNetworkAccess") { promise: Promise -> localNetwork(promise, ask = true) }
 
-    AsyncFunction("connect") { deviceId: String ->
+    // One receiver, or a group of any protocols led by the first (M78). With [anyway], the Google
+    // Cast speakers among them connect even when they fail device authentication, for as long as
+    // the app runs.
+    AsyncFunction("connect") { deviceIds: List<String>, anyway: Boolean ->
       // The receiver and the file server it fetches from are both on the local network.
       if (!hasLocalNetwork()) {
         Log.w(Discovery.TAG, "connect refused: no local network access")
         throw LocalNetworkDeniedException()
       }
-      val target = discovery().device(deviceId) ?: throw CastFailedException(NativeText.t(context, "That speaker is no longer on the network"))
+      val targets = deviceIds.distinct().map {
+        discovery().device(it) ?: throw CastFailedException(NativeText.t(context, "That speaker is no longer on the network"))
+      }
+      if (targets.isEmpty()) throw CastFailedException(NativeText.t(context, "That speaker is no longer on the network"))
+      if (anyway) letIn += targets.map { it.id }
       val link = try {
-        CastLink.open(context, target)
+        CastLink.open(context, targets, letIn.toSet())
+      } catch (e: CastUntrustedException) {
+        throw CastUntrustedCodedException(e.message.orEmpty())
       } catch (e: CastException) {
         throw CastFailedException(e.message.orEmpty())
       }
       watch(link)
+      mapOf("session" to link.toMap(), "unreached" to link.unreached)
     }
 
     // The receiver the session plays on, also after the app was closed and opened again.
     AsyncFunction("session") {
       val link = CastLink.current?.takeIf { !it.closed }
       watch(link)
-      link?.device?.toMap()
+      link?.toMap()
     }
 
     AsyncFunction("setVolume") { level: Double -> CastLink.current?.setVolume(level.toFloat()) }
@@ -145,6 +158,9 @@ class CastModule : Module() {
   )
 
   private companion object {
+    /** Google Cast speakers the listener let in by hand; kept for the process, never stored. */
+    val letIn: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
     const val DEVICES_EVENT = "onDevices"
     const val STATUS_EVENT = "onStatus"
     const val DISCOVERY_EVENT = "onDiscovery"

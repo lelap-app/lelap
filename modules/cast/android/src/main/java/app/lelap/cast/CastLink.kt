@@ -10,6 +10,7 @@ import java.util.concurrent.Callable
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import java.util.concurrent.FutureTask
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -43,7 +44,10 @@ data class CastRequest(
  */
 class CastLink private constructor(
   context: Context,
+  /** The receiver, or for a group a stand-in named after its speakers (kind `group`). */
   val device: CastDevice,
+  /** The speakers, the first leading; one for a single receiver. */
+  val members: List<CastDevice>,
 ) {
   interface Listener {
     fun onStatus(status: RendererStatus)
@@ -100,12 +104,16 @@ class CastLink private constructor(
     val queued = later {
       val r = renderer
       if (r == null || closed) return@later done(NativeText.current().t("Not casting"))
+      val started = System.nanoTime()
       val failure = try {
         r.load(media(request), startMs, autoplay, speed)
         null
       } catch (e: Exception) {
         message(e)
       }
+      // Logged here as well as by the player's RemoteSession, which logged none on beta 7 (M69):
+      // this line shows whether a load reached the receiver at all.
+      Log.i(TAG, "${device.kind} load-call ${(System.nanoTime() - started) / 1_000_000L} ms${if (failure == null) "" else ", failed"}")
       done(failure)
     }
     if (!queued) done(NativeText.current().t("Not casting"))
@@ -182,18 +190,53 @@ class CastLink private constructor(
     return last
   }
 
-  private fun open() {
-    // Report only (M69): read with `adb logcat -s LelapCast`.
-    if (device.kind == "cast") {
-      Thread({ Log.i(TAG, "cast device auth: ${CastAuthProbe.describe(CastAuthProbe.run(device))}") }, "lelap-cast-auth")
-        .apply { isDaemon = true }
-        .start()
+  /** Speakers of the group that could not be reached when it connected; it plays without them. */
+  var unreached: List<String> = emptyList()
+    private set
+  private var skipped: Set<String> = emptySet()
+
+  /** For JavaScript: the receiver, and for a group its speakers. */
+  fun toMap(): Map<String, Any?> = device.toMap() + ("members" to members.map { it.toMap() })
+
+  private fun open(trusted: Set<String>) {
+    // Device authentication on connections of their own, alongside the session's (M69). Read
+    // the verdicts with `adb logcat -s LelapCast`.
+    val probes = members.filter { it.kind == "cast" }.map { member ->
+      member to FutureTask { CastAuthProbe.run(member) }.also { Thread(it, "lelap-cast-auth").apply { isDaemon = true }.start() }
     }
-    renderer = when (device.kind) {
-      "upnp" -> UpnpRenderer(device)
-      "cast" -> GoogleCastRenderer(device, ::lost)
-      "fcast" -> FCastRenderer(device, ::lost)
-      else -> throw CastException("Unknown kind of receiver")
+    val leader = rendererFor(members.first(), ::lost)
+    renderer = leader
+    if (members.size > 1) {
+      // Set once the group exists; a follower lost before that is dropped by its first failed command.
+      var group: GroupRenderer? = null
+      val followers = mutableListOf<Renderer>()
+      val missed = mutableListOf<CastDevice>()
+      for (member in members.drop(1)) {
+        try {
+          var self: Renderer? = null
+          rendererFor(member) { self?.let { r -> group?.drop(r) } }.also { self = it; followers += it }
+        } catch (e: Exception) {
+          missed += member
+        }
+      }
+      if (missed.isNotEmpty()) Log.i(TAG, "group: ${missed.size} of ${members.size} speakers not reached")
+      group = GroupRenderer(leader, followers, clock = { System.nanoTime() / 1_000_000L })
+      renderer = group
+      unreached = missed.map { it.name }
+      skipped = missed.map { it.id }.toSet()
+    }
+    // Enforced (M78): a Google Cast speaker that doesn't prove itself is not connected, unless
+    // the listener chose “Connect anyway” for it. One the group couldn't reach plays no part.
+    for ((member, probe) in probes) {
+      if (member.id in skipped) continue
+      val verdict = try {
+        probe.get(AUTH_WAIT_S, TimeUnit.SECONDS)
+      } catch (e: Exception) {
+        CastAuth.Verdict.Untrusted("no answer")
+      }
+      val allowed = member.id in trusted
+      Log.i(TAG, "cast device auth: ${CastAuthProbe.describe(verdict)}${if (verdict is CastAuth.Verdict.Untrusted && allowed) ", connected anyway" else ""}")
+      if (verdict is CastAuth.Verdict.Untrusted && !allowed) throw CastUntrustedException(member)
     }
     val wifi = app.getSystemService(WifiManager::class.java)
     @Suppress("DEPRECATION")
@@ -213,6 +256,13 @@ class CastLink private constructor(
     }
     lastStatus = status
     for (listener in listeners) listener.onStatus(status)
+  }
+
+  private fun rendererFor(member: CastDevice, onLost: (String) -> Unit): Renderer = when (member.kind) {
+    "upnp" -> UpnpRenderer(member)
+    "cast" -> GoogleCastRenderer(member, onLost)
+    "fcast" -> FCastRenderer(member, onLost)
+    else -> throw CastException("Unknown kind of receiver")
   }
 
   /** The receiver closed the connection; whoever plays through the link hands back. */
@@ -254,27 +304,52 @@ class CastLink private constructor(
   companion object {
     private const val TAG = "LelapCast"
 
+    /** The probe itself gives up after 5 s without an answer. */
+    private const val AUTH_WAIT_S = 12L
+
     /** The session running now, if any. */
     @Volatile
     var current: CastLink? = null
       private set
 
-    /** Connects to [device], ending any session before. Blocks on the network; never on main. */
-    fun open(context: Context, device: CastDevice): CastLink {
+    /**
+     * Connects to [devices], one receiver or a group led by the first, ending any session before.
+     * Google Cast speakers in [trusted] connect even when they fail device authentication.
+     * Blocks on the network; never on main.
+     */
+    fun open(context: Context, devices: List<CastDevice>, trusted: Set<String> = emptySet()): CastLink {
+      require(devices.isNotEmpty())
       current?.close()
       // Loads the profile's lines for the receivers' threads, which have no Context.
       NativeText.get(context)
-      val link = CastLink(context, device)
+      val link = CastLink(context, standIn(devices), devices)
       try {
-        link.worker.submit(Callable { link.open() }).get()
+        link.worker.submit(Callable { link.open(trusted) }).get()
       } catch (e: ExecutionException) {
         link.worker.execute { link.shutDown() }
         link.worker.shutdown()
-        throw CastException(link.message(e.cause ?: e))
+        val cause = e.cause
+        if (cause is CastUntrustedException) throw cause
+        throw CastException(link.message(cause ?: e))
       }
       synchronized(CastLink) { current = link }
       return link
     }
+
+    /** The receiver itself, or for a group one named after its speakers. */
+    fun standIn(devices: List<CastDevice>): CastDevice {
+      val first = devices.first()
+      if (devices.size == 1) return first
+      return CastDevice(
+        id = groupId(devices.map { it.id }),
+        name = devices.joinToString(" + ") { it.name },
+        kind = "group",
+        host = first.host,
+        port = first.port,
+      )
+    }
+
+    fun groupId(ids: List<String>): String = "group:" + ids.joinToString("+")
   }
 
   // Android's own messages follow the phone's language, so only a known kind of failure is named.

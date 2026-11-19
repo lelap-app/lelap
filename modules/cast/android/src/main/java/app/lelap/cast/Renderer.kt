@@ -53,7 +53,15 @@ interface Renderer {
   fun close()
 }
 
-class CastException(message: String) : Exception(message)
+open class CastException(message: String) : Exception(message)
+
+/** A Google Cast speaker failed device authentication (M78); [device] can be let in by hand. */
+class CastUntrustedException(val device: CastDevice) : CastException(
+  app.lelap.text.NativeText.current().t(
+    "{name} didn’t prove it’s a genuine Google Cast device, so Lelap didn’t connect.",
+    "name" to device.name,
+  ),
+)
 
 /** Turns "played and then stopped" into [PlayState.ENDED], which some protocols do not report. */
 class EndWatch {

@@ -5,6 +5,7 @@ import {
   addDevicesListener,
   addDiscoveryListener,
   type CastDevice,
+  connectAnyway,
   type DiscoveryReport,
   isLocalNetworkDenied,
   listDevices,
@@ -75,6 +76,9 @@ export function CastSheet({
   const [search, setSearch] = useState(0);
   const [quiet, setQuiet] = useState(false);
   const [report, setReport] = useState<DiscoveryReport | null>(null);
+  // Choosing speakers for a group (M78): the ticked ones in the order they were ticked, the
+  // first leading; null when a tap plays on one.
+  const [group, setGroup] = useState<string[] | null>(null);
 
   // Android 17 asks before an app reaches the Wi-Fi's devices; the sheet explains first.
   useEffect(() => {
@@ -116,13 +120,15 @@ export function CastSheet({
     };
   }, [visible, access, search]);
 
-  const pick = async (device: CastDevice) => {
-    if (device.id === casting.device?.id) return;
-    const book = bookLoad(bookId);
-    if (!book) return;
-    setConnecting(device.id);
+  const playingOn = (device: CastDevice) =>
+    device.id === casting.device?.id ||
+    (casting.device?.members.some((m) => m.id === device.id) ?? false);
+
+  const connect = async (busy: string, start: () => Promise<void>) => {
+    setConnecting(busy);
     try {
-      await startCasting(device, book);
+      await start();
+      setGroup(null);
       onClose();
     } catch (e) {
       // useCasting carries the message; a missing permission brings back the explanation.
@@ -131,6 +137,32 @@ export function CastSheet({
       setConnecting(null);
     }
   };
+
+  const play = (chosen: CastDevice[]) => {
+    const book = bookLoad(bookId);
+    const first = chosen[0];
+    if (!book || !first) return;
+    void connect(first.id, () => startCasting(chosen, book));
+  };
+
+  const pick = (device: CastDevice) => {
+    if (group !== null) {
+      setGroup(
+        group.includes(device.id) ? group.filter((id) => id !== device.id) : [...group, device.id],
+      );
+      return;
+    }
+    if (device.id === casting.device?.id) return;
+    play([device]);
+  };
+
+  const chosen =
+    group === null
+      ? []
+      : group.flatMap((id) => {
+          const device = devices.find((d) => d.id === id);
+          return device ? [device] : [];
+        });
 
   const startFailed = report?.problem === 'start-failed' ? report.code : null;
   const unreachable =
@@ -180,10 +212,32 @@ export function CastSheet({
           </View>
         </View>
       )}
-      {casting.error !== null && (
-        <Text accessibilityLiveRegion="assertive" className="pb-3 text-sm text-danger">
-          {casting.error}
+      {casting.notice !== null && (
+        <Text accessibilityLiveRegion="polite" className="pb-3 text-sm text-muted">
+          {casting.notice}
         </Text>
+      )}
+      {casting.error !== null && (
+        <View className="gap-3 pb-3">
+          <Text accessibilityLiveRegion="assertive" className="text-sm text-danger">
+            {casting.error}
+          </Text>
+          {casting.untrusted && (
+            <>
+              <Text className="text-sm text-muted">
+                {t(
+                  'Someone on this Wi-Fi may be posing as the speaker. If it’s yours, connect anyway; Lelap asks again after a restart.',
+                )}
+              </Text>
+              <View className="flex-row">
+                <Chip
+                  label={t('Connect anyway')}
+                  onPress={() => void connect('anyway', connectAnyway)}
+                />
+              </View>
+            </>
+          )}
+        </View>
       )}
       {access === 'ask' && (
         <View className="gap-3 pb-4">
@@ -214,21 +268,49 @@ export function CastSheet({
       )}
       {access === 'granted' && (
         <ScrollView>
+          {devices.length > 1 && (
+            <View className="flex-row flex-wrap items-center gap-2 pb-2">
+              {group === null ? (
+                <Chip label={t('Play on several')} onPress={() => setGroup([])} />
+              ) : (
+                <>
+                  {chosen.length >= 2 && (
+                    <Chip
+                      label={t('Play on {n} speakers', { n: chosen.length })}
+                      onPress={() => play(chosen)}
+                    />
+                  )}
+                  <Chip label={t('Cancel')} onPress={() => setGroup(null)} />
+                  {chosen.length < 2 && (
+                    <Text className="flex-1 text-sm text-muted">
+                      {t('Tick two or more. They play the book together, kept in step.')}
+                    </Text>
+                  )}
+                </>
+              )}
+            </View>
+          )}
           {devices.map((device) => {
-            const current = device.id === casting.device?.id;
+            const current = playingOn(device);
+            const ticked = group?.includes(device.id) ?? false;
+            const highlighted = group === null ? current : ticked;
             return (
               <Pressable
                 key={device.id}
-                onPress={() => void pick(device)}
+                onPress={() => pick(device)}
                 disabled={connecting !== null}
-                accessibilityRole="button"
-                accessibilityState={{ selected: current }}
-                aria-selected={current}
+                accessibilityRole={group === null ? 'button' : 'checkbox'}
+                accessibilityState={group === null ? { selected: current } : { checked: ticked }}
+                {...(group === null ? { 'aria-selected': current } : { 'aria-checked': ticked })}
                 className="min-h-12 flex-row items-center gap-3 py-3 active:opacity-60"
               >
-                <Icon name="cast" size={22} color={current ? COLORS.amber : COLORS.soft} />
+                <Icon
+                  name={group !== null && ticked ? 'check' : 'cast'}
+                  size={22}
+                  color={highlighted ? COLORS.amber : COLORS.soft}
+                />
                 <View className="flex-1">
-                  <Text numberOfLines={1} className={current ? 'text-amber' : 'text-paper'}>
+                  <Text numberOfLines={1} className={highlighted ? 'text-amber' : 'text-paper'}>
                     {device.name}
                   </Text>
                   <Text numberOfLines={1} className="text-xs text-muted">

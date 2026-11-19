@@ -1,18 +1,19 @@
 import * as local from '@lelap/audio';
 import type { BookLoad } from '@lelap/audio';
 import * as cast from '@lelap/cast';
-import type { CastDevice, DiscoveryReport, LocalNetworkAccess } from '@lelap/cast';
+import type { CastDevice, CastSession, DiscoveryReport, LocalNetworkAccess } from '@lelap/cast';
 import { castEvent } from '@lelap/core';
 import { useSyncExternalStore } from 'react';
 
 import { isDiagnosticsOn, logDiagnostic } from './diagnostics';
+import { t } from './i18n';
 
 // Casting on Android (M26, M50). The app connects to a receiver here; the playback service then
 // makes the receiver its media session's player, so the player screen, the notification, the lock
 // screen, headphones and Android Auto all control it, the sleep timer pauses it and Up Next goes
 // on there. This file only follows which receiver plays, its volume and why a session ended.
 
-export type { CastDevice, DiscoveryReport, LocalNetworkAccess };
+export type { CastDevice, CastSession, DiscoveryReport, LocalNetworkAccess };
 
 export const CASTING_SUPPORTED = true;
 export const startDiscovery = cast.startDiscovery;
@@ -43,8 +44,28 @@ export function isLocalNetworkDenied(error: unknown): boolean {
 export const localNetworkAccess = cast.localNetworkAccess;
 export const requestLocalNetworkAccess = cast.requestLocalNetworkAccess;
 
-export type Casting = { device: CastDevice | null; volume: number | null; error: string | null };
-let snapshot: Casting = { device: null, volume: null, error: null };
+/** A `connect()` refused because a Google Cast speaker failed device authentication (M78). */
+function isUntrusted(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { code?: unknown }).code === cast.CAST_UNTRUSTED
+  );
+}
+
+/**
+ * The receiver or group playing now, its volume, and why the last attempt failed. `untrusted`:
+ * that attempt failed device authentication, and `connectAnyway()` may try it again. `notice`:
+ * speakers of a group that couldn't be reached.
+ */
+export type Casting = {
+  device: CastSession | null;
+  volume: number | null;
+  error: string | null;
+  untrusted: boolean;
+  notice: string | null;
+};
+let snapshot: Casting = { device: null, volume: null, error: null, untrusted: false, notice: null };
 const listeners = new Set<() => void>();
 
 function update(next: Partial<Casting>) {
@@ -52,7 +73,9 @@ function update(next: Partial<Casting>) {
   if (
     merged.device?.id === snapshot.device?.id &&
     merged.volume === snapshot.volume &&
-    merged.error === snapshot.error
+    merged.error === snapshot.error &&
+    merged.untrusted === snapshot.untrusted &&
+    merged.notice === snapshot.notice
   ) {
     return;
   }
@@ -63,7 +86,7 @@ function update(next: Partial<Casting>) {
 cast.addStatusListener((status) => {
   if (status.deviceId !== snapshot.device?.id) return;
   if (status.state === 'closed' || status.state === 'lost') {
-    update({ device: null, volume: null, error: status.error });
+    update({ device: null, volume: null, error: status.error, untrusted: false, notice: null });
     return;
   }
   update({ volume: status.volume });
@@ -77,7 +100,7 @@ void cast
   })
   .catch(() => {});
 
-/** The receiver playing now, its volume, and why the last session ended, if it failed. */
+/** The receiver or group playing now, its volume, and why the last session ended, if it failed. */
 export function useCasting(): Casting {
   return useSyncExternalStore(
     (listener) => {
@@ -88,29 +111,58 @@ export function useCasting(): Casting {
   );
 }
 
-/** Plays [book] on [device] from where the phone is; the phone's player pauses. */
-export async function startCasting(device: CastDevice, book: BookLoad): Promise<void> {
+// The attempt that failed device authentication, for “Connect anyway”.
+let refused: { devices: CastDevice[]; book: BookLoad } | null = null;
+
+/**
+ * Plays [book] on [devices] from where the phone is: one receiver, or several kept in step as a
+ * group led by the first (M78). The phone's player pauses.
+ */
+export async function startCasting(
+  devices: CastDevice[],
+  book: BookLoad,
+  anyway = false,
+): Promise<void> {
   const state = await local.getState();
   if (state.bookId !== book.bookId) await local.load(book, false);
-  update({ error: null });
+  update({ error: null, untrusted: false, notice: null });
+  refused = null;
   try {
-    await cast.connect(device.id);
-    update({ device });
+    const { session, unreached } = await cast.connect(
+      devices.map((d) => d.id),
+      anyway,
+    );
+    update({
+      device: session,
+      notice:
+        unreached.length === 0
+          ? null
+          : t('Couldn’t reach {names}; the others play.', { names: unreached.join(', ') }),
+    });
     await local.castTo();
   } catch (e) {
     // Without local network access the sheet shows its explanation instead of an error line.
     const error = isLocalNetworkDenied(e) ? null : e instanceof Error ? e.message : String(e);
-    update({ device: null, error });
+    const untrusted = isUntrusted(e);
+    if (untrusted) refused = { devices, book };
+    update({ device: null, error, untrusted, notice: null });
     await cast.disconnect().catch(() => {});
     throw e;
   }
+}
+
+/** Tries the attempt that failed device authentication again, letting its speakers in. */
+export async function connectAnyway(): Promise<void> {
+  const attempt = refused;
+  if (!attempt) return;
+  await startCasting(attempt.devices, attempt.book, true);
 }
 
 /** Hands the book back to the phone at the receiver's place; it plays on if it was playing. */
 export async function stopCasting(): Promise<void> {
   if (!snapshot.device) return;
   await local.stopCasting();
-  update({ device: null, volume: null });
+  update({ device: null, volume: null, notice: null });
 }
 
 export function setCastVolume(level: number): Promise<void> {
