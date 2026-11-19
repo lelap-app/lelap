@@ -1533,11 +1533,12 @@ const toc: [string, string][] = [
     <code>sessionStartMs</code> on every <code>finish</code> that ends a session; an app before
     revision 10 sends every event to every scrobbler. Revision 11 adds a library’s{' '}
     <a href="#moved">settings</a>, <a href="#locate">locating files</a> before they stream and{' '}
-    <a href="#whole-series">whole series</a>; an app before revision 11 ignores the settings and
-    refuses a manifest that lists <code>locate</code> or <code>series</code>. When an add-on
-    declares a newer revision than the app knows, Settings → Library and sources → Add-ons says so.
-    Revision 9 comes with SDK 0.5.0; 0.4.0 covers revisions up to 8. Revisions 10 and 11 come with
-    the next SDK release, 0.6.
+    <a href="#whole-series">whole series</a> and <a href="#choices">choice settings</a> with the{' '}
+    <code>settings</code> resource; an app before revision 11 ignores the settings and refuses a
+    manifest that lists <code>locate</code>, <code>series</code> or <code>settings</code>, or has a
+    choice field. When an add-on declares a newer revision than the app knows, Settings → Library
+    and sources → Add-ons says so. Revision 9 comes with SDK 0.5.0; 0.4.0 covers revisions up to 8.
+    Revisions 10 and 11 come with the next SDK release, 0.6.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />
@@ -1854,7 +1855,8 @@ const toc: [string, string][] = [
     the sign-in of an add-on that comes with the app fills the form, when the setup form of an
     add-on <a href="#scrobble-settings">set up with settings</a> opens with saved values, and when
     the listener asks for the list again. An app before revision 11 refuses a manifest that lists{' '}
-    <code>settings</code> or has a choice field.
+    <code>settings</code> or has a choice field. The SDK’s types and helpers for it come with the
+    next SDK release, 0.6.
   </p>
   <ul>
     <li>

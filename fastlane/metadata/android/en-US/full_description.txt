@@ -4,8 +4,9 @@ Lelap is an open-source player for audiobooks and podcasts. It plays, downloads,
 <ul>
 <li>Plays with the screen off and the app closed, with lock screen, headphone and Bluetooth controls.</li>
 <li>During a call it pauses, or keeps going at a lower volume you choose.</li>
-<li>Sleep timer that fades out, by minutes or at the end of a chapter or episode; shake for ten more minutes. A bedtime routine can turn the volume down too.</li>
+<li>Sleep timer that fades out, by minutes or at the end of a chapter or episode; shake for ten more minutes. A bedtime routine can turn the volume down too, also on a cast speaker.</li>
 <li>Speed per book, smart rewind after a pause, chapters you can edit, bookmarks with notes, and places you can share as a link.</li>
+<li>A short history of each book's skips and jumps: after a long jump, one tap goes back, also from the notification and Android Auto.</li>
 <li>Voice boost, skip silence with the time it saved, and even loudness, per book or per show.</li>
 <li>Finds chapters at the long silences of a book without any, and skips a podcast's intro and outro.</li>
 </ul>
@@ -26,7 +27,7 @@ Lelap is an open-source player for audiobooks and podcasts. It plays, downloads,
 
 <b>Around the house</b>
 <ul>
-<li>Casts to Sonos, DLNA and Google Cast speakers through open protocols, and to FCast receivers, one speaker or several at once. The lock screen, headphones and sleep timer control them.</li>
+<li>Casts to Sonos, DLNA and Google Cast speakers through open protocols, and to FCast receivers, one speaker or several at once, and remembers the speakers you played on together. The lock screen, headphones and sleep timer control them.</li>
 <li>A car mode with a large cover and big buttons, upright or sideways, Android Auto with your covers and lists, a home screen widget and a Quick Settings tile.</li>
 <li>Profiles for everyone in the household, with an optional PIN and a kids profile.</li>
 <li>Five themes, including Sepia and High contrast, with six accent colours, or follow the phone's light or dark setting.</li>

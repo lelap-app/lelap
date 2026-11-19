@@ -162,8 +162,8 @@ export const ms: Record<string, string> = {
   'Read the plan': 'Baca rancangan',
   'Ready for airplane mode': 'Sedia untuk mod pesawat',
   'Report copyright infringement': 'Laporkan pelanggaran hak cipta',
-  'Rewinds further the longer you paused. Speed per book with pitch correction and chapter-aware scrubbing.':
-    'Semakin lama anda berhenti, semakin jauh ia diundur. Kelajuan bagi setiap buku dengan pembetulan pic, dan penggeseran yang mengikut bab.',
+  'Rewinds further the longer you paused. Speed per book with pitch correction and chapter-aware scrubbing. After a long jump, one tap goes back, and each book keeps a short history of its skips and jumps.':
+    'Semakin lama anda berhenti, semakin jauh ia diundur. Kelajuan bagi setiap buku dengan pembetulan pic, dan penggeseran yang mengikut bab. Selepas lompatan jauh, satu ketikan membawa anda kembali, dan setiap buku menyimpan sejarah ringkas langkau dan lompatannya.',
   'Rows come from your add-ons': 'Baris datang daripada alat tambah anda',
   'RSS feeds': 'Suapan RSS',
   'Run the web app, catalog, feed proxy and sync on your own machine, and point the Android app at it.':
@@ -178,8 +178,8 @@ export const ms: Record<string, string> = {
   'Share progress elsewhere': 'Kongsi kemajuan di tempat lain',
   'Ships with open sources:': 'Disertakan dengan sumber terbuka:',
   'Smart rewind, speed, chapters': 'Undur pintar, kelajuan, bab',
-  'Sonos, DLNA, Google Cast and FCast from Android. The lock screen, your headphones and the sleep timer control the speaker.':
-    'Sonos, DLNA, Google Cast dan FCast dari Android. Skrin kunci, fon kepala anda dan pemasa tidur mengawal pembesar suara.',
+  'Sonos, DLNA, Google Cast and FCast from Android; from the web app, Google Cast in Chrome and AirPlay in Safari. The lock screen, your headphones and the sleep timer control the speaker.':
+    'Sonos, DLNA, Google Cast dan FCast dari Android; dari aplikasi web, Google Cast dalam Chrome dan AirPlay dalam Safari. Skrin kunci, fon kepala anda dan pemasa tidur mengawal pembesar suara.',
   Sources: 'Sumber',
   'Start listening': 'Mula mendengar',
   'Stores encrypted progress and playlists. It can’t read them.':

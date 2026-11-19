@@ -15,7 +15,7 @@ export const PROTOCOL_VERSION = 1;
  * the `place` resource, for add-ons inside the app; 7 adds `signin` settings and the `signin`
  * resource (a code the listener enters on a website) and a library's `webQuery`, for add-ons inside
  * the app; 8 lets an add-on inside the app with `settings` and `scrobble` but no `library` be set up
- * under Settings → Add-ons, its settings reaching its `scrobble` calls; 9 adds `editions` on a meta,
+ * under Settings → Library and sources → Add-ons, its settings reaching its `scrobble` calls; 9 adds `editions` on a meta,
  * `resumed` on a scrobble event and `next` for a library listed in pages, and hands the settings of
  * an add-on inside the app without `library` to every one of its calls; 10 adds `events` on the
  * `scrobble` resource, sends `rate` (without `rating` when the listener takes it back), sends
@@ -280,7 +280,7 @@ export const Manifest = z
      * Since revision 5, for add-ons inside the app only: the form the app shows when the listener
      * adds the add-on as a server. The values reach its `library` calls as `settings`. Since
      * revision 8, an add-on with `scrobble` and no `library` is set up with this form under
-     * Settings → Add-ons instead, and the values reach its `scrobble` calls. Since revision 9,
+     * Settings → Library and sources → Add-ons instead, and the values reach its `scrobble` calls. Since revision 9,
      * every add-on with settings and no `library` is set up there, and the values reach all of its
      * calls: `catalog`, `meta`, `stream`, `artwork` and `scrobble`.
      */
@@ -921,7 +921,7 @@ export function offersLibrary(manifest: Manifest): boolean {
 }
 
 /**
- * Whether the add-on is set up with its settings under Settings → Add-ons, its settings reaching
+ * Whether the add-on is set up with its settings under Settings → Library and sources → Add-ons, its settings reaching
  * every call (revision 9): inside the app, with `settings`, no `library`. A library add-on's
  * settings belong to each server instead.
  */
