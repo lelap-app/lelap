@@ -43,7 +43,7 @@ object PlaybackHistory {
   const val SLEEP_TIMER = "timer"
   const val OTHER = "other"
 
-  /** Media3's name for a controller it made for a platform `MediaController` or a media button. */
+  /** Media3's name for a platform controller whose app it can't tell; headphones are marked apart. */
   private const val LEGACY = "android.media.session.MediaController"
 
   /**
@@ -62,9 +62,10 @@ object PlaybackHistory {
     isCar -> CAR
     packageName == ownPackage -> WIDGET
     packageName == "com.android.systemui" -> NOTIFICATION
-    packageName == LEGACY || packageName == "com.android.bluetooth" -> HEADPHONES
+    packageName == "com.android.bluetooth" -> HEADPHONES
     packageName.startsWith("com.google.android.projection") -> CAR
     packageName.contains("wearable") || packageName.contains(".wear") -> WATCH
+    packageName == LEGACY -> OTHER
     else -> OTHER
   }
 

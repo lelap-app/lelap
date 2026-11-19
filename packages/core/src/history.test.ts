@@ -74,6 +74,21 @@ describe('playback history', () => {
     ]);
   });
 
+  it('merges skips that arrive after a newer tap was logged', () => {
+    recordHistory(db, ME, report({ action: 'pause', at: NOW + 10_000 }), NOW);
+    recordHistory(db, ME, report({ at: NOW, source: 'headphones', fromMs: 0, toMs: 30_000 }), NOW);
+    recordHistory(
+      db,
+      ME,
+      report({ at: NOW + 2_000, source: 'headphones', fromMs: 30_000, toMs: 60_000 }),
+      NOW,
+    );
+    expect(bookHistory(db, ME, bookId, NOW).map((e) => [e.action, e.fromMs, e.toMs])).toEqual([
+      ['pause', 0, 0],
+      ['skip', 0, 60_000],
+    ]);
+  });
+
   it('never merges into a newer entry that arrived first', () => {
     const last = report({ at: NOW + 3_000 });
     expect(continuesSkips(last, report({ at: NOW }))).toBe(false);

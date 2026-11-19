@@ -206,6 +206,8 @@ class PlaybackService : MediaLibraryService() {
   // The notification's and car's Back after a jump made away from the app (M138).
   private val backOffer = BackOffer(SystemClock::elapsedRealtime)
   private var buttonsBack: Boolean? = null
+  /** True while Media3 handles a headphone or Bluetooth button; see onMediaButtonEvent. */
+  private var mediaButtonPressed = false
   private val backExpired = Runnable { if (backOffer.expire()) updateSleepButton() }
 
   private var queue: List<BookLoad> = emptyList()
@@ -466,6 +468,7 @@ class PlaybackService : MediaLibraryService() {
     handler.removeCallbacks(chapterTicker)
     handler.removeCallbacks(timerTicker)
     handler.removeCallbacks(pauseSettled)
+    handler.removeCallbacks(backExpired)
     sleepTimer.cancel()
     clearBoundary()
     stopShakeListening()
@@ -989,7 +992,8 @@ class PlaybackService : MediaLibraryService() {
       pressed(if (playWhenReady) PlaybackHistory.PLAY else PlaybackHistory.PAUSE) { super.setPlayWhenReady(playWhenReady) }
     override fun seekTo(positionMs: Long) = sought { super.seekTo(positionMs) }
     override fun seekTo(mediaItemIndex: Int, positionMs: Long) = sought { super.seekTo(mediaItemIndex, positionMs) }
-    override fun seekToDefaultPosition() = sought { super.seekToDefaultPosition() }
+    // Play on an ended book comes here (Media3's play button); not a jump the listener made.
+    override fun seekToDefaultPosition() = super.seekToDefaultPosition()
     override fun seekToDefaultPosition(mediaItemIndex: Int) = sought { super.seekToDefaultPosition(mediaItemIndex) }
 
     private val skipCommands = intArrayOf(
@@ -1103,6 +1107,7 @@ class PlaybackService : MediaLibraryService() {
 
   private fun sourceOf(controller: MediaSession.ControllerInfo?): String? {
     if (controller == null) return null
+    if (mediaButtonPressed) return PlaybackHistory.HEADPHONES
     return PlaybackHistory.sourceOf(
       packageName = controller.packageName,
       ownPackage = packageName,
@@ -1733,6 +1738,18 @@ class PlaybackService : MediaLibraryService() {
       )
     }
 
+    // Media3 hands headphone and Bluetooth buttons to the player as the notification's controller;
+    // mark them so the history says “headphones”. Media3 handles the press itself right after.
+    override fun onMediaButtonEvent(
+      session: MediaSession,
+      controllerInfo: MediaSession.ControllerInfo,
+      intent: Intent,
+    ): Boolean {
+      mediaButtonPressed = true
+      handler.post { mediaButtonPressed = false }
+      return false
+    }
+
     override fun onCustomCommand(
       session: MediaSession,
       controller: MediaSession.ControllerInfo,
@@ -1831,8 +1848,9 @@ class PlaybackService : MediaLibraryService() {
               SessionResult(SessionError(SessionError.ERROR_BAD_VALUE, "The player could not read this book")),
             )
           val autoplay = args.getBoolean(Commands.KEY_AUTOPLAY, false)
-          // Back belongs to the book it was offered in.
-          if (backOffer.offer?.bookId != load.playlist.bookId) backOffer.clear()
+          // The app's own load (another book, another profile) ends the offer.
+          backOffer.clear()
+          handler.removeCallbacks(backExpired)
           loadBook(load, autoplay)
         }
         else -> return Futures.immediateFuture(

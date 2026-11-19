@@ -14,7 +14,16 @@ export type UndoNotice = { text: string; undo?: () => void; undoText?: string; s
 const SHOWN_MS = 8000;
 
 /** A bar at the bottom of the screen after a quick change, such as hiding a book. */
-export function UndoBar({ notice, onDone }: { notice: UndoNotice | null; onDone: () => void }) {
+export function UndoBar({
+  notice,
+  onDone,
+  bottom = 0,
+}: {
+  notice: UndoNotice | null;
+  onDone: () => void;
+  /** Room to keep free below, such as the system's navigation bar. */
+  bottom?: number;
+}) {
   useEffect(() => {
     if (!notice) return;
     // TalkBack hears it at once, so the listener knows the row went away and why.
@@ -25,6 +34,7 @@ export function UndoBar({ notice, onDone }: { notice: UndoNotice | null; onDone:
   if (!notice) return null;
   return (
     <View
+      style={bottom > 0 ? { marginBottom: bottom } : undefined}
       accessibilityLiveRegion="polite"
       className="absolute inset-x-4 bottom-4 min-h-12 flex-row items-center gap-3 rounded-xl bg-raised py-1 pe-2 ps-4 shadow-lg"
     >

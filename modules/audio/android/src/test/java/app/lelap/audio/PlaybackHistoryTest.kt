@@ -34,7 +34,7 @@ class PlaybackHistoryTest {
     assertEquals("notification", of("app.lelap", notification = true))
     assertEquals("widget", of("app.lelap"))
     assertEquals("notification", of("com.android.systemui"))
-    assertEquals("headphones", of("android.media.session.MediaController"))
+    assertEquals("other", of("android.media.session.MediaController"))
     assertEquals("headphones", of("com.android.bluetooth"))
     assertEquals("car", of("com.google.android.projection.gearhead"))
     assertEquals("car", of("anything", car = true))

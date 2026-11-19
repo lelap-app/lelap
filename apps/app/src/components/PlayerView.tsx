@@ -54,7 +54,6 @@ import { showAlert } from '../dialog';
 import { HeadphoneBanner } from '../devices';
 import { formatClock, formatLeft } from '../format';
 import * as history from '../history';
-import { onHistory } from '../history';
 import * as audio from '../platform/audio';
 import { askLocalNetwork, useLocalNetworkCause } from '../localNetwork';
 import {
@@ -291,7 +290,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
   useEffect(() => {
     setUndo(null);
     if (!bookId) return;
-    return onHistory((e) => {
+    return history.onHistory((e) => {
       if (e.bookId !== bookId) return;
       if (goingBackTo.current !== null && e.toMs === goingBackTo.current) {
         goingBackTo.current = null;
@@ -304,7 +303,9 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
         shownMs: UNDO_SHOWN_MS,
         undo: () => {
           goingBackTo.current = e.fromMs;
-          void seekToBookPosition(bookId, e.fromMs);
+          void seekToBookPosition(bookId, e.fromMs).finally(() => {
+            goingBackTo.current = null;
+          });
         },
       });
     });
@@ -943,7 +944,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
           </View>
         </Sheet>
       </ScrollView>
-      <UndoBar notice={undo} onDone={clearUndo} />
+      <UndoBar notice={undo} onDone={clearUndo} bottom={insets.bottom} />
     </View>
   );
 }

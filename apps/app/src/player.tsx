@@ -472,7 +472,7 @@ async function load(
   setDeviceValue(db, PLAYER_PROFILE, profileId, Date.now());
   await audio.load(book, autoplay);
   // The listener's Play from the library, for the history (M138).
-  if (autoplay) await logged('play', async () => {});
+  if (autoplay) await logged('play', async () => {}, undefined, bookId);
 }
 
 /**
@@ -786,6 +786,7 @@ export async function seekToBookPosition(
     action,
     () => audio.seekTo(target.index, target.positionMs),
     () => Math.max(0, bookPositionMs),
+    bookId,
   );
 }
 
@@ -793,7 +794,7 @@ export async function seekToBookPosition(
 export async function playAt(bookId: string, bookPositionMs: number): Promise<void> {
   await playBook(bookId, false);
   await seekToBookPosition(bookId, bookPositionMs);
-  await logged('play', audio.play);
+  await logged('play', audio.play, undefined, bookId);
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {

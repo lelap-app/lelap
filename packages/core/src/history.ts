@@ -1,4 +1,4 @@
-import { and, desc, eq, lt, notInArray, sql } from 'drizzle-orm';
+import { and, desc, eq, lt, lte, notInArray, sql } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { books, playbackHistory } from './schema';
@@ -131,11 +131,16 @@ export function recordHistory(
   return db.transaction((tx) => {
     const known = tx.select({ id: books.id }).from(books).where(eq(books.id, report.bookId)).get();
     if (!known) return null;
+    // The entry just before this report: a buffered skip may arrive after a newer tap was logged.
     const last = tx
       .select()
       .from(playbackHistory)
       .where(
-        and(eq(playbackHistory.profileId, profileId), eq(playbackHistory.bookId, report.bookId)),
+        and(
+          eq(playbackHistory.profileId, profileId),
+          eq(playbackHistory.bookId, report.bookId),
+          lte(playbackHistory.at, report.at),
+        ),
       )
       .orderBy(desc(playbackHistory.at), desc(playbackHistory.id))
       .limit(1)

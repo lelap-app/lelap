@@ -69,10 +69,12 @@ export async function logged(
   action: Exclude<HistoryAction, 'sleep'>,
   run: () => Promise<void>,
   to?: (fromMs: number, totalMs: number) => number,
+  bookId?: string,
 ): Promise<void> {
   const before = await placeNow().catch(() => null);
   await run();
-  if (!before) return;
+  // Right after a load the player may still report the last book; that place says nothing here.
+  if (!before || (bookId !== undefined && before.bookId !== bookId)) return;
   keep(profileId, {
     bookId: before.bookId,
     action,

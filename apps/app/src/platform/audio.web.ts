@@ -896,11 +896,13 @@ function setUpMediaSession(): void {
         if (details.seekTime !== undefined) {
           const ms = Math.max(0, details.seekTime) * 1000;
           // Without the book's durations the bar is the file, and so is the seek.
-          byKey('seek', () =>
+          const go = () =>
             offsetOf(book?.files.length ?? 0) > 0
               ? seekToBook(shownSpanStart + ms)
-              : seekTo(index, ms),
-          )();
+              : seekTo(index, ms);
+          // A drag sends many fast seeks; only the one where it lets go is kept in the history.
+          if (details.fastSeek) void go();
+          else byKey('seek', go)();
         }
       },
     ],
