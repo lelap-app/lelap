@@ -406,7 +406,7 @@ export default function PodcastScreen() {
                 onPress={() => router.back()}
               />
             </View>
-            {loading && <ActivityIndicator color="#f5b041" className="pt-24" />}
+            {loading && <ActivityIndicator color={COLORS.amber} className="pt-24" />}
             {failed && (
               <Text accessibilityLiveRegion="polite" className="pt-24 text-center text-muted">
                 {fetched.isError
@@ -518,7 +518,7 @@ export default function PodcastScreen() {
                     className="min-h-12 items-center justify-center rounded-full bg-amber py-3 active:opacity-80"
                   >
                     {busy ? (
-                      <ActivityIndicator color="#1a1305" />
+                      <ActivityIndicator color={COLORS.ink} />
                     ) : (
                       <Text className="text-base font-semibold text-ink">{t('Subscribe')}</Text>
                     )}

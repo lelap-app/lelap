@@ -52,7 +52,7 @@ export function CatalogRow({
       </Pressable>
       {isPending ? (
         <View style={{ height: TILE + 40 }} className="justify-center">
-          <ActivityIndicator color="#f5b041" />
+          <ActivityIndicator color={COLORS.amber} />
         </View>
       ) : (
         <FlatList

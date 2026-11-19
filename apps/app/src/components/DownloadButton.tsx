@@ -9,6 +9,7 @@ import { deleteDownload, describeDownload, useDownloadStatuses } from '../downlo
 import { formatBytes } from '../format';
 import { useLibrary } from '../player';
 import { profileId } from '../profile';
+import { COLORS } from './Icon';
 
 /**
  * Download, its progress, or Remove download for a streamed book. [start] adds the book to the
@@ -52,7 +53,7 @@ export function DownloadButton({
         className="min-h-12 items-center justify-center rounded-full border border-line py-3 active:bg-raised"
       >
         {busy ? (
-          <ActivityIndicator color="#f5b041" />
+          <ActivityIndicator color={COLORS.amber} />
         ) : (
           <Text className="text-base text-paper">
             {sizeBytes > 0 ? `${t('Download')} · ${formatBytes(sizeBytes)}` : t('Download')}

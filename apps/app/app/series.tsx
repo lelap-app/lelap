@@ -178,7 +178,7 @@ export default function SeriesScreen() {
                 </View>
                 {series &&
                   (looking === item.missing ? (
-                    <ActivityIndicator color="#f5b041" className="min-h-12 px-3" />
+                    <ActivityIndicator color={COLORS.amber} className="min-h-12 px-3" />
                   ) : (
                     <TextButton
                       text={t('Look for it')}

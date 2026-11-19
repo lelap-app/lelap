@@ -8,6 +8,7 @@ import { useArtwork } from '../addons';
 import { formatDuration } from '../format';
 import { BookCover } from './BookCover';
 import { useMetaBadges, withBadges } from './CoverBadges';
+import { useTheme } from '../theme';
 
 const onDevice = () => (Platform.OS === 'web' ? t('On this device') : t('On this phone'));
 
@@ -23,13 +24,16 @@ export function badgeLabel(availability: Availability): string {
  * or nowhere yet (muted outline). Nothing while the answer is still out.
  */
 export function SourceBadge({ availability }: { availability: Availability | undefined }) {
+  // High contrast puts no text over a picture: the badge covers the cover beneath it.
+  const { highContrast } = useTheme();
   if (!availability) return null;
+  const back = highContrast ? 'bg-night' : 'bg-night/85';
   const style =
     availability.kind === 'local'
       ? 'border-amber bg-amber'
       : availability.kind === 'stream'
-        ? 'border-amber bg-night/85'
-        : 'border-line bg-night/85';
+        ? `border-amber ${back}`
+        : `border-line ${back}`;
   const text =
     availability.kind === 'local'
       ? 'text-ink'

@@ -34,6 +34,8 @@ import { syncCatalogCovers } from '../src/catalogCovers';
 import { offerUpdateOnStart } from '../src/updates';
 import { OtaRunner } from '../src/ota';
 import { registerBackgroundRefresh } from '../src/background';
+import { COLORS } from '../src/components/Icon';
+import { ThemeRoot, useTheme, useThemeKey } from '../src/theme';
 
 /** Installs the default add-ons on first start and refreshes manifests on every start. */
 function AddonSync() {
@@ -69,6 +71,9 @@ export default function RootLayout() {
   // Text is read at render time, so a new language (a switch, or another profile) redraws it all.
   const language = useSyncExternalStore(subscribeLanguage, currentLanguage, currentLanguage);
   const reduced = useReducedMotion();
+  const theme = useTheme();
+  // A new theme draws the screens again, as a new language does.
+  const look = `${language} ${useThemeKey()}`;
   // Before anything reads or saves: the profile this device used last.
   const profileLoaded = useMemo(() => {
     if (ready) loadActiveProfile();
@@ -88,53 +93,55 @@ export default function RootLayout() {
   if (!ready || !profileLoaded) return <View className="flex-1 bg-night" />;
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <PlayerProvider>
-        <AddonSync />
-        <DownloadSync />
-        <SilenceSync />
-        <PodcastSync />
-        <CatalogCoverSync />
-        <ClipStop />
-        <SyncRunner />
-        <OtaRunner />
-        <DeviceRunner />
-        {/* On a wide screen the player stands at the end, beside whichever screen is open. */}
-        <BadgeSourceProvider>
-          <View className="flex-1 flex-row bg-night">
-            <View className="flex-1">
-              <Stack
-                key={language}
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: '#0d0e11' },
-                  ...(reduced ? { animation: 'none' } : {}),
-                }}
-              >
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen
-                  name="player"
-                  options={{
-                    presentation: 'modal',
-                    animation: reduced ? 'none' : 'slide_from_bottom',
+    <ThemeRoot>
+      <QueryClientProvider client={queryClient}>
+        <PlayerProvider>
+          <AddonSync />
+          <DownloadSync />
+          <SilenceSync />
+          <PodcastSync />
+          <CatalogCoverSync />
+          <ClipStop />
+          <SyncRunner />
+          <OtaRunner />
+          <DeviceRunner />
+          {/* On a wide screen the player stands at the end, beside whichever screen is open. */}
+          <BadgeSourceProvider>
+            <View className="flex-1 flex-row bg-night">
+              <View className="flex-1">
+                <Stack
+                  key={look}
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: COLORS.night },
+                    ...(reduced ? { animation: 'none' } : {}),
                   }}
-                />
-                <Stack.Screen name="who" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="car" options={{ animation: reduced ? 'none' : 'fade' }} />
-              </Stack>
+                >
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen
+                    name="player"
+                    options={{
+                      presentation: 'modal',
+                      animation: reduced ? 'none' : 'slide_from_bottom',
+                    }}
+                  />
+                  <Stack.Screen name="who" options={{ presentation: 'modal' }} />
+                  <Stack.Screen name="car" options={{ animation: reduced ? 'none' : 'fade' }} />
+                </Stack>
+              </View>
+              <PlayerPane key={look} />
             </View>
-            <PlayerPane key={language} />
-          </View>
-        </BadgeSourceProvider>
-        <ShortcutsHost key={language} />
-        <InstalledAppHost />
-        <HandoffBanner />
-        <DialogHost />
-        <AddonReviewHost />
-        <SandboxHost />
-        <ProfileGate />
-        <StatusBar style="light" />
-      </PlayerProvider>
-    </QueryClientProvider>
+          </BadgeSourceProvider>
+          <ShortcutsHost key={look} />
+          <InstalledAppHost />
+          <HandoffBanner />
+          <DialogHost />
+          <AddonReviewHost />
+          <SandboxHost />
+          <ProfileGate />
+          <StatusBar style={theme.dark ? 'light' : 'dark'} />
+        </PlayerProvider>
+      </QueryClientProvider>
+    </ThemeRoot>
   );
 }

@@ -76,8 +76,8 @@ Continue listening; tap it; speed 1.25×, sleep 30 minutes, jump again; shoot th
 
 ## Limits
 
-- The app has one dark theme, so there is one set of shots; the site draws the phone in the night
-  theme on both of its themes.
+- The shots use the app's default night theme with amber, as a fresh profile has; the site draws
+  the phone in the night theme on both of its themes. The other app themes (M108) are not drawn.
 - Expo web only. Android-only parts (downloads to an SD card, car mode, the widget, casting
   devices, skip silence) can't be shot here; they need an emulator, which this skill doesn't drive.
 - Clocks keep running while the player plays, so the times differ by a second or two between runs.

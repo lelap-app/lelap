@@ -156,7 +156,7 @@ export default function ProfileScreen() {
           maxLength={4}
           placeholder={profile.pinHash ? t('New PIN') : t('PIN')}
           accessibilityLabel={profile.pinHash ? t('New PIN') : t('PIN')}
-          placeholderTextColor="#8d8a83"
+          placeholderTextColor={COLORS.muted}
           className="min-h-12 w-32 rounded-lg border border-line px-3 py-2 text-paper"
         />
         <TextButton

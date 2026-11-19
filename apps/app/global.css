@@ -2,9 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The night theme with amber, until src/theme.tsx sets the listener's (M108). */
+:root {
+  --color-night: 13 14 17;
+  --color-raised: 23 25 30;
+  --color-paper: 244 241 234;
+  --color-soft: 201 197 188;
+  --color-muted: 141 138 131;
+  --color-line: 51 53 59;
+  --color-amber: 245 176 65;
+  --color-ink: 26 19 5;
+  --color-danger: 255 138 122;
+  --color-ok: 107 212 154;
+  --focus-width: 2px;
+}
+
 /* The browser's thin blue focus ring is hard to see on the dark theme; keyboard focus gets the
-   amber instead (web only, M90). */
+   accent instead (web only, M90), wider in the high contrast theme. */
 :focus-visible {
-  outline: 2px solid #f5b041;
+  outline: var(--focus-width) solid rgb(var(--color-amber));
   outline-offset: 2px;
 }

@@ -10,7 +10,7 @@ import { useAddons } from '../../src/addons';
 import { db } from '../../src/db';
 import { profileId } from '../../src/profile';
 import { useSourceCacheAddons } from '../../src/availability';
-import { Icon, type IconName } from '../../src/components/Icon';
+import { COLORS, Icon, type IconName } from '../../src/components/Icon';
 import { MiniPlayer } from '../../src/components/MiniPlayer';
 import { useWide } from '../../src/layout';
 
@@ -61,7 +61,7 @@ export default function TabsLayout() {
       }
       screenOptions={({ route }) => ({
         headerShown: false,
-        sceneStyle: { backgroundColor: '#0d0e11' },
+        sceneStyle: { backgroundColor: COLORS.night },
         ...(wide
           ? {
               tabBarPosition: 'left' as const,
@@ -70,12 +70,12 @@ export default function TabsLayout() {
             }
           : {}),
         tabBarStyle: {
-          backgroundColor: '#17191e',
-          ...(wide ? { borderColor: '#33353b' } : { borderTopColor: '#33353b' }),
+          backgroundColor: COLORS.raised,
+          ...(wide ? { borderColor: COLORS.line } : { borderTopColor: COLORS.line }),
           ...tall,
         },
-        tabBarActiveTintColor: '#f5b041',
-        tabBarInactiveTintColor: '#8d8a83',
+        tabBarActiveTintColor: COLORS.amber,
+        tabBarInactiveTintColor: COLORS.muted,
         tabBarIcon: ({ color }) => (
           <Icon name={ICONS[route.name] ?? 'home'} color={String(color)} />
         ),

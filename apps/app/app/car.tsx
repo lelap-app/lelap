@@ -1,13 +1,19 @@
-import { chapterAt, getBook, getSettings, toBookPosition } from '@lelap/core';
+import {
+  type CarPalette as Palette,
+  chapterAt,
+  getBook,
+  getSettings,
+  toBookPosition,
+} from '@lelap/core';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Image, Pressable, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { Image, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
 import { BookCover, coverUri } from '../src/components/BookCover';
-import { COLORS, Icon, type IconName } from '../src/components/Icon';
+import { Icon, type IconName } from '../src/components/Icon';
 import { PressScale } from '../src/components/Motion';
 import { db } from '../src/db';
 import { HeadphoneBanner } from '../src/devices';
@@ -16,54 +22,16 @@ import * as audio from '../src/platform/audio';
 import { useSideways } from '../src/platform/orientation';
 import { seekToBookPosition, useLibrary, usePlayerState } from '../src/player';
 import { profileId } from '../src/profile';
+import { useCarPalette } from '../src/theme';
 
 // Car mode (M33, its look M74): the player's cover, title and chapter, big and calm, over five
 // large targets; the screen stays on. Within Android's driving guidelines: no text under 18 points
-// and five choices. Night by default, light when the phone is in light mode, for daylight. The
-// sleep button steps like the notification's: 15 min → 30 min → end of chapter → off.
+// and five choices. Dark at night in the listener's theme, light by day when the phone is in light
+// mode (M108). The sleep button steps like the notification's: 15 min → 30 min → end of chapter
+// → off.
 
 type SleepStep = 'off' | '15' | '30' | 'end';
 const NEXT_STEP: Record<SleepStep, SleepStep> = { off: '15', '15': '30', '30': 'end', end: 'off' };
-
-type Palette = {
-  background: string;
-  surface: string;
-  border: string;
-  text: string;
-  secondary: string;
-  /** The chapter line: amber at night, a darker amber that reads on paper by day. */
-  accentText: string;
-  track: string;
-  /** The place in the chapter, on [track]. */
-  progress: string;
-  disabled: string;
-};
-
-const NIGHT: Palette = {
-  background: COLORS.night,
-  surface: COLORS.raised,
-  border: COLORS.line,
-  text: COLORS.paper,
-  secondary: COLORS.soft,
-  accentText: COLORS.amber,
-  track: COLORS.line,
-  progress: COLORS.amber,
-  disabled: '#5f5c56',
-};
-
-// Every text colour here is at least 5:1 on the paper and on the buttons. Amber on paper is too
-// faint for the bar, so it takes the darker amber of the chapter line.
-const DAY: Palette = {
-  background: COLORS.paper,
-  surface: '#e6e0d3',
-  border: '#a89f8c',
-  text: COLORS.ink,
-  secondary: '#5c574d',
-  accentText: '#7a4f00',
-  track: '#d8d1c2',
-  progress: '#7a4f00',
-  disabled: '#a39d91',
-};
 
 // Sideways the screen is short, so the round buttons shrink a little; still twice Android's 48.
 const PLAY_SIZE = { portrait: 128, landscape: 112 };
@@ -88,7 +56,7 @@ function RoundButton({
   primary?: boolean;
   disabled?: boolean;
 }) {
-  const color = disabled ? palette.disabled : primary ? COLORS.ink : palette.text;
+  const color = disabled ? palette.disabled : primary ? palette.onAccent : palette.text;
   return (
     <PressScale
       onPress={onPress}
@@ -102,7 +70,7 @@ function RoundButton({
         borderRadius: size / 2,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: primary && !disabled ? COLORS.amber : palette.surface,
+        backgroundColor: primary && !disabled ? palette.accent : palette.surface,
         borderWidth: primary ? 0 : 1,
         borderColor: palette.border,
       }}
@@ -183,7 +151,7 @@ export default function CarMode() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const dims = useWindowDimensions();
-  const palette = useColorScheme() === 'light' ? DAY : NIGHT;
+  const { palette, theme: carLook } = useCarPalette();
   // The screen stays on while car mode is open, like a navigation app's. Leaving before the
   // browser granted the wake lock throws on the web; there is nothing to release then.
   useKeepAwake(undefined, { suppressDeactivateWarnings: true });
@@ -265,9 +233,10 @@ export default function CarMode() {
 
   const cover = detail ? coverUri(detail.book) : null;
   // At night the cover's colours tint the whole screen, faintly, so it isn't a black box. At 18 %
-  // even a white cover keeps the text at 5:1; by day the paper stays plain.
+  // even a white cover keeps the text at 5:1; by day the paper stays plain, and high contrast
+  // puts no text over a picture.
   const backdrop =
-    cover && palette === NIGHT ? (
+    cover && carLook.dark && !carLook.highContrast ? (
       <Image
         aria-hidden
         source={{ uri: cover }}

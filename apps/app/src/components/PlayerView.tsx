@@ -836,7 +836,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
               onSubmitEditing={() => jumpTarget !== null && jump(jumpTarget)}
               placeholder="2:14:30"
               accessibilityLabel={t('Time to jump to')}
-              placeholderTextColor="#8d8a83"
+              placeholderTextColor={COLORS.muted}
               keyboardType="numbers-and-punctuation"
               returnKeyType="go"
               autoFocus
@@ -867,7 +867,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           onChangeText={setNote}
           placeholder={t('Add a note (optional)')}
           accessibilityLabel={t('Note')}
-          placeholderTextColor="#8d8a83"
+          placeholderTextColor={COLORS.muted}
           autoFocus
           onSubmitEditing={saveNote}
           className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"

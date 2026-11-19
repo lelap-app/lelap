@@ -103,7 +103,7 @@ export default function MatchScreen() {
               onSubmitEditing={() => setQuery(text.trim())}
               placeholder={t('Title or author')}
               accessibilityLabel={t('Search the catalogs')}
-              placeholderTextColor="#8d8a83"
+              placeholderTextColor={COLORS.muted}
               autoCorrect={false}
               returnKeyType="search"
               className="min-w-0 flex-1 rounded-lg bg-raised px-4 py-3 text-base text-paper"
@@ -124,7 +124,7 @@ export default function MatchScreen() {
               {t('The search goes to your add-ons when you send it.')}
             </Text>
           )}
-          {(busy || results.isFetching) && <ActivityIndicator color="#f5b041" />}
+          {(busy || results.isFetching) && <ActivityIndicator color={COLORS.amber} />}
           {query.length >= 2 && results.isSuccess && results.data.length === 0 && (
             <Text className="text-muted">{t('Nothing found. Try fewer words.')}</Text>
           )}

@@ -40,13 +40,14 @@ import { OwnAddonOffer, useOwnAddonOffers } from '../src/components/OwnAddons';
 const openScrobbler = (router: ReturnType<typeof useRouter>, url: string) =>
   router.push({ pathname: '/scrobbler', params: { url } });
 
-const STATE_COLOR: Record<HealthState, string> = {
+// A function, so it reads the theme's colours of the moment.
+const stateColor = (): Record<HealthState, string> => ({
   unknown: COLORS.muted,
   ok: COLORS.ok,
   slow: COLORS.amber,
   degraded: COLORS.amber,
   failing: COLORS.danger,
-};
+});
 
 const stateLabel = (): Record<HealthState, string> => ({
   unknown: t('Not asked yet'),
@@ -126,7 +127,7 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
         <Text className="text-sm text-soft">{addon.manifest.description}</Text>
       )}
       <View className="flex-row items-center gap-2 pt-1">
-        <View style={{ backgroundColor: STATE_COLOR[state] }} className="h-2 w-2 rounded-full" />
+        <View style={{ backgroundColor: stateColor()[state] }} className="h-2 w-2 rounded-full" />
         <Text className="text-xs text-soft">{stateLabel()[state]}</Text>
       </View>
       {healthLines(health, Date.now()).map((line) => (
@@ -323,7 +324,7 @@ function AddonsManager() {
           onChangeText={setUrl}
           placeholder={'https://…/manifest.json'}
           accessibilityLabel={t('Add-on address')}
-          placeholderTextColor="#8d8a83"
+          placeholderTextColor={COLORS.muted}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="url"
@@ -338,7 +339,7 @@ function AddonsManager() {
           className="min-h-12 justify-center rounded-full bg-amber px-4 py-3 active:opacity-80"
         >
           {adding ? (
-            <ActivityIndicator color="#1a1305" />
+            <ActivityIndicator color={COLORS.ink} />
           ) : (
             <Text className="font-semibold text-ink">{t('Add')}</Text>
           )}

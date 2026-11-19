@@ -105,7 +105,7 @@ export default function ProfilesScreen() {
           onChangeText={setName}
           placeholder={t('Name')}
           accessibilityLabel={t('Name')}
-          placeholderTextColor="#8d8a83"
+          placeholderTextColor={COLORS.muted}
           onSubmitEditing={add}
           className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
         />

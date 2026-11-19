@@ -188,7 +188,7 @@ export function AddonSignin({
             </Pressable>
           </View>
           <View className="flex-row items-center gap-2">
-            <ActivityIndicator size="small" color="#8d8a83" />
+            <ActivityIndicator size="small" color={COLORS.muted} />
             <Text className="text-xs text-muted">{t('Waiting for the code to be entered…')}</Text>
           </View>
         </View>

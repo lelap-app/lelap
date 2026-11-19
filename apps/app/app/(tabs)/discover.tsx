@@ -203,7 +203,7 @@ export default function DiscoverScreen() {
           }
           ListEmptyComponent={
             query.isPending ? (
-              <ActivityIndicator color="#f5b041" className="pt-12" />
+              <ActivityIndicator color={COLORS.amber} className="pt-12" />
             ) : (
               <Text className="px-4 pt-12 text-center text-muted">
                 {query.isError
@@ -213,7 +213,7 @@ export default function DiscoverScreen() {
             )
           }
           ListFooterComponent={
-            query.isFetchingNextPage ? <ActivityIndicator color="#f5b041" /> : undefined
+            query.isFetchingNextPage ? <ActivityIndicator color={COLORS.amber} /> : undefined
           }
           renderItem={({ item: row }) => (
             <View style={{ flexDirection: 'row', gap: GAP, paddingHorizontal: 16 }}>
