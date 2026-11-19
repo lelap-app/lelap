@@ -142,7 +142,11 @@ export default function EditChaptersScreen() {
             <TextInput
               value={item.title}
               onChangeText={(title) => change(item.key, { title })}
-              placeholder={t('Chapter {n}', { n: index + 1 })}
+              placeholder={
+                detail.foundChapters
+                  ? t('Part {n}', { n: index + 1 })
+                  : t('Chapter {n}', { n: index + 1 })
+              }
               accessibilityLabel={t('Name of chapter {n}', { n: index + 1 })}
               placeholderTextColor={COLORS.muted}
               className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"

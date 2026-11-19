@@ -141,4 +141,52 @@ describe('0027_chapter_names', () => {
     const own = db.select().from(schema.ownChapters).orderBy(schema.ownChapters.bookKey).all();
     expect(own.map((o) => o.chapters)).toEqual([[{ title: '', startMs: 0 }], null]);
   });
+
+  it('finds the names of a book of several files, numbered from 1 in each file', async () => {
+    const source = fileURLToPath(new URL('../drizzle', import.meta.url));
+    const before = mkdtempSync(join(tmpdir(), 'lelap-m99-'));
+    cpSync(source, before, { recursive: true });
+    const journalPath = join(before, 'meta', '_journal.json');
+    const journal = JSON.parse(readFileSync(journalPath, 'utf8')) as { entries: { tag: string }[] };
+    journal.entries = journal.entries.filter((e) => e.tag < '0027');
+    writeFileSync(journalPath, JSON.stringify(journal));
+
+    const SQL = await initSqlJs();
+    const db = drizzle(new SQL.Database(), { schema });
+    migrate(db, { migrationsFolder: before });
+    const bookId = seedBook(db, 'Two', [
+      { location: 't/01.mp3', durationMs: 4_000 },
+      { location: 't/02.mp3', durationMs: 4_000 },
+      { location: 't/03.mp3', durationMs: 4_000 },
+    ]);
+    const perFile = [
+      ['Bab 1', 'Chapter 2'],
+      [], // a part without chapters of its own
+      ['Chapter 1', 'Epilogue', 'Chapter 9'],
+    ];
+    for (const [i, list] of perFile.entries()) {
+      db.update(schema.bookFiles)
+        .set({ chaptersJson: list.map((title, n) => ({ title, startMs: n * 1000 })) })
+        .where(sql`${schema.bookFiles.location} = ${`t/0${i + 1}.mp3`}`)
+        .run();
+    }
+    const titles = ['Bab 1', 'Chapter 2', '02', 'Chapter 1', 'Epilogue', 'Chapter 9'];
+    db.insert(schema.chapters)
+      .values(
+        titles.map((title, idx) => ({
+          id: `c${idx}`,
+          bookId,
+          idx,
+          title,
+          startMs: idx * 1000,
+          updatedAt: 0,
+        })),
+      )
+      .run();
+
+    migrate(db, { migrationsFolder: source });
+
+    const stored = db.select().from(schema.chapters).orderBy(schema.chapters.idx).all();
+    expect(stored.map((c) => c.title)).toEqual(['', '', '02', '', 'Epilogue', 'Chapter 9']);
+  });
 });

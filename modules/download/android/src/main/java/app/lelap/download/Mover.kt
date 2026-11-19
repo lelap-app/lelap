@@ -98,6 +98,8 @@ object Mover {
 class MoveWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
   override suspend fun doWork(): Result {
     val context = applicationContext
+    // Loads the profile's lines for code without a Context, such as the folders' errors.
+    NativeText.get(context)
     runCatching { setForeground(foregroundInfo(0, Mover.waiting(context))) }
     return withContext(Dispatchers.IO) {
       Mover.setError(context, null)

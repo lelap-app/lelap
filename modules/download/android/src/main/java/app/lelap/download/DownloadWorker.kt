@@ -38,6 +38,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
   override suspend fun doWork(): Result {
     val bookId = inputData.getString(KEY_BOOK_ID) ?: return Result.failure()
+    // Loads the profile's lines for code without a Context, such as the folders' errors.
+    NativeText.get(applicationContext)
     val dir = Downloads.bookDir(applicationContext, bookId)
     val job = Downloads.readJob(dir) ?: return Result.failure()
     val total = job.files.sumOf { it.size }
