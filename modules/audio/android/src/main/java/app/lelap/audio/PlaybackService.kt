@@ -523,8 +523,14 @@ class PlaybackService : MediaLibraryService() {
   /** The book played to its end: log it, then hand over to Up Next if it is an episode. */
   private fun onBookEnded() {
     val ended = current ?: return
+    // The session that reached the end, for the finish scrobble's start (M102).
+    val start = try {
+      Accounting.edit(this) { it.sessionStartOf(ended.bookId) }
+    } catch (e: Exception) {
+      null
+    }
     val log = UpNext.decodeFinished(prefs.getString(Commands.PREF_FINISHED, null)) +
-      Finished(ended.bookId, System.currentTimeMillis())
+      Finished(ended.bookId, System.currentTimeMillis(), start?.first, start?.second)
     prefs.edit().putString(Commands.PREF_FINISHED, UpNext.encodeFinished(log.takeLast(100))).apply()
     // A timer for the end of the episode (or of the last chapter) stops here, before Up Next.
     if (sleepBoundaryMs != null) {

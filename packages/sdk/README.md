@@ -2,7 +2,7 @@
 
 Types, zod schemas and a request handler for [Lelap](https://github.com/lelap-app/lelap) add-ons.
 An add-on is a stateless HTTP service that answers with JSON: catalogs, metadata and audio sources
-for the Lelap player. The SDK speaks protocol v1, revision 9, so your code is a manifest and a
+for the Lelap player. The SDK speaks protocol v1, revision 9 (revision 10 from the next version, 0.6), so your code is a manifest and a
 handler for each resource.
 
 ```sh
@@ -74,6 +74,10 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
   from; `resumed` on a `start` that carries on with a book; `next` on a `LibraryResponse` for a
   library in pages; and `setUpWithSettings`, for an add-on inside the app whose settings reach every
   call.
+- **Revision 10** (from the next version, 0.6): `events` on the `scrobble` resource, which
+  `wantsScrobble(manifest, type, id, event)` reads; a `rate` without `rating` takes a rating back.
+  The configure page gains `url` and `choices` fields, `text` (intro, link, steps, note), a second
+  page with `choose`, a `manifest` per listener and `legacy` for addresses made before.
 - **Add-on test kit** (from the next version, 0.6): `npx @lelap/sdk check <url>` fetches an
   add-on's manifest and everything it declares, validates each answer with these schemas, and
   checks what schemas can't see: CORS, speed, caching, paging that ends, IDs that come back and

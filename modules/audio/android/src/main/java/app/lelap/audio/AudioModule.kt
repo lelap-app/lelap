@@ -249,7 +249,14 @@ class AudioModule : Module() {
       val prefs = context.getSharedPreferences(Commands.AUDIO_PREFS, Context.MODE_PRIVATE)
       val list = UpNext.decodeFinished(prefs.getString(Commands.PREF_FINISHED, null))
       prefs.edit().remove(Commands.PREF_FINISHED).apply()
-      list.map { mapOf("bookId" to it.bookId, "at" to it.at.toDouble()) }
+      list.map {
+        mapOf(
+          "bookId" to it.bookId,
+          "at" to it.at.toDouble(),
+          "startLocation" to it.startLocation,
+          "startPositionMs" to it.startPositionMs?.toDouble(),
+        )
+      }
     }
 
     // Same process: the service logs only while this is on. Off drops what it kept. On the main

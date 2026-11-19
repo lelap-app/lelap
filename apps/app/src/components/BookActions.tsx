@@ -32,10 +32,11 @@ import { deleteDownload, startDownload } from '../downloads';
 import { profileId } from '../profile';
 import { scrobblesFor, trackAbandoned, trackMarkedFinished } from '../scrobble';
 import { COLORS, Icon, type IconName } from './Icon';
+import { RatingRow } from './Rating';
 import { Sheet } from './Sheet';
 import { TextButton } from './TextButton';
 
-type Mode = 'menu' | 'tags' | 'lists' | 'shelf';
+type Mode = 'menu' | 'tags' | 'lists' | 'shelf' | 'rating';
 
 function Row({
   icon,
@@ -133,11 +134,13 @@ export function BookActions({
   const title =
     mode === 'tags'
       ? t('Tags')
-      : mode === 'lists'
-        ? t('Add to a list')
-        : mode === 'shelf'
-          ? t('Kids’ shelves')
-          : book.title;
+      : mode === 'rating'
+        ? t('Your rating')
+        : mode === 'lists'
+          ? t('Add to a list')
+          : mode === 'shelf'
+            ? t('Kids’ shelves')
+            : book.title;
 
   return (
     <Sheet visible title={title} onClose={onClose}>
@@ -175,6 +178,7 @@ export function BookActions({
               done();
             }}
           />
+          <Row icon="star" label={t('Rate…')} onPress={() => setMode('rating')} />
           <Row icon="bookmark" label={t('Tags…')} onPress={() => setMode('tags')} />
           <Row icon="chapters" label={t('Add to a list…')} onPress={() => setMode('lists')} />
           {kids.length > 0 && (
@@ -299,6 +303,13 @@ export function BookActions({
             />
           )}
         </ScrollView>
+      )}
+
+      {mode === 'rating' && (
+        <View className="gap-3 pb-2">
+          <RatingRow bookId={book.id} profile={profileId} heading={false} />
+          <TextButton text={t('Done')} onPress={done} className="self-end" />
+        </View>
       )}
 
       {mode === 'tags' && (

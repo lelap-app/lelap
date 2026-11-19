@@ -120,7 +120,13 @@ export function mergeServiceAccounting(
       if (!event) continue;
       // Named after the record, so even a second merge could never send it twice.
       const eventId = `lelap-service-${batch.epoch}-${record.seq}`;
-      const queued = enqueueScrobble(tx, { profileId, addons, event, newId: () => eventId });
+      const queued = enqueueScrobble(tx, {
+        profileId,
+        addons,
+        event,
+        newId: () => eventId,
+        bookId: record.bookId,
+      });
       if (queued) result.scrobbles += 1;
     }
     setDeviceValue(

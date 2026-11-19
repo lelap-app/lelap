@@ -14,3 +14,5 @@ SOURCE_URL = "https://github.com/lelap-app/lelap"
 #   PODCASTINDEX_KEY, PODCASTINDEX_SECRET  turn on the Podcast Index catalogs.
 #   CONFIG_SECRET  32+ random characters; lets listeners configure the Hardcover and gPodder
 #                  add-ons (their tokens are sealed into the add-on URL with it).
+#   APP_ORIGINS    web builds of the app, comma-separated (https://listen.example.org), that
+#                  the configure pages may send the listener back to. A var, not a secret.

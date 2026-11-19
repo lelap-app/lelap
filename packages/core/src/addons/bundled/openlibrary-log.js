@@ -60,6 +60,8 @@ function workOf(item) {
  * The shelf each work ends on: the last start or finish per work, oldest first. Progress, pauses,
  * abandons and ratings don't move a book on Open Library, nor does a start that carries on with a
  * book begun before (`resumed`): the first start put it on the shelf, and a finished book stays read.
+ * Since revision 10 the app sends `resumed` only once this add-on heard of the book, so a book
+ * begun before the reading log was set up still reaches Currently reading.
  */
 function shelvesFor(events) {
   const shelves = new Map();
@@ -170,14 +172,14 @@ async function scrobble(args) {
 addon({
   manifest: {
     id: 'app.lelap.openlibrary-log',
-    version: '1.0.0',
+    version: '1.1.0',
     protocol: 1,
-    protocolVersion: 9,
+    protocolVersion: 10,
     name: 'Open Library reading log',
     description:
       'Puts the books you start on Currently reading and the ones you finish on Already read in your Open Library reading log.',
     types: ['audiobook'],
-    resources: ['scrobble'],
+    resources: [{ name: 'scrobble', events: ['start', 'finish'] }],
     catalogs: [],
     sandbox: { hosts: ['openlibrary.org'] },
     settings: [

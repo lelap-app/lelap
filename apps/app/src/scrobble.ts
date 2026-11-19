@@ -54,7 +54,14 @@ function enqueue(events: TrackedEvent[], profile: string): void {
   const addons = addonsFor(profile);
   for (const tracked of events) {
     const event = scrobbleEventFor(db, tracked);
-    if (event) enqueueScrobble(db, { profileId: profile, addons, event, newId });
+    if (event)
+      enqueueScrobble(db, {
+        profileId: profile,
+        addons,
+        event,
+        newId,
+        bookId: tracked.bookId,
+      });
   }
   void flushScrobbles();
 }
@@ -76,10 +83,52 @@ export function trackPlayerState(state: audio.PlayerState, profile: string): voi
   );
 }
 
-/** The player finished a book at `at` (possibly while the app was closed). */
-export function trackFinished(bookId: string, at: number, profile: string): void {
-  const durationMs = getBook(db, profile, bookId)?.book.durationMs ?? 0;
-  enqueue([tracker.finished(bookId, at, durationMs)], profile);
+/**
+ * The player finished a book at `at` (possibly while the app was closed). On Android the service
+ * says where the session that reached the end began (`start`), since it keeps the sessions.
+ */
+export function trackFinished(
+  bookId: string,
+  at: number,
+  profile: string,
+  start?: { location: string; positionMs: number },
+): void {
+  const detail = getBook(db, profile, bookId);
+  const durationMs = detail?.book.durationMs ?? 0;
+  const event = tracker.finished(bookId, at, durationMs);
+  const files = detail?.files ?? [];
+  if (
+    event.sessionStartMs === undefined &&
+    start &&
+    files.some((f) => f.location === start.location)
+  )
+    event.sessionStartMs = toBookPosition(files, start.location, start.positionMs);
+  enqueue([event], profile);
+}
+
+/**
+ * The listener rated a book, or took the rating back (null): the add-ons that take `rate` hear it
+ * (revision 10).
+ */
+export function trackRated(bookId: string, rating: number | null, profile: string): void {
+  const positionMs = getBook(db, profile, bookId)?.book.bookPositionMs ?? 0;
+  const addons = addonsFor(profile);
+  const event = scrobbleEventFor(
+    db,
+    { event: 'rate', bookId, at: Date.now(), positionMs },
+    rating === null ? {} : { rating },
+  );
+  if (event) enqueueScrobble(db, { profileId: profile, addons, event, newId, bookId });
+  void flushScrobbles();
+}
+
+/** The names of the add-ons this profile sees that hear a rating of this book. */
+export function ratingAddonsFor(bookId: string, profile: string): string[] {
+  const event = scrobbleEventFor(db, { event: 'rate', bookId, at: Date.now(), positionMs: 0 });
+  if (!event) return [];
+  return addonsFor(profile)
+    .filter((a) => wantsScrobble(a.manifest, event.item.type, event.item.id, 'rate'))
+    .map((a) => a.manifest.name);
 }
 
 /**

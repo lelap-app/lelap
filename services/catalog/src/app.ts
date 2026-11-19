@@ -10,7 +10,7 @@ import { BASE_PATH, createLibrivoxAddon } from './librivox/addon';
 import type { PodcastIndexCredentials } from './podcastindex';
 import { BASE_PATH as GPODDER, gpodderAddon } from './scrobble/gpodder';
 import { BASE_PATH as HARDCOVER, hardcoverAddon } from './scrobble/hardcover';
-import { mountConfigurable } from './scrobble/mount';
+import { serveScrobbleAddon } from './scrobble/mount';
 import { createSealer } from './scrobble/sealed';
 import { createUpstream, type Platform } from './upstream';
 
@@ -26,7 +26,20 @@ export type Env = {
    * them again.
    */
   CONFIG_SECRET?: string;
+  /**
+   * Web builds of the app the configure pages may hand the add-on address back to, at
+   * `<origin>/addon`, separated by commas, such as `https://listen.example.org`.
+   */
+  APP_ORIGINS?: string;
 };
+
+/** The web app origins in `APP_ORIGINS`, https only. */
+export function returnOrigins(env: Env): string[] {
+  return (env.APP_ORIGINS ?? '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter((o) => /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(o));
+}
 
 export function userAgent(env: Env): string {
   return env.SOURCE_URL ? `Lelap/1 (+${env.SOURCE_URL})` : 'Lelap/1';
@@ -52,20 +65,21 @@ export function createApp(platform: Platform, env: Env): Hono {
   // Never log a request or its body here: it may carry a listener's settings.
   const onError = (error: unknown) =>
     console.error(error instanceof Error ? error.message : 'Scrobble add-on failed');
-  const now = platform.now ?? Date.now;
-  // Drafts are sealed for a purpose of their own, so one never opens as a finished link.
-  const hardcover = mountConfigurable(
-    { ...hardcoverAddon(platform.fetch, agent, platform.cache, env.CONFIG_SECRET), onError },
-    createSealer(env.CONFIG_SECRET, 'hardcover'),
-    createSealer(env.CONFIG_SECRET, 'hardcover draft'),
-    now,
+  const shared = {
+    secret: env.CONFIG_SECRET,
+    onError,
+    ...(platform.now ? { now: platform.now } : {}),
+    ...(returnOrigins(env).length > 0 ? { returnOrigins: returnOrigins(env) } : {}),
+  };
+  // On the SDK's configure since M102; links sealed before it (`v1.`) still open.
+  const hardcover = serveScrobbleAddon(
+    hardcoverAddon(platform.fetch, agent, platform.cache, env.CONFIG_SECRET),
+    { ...shared, legacy: createSealer(env.CONFIG_SECRET, 'hardcover') },
   );
-  const gpodder = mountConfigurable(
-    { ...gpodderAddon(platform.userFetch ?? platform.fetch, agent), onError },
-    createSealer(env.CONFIG_SECRET, 'gpodder'),
-    createSealer(env.CONFIG_SECRET, 'gpodder draft'),
-    now,
-  );
+  const gpodder = serveScrobbleAddon(gpodderAddon(platform.userFetch ?? platform.fetch, agent), {
+    ...shared,
+    legacy: createSealer(env.CONFIG_SECRET, 'gpodder'),
+  });
 
   const app = new Hono();
   // JSON only: never let a browser treat an answer as a page on this origin.

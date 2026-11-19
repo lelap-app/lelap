@@ -31,6 +31,7 @@ import { COLORS, Icon, IconButton } from '../../src/components/Icon';
 import { SHOWN_TYPES, syncAddonsNow, useAddons } from '../../src/addons';
 import { Avatar } from '../../src/components/Avatar';
 import { CatalogRow } from '../../src/components/CatalogRow';
+import { ImportedWantedRow } from '../../src/components/ImportedWanted';
 import { ContinueCard } from '../../src/components/ContinueCard';
 import { db } from '../../src/db';
 import { formatBytes } from '../../src/format';
@@ -234,6 +235,7 @@ export default function HomeScreen() {
           onMore={() => openCatalog(router, ref.addon.url, ref.catalog.id)}
         />
       ))}
+      <ImportedWantedRow onOpen={(meta) => openItem(router, meta)} />
       {askAlerts && <WantedAlertsHint onDone={refresh} />}
       {suggest && (
         <SuggestionRows onOpen={(meta) => openItem(router, meta)} onHide={hideSuggestions} />

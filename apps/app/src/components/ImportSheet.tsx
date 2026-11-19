@@ -48,7 +48,7 @@ export function ImportSheet({
     setBusy(t('Reading the file…'));
     const work =
       key === 'goodreads'
-        ? importGoodreads()
+        ? importGoodreads(setBusy)
         : key === 'antennapod'
           ? importAntennaPod(setBusy)
           : importSmartAudiobook(setBusy);

@@ -31,6 +31,8 @@ const skip = (color: string, forward: boolean, seconds = '30') => (
   </>
 );
 
+const STAR = 'M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z';
+
 const ICONS = {
   play: (c) => <Path d="M8 5v14l11-7z" fill={c} />,
   pause: (c) => (
@@ -195,6 +197,14 @@ const ICONS = {
         {...stroke(c)}
       />
       <Path d="M8 9h8M8 12.5h5" {...stroke(c)} />
+    </>
+  ),
+  // `value`: `full`, `half` (the left half filled) or empty, for a rating.
+  star: (c, v) => (
+    <>
+      <Path d={STAR} {...stroke(c)} />
+      {v === 'full' && <Path d={STAR} fill={c} />}
+      {v === 'half' && <Path d="M12 3.6 9.4 8.9l-5.8.8 4.2 4.1-1 5.8 5.2-2.7z" fill={c} />}
     </>
   ),
   heart: (c) => (

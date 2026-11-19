@@ -4,8 +4,17 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 
-/** A book or episode that played to its end, for the app to mark finished. */
-data class Finished(val bookId: String, val at: Long)
+/**
+ * A book or episode that played to its end, for the app to mark finished. [startLocation] and
+ * [startPositionMs]: where the listening session that reached the end began, for the `finish`
+ * scrobble's `sessionStartMs` (M102); null when no session was seen.
+ */
+data class Finished(
+  val bookId: String,
+  val at: Long,
+  val startLocation: String? = null,
+  val startPositionMs: Long? = null,
+)
 
 /**
  * Up Next as the service sees it: the books to play after the current one, in order. The app sends
@@ -26,13 +35,28 @@ object UpNext {
   }
 
   fun encodeFinished(list: List<Finished>): String =
-    JSONArray(list.map { JSONObject().put("bookId", it.bookId).put("at", it.at) }).toString()
+    JSONArray(
+      list.map {
+        val o = JSONObject().put("bookId", it.bookId).put("at", it.at)
+        if (it.startLocation != null && it.startPositionMs != null) {
+          o.put("startLocation", it.startLocation).put("startPositionMs", it.startPositionMs)
+        }
+        o
+      },
+    ).toString()
 
   fun decodeFinished(json: String?): List<Finished> = try {
     val array = JSONArray(json ?: "[]")
     List(array.length()) {
       val o = array.getJSONObject(it)
-      Finished(o.getString("bookId"), o.getLong("at"))
+      // Logs from before M102 have no session start.
+      val started = o.has("startLocation") && o.has("startPositionMs")
+      Finished(
+        o.getString("bookId"),
+        o.getLong("at"),
+        if (started) o.getString("startLocation") else null,
+        if (started) o.getLong("startPositionMs") else null,
+      )
     }
   } catch (e: JSONException) {
     emptyList()

@@ -83,7 +83,7 @@ describe('folding operations', () => {
 
   it('folds operations of a type this version does not know, and caps them', () => {
     const future = (key: string, at: number, data: object) =>
-      ({ type: 'rating', profile: ME, key, at, data }) as unknown as Op;
+      ({ type: 'mood', profile: ME, key, at, data }) as unknown as Op;
     const r = snapshotReducer(2);
     const odd = { type: 'shuffle', seed: 7 } as unknown as Op;
     r.add('a', 'Phone', [future('book', 3, { stars: 5 }), odd]);

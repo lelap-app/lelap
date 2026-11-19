@@ -48,6 +48,8 @@ services:
       CONFIG_SECRET: ${CONFIG_SECRET:-}
       # A gPodder server on your own network: true lets the gPodder add-on reach private addresses.
       SCROBBLE_ALLOW_PRIVATE: ${SCROBBLE_ALLOW_PRIVATE:-false}
+      # The web app, which the Hardcover and gPodder configure pages may send the listener back to.
+      APP_ORIGINS: ${WEB_ORIGIN:-}
     # Each service has its own secrets, so the internet-facing proxy can't read CONFIG_SECRET.
     # The catalog keeps the volume named `secrets`, which holds CONFIG_SECRET from earlier setups.
     volumes: ['secrets:/secrets']
