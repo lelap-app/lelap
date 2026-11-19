@@ -622,6 +622,8 @@ export const playlists = sqliteTable(
     name: text('name').notNull(),
     rule: text('rule', { mode: 'json' }).$type<SmartRule>(),
     items: text('items', { mode: 'json' }).$type<string[]>().notNull(),
+    /** Playing the list goes through finished items too, from their start (M112). */
+    keepFinished: integer('keep_finished', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },

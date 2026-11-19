@@ -552,7 +552,8 @@ export async function setSettings(next: PlayerSettings): Promise<void> {
 /** Gives the loaded book its new sound (M84) at its place; another book is left alone. */
 export async function updateBook(next: BookLoad): Promise<void> {
   if (!book || book.bookId !== next.bookId) return;
-  book = { ...book, sound: next.sound ?? {} };
+  // Its own sound, and whether it hands over: a list that starts or stops playing (M112).
+  book = { ...book, sound: next.sound ?? {}, handsOver: next.handsOver ?? false };
   await applyEffects();
   emit();
 }
@@ -597,6 +598,7 @@ export async function cancelSleepTimer(): Promise<void> {
   emit();
 }
 
+// The browser's media session has no room for Next in list; the player screen has it.
 export async function setQueue(next: BookLoad[]): Promise<void> {
   queue = [...next];
 }

@@ -20,7 +20,13 @@ import { HeadphoneBanner } from '../src/devices';
 import { formatClock } from '../src/format';
 import * as audio from '../src/platform/audio';
 import { useSideways } from '../src/platform/orientation';
-import { seekToBookPosition, useLibrary, usePlayerState } from '../src/player';
+import {
+  seekToBookPosition,
+  stepList,
+  useFollowedList,
+  useLibrary,
+  usePlayerState,
+} from '../src/player';
 import { profileId } from '../src/profile';
 import { useCarPalette } from '../src/theme';
 
@@ -169,6 +175,9 @@ export default function CarMode() {
   const chapter = chapters[current];
   const next = chapters[current + 1];
   const endMode = detail?.book.source === 'feed' ? 'episode' : 'chapter';
+  // In the last chapter of a list's item (M112), the same button goes to the list's next item.
+  const listNext = useFollowedList()?.next ?? null;
+  const toListNext = !next && listNext !== null;
 
   // How far into the chapter, else the book; a glance, so no numbers.
   const from = chapter?.startMs ?? 0;
@@ -367,13 +376,16 @@ export default function CarMode() {
       <View className="flex-row gap-4">
         <WideButton
           icon="next"
-          label={t('Next chapter')}
-          caption={t('Next chapter')}
+          label={
+            toListNext ? t('Next in list: {title}', { title: listNext.title }) : t('Next chapter')
+          }
+          caption={toListNext ? t('Next in list') : t('Next chapter')}
           palette={palette}
           height={landscape ? 80 : 88}
-          disabled={!bookId || !next}
+          disabled={!bookId || (!next && !toListNext)}
           onPress={() => {
             if (bookId && next) void seekToBookPosition(bookId, next.startMs);
+            else if (toListNext) void stepList(true);
           }}
         />
         <WideButton

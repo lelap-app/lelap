@@ -224,6 +224,9 @@ class PlaybackService : MediaLibraryService() {
   private var lastInteraction: PlaceMark? = null
 
   private var queue: List<BookLoad> = emptyList()
+  /** Where the followed list's next item is in [queue]; -1 without a list (M112). */
+  private var listNext = -1
+  private var buttonsListNext: Boolean? = null
 
   private var skipIntervalMs = 30_000L
   private var smartRewind = true
@@ -341,6 +344,7 @@ class PlaybackService : MediaLibraryService() {
     applySound()
     focus.interruption = rules.interruption
     queue = UpNext.decodeQueue(prefs.getString(Commands.PREF_QUEUE, null))
+    listNext = prefs.getInt(Commands.PREF_LIST_NEXT, -1).takeIf { it in queue.indices } ?: -1
     Accounting.edit(this) { tally.recover(it) }
     player.addListener(object : Player.Listener {
       override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -539,9 +543,28 @@ class PlaybackService : MediaLibraryService() {
     }
     val (next, rest) = UpNext.afterEnd(currentHandsOver, queue)
     if (next == null) return
-    queue = rest
-    prefs.edit().putString(Commands.PREF_QUEUE, encodeQueue(rest)).apply()
+    saveQueue(rest, UpNext.listNextAfterHead(listNext, rest))
     loadBook(next, autoplay = true)
+  }
+
+  /** Next in list (M112): the list's next item now, playing if this one was. */
+  private fun skipToListNext() {
+    val (next, rest, after) = UpNext.skipToListNext(listNext, queue)
+    if (next == null) return
+    val play = active.playWhenReady
+    saveQueue(rest, after)
+    loadBook(next, autoplay = play)
+    noteInteraction()
+  }
+
+  private fun saveQueue(list: List<BookLoad>, nextInList: Int) {
+    queue = list
+    listNext = nextInList
+    prefs.edit()
+      .putString(Commands.PREF_QUEUE, encodeQueue(list))
+      .putInt(Commands.PREF_LIST_NEXT, nextInList)
+      .apply()
+    updateSleepButton()
   }
 
   /** Adds an event to the diagnostics log, only while the app has the log on. */
@@ -566,10 +589,11 @@ class PlaybackService : MediaLibraryService() {
 
   private fun loadBook(load: BookLoad, autoplay: Boolean) {
     val playlist = load.playlist
-    currentHandsOver = load.handsOver
     // The book that is already loaded keeps its live place, which is newer than any saved one.
     val loaded = current
     if (loaded != null && PositionJournal.isSameBook(loaded, player.mediaItemCount, load)) {
+      // Also an update: a list that starts or stops playing changes it (M112).
+      currentHandsOver = load.handsOver
       if (PositionJournal.filesChanged(loaded, playlist)) {
         switchFiles(load, autoplay)
         return
@@ -590,8 +614,9 @@ class PlaybackService : MediaLibraryService() {
       if (autoplay) active.play()
       return
     }
-    // The service moved on to another book by itself since the app asked.
+    // The service moved on to another book by itself since the app asked: its hand-over stays.
     if (load.onlyIfLoaded) return
+    currentHandsOver = load.handsOver
     if (!autoplay) player.pause()
     keepEarlierPlace(playlist.bookId)
     account()
@@ -714,6 +739,8 @@ class PlaybackService : MediaLibraryService() {
     account()
     current = playlist
     currentHandsOver = load.handsOver
+    // A book picked in the car plays on its own; Next in list leaves until the app sends a list.
+    if (listNext >= 0) saveQueue(queue, -1)
     pausedAt = null
     placeChangedAt = load.pausedAt ?: 0L
     player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
@@ -1000,9 +1027,11 @@ class PlaybackService : MediaLibraryService() {
    */
   private fun updateSleepButton() {
     val step = SleepCycle.current(sleepTimer.isActive, sleepTimer.mode, sleepPressed)
-    if (step == sleepButtonStep && skipIntervalMs == buttonsSkipMs) return
+    val offersNext = listNext in queue.indices
+    if (step == sleepButtonStep && skipIntervalMs == buttonsSkipMs && offersNext == buttonsListNext) return
     sleepButtonStep = step
     buttonsSkipMs = skipIntervalMs
+    buttonsListNext = offersNext
     val seconds = skipIntervalMs / 1_000L
     val back = CommandButton.Builder(SkipIcons.back(skipIntervalMs))
       .setPlayerCommand(Player.COMMAND_SEEK_BACK)
@@ -1020,7 +1049,17 @@ class PlaybackService : MediaLibraryService() {
       .setSessionCommand(SessionCommand(Commands.CYCLE_SLEEP_TIMER, Bundle.EMPTY))
       .setSlots(CommandButton.SLOT_OVERFLOW)
       .build()
-    session.setMediaButtonPreferences(listOf(back, forward, sleep))
+    // While a list plays (M112): its next item, in the overflow, so ⏮/⏭ keep skipping by time.
+    val next = if (offersNext) {
+      CommandButton.Builder(CommandButton.ICON_NEXT)
+        .setDisplayName(NativeText.t(this, "Next in list"))
+        .setSessionCommand(SessionCommand(Commands.NEXT_IN_LIST, Bundle.EMPTY))
+        .setSlots(CommandButton.SLOT_OVERFLOW)
+        .build()
+    } else {
+      null
+    }
+    session.setMediaButtonPreferences(listOfNotNull(back, forward, next, sleep))
   }
 
   /**
@@ -1478,6 +1517,7 @@ class PlaybackService : MediaLibraryService() {
         return MediaSession.ConnectionResult.accept(
           MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
             .add(SessionCommand(Commands.CYCLE_SLEEP_TIMER, Bundle.EMPTY))
+            .add(SessionCommand(Commands.NEXT_IN_LIST, Bundle.EMPTY))
             .build(),
           MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS,
         )
@@ -1494,6 +1534,7 @@ class PlaybackService : MediaLibraryService() {
         .add(SessionCommand(Commands.STOP_CAST, Bundle.EMPTY))
         .add(SessionCommand(Commands.SETTLE_ACCOUNTING, Bundle.EMPTY))
         .add(SessionCommand(Commands.SKIP, Bundle.EMPTY))
+        .add(SessionCommand(Commands.NEXT_IN_LIST, Bundle.EMPTY))
         .build()
       return MediaSession.ConnectionResult.accept(
         commands,
@@ -1577,9 +1618,10 @@ class PlaybackService : MediaLibraryService() {
         }
         Commands.SET_QUEUE -> {
           val json = args.getString(Commands.KEY_QUEUE_JSON).orEmpty()
-          queue = UpNext.decodeQueue(json)
-          prefs.edit().putString(Commands.PREF_QUEUE, encodeQueue(queue)).apply()
+          val decoded = UpNext.decodeQueue(json)
+          saveQueue(decoded, args.getInt(Commands.KEY_LIST_NEXT, -1).takeIf { it in decoded.indices } ?: -1)
         }
+        Commands.NEXT_IN_LIST -> skipToListNext()
         Commands.START_CAST -> return startRemote()
         Commands.SETTLE_ACCOUNTING -> account()
         Commands.SKIP -> {

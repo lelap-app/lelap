@@ -1098,5 +1098,18 @@
   "Tap again for half a star less.": "Ketik sekali lagi untuk kurang setengah bintang.",
   "Your rating": "Penilaian anda",
   "{found} of {total} books are now on Want to read.": "{found} daripada {total} buku kini dalam Mahu dibaca.",
-  "{n} of 5 stars": "{n} daripada 5 bintang"
+  "{n} of 5 stars": "{n} daripada 5 bintang",
+  "Everything in this list is finished. Turn on “Play finished ones too” to hear it again.": "Semua dalam senarai ini sudah selesai didengar. Hidupkan “Mainkan yang selesai juga” untuk mendengarnya lagi.",
+  "From the list “{name}”": "Daripada senarai “{name}”",
+  "Last in the list": "Terakhir dalam senarai",
+  "Next": "Seterusnya",
+  "Next in list": "Seterusnya dalam senarai",
+  "Next in list: {title}": "Seterusnya dalam senarai: {title}",
+  "Next: {title}": "Seterusnya: {title}",
+  "Nothing left to play": "Tiada lagi untuk dimainkan",
+  "Play finished ones too": "Mainkan yang selesai juga",
+  "Play list": "Mainkan senarai",
+  "Plays the list from where it stands, one item after the other": "Memainkan senarai dari tempat ia berhenti, satu demi satu",
+  "Previous in list": "Sebelumnya dalam senarai",
+  "Stop playing the list": "Berhenti memainkan senarai"
 }

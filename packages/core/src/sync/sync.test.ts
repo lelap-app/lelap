@@ -27,6 +27,7 @@ import {
   getTags,
   listPlaylists,
   playlistBooks,
+  setPlaylistKeepFinished,
   setTags,
 } from '../organise';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
@@ -322,15 +323,16 @@ describe('sync between two devices', () => {
       { name: 'Done', rule: { status: 'finished' } },
       23,
     );
+    setPlaylistKeepFinished(phone, ME, list, true, 24);
     await syncNow(phone, server, random, 100, newId);
     await syncNow(laptop, server, random, 110, newId);
 
     const there = bookIdForKey(laptop, 'addon:audiobook:librivox:garden') ?? '';
     expect(getTags(laptop, ME, there)).toEqual(['classic', 'sleep']);
     const lists = listPlaylists(laptop, ME);
-    expect(lists.map((p) => [p.name, p.rule])).toEqual([
-      ['Bedtime', null],
-      ['Done', { status: 'finished' }],
+    expect(lists.map((p) => [p.name, p.rule, p.keepFinished])).toEqual([
+      ['Bedtime', null, true],
+      ['Done', { status: 'finished' }, false],
     ]);
     expect(playlistBooks(laptop, ME, must(lists[0])).map((b) => b.id)).toEqual([there]);
 

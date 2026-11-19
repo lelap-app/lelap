@@ -20,6 +20,7 @@ const nativeLines = (): Record<string, string> => ({
   'Sleep timer 30 minutes': t('Sleep timer 30 minutes'),
   'Sleep timer end of chapter': t('Sleep timer end of chapter'),
   'Sleep timer on': t('Sleep timer on'),
+  'Next in list': t('Next in list'),
   // Android Auto's shelves.
   'Continue listening': t('Continue listening'),
   'On this phone': t('On this phone'),

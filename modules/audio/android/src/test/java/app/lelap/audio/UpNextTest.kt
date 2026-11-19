@@ -25,6 +25,29 @@ class UpNextTest {
     assertNull(UpNext.afterEnd(handsOver = true, emptyList()).first)
   }
 
+  @Test fun `after a list item the list's next is the new head, Up Next items count down`() {
+    val rest = listOf(load("c", true))
+    assertEquals(0, UpNext.listNextAfterHead(0, rest))
+    assertEquals(-1, UpNext.listNextAfterHead(0, emptyList()))
+    assertEquals(1, UpNext.listNextAfterHead(2, rest))
+    assertEquals(-1, UpNext.listNextAfterHead(-1, rest))
+  }
+
+  @Test fun `next in list plays the list's item ahead of Up Next, which stays queued`() {
+    // Up Next "u", then the list's "b" and "c".
+    val queue = listOf(load("u", true), load("b", true), load("c", true))
+    val (next, rest, after) = UpNext.skipToListNext(1, queue)
+    assertEquals("b", next?.playlist?.bookId)
+    assertEquals(listOf("u", "c"), rest.map { it.playlist.bookId })
+    assertEquals(1, after)
+    val (last, left, none) = UpNext.skipToListNext(1, rest)
+    assertEquals("c", last?.playlist?.bookId)
+    assertEquals(listOf("u"), left.map { it.playlist.bookId })
+    assertEquals(-1, none)
+    assertNull(UpNext.skipToListNext(-1, queue).first)
+    assertNull(UpNext.skipToListNext(5, queue).first)
+  }
+
   @Test fun `the queue survives its own encoding`() {
     val queue = listOf(load("b", true), load("c", false))
     val json = "[" + queue.joinToString(",") { PositionJournal.encodeLoad(it) } + "]"

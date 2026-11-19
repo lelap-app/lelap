@@ -36,6 +36,7 @@ import { BookmarksSheet } from './BookmarksSheet';
 import { CastSheet } from './CastSheet';
 import { SleepStopBanner } from './SleepStopBanner';
 import { NextInSeries } from './NextInSeries';
+import { ListBanner } from './ListBanner';
 import { openSeriesOf } from '../series';
 import { ChaptersSheet } from './ChaptersSheet';
 import { COLORS, Icon, IconButton, type IconName } from './Icon';
@@ -406,6 +407,7 @@ export function PlayerView({ pane = false }: { pane?: boolean }) {
           playing={state.playing}
         />
       )}
+      <ListBanner className="mt-2" />
       <NextInSeries
         className="mt-2"
         bookId={bookId}

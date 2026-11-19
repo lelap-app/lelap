@@ -31,6 +31,14 @@ object Commands {
   /** With [STOP_CAST]: play on here after the hand-back; missing means as the receiver was. */
   const val KEY_RESUME = "resume"
   const val KEY_QUEUE_JSON = "queue"
+  /**
+   * M112: with [SET_QUEUE], where in the queue the followed list's next item is (-1: no list). Up
+   * Next comes first, so the list's items are the queue's tail from there.
+   */
+  const val KEY_LIST_NEXT = "listNext"
+  /** The notification's, lock screen's and car's Next in list: plays the list's next item now. */
+  const val NEXT_IN_LIST = "app.lelap.audio.NEXT_IN_LIST"
+  const val PREF_LIST_NEXT = "listNext"
   /** In [AUDIO_PREFS]: the queue, and the books that ended while the app may have been closed. */
   const val PREF_QUEUE = "upNextQueue"
   const val PREF_FINISHED = "finished"

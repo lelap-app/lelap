@@ -26,6 +26,26 @@ object UpNext {
   fun afterEnd(handsOver: Boolean, queue: List<BookLoad>): Pair<BookLoad?, List<BookLoad>> =
     if (handsOver && queue.isNotEmpty()) queue.first() to queue.drop(1) else null to queue
 
+  /**
+   * Where the followed list's next item is once the head of the queue played (M112): the queue is
+   * Up Next, then the list, so after a list item the next list item is the new head.
+   */
+  fun listNextAfterHead(listNext: Int, rest: List<BookLoad>): Int = when {
+    listNext > 0 -> listNext - 1
+    listNext == 0 && rest.isNotEmpty() -> 0
+    else -> -1
+  }
+
+  /**
+   * Next in list: the list's next item plays now, ahead of Up Next, which stays queued. Returns it,
+   * the queue without it and where the list's next item is then.
+   */
+  fun skipToListNext(listNext: Int, queue: List<BookLoad>): Triple<BookLoad?, List<BookLoad>, Int> {
+    val next = queue.getOrNull(listNext) ?: return Triple(null, queue, -1)
+    val rest = queue.filterIndexed { i, _ -> i != listNext }
+    return Triple(next, rest, if (listNext < rest.size) listNext else -1)
+  }
+
   /** The app's queue: a JSON array of `BookLoad`s. Unreadable entries are left out. */
   fun decodeQueue(json: String?): List<BookLoad> = try {
     val array = JSONArray(json ?: "[]")

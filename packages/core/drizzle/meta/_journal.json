@@ -176,6 +176,13 @@
       "when": 1795049523731,
       "tag": "0024_podcast_seen",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1795050347710,
+      "tag": "0025_brief_christian_walker",
+      "breakpoints": true
     }
   ]
 }
