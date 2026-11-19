@@ -4,8 +4,21 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 
-/** [name] is the file's own name, for its type where the address has no extension (Subsonic). */
-data class BookFile(val uri: String, val location: String, val title: String, val durationMs: Long, val name: String? = null)
+/**
+ * [name] is the file's own name, for its type where the address has no extension (Subsonic).
+ * [auto]: an episode streamed on its show's automatic file (M121), see [EpisodeFiles].
+ */
+data class BookFile(
+  val uri: String,
+  val location: String,
+  val title: String,
+  val durationMs: Long,
+  val name: String? = null,
+  val auto: AutoFile? = null,
+)
+
+/** The feed's own file and the smallest one, for mobile data (M121). */
+data class AutoFile(val unmetered: String, val metered: String)
 
 data class ChapterMark(val title: String, val startMs: Long)
 
@@ -204,6 +217,7 @@ object PositionJournal {
         p.files.map {
           JSONObject().put("uri", it.uri).put("location", it.location).put("title", it.title).put("durationMs", it.durationMs)
             .apply { it.name?.let { name -> put("name", name) } }
+            .apply { it.auto?.let { a -> put("auto", JSONObject().put("unmetered", a.unmetered).put("metered", a.metered)) } }
         },
       ),
     )
@@ -225,7 +239,14 @@ object PositionJournal {
       coverUri = o.optStringOrNull("coverUri"),
       files = List(files.length()) {
         val f = files.getJSONObject(it)
-        BookFile(f.getString("uri"), f.getString("location"), f.getString("title"), f.getLong("durationMs"), f.optStringOrNull("name"))
+        BookFile(
+          f.getString("uri"),
+          f.getString("location"),
+          f.getString("title"),
+          f.getLong("durationMs"),
+          f.optStringOrNull("name"),
+          f.optJSONObject("auto")?.let { a -> AutoFile(a.getString("unmetered"), a.getString("metered")) },
+        )
       },
       chapters = List(chapters.length()) {
         val c = chapters.getJSONObject(it)

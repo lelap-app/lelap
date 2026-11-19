@@ -129,7 +129,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M118 App polish 4](milestones/m118.md)              | Planned     |             | What M105 left for a decision or a sample: suggestion covers, Plex library list, Library reads, SABP bookmarks                |
 | [M119 Lists 3](milestones/m119.md)                   | Planned     |             | What M112 left: lists in Android Auto, Previous in list off the phone, the list on the widget                                 |
 | [M120 Big screens 3](milestones/m120.md)             | Planned     |             | What M113 left: drag to a list on Android and from catalog tiles, drop on the Library's list cards                            |
-| [M121 Podcasts 7](milestones/m121.md)                | Planned     |             | Integrity checks for web downloads, the smaller file with the app closed, chapter images on the web                           |
+| [M121 Podcasts 7](milestones/m121.md)                | Done        |           6 | Integrity checks for web downloads, the smaller file with the app closed, chapter images on the web                           |
 | [M122 Better sound 3](milestones/m122.md)            | Planned     |             | Skip silence on the web for every format, without reading streams twice, and on cast receivers                                |
 | [M123 Server sources 4](milestones/m123.md)          | Planned     |             | Add-on servers' places with the app closed, located addresses for books started without the app                               |
 | [M124 Languages 4](milestones/m124.md)               | Done        |           7 | Chapter names that follow a language switch at once, typed chapter names kept, the last English failure texts                 |

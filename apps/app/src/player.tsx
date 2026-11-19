@@ -1,4 +1,5 @@
 import {
+  automaticEpisodeFiles,
   bookSound,
   carShelves,
   continueListening,
@@ -280,6 +281,15 @@ export function updateChapters(bookId: string): Promise<void> {
   });
 }
 
+/** Hands the loaded episode its chapter pictures once they are read, at its live place. */
+export function updateArtworks(bookId: string): Promise<void> {
+  return enqueue(async () => {
+    if (playerProfile() !== profileId) return;
+    const book = bookLoad(bookId);
+    if (book?.artworks) await audio.updateBook(book);
+  });
+}
+
 /**
  * Hands the loaded book its chapters again after a language switch, so untitled ones are named in
  * the new language on the lock screen, the notification and in the car, at the live place (M124).
@@ -464,6 +474,11 @@ export function bookLoad(
   const trim = detail.book.source === 'feed' ? trimOfBook(db, profileId, bookId) : null;
   const now = Date.now();
   const access = detail.files.map((f) => fileAccess({ ...f, bookId }, now));
+  // The Android service picks an automatic episode's file by itself (M121); the web is unmetered.
+  const auto =
+    Platform.OS === 'android' && detail.book.source === 'feed' && detail.files.length === 1
+      ? automaticEpisodeFiles(db, profileId, bookId)
+      : null;
   return {
     bookId,
     title: detail.book.title,
@@ -482,6 +497,9 @@ export function bookLoad(
       title: f.title ?? stripExtension(f.name),
       durationMs: f.durationMs,
       name: f.name,
+      ...(auto && !f.downloadPath && (f.uri === auto.unmetered || f.uri === auto.metered)
+        ? { auto }
+        : {}),
     })),
     chapters: detail.chapters,
     startIndex: start.index,
@@ -502,9 +520,11 @@ export function bookLoad(
   };
 }
 
-/** An episode's chapter pictures for the lock screen and the car (M103), when read already. */
+/**
+ * An episode's chapter pictures for the lock screen and the car (M103) and the browser's media
+ * controls (M121), when read already.
+ */
 function artworksOf(bookId: string): Pick<audio.BookLoad, 'artworks'> {
-  if (Platform.OS !== 'android') return {};
   const images = chapterImagesRead(bookId);
   return images.length > 0
     ? { artworks: images.map((i) => ({ startMs: i.startMs, uri: i.img })) }

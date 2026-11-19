@@ -12,6 +12,7 @@ import { bookFiles } from '../schema';
 import {
   audioFileLabel,
   audioFilesOf,
+  automaticEpisodeFiles,
   chooseEpisodeFile,
   pickAudioFile,
   setAudioChoice,
@@ -134,6 +135,26 @@ describe('alternate enclosures', () => {
     requestDownload(db, planDownload(db, bookId), null, 55);
     expect(chooseEpisodeFile(db, ME, bookId, false, 60)).toBe(false);
     expect(uri()).toBe('https://cdn.example.org/gh41-small.aac');
+  });
+
+  it('gives the service both files of an automatic choice for a streamed episode', () => {
+    const db = createTestDb();
+    const { podcastId } = saveFeed(db, FEED, feed, NO_CACHE, 10, newId);
+    subscribe(db, ME, podcastId, 10);
+    const episode = listEpisodes(db, ME, podcastId).find((e) => e.title === leeks.title);
+    const bookId = episodeBook(db, must(episode).id, 20, newId);
+    expect(automaticEpisodeFiles(db, ME, bookId)).toEqual({
+      unmetered: must(episode).url,
+      metered: 'https://cdn.example.org/gh41-small.aac',
+    });
+
+    // A show with a fixed choice plays that file, whatever the connection.
+    setAudioChoice(db, ME, podcastId, SMALLEST_KEY, 30);
+    expect(automaticEpisodeFiles(db, ME, bookId)).toBeNull();
+    setAudioChoice(db, ME, podcastId, null, 40);
+    // A download plays from the phone.
+    requestDownload(db, planDownload(db, bookId), null, 50);
+    expect(automaticEpisodeFiles(db, ME, bookId)).toBeNull();
   });
 
   it('hands the feed’s hash to the download of a file that has one', () => {

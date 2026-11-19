@@ -1,3 +1,5 @@
+import { integrityCheck } from '@lelap/core';
+
 import { t } from '../i18n';
 import type {
   DownloadJob,
@@ -49,6 +51,11 @@ if (typeof window !== 'undefined') {
 }
 
 const JOB_FILE = 'job.json';
+// Why a download failed for good, so a new tab doesn't fetch the same wrong file again.
+const FAILED_FILE = 'failed.txt';
+
+/** A failure that trying again won't fix. */
+class PermanentFailure extends Error {}
 
 type Running = { bytesDone: number; controller: AbortController; received: boolean };
 const running = new Map<string, Running>();
@@ -76,13 +83,18 @@ async function readJob(bookId: string): Promise<DownloadJob | null> {
   }
 }
 
-/** Downloads one file; the browser cache and OPFS have no partial writes to resume from. */
+/**
+ * Downloads one file; the browser cache and OPFS have no partial writes to resume from. A file
+ * with an SRI hash (`podcast:integrity`, M121) is hashed part by part as it is written, so it
+ * never sits in memory whole, and is not kept when it doesn't match.
+ */
 async function fetchTo(
   url: string,
   path: string,
   signal: AbortSignal,
   onBytes: (n: number) => void,
   headers?: Record<string, string>,
+  integrity?: string,
 ) {
   const response = await fetch(url, { signal, ...(headers ? { headers } : {}) });
   if (!response.ok || !response.body)
@@ -90,11 +102,13 @@ async function fetchTo(
   const part = `${path}.part`;
   const writable = await (await opfs.fileHandle(part, true)).createWritable();
   const reader = response.body.getReader();
+  const check = integrity ? integrityCheck(integrity) : null;
   let total = 0;
   try {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+      check?.update(value);
       await writable.write(value);
       total += value.byteLength;
       onBytes(total);
@@ -104,11 +118,17 @@ async function fetchTo(
     await writable.abort().catch(() => {});
     throw error;
   }
-  // OPFS has no rename in every browser yet: copy the finished part to its name.
+  if (check && !check.matches()) {
+    await opfs.remove(part);
+    throw new PermanentFailure(
+      t(
+        'The file doesn’t match the checksum in the feed, so it was not kept. It may have changed on the way.',
+      ),
+    );
+  }
+  // OPFS has no rename in every browser yet: stream the finished part to its name.
   const file = await opfs.readFile(part);
-  const target = await (await opfs.fileHandle(path, true)).createWritable();
-  await target.write(file);
-  await target.close();
+  await file.stream().pipeTo(await (await opfs.fileHandle(path, true)).createWritable());
   await opfs.remove(part);
 }
 
@@ -134,6 +154,7 @@ async function run(job: DownloadJob): Promise<void> {
           state.received = true;
         },
         job.headers,
+        file.integrity,
       );
       finished += (await opfs.readFile(path)).size;
     }
@@ -149,7 +170,10 @@ async function run(job: DownloadJob): Promise<void> {
     // Offline, it waits and carries on with the next status poll once the connection is back. A
     // network error after data came in is a dropped connection, not CORS: the next poll retries.
     const dropped = error instanceof TypeError && state.received;
-    if (!state.controller.signal.aborted && !offline() && !dropped) {
+    if (error instanceof PermanentFailure) {
+      errors.set(job.bookId, error.message);
+      await writeText(`${dir}/${FAILED_FILE}`, error.message).catch(() => {});
+    } else if (!state.controller.signal.aborted && !offline() && !dropped) {
       errors.set(job.bookId, failure(error));
     }
   } finally {
@@ -170,6 +194,7 @@ function failure(error: unknown): string {
 
 export async function enqueue(job: DownloadJob): Promise<void> {
   running.get(job.bookId)?.controller.abort();
+  await opfs.remove(`${bookDir(job.bookId)}/${FAILED_FILE}`);
   await writeText(`${bookDir(job.bookId)}/${JOB_FILE}`, JSON.stringify(job));
   void run(job);
 }
@@ -196,6 +221,9 @@ export async function statuses(): Promise<DownloadStatus[]> {
       }
     }
     const active = running.get(bookId);
+    if (!active && !errors.has(bookId) && (await opfs.exists(`${dir}/${FAILED_FILE}`))) {
+      errors.set(bookId, await (await opfs.readFile(`${dir}/${FAILED_FILE}`)).text());
+    }
     const done = files.length === job.files.length && !active;
     const waiting = !done && !active && offline();
     if (!done && !active && !waiting && !errors.has(bookId)) void run(job);

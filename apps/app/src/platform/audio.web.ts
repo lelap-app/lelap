@@ -12,6 +12,7 @@ import type {
   SleepTimerMode,
 } from '@lelap/audio';
 import {
+  chapterImageAt,
   chooseSound,
   fadeVolume,
   mediaSpan,
@@ -657,7 +658,13 @@ export async function setSettings(next: PlayerSettings): Promise<void> {
 export async function updateBook(next: BookLoad): Promise<void> {
   if (!book || book.bookId !== next.bookId) return;
   // Its own sound, and whether it hands over: a list that starts or stops playing (M112).
-  book = { ...book, sound: next.sound ?? {}, handsOver: next.handsOver ?? false };
+  // Its chapter pictures too, once read (M121).
+  book = {
+    ...book,
+    sound: next.sound ?? {},
+    handsOver: next.handsOver ?? false,
+    ...(next.artworks ? { artworks: next.artworks } : {}),
+  };
   // The same chapters named in another language (M124); other changes wait for the next load.
   const chapters = book.chapters;
   if (
@@ -849,10 +856,19 @@ function clearMediaSession(): void {
 
 function updateMediaSession(now: PlayerState): void {
   if (!('mediaSession' in navigator) || !book) return;
-  const key = `${book.bookId} ${now.partTitle ?? ''}`;
+  const bookMs = offsetOf(index) + now.positionMs;
+  // The chapter's picture while it plays, as on the phone's lock screen (M121).
+  const picture = book.artworks
+    ? chapterImageAt(
+        book.artworks.map((a) => ({ startMs: a.startMs, img: a.uri })),
+        bookMs,
+      )
+    : null;
+  const key = `${book.bookId} ${now.partTitle ?? ''} ${picture ?? ''}`;
   if (key !== shownMeta) {
     shownMeta = key;
-    const given = book.coverUri && !book.coverUri.startsWith('file://') ? book.coverUri : null;
+    const given =
+      picture ?? (book.coverUri && !book.coverUri.startsWith('file://') ? book.coverUri : null);
     // A cover kept in OPFS needs a blob URL first; it is added once that is ready.
     const kept = given?.startsWith(OPFS_SCHEME) ? given.slice(OPFS_SCHEME.length) : null;
     const cover = kept ? null : given;
@@ -871,7 +887,6 @@ function updateMediaSession(now: PlayerState): void {
   }
   navigator.mediaSession.playbackState = now.playing ? 'playing' : 'paused';
   // The chapter, as the Player's bar shows it; the file when the book's durations are unknown.
-  const bookMs = offsetOf(index) + now.positionMs;
   const total = offsetOf(book.files.length);
   const span =
     total > 0
