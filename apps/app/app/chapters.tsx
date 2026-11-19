@@ -22,14 +22,17 @@ type Row = {
   time: string;
   /** The start it had, kept to the millisecond while its text is unchanged. */
   startMs: number | null;
+  /** Found from silences: untitled, it is a “Part”. */
+  found: boolean;
 };
 
 let nextKey = 0;
-const row = (title: string, startMs: number): Row => ({
+const row = (title: string, startMs: number, found = false): Row => ({
   key: ++nextKey,
   title,
   time: formatClock(startMs),
   startMs,
+  found,
 });
 
 const startOf = (r: Row): number | null =>
@@ -49,7 +52,7 @@ export default function EditChaptersScreen() {
   const detail = useMemo(() => getBook(db, profileId, bookId), [bookId]);
   // As saved: an untitled chapter keeps an empty field, its name only the placeholder.
   const [rows, setRows] = useState<Row[]>(() =>
-    detail ? chaptersOf(db, profileId, bookId).map((c) => row(c.title, c.startMs)) : [],
+    detail ? chaptersOf(db, profileId, bookId).map((c) => row(c.title, c.startMs, c.found)) : [],
   );
   // Where the player is in this book, for a chapter that starts here.
   const here =
@@ -92,7 +95,7 @@ export default function EditChaptersScreen() {
       db,
       profileId,
       bookId,
-      rows.map((r) => ({ title: r.title, startMs: startOf(r) ?? 0 })),
+      rows.map((r) => ({ title: r.title, startMs: startOf(r) ?? 0, found: r.found })),
       detail.book.durationMs,
       Date.now(),
     );
@@ -145,9 +148,7 @@ export default function EditChaptersScreen() {
               value={item.title}
               onChangeText={(title) => change(item.key, { title })}
               placeholder={
-                detail.foundChapters
-                  ? t('Part {n}', { n: index + 1 })
-                  : t('Chapter {n}', { n: index + 1 })
+                item.found ? t('Part {n}', { n: index + 1 }) : t('Chapter {n}', { n: index + 1 })
               }
               accessibilityLabel={t('Name of chapter {n}', { n: index + 1 })}
               placeholderTextColor={colors.muted}

@@ -10,6 +10,7 @@ import { fakeSyncServer } from '../../test/syncServer';
 import { addStreamedBook } from '../addons/streamed';
 import { addBookmark, deleteBookmark, listBookmarks } from '../bookmarks';
 import type { Db } from '../db';
+import { setOwnChapters } from '../library/ownChapters';
 import { getBook, setSpeed } from '../library/queries';
 import {
   listEpisodes,
@@ -33,7 +34,7 @@ import {
 } from '../organise';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { saveProgress } from '../progress';
-import { books, settings, subscriptions, syncState } from '../schema';
+import { books, ownChapters, settings, subscriptions, syncState } from '../schema';
 import { getSourceChoice, setSourceChoice } from '../addons/sources';
 import { getSettings, setSetting } from '../settings';
 import { addToUpNext, listUpNext } from '../upNext';
@@ -60,7 +61,7 @@ import {
   startSync,
   syncNow,
 } from './engine';
-import { bookIdForKey } from './keys';
+import { bookIdForKey, bookKey } from './keys';
 import { applyOps, collectOps, fillMissingSkips, type Op } from './ops';
 
 function must<T>(value: T | undefined): T {
@@ -503,6 +504,50 @@ describe('sync between two devices', () => {
     laptop.update(subscriptions).set({ skipIntroMs: 0, skipOutroMs: 0 }).run();
     await syncNow(laptop, server, random, 130, newId);
     expect(listSubscriptions(laptop, ME)[0]?.skipIntroMs).toBe(0);
+  });
+
+  it('gives back own chapter names that beta 11 emptied, from the group', async () => {
+    const add = (title: string) =>
+      addStreamedBook(phone, {
+        addonUrl: 'https://addon.example/manifest.json',
+        meta: { ...meta, id: `librivox:${title}`, name: title },
+        stream: { ...stream, sourceKey: `librivox:${title}:64kb` },
+        now: 10,
+        newId,
+      });
+    const typed = add('typed');
+    const changed = add('changed');
+    const list = [
+      { title: 'Bab 1', startMs: 0 },
+      { title: 'Chapter 2', startMs: 30_000 },
+      { title: 'Chapter 9', startMs: 60_000 },
+    ];
+    setOwnChapters(phone, ME, typed, list, 120_000, 20);
+    setOwnChapters(phone, ME, changed, list, 120_000, 20);
+    await syncNow(phone, server, random, 100, newId);
+    // As migration 0027 left them: emptied where the name matched its place, the time kept.
+    const emptied = list.map((c, i) => (i < 2 ? { ...c, title: '' } : c));
+    phone.update(ownChapters).set({ chapters: emptied }).run();
+    // A list the listener saved again since is theirs, even with the same time.
+    phone
+      .update(ownChapters)
+      .set({ chapters: [{ title: '', startMs: 0 }, ...emptied.slice(2)] })
+      .where(eq(ownChapters.bookKey, must(bookKey(phone, changed) ?? undefined)))
+      .run();
+    phone.delete(syncState).where(eq(syncState.key, 'chapterNamesRestored')).run();
+
+    await syncNow(phone, server, random, 200, newId);
+    expect(getBook(phone, ME, typed)?.chapters.map((c) => c.title)).toEqual([
+      'Bab 1',
+      'Chapter 2',
+      'Chapter 9',
+    ]);
+    expect(getBook(phone, ME, changed)?.chapters.map((c) => c.title)).toEqual([
+      'Chapter 1',
+      'Chapter 9',
+    ]);
+    // Each device gives back its own; nothing is sent.
+    expect(collectOps(phone, 100).filter((op) => op.type === 'chapters')).toEqual([]);
   });
 
   it('keeps only web covers from another device', () => {

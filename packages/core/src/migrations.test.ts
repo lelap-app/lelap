@@ -95,7 +95,7 @@ describe('0002_addons', () => {
 });
 
 describe('0027_chapter_names', () => {
-  it('empties made-up chapter names in either language, and keeps real ones', async () => {
+  it('empties made-up chapter names in either language, and keeps real and typed ones', async () => {
     const source = fileURLToPath(new URL('../drizzle', import.meta.url));
     const before = mkdtempSync(join(tmpdir(), 'lelap-m99-'));
     cpSync(source, before, { recursive: true });
@@ -138,8 +138,9 @@ describe('0027_chapter_names', () => {
       { title: '', startMs: 2000 },
       { title: 'Chapter 7', startMs: 3000 },
     ]);
+    // The listener may have typed “Bab 1” (M124).
     const own = db.select().from(schema.ownChapters).orderBy(schema.ownChapters.bookKey).all();
-    expect(own.map((o) => o.chapters)).toEqual([[{ title: '', startMs: 0 }], null]);
+    expect(own.map((o) => o.chapters)).toEqual([[{ title: 'Bab 1', startMs: 0 }], null]);
   });
 
   it('finds the names of a book of several files, numbered from 1 in each file', async () => {

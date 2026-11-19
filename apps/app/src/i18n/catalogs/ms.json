@@ -1152,6 +1152,8 @@
   "The copy of {name} came out the wrong size.": "Salinan {name} tidak sama saiz dengan yang asal.",
   "Could not make the book’s folder in the download folder.": "Tidak dapat membuat folder buku dalam folder muat turun.",
   "Moving downloads stopped.": "Pemindahan muat turun terhenti.",
+  "Lelap could not save to the phone’s storage.": "Lelap tidak dapat menyimpan ke storan telefon.",
+  "Lelap can’t cast to this kind of speaker.": "Lelap tidak dapat menghantar ke pembesar suara jenis ini.",
   "The download is larger than the release.": "Muat turun lebih besar daripada keluaran.",
   "The update was cancelled.": "Kemas kini dibatalkan.",
   "Android blocked the update.": "Android menyekat kemas kini.",

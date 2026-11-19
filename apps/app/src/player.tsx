@@ -52,6 +52,7 @@ import { savedCatalogCover } from './catalogCovers';
 import { coverUri } from './components/BookCover';
 import { db, newId } from './db';
 import { logCaught } from './diagnostics';
+import { subscribeLanguage } from './i18n';
 import { pickEpisodeFile } from './episodeFiles';
 import { chapterImagesRead } from './podcasting';
 import * as audio from './platform/audio';
@@ -276,6 +277,23 @@ export function updateChapters(bookId: string): Promise<void> {
     if (playerProfile() !== profileId) return;
     const book = bookLoad(bookId);
     if (book) await audio.load(book, false);
+  });
+}
+
+/**
+ * Hands the loaded book its chapters again after a language switch, so untitled ones are named in
+ * the new language on the lock screen, the notification and in the car, at the live place (M124).
+ */
+function renameChapters(): Promise<void> {
+  return enqueue(async () => {
+    const current = await audio.getState();
+    if (!current.bookId || current.partIndex < 0) return;
+    if (playerProfile() !== profileId) return;
+    const book = bookLoad(current.bookId);
+    if (!book) return;
+    // The web player takes new names in place; a load there would start the book over.
+    if (Platform.OS === 'android') await audio.load(book, false);
+    else await audio.updateBook(book);
   });
 }
 
@@ -805,6 +823,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     void syncQueue();
     if (Platform.OS === 'android') void syncCar();
   }, [state.bookId, version]);
+
+  // A new language names untitled chapters anew: the loaded book's now, and with the refresh the
+  // books in Up Next and the car's shelves, which the service holds with their names.
+  useEffect(
+    () =>
+      subscribeLanguage(() => {
+        void renameChapters().catch(logCaught);
+        refresh();
+      }),
+    [refresh],
+  );
 
   useEffect(() => {
     onFollowChange = refresh;

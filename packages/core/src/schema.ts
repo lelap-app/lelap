@@ -35,7 +35,12 @@ export const SHARED_TABLES = [
   'series_lists',
 ] as const;
 
-export type StoredChapter = { title: string; startMs: number };
+export type StoredChapter = {
+  title: string;
+  startMs: number;
+  /** In the listener's own chapters only (M124): copied from one found from silences, a “Part”. */
+  found?: boolean;
+};
 
 /**
  * Tags that tell a song from a book (M77), for the “looks like music” suggestions. Fields the

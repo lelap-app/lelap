@@ -658,6 +658,14 @@ export async function updateBook(next: BookLoad): Promise<void> {
   if (!book || book.bookId !== next.bookId) return;
   // Its own sound, and whether it hands over: a list that starts or stops playing (M112).
   book = { ...book, sound: next.sound ?? {}, handsOver: next.handsOver ?? false };
+  // The same chapters named in another language (M124); other changes wait for the next load.
+  const chapters = book.chapters;
+  if (
+    next.chapters.length === chapters.length &&
+    next.chapters.every((c, i) => c.startMs === chapters[i]?.startMs)
+  ) {
+    book = { ...book, chapters: next.chapters };
+  }
   await applyEffects();
   emit();
 }

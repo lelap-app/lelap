@@ -53,7 +53,5 @@ export function chapterTitleAt(
   if (list.length < 2) return null;
   const at = chapterAt(list, bookPositionMs);
   const chapter = list[at];
-  return chapter
-    ? chapterTitle(chapter.title, at, 'found' in chapter && chapter.found === true)
-    : null;
+  return chapter ? chapterTitle(chapter.title, at, chapter.found === true) : null;
 }

@@ -88,4 +88,54 @@ describe('chapter names', () => {
     expect(getBook(db, ME, bookId)?.chapters.map((c) => c.title)).toEqual(['Part 1', 'Part 2']);
     expect(chapterTitleAt(db, bookId, 5_000)).toBe('Part 2');
   });
+
+  it('keep parts in own chapters made from found ones, and name added ones chapters', () => {
+    const db = createTestDb();
+    const bookId = seedBook(db, 'Lecture', [{ location: 'l/01.mp3', durationMs: 9_000 }]);
+    let n = 0;
+    saveFoundChapters(
+      db,
+      bookId,
+      [0, 3_000, 6_000].map((startMs) => ({ title: '', startMs })),
+      1,
+      () => `f${++n}`,
+    );
+    // From the editor (M124): the found ones say so.
+    setOwnChapters(
+      db,
+      ME,
+      bookId,
+      [
+        { title: '', startMs: 0, found: true },
+        { title: 'Questions', startMs: 3_000, found: true },
+        { title: '', startMs: 7_000 },
+      ],
+      9_000,
+      2,
+    );
+    expect(getBook(db, ME, bookId)?.chapters.map((c) => c.title)).toEqual([
+      'Part 1',
+      'Questions',
+      'Chapter 3',
+    ]);
+    // Saved before M124, without the mark: untitled at a found chapter's start is still a part.
+    setOwnChapters(
+      db,
+      ME,
+      bookId,
+      [
+        { title: '', startMs: 0 },
+        { title: '', startMs: 6_000 },
+        { title: '', startMs: 7_000 },
+      ],
+      9_000,
+      3,
+    );
+    expect(getBook(db, ME, bookId)?.chapters.map((c) => c.title)).toEqual([
+      'Part 1',
+      'Part 2',
+      'Chapter 3',
+    ]);
+    expect(chapterTitleAt(db, bookId, 6_500, ME)).toBe('Part 2');
+  });
 });

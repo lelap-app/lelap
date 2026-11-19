@@ -10,6 +10,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import app.lelap.text.NotSavedException
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -39,7 +40,7 @@ object Downloads {
     dir.mkdirs()
     val tmp = File(dir, "$JOB_FILE.tmp")
     tmp.writeText(job.encode())
-    if (!tmp.renameTo(File(dir, JOB_FILE))) throw java.io.IOException("Could not save the download job.")
+    if (!tmp.renameTo(File(dir, JOB_FILE))) throw NotSavedException()
   }
 
   fun writeError(dir: File, message: String) = File(dir, ERROR_FILE).writeText(message)
@@ -139,7 +140,7 @@ object Downloads {
     }
     val tmp = File(dir, "$OLD_FILE.tmp")
     tmp.writeText(OldCopies.encode(copies))
-    if (!tmp.renameTo(file)) throw java.io.IOException("Could not save the list of old copies.")
+    if (!tmp.renameTo(file)) throw NotSavedException()
   }
 
   /**
