@@ -89,6 +89,8 @@ const effects = (): sound.SoundSettings => {
 };
 
 const skipsSilence = () => chooseSound(book?.sound, settings).skipSilence;
+// Skip silence and even loudness read the file's first bytes; nothing else does.
+const readsFile = () => skipsSilence() || effects().evenLoudness;
 
 // Listening time skip silence saved per book (M101), kept in this browser like Android keeps it
 // on the phone; the newest books stay.
@@ -133,6 +135,9 @@ function writeSavings(): void {
 const skipper = createSilenceSkipper(addSaved);
 // Counts loads of a part, so a file's tags read late don't reach the next part.
 let partLoads = 0;
+// The part whose first bytes were read; they are read only once an effect needs them.
+let partRead = -1;
+let partSource: { audio: HTMLAudioElement; src: string; blob: Blob | null } | null = null;
 // A minutes timer counts wall time while playing; a chapter or episode timer stops at a place on
 // the book timeline (shake to extend is Android only: browsers ask before giving motion data).
 let sleepMode: SleepTimerMode | null = null;
@@ -489,6 +494,8 @@ async function sourceFor(uri: string): Promise<{ src: string; blob: Blob | null 
  */
 async function readPart(audio: HTMLAudioElement, src: string, blob: Blob | null): Promise<void> {
   const load = partLoads;
+  if (partRead === load) return;
+  partRead = load;
   const file: FileBytes | null = blob
     ? blobBytes(blob)
     : (await sound.canRoute(src))
@@ -529,7 +536,8 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
   });
   seekingForLoad = true;
   audio.currentTime = startMs / 1000;
-  void readPart(audio, src, blob);
+  partSource = { audio, src, blob };
+  if (readsFile()) void readPart(audio, src, blob);
   if (autoplay) {
     await sound.resume(audio);
     await audio.play().catch(() => {});
@@ -643,6 +651,8 @@ async function applyEffects(): Promise<void> {
   const audio = element;
   const now = effects();
   skipper.setOn(skipsSilence());
+  const part = partSource;
+  if (part && part.audio === audio && readsFile()) void readPart(part.audio, part.src, part.blob);
   if (audio && sound.isRouted(audio)) sound.update(audio, now);
   else if (audio && book && sound.soundOn(effects()) && (await sound.canRoute(audio.currentSrc))) {
     // A plain element cannot take the effects: reload the part, routed, at the same place.

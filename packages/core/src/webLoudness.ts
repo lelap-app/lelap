@@ -98,25 +98,54 @@ function id3Tags(bytes: Uint8Array): [string, string][] {
 /** The null-separated strings of an ID3 text frame in its encoding. */
 function id3Text(bytes: Uint8Array, encoding: number): string[] {
   const wide = encoding === 1 || encoding === 2;
-  const decoder = new TextDecoder(
-    encoding === 3 ? 'utf-8' : encoding === 2 ? 'utf-16be' : wide ? 'utf-16' : 'latin1',
-  );
+  const decode = (b: Uint8Array) =>
+    encoding === 3 ? utf8(b) : encoding === 2 ? utf16(b, true) : wide ? utf16(b, null) : latin1(b);
   const parts: string[] = [];
   let start = 0;
   const step = wide ? 2 : 1;
   for (let i = 0; i + step <= bytes.length; i += step) {
     if (bytes[i] === 0 && (!wide || bytes[i + 1] === 0)) {
-      parts.push(decoder.decode(bytes.subarray(start, i)));
+      parts.push(decode(bytes.subarray(start, i)));
       start = i + step;
     }
   }
-  if (start < bytes.length) parts.push(decoder.decode(bytes.subarray(start)));
+  if (start < bytes.length) parts.push(decode(bytes.subarray(start)));
   return parts.map((p) => p.replace(/^\uFEFF/, ''));
+}
+
+// Text decoded by hand: core is also type-checked for native modules, without DOM types.
+const latin1 = (b: Uint8Array) => String.fromCharCode(...b);
+
+/** UTF-16 with a byte order mark when `bigEndian` is null. */
+function utf16(b: Uint8Array, bigEndian: boolean | null): string {
+  let at = 0;
+  let big = bigEndian ?? true;
+  if (bigEndian === null && b.length >= 2) {
+    if (byte(b, 0) === 0xff && byte(b, 1) === 0xfe) [big, at] = [false, 2];
+    else if (byte(b, 0) === 0xfe && byte(b, 1) === 0xff) at = 2;
+  }
+  const units: number[] = [];
+  for (; at + 1 < b.length; at += 2) {
+    units.push(big ? (byte(b, at) << 8) | byte(b, at + 1) : byte(b, at) | (byte(b, at + 1) << 8));
+  }
+  return String.fromCharCode(...units);
+}
+
+function utf8(b: Uint8Array): string {
+  let out = '';
+  for (let i = 0; i < b.length;) {
+    const c = byte(b, i);
+    const extra = c >= 0xf0 ? 3 : c >= 0xe0 ? 2 : c >= 0xc0 ? 1 : 0;
+    let code = extra === 0 ? c : c & (0x3f >> extra);
+    for (let k = 1; k <= extra; k++) code = (code << 6) | (byte(b, i + k) & 0x3f);
+    out += String.fromCodePoint(code);
+    i += extra + 1;
+  }
+  return out;
 }
 
 /** A Vorbis comment block: vendor, then `NAME=value` lines, little-endian lengths. */
 function vorbisComments(bytes: Uint8Array): [string, string][] {
-  const decoder = new TextDecoder();
   if (bytes.length < 8) return [];
   let at = 4 + u32le(bytes, 0);
   if (at + 4 > bytes.length) return [];
@@ -125,7 +154,7 @@ function vorbisComments(bytes: Uint8Array): [string, string][] {
   const tags: [string, string][] = [];
   for (let i = 0; i < count && at + 4 <= bytes.length; i++) {
     const length = u32le(bytes, at);
-    const line = decoder.decode(bytes.subarray(at + 4, at + 4 + length));
+    const line = utf8(bytes.subarray(at + 4, at + 4 + length));
     at += 4 + length;
     const equals = line.indexOf('=');
     if (equals > 0) tags.push([line.slice(0, equals), line.slice(equals + 1)]);
@@ -172,7 +201,6 @@ function oggTags(bytes: Uint8Array): [string, string][] {
 /** Freeform `----` atoms under moov/udta/meta/ilst, named by their `name` box. */
 function mp4Tags(bytes: Uint8Array): [string, string][] {
   const tags: [string, string][] = [];
-  const decoder = new TextDecoder();
   const walk = (from: number, to: number, path: string) => {
     let at = from;
     while (at + 8 <= to) {
@@ -193,10 +221,10 @@ function mp4Tags(bytes: Uint8Array): [string, string][] {
           const innerType = ascii(bytes, inner + 4, inner + 8);
           if (innerSize < 8) break;
           if (innerType === 'name') {
-            name = decoder.decode(bytes.subarray(inner + 12, inner + innerSize));
+            name = utf8(bytes.subarray(inner + 12, inner + innerSize));
           }
           if (innerType === 'data') {
-            value = decoder.decode(bytes.subarray(inner + 16, inner + innerSize));
+            value = utf8(bytes.subarray(inner + 16, inner + innerSize));
           }
           inner += innerSize;
         }

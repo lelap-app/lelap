@@ -49,6 +49,8 @@ export function createSilenceSkipper(onSaved: (ms: number) => void) {
   let decoding = false;
   // Where the last chunk started: one that taught nothing isn't asked for again.
   let lastFromMs: number | null = null;
+  // A read that failed (offline, say) is tried again after a while, not with every look.
+  let retryAt = 0;
   const rate = WEB_SILENCE_RULES.rate;
 
   const setRate = (element: HTMLMediaElement, faster: boolean) => {
@@ -83,14 +85,21 @@ export function createSilenceSkipper(onSaved: (ms: number) => void) {
     if (!current) return;
     const { element } = current;
     const nowMs = element.currentTime * 1000;
-    count(nowMs);
+    // A seek sets the time before its event: the jump isn't fast play.
+    if (element.seeking) lastMs = null;
+    else count(nowMs);
     if (!on || element.paused || element.seeking) {
       setRate(element, false);
       return;
     }
     void decodeAhead();
-    const pause = current.map.nextPause(nowMs, AHEAD_MS);
-    const stretch: FastStretch | null = pause ? fastStretch(pause) : null;
+    let pause = current.map.nextPause(nowMs, AHEAD_MS);
+    let stretch: FastStretch | null = pause ? fastStretch(pause) : null;
+    // Past this pause's fast stretch, in its slow end: the next pause is the one to wait for.
+    if (pause && (!stretch || nowMs >= stretch.toMs)) {
+      pause = current.map.nextPause(pause.endMs, AHEAD_MS);
+      stretch = pause ? fastStretch(pause) : null;
+    }
     if (stretch && nowMs >= stretch.fromMs && nowMs < stretch.toMs) {
       const leftMs = (stretch.toMs - nowMs) / (speed * rate);
       if (leftMs <= EARLY_MS) {
@@ -118,6 +127,7 @@ export function createSilenceSkipper(onSaved: (ms: number) => void) {
       ? current.element.duration * 1000
       : Infinity;
     if (fromMs - placeMs >= AHEAD_MS || fromMs >= durationMs || fromMs === lastFromMs) return;
+    if (Date.now() < retryAt) return;
     lastFromMs = fromMs;
     decoding = true;
     try {
@@ -131,7 +141,12 @@ export function createSilenceSkipper(onSaved: (ms: number) => void) {
       );
       const end = start + Math.ceil((CHUNK_MS / 1000) * layout.bytesPerSecond + 2 * warmUp);
       const bytes = await current.file.read(start, end);
-      if (!bytes || loaded !== current) return;
+      if (loaded !== current) return;
+      if (!bytes) {
+        lastFromMs = null;
+        retryAt = Date.now() + 10_000;
+        return;
+      }
       const at = findMp3Frame(bytes, 0);
       if (at === null) return;
       const context = new OfflineAudioContext(1, 1, layout.sampleRate);
@@ -170,6 +185,7 @@ export function createSilenceSkipper(onSaved: (ms: number) => void) {
       this.detach();
       lastMs = null;
       lastFromMs = null;
+      retryAt = 0;
       fast = false;
       if (file && layout) {
         const durationMs = Number.isFinite(element.duration) ? element.duration * 1000 : 0;

@@ -294,3 +294,28 @@ describe('Loudness', () => {
     expect(levelTargetDb(null, null)).toBe(0);
   });
 });
+
+describe('ID3 text encodings', () => {
+  const frame = (encoding: number, text: number[]) => {
+    const body = [encoding, ...text];
+    const n = body.length;
+    const tag = [...encoder.encode('TXXX'), 0, 0, (n >> 7) & 0x7f, n & 0x7f, 0, 0, ...body];
+    const m = tag.length;
+    return Uint8Array.from([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, (m >> 7) & 0x7f, m & 0x7f, ...tag]);
+  };
+  const utf16le = (s: string) => [0xff, 0xfe, ...[...s].flatMap((c) => [c.charCodeAt(0), 0])];
+  const utf16be = (s: string) => [...s].flatMap((c) => [0, c.charCodeAt(0)]);
+
+  it('reads UTF-16 with a byte order mark, UTF-16BE and UTF-8', () => {
+    const name = 'REPLAYGAIN_ALBUM_GAIN';
+    expect(readTags(frame(1, [...utf16le(name), 0, 0, ...utf16le('-2 dB')]))).toEqual([
+      [name, '-2 dB'],
+    ]);
+    expect(readTags(frame(2, [...utf16be(name), 0, 0, ...utf16be('+1 dB')]))).toEqual([
+      [name, '+1 dB'],
+    ]);
+    expect(readTags(frame(3, [...encoder.encode('Café'), 0, ...encoder.encode('ü')]))).toEqual([
+      ['Café', 'ü'],
+    ]);
+  });
+});

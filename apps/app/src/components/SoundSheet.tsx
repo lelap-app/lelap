@@ -28,27 +28,25 @@ type SoundOption<K extends SoundKey> = { key: K; label: string; detail: string }
 
 /** Voice boost, skip silence and even loudness: a default in Settings, and per book or show. */
 export const bookSoundOptions = (): SoundOption<BookSoundKey>[] =>
-  (
-    [
-      {
-        key: 'voiceEq',
-        label: t('Voice boost'),
-        detail: t(
-          'Cuts rumble, lifts the consonants and evens out soft and loud words, so voices are easier to follow.',
-        ),
-      },
-      {
-        key: 'skipSilence',
-        label: t('Skip silence'),
-        detail: t('Shortens long pauses, so you finish sooner.'),
-      },
-      {
-        key: 'evenLoudness',
-        label: t('Even loudness'),
-        detail: t('Plays every book and episode at about the same volume.'),
-      },
-    ] satisfies SoundOption<BookSoundKey>[]
-  );
+  [
+    {
+      key: 'voiceEq',
+      label: t('Voice boost'),
+      detail: t(
+        'Cuts rumble, lifts the consonants and evens out soft and loud words, so voices are easier to follow.',
+      ),
+    },
+    {
+      key: 'skipSilence',
+      label: t('Skip silence'),
+      detail: t('Shortens long pauses, so you finish sooner.'),
+    },
+    {
+      key: 'evenLoudness',
+      label: t('Even loudness'),
+      detail: t('Plays every book and episode at about the same volume.'),
+    },
+  ] satisfies SoundOption<BookSoundKey>[];
 
 export const deviceSoundOptions = (): SoundOption<DeviceSoundKey>[] => [
   {
