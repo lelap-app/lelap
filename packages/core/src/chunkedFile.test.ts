@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type ChunkStore, ChunkedFile, MANIFEST, sameBytes } from './chunkedFile';
+import { type ChunkStore, ChunkedFile, chunkPrint, MANIFEST } from './chunkedFile';
 
 function memoryStore() {
   const files = new Map<string, Uint8Array>();
@@ -106,18 +106,38 @@ describe('ChunkedFile', () => {
   });
 });
 
-describe('sameBytes', () => {
-  it('compares whole words and the bytes after them, also when not aligned', () => {
+describe('chunkPrint', () => {
+  const key = (bytes: Uint8Array) => chunkPrint(bytes).join(' ');
+
+  it('changes with every single bit, wherever it is', () => {
     const a = filled(103, 1);
-    expect(sameBytes(a, a.slice())).toBe(true);
-    for (const at of [0, 50, 101, 102]) {
-      const b = a.slice();
-      b[at] = 255 - (b[at] ?? 0);
-      expect(sameBytes(a, b)).toBe(false);
+    const seen = new Set([key(a)]);
+    for (let at = 0; at < a.length; at++) {
+      for (let bit = 0; bit < 8; bit++) {
+        const b = a.slice();
+        b[at] = (b[at] ?? 0) ^ (1 << bit);
+        seen.add(key(b));
+      }
     }
+    expect(seen.size).toBe(1 + 103 * 8);
+  });
+
+  it('notices two changes that cancel out in a plain multiply-and-xor hash', () => {
+    const a = new Uint8Array(64);
+    const b = a.slice();
+    // The top bit of two words: only rotations carry it down to the bits that differ.
+    b[3] = 0x80;
+    b[7] = 0x80;
+    expect(key(b)).not.toBe(key(a));
+  });
+
+  it('is the same aligned or not, and counts the length', () => {
+    const a = filled(103, 1);
     const shifted = new Uint8Array(104);
     shifted.set(a, 1);
-    expect(sameBytes(a, shifted.subarray(1))).toBe(true);
-    expect(sameBytes(a, a.subarray(0, 102))).toBe(false);
+    expect(key(shifted.subarray(1))).toBe(key(a));
+    const zeros = new Uint8Array(8);
+    expect(key(zeros.subarray(0, 7))).not.toBe(key(zeros));
+    expect(key(new Uint8Array(0))).not.toBe(key(new Uint8Array(1)));
   });
 });

@@ -273,14 +273,18 @@ export function playlistBooks(
     .filter((b): b is LibraryBook => b !== undefined && !b.missing);
 }
 
-/** The profile's lists with how many books each shows; the library is read once for all. */
+/**
+ * The profile's lists with how many books each shows; the library is read once for all, or taken
+ * from `books` (`listAllBooks`) when the caller has read it already.
+ */
 export function listPlaylistsWithCounts(
   db: Db,
   profileId: string,
+  books?: LibraryBook[],
 ): { list: Playlist; count: number }[] {
   const lists = listPlaylists(db, profileId);
   if (lists.length === 0) return [];
-  const library = readLibrary(db, profileId);
+  const library = books ? { books, tags: tagsByBook(db, profileId) } : readLibrary(db, profileId);
   return lists.map((list) => ({
     list,
     count: playlistBooks(db, profileId, list, library).length,

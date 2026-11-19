@@ -69,6 +69,7 @@ import {
   serverPlacesFinished,
   trackServerPlaces,
 } from './serverPlaces';
+import { startupMark } from './startup';
 
 export const IDLE: audio.PlayerState = {
   connected: false,
@@ -669,6 +670,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const start = async () => {
       const folded = foldJournal().catch(logCaught);
       await Promise.race([folded, new Promise((resolve) => setTimeout(resolve, JOURNAL_WAIT_MS))]);
+      startupMark('journal-folded');
       setJournalFolded(true);
       // The startup load still waits for the journal, so it starts at the newest place.
       await folded;

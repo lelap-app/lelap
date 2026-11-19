@@ -136,6 +136,20 @@ export function listBooks(
   return (kid === null ? shown : shown.filter(kid)).sort(SORTS[sort]);
 }
 
+/**
+ * `listBooks` with the visible books taken from `listAllBooks`, so a screen that needs both reads
+ * the library once (M106).
+ */
+export function listBooksFrom(
+  db: Db,
+  profileId: string,
+  all: LibraryBook[],
+  sort: LibrarySort,
+): LibraryBook[] {
+  const kid = kidFilter<LibraryBook>(db, profileId);
+  return all.filter((b) => b.source !== 'feed' && (kid === null || kid(b))).sort(SORTS[sort]);
+}
+
 /** The latest played book that is neither finished nor missing. */
 export function continueListening(db: Db, profileId: string): LibraryBook | null {
   const kid = kidFilter<LibraryBook>(db, profileId);

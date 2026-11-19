@@ -22,7 +22,6 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 private const val STATE_EVENT = "onStateChange"
-private const val TICK_MS = 1_000L
 
 /** Bridges JavaScript to [PlaybackService] through a MediaController on the main thread. */
 class AudioModule : Module() {
@@ -33,10 +32,14 @@ class AudioModule : Module() {
   private val context: Context
     get() = appContext.reactContext ?: throw Exceptions.ReactContextLost()
 
+  // In the background nothing shows the moving position, so the app hears it every 10 s instead of
+  // every second (M106): its own saves need no more, and the service keeps the place itself.
+  private var inBackground = false
+
   private val ticker = object : Runnable {
     override fun run() {
       emit()
-      if (controller?.isPlaying == true) handler.postDelayed(this, TICK_MS)
+      if (controller?.isPlaying == true) handler.postDelayed(this, Battery.stateTickMs(inBackground))
     }
   }
 
@@ -308,6 +311,18 @@ class AudioModule : Module() {
     AsyncFunction("getState") { promise: Promise ->
       connect().addListener({ promise.resolve(state()) }, ContextCompat.getMainExecutor(context))
     }.runOnQueue(Queues.MAIN)
+
+    OnActivityEntersBackground {
+      handler.post { inBackground = true }
+    }
+
+    OnActivityEntersForeground {
+      handler.post {
+        inBackground = false
+        // At once, so the screen shows the place the moment it is back.
+        if (controller != null) startTicker()
+      }
+    }
 
     OnDestroy {
       handler.post {

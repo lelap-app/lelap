@@ -14,7 +14,13 @@ import {
 } from './schema';
 import { carShelves } from './car';
 import type { Db } from './db';
-import { continueListening, getBook, listBooks } from './library/queries';
+import {
+  continueListening,
+  getBook,
+  listAllBooks,
+  listBooks,
+  listBooksFrom,
+} from './library/queries';
 import { listPlaylists, listPlaylistsWithCounts, playlistBooks } from './organise';
 import {
   autoDownloadWork,
@@ -83,6 +89,14 @@ describe('a big library', () => {
         count: playlistBooks(db, ME, list).length,
       })),
     );
+  });
+
+  it('gives the Library list and the counts from one read the same answers (M106)', () => {
+    const all = listAllBooks(db, ME);
+    for (const sort of ['recent', 'title', 'author'] as const) {
+      expect(listBooksFrom(db, ME, all, sort)).toEqual(listBooks(db, ME, sort));
+    }
+    expect(listPlaylistsWithCounts(db, ME, all)).toEqual(listPlaylistsWithCounts(db, ME));
   });
 });
 

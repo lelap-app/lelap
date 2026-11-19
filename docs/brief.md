@@ -89,10 +89,16 @@ The repository layout is in [`AGENTS.md`](../AGENTS.md#repository-map).
 - **Database:** sql.js in memory, saved to OPFS about a second after each change and when the tab
   hides. expo-sqlite's web build needs cross-origin isolation, which blocks covers and audio from
   other sites and does not work in Safari. The file is kept as 256 KB chunk files and a manifest
-  (`packages/core/src/chunkedFile.ts`): a save writes only the chunks whose bytes differ from the
-  copy of the last save kept in memory (M80), each to a new name, then the manifest, so a save cut short leaves the last one whole. A change in a
+  (`packages/core/src/chunkedFile.ts`): a save writes only the chunks whose fingerprint (two
+  32-bit hashes) differs from the last save's (M106; M80 kept a 49 MB copy to compare with), each
+  to a new name, then the manifest, so a save cut short leaves the last one whole. A change in a
   10,000-book library (49 MB) writes 256 KB instead of the whole file. sql.js has no VFS hook, and
-  OPFS's in-place writes (`createSyncAccessHandle`) work only in a worker.
+  OPFS's in-place writes (`createSyncAccessHandle`) work only in a worker. The database starts
+  opening as soon as its file loads, not after the first render (M106).
+- **One bundle:** every screen is in the start bundle (`asyncRoutes` off for the web in
+  `app.json`, M106). With a screen per chunk, the first screen waited for its chunk and React then
+  held it back: with 10,000 books Home took 0.69 s instead of 0.27 s and the Library 0.68 s
+  instead of 0.38 s, for 222 KB (56 KB gzipped) less JavaScript at start.
 - **Covers from servers** (WebDAV, S3, Subsonic, Plex folder covers) need the server's login, which
   an `<img>` can't send: they are fetched once into OPFS and shown as blob URLs.
 - **Audio:** one `<audio>` element and Media Session. The sleep timer fades the element's volume;

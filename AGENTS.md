@@ -68,21 +68,21 @@ docs/milestones/ one file per milestone: front matter, plan or record, open chec
 
 Node 24 (`.nvmrc`) and pnpm via Corepack (`corepack enable`). Run from the root:
 
-| Task                  | Command                           |
-| --------------------- | --------------------------------- |
-| Install               | `pnpm install`                    |
-| Landing page dev      | `pnpm dev:site`                   |
-| App on a phone        | `pnpm android`                    |
-| App dev server        | `pnpm dev:app`                    |
-| Build everything      | `pnpm build`                      |
-| Type-check everything | `pnpm check`                      |
-| Test                  | `pnpm test`                       |
-| Remote server tests   | `pnpm test:integration`           |
-| Library timings (M43) | `pnpm --filter @lelap/core bench` |
-| Lint                  | `pnpm lint`                       |
-| Roadmap table         | `pnpm roadmap` (`--check` in CI)  |
-| Open checks           | `pnpm checks` (`--adb`, `--you`)  |
-| Format                | `pnpm format`                     |
+| Task                            | Command                           |
+| ------------------------------- | --------------------------------- |
+| Install                         | `pnpm install`                    |
+| Landing page dev                | `pnpm dev:site`                   |
+| App on a phone                  | `pnpm android`                    |
+| App dev server                  | `pnpm dev:app`                    |
+| Build everything                | `pnpm build`                      |
+| Type-check everything           | `pnpm check`                      |
+| Test                            | `pnpm test`                       |
+| Remote server tests             | `pnpm test:integration`           |
+| Timings and budgets (M43, M106) | `pnpm --filter @lelap/core bench` |
+| Lint                            | `pnpm lint`                       |
+| Roadmap table                   | `pnpm roadmap` (`--check` in CI)  |
+| Open checks                     | `pnpm checks` (`--adb`, `--you`)  |
+| Format                          | `pnpm format`                     |
 
 Before opening a pull request run `pnpm format:check`, `pnpm roadmap --check`, `pnpm lint`,
 `pnpm check`, `pnpm test` and `pnpm build`;
