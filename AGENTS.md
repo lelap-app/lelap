@@ -18,10 +18,13 @@ parallel pull requests don't conflict. `pnpm checks` lists every open check.
 
 ## Hard rules
 
-- **Neutral core.** The app and first-party add-ons only connect to open sources (LibriVox, Open
-  Library, Podcast Index, RSS) and storage the user controls (local files, WebDAV, Audiobookshelf).
-  Never add code, docs, examples, tests or issue templates that target torrent indexes or services
-  that resolve torrents or file-hoster links, and never name such services anywhere in the repo.
+- **Neutral core.** Audio only ever comes from open sources (LibriVox, Open Library, Podcast
+  Index, RSS) and storage the user controls (local files, WebDAV, Audiobookshelf). The app and
+  first-party add-ons connect only to those, plus official public metadata APIs (such as Google
+  Books and Apple's iTunes Search API) for metadata only, never audio, with credit to the source
+  wherever its data shows. Never add code, docs, examples, tests or issue templates that target
+  torrent indexes or services that resolve torrents or file-hoster links, and never name such
+  services anywhere in the repo.
 - **No add-on directory.** Don't add lists, links or recommendations for third-party add-ons.
 - **Audio never touches our servers.** Services may proxy RSS feeds, cover images, chapters files
   and transcripts for the web app; they never proxy, cache or transcode audio.
