@@ -483,7 +483,7 @@ export default function LibraryScreen() {
               setPulled(true);
               void rescan();
             }}
-            tintColor="#f5b041"
+            tintColor={COLORS.amber}
           />
         }
         contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}

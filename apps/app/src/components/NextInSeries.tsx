@@ -12,6 +12,7 @@ import { profileId } from '../profile';
 import { bookNumber, useFindVolume } from '../series';
 import { BookCover, coverUri } from './BookCover';
 import { TextButton } from './TextButton';
+import { COLORS } from './Icon';
 
 /**
  * When a book has ended (M109): the next book of its series, to play from the library, or the
@@ -92,7 +93,7 @@ export function NextInSeries({
       </Text>
       <View className="flex-row flex-wrap items-center gap-x-4">
         {looking === number ? (
-          <ActivityIndicator color="#f5b041" className="min-h-12" />
+          <ActivityIndicator color={COLORS.amber} className="min-h-12" />
         ) : (
           <TextButton
             text={t('Look in your add-ons')}

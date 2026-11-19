@@ -1,3 +1,4 @@
+import { builtInTheme, type ThemeColors } from '@lelap/core';
 import type { ReactNode } from 'react';
 import { I18nManager, Platform, Pressable } from 'react-native';
 import Svg, { Circle, Path, Rect, Text as SvgText } from 'react-native-svg';
@@ -259,7 +260,7 @@ const MIRRORED = new Set<string>(['back', 'forward']);
 export function Icon({
   name,
   size = 24,
-  color = '#f4f1ea',
+  color = COLORS.paper,
   label,
   value,
 }: {
@@ -285,19 +286,12 @@ export function Icon({
   );
 }
 
-/** Theme colours for icons, matching `tailwind.config.js`. */
-export const COLORS = {
-  night: '#0d0e11',
-  raised: '#17191e',
-  paper: '#f4f1ea',
-  soft: '#c9c5bc',
-  muted: '#8d8a83',
-  line: '#33353b',
-  amber: '#f5b041',
-  ink: '#1a1305',
-  danger: '#ff8a7a',
-  ok: '#6bd49a',
-} as const;
+/**
+ * The theme's colours for icons and anything else drawn outside a class (M108). Changed in place
+ * by src/theme.tsx, which then draws the screens again, so read it while rendering, never into a
+ * constant outside a component.
+ */
+export const COLORS: ThemeColors = { ...builtInTheme('night', 'amber').colors };
 
 /** A 48-point icon button for headers and toolbars. */
 export function IconButton({

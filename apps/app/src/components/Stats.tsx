@@ -1,6 +1,6 @@
-import { dayDate, dayKey, type Streak, type YearInSound } from '@lelap/core';
+import { dayDate, dayKey, type StatsPalette, type Streak, type YearInSound } from '@lelap/core';
 import { type Ref, useEffect, useState } from 'react';
-import { AppState, Text, useColorScheme, View } from 'react-native';
+import { AppState, Text, View } from 'react-native';
 import Svg, { G, Rect, Text as SvgText } from 'react-native-svg';
 
 import {
@@ -11,53 +11,13 @@ import {
   formatNumber,
 } from '../format';
 import { t } from '../i18n';
-import { COLORS } from './Icon';
+import { useStatsPalette } from '../theme';
 
-// Pieces of the Stats screen and the year overview (M87). Both follow the phone's light or dark
-// setting, like car mode; charts are bars and counts, each with a text a screen reader reads.
+// Pieces of the Stats screen and the year overview (M87). Both draw in the app's theme (M108);
+// charts are bars and counts, each with a text a screen reader reads.
 
-export type StatsPalette = {
-  background: string;
-  surface: string;
-  border: string;
-  text: string;
-  secondary: string;
-  /** Bars other than the current one: 3:1 or more on [surface]. */
-  bar: string;
-  /** The current day, week or month, and filled parts. */
-  accent: string;
-  /** Amber text that reads on [background] and [surface]. */
-  accentText: string;
-  /** Text on [accent]. */
-  onAccent: string;
-};
-
-const NIGHT: StatsPalette = {
-  background: COLORS.night,
-  surface: COLORS.raised,
-  border: COLORS.line,
-  text: COLORS.paper,
-  secondary: COLORS.soft,
-  bar: COLORS.muted,
-  accent: COLORS.amber,
-  accentText: COLORS.amber,
-  onAccent: COLORS.ink,
-};
-
-// Car mode's daylight colours: every text colour is 5:1 or more on the paper and the surface.
-const DAY: StatsPalette = {
-  background: COLORS.paper,
-  surface: '#e6e0d3',
-  border: '#a89f8c',
-  text: COLORS.ink,
-  secondary: '#5c574d',
-  bar: '#7d7466',
-  accent: '#7a4f00',
-  accentText: '#7a4f00',
-  onAccent: COLORS.paper,
-};
-
-export const useStatsPalette = (): StatsPalette => (useColorScheme() === 'light' ? DAY : NIGHT);
+export type { StatsPalette };
+export { useStatsPalette };
 
 /** Today as YYYY-MM-DD, moving on at midnight and when the app comes back. */
 export function useToday(): string {

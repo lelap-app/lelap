@@ -1,4 +1,5 @@
 import {
+  ACCENT_IDS,
   DUCK_PERCENT,
   getSettings,
   hasBigLibrary,
@@ -10,6 +11,7 @@ import {
   seedBigLibrary,
   type Settings,
   setSetting,
+  type ThemeChoice,
 } from '@lelap/core';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
@@ -54,8 +56,18 @@ import { closeSandbox } from '../src/sandbox';
 import { codeFingerprint } from '../src/addonSources';
 import { Pill } from '../src/components/Pill';
 import { RowLabel, TextButton, Toggle } from '../src/components/TextButton';
+import {
+  accentLabel,
+  accentSwatch,
+  exportTheme,
+  pickThemeFile,
+  setLook,
+  themeLabel,
+  useTheme,
+} from '../src/theme';
 
 const SKIP_SECONDS = [10, 15, 30, 45, 60];
+const THEME_CHOICES: ThemeChoice[] = ['night', 'dusk', 'day', 'sepia', 'contrast', 'system'];
 const BEDTIME_MINUTES = [15, 30, 45, 60];
 // Percent of the normal volume while the bedtime timer runs.
 const BEDTIME_VOLUMES = [100, 80, 60, 40];
@@ -67,10 +79,13 @@ function Choice({
   label,
   active,
   onPress,
+  swatch,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
+  /** A dot in this colour before the label, for an accent. */
+  swatch?: string;
 }) {
   return (
     <Pill
@@ -78,10 +93,83 @@ function Choice({
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       aria-selected={active}
-      className={`rounded-full border px-4 py-2 ${active ? 'border-amber bg-amber' : 'border-line'}`}
+      className={`flex-row items-center gap-2 rounded-full border px-4 py-2 ${active ? 'border-amber bg-amber' : 'border-line'}`}
     >
+      {swatch !== undefined && (
+        <View
+          aria-hidden
+          style={{ backgroundColor: swatch }}
+          className={`h-3 w-3 rounded-full ${active ? 'border border-ink' : ''}`}
+        />
+      )}
       <Text className={active ? 'text-ink' : 'text-soft'}>{label}</Text>
     </Pill>
+  );
+}
+
+/** Theme, accent, and themes as files (M108); for this profile, like the language. */
+function LookRows({
+  settings,
+  update,
+}: {
+  settings: Settings;
+  update: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
+}) {
+  const theme = useTheme();
+  const choices: ThemeChoice[] =
+    settings.customTheme === null ? THEME_CHOICES : [...THEME_CHOICES, 'custom'];
+  const openFile = async () => {
+    const custom = await pickThemeFile();
+    if (!custom) return;
+    update('customTheme', custom);
+    update('theme', 'custom');
+  };
+  return (
+    <View className="gap-3 border-b border-line py-4">
+      <Text className="text-base text-paper">{t('Theme')}</Text>
+      <View className="flex-row flex-wrap gap-2">
+        {choices.map((choice) => (
+          <Choice
+            key={choice}
+            label={themeLabel(choice, settings.customTheme)}
+            active={settings.theme === choice}
+            onPress={() => update('theme', choice)}
+          />
+        ))}
+      </View>
+      <Text className="text-sm text-muted">
+        {settings.theme === 'contrast'
+          ? t('Text at 7:1 or more, stronger borders, wider focus rings and no text over covers.')
+          : settings.theme === 'system'
+            ? t('Day when the phone is light, Night when it is dark.')
+            : t('For this profile only. Car mode stays light by day and dark at night.')}
+      </Text>
+      <Text className="pt-2 text-base text-paper">{t('Accent')}</Text>
+      {settings.theme === 'custom' ? (
+        <Text className="text-sm text-muted">
+          {t('A theme from a file brings its own accent.')}
+        </Text>
+      ) : (
+        <View className="flex-row flex-wrap gap-2">
+          {ACCENT_IDS.map((accent) => (
+            <Choice
+              key={accent}
+              label={accentLabel(accent)}
+              swatch={accentSwatch(theme, accent)}
+              active={settings.accent === accent}
+              onPress={() => update('accent', accent)}
+            />
+          ))}
+        </View>
+      )}
+      <View className="flex-row flex-wrap gap-2 pt-2">
+        <TextButton text={t('Save as a file')} onPress={() => void exportTheme()} />
+        <TextButton text={t('Open a theme file')} onPress={() => void openFile()} />
+      </View>
+      <Text className="text-sm text-muted">
+        {t('A theme file holds only a name and colours, so you can share a look.')}
+      </Text>
+    </View>
   );
 }
 
@@ -311,6 +399,7 @@ export default function SettingsScreen() {
     if (key.startsWith('bedtime')) void applyBedtime(next);
     if (key === 'headphoneBattery' || key === 'carModeOffer') void followDevices(next);
     if (key === 'language') setLanguage(next.language);
+    if (key === 'theme' || key === 'accent' || key === 'customTheme') setLook(next);
     // Home, the Player and the list of shortcuts read these again on the library's signal.
     if (key === 'homeSuggestions' || key === 'badgesOnCovers' || key === 'skipIntervalMs') {
       refresh();
@@ -388,6 +477,8 @@ export default function SettingsScreen() {
             ))}
           </View>
         </View>
+
+        <LookRows settings={settings} update={update} />
 
         {install && (
           <Row

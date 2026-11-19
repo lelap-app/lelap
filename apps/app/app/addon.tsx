@@ -9,6 +9,7 @@ import { confirmAddon } from '../src/addonInstall';
 import { useLibrary } from '../src/player';
 import { activeProfile } from '../src/profile';
 import { TextButton } from '../src/components/TextButton';
+import { COLORS } from '../src/components/Icon';
 
 /**
  * `lelap://addon?manifest=…` (and `/addon?manifest=…` on the web): where an add-on's configure page
@@ -52,7 +53,7 @@ export default function AddonLinkScreen() {
     <View className="flex-1 items-center justify-center gap-4 bg-night p-8">
       {message === null ? (
         <>
-          <ActivityIndicator color="#f5b041" />
+          <ActivityIndicator color={COLORS.amber} />
           <Text accessibilityLiveRegion="polite" className="text-soft">
             {t('Opening the add-on…')}
           </Text>

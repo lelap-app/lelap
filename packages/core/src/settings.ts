@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import type { Db } from './db';
 import { settings } from './schema';
+import { AccentChoiceSchema, CustomThemeSchema, ThemeChoiceSchema } from './themes';
 
 /** The volume during calls when it is lowered, in percent of normal; 20 was the old fixed level. */
 export const DUCK_PERCENT = { min: 20, max: 100, step: 10, default: 20 } as const;
@@ -84,6 +85,11 @@ export const SettingsSchema = z.object({
     .string()
     .regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/)
     .default('en'),
+  /** The look (M108), per profile like the language: a built-in theme, the system's, or a file's. */
+  theme: ThemeChoiceSchema.default('night'),
+  accent: AccentChoiceSchema.default('amber'),
+  /** The theme last read from a file, already checked for contrast; `theme: 'custom'` uses it. */
+  customTheme: CustomThemeSchema.nullable().default(null),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

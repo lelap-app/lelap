@@ -89,7 +89,7 @@ export default function SyncScreen() {
         )}
       </Text>
 
-      {busy && <ActivityIndicator color="#f5b041" />}
+      {busy && <ActivityIndicator color={COLORS.amber} />}
 
       {!member ? (
         <View className="gap-4">
@@ -116,7 +116,7 @@ export default function SyncScreen() {
               onChangeText={setName}
               placeholder={t('Name, such as Kitchen tablet')}
               accessibilityLabel={t('Name of this device')}
-              placeholderTextColor="#8d8a83"
+              placeholderTextColor={COLORS.muted}
               className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
             />
           </View>
@@ -143,7 +143,7 @@ export default function SyncScreen() {
                 onChangeText={setCode}
                 placeholder={'7KQM-2XPA-9HRT'}
                 accessibilityLabel={t('Code from another device')}
-                placeholderTextColor="#8d8a83"
+                placeholderTextColor={COLORS.muted}
                 autoCapitalize="characters"
                 autoCorrect={false}
                 className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 font-mono text-paper"

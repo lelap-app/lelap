@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { hint } from '../a11y';
+import { useTheme } from '../theme';
 import { COLORS } from './Icon';
 
 /**
@@ -66,15 +67,16 @@ export function TextButton({
 }
 
 // The web's switch is 40 by 20 in grey and teal: too small to hit and faint on the night theme.
-// There it is 48 by 24, with a muted track (5:1 on night) that turns amber when on.
-// `activeThumbColor` is the web's own prop for the thumb when on.
-const WEB_SWITCH: Partial<SwitchProps> & { activeThumbColor?: string } =
+// There it is 48 by 24, with a muted track (5:1 on night) that turns to the accent when on, and a
+// thumb in the background's colour on a light theme. `activeThumbColor` is the web's own prop for
+// the thumb when on.
+const webSwitch = (dark: boolean): Partial<SwitchProps> & { activeThumbColor?: string } =>
   Platform.OS === 'web'
     ? {
         style: { height: 24 },
         trackColor: { false: COLORS.muted, true: COLORS.amber },
-        thumbColor: COLORS.paper,
-        activeThumbColor: COLORS.paper,
+        thumbColor: dark ? COLORS.paper : COLORS.night,
+        activeThumbColor: dark ? COLORS.paper : COLORS.night,
       }
     : {};
 
@@ -82,9 +84,10 @@ const WEB_SWITCH: Partial<SwitchProps> & { activeThumbColor?: string } =
 export function Toggle(props: SwitchProps) {
   const row = useContext(RowLabel);
   const label = props.accessibilityLabel ?? row;
+  const { dark } = useTheme();
   return (
     <Switch
-      {...WEB_SWITCH}
+      {...webSwitch(dark)}
       {...props}
       {...(label === undefined ? {} : { accessibilityLabel: label })}
     />

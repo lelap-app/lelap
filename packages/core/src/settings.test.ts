@@ -35,6 +35,9 @@ describe('settings', () => {
       badgesOnCovers: true,
       libraryFinishedOpen: false,
       language: 'en',
+      theme: 'night',
+      accent: 'amber',
+      customTheme: null,
     });
   });
 

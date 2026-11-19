@@ -79,7 +79,7 @@ export function ProfilePicker({
             maxLength={4}
             placeholder={t('PIN')}
             accessibilityLabel={t('PIN')}
-            placeholderTextColor="#8d8a83"
+            placeholderTextColor={COLORS.muted}
             className="w-40 rounded-lg border border-line px-3 py-3 text-center text-2xl tracking-[12px] text-paper"
           />
           {wrong && (

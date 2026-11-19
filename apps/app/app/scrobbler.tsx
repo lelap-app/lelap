@@ -106,7 +106,7 @@ export default function ScrobblerScreen() {
                     accessibilityLabel={field.label}
                     {...hint(field.help)}
                     {...(field.placeholder === undefined ? {} : { placeholder: field.placeholder })}
-                    placeholderTextColor="#8d8a83"
+                    placeholderTextColor={COLORS.muted}
                     autoCapitalize="none"
                     autoCorrect={false}
                     secureTextEntry={field.type === 'password'}
@@ -134,7 +134,7 @@ export default function ScrobblerScreen() {
                 className="min-h-12 items-center justify-center self-start rounded-full bg-amber px-5 py-3 active:opacity-80"
               >
                 {saving ? (
-                  <ActivityIndicator color="#1a1305" />
+                  <ActivityIndicator color={COLORS.ink} />
                 ) : (
                   <Text className="font-semibold text-ink">{t('Check and save')}</Text>
                 )}

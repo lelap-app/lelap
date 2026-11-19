@@ -100,7 +100,7 @@ export default function ConvertScreen() {
               onChangeText={setFeedUrl}
               placeholder={t('Or paste its feed address')}
               accessibilityLabel={t('Feed address (RSS)')}
-              placeholderTextColor="#8d8a83"
+              placeholderTextColor={COLORS.muted}
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
@@ -122,11 +122,11 @@ export default function ConvertScreen() {
             onChangeText={setQuery}
             placeholder={t('Search podcasts')}
             accessibilityLabel={t('Search podcasts')}
-            placeholderTextColor="#8d8a83"
+            placeholderTextColor={COLORS.muted}
             autoCorrect={false}
             className="rounded-lg bg-raised px-4 py-3 text-base text-paper"
           />
-          {(busy || results.isFetching) && <ActivityIndicator color="#f5b041" />}
+          {(busy || results.isFetching) && <ActivityIndicator color={COLORS.amber} />}
           {results.isSuccess && results.data.length === 0 && (
             <Text className="text-muted">
               {t(

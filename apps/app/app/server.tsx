@@ -151,7 +151,7 @@ function Field({
         placeholder={placeholder}
         accessibilityLabel={label}
         {...hintProps(hint)}
-        placeholderTextColor="#8d8a83"
+        placeholderTextColor={COLORS.muted}
         autoCapitalize="none"
         autoCorrect={false}
         secureTextEntry={secret}
@@ -901,7 +901,7 @@ export default function ServerScreen() {
         className={`min-h-12 items-center justify-center rounded-full py-3 ${(testing ? ready : canConnect) ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
       >
         {busy ? (
-          <ActivityIndicator color="#1a1305" />
+          <ActivityIndicator color={COLORS.ink} />
         ) : (
           <Text
             className={`font-semibold ${(testing ? ready : canConnect) ? 'text-ink' : 'text-muted'}`}

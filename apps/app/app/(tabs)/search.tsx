@@ -12,6 +12,7 @@ import { useAskWhenVisible, useAvailability } from '../../src/availability';
 import { MetaListRow } from '../../src/components/MetaCard';
 import { openItem } from '../../src/navigation';
 import { useSearchFocus } from '../../src/shortcuts';
+import { COLORS } from '../../src/components/Icon';
 
 const DEBOUNCE_MS = 400;
 
@@ -91,7 +92,7 @@ export default function SearchScreen() {
         onChangeText={setText}
         placeholder={t('Title, author or podcast')}
         accessibilityLabel={t('Search')}
-        placeholderTextColor="#8d8a83"
+        placeholderTextColor={COLORS.muted}
         autoCorrect={false}
         returnKeyType="search"
         onSubmitEditing={() => setQuery(text.trim())}
@@ -112,7 +113,7 @@ export default function SearchScreen() {
           ListHeaderComponent={
             status !== null ? (
               <View className="flex-row items-center gap-2 px-4">
-                {pending && <ActivityIndicator size="small" color="#f5b041" />}
+                {pending && <ActivityIndicator size="small" color={COLORS.amber} />}
                 <Text accessibilityLiveRegion="polite" className="text-xs text-muted">
                   {status}
                 </Text>

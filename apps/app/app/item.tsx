@@ -283,7 +283,7 @@ export default function ItemScreen() {
       </View>
 
       {meta.isPending && !saved ? (
-        <ActivityIndicator color="#f5b041" className="pt-24" />
+        <ActivityIndicator color={COLORS.amber} className="pt-24" />
       ) : !item && !saved ? (
         <Text className="px-4 pt-24 text-center text-muted">
           {meta.isError
@@ -401,7 +401,7 @@ export default function ItemScreen() {
               className={`min-h-12 items-center justify-center rounded-full py-3 ${canPlay ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
             >
               {starting ? (
-                <ActivityIndicator color="#1a1305" />
+                <ActivityIndicator color={COLORS.ink} />
               ) : (
                 <Text className={`text-base font-semibold ${canPlay ? 'text-ink' : 'text-muted'}`}>
                   {looking ? t('Looking for audio…') : playLabel}

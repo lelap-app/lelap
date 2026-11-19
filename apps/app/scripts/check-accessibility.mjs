@@ -1,7 +1,8 @@
 // Fails when a control has no accessible name, role or state, when a screen has no heading, when
 // an error appears without being announced, when text is dimmed or boxed into a height it
 // outgrows at font scale 2, when layout is written with left/right instead of start/end, or when
-// a colour pair of the theme (car mode's day and night included) falls below WCAG AA.
+// a colour pair of any theme with any accent (car mode's and the stats' included) falls below
+// WCAG AA, or when a colour is fixed where it should follow the theme.
 // It reads the source, so it works without a phone; TalkBack itself is still a phone check.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -9,6 +10,19 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import ts from 'typescript';
+
+// The themes themselves (M108), loaded with Node's type stripping: the file imports only zod.
+import {
+  ACCENT_IDS,
+  blend,
+  builtInTheme,
+  carTheme,
+  contrast,
+  rgbTriplet,
+  THEME_IDS,
+  themeProblems,
+  TOKENS,
+} from '../../../packages/core/src/themes.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const require = createRequire(import.meta.url);
@@ -22,26 +36,16 @@ const files = (dir) =>
 
 const problems = [];
 
-// WCAG 2.1 contrast.
-const channel = (v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
-const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-const luminance = (hex) => {
-  const [r, g, b] = rgb(hex).map((v) => channel(v / 255));
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
-const contrast = (a, b) => {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
-};
-/** `fg` drawn at `alpha` over `bg`. */
-const blend = (fg, bg, alpha) =>
-  '#' +
-  rgb(fg)
-    .map((v, i) => Math.round(v * alpha + rgb(bg)[i] * (1 - alpha)))
-    .map((v) => v.toString(16).padStart(2, '0'))
-    .join('');
-const { colors } = require('../tailwind.config.js').theme.extend;
-const THEME = new Set(Object.values(colors).map((c) => c.toLowerCase()));
+// Every built-in theme with every accent; the night theme with amber is the default.
+const ALL_THEMES = THEME_IDS.flatMap((id) => ACCENT_IDS.map((accent) => builtInTheme(id, accent)));
+const { colors } = builtInTheme('night', 'amber');
+// A theme colour written as a hex stays put when the theme changes; read COLORS instead. The
+// night theme comes last, so a hex several themes share is named by its night role.
+const THEME_HEX = new Map(
+  [...ALL_THEMES]
+    .reverse()
+    .flatMap((theme) => Object.entries(theme.colors).map(([t, hex]) => [hex, t])),
+);
 
 // Controls a screen reader must announce with a name and what they are.
 const PRESSABLE = new Set(['Pressable', 'PressScale', 'TouchableOpacity', 'TouchableHighlight']);
@@ -149,39 +153,7 @@ const enclosedBy = (node, names) => {
 const routes = join(root, 'app');
 const sources = [...files(routes), ...files(join(root, 'src'))];
 
-// Palettes typed `…Palette` (car mode's and its stats' day and night), read from the source.
-const palettes = {};
-for (const path of ['app/car.tsx', 'src/components/Stats.tsx']) {
-  const sf = ts.createSourceFile(
-    path,
-    readFileSync(join(root, path), 'utf8'),
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TSX,
-  );
-  sf.forEachChild((node) => {
-    if (!ts.isVariableStatement(node)) return;
-    for (const d of node.declarationList.declarations) {
-      if (!/Palette$/.test(d.type?.getText() ?? '') || !d.initializer) continue;
-      const palette = {};
-      for (const p of d.initializer.properties) {
-        const value = p.initializer.getText();
-        palette[p.name.getText()] = value.startsWith('COLORS.')
-          ? colors[value.slice('COLORS.'.length)]
-          : value.slice(1, -1);
-      }
-      palettes[`${path} ${d.name.getText()}`] = palette;
-    }
-  });
-}
-if (Object.keys(palettes).length < 4) problems.push('Could not read the car and stats palettes');
-const checkedColours = new Set(
-  [
-    ...THEME,
-    ...EXTRA.flatMap(([fg, bg]) => [fg, bg]),
-    ...Object.values(palettes).flatMap((p) => Object.values(p)),
-  ].map((c) => c.toLowerCase()),
-);
+const checkedColours = new Set(EXTRA.flatMap(([fg, bg]) => [fg, bg]).map((c) => c.toLowerCase()));
 
 // Components that render a heading, so a screen made of one has its heading. A sheet's title is
 // the sheet's heading, not the screen's.
@@ -205,6 +177,17 @@ for (const file of sources) {
   const kept = (line, mark = KEEP) =>
     (lines[line - 1] ?? '').includes(mark) || lines[line].includes(mark);
   const art = source.includes(ILLUSTRATION);
+  const dev = /[/\\]dev[/\\]/.test(file);
+
+  // COLORS changes with the theme, so a constant made from it outside a component keeps the old
+  // colour; read it while rendering, or make the constant a function.
+  const outside = (node, inFunction) => {
+    const now = inFunction || ts.isFunctionLike(node);
+    if (!now && ts.isPropertyAccessExpression(node) && node.expression.getText() === 'COLORS')
+      problems.push(`${where(node).at}: COLORS read outside a component keeps an old theme`);
+    ts.forEachChild(node, (child) => outside(child, now));
+  };
+  if (!/Icon\.tsx$/.test(file)) outside(sf, false);
 
   // A screen starts with a heading, so TalkBack's heading navigation lands on it.
   const route = file.startsWith(routes) && !/_layout|[/\\]dev[/\\]/.test(file);
@@ -292,9 +275,10 @@ for (const file of sources) {
       // Dimming with opacity takes the text below AA; dim with a colour (text-muted) instead.
       const dim = /(?:^|[\s'"`])opacity-(\d+)(?=[\s'"`]|$)/.exec(cls);
       if (dim && hasText(element)) {
-        const ratio = contrast(
-          blend(colors.muted, colors.night, Number(dim[1]) / 100),
-          colors.night,
+        const ratio = Math.min(
+          ...ALL_THEMES.map(({ colors: c }) =>
+            contrast(blend(c.muted, c.night, Number(dim[1]) / 100), c.night),
+          ),
         );
         if (ratio < 4.5)
           problems.push(
@@ -362,7 +346,13 @@ for (const file of sources) {
     // string or in a class such as text-[#f7d9a0].
     if ((ts.isStringLiteralLike(node) || ts.isTemplateLiteralToken(node)) && !art) {
       for (const [hex] of node.text.matchAll(/#[0-9a-f]{6}\b/gi)) {
-        if (!checkedColours.has(hex.toLowerCase()))
+        const token = THEME_HEX.get(hex.toLowerCase());
+        if (token !== undefined) {
+          if (!dev)
+            problems.push(
+              `${where(node).at}: colour ${hex} stays put when the theme changes; use COLORS.${token} or a class`,
+            );
+        } else if (!checkedColours.has(hex.toLowerCase()))
           problems.push(
             `${where(node).at}: colour ${hex} is not in a checked pair; add it to EXTRA`,
           );
@@ -373,52 +363,33 @@ for (const file of sources) {
   visit(sf);
 }
 
-// The theme's text colours on the backgrounds they are used on.
-const TEXT = ['paper', 'soft', 'muted', 'amber', 'danger', 'ok'];
-const pairs = [
-  ...TEXT.flatMap((fg) => ['night', 'raised'].map((bg) => [fg, bg, 4.5])),
-  ['ink', 'amber', 4.5],
-  ['night', 'amber', 4.5],
-  // Icons and outlines of controls need 3:1 (WCAG 1.4.11).
-  ['muted', 'line', 3],
-];
-for (const [fg, bg, min] of pairs) {
-  const ratio = contrast(colors[fg], colors[bg]);
-  if (ratio < min)
-    problems.push(`Contrast ${fg} on ${bg} is ${ratio.toFixed(2)}:1, below ${min}:1`);
-}
+// Every theme with every accent: text on the backgrounds, buttons, borders, and the palettes of
+// car mode (by day and at night) and the stats. The pairs are in packages/core/src/themes.ts.
+for (const id of THEME_IDS)
+  for (const accent of ACCENT_IDS) {
+    const theme = builtInTheme(id, accent);
+    for (const problem of themeProblems(theme)) problems.push(`${id} with ${accent}: ${problem}`);
+    for (const light of [true, false])
+      for (const problem of themeProblems(carTheme(theme, accent, light)))
+        problems.push(
+          `Car mode ${light ? 'by day' : 'at night'} on ${id} with ${accent}: ${problem}`,
+        );
+  }
 
-// Icon colours in code must be the same as the Tailwind theme.
-const iconColours = readFileSync(join(root, 'src/components/Icon.tsx'), 'utf8');
-for (const [name, hex] of Object.entries(colors)) {
-  if (!new RegExp(`\\b${name}: '${hex}'`, 'i').test(iconColours))
-    problems.push(`COLORS.${name} in Icon.tsx differs from tailwind.config.js (${hex})`);
-}
+// Tailwind's colours and the defaults in global.css are the theme's, by the same names.
+const tailwind = Object.keys(require('../tailwind.config.js').theme.extend.colors);
+if (tailwind.join() !== TOKENS.join())
+  problems.push(`tailwind.config.js colours (${tailwind.join()}) differ from TOKENS in themes.ts`);
+const css = readFileSync(join(root, 'global.css'), 'utf8');
+for (const token of TOKENS)
+  if (!css.includes(`--color-${token}: ${rgbTriplet(colors[token])};`))
+    problems.push(`global.css: --color-${token} is not the night theme's ${colors[token]}`);
 
 // Colours outside the theme on what they are drawn on.
 for (const [fg, bg, min] of EXTRA) {
   const ratio = contrast(fg, bg);
   if (ratio < min)
     problems.push(`Contrast ${fg} on ${bg} is ${ratio.toFixed(2)}:1, below ${min}:1`);
-}
-
-// The day and night palettes of car mode and its stats: text on the screen and on the buttons,
-// bars on their track. A disabled colour needs no ratio (WCAG 1.4.3 leaves inactive controls out).
-const PALETTE_PAIRS = [
-  ...['text', 'secondary', 'accentText'].flatMap((fg) =>
-    ['background', 'surface'].map((bg) => [fg, bg, 4.5]),
-  ),
-  ['onAccent', 'accent', 4.5],
-  ['progress', 'track', 3],
-  ['bar', 'surface', 3],
-];
-for (const [name, p] of Object.entries(palettes)) {
-  for (const [fg, bg, min] of PALETTE_PAIRS) {
-    if (!(fg in p) || !(bg in p)) continue;
-    const ratio = contrast(p[fg], p[bg]);
-    if (ratio < min)
-      problems.push(`${name}: ${fg} on ${bg} is ${ratio.toFixed(2)}:1, below ${min}:1`);
-  }
 }
 
 if (problems.length > 0) {
@@ -428,5 +399,5 @@ if (problems.length > 0) {
 }
 console.log(
   'Accessibility: every control is named with its state, screens have headings, errors are ' +
-    'announced, text fits at font scale 2, layouts use start/end, contrast passes AA.',
+    'announced, text fits at font scale 2, layouts use start/end, every theme passes AA.',
 );

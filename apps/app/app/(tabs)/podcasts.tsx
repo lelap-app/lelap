@@ -23,6 +23,7 @@ import { exportOpml, importOpml, refreshPodcasts, subscribeToFeed } from '../../
 import { readPickedText, shareText } from '../../src/platform/files';
 import { activeProfile, profileId } from '../../src/profile';
 import { TextButton } from '../../src/components/TextButton';
+import { COLORS } from '../../src/components/Icon';
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -87,7 +88,7 @@ export default function PodcastsScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => void onRefresh()}
-          tintColor="#f5b041"
+          tintColor={COLORS.amber}
         />
       }
       ListHeaderComponent={
@@ -107,7 +108,7 @@ export default function PodcastsScreen() {
                   onChangeText={setFeedUrl}
                   placeholder={t('Feed address (RSS)')}
                   accessibilityLabel={t('Feed address (RSS)')}
-                  placeholderTextColor="#8d8a83"
+                  placeholderTextColor={COLORS.muted}
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="url"
@@ -122,7 +123,7 @@ export default function PodcastsScreen() {
                   className="min-h-12 min-w-12 items-center justify-center px-1"
                 >
                   {busy ? (
-                    <ActivityIndicator color="#f5b041" />
+                    <ActivityIndicator color={COLORS.amber} />
                   ) : (
                     <Text className={feedUrl.trim() === '' ? 'text-muted' : 'text-amber'}>
                       {t('Add')}
