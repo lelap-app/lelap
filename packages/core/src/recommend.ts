@@ -325,3 +325,57 @@ export function suggestionRows(
     authorListening: authorListening(db, profileId),
   });
 }
+
+/**
+ * The cover addresses Home's rows showed on screen this session (M118). In memory only: never
+ * saved, never synced, gone when the app closes. A suggestion tile shows a cover only from here
+ * (or among the first items Home draws), so it fetches nothing Home didn't fetch already.
+ */
+export class SessionCovers {
+  private readonly seen = new Set<string>();
+  private readonly listeners = new Set<() => void>();
+
+  /** Adds the covers of tiles that came on screen; listeners hear only of new addresses. */
+  add(metas: Iterable<Pick<MetaPreview, 'cover'>>): void {
+    let added = false;
+    for (const { cover } of metas) {
+      if (!cover || this.seen.has(cover)) continue;
+      this.seen.add(cover);
+      added = true;
+    }
+    if (!added) return;
+    for (const listener of this.listeners) listener();
+  }
+
+  has(address: string): boolean {
+    return this.seen.has(address);
+  }
+
+  /** How many addresses there are; it grows whenever one is added. */
+  get size(): number {
+    return this.seen.size;
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+}
+
+/**
+ * A suggestion as its tile shows it: with its cover when Home already drew that address, else
+ * without, so the tile shows the title's letter and loads no picture. `firstDrawn`: the item is
+ * among the first a Home row draws, scrolled or not.
+ */
+export function suggestionTile(
+  meta: MetaPreview,
+  covers: Pick<SessionCovers, 'has'>,
+  firstDrawn: boolean,
+): MetaPreview {
+  if (!meta.cover || firstDrawn || covers.has(meta.cover)) return meta;
+  const rest = { ...meta };
+  delete rest.cover;
+  return rest;
+}

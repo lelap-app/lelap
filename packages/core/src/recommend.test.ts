@@ -17,7 +17,9 @@ import {
   recommendationCatalogs,
   recommendationSeeds,
   type Seed,
+  SessionCovers,
   suggestionRows,
+  suggestionTile,
 } from './recommend';
 import { books, downloads } from './schema';
 import { recordListening } from './stats';
@@ -323,5 +325,53 @@ describe('what suggestions ask add-ons for', () => {
       expect(home).toContain(url);
       expect(url).not.toMatch(/scarlet|doyle|persuasion|austen|ol:9|ol:8/i);
     }
+  });
+});
+
+describe('covers on suggestion tiles', () => {
+  const withCover = (id: string, n: number): MetaPreview => ({
+    ...meta(id, `Book ${n}`, 'Jane Austen'),
+    cover: `https://covers.example/${n}.jpg`,
+  });
+  const page = Array.from({ length: 30 }, (_, n) => withCover(`ol:${n}`, n));
+  const at = (n: number) => page[n] as MetaPreview;
+
+  it('shows a cover only from an address Home showed on screen this session', () => {
+    const covers = new SessionCovers();
+    // Home's row showed tiles 0 to 2, then the listener scrolled to 14 and 15.
+    covers.add(page.slice(0, 3));
+    covers.add(page.slice(14, 16));
+    expect(suggestionTile(at(15), covers, false).cover).toBe(at(15).cover);
+    expect(suggestionTile(at(25), covers, false)).not.toHaveProperty('cover');
+    // Among the first items a row draws, scrolled or not, as before.
+    expect(suggestionTile(at(25), covers, true).cover).toBe(at(25).cover);
+  });
+
+  it('asks for no address Home did not ask for, whatever the profile finished', () => {
+    const covers = new SessionCovers();
+    const shownByHome = page.slice(0, 12).map((m) => m.cover);
+    covers.add(page.slice(0, 12));
+    // Suggestions are picked from the same pages: whichever the profile's books pick, every
+    // cover a tile shows is one Home's rows drew.
+    const picks = [page.slice(5, 20), page.slice(20), page.filter((_, n) => n % 3 === 0)];
+    for (const pick of picks) {
+      const asked = pick.flatMap((m) => suggestionTile(m, covers, false).cover ?? []);
+      for (const address of asked) expect(shownByHome).toContain(address);
+    }
+  });
+
+  it('is kept in memory only, and tells its listeners of new addresses', () => {
+    const covers = new SessionCovers();
+    let heard = 0;
+    const stop = covers.subscribe(() => heard++);
+    covers.add([at(0), { cover: undefined }]);
+    covers.add([at(0)]);
+    expect(heard).toBe(1);
+    expect(covers.size).toBe(1);
+    stop();
+    covers.add([at(1)]);
+    expect(heard).toBe(1);
+    // A new session, such as the app opened again, starts with none: nothing is saved.
+    expect(new SessionCovers().has(at(0).cover ?? '')).toBe(false);
   });
 });

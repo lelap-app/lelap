@@ -393,6 +393,7 @@ export async function checkAddon(input: string, options: CheckOptions = {}): Pro
   inspectCaching(manifestAnswer);
 
   if (manifest.sandbox) {
+    checkSettingsSense(manifest, manifestAnswer.url, report);
     notes.push(
       'This manifest is for an add-on inside the app, which runs as one JavaScript file on the phone. The check covers add-ons on a server.',
     );
@@ -973,6 +974,49 @@ function checkManifestSense(
     if (!anyResource)
       report('warning', 'manifest', url, `Lists type ${type}, but no resource takes it.`, 'types');
   }
+}
+
+/** Checks the settings form of an add-on inside the app: what schemas allow but the app never uses. */
+function checkSettingsSense(
+  manifest: Manifest,
+  url: string,
+  report: (
+    level: CheckLevel,
+    kind: CheckKind,
+    url: string,
+    message: string,
+    field?: string,
+  ) => void,
+) {
+  const fields = manifest.settings ?? [];
+  const lists = manifest.resources.some((r) => (typeof r === 'string' ? r : r.name) === 'settings');
+  const choices = fields.filter((f) => f.type === 'choice');
+  if (choices.length > 0 && (manifest.protocolVersion ?? 1) < 11)
+    report(
+      'warning',
+      'manifest',
+      url,
+      'Choice settings came with revision 11, so declare protocolVersion 11: an app before it refuses this manifest.',
+      'protocolVersion',
+    );
+  if (lists && !choices.some((f) => f.options === undefined))
+    report(
+      'warning',
+      'manifest',
+      url,
+      'The app asks the settings resource only for choice fields without their own options, and this form has none.',
+      'resources',
+    );
+  fields.forEach((field, index) => {
+    if (field.type === 'choice' && field.options?.length === 1 && field.multiple !== true)
+      report(
+        'warning',
+        'manifest',
+        url,
+        'A choice with one option leaves nothing to choose.',
+        `settings[${index}].options`,
+      );
+  });
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;

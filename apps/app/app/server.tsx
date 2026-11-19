@@ -52,7 +52,8 @@ import {
   listAddonLibrary,
   type SourceKind,
 } from '../src/addonSources';
-import { closeSandbox } from '../src/sandbox';
+import { callAddonSettings, closeSandbox } from '../src/sandbox';
+import { AddonChoice, useChoiceOptions } from '../src/components/AddonChoice';
 import { AddonSignin } from '../src/components/AddonSignin';
 import { TextButton, Toggle } from '../src/components/TextButton';
 import { askLocalNetwork, withLocalNetworkCause } from '../src/localNetwork';
@@ -264,6 +265,15 @@ export default function ServerScreen() {
   const [accessKeyId, setAccessKeyId] = useState(s3?.accessKeyId ?? '');
   const [secretAccessKey, setSecret] = useState('');
   const locked = existing !== null;
+  // Choice fields' options (revision 11), asked in the sandbox that checks the server.
+  const choices = useChoiceOptions(chosenSource?.manifest ?? null, null, (settings) =>
+    callAddonSettings({
+      addonUrl: chosenSource?.url ?? '',
+      sandboxId: `options-${serverKey}`,
+      hosts: chosenSource ? addonSourceHosts(chosenSource.manifest, settings) : [],
+      settings: { ...(addonRoot ? addonSettings(addonRoot) : {}), ...settings },
+    }),
+  );
 
   // Whether the address in the form is on the local network (Android 17 asks for access first).
   const formIsLocal = (): boolean => {
@@ -592,15 +602,31 @@ export default function ServerScreen() {
                 sandboxId={checkSandbox}
                 values={values}
                 {...(addonRoot ? { known: addonSettings(addonRoot) } : {})}
-                onDone={(result) =>
-                  setValues((current) =>
-                    applySignin(chosenSource.manifest.settings ?? [], current, result, {
-                      sealedOnly: locked,
-                      // Only add-ons that come with the app fill in addresses it may reach.
-                      hosts: chosenSource.bundled,
-                    }),
-                  )
-                }
+                onDone={(result) => {
+                  const next = applySignin(chosenSource.manifest.settings ?? [], values, result, {
+                    sealedOnly: locked,
+                    // Only add-ons that come with the app fill in addresses it may reach.
+                    hosts: chosenSource.bundled,
+                  });
+                  setValues(next);
+                  // Signed in, an add-on that comes with the app can list what there is to pick,
+                  // such as Plex's libraries; it filled in the addresses to ask.
+                  if (!locked && chosenSource.bundled) void choices.load(next);
+                }}
+              />
+            ) : field.type === 'choice' ? (
+              <AddonChoice
+                key={field.key}
+                field={field}
+                options={choices.options[field.key] ?? []}
+                value={values[field.key] ?? ''}
+                onChange={(v) => setValues((current) => ({ ...current, [field.key]: v }))}
+                locked={locked}
+                loading={choices.loading}
+                error={choices.error}
+                {...(choices.asks && field.options === undefined
+                  ? { onLoad: () => void choices.load(values) }
+                  : {})}
               />
             ) : (
               <Field

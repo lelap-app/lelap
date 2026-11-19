@@ -27,7 +27,8 @@ const MIN_WAIT_MS = 60_000;
 // A check that fails once, such as on a moment without network, doesn't end the sign-in.
 const MAX_FAILURES = 3;
 
-function said(body: unknown, status: number): string {
+/** The add-on's own words for a failed call, or its status. */
+export function said(body: unknown, status: number): string {
   if (typeof body === 'object' && body !== null && 'error' in body) return String(body.error);
   return t('The add-on answered {status}.', { status });
 }

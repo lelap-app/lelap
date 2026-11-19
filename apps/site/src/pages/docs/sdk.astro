@@ -440,7 +440,12 @@ const toc: [string, string][] = [
     carry <code>settings</code>, new values for the add-on’s own fields, and the <code>locate</code>{' '}
     resource (<code>LocateRequest</code>, <code>LocateResponse</code>, <code>locatePath</code>,{' '}
     <code>offersLocate</code>) says where a book’s files stream from just before it plays. See{' '}
-    <a href="/docs/protocol/#locate">Locating files</a>.
+    <a href="/docs/protocol/#locate">Locating files</a>. A setting of type <code>choice</code> is a
+    list to pick from, with its own <code>options</code> or those the <code>settings</code> resource
+    lists (<code>SettingsOptions</code>, <code>settingsPath</code>,{' '}
+    <code>offersSettingOptions</code>, <code>choiceOptions</code>); <code>choiceValues</code> splits
+    a field where several are picked. See{' '}
+    <a href="/docs/protocol/#choices">Choices from the server</a>.
   </p>
 
   <h2 id="errors">Errors</h2>
