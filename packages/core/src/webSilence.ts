@@ -39,6 +39,7 @@ export function quietWindows(
 ): boolean[] {
   // Windows start at exact times: 22.05 kHz has no whole number of samples in 10 ms.
   const perWindow = (sampleRate * rules.windowMs) / 1000;
+  if (!(perWindow >= 1)) return [];
   const length = Math.min(...channels.map((c) => c.length));
   const threshold = 10 ** (rules.thresholdDb / 20);
   const out: boolean[] = [];

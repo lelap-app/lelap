@@ -220,7 +220,7 @@ export function SoundSheet({
           {Platform.OS === 'android'
             ? t('Sound effects play on this phone. Speakers you cast to play without them.')
             : t(
-                'In the browser, skip silence works on MP3 files with a constant bitrate, such as LibriVox’s. A file from a host that doesn’t let the browser read it plays without the effects.',
+                'In the browser, skip silence works on MP3 files with a constant bitrate, such as LibriVox’s, and on M4B, Opus, Ogg and FLAC files the browser can decode. A file from a host that doesn’t let the browser read it plays without the effects.',
               )}
         </Text>
       </ScrollView>
