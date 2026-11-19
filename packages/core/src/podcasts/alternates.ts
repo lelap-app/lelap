@@ -182,6 +182,20 @@ function episodeFilesOfBook(db: Db, bookId: string) {
   return episode ? { podcastId: episode.podcastId, files: audioFilesOf(episode) } : null;
 }
 
+function audioChoiceOf(db: Db, profileId: string, podcastId: string): string | null {
+  return (
+    db
+      .select({ audioChoice: subscriptions.audioChoice })
+      .from(subscriptions)
+      .where(and(eq(subscriptions.profileId, profileId), eq(subscriptions.podcastId, podcastId)))
+      .get()?.audioChoice ?? null
+  );
+}
+
+const isDownload = (db: Db, bookId: string) =>
+  db.select({ id: downloads.bookId }).from(downloads).where(eq(downloads.bookId, bookId)).get() !==
+  undefined;
+
 /**
  * Points an episode's book at the file its show's choice and the connection call for. The book
  * keeps its ID and its file its location, so the place, bookmarks and what syncs stay. A book
@@ -196,18 +210,10 @@ export function chooseEpisodeFile(
 ): boolean {
   const found = episodeFilesOfBook(db, bookId);
   if (!found) return false;
-  const choice =
-    db
-      .select({ audioChoice: subscriptions.audioChoice })
-      .from(subscriptions)
-      .where(
-        and(eq(subscriptions.profileId, profileId), eq(subscriptions.podcastId, found.podcastId)),
-      )
-      .get()?.audioChoice ?? null;
+  const choice = audioChoiceOf(db, profileId, found.podcastId);
   const pick = pickAudioFile(found.files, choice, metered);
   if (!pick) return false;
-  if (db.select({ id: downloads.bookId }).from(downloads).where(eq(downloads.bookId, bookId)).get())
-    return false;
+  if (isDownload(db, bookId)) return false;
   const files = db
     .select({ id: bookFiles.id, uri: bookFiles.uri })
     .from(bookFiles)
@@ -225,4 +231,24 @@ export function chooseEpisodeFile(
 /** The SRI hash the feed gives for the file at `url` of an episode's book, if any. */
 export function episodeFileIntegrity(db: Db, bookId: string, url: string): string | null {
   return episodeFilesOfBook(db, bookId)?.files.find((f) => f.url === url)?.integrity ?? null;
+}
+
+/**
+ * The two files an automatic choice moves between, for a streamed episode: the feed's own and the
+ * smallest. The playback service picks one by the connection when it starts the episode by
+ * itself, for Up Next or the car with the app closed (M121). Null when the show has a fixed
+ * choice, the episode has a download, or there is only one file to play.
+ */
+export function automaticEpisodeFiles(
+  db: Db,
+  profileId: string,
+  bookId: string,
+): { unmetered: string; metered: string } | null {
+  const found = episodeFilesOfBook(db, bookId);
+  if (!found || audioChoiceOf(db, profileId, found.podcastId) !== null) return null;
+  const unmetered = pickAudioFile(found.files, null, false);
+  const metered = pickAudioFile(found.files, null, true);
+  if (!unmetered || !metered || unmetered.url === metered.url) return null;
+  if (isDownload(db, bookId)) return null;
+  return { unmetered: unmetered.url, metered: metered.url };
 }

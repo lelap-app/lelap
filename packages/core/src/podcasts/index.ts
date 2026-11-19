@@ -1,4 +1,5 @@
 export * from './alternates';
+export * from './integrity';
 export * from './folder';
 export * from './opml';
 export * from './repository';

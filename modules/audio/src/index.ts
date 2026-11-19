@@ -9,8 +9,18 @@ export type BookLoad = {
   /**
    * In play order. `location` identifies the file in the library. `name` is the file's own name,
    * whose extension tells a cast receiver the type when the address has none (Subsonic).
+   * `auto`: an episode on its show's automatic file, streamed: the service plays `metered` on
+   * mobile data and `unmetered` otherwise, also when it starts the episode with the app closed
+   * (M121).
    */
-  files: { uri: string; location: string; title: string; durationMs: number; name?: string }[];
+  files: {
+    uri: string;
+    location: string;
+    title: string;
+    durationMs: number;
+    name?: string;
+    auto?: { unmetered: string; metered: string };
+  }[];
   /** On the whole-book timeline. */
   chapters: { title: string; startMs: number }[];
   startIndex: number;

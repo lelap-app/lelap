@@ -11,6 +11,8 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -148,7 +150,10 @@ class PlaybackService : MediaLibraryService() {
       if (sameFiles) return
       // Only this book's own files get its server's login, never another host.
       headersByUri = value?.takeIf { it.headers.isNotEmpty() }
-        ?.let { book -> book.files.associate { file -> file.uri to book.headers } }
+        ?.let { book ->
+          book.files.flatMap { file -> listOfNotNull(file.uri, file.auto?.unmetered, file.auto?.metered) }
+            .associateWith { book.headers }
+        }
         .orEmpty()
     }
 
@@ -561,6 +566,9 @@ class PlaybackService : MediaLibraryService() {
         switchFiles(load, autoplay)
         return
       }
+      // The same addresses with another automatic pair (M121): kept for the next rebuild of the
+      // items, which picks by the connection then.
+      if (loaded.files != playlist.files) current = (current ?: loaded).copy(files = playlist.files)
       // A changed intro or outro for the show, or chapters found from silences, apply to the
       // book that is loaded, at its live place.
       // The book's or show's own sound changed: it applies at once, at the live place.
@@ -737,9 +745,24 @@ class PlaybackService : MediaLibraryService() {
     return itemsOf(playlist)
   }
 
-  private fun itemsOf(playlist: BookPlaylist): List<MediaItem> = playlist.files.mapIndexed { index, file ->
-    val uri = Uri.parse(file.uri)
-    MediaItem.Builder()
+  private fun itemsOf(playlist: BookPlaylist): List<MediaItem> {
+    val mobileData = onMobileData()
+    return playlist.files.mapIndexed { index, file -> itemOf(playlist, index, file, mobileData) }
+  }
+
+  /** Mobile data, as the app's `expo-network` sees it, so both pick the same episode file. */
+  private fun onMobileData(): Boolean = try {
+    val connectivity = getSystemService(ConnectivityManager::class.java)
+    connectivity?.getNetworkCapabilities(connectivity.activeNetwork)
+      ?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true
+  } catch (e: SecurityException) {
+    false
+  }
+
+  private fun itemOf(playlist: BookPlaylist, index: Int, file: BookFile, mobileData: Boolean): MediaItem {
+    // An automatic episode file follows the connection now, also with the app closed (M121).
+    val uri = Uri.parse(EpisodeFiles.uriFor(file, mobileData))
+    return MediaItem.Builder()
       .setMediaId(file.location)
       .setUri(uri)
       .setRequestMetadata(MediaItem.RequestMetadata.Builder().setMediaUri(uri).build())
@@ -1418,7 +1441,7 @@ class PlaybackService : MediaLibraryService() {
     val book = current ?: return null
     val file = book.files.getOrNull(index) ?: return null
     return CastRequest(
-      uri = file.uri,
+      uri = EpisodeFiles.uriFor(file, onMobileData()),
       title = if (book.files.size > 1) file.title else book.title,
       artist = book.author,
       album = book.title,
