@@ -22,7 +22,8 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Keeps a short history of each book's plays, pauses, skips and jumps on the device. After a long
   jump, one tap goes back; on Android the notification and Android Auto offer it too.
 - Boosts voices, skips silence (showing the time saved) and keeps loudness even, per book or per
-  show. In the browser, skip silence works on constant-bitrate MP3 files such as LibriVox's, and on M4B, Opus, Ogg and FLAC files.
+  show. In the browser, skip silence works on constant-bitrate MP3 files such as LibriVox's, on any MP3 in
+  Chrome, and on M4B, Opus, Ogg and FLAC files.
 - Opens the library in three groups: in progress, not started and finished.
 - Shows your listening: time today, this week and this year, streaks, finished books and a year
   in sound to share as an image.
@@ -38,11 +39,15 @@ and on the web from one codebase, and every server piece can be self-hosted with
   Navidrome (or other Subsonic) or Audiobookshelf server; an OPDS catalog such as Calibre's
   content server; SMB and SFTP shares on Android; and
   add-ons: LibriVox, Open Library, Podcast Index, RSS feeds, the Internet Archive, complete Open
-  Yale Courses lectures, or add-ons you write yourself.
+  Yale Courses lectures with Yale's transcripts, or add-ons you write yourself. A server can have a
+  home and an away address, and the app uses whichever answers.
+- Plays live streams an add-on offers, HLS included, with the song or programme on air, and saves
+  no place in them.
 - Takes covers from the tags or from an image beside the audio, such as `cover.jpg`.
 - Shows Hardcover's trending books and your Hardcover lists as catalog rows, once you sign in to
   Hardcover or paste your own token, and keeps your Hardcover shelves and ratings and a gPodder
-  server up to date as you listen. Both are offered in Settings → Library and sources → Add-ons.
+  server up to date as you listen. Shows your public BookWyrm shelves from your own instance. All
+  three are offered in Settings → Library and sources → Add-ons.
 - Downloads to an SD card if you like (Android), and lists your own copy first on a book's
   catalog page.
 - Finds chapters at the long silences of a book without any (Android), and skips a podcast's
@@ -50,11 +55,13 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Shares a place, a bookmark or the last 30 seconds as a link; whoever opens it plays their own
   copy. Shows a podcast's chapter pictures and soundbites.
 - Casts to Sonos, DLNA, Google Cast and FCast speakers without Google's SDK, to one speaker or
-  several at once, with the lock screen, headphones and sleep timer controlling them. Speakers you
+  several at once, with your sound settings, and the lock screen, headphones and sleep timer
+  controlling them. Speakers you
   played on together come back as one choice. The web app casts through the browser: Google Cast
   in Chrome, AirPlay in Safari.
 - Has a car mode with a large cover and big buttons, upright or sideways in a holder, and works in
-  Android Auto with the covers on your phone and your lists.
+  Android Auto with the covers on your phone and your lists. Ask the Assistant or Android Auto to
+  play a book or an episode by name.
 - Comes in five themes (Night, Dusk, Day, Sepia and High contrast) with six accent colours, or
   follows the phone's light or dark setting.
 - Works with TalkBack and at the largest text size, and uses the width of tablets, foldables and laptops.
