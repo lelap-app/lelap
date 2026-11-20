@@ -1,0 +1,15 @@
+{
+  "id": "https://books.example/user/reader/shelf/read",
+  "type": "Shelf",
+  "totalItems": 0,
+  "first": "https://books.example/user/reader/shelf/read?page=1",
+  "last": "https://books.example/user/reader/shelf/read?page=1",
+  "name": "Read",
+  "owner": "https://books.example/user/reader",
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    {
+      "Hashtag": "as:Hashtag"
+    }
+  ]
+}

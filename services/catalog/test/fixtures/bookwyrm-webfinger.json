@@ -1,0 +1,10 @@
+{
+  "subject": "acct:reader@books.example",
+  "links": [
+    {
+      "rel": "self",
+      "type": "application/activity+json",
+      "href": "https://books.example/user/reader"
+    }
+  ]
+}

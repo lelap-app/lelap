@@ -1,4 +1,4 @@
-// A library's Digest login (revision 12) travels with its other headers, sealed, under a header
+// A library's Digest login (revision 13) travels with its other headers, sealed, under a header
 // name the native code takes out and answers with HTTP Digest per request: Calibre's content
 // server checks each request's `uri`, so one fixed header can't play several files. Code that
 // sends headers itself, such as `fetch`, drops it: a browser or Expo can't answer Digest.
@@ -28,7 +28,7 @@ export function withoutDigestLogin(headers: Record<string, string>): Record<stri
   );
 }
 
-/** A library's headers with its Digest login (revision 12) among them. */
+/** A library's headers with its Digest login (revision 13) among them. */
 export function libraryHeaders(response: {
   headers?: Record<string, string> | undefined;
   digest?: { username: string; password: string } | undefined;

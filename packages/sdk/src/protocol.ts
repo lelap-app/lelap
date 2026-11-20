@@ -22,11 +22,11 @@ export const PROTOCOL_VERSION = 1;
  * `resumed` only to an add-on that heard of the book before, and `sessionStartMs` on every
  * `finish` that ends a session; 11 adds a library's `settings`, the `locate` resource, `choice`
  * settings and the `settings` resource that lists their options, for add-ons inside the app, and
- * the `series` resource: every book of a series, in order; 12 adds a library file's
- * `description`, `language`, `series` and `ref`, a library's `digest` login, and each file's
- * `durationMs` and `ref` in a place report.
+ * the `series` resource: every book of a series, in order; 12 adds `transcripts` on a stream part;
+ * 13 adds a library file's `description`, `language`, `series` and `ref`, a library's `digest`
+ * login, and each file's `durationMs` and `ref` in a place report.
  */
-export const LATEST_PROTOCOL_VERSION = 12;
+export const LATEST_PROTOCOL_VERSION = 13;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
@@ -129,7 +129,7 @@ const RESERVED_HEADERS = new Set([
   'referer',
   'user-agent',
   'accept-encoding',
-  // Where the app keeps a library's `digest` login on its way to the native code (revision 12).
+  // Where the app keeps a library's `digest` login on its way to the native code (revision 13).
   'x-lelap-digest',
 ]);
 
@@ -455,11 +455,28 @@ export const Meta = MetaPreview.extend({
 });
 export type Meta = z.infer<typeof Meta>;
 
+/**
+ * Since revision 12: a transcript of one part, shaped like a feed's `podcast:transcript`. `type`
+ * is its MIME type, such as `text/plain`, `text/vtt` or `application/json`.
+ */
+export const PartTranscript = z.object({
+  url: Url,
+  type: z.string().min(1).max(100),
+  /** Such as `en`. */
+  language: z.string().min(1).max(35).optional(),
+});
+export type PartTranscript = z.infer<typeof PartTranscript>;
+
 export const StreamPart = z.object({
   url: Url,
   title: z.string().optional(),
   durationMs: Duration,
   size: z.number().int().nonnegative().optional(),
+  /**
+   * Since revision 12: the part's transcripts, one per format and language, at most 10. A list
+   * that does not fit is dropped, not the part: it plays without one.
+   */
+  transcripts: z.array(PartTranscript).max(10).optional().catch(undefined),
 });
 export type StreamPart = z.infer<typeof StreamPart>;
 
@@ -585,14 +602,14 @@ export const LibraryFile = z.object({
   downloadUrl: Url.optional(),
   /** Since revision 6: the listener's place in this file as the source keeps it. */
   place: LibraryPlace.optional(),
-  /** Since revision 12: what the book is about, as plain text. From the book's first file. */
+  /** Since revision 13: what the book is about, as plain text. From the book's first file. */
   description: z.string().max(10_000).optional(),
-  /** Since revision 12: the book's language, BCP 47 or ISO 639, such as `en` or `da`. */
+  /** Since revision 13: the book's language, BCP 47 or ISO 639, such as `en` or `da`. */
   language: z.string().min(2).max(35).optional(),
-  /** Since revision 12: the book's series, the main one first, like a meta's. */
+  /** Since revision 13: the book's series, the main one first, like a meta's. */
   series: z.array(Series).max(8).optional(),
   /**
-   * Since revision 12: the add-on's own note for this file, such as where the server keeps its
+   * Since revision 13: the add-on's own note for this file, such as where the server keeps its
    * place, handed back in place reports. Never shown; stored with the file.
    */
   ref: z.string().min(1).max(1024).optional(),
@@ -605,7 +622,7 @@ export const LibraryResponse = z.object({
   /** Sent with every request for these files on the phone, and only to the add-on's own hosts. */
   headers: RequestHeaders.optional(),
   /**
-   * Since revision 12: a login the app answers with HTTP Digest (RFC 7616) on the phone, for each
+   * Since revision 13: a login the app answers with HTTP Digest (RFC 7616) on the phone, for each
    * request to the add-on's own hosts, such as a Calibre content server's default without https.
    * Sealed like `headers`. A browser can't use it.
    */
@@ -645,7 +662,7 @@ export type LibraryResponse = z.infer<typeof LibraryResponse>;
 
 const PlaceFile = z.object({ path: LibraryPath, url: Url });
 
-/** Since revision 12, in a place report: the file's length as the app knows it, and its `ref`. */
+/** Since revision 13, in a place report: the file's length as the app knows it, and its `ref`. */
 const ReportedFile = PlaceFile.extend({
   durationMs: Duration.optional(),
   ref: z.string().min(1).max(1024).optional(),

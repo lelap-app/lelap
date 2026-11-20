@@ -210,7 +210,7 @@ export type AddonScan = {
   refused: number;
   /** The listener's places as the source keeps them, by file location (revision 6). */
   places: RemotePlace[];
-  /** What the add-on says about each file's book (revision 12): series, description, language. */
+  /** What the add-on says about each file's book (revision 13): series, description, language. */
   kinds: Map<string, ServerKinds>;
 };
 
@@ -345,7 +345,7 @@ export function addonPlaceReport(
             location: f.location,
             path: f.location.slice(prefix.length),
             url: f.uri,
-            // Revision 12: the length the app knows and the add-on's own note.
+            // Revision 13: the length the app knows and the add-on's own note.
             ...(f.durationMs !== undefined && f.durationMs > 0
               ? { durationMs: Math.round(f.durationMs) }
               : {}),

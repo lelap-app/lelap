@@ -23,6 +23,8 @@ export type Platform = {
   cache?: ResponseCache;
   /** Unix time in milliseconds; tests pin it. */
   now?: () => number;
+  /** Waits between requests to one BookWyrm instance; tests skip the wait. */
+  wait?: (ms: number) => Promise<void>;
   /**
    * Where Hardcover sign-ins are kept (M92), given how to renew their tokens. Without it, the
    * Hardcover add-on takes pasted tokens only.

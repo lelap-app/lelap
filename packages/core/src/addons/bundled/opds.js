@@ -8,7 +8,7 @@
 // It goes a few dozen feeds per call and hands the app a cursor (revision 9), so a big catalog
 // never runs into the app's time limit for one call. A login goes as HTTP Basic, or as HTTP
 // Digest when the server asks for it (M135): the add-on answers it for the feeds, the app for the
-// audio and covers (revision 12). A book's summary, language and series come along, and where a
+// audio and covers (revision 13). A book's summary, language and series come along, and where a
 // publication links an OPDS Progression service, the listener's place is read from it and saved
 // to it (the `place` resource).
 
@@ -750,7 +750,7 @@ const IMAGE_EXT = { 'image/png': 'png', 'image/webp': 'webp' };
 
 const LANGUAGE = /^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$/;
 
-/** What a publication says about its book, for its first file (revision 12). */
+/** What a publication says about its book, for its first file (revision 13). */
 function aboutBook(p) {
   const description = (p.description || '').slice(0, 10000);
   const language = LANGUAGE.test(p.language || '') && p.language.length <= 35 ? p.language : '';
@@ -1082,7 +1082,7 @@ async function library(settings, cursor) {
   if (done) scans.delete(id);
   return {
     files,
-    // The app answers a Digest login per request itself (revision 12).
+    // The app answers a Digest login per request itself (revision 13).
     ...(scan.s.digest
       ? { digest: { username: scan.s.user, password: scan.s.password } }
       : scan.s.auth
@@ -1097,7 +1097,7 @@ addon({
     id: 'app.lelap.opds',
     version: '1.1.0',
     protocol: 1,
-    protocolVersion: 12,
+    protocolVersion: 13,
     name: 'OPDS',
     description:
       'The audiobooks in an OPDS catalog, such as a Calibre content server or a library’s open catalog. Ebooks are left out.',

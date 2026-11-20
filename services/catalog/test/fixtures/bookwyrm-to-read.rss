@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>reader’s To Read shelf</title><link>https://books.example/user/reader/books/to-read</link><description>Books added to reader’s To Read shelf</description><language>en-us</language><item><title>Frances Hodgson Burnett: The Secret Garden</title><link>https://books.example/book/11/s/the-secret-garden</link><description>
+
+‘The Secret Garden’  by Frances Hodgson Burnett 
+&lt;p&gt;A girl finds a garden.&lt;/p&gt;
+ISBN 13: 9780141321066&lt;br&gt;
+
+</description><pubDate>Fri, 06 Nov 2026 11:00:22 +0000</pubDate><guid>https://books.example/book/11/s/the-secret-garden</guid></item><item><title>Nobody Known: A Very Obscure Pamphlet: Part Two</title><link>https://books.example/book/15/s/a-very-obscure-pamphlet</link><description>
+
+‘A Very Obscure Pamphlet: Part Two’  by Nobody Known 
+
+
+</description><pubDate>Fri, 06 Nov 2026 10:00:00 +0000</pubDate><guid>https://books.example/book/15/s/a-very-obscure-pamphlet</guid></item><item><title>Elsewhere</title><link>https://other.example/book/9/s/elsewhere</link><description></description></item></channel></rss>

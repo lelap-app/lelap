@@ -605,7 +605,7 @@ describe('revision 11: settings from a listing, and files located before they st
   });
 });
 
-describe('revision 12: what a server says about a book, its own notes, and a Digest login', () => {
+describe('revision 13: what a server says about a book, its own notes, and a Digest login', () => {
   const hosts = addonSourceHosts(manifest, { url: 'http://calibre.local:8080/' });
   const get = (id: string) => `http://calibre.local:8080/get/m4b/${id}`;
 

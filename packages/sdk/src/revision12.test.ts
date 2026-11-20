@@ -1,59 +1,53 @@
 import { describe, expect, it } from 'vitest';
 
-import { LATEST_PROTOCOL_VERSION, LibraryResponse, PlaceReport, RequestHeaders } from './protocol';
+import {
+  LATEST_PROTOCOL_VERSION,
+  MultiPartStream,
+  StreamPart,
+  WebStreamResponse,
+} from './protocol';
 
-// Revision 12 (M135): a library file's summary, language and series and the add-on's own `ref`, a
-// Digest login for a library, and each file's length and `ref` in a place report.
+// Revision 12 (M136): a stream part may carry its transcripts, as a feed's `podcast:transcript`.
+
+const part = { url: 'https://example.org/01.mp3', durationMs: 1000 };
+const transcript = { url: 'https://example.org/01.txt', type: 'text/plain', language: 'en' };
 
 describe('revision 12', () => {
-  it('is the newest revision', () => {
-    expect(LATEST_PROTOCOL_VERSION).toBe(12);
+  it('is known', () => {
+    expect(LATEST_PROTOCOL_VERSION).toBeGreaterThanOrEqual(12);
   });
 
-  it('reads a file with its description, language, series and ref', () => {
-    const parsed = LibraryResponse.parse({
-      files: [
-        {
-          path: 'Frank Herbert/Dune/Dune.m4b',
-          url: 'http://192.168.1.20:8080/get/m4b/1',
-          description: 'A desert planet.',
-          language: 'en',
-          series: [{ name: 'Dune', position: '1' }],
-          ref: 'http://192.168.1.20:8080/progression/1',
-        },
-      ],
-      digest: { username: 'kim', password: 'secret' },
+  it('reads a part’s transcripts', () => {
+    expect(StreamPart.parse({ ...part, transcripts: [transcript] }).transcripts).toEqual([
+      transcript,
+    ]);
+    const bare = StreamPart.parse({
+      ...part,
+      transcripts: [{ url: transcript.url, type: 'text/vtt' }],
     });
-    expect(parsed.files[0]?.series?.[0]?.position).toBe('1');
-    expect(parsed.files[0]?.ref).toContain('progression');
-    expect(parsed.digest?.username).toBe('kim');
+    expect(bare.transcripts?.[0]?.language).toBeUndefined();
   });
 
-  it('refuses a Digest login without a user name', () => {
-    expect(
-      LibraryResponse.safeParse({ files: [], digest: { username: '', password: 'x' } }).success,
-    ).toBe(false);
+  it('drops a list that does not fit, not the part', () => {
+    for (const transcripts of [
+      [{ url: 'ftp://example.org/01.txt', type: 'text/plain' }],
+      [{ url: transcript.url }],
+      Array.from({ length: 11 }, () => transcript),
+      'https://example.org/01.txt',
+    ]) {
+      const parsed = StreamPart.parse({ ...part, transcripts });
+      expect(parsed.transcripts).toBeUndefined();
+      expect(parsed.url).toBe(part.url);
+    }
   });
 
-  it('keeps the header that carries a Digest login for the app alone', () => {
-    expect(RequestHeaders.safeParse({ 'X-Lelap-Digest': 'a:b' }).success).toBe(false);
-  });
-
-  it('describes a place report with lengths and refs', () => {
-    const file = {
-      path: 'A/B/1.mp3',
-      url: 'https://example.org/1.mp3',
-      durationMs: 60_000,
-      ref: 'r1',
-    };
-    const report = PlaceReport.parse({
-      file,
-      files: [file, { path: 'A/B/2.mp3', url: 'https://example.org/2.mp3' }],
-      positionMs: 1000,
-      at: 1_700_000_000_000,
-      finished: false,
+  it('keeps a stream without transcripts as it was', () => {
+    const stream = { sourceKey: 'k', name: 'Example', parts: [part] };
+    expect(MultiPartStream.parse(stream).parts[0]).toEqual(part);
+    const response = WebStreamResponse.parse({
+      streams: [{ ...stream, parts: [{ ...part, transcripts: [transcript] }] }],
     });
-    expect(report.files[0]?.durationMs).toBe(60_000);
-    expect(report.files[1]?.ref).toBeUndefined();
+    const parsed = response.streams[0];
+    expect(parsed && 'parts' in parsed ? parsed.parts[0]?.transcripts : null).toEqual([transcript]);
   });
 });

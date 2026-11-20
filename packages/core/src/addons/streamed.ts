@@ -2,6 +2,7 @@ import { type Chapter, hasParts, type Meta, type MetaPreview, type Stream } from
 import { and, asc, eq, like, notInArray } from 'drizzle-orm';
 
 import type { Db } from '../db';
+import type { FeedTranscript } from '../podcasts/podcasting';
 import type { IdGenerator } from '../ids';
 import {
   type AddonItemRef,
@@ -96,6 +97,40 @@ function chaptersOf(meta: Meta | MetaPreview, stream: Stream, parts: Part[]): Ch
   });
 }
 
+/** Each part's transcripts by index, left out when no part has one. */
+function transcriptsOf(stream: Stream): Pick<AddonItemRef, 'transcripts'> {
+  if (!hasParts(stream)) return {};
+  const lists = stream.parts.map((part) => part.transcripts ?? []);
+  return lists.some((list) => list.length > 0) ? { transcripts: lists } : {};
+}
+
+/**
+ * The transcripts of a streamed book's part (M136), shaped like a feed's, so the transcript screen
+ * reads them as an episode's. Empty for any other file.
+ */
+export function partTranscripts(db: Db, bookId: string, fileLocation: string): FeedTranscript[] {
+  const book = db
+    .select({ addonItem: books.addonItem })
+    .from(books)
+    .where(eq(books.id, bookId))
+    .get();
+  const lists = book?.addonItem?.transcripts;
+  if (!lists) return [];
+  const file = db
+    .select({ idx: bookFiles.idx, location: bookFiles.location })
+    .from(bookFiles)
+    .where(and(eq(bookFiles.bookId, bookId), eq(bookFiles.location, fileLocation)))
+    .get();
+  // Only the parts of the stream the list came with: another source's parts have other indexes.
+  if (!file || file.location !== partLocation(book.addonItem?.sourceKey ?? '', file.idx)) return [];
+  return (lists[file.idx] ?? []).map((t) => ({
+    url: t.url,
+    type: t.type,
+    language: t.language ?? null,
+    rel: null,
+  }));
+}
+
 /** The library book that plays this recording, if any. */
 export function findBookBySource(db: Db, sourceKey: string): string | null {
   return (
@@ -114,7 +149,7 @@ function existingBook(db: Db, location: string, sourceKey: string) {
     db.select({ id: books.id }).from(books).where(eq(books.location, location)).get()?.id;
   if (!id) return null;
   return db
-    .select({ id: books.id, location: books.location })
+    .select({ id: books.id, location: books.location, addonItem: books.addonItem })
     .from(books)
     .where(eq(books.id, id))
     .get();
@@ -135,6 +170,7 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
     id: meta.id,
     sourceKey: stream.sourceKey,
     downloadable: stream.downloadable !== false,
+    ...transcriptsOf(stream),
   };
   // `cover_path` is left out: a downloaded book keeps its downloaded cover when added again.
   const values = {
@@ -179,9 +215,16 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
       tx.update(books).set(bookRow).where(eq(books.id, bookId)).run();
     } else if (found) {
       // The same recording reached from another item (an Open Library work, say): keep the
-      // title and cover the book was added with.
+      // title and cover the book was added with. Its parts' transcripts follow the stream.
+      const kept = { ...(found.addonItem ?? addonItem) };
+      delete kept.transcripts;
       tx.update(books)
-        .set({ durationMs: bookRow.durationMs, missingSince: null, updatedAt: now })
+        .set({
+          durationMs: bookRow.durationMs,
+          missingSince: null,
+          updatedAt: now,
+          addonItem: { ...kept, ...transcriptsOf(stream) },
+        })
         .where(eq(books.id, bookId))
         .run();
     } else {

@@ -299,8 +299,8 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
   const scans = useSilenceScans();
   const canFind = useMemo(() => canFindChapters(detail), [detail]);
   const hasTranscript = useMemo(
-    () => (bookId ? transcriptOf(bookId) !== null : false),
-    [bookId, version],
+    () => (bookId ? transcriptOf(bookId, state.fileLocation) !== null : false),
+    [bookId, state.fileLocation, version],
   );
   const soundbites = useMemo(() => (bookId ? soundbitesOf(bookId) : []), [bookId, version]);
   const canShare = useMemo(() => (bookId ? canSharePlace(bookId) : false), [bookId, version]);

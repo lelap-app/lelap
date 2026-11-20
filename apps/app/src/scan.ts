@@ -473,7 +473,7 @@ async function scanAddonSource(
   }
   forgetLocated(root.id);
   const login = addonLogin(remote);
-  // A Digest login (revision 12) travels sealed with the headers, for the native code to answer.
+  // A Digest login (revision 13) travels sealed with the headers, for the native code to answer.
   const headers = libraryHeaders(response);
   const query = response.query ?? {};
   const webQuery = response.webQuery ?? {};

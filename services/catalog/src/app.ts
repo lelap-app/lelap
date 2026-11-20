@@ -1,12 +1,16 @@
 import { CORS_HEADERS } from '@lelap/sdk';
 import { Hono } from 'hono';
 
+import { BASE_PATH as BOOKWYRM, bookwyrmAddon } from './bookwyrm/addon';
+import { createInstance } from './bookwyrm/instance';
 import { createCatalogAddon } from './catalog/addon';
 import {
   BASE_PATH as INTERNET_ARCHIVE,
   createInternetArchiveAddon,
 } from './internet-archive/addon';
 import { BASE_PATH as LECTURES, createLecturesAddon } from './lectures/addon';
+import { COURSES } from './lectures/courses';
+import { transcriptRoute } from './lectures/transcript';
 import { BASE_PATH as LEPAK, createLepakAddon } from './lepak/addon';
 import { BASE_PATH, createLibrivoxAddon } from './librivox/addon';
 import type { PodcastIndexCredentials } from './podcastindex';
@@ -85,7 +89,8 @@ export function createApp(platform: Platform, env: Env): Hono {
   const librivox = createLibrivoxAddon(upstream);
   const internetArchive = createInternetArchiveAddon(upstream);
   const series = createSeriesAddon(upstream);
-  const lectures = createLecturesAddon();
+  const lectures = createLecturesAddon(COURSES, catalogOrigin(env));
+  const lectureTranscript = transcriptRoute(platform, COURSES, LECTURES, userAgent(env));
   const podcastIndex = podcastIndexCredentials(env);
   const catalog = createCatalogAddon(upstream, podcastIndex);
   const lepak = podcastIndex ? createLepakAddon(upstream, podcastIndex) : null;
@@ -141,6 +146,18 @@ export function createApp(platform: Platform, env: Env): Hono {
     ...shared,
     legacy: createSealer(env.CONFIG_SECRET, 'gpodder'),
   });
+  // BookWyrm (M130): the listener's own instance, so through the fetch that keeps off private hosts.
+  const bookwyrm = serveScrobbleAddon(
+    bookwyrmAddon(
+      createInstance(platform.userFetch ?? platform.fetch, agent, {
+        ...(platform.cache ? { cache: platform.cache } : {}),
+        ...(platform.now ? { now: platform.now } : {}),
+        ...(platform.wait ? { wait: platform.wait } : {}),
+      }),
+      upstream,
+    ),
+    { ...shared, legacy: null },
+  );
 
   const app = new Hono();
   // JSON only: never let a browser treat an answer as a page on this origin.
@@ -165,7 +182,11 @@ export function createApp(platform: Platform, env: Env): Hono {
           manifest(`${LECTURES}/manifest.json`),
           ...(lepak ? [manifest(`${LEPAK}/manifest.json`)] : []),
         ],
-        configure: [manifest(`${HARDCOVER}/configure`), manifest(`${GPODDER}/configure`)],
+        configure: [
+          manifest(`${HARDCOVER}/configure`),
+          manifest(`${GPODDER}/configure`),
+          manifest(`${BOOKWYRM}/configure`),
+        ],
       },
       200,
       CORS_HEADERS,
@@ -174,6 +195,7 @@ export function createApp(platform: Platform, env: Env): Hono {
   for (const [path, serve] of [
     [HARDCOVER, hardcover],
     [GPODDER, gpodder],
+    [BOOKWYRM, bookwyrm],
   ] as const) {
     app.all(path, (c) => serve(c.req.raw));
     app.all(`${path}/*`, (c) => serve(c.req.raw));
@@ -183,6 +205,7 @@ export function createApp(platform: Platform, env: Env): Hono {
   app.all(`${INTERNET_ARCHIVE}/*`, (c) => internetArchive.fetch(c.req.raw));
   app.all(SERIES, (c) => series.fetch(c.req.raw));
   app.all(`${SERIES}/*`, (c) => series.fetch(c.req.raw));
+  app.get(`${LECTURES}/transcript/*`, (c) => lectureTranscript(c.req.raw));
   app.all(LECTURES, (c) => lectures.fetch(c.req.raw));
   app.all(`${LECTURES}/*`, (c) => lectures.fetch(c.req.raw));
   if (lepak) {

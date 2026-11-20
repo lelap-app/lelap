@@ -1,0 +1,79 @@
+{
+  "id": "https://books.example/user/reader/shelf/to-read?page=1",
+  "type": "OrderedCollectionPage",
+  "partOf": "https://books.example/user/reader/shelf/to-read",
+  "orderedItems": [
+    {
+      "id": "https://books.example/book/11",
+      "type": "Edition",
+      "title": "The Secret Garden",
+      "sortTitle": "the secret garden",
+      "subtitle": "",
+      "description": "<p>A girl finds a &amp; garden.</p>",
+      "authors": ["https://books.example/author/1011"],
+      "work": "https://books.example/book/12",
+      "isbn13": "9780141321066",
+      "isbn10": "",
+      "oclcNumber": "",
+      "physicalFormat": "Paperback",
+      "publishers": [],
+      "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        {
+          "Hashtag": "as:Hashtag"
+        }
+      ],
+      "openlibraryKey": "OL7170283M",
+      "cover": {
+        "type": "Image",
+        "url": "https://books.example/images/covers/11.jpg",
+        "name": "Frances Hodgson Burnett: The Secret Garden (Paperback, 1911, Example Press)",
+        "@context": [
+          "https://www.w3.org/ns/activitystreams",
+          {
+            "Hashtag": "as:Hashtag"
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://books.example/book/13",
+      "type": "Edition",
+      "title": "Three Men in a Boat",
+      "sortTitle": "three men in a boat",
+      "subtitle": "",
+      "description": "",
+      "authors": ["https://books.example/author/1013"],
+      "work": "https://books.example/book/14",
+      "isbn13": "9781862052215",
+      "isbn10": "",
+      "oclcNumber": "",
+      "physicalFormat": "Paperback",
+      "publishers": [],
+      "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        {
+          "Hashtag": "as:Hashtag"
+        }
+      ],
+      "cover": {
+        "type": "Image",
+        "url": "https://books.example/images/covers/13.jpg",
+        "name": "Jerome K. Jerome: Three Men in a Boat (Paperback, 1911, Example Press)",
+        "@context": [
+          "https://www.w3.org/ns/activitystreams",
+          {
+            "Hashtag": "as:Hashtag"
+          }
+        ]
+      }
+    }
+  ],
+  "next": "https://books.example/user/reader/shelf/to-read?page=2",
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    {
+      "Hashtag": "as:Hashtag"
+    }
+  ]
+}

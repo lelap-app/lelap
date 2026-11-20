@@ -201,7 +201,7 @@ export type ApplyScanArgs = {
   /** Covers for books that are single files in a folder, by folder location (`forLoose`). */
   looseCovers?: Map<string, string>;
   /**
-   * What a server says about a file's book (revision 12): its series, description and language,
+   * What a server says about a file's book (revision 13): its series, description and language,
    * by file location. They take the place of the file's own, read now or stored.
    */
   kinds?: Map<string, ServerKinds>;
