@@ -338,7 +338,6 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
     }
     if (path === 'manifest.json' && (request.method === 'GET' || request.method === 'HEAD'))
       return json(current, 200, 3600);
-    if (required && !config) return json({ error: 'Configure this add-on first' }, 403);
     // Every resource from here on; an app without the header is at revision 14 or older.
     if (minimum !== undefined && (appProtocol ?? 0) < minimum)
       return new Response(UPGRADE_MESSAGE, {
@@ -349,6 +348,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
           'Cache-Control': 'no-store',
         },
       });
+    if (required && !config) return json({ error: 'Configure this add-on first' }, 403);
 
     if (path === 'scrobble') {
       if (!handlers.scrobble || !typesFor('scrobble').length)

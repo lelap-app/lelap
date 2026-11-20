@@ -32,7 +32,7 @@ export function UpgradeNotice({
       <TextButton
         text={t('Update')}
         accessibilityLabel={t('Update Lelap to use {name}', { name })}
-        onPress={() => void updateLelap()}
+        onPress={() => void updateLelap().catch(() => {})}
       />
     </View>
   );
