@@ -4,6 +4,7 @@ import {
   addToUpNext,
   bookLinks,
   createPlaylist,
+  downloadAllowed,
   getTags,
   hideBooks,
   isHidden,
@@ -113,6 +114,8 @@ export function BookActions({
   );
   const linked = useMemo(() => (book ? bookLinks(db, book.id).length > 0 : false), [book]);
   const hidden = useMemo(() => (book ? isHidden(db, profileId, book.id) : false), [book]);
+  // A source that forbids downloads gets no Download row rather than one that only says no.
+  const downloadable = useMemo(() => (book ? downloadAllowed(db, book.id) : false), [book]);
   // Stop reading means something only to a tracker that hears about this book (M66).
   const tracked = useMemo(() => (book ? scrobblesFor(book.id, profileId) : false), [book]);
 
@@ -262,7 +265,7 @@ export function BookActions({
                   onClose();
                 }}
               />
-            ) : (
+            ) : downloadable ? (
               <Row
                 icon="download"
                 label={t('Download')}
@@ -278,7 +281,7 @@ export function BookActions({
                   onClose();
                 }}
               />
-            ))}
+            ) : null)}
           {book.source === 'addon' && (
             <Row
               icon="close"

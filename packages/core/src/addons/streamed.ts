@@ -145,7 +145,6 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
     author: meta.author ?? null,
     coverUrl: meta.cover ?? null,
     addonItem,
-    durationMs: parts.reduce((sum, p) => sum + p.durationMs, 0),
     missingSince: null,
     updatedAt: now,
   };
@@ -153,21 +152,6 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
   return db.transaction((tx) => {
     const found = existingBook(tx, location, stream.sourceKey);
     const bookId = found?.id ?? newId();
-    if (found?.location === location) {
-      tx.update(books).set(values).where(eq(books.id, bookId)).run();
-    } else if (found) {
-      // The same recording reached from another item (an Open Library work, say): keep the
-      // title and cover the book was added with.
-      tx.update(books)
-        .set({ durationMs: values.durationMs, missingSince: null, updatedAt: now })
-        .where(eq(books.id, bookId))
-        .run();
-    } else {
-      tx.insert(books)
-        .values({ id: bookId, location, addedAt: now, coverPath: null, ...values })
-        .run();
-    }
-
     const locations = parts.map((_, index) => partLocation(stream.sourceKey, index));
     const before = tx
       .select({
@@ -179,9 +163,36 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
       .where(eq(bookFiles.bookId, bookId))
       .orderBy(asc(bookFiles.idx))
       .all();
+    // A part the add-on gives no length for keeps the one the player measured (M140).
+    const filled = parts.map((part, i) => {
+      const was = before[i];
+      const keep =
+        part.durationMs === 0 &&
+        was !== undefined &&
+        was.location === locations[i] &&
+        was.uri === part.url &&
+        was.durationMs > 0;
+      return keep ? { ...part, durationMs: was.durationMs } : part;
+    });
+    const bookRow = { ...values, durationMs: filled.reduce((sum, p) => sum + p.durationMs, 0) };
+    if (found?.location === location) {
+      tx.update(books).set(bookRow).where(eq(books.id, bookId)).run();
+    } else if (found) {
+      // The same recording reached from another item (an Open Library work, say): keep the
+      // title and cover the book was added with.
+      tx.update(books)
+        .set({ durationMs: bookRow.durationMs, missingSince: null, updatedAt: now })
+        .where(eq(books.id, bookId))
+        .run();
+    } else {
+      tx.insert(books)
+        .values({ id: bookId, location, addedAt: now, coverPath: null, ...bookRow })
+        .run();
+    }
+
     const sameParts =
-      before.length === parts.length &&
-      parts.every(
+      before.length === filled.length &&
+      filled.every(
         (part, i) =>
           before[i]?.location === locations[i] &&
           before[i]?.uri === part.url &&
@@ -192,7 +203,7 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
     // that plays the same recording only adds one.
     const series = 'series' in meta ? formatSeries(meta.series) : null;
     const ownItem = !found || found.location === location;
-    for (const [idx, part] of parts.entries()) {
+    for (const [idx, part] of filled.entries()) {
       const row = {
         ...(idx === 0 && (series || ownItem) ? { kindTags: { ...NO_KIND_TAGS, series } } : {}),
         bookId,
@@ -223,7 +234,7 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
     // A login the stream asked for, kept apart and sealed; a stream without one clears it.
     saveStreamHeaders(tx, bookId, addonUrl, stream.headers, now);
 
-    const built = chaptersOf(meta, stream, parts);
+    const built = chaptersOf(meta, stream, filled);
     // Chapters found from silences stay until the add-on brings chapters of its own, or the parts
     // change under them.
     tx.delete(chapters)

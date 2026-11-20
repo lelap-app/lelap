@@ -40,6 +40,7 @@ import { registerBackgroundRefresh } from '../src/background';
 import { ThemeRoot, useTheme } from '../src/theme';
 import { useFold } from '../src/layout';
 import { startupMark } from '../src/startup';
+import { SCREENS, singularId } from '../src/routes';
 
 /** Installs the default add-ons on first start and refreshes manifests on every start. */
 function AddonSync() {
@@ -71,6 +72,14 @@ function ProfileGate() {
 }
 
 const FLAT = { kind: 'none' } as const;
+
+function screenOptions(name: (typeof SCREENS)[number], reduced: boolean) {
+  if (name === 'player')
+    return { presentation: 'modal', animation: reduced ? 'none' : 'slide_from_bottom' } as const;
+  if (name === 'who') return { presentation: 'modal' } as const;
+  if (name === 'car') return { animation: reduced ? 'none' : 'fade' } as const;
+  return {};
+}
 
 export default function RootLayout() {
   const { ready, error } = useDbReady();
@@ -145,15 +154,14 @@ export default function RootLayout() {
                     }}
                   >
                     <Stack.Screen name="(tabs)" />
-                    <Stack.Screen
-                      name="player"
-                      options={{
-                        presentation: 'modal',
-                        animation: reduced ? 'none' : 'slide_from_bottom',
-                      }}
-                    />
-                    <Stack.Screen name="who" options={{ presentation: 'modal' }} />
-                    <Stack.Screen name="car" options={{ animation: reduced ? 'none' : 'fade' }} />
+                    {SCREENS.map((name) => (
+                      <Stack.Screen
+                        key={name}
+                        name={name}
+                        dangerouslySingular={singularId}
+                        options={screenOptions(name, reduced)}
+                      />
+                    ))}
                   </Stack>
                 </HingeSide>
               </View>

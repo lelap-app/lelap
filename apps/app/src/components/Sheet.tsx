@@ -6,7 +6,10 @@ import { t } from '../i18n';
 import { useWide } from '../layout';
 import { useReducedMotion } from './Motion';
 
-/** A bottom sheet over a dimmed backdrop; tapping the backdrop closes it. */
+/**
+ * A bottom sheet over a dimmed backdrop; tapping the backdrop closes it. On a wide screen it is a
+ * dialog in the middle instead, where a sheet rising from the bottom edge is far from the pointer.
+ */
 export function Sheet({
   visible,
   title,
@@ -20,13 +23,17 @@ export function Sheet({
 }) {
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
-  // On a wide screen the sheet keeps a phone's width in the middle.
   const wide = useWide();
+  const heading = (
+    <Text accessibilityRole="header" className="pb-3 text-lg font-semibold text-paper">
+      {title}
+    </Text>
+  );
   return (
     <Modal
       visible={visible}
       transparent
-      animationType={reduced ? 'none' : 'slide'}
+      animationType={reduced ? 'none' : wide ? 'fade' : 'slide'}
       onRequestClose={onClose}
       // The web reads the dialog by this name when focus moves into it.
       aria-label={title}
@@ -40,17 +47,28 @@ export function Sheet({
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel={t('Close')}
-          className="flex-1 bg-black/60"
+          className={wide ? 'absolute inset-0 bg-black/60' : 'flex-1 bg-black/60'}
         />
-        <View
-          style={{ paddingBottom: insets.bottom + 12 }}
-          className={`max-h-[70%] rounded-t-2xl bg-raised px-4 pt-4 ${wide ? 'w-full max-w-[560px] self-center' : ''}`}
-        >
-          <Text accessibilityRole="header" className="pb-3 text-lg font-semibold text-paper">
-            {title}
-          </Text>
-          {children}
-        </View>
+        {wide ? (
+          <View
+            pointerEvents="box-none"
+            style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }}
+            className="flex-1 items-center justify-center px-6"
+          >
+            <View className="max-h-full w-full max-w-[480px] rounded-2xl bg-raised px-4 pb-4 pt-4">
+              {heading}
+              {children}
+            </View>
+          </View>
+        ) : (
+          <View
+            style={{ paddingBottom: insets.bottom + 12 }}
+            className="max-h-[70%] rounded-t-2xl bg-raised px-4 pt-4"
+          >
+            {heading}
+            {children}
+          </View>
+        )}
       </KeyboardAvoidingView>
     </Modal>
   );

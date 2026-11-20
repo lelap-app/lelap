@@ -150,6 +150,8 @@ let partRead = -1;
 let partTracked = -1;
 let partHead: { file: FileBytes | null; head: FileHead | null } | null = null;
 let partSource: { audio: HTMLAudioElement; src: string; blob: Blob | null } | null = null;
+// The part whose file the element holds: while the next one loads, its length is still the last's.
+let loadedIndex = -1;
 // A minutes timer counts wall time while playing; a chapter or episode timer stops at a place on
 // the book timeline (shake to extend is Android only: browsers ask before giving motion data).
 let sleepMode: SleepTimerMode | null = null;
@@ -281,7 +283,10 @@ function chapterTitle(): string | null {
 
 function state(): PlayerState {
   const file = book?.files[index];
-  const duration = element && Number.isFinite(element.duration) ? element.duration * 1000 : 0;
+  const duration =
+    element && loadedIndex === index && Number.isFinite(element.duration)
+      ? element.duration * 1000
+      : 0;
   return {
     connected: true,
     playing: playing(),
@@ -711,6 +716,7 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
   if (!file) return;
   if (i !== index) linkRefreshed = false;
   index = i;
+  loadedIndex = -1;
   ended = false;
   error = null;
   lastPositionMs = startMs;
@@ -736,6 +742,7 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
   seekingForLoad = true;
   audio.currentTime = startMs / 1000;
   partSource = { audio, src, blob };
+  loadedIndex = i;
   if (readsFile()) void readPart(audio, src, blob);
   if (autoplay) {
     await sound.resume(audio);

@@ -146,6 +146,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M136 Lecture transcripts](milestones/m136.md)       | Planned     |             | Yale's transcripts for Open lectures on the transcript screen, through a stream part's transcripts                                                            |
 | [M138 Playback history](milestones/m138.md)          | Done        |          13 | A short log per book of plays, pauses, skips, seeks, chapter jumps and sleep timer stops, so one tap undoes an accidental jump                                |
 | [M139 Casting 6](milestones/m139.md)                 | Planned     |             | Receiver waits tuned from measured timings, and the leading speaker leaving a group                                                                           |
+| [M140 App polish 5](milestones/m140.md)              | In progress |           9 | Add-ons page order, dialogs on wide screens, one copy of each screen, fewer player tools, streamed lengths                                                    |
 
 <!-- milestones:end -->
 

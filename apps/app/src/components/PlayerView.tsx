@@ -34,6 +34,7 @@ import { hint } from '../a11y';
 import { t } from '../i18n';
 import { PressScale } from './Motion';
 import { BookCover, coverUri } from './BookCover';
+import { ActionSheet } from './ActionSheet';
 import { BookmarksSheet } from './BookmarksSheet';
 import { CastSheet } from './CastSheet';
 import { SleepStopBanner } from './SleepStopBanner';
@@ -111,6 +112,8 @@ type ToolProps = {
   active?: boolean;
   /** What a screen reader says when the short label alone is unclear, such as “Speed, 1.5×”. */
   spoken?: string;
+  /** In the row; the rest wait under More. */
+  shown?: boolean;
 };
 
 /** Icon over a short label, as in the bottom row of the design sketch. */
@@ -144,24 +147,42 @@ function Tool({
 const TOOL_MIN_WIDTH = 76;
 
 /**
- * The tools under the controls, up to eight. When they don't fit side by side, as on a narrow
- * phone or with large text, they wrap into rows of equal count rather than cutting labels short.
+ * The tools under the controls: the few used while listening, and More for the rest. When they
+ * don't fit side by side, as on a narrow phone or with large text, they wrap into rows of equal
+ * count rather than cutting labels short.
  */
 function ToolRow({ tools }: { tools: (ToolProps & { key: string })[] }) {
   const dims = useWindowDimensions();
+  const [more, setMore] = useState(false);
   // Until measured, about the screen less the page's sides.
   const [width, setWidth] = useState(dims.width - 48);
+  const rest = tools.filter((tool) => !tool.shown);
+  const row: (ToolProps & { key: string })[] = [
+    ...tools.filter((tool) => tool.shown),
+    ...(rest.length > 0
+      ? [{ key: 'more', icon: 'more' as const, label: t('More'), onPress: () => setMore(true) }]
+      : []),
+  ];
   const fit = Math.max(1, Math.floor(width / (TOOL_MIN_WIDTH * Math.max(1, dims.fontScale))));
-  const rows = Math.ceil(tools.length / fit);
-  const perRow = Math.ceil(tools.length / rows);
+  const rows = Math.ceil(row.length / fit);
+  const perRow = Math.ceil(row.length / rows);
   return (
     <View
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
       className="flex-row flex-wrap justify-center"
     >
-      {tools.map(({ key, ...tool }) => (
+      {row.map(({ key, ...tool }) => (
         <Tool key={key} {...tool} width={100 / perRow} />
       ))}
+      <ActionSheet
+        title={more ? t('More') : null}
+        actions={rest.map((tool) => ({
+          icon: tool.icon,
+          label: tool.spoken ?? tool.label,
+          onPress: tool.onPress,
+        }))}
+        onClose={() => setMore(false)}
+      />
     </View>
   );
 }
@@ -625,6 +646,8 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
             icon: 'speed',
             label: `${Number(state.speed.toFixed(2))}×`,
             spoken: t('Speed, {speed}×', { speed: Number(state.speed.toFixed(2)) }),
+            // In the row while it is not the usual speed, so a changed one stays in sight.
+            shown: Math.abs(state.speed - 1) > 0.001,
             onPress: () => setSheet('speed'),
           },
           {
@@ -632,6 +655,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
             icon: 'sound',
             label: t('Sound'),
             active: sound.active,
+            shown: sound.active,
             onPress: () => setSheet('sound'),
           },
           {
@@ -639,6 +663,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
             icon: 'moon',
             label: timer === null ? t('Sleep') : `${timerPrefix}${formatClock(timer)}`,
             active: timer !== null,
+            shown: true,
             onPress: () => setSheet('sleep'),
           },
           // Every book: one without chapters can have them found or added by hand (M85).
@@ -646,6 +671,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
             key: 'chapters',
             icon: 'chapters',
             label: t('Chapters'),
+            shown: true,
             onPress: () => setSheet('chapters'),
           },
           ...(hasTranscript
@@ -681,6 +707,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
               bookmarks.length === 1
                 ? t('1 bookmark')
                 : t('{n} bookmarks', { n: bookmarks.length }),
+            shown: true,
             onPress: () => setSheet('bookmarks'),
           },
           ...(CASTING_SUPPORTED && castAvailable
@@ -690,6 +717,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
                   icon: 'cast' as const,
                   label: casting.device?.name ?? t('Cast'),
                   active: casting.device !== null,
+                  shown: true,
                   onPress: () => setSheet('cast'),
                 },
               ]

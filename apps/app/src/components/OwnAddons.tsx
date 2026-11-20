@@ -63,7 +63,7 @@ const OWN_SOURCES = new Set(['app.lelap.opds']);
  */
 export function useOwnAddonOffers(
   addons: InstalledAddon[],
-  { pasteBelow }: { pasteBelow: boolean },
+  { pasteAbove }: { pasteAbove: boolean },
 ): Offer[] {
   const router = useRouter();
   const { refresh } = useLibrary();
@@ -153,9 +153,9 @@ export function useOwnAddonOffers(
             note:
               Platform.OS !== 'web'
                 ? t('Opens a page on our server for your account; Lelap adds it when you are done.')
-                : pasteBelow
+                : pasteAbove
                   ? t(
-                      'Opens a page on our server for your account; paste the link it gives you below.',
+                      'Opens a page on our server for your account; paste the link it gives you above.',
                     )
                   : t(
                       'Opens a page on our server for your account; paste the link it gives you in Settings → Library and sources → Add-ons.',

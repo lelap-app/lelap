@@ -55,3 +55,33 @@ export function chapterTitleAt(
   const chapter = list[at];
   return chapter ? chapterTitle(chapter.title, at, chapter.found === true) : null;
 }
+
+/**
+ * Keeps the length the player measured for a file stored without one, such as an add-on stream
+ * that gave none, so the book's bar and timeline have a length (M140). A stored length stays.
+ * Returns whether anything changed.
+ */
+export function learnFileDuration(db: Db, fileLocation: string, durationMs: number): boolean {
+  if (!(durationMs > 0)) return false;
+  const file = db
+    .select({ id: bookFiles.id, bookId: bookFiles.bookId, durationMs: bookFiles.durationMs })
+    .from(bookFiles)
+    .where(eq(bookFiles.location, fileLocation))
+    .get();
+  const bookId = file?.bookId;
+  if (!file || !bookId || file.durationMs > 0) return false;
+  return db.transaction((tx) => {
+    tx.update(bookFiles)
+      .set({ durationMs: Math.round(durationMs) })
+      .where(eq(bookFiles.id, file.id))
+      .run();
+    const total = tx
+      .select({ durationMs: bookFiles.durationMs })
+      .from(bookFiles)
+      .where(and(eq(bookFiles.bookId, bookId), isNull(bookFiles.missingSince)))
+      .all()
+      .reduce((sum, f) => sum + Math.max(0, f.durationMs), 0);
+    tx.update(books).set({ durationMs: total }).where(eq(books.id, bookId)).run();
+    return true;
+  });
+}

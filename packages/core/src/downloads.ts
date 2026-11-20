@@ -81,6 +81,16 @@ export function hasRoomFor(bytesNeeded: number, freeBytes: number): boolean {
   return bytesNeeded + Math.max(ROOM_MARGIN_BYTES, bytesNeeded * 0.02) <= freeBytes;
 }
 
+/** False for a streamed book whose add-on says its source does not allow downloads. */
+export function downloadAllowed(db: Db, bookId: string): boolean {
+  const book = db
+    .select({ addonItem: books.addonItem })
+    .from(books)
+    .where(eq(books.id, bookId))
+    .get();
+  return book?.addonItem?.downloadable !== false;
+}
+
 /** The parts and cover to download for a streamed book. */
 export function planDownload(db: Db, bookId: string): DownloadPlan {
   const book = db.select().from(books).where(eq(books.id, bookId)).get();

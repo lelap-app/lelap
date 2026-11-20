@@ -115,7 +115,7 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const addons = useAddons();
-  const offers = useOwnAddonOffers(addons, { pasteBelow: false });
+  const offers = useOwnAddonOffers(addons, { pasteAbove: false });
   const [step, setStep] = useState<Step>('welcome');
   const [landing, setLanding] = useState<Landing>('/');
   // Set when “A server” or “Another device” opened their screen, to move on once one is added.
