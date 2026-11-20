@@ -15,6 +15,7 @@ import {
 } from '@lelap/core';
 import { Platform } from 'react-native';
 
+import { atAddressInUse } from './addresses';
 import { locatedUri } from './addonLocate';
 import { codeFingerprint, declaredHosts, sourceManifest } from './addonSources';
 import { db } from './db';
@@ -60,14 +61,17 @@ export function fileAccess(
   if (!remote && file.bookId) {
     return { uri: file.uri, headers: streamHeadersFor(db, file.bookId, file.uri, declaredHosts) };
   }
-  if (remote?.type === 'webdav') return { uri: file.uri, headers: webdavHeaders(remote) };
+  // A server with two addresses plays from the one that answered last (M146); the stored
+  // address is always its own.
+  const uri = file.rootId ? atAddressInUse(file.rootId, remote, file.uri) : file.uri;
+  if (remote?.type === 'webdav') return { uri, headers: webdavHeaders(remote) };
   // SMB and SFTP: the login travels as a header to native code; these addresses are never HTTP.
   if (remote?.type === 'smb' || remote?.type === 'sftp') {
     return { uri: file.uri, headers: netfsHeaders(remote) };
   }
-  if (remote?.type === 'jellyfin') return jellyfinStream(remote, file.uri, Platform.OS !== 'web');
+  if (remote?.type === 'jellyfin') return jellyfinStream(remote, uri, Platform.OS !== 'web');
   if (remote?.type === 'audiobookshelf') {
-    return audiobookshelfStream(remote.token, file.uri, Platform.OS !== 'web');
+    return audiobookshelfStream(remote.token, uri, Platform.OS !== 'web');
   }
   if (remote?.type === 's3') {
     const object = parseS3Uri(file.uri);

@@ -1,4 +1,5 @@
 import type { RemoteSource } from '../schema';
+import { serverAddresses } from './addresses';
 
 // Android 17 asks for local network access at run time, also from apps that target 36, and
 // without it every connection to the home network fails. These rules say which servers need it
@@ -123,14 +124,23 @@ export function remoteAddresses(remote: RemoteSource, addonHosts: string[] = [])
       return [remote.endpoint];
     case 'addon':
       return addonHosts;
+    case 'webdav':
+    case 'jellyfin':
+    case 'audiobookshelf':
+      return serverAddresses(remote);
     default:
       return [remote.url];
   }
 }
 
-/** Whether any of a server's addresses is on the local network. */
+/**
+ * Whether a server is on the local network: an add-on's by any host it may reach; a server with
+ * a home and an away address (M146) only when both are local, as the other one needs no access.
+ */
 export function isLocalRemote(remote: RemoteSource, addonHosts: string[] = []): boolean {
-  return remoteAddresses(remote, addonHosts).some(isLocalAddress);
+  const addresses = remoteAddresses(remote, addonHosts);
+  if (remote.type !== 'addon' && addresses.length > 1) return addresses.every(isLocalAddress);
+  return addresses.some(isLocalAddress);
 }
 
 /**

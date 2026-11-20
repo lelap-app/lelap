@@ -155,3 +155,21 @@ describe('the decisions', () => {
     expect(localNetworkCause(false, 'granted')).toBe('none');
   });
 });
+
+describe('a server with a home and an away address (M146)', () => {
+  const abs = {
+    type: 'audiobookshelf' as const,
+    url: 'http://192.168.1.5:13378',
+    username: 'me',
+    userId: 'u',
+    token: 'k',
+    libraryIds: [],
+    profileId: 'p',
+  };
+
+  it('needs local network access only when both addresses are local', () => {
+    expect(isLocalRemote(abs)).toBe(true);
+    expect(isLocalRemote({ ...abs, alsoUrl: 'https://abs.example.org' })).toBe(false);
+    expect(isLocalRemote({ ...abs, alsoUrl: 'http://nas.local:13378' })).toBe(true);
+  });
+});
