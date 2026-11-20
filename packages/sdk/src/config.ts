@@ -21,6 +21,13 @@ export type ConfigField = {
   help?: string;
   /** A hint inside an empty text, url or password field. */
   placeholder?: string;
+  /** A link beside the field, such as `{ href, text: 'Find your API key' }`; http or https. */
+  link?: { href: string; text: string };
+  /**
+   * A heading the page sorts the field under. Fields without one come first, then each group in
+   * the order it first appears.
+   */
+  group?: string;
 };
 
 /**
@@ -191,6 +198,8 @@ export function checkFields(fields: ConfigField[], secret: string | undefined): 
       throw new Error(`The ${field.type} field ${field.key} needs options`);
     if (field.type === 'password' && !secret)
       throw new Error(`The password field ${field.key} needs configure.secret to encrypt it`);
+    if (field.link && (!isHttpUrl(field.link.href) || !field.link.text.trim()))
+      throw new Error(`The link of ${field.key} needs an http or https href and a text`);
   }
 }
 
@@ -282,6 +291,7 @@ const escape = (text: string) =>
 export const PAGE_STYLE = `body{margin:0;background:#14121a;color:#f4efe6;font:16px/1.5 system-ui,sans-serif}
 main{max-width:34rem;margin:0 auto;padding:2rem 1rem}
 h1{font-size:1.5rem;line-height:1.25;margin:0 0 .5rem}
+h2{font-size:1.125rem;margin:1.75rem 0 0}
 label{display:block;margin:1rem 0 .25rem;font-weight:600}
 input,select,textarea{box-sizing:border-box;width:100%;padding:.6rem;border-radius:.5rem;border:1px solid #3a3644;background:#1e1b26;color:inherit;font:inherit}
 textarea{height:6rem;font-family:ui-monospace,monospace;font-size:.85rem}
@@ -346,7 +356,10 @@ function signInHtml(signIn: ConfigureText['signIn'], returnTo: string | undefine
 
 function fieldHtml(field: ConfigField, current: Config[string] | undefined): string {
   const id = `f-${field.key}`;
-  const help = field.help ? `<p class="help">${escape(field.help)}</p>` : '';
+  const link = field.link
+    ? `<a class="help" href="${escape(field.link.href)}" rel="noreferrer" target="_blank">${escape(field.link.text)}</a>`
+    : '';
+  const help = `${field.help ? `<p class="help">${escape(field.help)}</p>` : ''}${link}`;
   const required = field.required ? ' required' : '';
   if (field.type === 'checkbox') {
     const checked = current === true ? ' checked' : '';
@@ -381,6 +394,17 @@ function fieldHtml(field: ConfigField, current: Config[string] | undefined): str
   return `<label for="${id}">${escape(field.label)}</label><input type="${field.type}" id="${id}" name="${escape(field.key)}"${value}${hint}${required}${auto}>${help}`;
 }
 
+/** Fields without a group first, then each group in the order it first appears. */
+function grouped(fields: ConfigField[]): [string | undefined, ConfigField[]][] {
+  const groups = new Map<string | undefined, ConfigField[]>([[undefined, []]]);
+  for (const field of fields) {
+    const list = groups.get(field.group) ?? [];
+    list.push(field);
+    groups.set(field.group, list);
+  }
+  return [...groups].filter(([, list]) => list.length > 0);
+}
+
 /**
  * A configure form, filled with `values` (never with passwords). `host` is the add-on's host,
  * such as `addon.example.org`; the page says it runs there. `hidden` values ride along unseen,
@@ -403,7 +427,13 @@ export function configurePage(args: {
   restart?: string;
 }): string {
   const { name, description, fields, values = {}, error, returnTo, host, text = {} } = args;
-  const inputs = fields.map((f) => fieldHtml(f, values[f.key] ?? f.default)).join('');
+  const inputs = grouped(fields)
+    .map(
+      ([group, list]) =>
+        (group === undefined ? '' : `<h2>${escape(group)}</h2>`) +
+        list.map((f) => fieldHtml(f, values[f.key] ?? f.default)).join(''),
+    )
+    .join('');
   const hidden = Object.entries({
     ...(args.hidden ?? {}),
     ...(returnTo ? { return: returnTo } : {}),

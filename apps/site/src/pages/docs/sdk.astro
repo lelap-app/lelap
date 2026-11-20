@@ -135,6 +135,47 @@ catalog: async ({ extra }) => {
 },
 `;
 
+const later = `
+catalog: async ({ extra, waitUntil }) => {
+  const cached = await cache.get(extra.search);
+  if (cached) {
+    // Answer from the cache now; refresh the entry after the answer is sent.
+    if (cached.stale) waitUntil(refresh(extra.search));
+    return { metas: cached.metas, cacheMaxAge: 3600 };
+  }
+  return { metas: await search(extra.search), cacheMaxAge: 3600 };
+},
+`;
+
+const workersEntry = `
+// Workers hands fetch its execution context; the SDK passes waitUntil on to it.
+export default { fetch: addon.fetch };
+`;
+
+const credentials = `
+import { fingerprint, log } from '@lelap/sdk';
+
+stream: async ({ id, config }) => {
+  // A cache key per account that holds no token.
+  const key = \`\${await fingerprint(String(config?.token))}:\${id}\`;
+  const files = await lookup(key, id, config);
+  // Strings, numbers and booleans only; a URL is cut to its path.
+  log('stream', { id, found: files.length, server: config?.server ?? '' });
+  return { streams: files.map(toStream) };
+},
+`;
+
+const mocked = `
+import { mockFetch } from '@lelap/sdk/check';
+
+const fetch = mockFetch({
+  'https://archive.org/metadata/raven': { files: [{ name: 'raven_poe_64kb.mp3' }] },
+  'GET https://archive.org/advancedsearch.php*': { response: { docs: [] } },
+});
+const addon = createMyAddon({ fetch });
+// …requests to anything else fail, and fetch.unmatched lists them.
+`;
+
 const onError = `
 const addon = createAddon(handlers, {
   onError: (error, request) => console.error(request.url, error),
@@ -317,6 +358,17 @@ const toc: [string, string][] = [
   <CodeBlock code={mounted} />
   <CodeBlock code={onError} />
 
+  <h2 id="later">Work after the answer</h2>
+  <p>
+    Every handler gets <code>waitUntil(promise)</code> for work that may finish after the answer is
+    sent, such as finishing a slow upstream search into your cache or refreshing a stale entry. On
+    Workers, <code>addon.fetch(request, env, ctx)</code> hands it to the execution context, so the
+    Worker isn’t stopped early; on Node, Deno and Bun the promise simply runs. A rejection goes to{' '}
+    <code>onError</code>. Since SDK 0.6.
+  </p>
+  <CodeBlock code={later} />
+  <CodeBlock code={workersEntry} label="src/index.ts" />
+
   <h2 id="configure">Settings and sign-in</h2>
   <p>
     Give <code>createAddon</code> a <code>configure</code> option and the SDK serves a settings form
@@ -333,11 +385,11 @@ const toc: [string, string][] = [
     </li>
     <li>
       With <code>secret</code>, the token is encrypted with AES-GCM and only your add-on can read
-      it; <code>password</code> fields need one. The next SDK version (0.6, not on npm yet) seals
-      the manifest's <code>id</code> in too (<code>e2.…</code>), so of two add-ons sharing a secret,
-      neither accepts the other's tokens; URLs with <code>e1.…</code> from earlier versions keep
-      working. Without, the token is only encoded (<code>p1.…</code>), so anyone with the URL can
-      read it. Changing the secret makes every configured URL unreadable; those requests answer{' '}
+      it; <code>password</code> fields need one. Since SDK 0.6 it seals the manifest's{' '}
+      <code>id</code> in too (<code>e2.…</code>), so of two add-ons sharing a secret, neither
+      accepts the other's tokens; URLs with <code>e1.…</code> from earlier versions keep working.
+      Without, the token is only encoded (<code>p1.…</code>), so anyone with the URL can read it.
+      Changing the secret makes every configured URL unreadable; those requests answer{' '}
       <code>403</code>.
     </li>
     <li>
@@ -356,20 +408,26 @@ const toc: [string, string][] = [
       describes the flow for add-ons without the SDK.
     </li>
     <li>
-      New in the next SDK release, 0.6, for a service with tokens and lists: <code>url</code> fields
-      (http or https, without a login) and <code>choices</code> (a group of boxes, kept as a list of
-      the ticked values), <code>placeholder</code>, and <code>text</code> with an <code>intro</code>
-      , a <code>link</code>, numbered <code>steps</code> and a <code>note</code>.{' '}
-      <code>choose</code> adds a second page whose fields depend on the first, such as the lists in
-      the listener’s account; the first page’s settings ride along sealed for an hour, and Configure
-      from a configured link opens it directly. <code>manifest(config)</code> gives each listener
-      their own catalogs, and <code>legacy</code> keeps add-on addresses from before your add-on
-      used this configure working. Throw an <code>AddonError</code> from <code>check</code> or{' '}
+      Since SDK 0.6, for a service with tokens and lists: <code>url</code> fields (http or https,
+      without a login) and <code>choices</code> (a group of boxes, kept as a list of the ticked
+      values), <code>placeholder</code>, and <code>text</code> with an <code>intro</code>, a{' '}
+      <code>link</code>, numbered <code>steps</code> and a <code>note</code>. <code>choose</code>{' '}
+      adds a second page whose fields depend on the first, such as the lists in the listener’s
+      account; the first page’s settings ride along sealed for an hour, and Configure from a
+      configured link opens it directly. <code>manifest(config)</code> gives each listener their own
+      catalogs, and <code>legacy</code> keeps add-on addresses from before your add-on used this
+      configure working. Throw an <code>AddonError</code> from <code>check</code> or{' '}
       <code>choose</code> to show its message on the page. The page after saving copies the address
       with a tap. With <code>text.signIn</code>, a button for signing in with the service comes
       first: it goes to a path on your add-on’s own host with the page’s return address added, and
       the form folds under it. It takes <code>href</code>, <code>label</code>, <code>note</code> and{' '}
       <code>other</code>. Lelap’s Hardcover and gPodder add-ons are built this way.
+    </li>
+    <li>
+      Since SDK 0.6, a field can have a <code>link</code> (<code>href</code>, <code>text</code>)
+      shown under it, such as “Find your API key”, and a <code>group</code>: a heading the page
+      sorts fields under. Fields without a group come first, then each group in the order it first
+      appears. Fields that depend on others belong on the second page, <code>choose</code>.
     </li>
     <li>
       The form and the page after it say who runs them: “This page is run by {'{host}'}, not by
@@ -388,14 +446,23 @@ const toc: [string, string][] = [
     </li>
   </ul>
 
+  <h2 id="credentials">Keys in cache keys and logs</h2>
+  <p>
+    <code>fingerprint(secret)</code> is a short, stable hash (16 hex characters of SHA-256), for
+    cache keys and log lines that must differ per account without holding the token.{' '}
+    <code>log(event, fields)</code> prints one JSON line and takes only strings, numbers and
+    booleans, so an error object, which may echo a request with a key in it, can’t be printed by
+    accident; a URL loses its query and login, and long strings are cut. Both since SDK 0.6.
+  </p>
+  <CodeBlock code={credentials} />
+
   <h2 id="health">Health</h2>
   <p>
     Every SDK add-on answers <code>GET /health</code> with <code>{'{ "status": "ok" }'}</code> and
     declares <code>behaviorHints.health</code>; the SDK also sets <code>protocolVersion</code> to
-    the newest revision it knows: 9 in SDK 0.5.0, the version on npm, and 8 in 0.4.0. The next
-    release, 0.6, sets <code>{LATEST_PROTOCOL_VERSION}</code>. Pass a <code>health</code> handler to
-    check what your add-on relies on. Keep it quick: the app asks when Settings → Library and
-    sources → Add-ons opens.
+    the newest revision it knows: <code>{LATEST_PROTOCOL_VERSION}</code> in SDK 0.6, 9 in 0.5.0 and
+    8 in 0.4.0. Pass a <code>health</code> handler to check what your add-on relies on. Keep it
+    quick: the app asks when Settings → Library and sources → Add-ons opens.
   </p>
   <CodeBlock code={health} />
 
@@ -429,7 +496,7 @@ const toc: [string, string][] = [
     call. See <a href="/docs/protocol/#versions">Versions</a>.
   </p>
   <p>
-    Revision 10 comes with the next SDK release, 0.6. A <code>scrobble</code> resource can list the{' '}
+    Revision 10 comes with SDK 0.6. A <code>scrobble</code> resource can list the{' '}
     <code>events</code> it uses, and <code>wantsScrobble(manifest, type, id, event)</code> tells
     whether an event reaches it. A <code>rate</code> without <code>rating</code> means the listener
     took their rating back, so a <code>scrobble</code> handler that keeps ratings should clear one
@@ -511,8 +578,15 @@ const toc: [string, string][] = [
   <p>
     For everything at once, <code>checkAddon</code> from <code>@lelap/sdk/check</code> runs the{' '}
     <a href="/docs/checking/">add-on test kit</a> against <code>addon.fetch</code>: schemas, CORS,
-    caching, paging and IDs that come back. It comes with the next SDK release, 0.6.
+    caching, paging and IDs that come back. It comes with SDK 0.6.
   </p>
+  <p>
+    <code>mockFetch(routes)</code>, from the same entry, stands in for the services your add-on
+    calls. It answers the routes you give, a URL or <code>METHOD URL</code>, with a <code>*</code>{' '}
+    at the end for every URL starting with the rest, and fails any other request, so a test can
+    never reach a real service. Pass it where your add-on takes its <code>fetch</code>.
+  </p>
+  <CodeBlock code={mocked} />
 
   <h2 id="app">Add it to the app</h2>
   <ol>

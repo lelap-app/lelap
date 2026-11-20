@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { CatalogResponse, Manifest, MetaResponse, PAGE_STYLE, StreamResponse } from '@lelap/sdk';
-import { checkAddon } from '@lelap/sdk/check';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { checkAddon, mockFetch } from '@lelap/sdk/check';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { addon as catalogAddon } from '../catalog.mjs';
 import { ownPage } from '../page.mjs';
@@ -111,15 +111,16 @@ describe('step 3: a source for your own files', () => {
   let folder;
   let addon;
 
-  const json = (body) => new Response(JSON.stringify(body), { status: 200 });
-  // Open Library as the add-on sees it for A Christmas Carol; nothing else is known.
-  const openLibrary = vi.fn(async (url) => {
-    if (url.endsWith('/works/OL1W.json')) {
-      return json({ title: 'A Christmas Carol', authors: [{ author: { key: '/authors/OL2A' } }] });
-    }
-    if (url.endsWith('/authors/OL2A.json')) return json({ name: 'Charles Dickens' });
-    if (url.includes('/works/OL1W/editions.json')) return json({ entries: [] });
-    return new Response('{}', { status: 404 });
+  // Open Library as the add-on sees it for A Christmas Carol; nothing else is known. Any request
+  // to another host fails, so the tests never reach a real service.
+  const openLibrary = mockFetch({
+    'https://ol.test/works/OL1W.json': {
+      title: 'A Christmas Carol',
+      authors: [{ author: { key: '/authors/OL2A' } }],
+    },
+    'https://ol.test/authors/OL2A.json': { name: 'Charles Dickens' },
+    'https://ol.test/works/OL1W/editions.json*': { entries: [] },
+    'https://ol.test/*': () => new Response('{}', { status: 404 }),
   });
 
   beforeAll(async () => {
@@ -165,7 +166,7 @@ describe('step 3: a source for your own files', () => {
       url: 'https://files.example.org/audiobooks/Charles%20Dickens/A%20Christmas%20Carol.m4b',
       mime: 'audio/mp4',
     });
-    expect(openLibrary.mock.calls.every(([url]) => url.startsWith('https://ol.test/'))).toBe(true);
+    expect(openLibrary.unmatched).toEqual([]);
   });
 
   it('has nothing for works it lacks, and keeps its own catalog', async () => {

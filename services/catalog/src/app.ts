@@ -1,5 +1,5 @@
-import { CORS_HEADERS } from '@lelap/sdk';
-import { Hono } from 'hono';
+import { CORS_HEADERS, type ExecutionContextLike } from '@lelap/sdk';
+import { type Context, Hono } from 'hono';
 
 import { BASE_PATH as BOOKWYRM, bookwyrmAddon } from './bookwyrm/addon';
 import { createInstance } from './bookwyrm/instance';
@@ -84,6 +84,15 @@ export function podcastIndexCredentials(env: Env): PodcastIndexCredentials | nul
  * `/lectures` and Lepak under `/lepak` (with Podcast Index keys only). Platform calls are
  * injected, so a Node entry only has to pass its own `fetch` (and no cache).
  */
+/** The Workers execution context, which Hono's getter throws without (Node, tests). */
+function contextOf(c: Context): ExecutionContextLike | undefined {
+  try {
+    return c.executionCtx;
+  } catch {
+    return undefined;
+  }
+}
+
 export function createApp(platform: Platform, env: Env): Hono {
   const upstream = createUpstream(platform, userAgent(env));
   const librivox = createLibrivoxAddon(upstream);
@@ -200,19 +209,21 @@ export function createApp(platform: Platform, env: Env): Hono {
     app.all(path, (c) => serve(c.req.raw));
     app.all(`${path}/*`, (c) => serve(c.req.raw));
   }
-  app.all(BASE_PATH, (c) => librivox.fetch(c.req.raw));
-  app.all(INTERNET_ARCHIVE, (c) => internetArchive.fetch(c.req.raw));
-  app.all(`${INTERNET_ARCHIVE}/*`, (c) => internetArchive.fetch(c.req.raw));
-  app.all(SERIES, (c) => series.fetch(c.req.raw));
-  app.all(`${SERIES}/*`, (c) => series.fetch(c.req.raw));
+  app.all(BASE_PATH, (c) => librivox.fetch(c.req.raw, undefined, contextOf(c)));
+  app.all(INTERNET_ARCHIVE, (c) => internetArchive.fetch(c.req.raw, undefined, contextOf(c)));
+  app.all(`${INTERNET_ARCHIVE}/*`, (c) =>
+    internetArchive.fetch(c.req.raw, undefined, contextOf(c)),
+  );
+  app.all(SERIES, (c) => series.fetch(c.req.raw, undefined, contextOf(c)));
+  app.all(`${SERIES}/*`, (c) => series.fetch(c.req.raw, undefined, contextOf(c)));
   app.get(`${LECTURES}/transcript/*`, (c) => lectureTranscript(c.req.raw));
-  app.all(LECTURES, (c) => lectures.fetch(c.req.raw));
-  app.all(`${LECTURES}/*`, (c) => lectures.fetch(c.req.raw));
+  app.all(LECTURES, (c) => lectures.fetch(c.req.raw, undefined, contextOf(c)));
+  app.all(`${LECTURES}/*`, (c) => lectures.fetch(c.req.raw, undefined, contextOf(c)));
   if (lepak) {
-    app.all(LEPAK, (c) => lepak.fetch(c.req.raw));
-    app.all(`${LEPAK}/*`, (c) => lepak.fetch(c.req.raw));
+    app.all(LEPAK, (c) => lepak.fetch(c.req.raw, undefined, contextOf(c)));
+    app.all(`${LEPAK}/*`, (c) => lepak.fetch(c.req.raw, undefined, contextOf(c)));
   }
-  app.all(`${BASE_PATH}/*`, (c) => librivox.fetch(c.req.raw));
-  app.all('*', (c) => catalog.fetch(c.req.raw));
+  app.all(`${BASE_PATH}/*`, (c) => librivox.fetch(c.req.raw, undefined, contextOf(c)));
+  app.all('*', (c) => catalog.fetch(c.req.raw, undefined, contextOf(c)));
   return app;
 }

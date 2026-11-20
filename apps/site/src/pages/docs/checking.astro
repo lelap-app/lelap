@@ -3,8 +3,6 @@ import CodeBlock from '../../components/CodeBlock.astro';
 import Docs from '../../layouts/Docs.astro';
 import { site } from '../../site';
 
-const tree = (path: string) => `${site.repoUrl}/tree/main/${path}`;
-
 const run = `
 npx @lelap/sdk check https://addon.example.com/manifest.json
 `;
@@ -152,8 +150,7 @@ const toc: [string, string][] = [
   </p>
   <div class="note">
     <p>
-      The command comes with the next release of <code>@lelap/sdk</code>, 0.6. Until that is on npm,
-      run it from the <a href={tree('packages/sdk')}>repository</a>.
+      The command comes with <code>@lelap/sdk</code> 0.6 and later.
     </p>
   </div>
 
@@ -219,13 +216,12 @@ const toc: [string, string][] = [
       <strong>Editions and events.</strong> A meta’s editions have keys of their own, since the app
       keeps the listener’s choice by key, and there are two or more, since the item page shows none
       below that. <code>events</code> (revision 10) sit on the <code>scrobble</code> resource only.
-      In the next SDK release, 0.6.
     </li>
     <li>
       <strong>Whole series.</strong> A <code>series</code> resource answers a name no series has
       with <code>{'{ "series": null }'}</code>, not with some other series; with{' '}
       <code>--series</code>, the series you name parses and each book has a position or a release
-      date. In the next SDK release, 0.6.
+      date.
     </li>
     <li>
       <strong>Streams.</strong> No headers from an add-on on a server, a different{' '}
@@ -292,10 +288,9 @@ const toc: [string, string][] = [
 
   <h2 id="ci">In GitHub Actions</h2>
   <p>
-    Once SDK 0.6 is on npm, add it as a dev dependency with{' '}
-    <code>npm install --save-dev @lelap/sdk</code>, then start your add-on in the job and check it.
-    For an add-on in another language, start it the same way and run the command with{' '}
-    <code>npx @lelap/sdk check</code>. Pin actions to a commit, as here.
+    Add the SDK as a dev dependency with <code>npm install --save-dev @lelap/sdk</code>, then start
+    your add-on in the job and check it. For an add-on in another language, start it the same way
+    and run the command with <code>npx @lelap/sdk check</code>. Pin actions to a commit, as here.
   </p>
   <CodeBlock code={workflow} label=".github/workflows/addon-check.yml" />
 
@@ -303,7 +298,7 @@ const toc: [string, string][] = [
   <p>
     The command is <code>checkAddon</code> from <code>@lelap/sdk/check</code>, which takes a{' '}
     <code>fetch</code>. Pass your add-on’s own and it needs no server, so it runs in your unit
-    tests. It comes with SDK 0.6 too. The repository’s tests run it against every one of the{' '}
+    tests. The repository’s tests run it against every one of the{' '}
     <a href="/docs/samples/">samples</a> and {site.name}’s own add-ons.
   </p>
   <CodeBlock code={vitest} label="src/addon.test.ts" />
