@@ -14,6 +14,7 @@ import {
   pruneHistory,
   readReport,
   recordHistory,
+  repeatsPlay,
   sleepStopOf,
 } from './history';
 import { deleteProfile, DEFAULT_PROFILE_ID as ME } from './profiles';
@@ -92,6 +93,40 @@ describe('playback history', () => {
   it('never merges into a newer entry that arrived first', () => {
     const last = report({ at: NOW + 3_000 });
     expect(continuesSkips(last, report({ at: NOW }))).toBe(false);
+  });
+
+  it('keeps one Play when it is pressed again while the book starts or plays', () => {
+    const play = (at: number, fromMs: number, source: HistoryReport['source'] = 'app') =>
+      recordHistory(db, ME, report({ action: 'play', at, fromMs, toMs: fromMs, source }), NOW);
+    expect(play(NOW, 61_000)).not.toBeNull();
+    // A second tap while the stream starts, and Continue listening a few seconds into playing.
+    expect(play(NOW + 1_000, 61_000)).toBeNull();
+    expect(play(NOW + 6_000, 66_000, 'keys')).toBeNull();
+    expect(bookHistory(db, ME, bookId, NOW).map((e) => [e.action, e.fromMs])).toEqual([
+      ['play', 61_000],
+    ]);
+  });
+
+  it('keeps a Play after a pause, a jump or a while', () => {
+    const last = report({ action: 'play', at: NOW, fromMs: MIN, toMs: MIN });
+    const again = (r: Partial<HistoryReport>) =>
+      repeatsPlay(last, report({ action: 'play', at: NOW + 2_000, fromMs: MIN, toMs: MIN, ...r }));
+    expect(again({})).toBe(true);
+    expect(again({ at: NOW + 11_000 })).toBe(false);
+    expect(again({ fromMs: 5 * MIN })).toBe(false);
+    expect(again({ action: 'pause' })).toBe(false);
+    expect(again({ at: NOW - 1_000 })).toBe(false);
+    expect(repeatsPlay(report({ action: 'pause', at: NOW }), report({ action: 'play' }))).toBe(
+      false,
+    );
+    recordHistory(db, ME, report({ action: 'play', at: NOW, fromMs: MIN, toMs: MIN }), NOW);
+    recordHistory(db, ME, report({ action: 'pause', at: NOW + 2_000, fromMs: MIN }), NOW);
+    recordHistory(db, ME, report({ action: 'play', at: NOW + 4_000, fromMs: MIN }), NOW);
+    expect(bookHistory(db, ME, bookId, NOW).map((e) => e.action)).toEqual([
+      'play',
+      'pause',
+      'play',
+    ]);
   });
 
   it('keeps the last 50 entries per book, newest first', () => {
