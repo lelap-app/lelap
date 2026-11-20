@@ -2,6 +2,45 @@
 
 What changed in each Lelap release, newest first.
 
+## 0.1.0-beta.16 (2026-11-21)
+
+This beta changes native code, so Android needs the new APK: beta 15 can't get it over the air.
+One database change runs once at the first start. No new permissions.
+
+### New
+
+- An add-on can say which Lelap it needs. When it needs a newer one, its rows say “Needs a newer
+  Lelap” with an Update button instead of failing. (#278)
+
+### Improved
+
+- Audio that is still being prepared now waits with “Preparing…” and a countdown wherever it
+  happens: also in the middle of a book, and also when the add-on didn't say so up front. (#276)
+- If one copy of a book won't open before it plays, the next copy plays instead. (#276)
+- Seeking into a part whose length isn't known yet lands where you meant once the part opens, and
+  a book of such parts gets its chapters once every part is measured. (#276)
+- In Firefox, skip silence works on variable-bitrate MP3 as well. (#279)
+- While casting with your sound settings, the time skip silence saves now counts, and a speaker
+  that joins a group mid-book starts at the same place without restarting the others. (#279)
+
+### Fixed
+
+- In Firefox, skip silence no longer speeds through words in constant-bitrate MP3 files without
+  an Info frame; it leaves those files alone. (#279)
+
+### Self-hosting and add-on developers
+
+- `@lelap/sdk` 0.8.0 is on npm with protocol revision 15: the app sends its revision as a
+  `Lelap-Protocol` header to add-ons that declare 15 or higher, handlers get it as `appProtocol`,
+  and `createAddon({ minProtocolVersion })` answers `426 Upgrade Required` to older apps by itself.
+  Preflights are cached for a day. (#278, #280)
+
+### Known issues
+
+- Preparing audio mid-book, the next copy on failure, the update prompt for add-ons and the
+  casting changes haven't been tried on a phone or on real speakers yet. Skip silence in Safari
+  hasn't been measured.
+
 ## 0.1.0-beta.15 (2026-11-20)
 
 This beta changes native code, so Android needs the new APK: beta 14 can't get it over the air.
