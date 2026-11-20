@@ -4,6 +4,9 @@ import {
   checkHealth,
   chosenEdition,
   type AddonHealth,
+  copyFallbackStep,
+  type CopyFallback,
+  copyKey,
   type Fetcher,
   fetchArtwork,
   fetchManifest,
@@ -20,6 +23,7 @@ import {
   type InstalledAddon,
   listAddons,
   mergeSources,
+  nextCopy,
   orderStreams,
   pickSource,
   streamPreferences,
@@ -42,6 +46,7 @@ import { db, newId } from './db';
 import { logAddonFailure } from './diagnostics';
 import { profileId } from './profile';
 import { playBook, useLibrary } from './player';
+import * as audio from './platform/audio';
 import { callLocalAddon } from './sandbox';
 import { callWithSettings } from './scrobblers';
 
@@ -138,11 +143,63 @@ export function addItem(meta: Meta, found: FoundStream): string {
   });
 }
 
-/** Adds an add-on item to the library with the chosen stream and starts playing it. */
-export async function playItem(meta: Meta, found: FoundStream): Promise<string> {
+/**
+ * Adds an add-on item to the library with the chosen stream and starts playing it. With the
+ * other [copies] of its row on the item page, a copy the player can't open makes way for the
+ * next ready one (M155), in the same book.
+ */
+export async function playItem(
+  meta: Meta,
+  found: FoundStream,
+  copies: FoundStream[] = [],
+): Promise<string> {
+  disarmFallback();
   const bookId = addItem(meta, found);
   await playBook(bookId);
+  if (copies.length > 1) armFallback(bookId, meta, copies, found);
   return bookId;
+}
+
+type Fallback = {
+  state: CopyFallback;
+  meta: Meta;
+  copies: FoundStream[];
+  subscription: { remove(): void };
+};
+let fallback: Fallback | null = null;
+
+function disarmFallback(): void {
+  fallback?.subscription.remove();
+  fallback = null;
+}
+
+function armFallback(bookId: string, meta: Meta, copies: FoundStream[], playing: FoundStream) {
+  const armed: Fallback = {
+    state: { bookId, tried: [copyKey(playing)], seen: false },
+    meta,
+    copies,
+    subscription: audio.addStateListener((state) => void onFallbackState(armed, state)),
+  };
+  fallback = armed;
+}
+
+async function onFallbackState(armed: Fallback, state: audio.PlayerState): Promise<void> {
+  if (fallback !== armed) return;
+  const { step, fallback: next } = copyFallbackStep(armed.state, state);
+  armed.state = next;
+  if (step === 'done') return disarmFallback();
+  if (step !== 'next') return;
+  const copy = nextCopy(armed.copies, armed.state.tried);
+  // No copy left: the last one's error stays under the player.
+  if (!copy) return disarmFallback();
+  try {
+    const bookId = addItem(armed.meta, copy);
+    // Set before the load: what the player reports from now on is about this copy.
+    armed.state = { bookId, tried: [...armed.state.tried, copyKey(copy)], seen: false };
+    await playBook(bookId);
+  } catch {
+    disarmFallback();
+  }
 }
 
 const isType = (value: string): value is ContentType =>

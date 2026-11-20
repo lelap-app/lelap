@@ -468,7 +468,7 @@ class AudioModule : Module() {
         "bookId" to null, "fileLocation" to null, "bookTitle" to null, "partTitle" to null,
         "partIndex" to -1, "partCount" to 0, "positionMs" to 0.0, "durationMs" to 0.0,
         "speed" to 1.0, "duckOnInterruption" to true, "waitingForCall" to false, "sleepTimerRemainingMs" to null, "sleepTimerMode" to null, "error" to null,
-        "live" to false, "nowPlaying" to null,
+        "preparingUntil" to null, "live" to false, "nowPlaying" to null,
       )
     }
     val extras = c.sessionExtras
@@ -480,6 +480,10 @@ class AudioModule : Module() {
     }
     val duration = c.duration
     val live = c.mediaMetadata.extras?.getBoolean(Commands.METADATA_LIVE, false) == true
+    // Only while the player waits for it: the next part may prepare while this one plays (M155).
+    val preparingUntil = extras.getLong(Commands.EXTRA_PREPARING_RETRY_AT, -1L).takeIf {
+      it >= 0 && c.playbackState == Player.STATE_BUFFERING
+    }?.let { System.currentTimeMillis() + (it - SystemClock.elapsedRealtime()).coerceAtLeast(0L) }
     return mapOf(
       "connected" to true,
       "playing" to c.isPlaying,
@@ -498,7 +502,12 @@ class AudioModule : Module() {
       "waitingForCall" to extras.getBoolean(Commands.EXTRA_WAITING_FOR_FOCUS, false),
       "sleepTimerRemainingMs" to timerRemaining?.toDouble(),
       "sleepTimerMode" to timerRemaining?.let { extras.getString(Commands.EXTRA_SLEEP_TIMER_MODE) },
-      "error" to c.playerError?.let { PlayerErrors.text(it.errorCode, it.message, NativeText.get(context)) },
+      "error" to c.playerError?.let {
+        val text = NativeText.get(context)
+        if (extras.getBoolean(Commands.EXTRA_PREPARING_GAVE_UP, false)) PlayerErrors.stillPreparing(text)
+        else PlayerErrors.text(it.errorCode, it.message, text)
+      },
+      "preparingUntil" to preparingUntil?.toDouble(),
       "live" to live,
       "nowPlaying" to if (live) c.mediaMetadata.extras?.getString(Commands.METADATA_NOW_PLAYING) else null,
     )

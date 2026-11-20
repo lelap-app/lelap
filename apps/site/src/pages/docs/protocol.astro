@@ -1531,6 +1531,11 @@ const toc: [string, string][] = [
     the audio is there. Keep the stream’s <code>sourceKey</code> when it becomes ready.
   </p>
   <p>
+    The player waits the same way for audio that answers so while it plays: a stream you didn’t
+    mark, or a part in the middle of a book. It shows “Preparing…” under the player and opens the
+    part when the wait is over, at the place the listener was going to.
+  </p>
+  <p>
     Any other answer ends the wait. <code>404</code> or <code>410</code> means it won’t come: the
     app and the queue stop, and show the answer’s body when it is plain text of at most 200
     characters, such as “The source no longer has this file.”, else words of their own. Send{' '}

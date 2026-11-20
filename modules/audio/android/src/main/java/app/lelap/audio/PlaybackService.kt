@@ -66,6 +66,7 @@ import app.lelap.cast.CastRequest
 import app.lelap.cast.LiveAudio
 import app.lelap.cast.RendererStatus
 import java.util.TimeZone
+import java.util.concurrent.ConcurrentHashMap
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -162,6 +163,17 @@ class PlaybackService : MediaLibraryService() {
         }
         .orEmpty()
     }
+
+  /** When preparing audio is asked again (M155), on the elapsed clock; null while not waiting. */
+  private var preparingRetryAt: Long? = null
+  /** The last error ended a wait for preparing audio, so the line under the player says so. */
+  private var preparingGaveUp = false
+
+  /**
+   * A seek into a part not opened yet whose length nobody knows (M155): the place it was meant
+   * for, settled once the player has opened the part and learned its length.
+   */
+  private var pendingSeek: Pair<Int, Long>? = null
 
   /** What the live stream that is loaded plays now (M154), from its ICY or ID3 metadata. */
   private var nowPlaying: String? = null
@@ -294,7 +306,17 @@ class PlaybackService : MediaLibraryService() {
       .setMediaSourceFactory(
         DefaultMediaSourceFactory(withBookHeaders(NetDataSource.Factory(DefaultDataSource.Factory(this, http))))
           .setLoadErrorHandlingPolicy(
-            ExpiringLinkPolicy { status -> handler.post { note(Diagnostics.LINK_REFRESHED, status = status) } },
+            ExpiringLinkPolicy(
+              onRefresh = { status -> handler.post { note(Diagnostics.LINK_REFRESHED, status = status) } },
+              onPreparing = { delayMs -> handler.post { preparing(SystemClock.elapsedRealtime() + delayMs) } },
+              onPreparingEnded = {
+                handler.post {
+                  preparingGaveUp = true
+                  preparingRetryAt = null
+                  publishExtras()
+                }
+              },
+            ),
           ),
       )
       .setAudioAttributes(
@@ -370,6 +392,12 @@ class PlaybackService : MediaLibraryService() {
 
       override fun onPlaybackStateChanged(playbackState: Int) {
         if (playbackState == Player.STATE_ENDED) onBookEnded()
+        // Preparing audio that came: the wait is over.
+        if (playbackState != Player.STATE_IDLE && preparingGaveUp) {
+          preparingGaveUp = false
+          publishExtras()
+        }
+        if (playbackState == Player.STATE_READY) preparing(null)
       }
 
       override fun onPlayerError(error: PlaybackException) {
@@ -379,8 +407,12 @@ class PlaybackService : MediaLibraryService() {
         note(Diagnostics.ERROR, code = error.errorCode, status = status)
       }
 
-      // New items, or their real durations once known: the outro is found from the last one.
-      override fun onTimelineChanged(timeline: Timeline, reason: Int) = placeOutro()
+      // New items, or their real durations once known: the outro is found from the last one, and
+      // a seek into a part of unknown length goes where it was meant.
+      override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+        placeOutro()
+        settlePendingSeek()
+      }
 
       override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         if (remote == null) onItemTransition(reason)
@@ -726,6 +758,9 @@ class PlaybackService : MediaLibraryService() {
     account()
     current = playlist
     nowPlaying = null
+    pendingSeek = null
+    preparingGaveUp = false
+    preparing(null)
     val start = load.startPositionMs.coerceAtLeast(0L)
     val index = load.startIndex.coerceIn(0, playlist.files.lastIndex)
     val position = SeekRules.startPosition(
@@ -1046,6 +1081,7 @@ class PlaybackService : MediaLibraryService() {
     if (player.mediaItemCount == 0 || live) return
     val before = placeNow()
     val (index, position) = SeekRules.skip(active.currentMediaItemIndex, active.currentPosition, deltaMs, durations())
+    notePendingSeek(index, position)
     active.seekTo(index, position)
     jumped(before, PlaybackHistory.SKIP, source, index to position)
   }
@@ -1099,9 +1135,15 @@ class PlaybackService : MediaLibraryService() {
     override fun pause() = pressed(PlaybackHistory.PAUSE) { super.pause() }
     override fun setPlayWhenReady(playWhenReady: Boolean) =
       pressed(if (playWhenReady) PlaybackHistory.PLAY else PlaybackHistory.PAUSE) { super.setPlayWhenReady(playWhenReady) }
-    override fun seekTo(positionMs: Long) = sought(currentMediaItemIndex, positionMs) { super.seekTo(positionMs) }
+    override fun seekTo(positionMs: Long) = sought(currentMediaItemIndex, positionMs) {
+      notePendingSeek(currentMediaItemIndex, positionMs)
+      super.seekTo(positionMs)
+    }
     override fun seekTo(mediaItemIndex: Int, positionMs: Long) =
-      sought(mediaItemIndex, positionMs) { super.seekTo(mediaItemIndex, positionMs) }
+      sought(mediaItemIndex, positionMs) {
+        notePendingSeek(mediaItemIndex, positionMs)
+        super.seekTo(mediaItemIndex, positionMs)
+      }
     // Play on an ended book comes here (Media3's play button); not a jump the listener made.
     override fun seekToDefaultPosition() = super.seekToDefaultPosition()
     override fun seekToDefaultPosition(mediaItemIndex: Int) = sought(mediaItemIndex, null) { super.seekToDefaultPosition(mediaItemIndex) }
@@ -1795,6 +1837,39 @@ class PlaybackService : MediaLibraryService() {
     }
   }
 
+  /** The wait for preparing audio (M155) moved on or ended; null ends it. */
+  private fun preparing(retryAt: Long?) {
+    if (retryAt == preparingRetryAt) return
+    if (retryAt != null) preparingGaveUp = false
+    preparingRetryAt = retryAt
+    publishExtras()
+  }
+
+  /** Notes a seek into a part of unknown length, to settle once it is opened (M155). */
+  private fun notePendingSeek(index: Int, positionMs: Long) {
+    val unknown = durations().getOrElse(index) { 1L } <= 0
+    pendingSeek = if (remote == null && positionMs > 0 && unknown) index to positionMs else null
+  }
+
+  /**
+   * Once the part a seek went into has a length, a place past its end goes on into the parts
+   * after it, as if every length had been known (M155).
+   */
+  private fun settlePendingSeek() {
+    val (index, position) = pendingSeek ?: return
+    val timeline = player.currentTimeline
+    if (index >= timeline.windowCount) {
+      pendingSeek = null
+      return
+    }
+    val length = timeline.getWindow(index, Timeline.Window()).durationMs
+    if (length == C.TIME_UNSET) return
+    pendingSeek = null
+    val (to, at) = SeekRules.pastPart(durations(), index, position, length) ?: return
+    notePendingSeek(to, at)
+    player.seekTo(to, at)
+  }
+
   private fun publishExtras() {
     if (!::session.isInitialized) return
     boundaryPublishedAt = SystemClock.elapsedRealtime()
@@ -1813,6 +1888,8 @@ class PlaybackService : MediaLibraryService() {
         } else {
           remaining?.let { putLong(Commands.EXTRA_SLEEP_TIMER_FROZEN, it) }
         }
+        preparingRetryAt?.let { putLong(Commands.EXTRA_PREPARING_RETRY_AT, it) }
+        putBoolean(Commands.EXTRA_PREPARING_GAVE_UP, preparingGaveUp)
       },
     )
   }
@@ -2233,21 +2310,54 @@ class PlaybackService : MediaLibraryService() {
   }
 }
 
-/** Opens a link again, once, when its host says it expired; see [ExpiringLinks]. */
+/**
+ * Opens a link again, once, when its host says it expired; see [ExpiringLinks]. Asks preparing
+ * audio again when its source says (M155); see [PreparingAudio].
+ */
 @OptIn(UnstableApi::class)
 private class ExpiringLinkPolicy(
   /** Called on the loading thread with the status that made it open the link again. */
   private val onRefresh: (Int) -> Unit,
+  /** Called on the loading thread with the wait before preparing audio is asked again. */
+  private val onPreparing: (Long) -> Unit,
+  /** Called on the loading thread when the wait for preparing audio ran out. */
+  private val onPreparingEnded: () -> Unit,
 ) : DefaultLoadErrorHandlingPolicy() {
+  /** When each address first answered that it is preparing, for this load. */
+  private val preparingSince = ConcurrentHashMap<String, Long>()
+
+  // Preparing audio may be asked again for up to 10 minutes; every other failure stops after
+  // Media3's usual number of tries, in getRetryDelayMsFor.
+  override fun getMinimumLoadableRetryCount(dataType: Int): Int = Int.MAX_VALUE
+
   override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
     // A refused SMB or SFTP login or a changed host key stays so; each retry is another login
     // attempt, which can get the phone blocked by the server.
     val refused = generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }
       .filterIsInstance<NetFailure>().firstOrNull()?.kind?.permanent == true
     if (refused) return C.TIME_UNSET
-    val code = generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }
+    val http = generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }
       .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
-      .firstOrNull()?.responseCode
+      .firstOrNull()
+    val code = http?.responseCode
+    val retryAfter = http?.headerFields?.entries
+      ?.firstOrNull { it.key?.equals("Retry-After", ignoreCase = true) == true }?.value?.firstOrNull()
+    if (code == 503 && retryAfter != null) {
+      val key = loadErrorInfo.loadEventInfo.dataSpec.uri.toString()
+      val now = System.currentTimeMillis()
+      val since = (if (loadErrorInfo.errorCount <= 1) null else preparingSince[key]) ?: now
+      preparingSince[key] = since
+      val delay = PreparingAudio.delayMs(code, retryAfter, since, now)
+      if (delay != null) return delay.also(onPreparing)
+      if (PreparingAudio.retryAfterSeconds(retryAfter, now) != null) {
+        preparingSince.remove(key)
+        onPreparingEnded()
+        return C.TIME_UNSET
+      }
+    }
+    if (PreparingAudio.givesUp(loadErrorInfo.errorCount, super.getMinimumLoadableRetryCount(loadErrorInfo.mediaLoadData.dataType))) {
+      return C.TIME_UNSET
+    }
     return when (code?.let { ExpiringLinks.decide(it, loadErrorInfo.errorCount) }) {
       // The retry opens the item's own URL from the byte it reached, so the place is kept.
       LinkRetry.REFRESH -> 0L.also { code?.let(onRefresh) }

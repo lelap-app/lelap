@@ -127,3 +127,25 @@ export function PreparingPanel({
     </View>
   );
 }
+
+/**
+ * Under the player while it waits for audio its source is still making (M155): a part the add-on
+ * didn't mark, or one in the middle of a book. The player asks again by itself at [until].
+ */
+export function PreparingLine({ until }: { until: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, []);
+  return (
+    <View className="items-center gap-1 pb-2" accessibilityLiveRegion="polite" aria-live="polite">
+      <Text className="text-center text-sm font-semibold text-paper">{t('Preparing…')}</Text>
+      <Text className="text-center text-sm text-soft">
+        {t('The source is getting this book ready. Trying again in {time}.', {
+          time: formatClock(Math.max(0, Math.ceil((until - now) / 1000) * 1000)),
+        })}
+      </Text>
+    </View>
+  );
+}

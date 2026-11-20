@@ -20,6 +20,7 @@ import { resumePoint, saveProgress } from '../progress';
 import { bookFiles, books, progress } from '../schema';
 import {
   addStreamedBook,
+  chaptersOnceMeasured,
   findBookBySource,
   findStreamedBook,
   partTranscripts,
@@ -187,6 +188,59 @@ describe('addStreamedBook', () => {
         'Chapter 3',
         'Chapter 4',
       ]);
+    });
+
+    describe('once the last part is measured (M155)', () => {
+      const unmeasured = (count: number): Stream => ({
+        sourceKey: 'ia:garden:deriving',
+        name: 'Internet Archive',
+        parts: Array.from({ length: count }, (_, i) => ({
+          url: `https://archive.example/garden_${i + 1}.mp3`,
+          title: `Part ${i + 1}`,
+        })),
+      });
+      const waiting = (bookId: string) =>
+        db.select({ item: books.addonItem }).from(books).where(eq(books.id, bookId)).get()?.item
+          ?.waitingChapters;
+      const measure = (bookId: string, ms: number[]) => {
+        const files = getBook(db, ME, bookId)?.files ?? [];
+        files.forEach((f, i) => {
+          if (learnFileDuration(db, f.location, ms[i] ?? 0))
+            chaptersOnceMeasured(db, bookId, 500, newId);
+        });
+      };
+
+      it("take the meta's chapters without adding the book again", () => {
+        const bookId = add(db, unmeasured(3), withChapters);
+        expect(titles(bookId)).toEqual([]);
+        expect(waiting(bookId)?.chapters).toHaveLength(3);
+        measure(bookId, [60_000, 60_000]);
+        expect(titles(bookId)).toEqual([]);
+        measure(bookId, [60_000, 60_000, 61_000]);
+        expect(titles(bookId)).toEqual(['Opening Credits', 'Chapter 1', 'Chapter 2']);
+        expect(waiting(bookId)).toBeUndefined();
+      });
+
+      it('fall back to one chapter per part for another recording', () => {
+        const bookId = add(db, unmeasured(2), withChapters);
+        measure(bookId, [200_000, 200_000]);
+        expect(getBook(db, ME, bookId)?.chapters.map((c) => [c.title, c.startMs])).toEqual([
+          ['Part 1', 0],
+          ['Part 2', 200_000],
+        ]);
+      });
+
+      it('replace chapters found from silences', () => {
+        const bookId = add(db, unmeasured(3), withChapters);
+        saveFoundChapters(db, bookId, [{ title: 'Found', startMs: 0 }], 300, newId);
+        measure(bookId, [60_000, 60_000, 60_000]);
+        expect(titles(bookId)).toEqual(['Opening Credits', 'Chapter 1', 'Chapter 2']);
+      });
+
+      it('wait for nothing when the parts came with lengths', () => {
+        const bookId = add(db, parts(3), withChapters);
+        expect(waiting(bookId)).toBeUndefined();
+      });
     });
 
     it('are left out when the file has no known length', () => {

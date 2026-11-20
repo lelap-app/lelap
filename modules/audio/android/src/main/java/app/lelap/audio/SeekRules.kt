@@ -67,4 +67,22 @@ object SeekRules {
       i++
     }
   }
+
+  /**
+   * Where a seek into a part of unknown length lands once the player opened it and learned its
+   * [lengthMs] (M155): past its end, on into the parts after it. [lengths] are what is known of
+   * each part (≤ 0 unknown). Null when the place is inside the part. Mirrors `pastPart` in
+   * `@lelap/core`.
+   */
+  fun pastPart(lengths: List<Long>, index: Int, positionMs: Long, lengthMs: Long): Pair<Int, Long>? {
+    if (lengthMs <= 0 || positionMs < lengthMs) return null
+    var remaining = positionMs - lengthMs
+    for (i in index + 1..lengths.lastIndex) {
+      val length = lengths[i]
+      if (length <= 0 || remaining < length) return i to remaining
+      remaining -= length
+    }
+    val last = lengths.lastIndex
+    return if (last <= index) index to lengthMs else last to lengths[last].coerceAtLeast(0L)
+  }
 }

@@ -36,6 +36,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { hint } from '../a11y';
 import { t } from '../i18n';
 import { PressScale } from './Motion';
+import { PreparingLine } from './Preparing';
 import { BookCover, coverUri } from './BookCover';
 import { ActionSheet } from './ActionSheet';
 import { BookmarksSheet } from './BookmarksSheet';
@@ -681,6 +682,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
           {t('Starts when the call ends')}
         </Text>
       )}
+      {state.preparingUntil !== null && <PreparingLine until={state.preparingUntil} />}
       {state.error !== null && (
         <Text accessibilityLiveRegion="assertive" className="pb-2 text-center text-sm text-danger">
           {state.error}

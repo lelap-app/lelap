@@ -4,6 +4,7 @@ import {
   chapterAt,
   chapterJump,
   mediaSpan,
+  pastPart,
   skipLanding,
   toBookPosition,
   toFilePosition,
@@ -134,5 +135,26 @@ describe('skipLanding', () => {
     // b takes everything past a's end, so the skip isn't cut at the 1.5 s the known files add up to.
     expect(skipLanding(unknown, 'a', 900, 30_000)).toBe(30_900);
     expect(skipLanding(unknown, 'c', 100, -300)).toBe(1000);
+  });
+});
+
+describe('pastPart (M155)', () => {
+  // Part 2 of four had no length; the seek was meant 100 s into it, which is past its end.
+  const lengths = [60_000, 0, 30_000, 0];
+
+  it('stays in the part when the place is inside it', () => {
+    expect(pastPart(lengths, 1, 20_000, 40_000)).toBeNull();
+    expect(pastPart(lengths, 1, 20_000, 0)).toBeNull();
+  });
+
+  it('goes on into the parts after it', () => {
+    expect(pastPart(lengths, 1, 50_000, 40_000)).toEqual({ index: 2, positionMs: 10_000 });
+    // Past the measured part 3 into part 4, which is opened in turn.
+    expect(pastPart(lengths, 1, 100_000, 40_000)).toEqual({ index: 3, positionMs: 30_000 });
+  });
+
+  it("stops at the book's end", () => {
+    expect(pastPart([60_000, 0], 1, 90_000, 40_000)).toEqual({ index: 1, positionMs: 40_000 });
+    expect(pastPart([0, 30_000], 0, 90_000, 40_000)).toEqual({ index: 1, positionMs: 30_000 });
   });
 });

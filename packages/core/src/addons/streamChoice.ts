@@ -103,3 +103,42 @@ export function parseCodeList(text: string, kind: 'format' | 'language'): string
   }
   return [...seen].slice(0, kind === 'format' ? 20 : 10);
 }
+
+/** A copy's key: its add-on and its `sourceKey`. */
+export const copyKey = (f: FoundStream) => `${f.addon.url} ${f.stream.sourceKey}`;
+
+/**
+ * The copy to play when the ones in [tried] failed (M155): the row's next one in its order,
+ * skipping copies still preparing, which would only make the listener wait. Null when none is
+ * left.
+ */
+export function nextCopy<T extends FoundStream>(copies: T[], tried: string[]): T | null {
+  return copies.find((c) => !tried.includes(copyKey(c)) && !isPreparing(c)) ?? null;
+}
+
+/** A book started from a row of copies, while the player hasn't opened its audio yet (M155). */
+export type CopyFallback = {
+  bookId: string;
+  /** Keys of the copies played so far, the one playing now last. */
+  tried: string[];
+  /**
+   * The player has reported this book without an error since the copy started, so an error now
+   * is this copy's and not the last one's, still on its way.
+   */
+  seen: boolean;
+};
+
+/**
+ * What the player's state means for the fallback: `next` when the copy failed before it played,
+ * `done` once it plays or another book took over, else `wait`; and the fallback to keep. A
+ * failure after the copy played keeps the error under the player: the place is in that copy.
+ */
+export function copyFallbackStep(
+  fallback: CopyFallback,
+  state: { bookId: string | null; playing: boolean; error: string | null },
+): { step: 'next' | 'done' | 'wait'; fallback: CopyFallback } {
+  if (state.bookId !== fallback.bookId) return { step: fallback.seen ? 'done' : 'wait', fallback };
+  if (state.playing) return { step: 'done', fallback };
+  if (state.error === null) return { step: 'wait', fallback: { ...fallback, seen: true } };
+  return { step: fallback.seen ? 'next' : 'wait', fallback };
+}

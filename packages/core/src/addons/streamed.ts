@@ -74,15 +74,18 @@ export function knownTotal(lengths: number[]): number {
 /** How far a stream's length may be from the meta's for the meta's chapters to apply. */
 export const CHAPTER_FIT_MS = 15_000;
 
+/** The meta's chapters and length, as a book of unmeasured parts keeps them (M155). */
+export type MetaChapters = { chapters: Chapter[]; durationMs?: number };
+
 /**
  * The meta's chapters, for a stream without its own. Chapters from metadata (Audnexus, say)
  * belong to one recording, so they only apply when the stream is as long as the meta says.
  * A meta without a length keeps the older rule: its chapters apply to any single file.
  */
-function metaChapters(meta: Meta | MetaPreview, stream: Stream, totalMs: number): Chapter[] {
-  const list = 'chapters' in meta ? (meta.chapters ?? []) : [];
+function fittingChapters(meta: MetaChapters, parted: boolean, totalMs: number): Chapter[] {
+  const list = meta.chapters;
   if (list.length === 0) return [];
-  if (meta.durationMs === undefined) return hasParts(stream) ? [] : list;
+  if (meta.durationMs === undefined) return parted ? [] : list;
   const fits =
     totalMs > 0 &&
     Math.abs(totalMs - meta.durationMs) <= CHAPTER_FIT_MS &&
@@ -90,23 +93,106 @@ function metaChapters(meta: Meta | MetaPreview, stream: Stream, totalMs: number)
   return fits ? list : [];
 }
 
-function chaptersOf(meta: Meta | MetaPreview, stream: Stream, parts: Part[]): Chapter[] {
-  if (!hasParts(stream))
-    return stream.chapters ?? metaChapters(meta, stream, stream.durationMs ?? 0);
-  const fromMeta = metaChapters(
+const metaChaptersOf = (meta: Meta | MetaPreview): MetaChapters => ({
+  chapters: 'chapters' in meta ? (meta.chapters ?? []) : [],
+  ...(meta.durationMs !== undefined ? { durationMs: meta.durationMs } : {}),
+});
+
+/**
+ * A parted book's chapters: the meta's when they fit, else one per part. None while a part has
+ * no length, which would put every later chapter in the wrong place.
+ */
+function partChapters(meta: MetaChapters, parts: Pick<Part, 'title' | 'durationMs'>[]): Chapter[] {
+  if (parts.some((p) => !(p.durationMs > 0))) return [];
+  const fromMeta = fittingChapters(
     meta,
-    stream,
+    true,
     parts.reduce((sum, p) => sum + p.durationMs, 0),
   );
-  if (fromMeta.length > 0) return fromMeta;
-  // A part with no length yet would put every later chapter in the wrong place.
-  if (parts.length === 1 || parts.some((p) => !(p.durationMs > 0))) return [];
+  if (fromMeta.length > 0 || parts.length === 1) return fromMeta;
   let startMs = 0;
   return parts.map((part) => {
     const chapter = { title: part.title, startMs };
     startMs += part.durationMs;
     return chapter;
   });
+}
+
+function chaptersOf(meta: Meta | MetaPreview, stream: Stream, parts: Part[]): Chapter[] {
+  if (!hasParts(stream))
+    return stream.chapters ?? fittingChapters(metaChaptersOf(meta), false, stream.durationMs ?? 0);
+  return partChapters(metaChaptersOf(meta), parts);
+}
+
+/**
+ * What a book of parts still being measured keeps for its chapters (M155): the meta's chapters
+ * and length, applied by [chaptersOnceMeasured] once the player measured the last part. Nothing
+ * when every part has a length already or there is nothing to wait for.
+ */
+function waitingChapters(
+  meta: Meta | MetaPreview,
+  stream: Stream,
+  parts: Part[],
+): Pick<AddonItemRef, 'waitingChapters'> {
+  if (!hasParts(stream) || parts.every((p) => p.durationMs > 0)) return {};
+  const kept = metaChaptersOf(meta);
+  // One part per chapter needs nothing kept: the parts' titles are in the library.
+  if (kept.chapters.length === 0 && parts.length < 2) return {};
+  return { waitingChapters: kept };
+}
+
+/**
+ * A streamed book's chapters once its last part has a length (M155), from what it kept when it
+ * was added: the meta's chapters when they fit, else one per part. Replaces chapters found from
+ * silences, as adding the book again would; leaves the book alone when it waits for nothing or a
+ * part is still unmeasured. Returns whether it wrote chapters, which the loaded book then needs.
+ */
+export function chaptersOnceMeasured(
+  db: Db,
+  bookId: string,
+  now: number,
+  newId: IdGenerator,
+): boolean {
+  return db.transaction((tx) => applyWaitingChapters(tx, bookId, now, newId));
+}
+
+function applyWaitingChapters(db: Db, bookId: string, now: number, newId: IdGenerator): boolean {
+  const book = db
+    .select({ addonItem: books.addonItem })
+    .from(books)
+    .where(eq(books.id, bookId))
+    .get();
+  const kept = book?.addonItem?.waitingChapters;
+  if (!book?.addonItem || !kept) return false;
+  const parts = db
+    .select({ title: bookFiles.title, name: bookFiles.name, durationMs: bookFiles.durationMs })
+    .from(bookFiles)
+    .where(eq(bookFiles.bookId, bookId))
+    .orderBy(asc(bookFiles.idx))
+    .all();
+  if (parts.some((p) => !(p.durationMs > 0))) return false;
+  const built = partChapters(
+    kept,
+    parts.map((p) => ({ title: p.title ?? p.name, durationMs: p.durationMs })),
+  );
+  const rest = { ...book.addonItem };
+  delete rest.waitingChapters;
+  db.update(books).set({ addonItem: rest }).where(eq(books.id, bookId)).run();
+  if (built.length === 0) return false;
+  db.delete(chapters).where(eq(chapters.bookId, bookId)).run();
+  db.insert(chapters)
+    .values(
+      built.map((c, idx) => ({
+        id: newId(),
+        bookId,
+        idx,
+        title: c.title,
+        startMs: c.startMs,
+        updatedAt: now,
+      })),
+    )
+    .run();
+  return true;
 }
 
 /** Whether the stream is live, and its MIME type, for the player (M154). */
@@ -232,7 +318,12 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
         was.durationMs > 0;
       return keep ? { ...part, durationMs: was.durationMs } : part;
     });
-    const bookRow = { ...values, durationMs: knownTotal(filled.map((p) => p.durationMs)) };
+    const waiting = waitingChapters(meta, stream, filled);
+    const bookRow = {
+      ...values,
+      addonItem: { ...addonItem, ...waiting },
+      durationMs: knownTotal(filled.map((p) => p.durationMs)),
+    };
     if (found?.location === location) {
       tx.update(books).set(bookRow).where(eq(books.id, bookId)).run();
     } else if (found) {
@@ -242,12 +333,13 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
       delete kept.transcripts;
       delete kept.live;
       delete kept.mime;
+      delete kept.waitingChapters;
       tx.update(books)
         .set({
           durationMs: bookRow.durationMs,
           missingSince: null,
           updatedAt: now,
-          addonItem: { ...kept, ...transcriptsOf(stream), ...streamKind(stream) },
+          addonItem: { ...kept, ...transcriptsOf(stream), ...streamKind(stream), ...waiting },
         })
         .where(eq(books.id, bookId))
         .run();

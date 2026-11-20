@@ -12,6 +12,7 @@ import {
   listUpNext,
   getBook,
   learnFileDuration,
+  chaptersOnceMeasured,
   getSettings,
   isLiveBook,
   resumePoint,
@@ -104,6 +105,7 @@ export const IDLE: audio.PlayerState = {
   sleepTimerRemainingMs: null,
   sleepTimerMode: null,
   error: null,
+  preparingUntil: null,
   live: false,
   nowPlaying: null,
 };
@@ -985,8 +987,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // player measured, so the bar and the book's timeline have one (M140).
   useEffect(() => {
     if (!state.fileLocation || !(state.durationMs > 0)) return;
-    if (learnFileDuration(db, state.fileLocation, state.durationMs)) refresh();
-  }, [state.fileLocation, state.durationMs, refresh]);
+    if (!learnFileDuration(db, state.fileLocation, state.durationMs)) return;
+    // The last part measured brings the chapters a streamed book waited for (M155).
+    const bookId = state.bookId;
+    if (bookId && chaptersOnceMeasured(db, bookId, Date.now(), newId)) {
+      void updateChapters(bookId).catch(() => {});
+    }
+    refresh();
+  }, [state.fileLocation, state.durationMs, state.bookId, refresh]);
 
   // The service hands over to Up Next by itself, also with the app closed. Here the app folds in
   // what finished and sends the queue again whenever the book, its end or Up Next changes.

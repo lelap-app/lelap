@@ -86,4 +86,20 @@ class SeekRulesTest {
     assertNull(SeekRules.outroStart(150_000, 60_000, 60_000, singleFile = true))
     assertEquals(90_000L, SeekRules.outroStart(150_000, 60_000, 60_000, singleFile = false))
   }
+
+  @Test
+  fun aSeekPastAnUnmeasuredPartGoesOnIntoTheNextParts() {
+    // Part 2 of four had no length; the seek was meant 100 s into it.
+    val lengths = listOf(60_000L, 0L, 30_000L, 0L)
+    assertNull(SeekRules.pastPart(lengths, 1, 20_000L, 40_000L))
+    assertNull(SeekRules.pastPart(lengths, 1, 20_000L, 0L))
+    assertEquals(2 to 10_000L, SeekRules.pastPart(lengths, 1, 50_000L, 40_000L))
+    assertEquals(3 to 30_000L, SeekRules.pastPart(lengths, 1, 100_000L, 40_000L))
+  }
+
+  @Test
+  fun aSeekPastTheLastPartStopsAtTheBooksEnd() {
+    assertEquals(1 to 40_000L, SeekRules.pastPart(listOf(60_000L, 0L), 1, 90_000L, 40_000L))
+    assertEquals(1 to 30_000L, SeekRules.pastPart(listOf(0L, 30_000L), 0, 90_000L, 40_000L))
+  }
 }

@@ -247,10 +247,13 @@ GET  /configure           (the add-on's own settings page)
   and offers Download when ready; the download worker waits inside its run with no limit of its
   own, so WorkManager's Wi-Fi and charging rules still stop it, and posts “ready” when it is in.
   `404` or `410` ends the wait, with the answer's body when it is plain text of at most 200
-  characters. Probing before playing, rather than reading Media3's error, works the same on the
-  web and keeps the player free of a waiting state; only marked streams are probed, since a
-  server that ignores `Range` sends the whole file. Unmarked preparing audio is the player's
-  (M155).
+  characters. Probing before playing works the same on the web; only marked streams are probed,
+  since a server that ignores `Range` sends the whole file. Audio the player meets preparing (an
+  unmarked stream, a part mid-book) is the player's (M155): Media3's load policy waits as long as
+  `Retry-After` says, for up to 10 minutes, and the web player probes the address after the
+  element fails; both show “Preparing…” under the player instead of an error. A seek into a part
+  of unknown length is settled once the part is open and its length known, and the meta's
+  chapters wait in the book's add-on reference until the last part is measured.
   Parts may come without `durationMs`: the app measures each when it opens it, keeps the book's
   total at 0 until every part is known and counts progress by parts meanwhile. `refreshAfter`
   asks the app for one more look, past its cache, while the item page is open; new streams go
@@ -261,8 +264,9 @@ GET  /configure           (the add-on's own settings page)
   profile's preferred languages (default: the profile's language), then preferred formats, then
   the add-ons' order; a stream without the field sorts after those that match. Streams with the
   same `releaseId` are one row naming each add-on, playing a ready copy first, then the
-  listener's language and format, then the add-ons' order; the player moving to the next copy
-  when one fails waits for M155.
+  listener's language and format, then the add-ons' order. When the player can't open a copy
+  before it played, the app plays the row's next ready copy in the same book (M155); a copy that
+  fails after it played keeps its error, since the place is in that copy.
   Only preparing streams can be hidden. Three settings, per profile and synced; no rules editor,
   so add-ons keep no ordering settings of their own for this.
 
