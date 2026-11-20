@@ -170,6 +170,17 @@ when it is planned.
   across file ends rather than the place plus the interval; log taps for the profile the player
   plays for when it differs from the one on screen; don't offer “Go back” in the app after the
   notification's own Back.
+- **Kotlin tests for the fold and headless modules in CI:** `:lelap-fold:testDebugUnitTest` (M113)
+  and `:lelap-headless:testDebugUnitTest` (M123) pass locally but aren't in the `android-unit-tests`
+  job's Gradle line in `ci.yml`. Adding them doesn't change when the job runs; waiting on the
+  maintainer's yes, since it edits CI.
+- **Podcast Index keys on the hosted catalog:** production has no `PODCASTINDEX_KEY` and
+  `PODCASTINDEX_SECRET`, so Lepak (M131) is hidden and the Catalog has no podcast rows. Once set
+  with `wrangler secret put`, run `scripts/lepak-languages.mts` and fetch the four Lepak rows to
+  check they fill (M131's open checks).
+- **Add-on permission lines in Malay:** the review sheet (`apps/app/src/addonReview.tsx`) shows the
+  permission texts from `packages/core/src/addons/permissions.ts` in English only; wrap them in
+  `t()` and add Malay.
 - **Wear OS:** control playback from the watch (tile and app: play, pause, skip, the sleep timer),
   and maybe play downloads on it. Was M89; set aside on 2026-11-18 until there is a watch to test
   on.
