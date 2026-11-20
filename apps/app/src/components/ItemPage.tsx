@@ -12,8 +12,11 @@ import {
   getEditionChoice,
   findSeries,
   formatSeries,
+  getSettings,
   getSourceChoice,
   knownTotal,
+  orderStreams,
+  streamPreferences,
   linkBook,
   type LinkableWork,
   pickSource,
@@ -84,6 +87,12 @@ const streamLength = (found: FoundStream) =>
     ? knownTotal(found.stream.parts.map((p) => p.durationMs ?? 0))
     : (found.stream.durationMs ?? 0);
 
+const copyKey = (f: FoundStream) => `${f.addon.url} ${f.stream.sourceKey}`;
+
+/** The second line of a release several add-ons have: each add-on, once. */
+const copiesDetails = (copies: FoundStream[]) =>
+  [...new Set(copies.map((c) => c.addon.manifest.name))].join(', ');
+
 /** The second line of a source: which add-on, how long, how many parts. */
 const sourceDetails = (found: FoundStream) => {
   const ms = streamLength(found);
@@ -149,7 +158,12 @@ export function ItemPage({
     enabled: !meta.isPending,
   });
 
-  const found = sources.data?.found ?? [];
+  // The listener's order across add-ons (M153), copies of one release as one row; `found` is
+  // every copy in that order, so the first is what plays without a choice.
+  const prefs = useMemo(() => streamPreferences(getSettings(db, profileId)), [version]);
+  const rows = useMemo(() => orderStreams(sources.data?.found ?? [], prefs), [sources.data, prefs]);
+  const found = useMemo(() => rows.flatMap((r) => r.copies), [rows]);
+  const [openRow, setOpenRow] = useState<string | null>(null);
   // A slow add-on's second look (`refreshAfter`, M152): once, while this page is open.
   const refreshAfter = sources.data?.refresh.length
     ? Math.min(...sources.data.refresh.map((r) => r.after))
@@ -170,10 +184,12 @@ export function ItemPage({
   useEffect(() => {
     const data = sources.data;
     if (!data) return;
-    const first = data.found[0];
+    // The listener's first, not the add-ons': it may be one they hid.
+    const first = found[0];
     if (first) sourceCache.set({ type, id }, { kind: 'stream', addon: first.addon.manifest.name });
-    else if (data.failed.length === 0) sourceCache.set({ type, id }, { kind: 'none' });
-  }, [sources.data, type, id]);
+    else if (data.failed.length === 0 && data.found.length === 0)
+      sourceCache.set({ type, id }, { kind: 'none' });
+  }, [sources.data, found, type, id]);
   // `version` is the signal to re-read the database.
   const remembered = useMemo(() => {
     const own = findStreamedBook(db, type, id);
@@ -506,15 +522,41 @@ export function ItemPage({
                   onPress={() => setOwnPicked(true)}
                 />
               )}
-              {found.map((f, index) => (
-                <SourceRow
-                  key={`${f.addon.url} ${f.stream.sourceKey}`}
-                  selected={!playingOwn && index === chosen}
-                  label={sourceLabel(f)}
-                  details={sourceDetails(f)}
-                  onPress={() => choose(f)}
-                />
-              ))}
+              {rows.map((row) => {
+                const key = copyKey(row.first);
+                const picked = !playingOwn && stream !== undefined && row.copies.includes(stream);
+                const open = openRow === key && row.copies.length > 1;
+                return (
+                  <View key={key} className="gap-2">
+                    <SourceRow
+                      selected={picked}
+                      label={sourceLabel(picked && stream ? stream : row.first)}
+                      details={
+                        row.copies.length > 1 ? copiesDetails(row.copies) : sourceDetails(row.first)
+                      }
+                      onPress={() => choose(row.first)}
+                    />
+                    {row.copies.length > 1 && (
+                      <TextButton
+                        text={open ? t('Hide copies') : t('{n} copies', { n: row.copies.length })}
+                        onPress={() => setOpenRow(open ? null : key)}
+                        className="self-start ps-12"
+                      />
+                    )}
+                    {open &&
+                      row.copies.map((copy) => (
+                        <View key={copyKey(copy)} className="ps-8">
+                          <SourceRow
+                            selected={!playingOwn && copy === stream}
+                            label={sourceLabel(copy)}
+                            details={sourceDetails(copy)}
+                            onPress={() => choose(copy)}
+                          />
+                        </View>
+                      ))}
+                  </View>
+                );
+              })}
               {own && (
                 <TextButton
                   text={t('Not your copy? Unlink')}

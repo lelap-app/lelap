@@ -1272,5 +1272,16 @@
   "The source no longer has this book.": "Sumber tidak lagi mempunyai buku ini.",
   "Preparing… downloads when ready": "Sedang disediakan… dimuat turun apabila siap",
   "Downloaded and ready to play.": "Sudah dimuat turun dan sedia dimainkan.",
-  "Live": "Langsung"
+  "Live": "Langsung",
+  "Streams": "Strim",
+  "A book’s page lists streams in a language you prefer first, then in a format you prefer, then in your add-ons’ order. Copies of the same recording from several add-ons show as one.": "Halaman buku menyenaraikan strim dalam bahasa pilihan anda dahulu, kemudian dalam format pilihan anda, kemudian mengikut susunan add-on anda. Salinan rakaman yang sama daripada beberapa add-on ditunjukkan sebagai satu.",
+  "Preferred formats": "Format pilihan",
+  "Most wanted first, such as m4b, mp3. Empty: no preference.": "Yang paling dikehendaki dahulu, seperti m4b, mp3. Kosong: tiada pilihan.",
+  "Preferred languages": "Bahasa pilihan",
+  "Language codes, most wanted first, such as en, ms. Empty: this profile’s language.": "Kod bahasa, yang paling dikehendaki dahulu, seperti en, ms. Kosong: bahasa profil ini.",
+  "Show streams that are still preparing": "Tunjukkan strim yang masih disediakan",
+  "A source may need minutes or hours before such a stream plays.": "Sumber mungkin memerlukan beberapa minit atau jam sebelum strim sebegitu dimainkan.",
+  "Ready ones only": "Yang sedia sahaja",
+  "Hide copies": "Sembunyikan salinan",
+  "{n} copies": "{n} salinan"
 }

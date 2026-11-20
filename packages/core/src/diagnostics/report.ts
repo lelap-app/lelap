@@ -52,7 +52,12 @@ export type DiagnosticsContext = {
 // Settings worth knowing for a bug. The bedtime window is left out: it says when someone sleeps.
 const SETTINGS: Exclude<
   keyof Settings,
-  'customTheme' | 'playerPaneWidth' | 'detailPaneWidth' | 'castGroups'
+  | 'customTheme'
+  | 'playerPaneWidth'
+  | 'detailPaneWidth'
+  | 'castGroups'
+  | 'streamFormats'
+  | 'streamLanguages'
 >[] = [
   'language',
   'skipIntervalMs',

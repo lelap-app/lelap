@@ -32,6 +32,7 @@ export const SCREENS = [
   'settings/look',
   'settings/people',
   'settings/sleep',
+  'settings/streams',
   'stats',
   'sync',
   'transcript',

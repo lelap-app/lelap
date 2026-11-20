@@ -20,7 +20,10 @@ import {
   type InstalledAddon,
   listAddons,
   mergeSources,
+  orderStreams,
   pickSource,
+  streamPreferences,
+  getSettings,
   refreshSources,
   type Sources,
   splitLocalUrl,
@@ -173,7 +176,12 @@ export async function addWork(type: string, id: string): Promise<string> {
   if (yours && yours.how !== 'offer') return yours.bookId;
   const sources = await queryClient.fetchQuery(queries.sources(addons, type, id, work.externalIds));
   const choice = getSourceChoice(db, profileId, type, id);
-  const stream = sources.found[pickSource(sources.found, [choice])];
+  // The listener's order (M153), as the item page shows it.
+  const ordered = orderStreams(
+    sources.found,
+    streamPreferences(getSettings(db, profileId)),
+  ).flatMap((row) => row.copies);
+  const stream = ordered[pickSource(ordered, [choice])];
   if (!stream) throw new Error(t('No audio for this book yet'));
   return addItem(work, stream);
 }

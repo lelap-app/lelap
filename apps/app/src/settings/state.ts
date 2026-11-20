@@ -34,8 +34,16 @@ export function useSettingsState() {
     if (key === 'headphoneBattery' || key === 'carModeOffer') void followDevices(next);
     if (key === 'language') setLanguage(next.language);
     if (key === 'theme' || key === 'accent' || key === 'customTheme') setLook(next);
-    // Home, the Player and the list of shortcuts read these again on the library's signal.
-    if (key === 'homeSuggestions' || key === 'badgesOnCovers' || key === 'skipIntervalMs') {
+    // Home, the Player, the list of shortcuts and a book's page (stream order, M153) read these
+    // again on the library's signal.
+    if (
+      key === 'homeSuggestions' ||
+      key === 'badgesOnCovers' ||
+      key === 'skipIntervalMs' ||
+      key === 'streamFormats' ||
+      key === 'streamLanguages' ||
+      key === 'showPreparingStreams'
+    ) {
       refresh();
     }
   };
