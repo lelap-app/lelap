@@ -23,13 +23,15 @@ import java.util.concurrent.TimeUnit
 
 /**
  * The app's server tasks, asked for by the playback service with the app closed (M123): send the
- * place of a pause to the book's server, or ask an add-on where a book it started streams from.
+ * place of a pause to the book's server, ask an add-on where a book it started streams from, or
+ * add and play an add-on's item picked by voice or in Android Auto's search results (M147).
  * They run the app's JavaScript task (`apps/app/src/background.ts`), starting the app without a
  * screen when it isn't running, through expo-task-manager like the hourly refresh.
  */
 object ServerTasks {
   const val PLACES = "places"
   const val LOCATE = "locate"
+  const val PLAY = "play"
 
   private const val TAG = "LelapServerTasks"
 
@@ -40,12 +42,13 @@ object ServerTasks {
   fun workName(kind: String) = "lelap-server-task-$kind"
 
   /** How long the work waits for the app's task; it gives up quietly after. */
-  fun timeoutMs(kind: String) = if (kind == LOCATE) 60_000L else 3 * 60_000L
+  fun timeoutMs(kind: String) = if (kind == LOCATE || kind == PLAY) 60_000L else 3 * 60_000L
 
-  fun request(context: Context, kind: String, bookId: String? = null) {
+  /** [itemType] and [itemId] name the add-on item that [PLAY] adds to the library and plays. */
+  fun request(context: Context, kind: String, bookId: String? = null, itemType: String? = null, itemId: String? = null) {
     try {
       val work = OneTimeWorkRequestBuilder<ServerTaskWork>()
-        .setInputData(workDataOf("kind" to kind, "bookId" to bookId))
+        .setInputData(workDataOf("kind" to kind, "bookId" to bookId, "type" to itemType, "id" to itemId))
         .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
         .setInitialDelay(if (kind == PLACES) PLACES_DELAY_MS else 0L, TimeUnit.MILLISECONDS)
         .build()
@@ -91,6 +94,8 @@ class ServerTaskWork(context: Context, params: WorkerParameters) : CoroutineWork
     val data = Bundle().apply {
       putString("kind", kind)
       inputData.getString("bookId")?.let { putString("bookId", it) }
+      inputData.getString("type")?.let { putString("type", it) }
+      inputData.getString("id")?.let { putString("id", it) }
     }
     val done = CompletableDeferred<Unit>()
     if (!consumer.run(data) { done.complete(Unit) }) return Result.success()

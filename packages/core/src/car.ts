@@ -1,8 +1,13 @@
+import { and, eq, inArray } from 'drizzle-orm';
+
+import { addonBase, type InstalledAddon, searchCatalogs } from './addons/client';
+import { isLocalAddonUrl } from './addons/local';
 import type { Db } from './db';
 import { continueListening, type LibraryBook, listBooks } from './library/queries';
 import { followedList, listPlayOrder, listStart, playsFromStart } from './listPlay';
 import { type Library, listPlaylists, readLibrary, smartBooks } from './organise';
 import { newestUnfinishedEpisodes } from './podcasts/repository';
+import { books } from './schema';
 import { listUpNext } from './upNext';
 
 /** An episode to offer in the car: its book exists once it was played or downloaded. */
@@ -20,11 +25,15 @@ export type CarShelves = {
   /** The newest unfinished episode of each subscription, newest first. */
   latestEpisodes: CarEpisode[];
   upNext: string[];
+  /** More of the library, for voice search only (M147): unfinished books, recent first. */
+  library: string[];
+  /** Which of these are podcast episodes, so voice search offers books first. */
+  episodes: string[];
 };
 
 const playable = (b: LibraryBook) => !b.missing && b.finishedAt === null;
 
-export function carShelves(db: Db, profileId: string, limit = 20): CarShelves {
+export function carShelves(db: Db, profileId: string, limit = 20, libraryLimit = 60): CarShelves {
   const recent = listBooks(db, profileId, 'recent');
   const latest = continueListening(db, profileId);
   const started = recent.filter((b) => playable(b) && b.lastPlayedAt !== null);
@@ -33,17 +42,55 @@ export function carShelves(db: Db, profileId: string, limit = 20): CarShelves {
   const episodes = newestUnfinishedEpisodes(db, profileId).sort(
     (a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0),
   );
+  const continuing = started.slice(0, limit).map((b) => b.id);
+  const onPhone = recent
+    .filter((b) => !b.missing && (b.source === 'local' || b.downloaded))
+    .slice(0, limit)
+    .map((b) => b.id);
+  const upNext = listUpNext(db, profileId)
+    .slice(0, limit)
+    .map((item) => item.bookId);
+  const shelved = new Set([...continuing, ...onPhone, ...upNext]);
+  const library = recent
+    .filter((b) => playable(b) && !shelved.has(b.id))
+    .slice(0, libraryLimit)
+    .map((b) => b.id);
   return {
-    continueListening: started.slice(0, limit).map((b) => b.id),
-    onPhone: recent
-      .filter((b) => !b.missing && (b.source === 'local' || b.downloaded))
-      .slice(0, limit)
-      .map((b) => b.id),
+    continueListening: continuing,
+    onPhone,
     latestEpisodes: episodes.slice(0, limit).map((e) => ({ episodeId: e.id, bookId: e.bookId })),
-    upNext: listUpNext(db, profileId)
-      .slice(0, limit)
-      .map((item) => item.bookId),
+    upNext,
+    library,
+    episodes: feedBooks(db, [...shelved, ...library]),
   };
+}
+
+function feedBooks(db: Db, ids: string[]): string[] {
+  if (ids.length === 0) return [];
+  return db
+    .select({ id: books.id })
+    .from(books)
+    .where(and(inArray(books.id, ids), eq(books.source, 'feed')))
+    .all()
+    .map((b) => b.id);
+}
+
+/** An add-on search catalog the playback service can ask by itself (M147). */
+export type VoiceCatalog = { base: string; type: string; id: string; addon: string };
+
+/**
+ * The audiobook search catalogs voice search asks when the phone has no clear match. Only
+ * add-ons on the web: in-app ones need the app's sandbox, which the service can't wait for.
+ */
+export function voiceCatalogs(addons: InstalledAddon[]): VoiceCatalog[] {
+  return searchCatalogs(addons, ['audiobook'])
+    .filter(({ addon }) => !isLocalAddonUrl(addon.url) && /^https?:\/\//i.test(addon.url))
+    .map(({ addon, catalog }) => ({
+      base: addonBase(addon.url),
+      type: catalog.type,
+      id: catalog.id,
+      addon: addon.manifest.name,
+    }));
 }
 
 /** A list in Android Auto's Lists shelf (M119), to play from the car with the app closed. */
