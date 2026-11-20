@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import { books, settings } from '../schema';
-import { type Fetcher, fetchAddonStreams, type FoundStream, type InstalledAddon } from './client';
+import { type Fetcher, type FoundStream, fetchStreamAnswer, type InstalledAddon } from './client';
 
 /** One `stream` request: the add-on and the ID it is asked for. */
 export type SourceRequest = { addon: InstalledAddon; id: string };
@@ -44,6 +44,11 @@ export type Sources = {
   asked: string[];
   /** Names of the add-ons that did not answer. */
   failed: string[];
+  /**
+   * Add-ons whose answer said it was incomplete (`refreshAfter`, M152): ask each once more after
+   * its seconds, while the item page is open.
+   */
+  refresh: (SourceRequest & { after: number })[];
 };
 
 /**
@@ -60,11 +65,12 @@ export async function findSources(
   const requests = sourceRequests(addons, type, workIds(id, externalIds));
   const label = addonLabels(requests.map((r) => r.addon));
   const settled = await Promise.allSettled(
-    requests.map((r) => fetchAddonStreams(fetcher, r.addon, type, r.id)),
+    requests.map((r) => fetchStreamAnswer(fetcher, r.addon, type, r.id)),
   );
   const seen = new Set<string>();
   const found: FoundStream[] = [];
   const failed: string[] = [];
+  const refresh: Sources['refresh'] = [];
   for (const [index, result] of settled.entries()) {
     const request = requests[index];
     if (!request) continue;
@@ -72,7 +78,9 @@ export async function findSources(
       failed.push(label[index] ?? request.addon.manifest.name);
       continue;
     }
-    for (const stream of result.value) {
+    if (result.value.refreshAfter !== null)
+      refresh.push({ ...request, after: result.value.refreshAfter });
+    for (const stream of result.value.found) {
       const key = sourceId(stream);
       if (seen.has(key)) continue;
       seen.add(key);
@@ -83,7 +91,49 @@ export async function findSources(
     const first = settled.find((r): r is PromiseRejectedResult => r.status === 'rejected');
     throw first?.reason;
   }
-  return { found, asked: requests.map((r, i) => label[i] ?? r.addon.manifest.name), failed };
+  return {
+    found,
+    asked: requests.map((r, i) => label[i] ?? r.addon.manifest.name),
+    failed,
+    refresh,
+  };
+}
+
+/**
+ * The second look a `refreshAfter` asks for (M152): each add-on in `sources.refresh` is asked
+ * again past every cache, and streams not shown yet go below those shown, which keep their order.
+ * An add-on that fails now keeps what it gave before. Nothing is asked a third time.
+ */
+export async function refreshSources(
+  fetcher: Fetcher,
+  type: ContentType,
+  sources: Sources,
+): Promise<Sources> {
+  if (sources.refresh.length === 0) return sources;
+  const settled = await Promise.allSettled(
+    sources.refresh.map((r) => fetchStreamAnswer(fetcher, r.addon, type, r.id, true)),
+  );
+  return mergeSources(
+    sources,
+    settled.flatMap((r) => (r.status === 'fulfilled' ? r.value.found : [])),
+  );
+}
+
+/**
+ * `extra` merged into `sources`: a stream already shown keeps its place and takes the newer
+ * answer (a preparing one that is ready now), new ones go below; nothing left to refresh.
+ */
+export function mergeSources(sources: Sources, extra: FoundStream[]): Sources {
+  const newer = new Map(extra.map((f) => [sourceId(f), f]));
+  const found = sources.found.map((f) => newer.get(sourceId(f)) ?? f);
+  const seen = new Set(found.map(sourceId));
+  for (const stream of extra) {
+    const key = sourceId(stream);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    found.push(stream);
+  }
+  return { ...sources, found, refresh: [] };
 }
 
 /**

@@ -5,7 +5,7 @@
 > audiobook and podcast player. This file is for coding assistants working in an add-on's
 > project; the `.d.ts` files next to it document every field.
 
-Protocol 1, revision 13 (`LATEST_PROTOCOL_VERSION`). Revisions only add fields; an older app
+Protocol 1, revision 14 (`LATEST_PROTOCOL_VERSION`). Revisions only add fields; an older app
 ignores what it doesn't know. ESM only; any runtime with `Request` and `Response` (Cloudflare
 Workers, Deno, Bun, Node 20+).
 

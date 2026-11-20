@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, type SQL, sql } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import {
@@ -29,8 +29,14 @@ export type LibraryBook = {
   source: 'local' | 'addon' | 'feed';
   /** A streamed book whose download finished. */
   downloaded: boolean;
+  /** 0 while a part has no length yet (M152); `partsDone` then tells how far in. */
   durationMs: number;
   bookPositionMs: number;
+  /**
+   * For a book without a total: the share of its parts before the one playing, 0 to 1; null
+   * when the book has a total or no place.
+   */
+  partsDone?: number | null;
   addedAt: number;
   finishedAt: number | null;
   lastPlayedAt: number | null;
@@ -68,6 +74,10 @@ function selectBooks(
       addedAt: books.addedAt,
       missingSince: books.missingSince,
       bookPositionMs: progress.bookPositionMs,
+      // Only for books without a total, so a library of measured books reads no extra rows.
+      partsDone: sql<
+        number | null
+      >`CASE WHEN ${books.durationMs} = 0 AND ${progress.fileLocation} IS NOT NULL THEN (SELECT CAST(f.idx AS REAL) / (SELECT COUNT(*) FROM ${bookFiles} c WHERE c.book_id = ${books.id} AND c.missing_since IS NULL) FROM ${bookFiles} f WHERE f.location = ${progress.fileLocation} AND f.book_id = ${books.id}) END`,
       finishedAt: libraryEntries.finishedAt,
       lastPlayedAt: libraryEntries.lastPlayedAt,
       downloadState: downloads.state,
@@ -92,9 +102,21 @@ function selectBooks(
       ...(meta?.cover && { coverPath: null, coverUrl: meta.cover }),
       downloaded: downloadState === 'done',
       bookPositionMs: bookPositionMs ?? 0,
+      partsDone: book.partsDone ?? null,
       missing: missingSince !== null,
     };
   });
+}
+
+/**
+ * How far into a book, 0 to 1: by time once the book has a total, else by parts (M152), so a
+ * book of unmeasured parts still shows progress.
+ */
+export function bookFraction(
+  book: Pick<LibraryBook, 'durationMs' | 'bookPositionMs' | 'partsDone'>,
+): number {
+  if (book.durationMs > 0) return Math.min(1, book.bookPositionMs / book.durationMs);
+  return Math.min(1, Math.max(0, book.partsDone ?? 0));
 }
 
 const byRecent = (a: LibraryBook, b: LibraryBook) =>

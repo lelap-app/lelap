@@ -13,6 +13,11 @@ enum class Resume {
   /** A temporary failure; WorkManager retries with backoff. */
   RETRY,
   /**
+   * 503 with Retry-After (M152): the source is still making the file. Wait as long as it says and
+   * ask again, without counting it as a failure.
+   */
+  PREPARING,
+  /**
    * 403 or 410: the link may have expired. Ask the original URL again now, once; a `/resolve/…`
    * URL redirects to a fresh link, and the partial file continues where it stopped.
    */
@@ -32,6 +37,38 @@ object DownloadRules {
   fun isMessage(contentType: String?): Boolean {
     val type = contentType?.substringBefore(';')?.trim()?.lowercase() ?: return false
     return type == "application/json" || type == "application/xml" || type == "text/xml"
+  }
+
+  /** How long a preparing source may make us wait at least and at most, in seconds. */
+  const val RETRY_AFTER_MIN_S = 5L
+  const val RETRY_AFTER_MAX_S = 3600L
+  /** The longest answer body shown as the reason a download ended. */
+  const val END_MESSAGE_MAX = 200
+
+  /**
+   * Seconds from a Retry-After header, as seconds or an HTTP date, held between 5 seconds and an
+   * hour; null when there is none or it can't be read. [nowMs] is the clock, for tests.
+   */
+  fun retryAfterSeconds(header: String?, nowMs: Long): Long? {
+    val value = header?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    val seconds = value.toLongOrNull() ?: runCatching {
+      val format = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", java.util.Locale.US)
+      format.timeZone = java.util.TimeZone.getTimeZone("GMT")
+      val at = format.parse(value)?.time ?: return null
+      (at - nowMs + 999) / 1000
+    }.getOrNull() ?: return null
+    return seconds.coerceIn(RETRY_AFTER_MIN_S, RETRY_AFTER_MAX_S)
+  }
+
+  /**
+   * The server's own words for why a file won't come (M152): a plain-text body of at most 200
+   * characters, else null and the app says it in its own words.
+   */
+  fun endMessage(contentType: String?, body: String?): String? {
+    val type = contentType?.substringBefore(';')?.trim()?.lowercase()
+    if (type != "text/plain") return null
+    val text = body?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    return if (text.length <= END_MESSAGE_MAX && text.none { it.isISOControl() && it != '\n' }) text else null
   }
 
   fun contentRangeStart(header: String?): Long? =
@@ -55,8 +92,12 @@ object DownloadRules {
     contentRange: String?,
     expectedSize: Long,
     refreshed: Boolean = false,
+    retryAfter: String? = null,
+    nowMs: Long = System.currentTimeMillis(),
   ): Resume = when {
     code == 200 -> Resume.RESTART
+    // An unreadable Retry-After is an ordinary 503, as the app's player takes it.
+    code == 503 && retryAfterSeconds(retryAfter, nowMs) != null -> Resume.PREPARING
     code == 206 -> if (existing > 0 && contentRangeStart(contentRange) == existing) Resume.APPEND else Resume.DISCARD
     code == 416 -> {
       val total = contentRangeTotal(contentRange) ?: expectedSize

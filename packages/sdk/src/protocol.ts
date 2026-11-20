@@ -24,9 +24,12 @@ export const PROTOCOL_VERSION = 1;
  * settings and the `settings` resource that lists their options, for add-ons inside the app, and
  * the `series` resource: every book of a series, in order; 12 adds `transcripts` on a stream part;
  * 13 adds a library file's `description`, `language`, `series` and `ref`, a library's `digest`
- * login, and each file's `durationMs` and `ref` in a place report.
+ * login, and each file's `durationMs` and `ref` in a place report; 14 adds a stream's
+ * `availability`, `format`, `language`, `releaseId` and `live`, parts without `durationMs`, `refreshAfter`
+ * on a stream response, `503` with `Retry-After` from audio that is still preparing, and the
+ * meta's chapters for a multi-part stream whose parts add up to the meta's length.
  */
-export const LATEST_PROTOCOL_VERSION = 13;
+export const LATEST_PROTOCOL_VERSION = 14;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
@@ -470,7 +473,8 @@ export type PartTranscript = z.infer<typeof PartTranscript>;
 export const StreamPart = z.object({
   url: Url,
   title: z.string().optional(),
-  durationMs: Duration,
+  /** Required before revision 14; without it the app measures the part when it opens it. */
+  durationMs: Duration.optional(),
   size: z.number().int().nonnegative().optional(),
   /**
    * Since revision 12: the part's transcripts, one per format and language, at most 10. A list
@@ -479,6 +483,36 @@ export const StreamPart = z.object({
   transcripts: z.array(PartTranscript).max(10).optional().catch(undefined),
 });
 export type StreamPart = z.infer<typeof StreamPart>;
+
+export const STREAM_AVAILABILITY = ['ready', 'preparing'] as const;
+export type StreamAvailability = (typeof STREAM_AVAILABILITY)[number];
+
+/** Stream formats the app knows; `lelap-sdk check` warns of others. */
+export const STREAM_FORMATS = [
+  'aac',
+  'alac',
+  'flac',
+  'm4a',
+  'm4b',
+  'mp3',
+  'mp4',
+  'oga',
+  'ogg',
+  'opus',
+  'wav',
+  'webm',
+  'wma',
+] as const;
+
+/** A lowercase URN, as `releaseId` takes it. */
+export const RELEASE_ID = /^urn:[a-z0-9][a-z0-9-]{0,31}:[^\sA-Z]+$/;
+
+/** How long the app waits for a preparing stream at least and at most, in seconds. */
+export const RETRY_AFTER_MIN_S = 5;
+export const RETRY_AFTER_MAX_S = 3600;
+
+/** The longest `refreshAfter` the test kit takes without a warning, in seconds. */
+export const REFRESH_AFTER_MAX_S = 30;
 
 const StreamBase = z.object({
   /** Stable for this source and item; the app keys saved places on it. */
@@ -498,6 +532,31 @@ const StreamBase = z.object({
    * refused.
    */
   headers: RequestHeaders.optional(),
+  /**
+   * Since revision 14: `preparing` when the audio isn't there yet, such as an archive item whose
+   * files are still being made. Its URL answers `503` with `Retry-After` until it is ready, and
+   * the app waits and tries again. Absent means `ready`. An unknown value counts as `ready`.
+   */
+  availability: z.enum(STREAM_AVAILABILITY).optional().catch(undefined),
+  /**
+   * Since revision 14: the file format in lowercase, such as `m4b`, `mp3` or `flac`. `mime` can't
+   * tell M4B from M4A. See `STREAM_FORMATS` for the ones the app knows.
+   */
+  format: z.string().min(1).max(20).optional(),
+  /** Since revision 14: the recording's language, BCP 47 as on metas, such as `en`. */
+  language: z.string().min(1).max(35).optional(),
+  /**
+   * Since revision 14: the same for the same files across add-ons, so the app can show them as
+   * one. A lowercase URN, `urn:<namespace>:<id>`, at most 200 characters, compared as a whole;
+   * use the form the source already has, such as `urn:ia:<item>`. Leave it out when the source
+   * has no shared ID.
+   */
+  releaseId: z.string().min(1).max(200).optional(),
+  /**
+   * Since revision 14: a live stream, such as a radio station. The app keeps no place, progress or
+   * finish, sends at most a `start` scrobble event, hides seeking and speed, and never downloads it.
+   */
+  live: z.boolean().optional(),
 });
 
 export const SingleFileStream = StreamBase.extend({
@@ -531,9 +590,17 @@ export type CatalogResponse = z.infer<typeof CatalogResponse>;
 export const MetaResponse = z.object({ meta: Meta, cacheMaxAge: CacheMaxAge });
 export type MetaResponse = z.infer<typeof MetaResponse>;
 
+/**
+ * Since revision 14: the answer is incomplete, such as a slow search still running. While the
+ * item page is open, the app asks once more after this many seconds, skipping its own cache, and
+ * adds new streams below those shown. Keep it short; `lelap-sdk check` warns above 30.
+ */
+const RefreshAfter = z.number().int().positive().max(3600).optional();
+
 export const StreamResponse = z.object({
   streams: z.array(Stream),
   cacheMaxAge: CacheMaxAge,
+  refreshAfter: RefreshAfter,
 });
 export type StreamResponse = z.infer<typeof StreamResponse>;
 
@@ -541,6 +608,7 @@ export type StreamResponse = z.infer<typeof StreamResponse>;
 export const WebStreamResponse = z.object({
   streams: z.array(WebStream),
   cacheMaxAge: CacheMaxAge,
+  refreshAfter: RefreshAfter,
 });
 
 // No empty, `.` or `..` segments: the path names a place in the library, never a way out of it.

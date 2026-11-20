@@ -67,6 +67,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
           ?: throw ShownException(NativeText.t(applicationContext, "Could not make the book’s folder in the download folder."))
         var finished = 0L
         var lastReport = 0L
+        var waited = false
         for (file in job.files) {
           val existing = folder.length(file.name)
           if (existing != null) {
@@ -83,7 +84,14 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
           if (Netfs.handles(file.url)) {
             NetDownload.fetch(file.url, folder, file.name, file.size, job.headers, { Messages.describe(applicationContext, it) }, progress)
           } else {
-            Http.fetch(file.url, folder, file.name, file.size, job.headers, NativeText.get(applicationContext), file.integrity, progress)
+            Http.fetch(
+              file.url, folder, file.name, file.size, job.headers, NativeText.get(applicationContext), file.integrity,
+              onPreparing = {
+                waited = true
+                runCatching { setForeground(foregroundInfo(job, finished, total, preparing = true)) }
+              },
+              onBytes = progress,
+            )
           }
           finished += folder.length(file.name) ?: 0L
         }
@@ -105,6 +113,16 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         Downloads.dropLogin(dir, job.revision)
         // The listener chose another folder while this book was downloading: move it there now.
         if (job.location != Downloads.location(applicationContext)) Mover.start(applicationContext, delaySeconds = 5)
+        // A book the source had to prepare can take hours; say when it is in.
+        if (waited) {
+          Alerts.post(
+            applicationContext,
+            "ready:${job.bookId}",
+            job.title,
+            NativeText.t(applicationContext, "Downloaded and ready to play."),
+            null,
+          )
+        }
         Result.success()
       } catch (e: CancellationException) {
         throw e
@@ -156,7 +174,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     runCatching { setForeground(foregroundInfo(job, done, total)) }
   }
 
-  private fun foregroundInfo(job: DownloadJob, done: Long, total: Long): ForegroundInfo {
+  private fun foregroundInfo(job: DownloadJob, done: Long, total: Long, preparing: Boolean = false): ForegroundInfo {
     val context = applicationContext
     NativeText.channel(context, CHANNEL_ID, "Downloads", NotificationManager.IMPORTANCE_LOW)
     val open = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
@@ -166,8 +184,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     val notification = NotificationCompat.Builder(context, CHANNEL_ID)
       .setSmallIcon(android.R.drawable.stat_sys_download)
       .setContentTitle(job.title)
-      .setContentText(NativeText.t(context, "Downloading"))
-      .setProgress(100, percent, total <= 0)
+      .setContentText(if (preparing) NativeText.t(context, "Preparing… downloads when ready") else NativeText.t(context, "Downloading"))
+      .setProgress(100, percent, preparing || total <= 0)
       .setOngoing(true)
       .setOnlyAlertOnce(true)
       .setSilent(true)

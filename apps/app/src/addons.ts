@@ -19,7 +19,10 @@ import {
   HealthTracker,
   type InstalledAddon,
   listAddons,
+  mergeSources,
   pickSource,
+  refreshSources,
+  type Sources,
   splitLocalUrl,
   syncAddons,
   trackedFetcher,
@@ -173,6 +176,26 @@ export async function addWork(type: string, id: string): Promise<string> {
   const stream = sources.found[pickSource(sources.found, [choice])];
   if (!stream) throw new Error(t('No audio for this book yet'));
   return addItem(work, stream);
+}
+
+/**
+ * The second look a slow add-on asked for with `refreshAfter` (M152): asks it again past every
+ * cache and adds new streams below the ones the item page shows. Its answer replaces the cached
+ * one; nothing is asked a third time.
+ */
+export async function refreshItemSources(
+  addons: InstalledAddon[],
+  type: ContentType,
+  id: string,
+  externalIds: Meta['externalIds'],
+): Promise<void> {
+  const { queryKey } = queries.sources(addons, type, id, externalIds);
+  const current = queryClient.getQueryData<Sources>(queryKey);
+  if (!current || current.refresh.length === 0) return;
+  const next = await refreshSources(fetcher, type, current);
+  queryClient.setQueryData<Sources>(queryKey, (now) =>
+    now === current ? next : now ? mergeSources(now, next.found) : next,
+  );
 }
 
 export const queries = {

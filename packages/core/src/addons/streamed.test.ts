@@ -8,7 +8,13 @@ import { addBookmark, listBookmarks } from '../bookmarks';
 import type { Db } from '../db';
 import { learnFileDuration } from '../library/bookFiles';
 import { applyScan, splitScanned, upsertRoot } from '../library/scan';
-import { getBook, listBooks, saveFoundChapters } from '../library/queries';
+import {
+  bookFraction,
+  getBook,
+  listBooks,
+  listBooksById,
+  saveFoundChapters,
+} from '../library/queries';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { resumePoint, saveProgress } from '../progress';
 import { bookFiles, books, progress } from '../schema';
@@ -195,6 +201,35 @@ describe('addStreamedBook', () => {
       const own = { ...file(180_000), chapters: [{ title: 'Own', startMs: 0 }] };
       expect(titles(add(db, own, withChapters))).toEqual(['Own']);
     });
+  });
+
+  it('shows the total of eight unmeasured parts once each was opened (M152)', () => {
+    const unmeasured: Stream = {
+      sourceKey: 'librivox:garden:unmeasured',
+      name: 'LibriVox',
+      parts: Array.from({ length: 8 }, (_, i) => ({ url: `https://audio.example/u_${i + 1}.mp3` })),
+    };
+    const bookId = add(db, unmeasured);
+    const files = getBook(db, ME, bookId)?.files ?? [];
+    expect(files).toHaveLength(8);
+    expect(getBook(db, ME, bookId)?.book.durationMs).toBe(0);
+    // Part 3 of 8 playing: progress counts parts until the total is known.
+    saveProgress(db, ME, {
+      bookId,
+      fileLocation: files[2]?.location ?? '',
+      filePositionMs: 1_000,
+      savedAt: 200,
+    });
+    const listed = listBooksById(db, ME, [bookId])[0];
+    expect(listed?.partsDone).toBeCloseTo(2 / 8);
+    expect(listed && bookFraction(listed)).toBeCloseTo(0.25);
+    for (const [i, f] of files.entries()) {
+      learnFileDuration(db, f.location, 60_000);
+      const total = getBook(db, ME, bookId)?.book.durationMs;
+      expect(total).toBe(i === 7 ? 480_000 : 0);
+    }
+    const measured = listBooksById(db, ME, [bookId])[0];
+    expect(measured?.partsDone).toBeNull();
   });
 
   it('refreshes the same book and keeps the place in its part', () => {

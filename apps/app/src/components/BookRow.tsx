@@ -1,4 +1,4 @@
-import type { LibraryBook } from '@lelap/core';
+import { bookFraction, type LibraryBook } from '@lelap/core';
 import { memo, useMemo, useRef } from 'react';
 import {
   type AccessibilityActionEvent,
@@ -36,8 +36,9 @@ function status(book: LibraryBook): string {
   if (book.missing) return t('Files not found');
   if (book.finishedAt !== null) return t('✓ Finished');
   if (book.bookPositionMs <= 0) return t('New');
-  if (book.durationMs <= 0) return t('Started');
-  return `${Math.min(99, Math.floor((book.bookPositionMs / book.durationMs) * 100))} %`;
+  // Parts without lengths yet (M152) count by parts.
+  if (book.durationMs <= 0 && !(book.partsDone && book.partsDone > 0)) return t('Started');
+  return `${Math.min(99, Math.floor(bookFraction(book) * 100))} %`;
 }
 
 function useSwipe(book: LibraryBook, swipe: RowSwipe | undefined) {
@@ -94,7 +95,7 @@ export const BookRow = memo(function BookRow({
   swipe?: RowSwipe;
 }) {
   const colors = useColors();
-  const progress = book.durationMs > 0 ? Math.min(1, book.bookPositionMs / book.durationMs) : 0;
+  const progress = bookFraction(book);
   const dim = book.missing || unavailable;
   // The row shows progress as a bar and a percent already; screen readers read its words.
   const badges = useBookBadges(book, 56).filter((b) => b.kind !== 'progress');
