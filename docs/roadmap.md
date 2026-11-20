@@ -161,7 +161,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M153 Stream choice](milestones/m153.md)             | Done        |           5 | The item page sorts streams from every add-on by the listener's formats and languages and merges the same release                                                    |
 | [M154 Live streams](milestones/m154.md)              | Done        |          10 | A live flag on streams — no place, progress or downloads, now-playing from ICY and ID3, HLS playback                                                                 |
 | [M155 Preparing in the player](milestones/m155.md)   | Done        |           7 | What M152 and M153 left to the player — preparing audio while playing, seeking past unmeasured parts, chapters once measured, the next copy on failure               |
-| [M156 Add-on protocol 6](milestones/m156.md)         | In progress |           7 | Revision 15 — the app tells add-ons its revision, a minimum app revision, 426 Upgrade Required                                                                       |
+| [M156 Add-on protocol 6](milestones/m156.md)         | Done        |           7 | Revision 15 — the app tells add-ons its revision, a minimum app revision, 426 Upgrade Required                                                                       |
 
 <!-- milestones:end -->
 
