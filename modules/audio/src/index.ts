@@ -414,7 +414,7 @@ export type CarLibrary = {
   /** Which of these books are podcast episodes, so voice search offers books first. */
   episodes: string[];
   /** Add-on search catalogs the service asks by itself; `base` ends in `/`. */
-  searchCatalogs: { base: string; type: string; id: string; addon: string }[];
+  searchCatalogs: { base: string; type: string; id: string; addon: string; protocol: number }[];
 };
 
 export type CarLibraryList = {

@@ -232,6 +232,13 @@
       "when": 1795201071984,
       "tag": "0032_easy_loners",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1795214314603,
+      "tag": "0033_modern_blue_marvel",
+      "breakpoints": true
     }
   ]
 }

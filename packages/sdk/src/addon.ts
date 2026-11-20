@@ -23,6 +23,8 @@ import {
   HealthResponse as HealthResponseSchema,
   LATEST_PROTOCOL_VERSION,
   Manifest as ManifestSchema,
+  parseAppProtocol,
+  PROTOCOL_HEADER,
   type Manifest,
   type MetaResponse,
   MetaResponse as MetaResponseSchema,
@@ -50,6 +52,11 @@ export type HandlerArgs = {
   config: Config | null;
   request: Request;
   waitUntil: (promise: Promise<unknown>) => void;
+  /**
+   * Since revision 15: the app's own revision, from its `Lelap-Protocol` header. Absent for an app
+   * at revision 14 or older, which sends no header, and for a value that isn't a revision.
+   */
+  appProtocol?: number;
 };
 
 /** `config` is what the listener chose on the configure page, or `null` without one. */
@@ -111,6 +118,13 @@ export const CHOOSE_DRAFT_MS = 60 * 60 * 1000;
 
 export type AddonHandlers = {
   manifest: Manifest;
+  /**
+   * Since revision 15: the lowest app revision this add-on works with, put in the manifest. An app
+   * that sends a lower revision, or none (revision 14 and older), is answered `426 Upgrade
+   * Required` on every resource, so the listener is told to update Lelap. The manifest, `/health`
+   * and the configure page still answer. Overrides the manifest's own `minProtocolVersion`.
+   */
+  minProtocolVersion?: number;
   catalog?: (args: CatalogArgs) => Awaitable<CatalogResponse>;
   /** Return `null` when the ID is unknown; the response is then a 404. */
   meta?: (args: ItemArgs) => Awaitable<MetaResponse | null>;
@@ -160,6 +174,19 @@ export const CORS_HEADERS: Record<string, string> = {
   // Not safelisted, so a web app couldn't read how long to wait without it.
   'Access-Control-Expose-Headers': 'Retry-After',
 };
+
+/**
+ * What the CORS preflight answers. `Allow-Headers: *` lets the app's `Lelap-Protocol` header
+ * through (revision 15); a day's `Max-Age` spares the web app a preflight before every request.
+ */
+export const PREFLIGHT_HEADERS: Record<string, string> = {
+  ...CORS_HEADERS,
+  'Access-Control-Max-Age': '86400',
+};
+
+/** The plain-text body of the `426` an add-on with `minProtocolVersion` sends an older app. */
+export const UPGRADE_MESSAGE =
+  'This add-on needs a newer version of Lelap. Update the app to use it.';
 
 export class AddonError extends Error {
   /** Seconds the app should wait before asking again; sent as `Retry-After`. */
@@ -224,9 +251,13 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
   const configure = handlers.configure;
   if (configure) checkFields(configure.fields, configure.secret);
   const required = configure?.fields.some((f) => f.required) ?? false;
+  const minimum = handlers.minProtocolVersion ?? declared.minProtocolVersion;
+  if (minimum !== undefined && (!Number.isInteger(minimum) || minimum < 1))
+    throw new Error('minProtocolVersion must be a whole number from 1 up.');
   const served = (config: Config | null, from: Manifest = declared): Manifest => ({
     ...from,
     protocolVersion: Math.max(from.protocolVersion ?? 1, LATEST_PROTOCOL_VERSION),
+    ...(minimum !== undefined ? { minProtocolVersion: minimum } : {}),
     ...(configure ? { configurable: true } : {}),
     behaviorHints: {
       ...from.behaviorHints,
@@ -266,7 +297,14 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
       ctx?.waitUntil(watched);
     };
     if (request.method === 'OPTIONS')
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      return new Response(null, { status: 204, headers: PREFLIGHT_HEADERS });
+    const appProtocol = parseAppProtocol(request.headers.get(PROTOCOL_HEADER));
+    const common = (config: Config | null): HandlerArgs => ({
+      config,
+      request,
+      waitUntil,
+      ...(appProtocol !== undefined ? { appProtocol } : {}),
+    });
 
     const { pathname } = new URL(request.url);
     if (base && pathname !== base && !pathname.startsWith(`${base}/`))
@@ -294,17 +332,23 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
       if (request.method !== 'GET' && request.method !== 'HEAD')
         return json({ error: 'Method not allowed' }, 405);
       const body = handlers.health
-        ? checked(
-            HealthResponseSchema,
-            await handlers.health({ config, request, waitUntil }),
-            validate,
-          )
+        ? checked(HealthResponseSchema, await handlers.health(common(config)), validate)
         : { status: 'ok' as const };
       return json(body, 200, body.cacheMaxAge ?? 0);
     }
     if (path === 'manifest.json' && (request.method === 'GET' || request.method === 'HEAD'))
       return json(current, 200, 3600);
     if (required && !config) return json({ error: 'Configure this add-on first' }, 403);
+    // Every resource from here on; an app without the header is at revision 14 or older.
+    if (minimum !== undefined && (appProtocol ?? 0) < minimum)
+      return new Response(UPGRADE_MESSAGE, {
+        status: 426,
+        headers: {
+          ...CORS_HEADERS,
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-store',
+        },
+      });
 
     if (path === 'scrobble') {
       if (!handlers.scrobble || !typesFor('scrobble').length)
@@ -318,7 +362,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
       }
       const parsed = ScrobbleRequest.safeParse(body);
       if (!parsed.success) return json({ error: 'These are not scrobble events' }, 400);
-      await handlers.scrobble({ events: parsed.data.events, config, request, waitUntil });
+      await handlers.scrobble({ events: parsed.data.events, ...common(config) });
       return json({ received: parsed.data.events.length });
     }
     if (request.method !== 'GET' && request.method !== 'HEAD')
@@ -336,14 +380,14 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
         if (!known) return json({ error: 'Unknown catalog' }, 404);
         const body = checked(
           CatalogResponseSchema,
-          await handlers.catalog({ ...route, config, request, waitUntil }),
+          await handlers.catalog({ ...route, ...common(config) }),
           validate,
         );
         return json(body, 200, body.cacheMaxAge);
       }
       case 'meta': {
         if (!handlers.meta) break;
-        const result = await handlers.meta({ ...route, config, request, waitUntil });
+        const result = await handlers.meta({ ...route, ...common(config) });
         if (!result) return json({ error: 'Not found' }, 404);
         const body = checked(MetaResponseSchema, result, validate);
         return json(body, 200, body.cacheMaxAge);
@@ -352,7 +396,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
         if (!handlers.artwork) break;
         const body = checked(
           ArtworkResponseSchema,
-          await handlers.artwork({ ...route, config, request, waitUntil }),
+          await handlers.artwork({ ...route, ...common(config) }),
           validate,
         );
         return json(body, 200, body.cacheMaxAge);
@@ -365,9 +409,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
             type: route.type,
             name: route.id,
             extra: route.extra,
-            config,
-            request,
-            waitUntil,
+            ...common(config),
           }),
           validate,
         );
@@ -378,7 +420,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
         // A web add-on's answer passes through the network, so it never carries headers.
         const body = checked(
           WebStreamResponse as ZodType<StreamResponse>,
-          await handlers.stream({ ...route, config, request, waitUntil }),
+          await handlers.stream({ ...route, ...common(config) }),
           validate,
         );
         // Also with validation off: a login in a header must not leave as JSON.

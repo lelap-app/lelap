@@ -9,6 +9,7 @@ import {
 import { and, asc, eq, lte, notInArray } from 'drizzle-orm';
 
 import { addonBase, type InstalledAddon, REQUEST_TIMEOUT_MS } from './addons/client';
+import { addonBlock, addonRefusals, protocolHeaders, upgradeNote } from './addons/revision';
 import type { Db } from './db';
 import { isLiveBook } from './live';
 import type { IdGenerator } from './ids';
@@ -29,7 +30,12 @@ export type Poster = (
     body: string;
     signal: AbortSignal;
   },
-) => Promise<{ ok: boolean; status: number; headers?: { get(name: string): string | null } }>;
+) => Promise<{
+  ok: boolean;
+  status: number;
+  headers?: { get(name: string): string | null };
+  text?(): Promise<string>;
+}>;
 
 /** Events per request; the protocol allows 100. */
 export const SCROBBLE_BATCH = 50;
@@ -214,8 +220,9 @@ export function nextScrobbleDue(db: Db): number | null {
 export type ScrobbleReport = { sent: number; dropped: number; failed: number };
 
 /** Whether a status means "never send this again" rather than "try later". */
+// A `426` refuses this app, not the events: they wait for an app the add-on takes (M156).
 const isPermanent = (status: number) =>
-  status >= 400 && status < 500 && status !== 408 && status !== 429;
+  status >= 400 && status < 500 && status !== 408 && status !== 426 && status !== 429;
 
 /**
  * Sends what is due, oldest first, one request per add-on at a time. Events for add-ons that are
@@ -243,6 +250,8 @@ export async function sendScrobbles(
   report.dropped += stale.length + old.length;
 
   for (const { url, manifest } of installed) {
+    // An add-on that won't work with this app keeps its events until one it takes comes along.
+    if (addonBlock({ url, manifest })) continue;
     // Order matters within an add-on, so a later event never overtakes one still waiting.
     for (;;) {
       const rows = db
@@ -256,7 +265,7 @@ export async function sendScrobbles(
       if (!first || first.nextAttemptAt > now) break;
       const { status, retryAfterMs } = await postEvents(
         post,
-        url,
+        { url, manifest },
         rows.map((r) => r.event),
       );
       const ids = rows.map((r) => r.eventId);
@@ -305,18 +314,34 @@ export function retryAfterMs(value: string | null | undefined, now: number): num
  */
 async function postEvents(
   post: Poster,
-  manifestUrl: string,
+  addon: Pick<InstalledAddon, 'url' | 'manifest'>,
   events: ScrobbleEvent[],
 ): Promise<{ status: number | null; retryAfterMs: number }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const response = await post(`${addonBase(manifestUrl)}scrobble`, {
+    const response = await post(`${addonBase(addon.url)}scrobble`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...protocolHeaders(addon.manifest),
+      },
       body: JSON.stringify({ events }),
       signal: controller.signal,
     });
+    if (response.status === 426) {
+      let note: string | null = null;
+      try {
+        note = upgradeNote(
+          response.text ? await response.text() : null,
+          response.headers?.get('content-type') ?? null,
+        );
+      } catch {
+        // No note, then.
+      }
+      addonRefusals.record(addon.url, note);
+    }
     const wait = response.headers?.get('Retry-After');
     return { status: response.status, retryAfterMs: retryAfterMs(wait, Date.now()) };
   } catch {

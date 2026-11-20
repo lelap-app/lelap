@@ -251,6 +251,15 @@ catalog: async () => ({
 }),
 `;
 
+const appRevision = `export default createAddon({
+  manifest,
+  // Apps below revision 15 get 426 Upgrade Required and are told to update Lelap.
+  minProtocolVersion: 15,
+  catalog: ({ appProtocol }) =>
+    // The app's own revision; absent for revision 14 and older.
+    ({ metas: appProtocol && appProtocol >= 16 ? newerList() : list(), cacheMaxAge: 3600 }),
+});`;
+
 const toc: [string, string][] = [
   ['install', 'Install'],
   ['example', 'A complete add-on'],
@@ -258,6 +267,7 @@ const toc: [string, string][] = [
   ['options', 'Options'],
   ['configure', 'Settings and sign-in'],
   ['health', 'Health'],
+  ['app-revision', 'The app’s revision'],
   ['badges', 'Badges on covers'],
   ['library', 'Library sources inside the app'],
   ['errors', 'Errors'],
@@ -460,11 +470,32 @@ const toc: [string, string][] = [
   <p>
     Every SDK add-on answers <code>GET /health</code> with <code>{'{ "status": "ok" }'}</code> and
     declares <code>behaviorHints.health</code>; the SDK also sets <code>protocolVersion</code> to
-    the newest revision it knows: <code>{LATEST_PROTOCOL_VERSION}</code> in SDK 0.7, 13 in 0.6, 9 in
-    0.5.0 and 8 in 0.4.0. Pass a <code>health</code> handler to check what your add-on relies on.
-    Keep it quick: the app asks when Settings → Library and sources → Add-ons opens.
+    the newest revision it knows: <code>{LATEST_PROTOCOL_VERSION}</code> in SDK 0.8, 14 in 0.7, 13
+    in 0.6, 9 in 0.5.0 and 8 in 0.4.0. Pass a <code>health</code> handler to check what your add-on
+    relies on. Keep it quick: the app asks when Settings → Library and sources → Add-ons opens.
   </p>
   <CodeBlock code={health} />
+
+  <h2 id="app-revision">The app’s revision</h2>
+  <p>
+    Since SDK 0.8 (protocol revision 15), every handler gets <code>appProtocol</code>: the revision
+    the app speaks, from its <code>Lelap-Protocol</code> header, such as <code>15</code>. It is
+    absent for an app at revision 14 or older, which sends no header, and for a value that isn’t a
+    whole number. Use it to answer older apps differently. The app sends the header because the SDK
+    declares the newest revision in your manifest, and the SDK’s CORS preflight lets it through with{' '}
+    <code>Access-Control-Allow-Headers: *</code> and <code>Access-Control-Max-Age: 86400</code>.
+  </p>
+  <p>
+    <code>
+      createAddon({'{'} minProtocolVersion {'}'})
+    </code>{' '}
+    puts the lowest app revision you work with in the manifest. An app that knows the field and is
+    older asks you nothing and tells the listener “Needs a newer Lelap”. Any request from an app
+    with a lower <code>appProtocol</code>, or none, is answered <code>426 Upgrade Required</code>{' '}
+    with a short plain-text body before your handler runs; the manifest, <code>/health</code> and
+    the configure page still answer. See <a href="/docs/protocol/#revision-15">Revision 15</a>.
+  </p>
+  <CodeBlock code={appRevision} />
 
   <h2 id="badges">Badges on covers</h2>
   <p>

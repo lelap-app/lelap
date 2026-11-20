@@ -1,3 +1,4 @@
+import type { Manifest } from '@lelap/sdk';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -145,11 +146,12 @@ describe('car shelves', () => {
 });
 
 describe('voice catalogs', () => {
-  const addon = (url: string, search: boolean): InstalledAddon => ({
+  const addon = (url: string, search: boolean, more: Partial<Manifest> = {}): InstalledAddon => ({
     id: url,
     url,
     builtin: false,
     manifest: {
+      ...more,
       id: url,
       version: '1.0.0',
       protocol: 1,
@@ -176,7 +178,24 @@ describe('voice catalogs', () => {
         addon(`${LOCAL_SCHEME}mine/manifest.json`, true),
       ]),
     ).toEqual([
-      { base: 'https://books.example.org/x/', type: 'audiobook', id: 'all', addon: 'Books' },
+      {
+        base: 'https://books.example.org/x/',
+        type: 'audiobook',
+        id: 'all',
+        addon: 'Books',
+        protocol: 0,
+      },
     ]);
+  });
+
+  it('hands over the revision to send, and leaves out an add-on too new for the app', () => {
+    const found = voiceCatalogs([
+      addon('https://new.example.org/manifest.json', true, { protocolVersion: 15 }),
+      addon('https://newer.example.org/manifest.json', true, {
+        protocolVersion: 16,
+        minProtocolVersion: 16,
+      }),
+    ]);
+    expect(found.map((c) => [c.base, c.protocol])).toEqual([['https://new.example.org/', 15]]);
   });
 });

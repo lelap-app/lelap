@@ -260,6 +260,24 @@ GET  /configure           (the add-on's own settings page)
   below. A stream's `format`, `language` and `releaseId` (a lowercase URN compared whole) feed
   M153's ordering and merging. An older app ignores the fields, plays a preparing stream as if it
   were ready, and skips a stream with an unmeasured part.
+- **The app's revision, a minimum and 426** (revision 15, M156): the app sends
+  `Lelap-Protocol: <its revision>` on every resource request (catalog, meta, stream, artwork,
+  series, health, scrobble; every call of an add-on inside the app, as `appProtocol`) to an add-on
+  whose manifest declares 15 or higher, never on the manifest or on audio, the same on Android
+  (voice search included) and the web. Opt-in because on the web a custom header asks for a CORS
+  preflight that older add-ons may not answer; no header means revision 14 or older. Every
+  app-side cache of add-on answers is kept under the app's revision (the in-memory query and
+  source caches, and the kept whole series, which gained a `protocol` column), so an answer an
+  older or newer app got is never reused. A manifest's `minProtocolVersion` above the app's
+  revision means the app asks the add-on nothing, `/health` included, and its row and catalog rows
+  say “Needs a newer Lelap” with Update (the in-app updater on the direct APK, the release page on
+  F-Droid and the web); this replaces the quiet “newer revision” note. `426 Upgrade Required` on
+  any resource request means the add-on refuses this app: “Update Lelap to use {add-on}” with
+  Update, plus a plain-text body of at most 200 characters, and nothing more is asked until the
+  app's revision changes (kept on the device, so a restart doesn't ask again); scrobble events
+  wait meanwhile. That covers apps that predate `minProtocolVersion`, which the SDK's
+  `createAddon({ minProtocolVersion })` answers with `426` by itself. The SDK's preflight adds
+  `Access-Control-Max-Age: 86400`. Asked for by a third-party add-on author.
 - **Stream choice in the app** (M153): the item page orders every add-on's streams once, by the
   profile's preferred languages (default: the profile's language), then preferred formats, then
   the add-ons' order; a stream without the field sorts after those that match. Streams with the

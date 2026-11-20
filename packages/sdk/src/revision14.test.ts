@@ -23,8 +23,8 @@ const manifest: Manifest = {
 };
 
 describe('revision 14', () => {
-  it('is the newest revision', () => {
-    expect(LATEST_PROTOCOL_VERSION).toBe(14);
+  it('is known', () => {
+    expect(LATEST_PROTOCOL_VERSION).toBeGreaterThanOrEqual(14);
   });
 
   it('reads a preparing stream with format, language and releaseId', () => {

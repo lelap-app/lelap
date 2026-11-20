@@ -1,7 +1,9 @@
+import { sendsAppProtocol } from '@lelap/sdk';
 import { and, eq, inArray } from 'drizzle-orm';
 
-import { addonBase, type InstalledAddon, searchCatalogs } from './addons/client';
+import { addonBase, type InstalledAddon, searchCatalogs, usableAddon } from './addons/client';
 import { isLocalAddonUrl } from './addons/local';
+import { APP_PROTOCOL_VERSION } from './addons/revision';
 import type { Db } from './db';
 import { continueListening, type LibraryBook, listBooks } from './library/queries';
 import { followedList, listPlayOrder, listStart, playsFromStart } from './listPlay';
@@ -75,8 +77,17 @@ function feedBooks(db: Db, ids: string[]): string[] {
     .map((b) => b.id);
 }
 
-/** An add-on search catalog the playback service can ask by itself (M147). */
-export type VoiceCatalog = { base: string; type: string; id: string; addon: string };
+/**
+ * An add-on search catalog the playback service can ask by itself (M147). `protocol` is the
+ * `Lelap-Protocol` value to send (M156), 0 for an add-on before revision 15, which gets none.
+ */
+export type VoiceCatalog = {
+  base: string;
+  type: string;
+  id: string;
+  addon: string;
+  protocol: number;
+};
 
 /**
  * The audiobook search catalogs voice search asks when the phone has no clear match. Only
@@ -84,12 +95,16 @@ export type VoiceCatalog = { base: string; type: string; id: string; addon: stri
  */
 export function voiceCatalogs(addons: InstalledAddon[]): VoiceCatalog[] {
   return searchCatalogs(addons, ['audiobook'])
-    .filter(({ addon }) => !isLocalAddonUrl(addon.url) && /^https?:\/\//i.test(addon.url))
+    .filter(
+      ({ addon }) =>
+        !isLocalAddonUrl(addon.url) && /^https?:\/\//i.test(addon.url) && usableAddon(addon),
+    )
     .map(({ addon, catalog }) => ({
       base: addonBase(addon.url),
       type: catalog.type,
       id: catalog.id,
       addon: addon.manifest.name,
+      protocol: sendsAppProtocol(addon.manifest) ? APP_PROTOCOL_VERSION : 0,
     }));
 }
 

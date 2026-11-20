@@ -1,6 +1,14 @@
 import {
+  type AddonBlock,
   addonBase,
+  addonBlock,
+  addonRefusals,
+  AddonUpgradeError,
+  APP_PROTOCOL_VERSION,
   addStreamedBook,
+  deviceValue,
+  parseRefusals,
+  setDeviceValue,
   checkHealth,
   chosenEdition,
   type AddonHealth,
@@ -67,8 +75,40 @@ const route: Fetcher = async (url, init) => {
   const { status, body } =
     (await callWithSettings(local.manifestUrl, local.path)) ??
     (await callLocalAddon(local.manifestUrl, local.path));
-  return { ok: status >= 200 && status < 300, status, json: async () => body };
+  const said = (body as { error?: unknown } | null)?.error;
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+    // An add-on inside the app says why in its error, such as a `426`'s note.
+    text: async () => (typeof body === 'string' ? body : typeof said === 'string' ? said : ''),
+  };
 };
+
+// Add-ons that answered `426 Upgrade Required` (M156) stay refused across starts, until the app's
+// protocol revision changes.
+const REFUSALS_KEY = 'addonRefusals';
+addonRefusals.attach({
+  read: () => parseRefusals(deviceValue(db, REFUSALS_KEY)),
+  write: (all) => setDeviceValue(db, REFUSALS_KEY, JSON.stringify(all), Date.now()),
+});
+
+/** What to say for a failed add-on request; the add-on's own words for a `426` (M156). */
+export function addonErrorText(error: unknown): string | null {
+  if (error instanceof AddonUpgradeError) {
+    const line = t('Update Lelap to use {name}', { name: error.addonName });
+    return error.block.kind === 'refused' && error.block.note
+      ? `${line}. ${error.block.note}`
+      : line;
+  }
+  return error instanceof Error ? error.message : null;
+}
+
+/** Why the app asks this add-on nothing (M156), re-rendered when an add-on refuses it. */
+export function useAddonBlock(addon: InstalledAddon): AddonBlock | null {
+  useSyncExternalStore(addonRefusals.subscribe, addonRefusals.getVersion, addonRefusals.getVersion);
+  return addonBlock(addon);
+}
 
 export const fetcher: Fetcher = trackedFetcher(route, addonHealth);
 
@@ -271,11 +311,11 @@ export async function refreshItemSources(
 
 export const queries = {
   meta: (addons: InstalledAddon[], type: ContentType, id: string) => ({
-    queryKey: ['meta', type, id, addons.map((a) => a.url)],
+    queryKey: ['meta', APP_PROTOCOL_VERSION, type, id, addons.map((a) => a.url)],
     queryFn: () => fetchMeta(fetcher, addons, type, id),
   }),
   streams: (addons: InstalledAddon[], type: ContentType, id: string) => ({
-    queryKey: ['streams', type, id, addons.map((a) => a.url)],
+    queryKey: ['streams', APP_PROTOCOL_VERSION, type, id, addons.map((a) => a.url)],
     queryFn: () => fetchStreams(fetcher, addons, type, id),
   }),
   /** Streams from every add-on, asked by the work's ID or one of its external IDs. */
@@ -285,7 +325,14 @@ export const queries = {
     id: string,
     externalIds: Meta['externalIds'],
   ) => ({
-    queryKey: ['sources', type, id, externalIds ?? {}, addons.map((a) => a.url)],
+    queryKey: [
+      'sources',
+      APP_PROTOCOL_VERSION,
+      type,
+      id,
+      externalIds ?? {},
+      addons.map((a) => a.url),
+    ],
     queryFn: () => findSources(fetcher, addons, type, id, externalIds),
   }),
 };
@@ -311,7 +358,7 @@ export function useArtwork(
     [addons, item.type, item.id],
   );
   const found = useQuery({
-    queryKey: ['artwork', item.type, item.id],
+    queryKey: ['artwork', APP_PROTOCOL_VERSION, item.type, item.id],
     enabled: ask && !item.cover && offered,
     staleTime: DAY_MS,
     gcTime: DAY_MS,

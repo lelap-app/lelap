@@ -1,8 +1,9 @@
 import { t } from './i18n';
 import { getSettings, pickUpdate, ReleaseInfo } from '@lelap/core';
+import { Linking } from 'react-native';
 
 import { showAlert } from './dialog';
-import { downloadsBase } from './config';
+import { downloadsBase, sourceUrl } from './config';
 import { db } from './db';
 import * as updater from './platform/updater';
 import { profileId } from './profile';
@@ -65,4 +66,24 @@ export async function offerUpdateOnStart(): Promise<void> {
     { text: t('Later'), style: 'cancel' },
     { text: t('Install'), onPress: () => void installUpdate(release).catch(() => {}) },
   ]);
+}
+
+/**
+ * Update for an add-on that needs a newer Lelap (M156): the in-app update on the direct APK, the
+ * release page where the app can't update itself (F-Droid, the web).
+ */
+export async function updateLelap(): Promise<void> {
+  if (!updater.SELF_UPDATES) {
+    await Linking.openURL(`${sourceUrl}/releases`).catch(() => {});
+    return;
+  }
+  const release = await checkForUpdate();
+  if (release) {
+    await installUpdate(release);
+    return;
+  }
+  showAlert(
+    t('Lelap is up to date.'),
+    t('The add-on needs a version of Lelap that isn’t out yet. Try again in a few days.'),
+  );
 }

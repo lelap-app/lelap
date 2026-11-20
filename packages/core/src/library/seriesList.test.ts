@@ -233,6 +233,14 @@ describe('the kept list', () => {
     keepSeriesList(db, 'afdeling q', 'en', null, 2000);
     expect(storedSeriesList(db, 'afdeling q', 'en')).toEqual({ list: null, fetchedAt: 2000 });
   });
+
+  it('never hands an app the answer an app at another revision was given', () => {
+    const db = createTestDb();
+    keepSeriesList(db, 'afdeling q', 'en', DEPARTMENT_Q, 1000, 14);
+    expect(storedSeriesList(db, 'afdeling q', 'en', 14)?.list?.volumes).toHaveLength(4);
+    expect(storedSeriesList(db, 'afdeling q', 'en', 15)).toBeNull();
+    expect(seriesListDue(storedSeriesList(db, 'afdeling q', 'en', 15), 1001)).toBe(true);
+  });
 });
 
 const tags = (series: string): KindTags => ({

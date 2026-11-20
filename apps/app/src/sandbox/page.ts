@@ -48,7 +48,7 @@ const ADDON_SIDE = `
     }
     return p.length === 3 ? r : null;
   };
-  var handle = function (id, path, settings, place, signin, events, library, locate) {
+  var handle = function (id, path, settings, place, signin, events, library, locate, appProtocol) {
     Promise.resolve().then(function () {
       if (!def) throw new Error('The file never called addon({...}).');
       var r = route(path);
@@ -63,6 +63,8 @@ const ADDON_SIDE = `
       if (r.resource === 'place') r.place = place || null;
       if (r.resource === 'signin') r.signin = signin || {};
       if (r.resource === 'locate') r.locate = locate || { files: [] };
+      // Revision 15: the app's own revision, for an add-on that declares 15 or higher.
+      if (typeof appProtocol === 'number') r.appProtocol = appProtocol;
       return Promise.resolve(h(r)).then(function (b) {
         return b == null ? { status: 404, body: { error: 'Not found' } } : { status: 200, body: b };
       });
@@ -95,7 +97,7 @@ const ADDON_SIDE = `
         json: function () { return Promise.resolve(JSON.parse(m.text)); }
       });
     } else if (m.t === 'call') {
-      handle(m.id, m.path, m.settings, m.place, m.signin, m.events, m.library, m.locate);
+      handle(m.id, m.path, m.settings, m.place, m.signin, m.events, m.library, m.locate, m.appProtocol);
     }
   };
   self.onerror = function (msg) { post({ t: 'log', message: String(msg) }); };

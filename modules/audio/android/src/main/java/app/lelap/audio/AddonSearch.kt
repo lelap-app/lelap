@@ -11,8 +11,11 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-/** An add-on's search catalog (M147), as the app lists it: the add-on's base URL ends in `/`. */
-data class SearchCatalog(val base: String, val type: String, val id: String, val addon: String)
+/**
+ * An add-on's search catalog (M147), as the app lists it: the add-on's base URL ends in `/`.
+ * [protocol] is the app's revision to send as `Lelap-Protocol` (M156); 0 sends none.
+ */
+data class SearchCatalog(val base: String, val type: String, val id: String, val addon: String, val protocol: Int = 0)
 
 /** One item an add-on's search found. */
 data class AddonHit(val type: String, val id: String, val name: String, val author: String?, val cover: String?, val addon: String)
@@ -96,11 +99,13 @@ object AddonSearch {
     if (!base.startsWith("https://") && !base.startsWith("http://")) return@mapNotNull null
     val type = o.optString("type").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
     val id = o.optString("id").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
-    SearchCatalog(if (base.endsWith("/")) base else "$base/", type, id, o.optString("addon"))
+    SearchCatalog(if (base.endsWith("/")) base else "$base/", type, id, o.optString("addon"), o.optInt("protocol", 0).coerceAtLeast(0))
   }
 
   fun encodeCatalogs(catalogs: List<SearchCatalog>) = JSONArray(
-    catalogs.map { JSONObject().put("base", it.base).put("type", it.type).put("id", it.id).put("addon", it.addon) },
+    catalogs.map {
+      JSONObject().put("base", it.base).put("type", it.type).put("id", it.id).put("addon", it.addon).put("protocol", it.protocol)
+    },
   )
 
   // Daemon threads: a search left running never keeps the service's process alive.
@@ -114,7 +119,7 @@ object AddonSearch {
    */
   fun search(catalogs: List<SearchCatalog>, query: String, deadlineMs: Long = DEADLINE_MS): List<AddonHit> {
     if (catalogs.isEmpty() || query.isBlank()) return emptyList()
-    val tasks = catalogs.map { catalog -> Callable { parse(get(url(catalog, query), deadlineMs), catalog) } }
+    val tasks = catalogs.map { catalog -> Callable { parse(get(url(catalog, query), deadlineMs, catalog.protocol), catalog) } }
     val futures = try {
       pool.invokeAll(tasks, deadlineMs, TimeUnit.MILLISECONDS)
     } catch (e: InterruptedException) {
@@ -131,13 +136,19 @@ object AddonSearch {
     pool.execute(block)
   }
 
-  private fun get(url: String, timeoutMs: Long): String {
+  /** The request headers for [catalog]: `Lelap-Protocol` only for an add-on of revision 15 or later. */
+  fun headers(protocol: Int): Map<String, String> = buildMap {
+    put("Accept", "application/json")
+    if (protocol > 0) put("Lelap-Protocol", protocol.toString())
+  }
+
+  private fun get(url: String, timeoutMs: Long, protocol: Int): String {
     val connection = URL(url).openConnection() as HttpURLConnection
     try {
       connection.connectTimeout = timeoutMs.toInt()
       connection.readTimeout = timeoutMs.toInt()
       connection.instanceFollowRedirects = true
-      connection.setRequestProperty("Accept", "application/json")
+      for ((name, value) in headers(protocol)) connection.setRequestProperty(name, value)
       if (connection.responseCode !in 200..299) throw IOException("HTTP ${connection.responseCode}")
       return connection.inputStream.bufferedReader().use { it.readText() }
     } finally {

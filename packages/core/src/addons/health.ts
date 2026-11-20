@@ -1,6 +1,7 @@
 import { HealthResponse, type HealthStatus } from '@lelap/sdk';
 
 import { addonBase, type Fetcher, type InstalledAddon, normalizeManifestUrl } from './client';
+import { addonBlock, protocolHeaders } from './revision';
 
 /** What the app saw of one add-on during this run. Nothing is stored or sent anywhere. */
 export type AddonHealth = {
@@ -134,12 +135,14 @@ export async function checkHealth(
   now: () => number = Date.now,
   timeoutMs = 10_000,
 ): Promise<HealthResponse | null> {
+  // An add-on that won't work with this app is asked nothing, `/health` included (M156).
+  if (addonBlock(addon)) return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetcher(`${addonBase(addon.url)}health`, {
       signal: controller.signal,
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...protocolHeaders(addon.manifest) },
     });
     if (!response.ok) return null;
     const parsed = HealthResponse.safeParse(await response.json());

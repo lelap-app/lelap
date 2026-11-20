@@ -7,6 +7,7 @@ import {
 } from '@lelap/sdk';
 import { and, eq } from 'drizzle-orm';
 
+import { APP_PROTOCOL_VERSION } from '../addons/revision';
 import type { Db } from '../db';
 import { seriesLists } from '../schema';
 import {
@@ -27,14 +28,29 @@ export const SERIES_LIST_UNKNOWN_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 
 export type StoredSeriesList = { list: SeriesList | null; fetchedAt: number };
 
-/** The last answer for a series in this language, or null when it was never asked. */
-export function storedSeriesList(db: Db, key: string, language: string): StoredSeriesList | null {
+/**
+ * The last answer for a series in this language, or null when it was never asked. An answer an
+ * app at another protocol revision was given counts as never asked (M156): the add-on may answer
+ * this one differently.
+ */
+export function storedSeriesList(
+  db: Db,
+  key: string,
+  language: string,
+  revision: number = APP_PROTOCOL_VERSION,
+): StoredSeriesList | null {
   const row = db
-    .select({ list: seriesLists.list, fetchedAt: seriesLists.fetchedAt })
+    .select({
+      list: seriesLists.list,
+      fetchedAt: seriesLists.fetchedAt,
+      protocol: seriesLists.protocol,
+    })
     .from(seriesLists)
     .where(and(eq(seriesLists.key, key), eq(seriesLists.language, language)))
     .get();
-  return row ? { list: row.list ?? null, fetchedAt: row.fetchedAt } : null;
+  return row && row.protocol === revision
+    ? { list: row.list ?? null, fetchedAt: row.fetchedAt }
+    : null;
 }
 
 export function keepSeriesList(
@@ -43,12 +59,13 @@ export function keepSeriesList(
   language: string,
   list: SeriesList | null,
   now: number,
+  revision: number = APP_PROTOCOL_VERSION,
 ): void {
   db.insert(seriesLists)
-    .values({ key, language, list, fetchedAt: now })
+    .values({ key, language, list, fetchedAt: now, protocol: revision })
     .onConflictDoUpdate({
       target: [seriesLists.key, seriesLists.language],
-      set: { list, fetchedAt: now },
+      set: { list, fetchedAt: now, protocol: revision },
     })
     .run();
 }
