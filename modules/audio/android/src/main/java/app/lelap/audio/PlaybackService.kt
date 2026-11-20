@@ -599,12 +599,23 @@ class PlaybackService : MediaLibraryService() {
   private fun renderForCast(request: CastRequest, startMs: Long, speed: Float): LiveAudio =
     EffectsStream(this, request, startMs, speed, castSkipSilence, sound)
 
+  // Time saved while casting a rendered part, kept since the last bankSilence (M150).
+  private var castSaved = false
+
+  /** Skip silence left [mediaMs] out of a rendered part the receiver played, at [speed] (M150). */
+  private fun castSkipped(mediaMs: Long, speed: Float) {
+    val bookId = current?.bookId ?: return
+    savings.add(bookId, mediaMs * 1_000L, speed)
+    castSaved = true
+  }
+
   /** Adds what skip silence left out since the last call to each book's time saved. */
   private fun bankSilence() {
     if (!::player.isInitialized) return
     val skipped = silence.takeSkippedUs()
-    if (skipped.isEmpty()) return
+    if (skipped.isEmpty() && !castSaved) return
     for ((bookId, us) in skipped) savings.add(bookId, us, player.playbackParameters.speed)
+    castSaved = false
     silencePrefs.edit().putString(Commands.SILENCE_KEY, savings.encode()).apply()
   }
 
@@ -1708,7 +1719,7 @@ class PlaybackService : MediaLibraryService() {
     player.stop()
     handingOver = false
     val items = List(player.mediaItemCount) { player.getMediaItemAt(it) }
-    val r = RemotePlayer(Looper.getMainLooper(), link, ::castRequest, ::onRemoteItemsPicked, ::onRemoteLoaded, ::rewoundPlace, ::renderForCast)
+    val r = RemotePlayer(Looper.getMainLooper(), link, ::castRequest, ::onRemoteItemsPicked, ::onRemoteLoaded, ::rewoundPlace, ::renderForCast, ::castSkipped)
     remote = r
     // Before the first load, so it is rendered when an effect is on.
     castSkipSilence = soundDefaults.with(current?.sound).skipSilence

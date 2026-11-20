@@ -16,6 +16,8 @@ import androidx.media3.common.util.UnstableApi
 import app.lelap.cast.CastLink
 import app.lelap.cast.CastRequest
 import app.lelap.cast.LiveAudio
+import app.lelap.cast.LiveJoin
+import app.lelap.cast.PlayState
 import app.lelap.cast.ReceiverFade
 import app.lelap.cast.RemoteSession
 import app.lelap.cast.RenderClock
@@ -46,6 +48,8 @@ class RemotePlayer(
    * null when it can't be, and the receiver then plays the file.
    */
   private val render: (request: CastRequest, startMs: Long, speed: Float) -> LiveAudio? = { _, _, _ -> null },
+  /** Media time skip silence left out of a rendered part the receiver played, at its speed (M150). */
+  private val onSkipped: (mediaMs: Long, speed: Float) -> Unit = { _, _ -> },
 ) : SimpleBasePlayer(looper) {
   private val handler = Handler(looper)
   private val session = RemoteSession(SystemClock::elapsedRealtime, link::canPlayAt, ::logTiming)
@@ -55,6 +59,15 @@ class RemotePlayer(
 
   // The rendered stream's clock, mapping the receiver's place to the part's; null for a file.
   private var clock: RenderClock? = null
+  private val skipped = CastSkipTally()
+
+  /** The rendered part and the leader's place in it, as of the last status, for a speaker that joins. */
+  private class JoinPlace(val request: CastRequest, val speed: Float, val placeMs: Long, val atMs: Long, val playing: Boolean)
+
+  @Volatile
+  private var joinPlace: JoinPlace? = null
+  private var renderedFile: CastRequest? = null
+  private var renderedSpeed = 1f
 
   private val linkListener = object : CastLink.Listener {
     override fun onStatus(status: RendererStatus) {
@@ -65,6 +78,14 @@ class RemotePlayer(
 
     override fun onRestartNeeded() {
       handler.post { if (!released) run(session.restart()) }
+    }
+
+    // On the cast thread: from the snapshot the last status left, never this player's state.
+    override fun joinStream(leadMs: Long): CastRequest? {
+      val p = joinPlace ?: return null
+      val at = LiveJoin.placeMs(p.placeMs, p.atMs, SystemClock.elapsedRealtime(), p.speed, p.playing, leadMs)
+      val live = render(p.request, at, p.speed) ?: return null
+      return p.request.copy(live = live)
     }
   }
 
@@ -138,6 +159,14 @@ class RemotePlayer(
   private fun onStatus(status: RendererStatus) {
     // A rendered stream's place is the stream's; the part's comes from the renderer's clock.
     val mapped = clock?.let { status.copy(positionMs = it.mediaAt(status.positionMs), durationMs = 0L) } ?: status
+    val file = renderedFile
+    // Before the new stream's first mark, a poll may still be the last stream's.
+    if (clock != null && file != null && (clock?.marks ?: 0) > 0) {
+      skipped.played(status.positionMs).takeIf { it > 0L }?.let { onSkipped(it, renderedSpeed) }
+      joinPlace = JoinPlace(file, renderedSpeed, mapped.positionMs, SystemClock.elapsedRealtime(), status.state == PlayState.PLAYING)
+    } else {
+      joinPlace = null
+    }
     run(session.onStatus(mapped))
     if (fadeLevel < 1f || fade.isFading) applyFade()
   }
@@ -149,6 +178,10 @@ class RemotePlayer(
           val file = requestFor(command.index)
           val live = if (file != null && session.phoneRenders) render(file, command.positionMs, command.speed) else null
           clock = live?.clock
+          skipped.start(live?.clock, command.speed)
+          renderedFile = if (live != null) file else null
+          renderedSpeed = command.speed
+          joinPlace = null
           val request = if (live != null) file?.copy(live = live) else file
           if (request == null) {
             session.onLoaded(command.seq, MISSING)

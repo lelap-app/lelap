@@ -117,16 +117,27 @@ class MediaServer(private val context: Context) {
     base = null
   }
 
-  /** A URL a receiver can fetch [source] from. [name] gives the extension receivers look at. */
-  fun publish(source: Source, mimeType: String, name: String): String {
+  /**
+   * A URL a receiver can fetch [source] from. [name] gives the extension receivers look at. A
+   * rendered part [alongside] the one playing (a speaker that joins a group, M150) leaves that one
+   * open; any other ends it.
+   */
+  fun publish(source: Source, mimeType: String, name: String, alongside: Boolean = false): String {
     val root = start()
     val bytes = ByteArray(16).also(random::nextBytes)
     val token = bytes.joinToString("") { "%02x".format(it) }
     // One rendered part at a time: a new load or seek ends the stream before.
-    if (source is Source.Live) closeLive(except = token)
+    if (source is Source.Live && !alongside) closeLive(except = token)
     entries[token] = Entry(source, mimeType)
     val ext = Mime.extension(name).ifEmpty { "bin" }
     return "$root/$token/media.$ext"
+  }
+
+  /** Ends a rendered part published [alongside] another, and its connections (M150). */
+  fun withdraw(url: String) {
+    val token = url.substringBeforeLast('/').substringAfterLast('/')
+    entries.remove(token)
+    liveClients.remove(token)?.forEach { runCatching { it.close() } }
   }
 
   /** The file name of a local URI, for its type. */

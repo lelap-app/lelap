@@ -155,7 +155,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M147 Play by voice](milestones/m147.md)             | Done        |          10 | “Play X on Lelap” through the Assistant and Android Auto's voice search                                                                                              |
 | [M148 UI consistency 1](milestones/m148.md)          | Planned     |           5 | Shared header, button, empty and error states, notice and text field, swapped in on every screen                                                                     |
 | [M149 UI consistency 2](milestones/m149.md)          | Planned     |           4 | One tab header with Settings everywhere, a wider desktop rail, clear settings rows, a type scale and a copy pass                                                     |
-| [M150 Better sound 5](milestones/m150.md)            | Planned     |             | Skip silence on the web for VBR MP3 in Firefox and Safari, MP3 seeks placed per browser, time saved while casting rendered                                           |
+| [M150 Better sound 5](milestones/m150.md)            | Done        |           6 | Skip silence on the web for VBR MP3 in Firefox, MP3 seeks measured per browser, time saved while casting rendered, a speaker joining a rendered group                |
 | [M151 Snappy navigation](milestones/m151.md)         | Planned     |             | Switching tabs and opening Settings without a wait: timed, then hidden screens frozen                                                                                |
 | [M152 Add-on protocol 5](milestones/m152.md)         | Done        |           7 | Revision 14 — streams that are still preparing, parts without lengths, a second look for slow answers, stream format, language and release                           |
 | [M153 Stream choice](milestones/m153.md)             | Done        |           5 | The item page sorts streams from every add-on by the listener's formats and languages and merges the same release                                                    |
@@ -173,6 +173,8 @@ far.
 Ideas without a number or a place in the order yet. One becomes a milestone, with its own file,
 when it is planned.
 
+- **A slow speaker joining a rendered group:** its catch-up may take two loads, and a seek during
+  them waits behind both; a speaker needing over 12 s a load is then dropped (M150's review).
 - **“Still preparing” for a part waited on ahead:** when the next part's 10-minute wait runs out
   while the part before it still plays, the player shows its generic error instead of saying the
   source is still preparing (M155's review).
