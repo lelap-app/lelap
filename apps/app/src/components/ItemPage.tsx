@@ -2,6 +2,7 @@ import {
   bookFraction,
   bookSourceChoice,
   chosenEdition,
+  downloadAllowed,
   downloadSnapshot,
   findBookBySource,
   findStreamedBook,
@@ -257,9 +258,10 @@ export function ItemPage({
       ? stream.stream.parts.reduce((sum, p) => sum + (p.size ?? 0), 0)
       : (stream.stream.size ?? 0)
     : 0;
+  // A live stream is never downloaded (M154).
   const canDownload = stream
-    ? stream.stream.downloadable !== false
-    : saved?.book.source === 'addon';
+    ? stream.stream.downloadable !== false && stream.stream.live !== true
+    : saved?.book.source === 'addon' && downloadAllowed(db, saved.book.id);
 
   const download = async () => {
     const bookId = item && stream ? addItem(item, stream) : saved?.book.id;

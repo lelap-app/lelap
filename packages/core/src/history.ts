@@ -1,6 +1,7 @@
 import { and, desc, eq, lt, lte, notInArray, sql } from 'drizzle-orm';
 
 import type { Db } from './db';
+import { isLiveBook } from './live';
 import { books, playbackHistory } from './schema';
 import type { SleepStop } from './sleep';
 
@@ -149,7 +150,8 @@ export function recordHistory(
   if (now - report.at > HISTORY_KEEP_MS) return null;
   return db.transaction((tx) => {
     const known = tx.select({ id: books.id }).from(books).where(eq(books.id, report.bookId)).get();
-    if (!known) return null;
+    // A live stream has no places to go back to (M154).
+    if (!known || isLiveBook(tx, report.bookId)) return null;
     // The entry just before this report: a buffered skip may arrive after a newer tap was logged.
     const last = tx
       .select()

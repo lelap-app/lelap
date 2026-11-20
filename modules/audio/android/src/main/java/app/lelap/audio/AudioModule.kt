@@ -468,6 +468,7 @@ class AudioModule : Module() {
         "bookId" to null, "fileLocation" to null, "bookTitle" to null, "partTitle" to null,
         "partIndex" to -1, "partCount" to 0, "positionMs" to 0.0, "durationMs" to 0.0,
         "speed" to 1.0, "duckOnInterruption" to true, "waitingForCall" to false, "sleepTimerRemainingMs" to null, "sleepTimerMode" to null, "error" to null,
+        "live" to false, "nowPlaying" to null,
       )
     }
     val extras = c.sessionExtras
@@ -478,6 +479,7 @@ class AudioModule : Module() {
       else -> null
     }
     val duration = c.duration
+    val live = c.mediaMetadata.extras?.getBoolean(Commands.METADATA_LIVE, false) == true
     return mapOf(
       "connected" to true,
       "playing" to c.isPlaying,
@@ -490,13 +492,15 @@ class AudioModule : Module() {
       "partIndex" to if (c.mediaItemCount == 0) -1 else c.currentMediaItemIndex,
       "partCount" to c.mediaItemCount,
       "positionMs" to c.currentPosition.toDouble(),
-      "durationMs" to if (duration == C.TIME_UNSET) 0.0 else duration.toDouble(),
+      "durationMs" to if (duration == C.TIME_UNSET || live) 0.0 else duration.toDouble(),
       "speed" to c.playbackParameters.speed.toDouble(),
       "duckOnInterruption" to extras.getBoolean(Commands.EXTRA_DUCK, true),
       "waitingForCall" to extras.getBoolean(Commands.EXTRA_WAITING_FOR_FOCUS, false),
       "sleepTimerRemainingMs" to timerRemaining?.toDouble(),
       "sleepTimerMode" to timerRemaining?.let { extras.getString(Commands.EXTRA_SLEEP_TIMER_MODE) },
       "error" to c.playerError?.let { PlayerErrors.text(it.errorCode, it.message, NativeText.get(context)) },
+      "live" to live,
+      "nowPlaying" to if (live) c.mediaMetadata.extras?.getString(Commands.METADATA_NOW_PLAYING) else null,
     )
   }
 }

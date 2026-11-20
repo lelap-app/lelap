@@ -1,6 +1,7 @@
 import { and, eq, isNotNull, ne, sql } from 'drizzle-orm';
 
 import type { Db } from './db';
+import { isLiveBook } from './live';
 import { books, libraryEntries, listeningLog } from './schema';
 
 // Listening stats, computed on this device from a per-day log the app keeps while it plays. None
@@ -34,6 +35,8 @@ export function recordListening(
 ): void {
   const ms = Math.round(entry.ms);
   if (ms <= 0) return;
+  // A live stream counts towards no stats (M154).
+  if (isLiveBook(db, entry.bookId)) return;
   db.insert(listeningLog)
     .values({ profileId, ...entry, ms })
     .onConflictDoUpdate({

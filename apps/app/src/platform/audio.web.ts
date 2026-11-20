@@ -16,6 +16,7 @@ import {
   chapterImageAt,
   chooseSound,
   fadeVolume,
+  isHls,
   mediaSpan,
   outroStartMs,
   PLAY_REFUSED,
@@ -32,6 +33,7 @@ import { OPFS_SCHEME, opfsImageUrl } from '../webCovers';
 import * as opfs from './opfs';
 import * as sound from './webaudio';
 import { blobBytes, type FileBytes, type FileHead, openTrack, readHead, urlBytes } from './webfile';
+import { attachHls, detachHls, watchNowPlaying } from './webhls';
 import { createSilenceSkipper } from './websilence';
 import * as tee from './webtee';
 
@@ -72,6 +74,9 @@ let ended = false;
 let buffering = false;
 let error: string | null = null;
 let pausedAt: number | null = null;
+/** What a live stream plays now (M154). */
+let nowPlaying: string | null = null;
+const live = () => book?.live === true;
 let settings: PlayerSettings = {
   duckOnInterruption: true,
   duckPercent: 20,
@@ -97,9 +102,10 @@ const effects = (): sound.SoundSettings => {
 };
 
 // Skip silence reads the file as it plays here, so it rests while a receiver plays (M125).
-const skipsSilence = () => chooseSound(book?.sound, settings).skipSilence && !remoting();
+// A live stream never ends, so nothing reads its bytes (M154).
+const skipsSilence = () => chooseSound(book?.sound, settings).skipSilence && !remoting() && !live();
 // Skip silence and even loudness read the file's first bytes; nothing else does.
-const readsFile = () => skipsSilence() || effects().evenLoudness;
+const readsFile = () => !live() && (skipsSilence() || effects().evenLoudness);
 
 // Listening time skip silence saved per book (M101), kept in this browser like Android keeps it
 // on the phone; the newest books stay.
@@ -299,14 +305,16 @@ function state(): PlayerState {
     partIndex: book ? index : -1,
     partCount: book?.files.length ?? 0,
     positionMs: positionMs(),
-    durationMs: duration || file?.durationMs || 0,
-    speed: element ? speedNow() : 1,
+    durationMs: live() ? 0 : duration || file?.durationMs || 0,
+    speed: element && !live() ? speedNow() : 1,
     duckOnInterruption: settings.duckOnInterruption,
     waitingForCall: false,
     sleepTimerRemainingMs:
       sleepBoundary !== null ? Math.max(0, untilBoundary() ?? 0) : sleepRemainingMs,
     sleepTimerMode: sleepMode,
     error,
+    live: live(),
+    nowPlaying: live() ? nowPlaying : null,
   };
 }
 
@@ -442,6 +450,14 @@ function player(): HTMLAudioElement {
     emit();
   });
   on('ended', () => {
+    // A live stream that stopped (the station went off air) is not finished, and hands over to
+    // nothing (M154).
+    if (live()) {
+      ended = true;
+      stopTicker();
+      emit();
+      return;
+    }
     const target = sleepBoundary !== null ? sleepFileTarget(sleepBoundary, durations()) : null;
     const sleepsHere = target !== null && target.atFileEnd && target.index === index;
     if (book && index < book.files.length - 1) {
@@ -473,6 +489,11 @@ function player(): HTMLAudioElement {
   });
   if (!pageHideListened) window.addEventListener('pagehide', writeJournal);
   pageHideListened = true;
+  watchNowPlaying(audio, (line) => {
+    if (audio !== element || !live() || line === nowPlaying) return;
+    nowPlaying = line;
+    emit();
+  });
   setUpMediaSession();
   element = audio;
   watchRemote(audio);
@@ -505,6 +526,7 @@ function retire(): void {
   if (!old) return;
   element = null;
   skipper.detach();
+  detachHls();
   old.pause();
   old.removeAttribute('src');
   old.load();
@@ -728,8 +750,12 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
   skipper.attach(audio, null, null);
   // The service worker passes the stream on from the element's first request.
   if (!blob && audio.crossOrigin && skipsSilence()) await tee.watch(src);
-  audio.src = src;
-  skipper.setSpeed(audio, speedNow());
+  const hls = !blob && isHls(file.uri, file.mime);
+  if (!hls) {
+    detachHls();
+    audio.src = src;
+  }
+  skipper.setSpeed(audio, live() ? 1 : speedNow());
   await new Promise<void>((resolve) => {
     const ready = () => {
       audio.removeEventListener('loadedmetadata', ready);
@@ -737,16 +763,25 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
     };
     audio.addEventListener('loadedmetadata', ready);
     audio.addEventListener('error', ready, { once: true });
-    audio.load();
+    if (hls) attachHls(audio, src).catch(ready);
+    else audio.load();
   });
-  seekingForLoad = true;
-  audio.currentTime = startMs / 1000;
+  // A live stream starts at what is on air.
+  if (!live()) {
+    seekingForLoad = true;
+    audio.currentTime = startMs / 1000;
+  }
   partSource = { audio, src, blob };
   loadedIndex = i;
   if (readsFile()) void readPart(audio, src, blob);
   if (autoplay) {
     await sound.resume(audio);
-    await audio.play().catch(() => {});
+    await audio.play().catch((e: unknown) => {
+      // A live stream starts here after a pause; a refused start must not pass in silence.
+      if (live() && e instanceof Error && e.name === 'NotAllowedError') {
+        error = t('The browser did not let playback start. Press play again.');
+      }
+    });
   }
   emit();
 }
@@ -757,12 +792,13 @@ export async function load(next: BookLoad, autoplay: boolean): Promise<void> {
   if (book?.bookId !== next.bookId) {
     sound.restartLoudness();
     sound.setTagGain(element, null);
+    nowPlaying = null;
   }
   book = next;
   pausedAt = next.pausedAt;
   placeChangedAt = next.pausedAt ?? 0;
   const rewind =
-    autoplay && settings.smartRewind && pausedAt !== null
+    autoplay && settings.smartRewind && pausedAt !== null && !next.live
       ? rewindOnResume(Date.now() - pausedAt)
       : 0;
   const start = trimmedStart(next.startIndex, next.startPositionMs, rewind, next.skipIntroMs ?? 0);
@@ -774,7 +810,7 @@ export async function load(next: BookLoad, autoplay: boolean): Promise<void> {
 }
 
 export async function seekTo(i: number, ms: number): Promise<void> {
-  if (!book) return;
+  if (!book || live()) return;
   if (i === index && element) element.currentTime = Math.max(0, ms) / 1000;
   else {
     await setPart(i, Math.max(0, ms), playing());
@@ -804,6 +840,14 @@ function mediaErrorText(code: number | null): string {
 
 export async function play(): Promise<void> {
   if (!element || !book) return;
+  // After a pause a live stream goes back to what is on air now, not where it stopped (M154).
+  if (live() && (ended || pausedAt !== null || element.error || error)) {
+    pausedAt = null;
+    // Played inside the tap, so the browser lets the element play once the source is back.
+    void element.play().catch(() => {});
+    await setPart(index, 0, true);
+    return;
+  }
   if (ended) await setPart(0, book.skipIntroMs ?? 0, false);
   if (settings.smartRewind && pausedAt !== null) {
     const at = positionMs();
@@ -847,6 +891,7 @@ export async function skipToPart(i: number): Promise<void> {
 }
 
 export async function setSpeed(speed: number): Promise<void> {
+  if (live()) return;
   if (book) book = { ...book, speed };
   skipper.setSpeed(element, speed);
   emit();
@@ -996,6 +1041,7 @@ export async function takeDiagnostics(): Promise<PlayerDiagnostic[]> {
 
 export async function unload(): Promise<void> {
   skipper.detach();
+  detachHls();
   writeJournal();
   writeSavings();
   element?.pause();
@@ -1097,7 +1143,7 @@ function updateMediaSession(now: PlayerState): void {
         bookMs,
       )
     : null;
-  const key = `${book.bookId} ${now.partTitle ?? ''} ${picture ?? ''}`;
+  const key = `${book.bookId} ${now.partTitle ?? ''} ${picture ?? ''} ${now.nowPlaying ?? ''}`;
   if (key !== shownMeta) {
     shownMeta = key;
     const given =
@@ -1105,10 +1151,11 @@ function updateMediaSession(now: PlayerState): void {
     // A cover kept in OPFS needs a blob URL first; it is added once that is ready.
     const kept = given?.startsWith(OPFS_SCHEME) ? given.slice(OPFS_SCHEME.length) : null;
     const cover = kept ? null : given;
+    // A station shows what is on air, over its own name and “Live” (M154).
     const metadata = new MediaMetadata({
-      title: now.partTitle ?? book.title,
-      artist: book.author ?? '',
-      album: book.title,
+      title: now.live ? (now.nowPlaying ?? book.title) : (now.partTitle ?? book.title),
+      artist: now.live ? (now.nowPlaying ? book.title : t('Live')) : (book.author ?? ''),
+      album: now.live ? t('Live') : book.title,
       artwork: cover ? [{ src: cover }] : [],
     });
     navigator.mediaSession.metadata = metadata;
@@ -1119,6 +1166,14 @@ function updateMediaSession(now: PlayerState): void {
     }
   }
   navigator.mediaSession.playbackState = now.playing ? 'playing' : 'paused';
+  if (now.live) {
+    try {
+      navigator.mediaSession.setPositionState();
+    } catch {
+      // As below.
+    }
+    return;
+  }
   // The chapter, as the Player's bar shows it; the file when the book's durations are unknown.
   const total = offsetOf(book.files.length);
   const span =

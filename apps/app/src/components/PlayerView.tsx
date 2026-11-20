@@ -4,6 +4,7 @@ import {
   chapterJump,
   deleteBookmark,
   getBook,
+  isLiveBook,
   isUndoableJump,
   UNDO_SHOWN_MS,
   getSettings,
@@ -241,6 +242,19 @@ function Chip({ label, onPress }: { label: string; onPress: () => void }) {
  * (`pane`). A phone turned sideways gets the cover beside the controls, as does the pane `below`
  * a wide tabletop's hinge (M113), which is that many points tall.
  */
+// What a live stream keeps in the tool row (M154): no speed, chapters, history or bookmarks.
+const LIVE_TOOLS = new Set(['sound', 'sleep', 'cast']);
+
+/** In place of the bar for a live stream (M154): it has no length and no place. */
+function LiveBadge() {
+  return (
+    <View className="flex-row items-center justify-center gap-2 py-3">
+      <View className="h-2 w-2 rounded-full bg-danger" />
+      <Text className="text-sm font-semibold uppercase tracking-wide text-paper">{t('Live')}</Text>
+    </View>
+  );
+}
+
 export function PlayerView({ pane = false, below }: { pane?: boolean; below?: number }) {
   const colors = useColors();
   const state = usePlayerState();
@@ -292,6 +306,8 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
   );
   // `version` is the signal to re-read the database.
   const detail = useMemo(() => (bookId ? getBook(db, profileId, bookId) : null), [bookId, version]);
+  // A live stream (M154) has no place to seek in, no speed, chapters or bookmarks.
+  const live = useMemo(() => (bookId ? isLiveBook(db, bookId) : false), [bookId, version]);
   const bookmarks = useMemo(
     () => (bookId ? listBookmarks(db, profileId, bookId) : []),
     [bookId, version],
@@ -505,7 +521,11 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
           >
             {detail.book.title}
           </Text>
-          {chapter ? (
+          {live ? (
+            <Text numberOfLines={2} accessibilityLiveRegion="polite" className="text-soft">
+              {state.nowPlaying ?? detail.book.author ?? ''}
+            </Text>
+          ) : chapter ? (
             <Pressable
               onPress={() => setSheet('chapters')}
               accessibilityRole="button"
@@ -560,45 +580,53 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
             </Pressable>
           )}
         </View>
-        <Pressable
-          onPress={bookmark}
-          accessibilityRole="button"
-          accessibilityLabel={t('Add bookmark')}
-          className="h-12 w-12 items-center justify-center rounded-full bg-raised active:opacity-70"
-        >
-          <Icon name="bookmarkAdd" size={22} />
-        </Pressable>
+        {!live && (
+          <Pressable
+            onPress={bookmark}
+            accessibilityRole="button"
+            accessibilityLabel={t('Add bookmark')}
+            className="h-12 w-12 items-center justify-center rounded-full bg-raised active:opacity-70"
+          >
+            <Icon name="bookmarkAdd" size={22} />
+          </Pressable>
+        )}
       </View>
 
-      <Scrubber
-        onDragChange={setScrubbing}
-        elapsedMs={elapsed}
-        lengthMs={length}
-        middle={
-          total > 0
-            ? book && chapter
-              ? `${detail.book.source === 'feed' ? t('Whole episode') : t('Whole book')} · ${formatLeft(left)}`
-              : `${detail.book.source === 'feed' ? t('Episode') : t('Book')} ${percent}% · ${formatLeft(left)}`
-            : undefined
-        }
-        marks={marks}
-        onSeek={(offset) => seek(rangeStart + offset)}
-        onPressElapsed={() => setSheet('jump')}
-        {...(chapter ? { onPressMiddle: () => setWholeBook((v) => !v) } : {})}
-      />
+      {live ? (
+        <LiveBadge />
+      ) : (
+        <Scrubber
+          onDragChange={setScrubbing}
+          elapsedMs={elapsed}
+          lengthMs={length}
+          middle={
+            total > 0
+              ? book && chapter
+                ? `${detail.book.source === 'feed' ? t('Whole episode') : t('Whole book')} · ${formatLeft(left)}`
+                : `${detail.book.source === 'feed' ? t('Episode') : t('Book')} ${percent}% · ${formatLeft(left)}`
+              : undefined
+          }
+          marks={marks}
+          onSeek={(offset) => seek(rangeStart + offset)}
+          onPressElapsed={() => setSheet('jump')}
+          {...(chapter ? { onPressMiddle: () => setWholeBook((v) => !v) } : {})}
+        />
+      )}
 
       <View
         onLayout={(e) => setControlsWidth(e.nativeEvent.layout.width)}
-        className={`flex-row items-center justify-between ${landscape ? 'py-1' : 'py-4'}`}
+        className={`flex-row items-center ${live ? 'justify-center' : 'justify-between'} ${landscape ? 'py-1' : 'py-4'}`}
       >
-        <Control
-          icon="skipBack"
-          value={String(skipSeconds)}
-          label={t('Back {n} seconds', { n: skipSeconds })}
-          compact={compact}
-          onPress={() => void history.skip(false)}
-        />
-        {chapters.length > 0 ? (
+        {!live && (
+          <Control
+            icon="skipBack"
+            value={String(skipSeconds)}
+            label={t('Back {n} seconds', { n: skipSeconds })}
+            compact={compact}
+            onPress={() => void history.skip(false)}
+          />
+        )}
+        {live ? null : chapters.length > 0 ? (
           <Control
             icon="previous"
             label={t('Previous chapter')}
@@ -623,18 +651,20 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
         >
           <Icon name={state.playing ? 'pause' : 'play'} size={32} color={colors.ink} />
         </PressScale>
-        {chapters.length > 0 ? (
+        {live ? null : chapters.length > 0 ? (
           <Control icon="next" label={t('Next chapter')} onPress={nextChapter} compact={compact} />
         ) : (
           <View className={compact ? 'w-12' : 'w-14'} />
         )}
-        <Control
-          icon="skipForward"
-          value={String(skipSeconds)}
-          label={t('Forward {n} seconds', { n: skipSeconds })}
-          compact={compact}
-          onPress={() => void history.skip(true)}
-        />
+        {!live && (
+          <Control
+            icon="skipForward"
+            value={String(skipSeconds)}
+            label={t('Forward {n} seconds', { n: skipSeconds })}
+            compact={compact}
+            onPress={() => void history.skip(true)}
+          />
+        )}
       </View>
 
       {state.waitingForCall && (
@@ -662,89 +692,91 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
       )}
 
       <ToolRow
-        tools={[
-          {
-            key: 'speed',
-            icon: 'speed',
-            label: `${Number(state.speed.toFixed(2))}×`,
-            spoken: t('Speed, {speed}×', { speed: Number(state.speed.toFixed(2)) }),
-            // In the row while it is not the usual speed, so a changed one stays in sight.
-            shown: Math.abs(state.speed - 1) > 0.001,
-            onPress: () => setSheet('speed'),
-          },
-          {
-            key: 'sound',
-            icon: 'sound',
-            label: t('Sound'),
-            active: sound.active,
-            shown: sound.active,
-            onPress: () => setSheet('sound'),
-          },
-          {
-            key: 'sleep',
-            icon: 'moon',
-            label: timer === null ? t('Sleep') : `${timerPrefix}${formatClock(timer)}`,
-            active: timer !== null,
-            shown: true,
-            onPress: () => setSheet('sleep'),
-          },
-          // Every book: one without chapters can have them found or added by hand (M85).
-          {
-            key: 'chapters',
-            icon: 'chapters',
-            label: t('Chapters'),
-            shown: true,
-            onPress: () => setSheet('chapters'),
-          },
-          ...(hasTranscript
-            ? [
-                {
-                  key: 'transcript',
-                  icon: 'transcript' as const,
-                  label: t('Transcript'),
-                  onPress: () => router.push('/transcript'),
-                },
-              ]
-            : []),
-          ...(soundbites.length > 0
-            ? [
-                {
-                  key: 'soundbites',
-                  icon: 'soundbite' as const,
-                  label: t('Soundbites'),
-                  onPress: () => setSheet('soundbites'),
-                },
-              ]
-            : []),
-          {
-            key: 'history',
-            icon: 'history',
-            label: t('History'),
-            onPress: () => setSheet('history'),
-          },
-          {
-            key: 'bookmarks',
-            icon: 'bookmark',
-            label:
-              bookmarks.length === 1
-                ? t('1 bookmark')
-                : t('{n} bookmarks', { n: bookmarks.length }),
-            shown: true,
-            onPress: () => setSheet('bookmarks'),
-          },
-          ...(CASTING_SUPPORTED && castAvailable
-            ? [
-                {
-                  key: 'cast',
-                  icon: 'cast' as const,
-                  label: casting.device?.name ?? t('Cast'),
-                  active: casting.device !== null,
-                  shown: true,
-                  onPress: () => setSheet('cast'),
-                },
-              ]
-            : []),
-        ]}
+        tools={(
+          [
+            {
+              key: 'speed',
+              icon: 'speed',
+              label: `${Number(state.speed.toFixed(2))}×`,
+              spoken: t('Speed, {speed}×', { speed: Number(state.speed.toFixed(2)) }),
+              // In the row while it is not the usual speed, so a changed one stays in sight.
+              shown: Math.abs(state.speed - 1) > 0.001,
+              onPress: () => setSheet('speed'),
+            },
+            {
+              key: 'sound',
+              icon: 'sound',
+              label: t('Sound'),
+              active: sound.active,
+              shown: sound.active,
+              onPress: () => setSheet('sound'),
+            },
+            {
+              key: 'sleep',
+              icon: 'moon',
+              label: timer === null ? t('Sleep') : `${timerPrefix}${formatClock(timer)}`,
+              active: timer !== null,
+              shown: true,
+              onPress: () => setSheet('sleep'),
+            },
+            // Every book: one without chapters can have them found or added by hand (M85).
+            {
+              key: 'chapters',
+              icon: 'chapters',
+              label: t('Chapters'),
+              shown: true,
+              onPress: () => setSheet('chapters'),
+            },
+            ...(hasTranscript
+              ? [
+                  {
+                    key: 'transcript',
+                    icon: 'transcript' as const,
+                    label: t('Transcript'),
+                    onPress: () => router.push('/transcript'),
+                  },
+                ]
+              : []),
+            ...(soundbites.length > 0
+              ? [
+                  {
+                    key: 'soundbites',
+                    icon: 'soundbite' as const,
+                    label: t('Soundbites'),
+                    onPress: () => setSheet('soundbites'),
+                  },
+                ]
+              : []),
+            {
+              key: 'history',
+              icon: 'history',
+              label: t('History'),
+              onPress: () => setSheet('history'),
+            },
+            {
+              key: 'bookmarks',
+              icon: 'bookmark',
+              label:
+                bookmarks.length === 1
+                  ? t('1 bookmark')
+                  : t('{n} bookmarks', { n: bookmarks.length }),
+              shown: true,
+              onPress: () => setSheet('bookmarks'),
+            },
+            ...(CASTING_SUPPORTED && castAvailable
+              ? [
+                  {
+                    key: 'cast',
+                    icon: 'cast' as const,
+                    label: casting.device?.name ?? t('Cast'),
+                    active: casting.device !== null,
+                    shown: true,
+                    onPress: () => setSheet('cast'),
+                  },
+                ]
+              : []),
+          ] satisfies (ToolProps & { key: string })[]
+        ).filter((tool) => !live || LIVE_TOOLS.has(tool.key))}
       />
     </>
   );
@@ -898,14 +930,16 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
                 }}
               />
             ))}
-            <SleepOption
-              label={endMode === 'episode' ? t('End of episode') : t('End of chapter')}
-              active={state.sleepTimerMode === endMode}
-              onPress={() => {
-                void history.timer(() => audio.startSleepTimerAtEnd(endMode));
-                setSheet(null);
-              }}
-            />
+            {!live && (
+              <SleepOption
+                label={endMode === 'episode' ? t('End of episode') : t('End of chapter')}
+                active={state.sleepTimerMode === endMode}
+                onPress={() => {
+                  void history.timer(() => audio.startSleepTimerAtEnd(endMode));
+                  setSheet(null);
+                }}
+              />
+            )}
             {timer !== null && (
               <View className="mt-2 border-t border-line pt-2">
                 <SleepOption

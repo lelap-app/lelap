@@ -20,6 +20,8 @@ export type BookLoad = {
     durationMs: number;
     name?: string;
     auto?: { unmetered: string; metered: string };
+    /** The stream's MIME type, when its address can't tell an HLS playlist (M154). */
+    mime?: string;
   }[];
   /** On the whole-book timeline. */
   chapters: { title: string; startMs: number }[];
@@ -65,6 +67,11 @@ export type BookLoad = {
   locate?: boolean;
   /** Only an update of the book already loaded: the service ignores it for any other book. */
   onlyIfLoaded?: boolean;
+  /**
+   * A live stream (M154): no seeking, speed, smart rewind, place or end; Play after a pause goes
+   * back to what is on air now.
+   */
+  live?: boolean;
 };
 
 /** A book or episode that played to its end, possibly with the app closed. */
@@ -163,6 +170,10 @@ export type PlayerState = {
   /** What the running timer counts down to; null without a timer. */
   sleepTimerMode: SleepTimerMode | null;
   error: string | null;
+  /** The book is a live stream (M154). */
+  live: boolean;
+  /** What a live stream plays now, from its ICY or ID3 metadata; null when it says nothing. */
+  nowPlaying: string | null;
 };
 
 type LelapAudioEvents = {

@@ -39,11 +39,16 @@ object Mime {
 
   fun image(name: String): String = IMAGE[extension(name)] ?: "image/jpeg"
 
+  private val HLS = setOf("application/vnd.apple.mpegurl", "application/x-mpegurl", "audio/mpegurl")
+
   /** Receivers ask for these names; a server's own type wins only when it is audio. */
+
   fun audioOr(serverType: String?, name: String): String {
     val type = serverType?.substringBefore(';')?.trim()?.lowercase()
     val fromName = AUDIO[extension(name)]
     return when {
+      // An HLS playlist (M154), which a receiver plays as a stream of segments.
+      type in HLS || extension(name) == "m3u8" -> "application/x-mpegurl"
       fromName != null -> fromName
       type == "audio/x-m4b" || type == "audio/x-m4a" -> "audio/mp4"
       type != null && type.startsWith("audio/") -> type

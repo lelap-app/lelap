@@ -33,6 +33,8 @@ data class CastRequest(
   val fileName: String? = null,
   /** The part as the phone renders it with its sound effects (M134), instead of the file. */
   val live: LiveAudio? = null,
+  /** A live stream (M154), such as a radio station: the receiver plays it as live, if it can. */
+  val onAir: Boolean = false,
 ) {
   /** Whether the receiver fetches this file from the phone, which adds the login on the way. */
   val throughPhone: Boolean
@@ -517,6 +519,7 @@ class CastLink private constructor(
       album = request.album,
       coverUrl = cover(request),
       durationMs = request.durationMs,
+      onAir = request.onAir,
     )
   }
 
@@ -530,6 +533,7 @@ class CastLink private constructor(
     // With skip silence and speed, the stream is shorter than the file, by an amount not known yet.
     durationMs = 0L,
     live = true,
+    onAir = request.onAir,
   )
 
   private fun cover(request: CastRequest): String? = request.coverUri?.let { c ->

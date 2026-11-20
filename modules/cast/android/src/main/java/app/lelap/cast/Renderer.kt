@@ -27,6 +27,8 @@ data class CastMedia(
   val durationMs: Long,
   /** A stream the phone renders as it goes (M134): no length, no seeking on the receiver. */
   val live: Boolean = false,
+  /** A live stream (M154): a Cast receiver is told so, the other protocols have no word for it. */
+  val onAir: Boolean = false,
 )
 
 enum class PlayState { IDLE, BUFFERING, PLAYING, PAUSED, ENDED }
