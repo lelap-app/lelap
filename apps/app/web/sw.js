@@ -4,7 +4,8 @@
 // file and writes it to `sw.js`.
 //
 // - The app shell comes from the cache, so the app starts offline. A new build installs next to
-//   the old one and waits; it takes over once every tab of the old one is closed.
+//   the old one and waits; it takes over once every tab of the old one is closed, or when the
+//   listener picks Reload on the app's notice (`src/webUpdate.web.ts`, M141).
 // - Add-on and proxy calls go to the network first and fall back to their last answer offline.
 // - Audio is never cached: only JSON and XML answers are kept. For skip silence (M122), the bytes
 //   of a file the page asks for are passed on to it as the media element streams them, so it
@@ -22,6 +23,10 @@ const SIZES = new Map();
 
 self.addEventListener('message', (event) => {
   const data = event.data;
+  if (data?.type === 'lelap-skip-waiting') {
+    self.skipWaiting();
+    return;
+  }
   if (data?.type !== 'lelap-tee' || typeof data.url !== 'string') return;
   TEED.add(data.url);
   if (TEED.size > 20) TEED.delete(TEED.values().next().value);
