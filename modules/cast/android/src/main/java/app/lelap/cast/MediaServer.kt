@@ -133,6 +133,13 @@ class MediaServer(private val context: Context) {
     return "$root/$token/media.$ext"
   }
 
+  /** Ends a rendered part published [alongside] another, and its connections (M150). */
+  fun withdraw(url: String) {
+    val token = url.substringBeforeLast('/').substringAfterLast('/')
+    entries.remove(token)
+    liveClients.remove(token)?.forEach { runCatching { it.close() } }
+  }
+
   /** The file name of a local URI, for its type. */
   fun displayName(uri: String): String {
     if (uri.startsWith("file://")) return Uri.parse(uri).lastPathSegment ?: uri

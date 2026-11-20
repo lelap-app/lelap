@@ -557,6 +557,64 @@ describe('seeking in variable-bitrate MP3s in Firefox (M150)', () => {
   });
 });
 
+describe('Firefox seeks it doesn’t follow (M150)', () => {
+  const frames = Array.from({ length: 2000 }, (_, i) => mp3Frame(5 + (i % 4)));
+  const audioBytes = frames.reduce((sum, f) => sum + f.length, 0);
+  const toc = Array.from({ length: 100 }, (_, i) => Math.min(255, Math.round(i * 2.6)));
+  const xing = xingTocFrame(2000, 417 + audioBytes, toc, 576);
+  const durationMs = 2000 * ((1152 / 44_100) * 1000);
+
+  it('stops the pauses for a place whose table byte lies inside an ID3 tag', () => {
+    // A tag larger than the first hundredths' share of the bytes.
+    const size = 60_000;
+    const id3 = [
+      0x49,
+      0x44,
+      0x33,
+      3,
+      0,
+      0,
+      (size >> 21) & 127,
+      (size >> 14) & 127,
+      (size >> 7) & 127,
+      size & 127,
+    ];
+    const file = concat([id3, new Uint8Array(size), xing, ...frames]);
+    const head = trackHead(file, file.length);
+    if (head?.kind !== 'vbr-mp3') throw new Error('not VBR');
+    expect(firefoxXingSeek(head, 0.05 * durationMs)).toBeNull();
+    const track = vbrMp3Track(head, file.length, 'firefox');
+    expect(track.seeked?.(0.05 * durationMs)).toBe(true);
+    const range = track.range(0.05 * durationMs, 5000);
+    expect(track.run(file.subarray(range.start, range.end), range.start)).toBeNull();
+    // A seek it follows brings them back.
+    expect(track.seeked?.(0.6 * durationMs)).toBe(true);
+    const next = track.range(0.6 * durationMs, 5000);
+    expect(track.run(file.subarray(next.start, next.end), next.start)).not.toBeNull();
+  });
+
+  it('plays the first frame when the index’s byte is inside the Xing frame', () => {
+    // A short file, whose second hundredth's byte comes to index 1.
+    const few = frames.slice(0, 300);
+    const fewBytes = 417 + few.reduce((sum, f) => sum + f.length, 0);
+    const fewToc = [0, 1, ...Array.from({ length: 98 }, (_, i) => Math.round((i + 2) * 2.5))];
+    const file = concat([xingTocFrame(300, fewBytes, fewToc, 576), ...few]);
+    const head = trackHead(file, file.length);
+    if (head?.kind !== 'vbr-mp3') throw new Error('not VBR');
+    const track = vbrMp3Track(head, file.length, 'firefox');
+    // Index 1: its byte, one average frame from the Xing frame's start, is inside that frame.
+    const toMs = 0.015 * 300 * ((1152 / 44_100) * 1000);
+    const place = firefoxXingSeek(head, toMs);
+    expect(place?.step).toBe(1);
+    if (!place) return;
+    expect(place.byte).toBeLessThan(head.audioStart);
+    track.seeked?.(toMs);
+    const range = track.range(toMs, 3000);
+    const run = must(track.run(file.subarray(range.start, range.end), range.start));
+    expect(range.start + must(run.packets[0]).at).toBe(head.audioStart);
+  });
+});
+
 describe('mp3SeekRule (M150)', () => {
   it('names the rule each browser seeks by', () => {
     const chrome =

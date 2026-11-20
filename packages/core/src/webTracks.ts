@@ -325,7 +325,8 @@ export function mp3SeekRule(userAgent: string): Mp3SeekRule | null {
  * index from the Xing header's bytes and frames in 32-bit floats, and plays from the first frame
  * at or after that index's byte. A first guess past the seek is made again from 1 % earlier. The
  * frame it lands on gets the index's time, so the element's time can be seconds from the frames'.
- * Null without a table of contents.
+ * Null without a table of contents, and for a place whose table byte lies inside an ID3 tag:
+ * Firefox's index is then below zero, which wasn't measured.
  */
 export function firefoxXingSeek(
   head: Extract<TrackHead, { kind: 'vbr-mp3' }>,
@@ -344,11 +345,11 @@ export function firefoxXingSeek(
   const index = (ms: number) => {
     const step = Math.floor(Math.min(99, Math.max(0, (ms * 100) / durationMs)));
     const offset = Math.trunc(f32(f32(f32(1 / 256) * (toc[step] ?? 0)) * bytes));
-    const i = Math.trunc(f32(f32(f32(offset - first) / bytes) * frames));
-    return Math.max(0, Math.min(frames, i));
+    return Math.min(frames, Math.trunc(f32(f32(f32(offset - first) / bytes) * frames)));
   };
   let i = index(toMs);
   if (i * frameMs > toMs) i = index(toMs - toMs / 100);
+  if (i < 0) return null;
   if (i === 0) return start;
   return {
     step: i,
@@ -381,11 +382,14 @@ export function vbrMp3Track(
         : 420;
   let segment: VbrSegment = { step: -1, at: audioStart, seekByte: null, ms: -frame.delayMs };
   let marks: number[] = [audioStart];
+  let lost = false;
   let counted = 0;
   let countedTo = audioStart;
 
   /** Finds the frame holding the seek's byte in bytes read from `start`; its offset, or null. */
   const holding = (bytes: Uint8Array, start: number, target: number): number | null => {
+    // A byte before the bytes read (inside the Xing frame): Firefox plays the first frame.
+    if (rule === 'firefox' && target < start) return findMp3Frame(bytes, 0);
     for (let from = 0; from < Math.min(bytes.length, target - start + 1);) {
       const first = findMp3Frame(bytes, from);
       if (first === null || start + first > target) return null;
@@ -410,6 +414,12 @@ export function vbrMp3Track(
     counted: () => counted,
     seeked(toMs) {
       const place = rule === 'firefox' ? firefoxXingSeek(head, toMs) : xingSeek(head, size, toMs);
+      // Firefox seeked somewhere this doesn't follow: no pauses until a seek it does.
+      if (!place && rule === 'firefox' && xing?.toc) {
+        lost = true;
+        return true;
+      }
+      lost = false;
       if (!place || place.step === segment.step) return false;
       const start = place.step < 0;
       segment = {
@@ -444,6 +454,7 @@ export function vbrMp3Track(
       };
     },
     run(bytes, start) {
+      if (lost) return null;
       if (segment.seekByte !== null) {
         if (start !== segment.at) return null;
         const at = holding(bytes, start, segment.seekByte);

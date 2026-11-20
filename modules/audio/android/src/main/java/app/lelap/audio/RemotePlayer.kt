@@ -160,7 +160,8 @@ class RemotePlayer(
     // A rendered stream's place is the stream's; the part's comes from the renderer's clock.
     val mapped = clock?.let { status.copy(positionMs = it.mediaAt(status.positionMs), durationMs = 0L) } ?: status
     val file = renderedFile
-    if (clock != null && file != null) {
+    // Before the new stream's first mark, a poll may still be the last stream's.
+    if (clock != null && file != null && (clock?.marks ?: 0) > 0) {
       skipped.played(status.positionMs).takeIf { it > 0L }?.let { onSkipped(it, renderedSpeed) }
       joinPlace = JoinPlace(file, renderedSpeed, mapped.positionMs, SystemClock.elapsedRealtime(), status.state == PlayState.PLAYING)
     } else {

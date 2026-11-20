@@ -173,6 +173,8 @@ far.
 Ideas without a number or a place in the order yet. One becomes a milestone, with its own file,
 when it is planned.
 
+- **A slow speaker joining a rendered group:** its catch-up may take two loads, and a seek during
+  them waits behind both; a speaker needing over 12 s a load is then dropped (M150's review).
 - **“Still preparing” for a part waited on ahead:** when the next part's 10-minute wait runs out
   while the part before it still plays, the player shows its generic error instead of saying the
   source is still preparing (M155's review).

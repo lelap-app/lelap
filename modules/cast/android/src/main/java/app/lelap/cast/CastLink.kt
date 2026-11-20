@@ -419,6 +419,9 @@ class CastLink private constructor(
     val promoted = members.firstOrNull { it.id == id }
     members = listOfNotNull(promoted) + members.drop(1).filter { it.id != id }
     device = standIn(members).copy(id = device.id)
+    // A speaker that joined a rendered part plays a stream of its own (M150), whose places the
+    // phone's clock doesn't know: the group starts the part again together.
+    if (old.media?.live == true) for (listener in listeners) listener.onRestartNeeded()
     return true
   }
 
@@ -469,12 +472,15 @@ class CastLink private constructor(
   private fun catchUpLive(r: Renderer, request: CastRequest, playing: Boolean) {
     val live = request.live ?: return
     val started = android.os.SystemClock.elapsedRealtime()
-    r.load(liveMedia(request, live, alongside = true), 0L, playing, 1f)
+    val first = liveMedia(request, live, alongside = true)
+    r.load(first, 0L, playing, 1f)
     val took = android.os.SystemClock.elapsedRealtime() - started
     val lead = if (playing) LiveJoin.secondLead(took) else null
     Log.i(TAG, "group: a speaker joined a rendered stream, loaded in $took ms")
     val again = lead?.let { joinStream(it) }?.live ?: return
     r.load(liveMedia(request, again, alongside = true), 0L, playing, 1f)
+    // Its first stream renders for no one now.
+    server().withdraw(first.url)
   }
 
   private fun playingNone(status: RendererStatus?) =
