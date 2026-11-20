@@ -16,6 +16,7 @@ import {
   readTags,
   TAG_READ_BYTES,
   type TrackHead,
+  vbrMp3Track,
   trackHead,
   type WebTrack,
 } from '@lelap/core';
@@ -144,6 +145,17 @@ export async function readHead(file: FileBytes): Promise<FileHead | null> {
   return { tags: tagBytes ? readTags(tagBytes) : [], head, track, size };
 }
 
+/**
+ * Whether this browser seeks a variable-bitrate MP3 the way `xingSeek` describes: Chrome and the
+ * browsers built on it (M134). Firefox estimates the frame from an average instead, a frame or
+ * three off, and Safari wasn't measured; there these files play unchanged.
+ */
+export function seeksByXingTable(userAgent: string): boolean {
+  return (
+    /\b(Chrome|Chromium)\//.test(userAgent) && !/\b(Firefox|FxiOS|CriOS|EdgiOS)\//.test(userAgent)
+  );
+}
+
 /** Bigger tables than this aren't read: about 80 hours of AAC. */
 const MOOV_LIMIT = 48 * 1024 * 1024;
 
@@ -157,9 +169,14 @@ export async function openTrack(
   durationMs: number,
 ): Promise<WebTrack | null> {
   let opened: WebTrack | null = null;
-  // A variable-bitrate MP3 is left alone: its frames are counted right, but Chrome's own time
-  // after a seek doesn't follow them, so fast stretches would land on words (M122, M134).
   if (track?.kind === 'mp3') opened = mp3Track(track.layout);
+  // A variable-bitrate MP3's time after a seek is the browser's own guess (M134): followed where
+  // it is known, from the Xing table of contents; elsewhere the file plays unchanged.
+  else if (track?.kind === 'vbr-mp3')
+    opened =
+      track.xing?.toc && typeof navigator !== 'undefined' && seeksByXingTable(navigator.userAgent)
+        ? vbrMp3Track(track, size)
+        : null;
   else if (track?.kind === 'ogg') {
     const codec = oggCodec(head);
     opened = codec ? oggTrack(codec, size, durationMs) : null;
