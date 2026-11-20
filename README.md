@@ -22,8 +22,8 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Keeps a short history of each book's plays, pauses, skips and jumps on the device. After a long
   jump, one tap goes back; on Android the notification and Android Auto offer it too.
 - Boosts voices, skips silence (showing the time saved) and keeps loudness even, per book or per
-  show. In the browser, skip silence works on constant-bitrate MP3 files such as LibriVox's, on any MP3 in
-  Chrome, and on M4B, Opus, Ogg and FLAC files.
+  show. In the browser, skip silence works on constant-bitrate MP3 files such as LibriVox's, on
+  variable-bitrate MP3 in Chrome and Firefox, and on M4B, Opus, Ogg and FLAC files.
 - Opens the library in three groups: in progress, not started and finished.
 - Shows your listening: time today, this week and this year, streaks, finished books and a year
   in sound to share as an image.
