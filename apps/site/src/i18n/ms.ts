@@ -35,8 +35,8 @@ export const ms: Record<string, string> = {
   'Can I bring my progress from another player?':
     'Bolehkah saya membawa kemajuan saya daripada pemain audio lain?',
   'Can I write my own add-on?': 'Bolehkah saya menulis alat tambah sendiri?',
-  'Car mode shows a large cover and five big buttons. Android Auto shows the covers saved on your phone and plays your lists.':
-    'Mod kereta memaparkan kulit buku yang besar dan lima butang besar. Android Auto memaparkan kulit buku yang disimpan pada telefon anda dan memainkan senarai anda.',
+  'Car mode shows a large cover and five big buttons. Android Auto shows the covers saved on your phone, plays your lists and finds a book you ask for by voice.':
+    'Mod kereta memaparkan kulit buku yang besar dan lima butang besar. Android Auto memaparkan kulit buku yang disimpan pada telefon anda, memainkan senarai anda dan mencari buku yang anda minta dengan suara.',
   'Cast to the living room': 'Hantar ke ruang tamu',
   Catalogs: 'Katalog',
 
@@ -151,8 +151,8 @@ export const ms: Record<string, string> = {
   'Phone, tablet or laptop': 'Telefon, tablet atau komputer riba',
   'Pick up on your laptop where you stopped on your phone. Pair devices with a code; sync is end-to-end encrypted.':
     'Sambung di komputer riba dari tempat anda berhenti di telefon. Gandingkan peranti dengan kod; segerak disulitkan hujung ke hujung.',
-  'Play straight from your WebDAV, S3-compatible, Jellyfin, Emby, Plex, Navidrome or Audiobookshelf server, or an OPDS catalog such as Calibre’s, and on Android from SMB and SFTP. The app talks to it directly and keeps the credentials on your device.':
-    'Main terus dari pelayan WebDAV, storan serasi S3, Jellyfin, Emby, Plex, Navidrome atau Audiobookshelf anda, atau katalog OPDS seperti katalog Calibre, dan di Android dari SMB dan SFTP. Aplikasi berhubung terus dengannya dan menyimpan butiran log masuk dalam peranti anda.',
+  'Play straight from your WebDAV, S3-compatible, Jellyfin, Emby, Plex, Navidrome or Audiobookshelf server, or an OPDS catalog such as Calibre’s, and on Android from SMB and SFTP. A server can have a home and an away address, and the app uses whichever answers. The app talks to it directly and keeps the credentials on your device.':
+    'Main terus dari pelayan WebDAV, storan serasi S3, Jellyfin, Emby, Plex, Navidrome atau Audiobookshelf anda, atau katalog OPDS seperti katalog Calibre, dan di Android dari SMB dan SFTP. Pelayan boleh mempunyai alamat di rumah dan alamat di luar, dan aplikasi menggunakan yang mana menjawab. Aplikasi berhubung terus dengannya dan menyimpan butiran log masuk dalam peranti anda.',
   'Playlists, tags and Up Next': 'Senarai main, tag dan Seterusnya',
   'Please include:': 'Sila sertakan:',
   Primary: 'Navigasi utama',
@@ -178,8 +178,8 @@ export const ms: Record<string, string> = {
   'Share progress elsewhere': 'Kongsi kemajuan di tempat lain',
   'Ships with open sources:': 'Disertakan dengan sumber terbuka:',
   'Smart rewind, speed, chapters': 'Undur pintar, kelajuan, bab',
-  'Sonos, DLNA, Google Cast and FCast from Android; from the web app, Google Cast in Chrome and AirPlay in Safari. The lock screen, your headphones and the sleep timer control the speaker.':
-    'Sonos, DLNA, Google Cast dan FCast dari Android; dari aplikasi web, Google Cast dalam Chrome dan AirPlay dalam Safari. Skrin kunci, fon kepala anda dan pemasa tidur mengawal pembesar suara.',
+  'Sonos, DLNA, Google Cast and FCast from Android, with your sound settings; from the web app, Google Cast in Chrome and AirPlay in Safari. The lock screen, your headphones and the sleep timer control the speaker.':
+    'Sonos, DLNA, Google Cast dan FCast dari Android, dengan tetapan bunyi anda; dari aplikasi web, Google Cast dalam Chrome dan AirPlay dalam Safari. Skrin kunci, fon kepala anda dan pemasa tidur mengawal pembesar suara.',
   Sources: 'Sumber',
   'Start listening': 'Mula mendengar',
   'Stores encrypted progress and playlists. It can’t read them.':
@@ -210,8 +210,8 @@ export const ms: Record<string, string> = {
   'Try the Android beta': 'Cuba beta Android',
   'Until the first stable release, use the <code>beta</code> tag of each image.':
     'Sehingga keluaran stabil pertama, gunakan tag <code>beta</code> bagi setiap imej.',
-  'Voice boost brings soft and loud words closer together. Skip silence shortens long pauses and shows the time it saved, and even loudness keeps every book at one level. Set per book or per show. In the web app, skip silence works on M4B, Opus, Vorbis and FLAC files, and on MP3s with a constant bitrate, such as LibriVox’s.':
-    'Penguat suara merapatkan perkataan yang perlahan dan yang kuat. Langkau senyap memendekkan jeda yang panjang dan menunjukkan masa yang dijimatkan, dan kenyaringan sekata mengekalkan setiap buku pada satu tahap. Tetapkan bagi setiap buku atau setiap rancangan. Dalam aplikasi web, langkau senyap berfungsi pada fail M4B, Opus, Vorbis dan FLAC, dan pada fail MP3 dengan kadar bit tetap, seperti fail LibriVox.',
+  'Voice boost brings soft and loud words closer together. Skip silence shortens long pauses and shows the time it saved, and even loudness keeps every book at one level. Set per book or per show. In the web app, skip silence works on M4B, Opus, Vorbis and FLAC files, and on MP3s with a constant bitrate, such as LibriVox’s, or with any bitrate in Chrome.':
+    'Penguat suara merapatkan perkataan yang perlahan dan yang kuat. Langkau senyap memendekkan jeda yang panjang dan menunjukkan masa yang dijimatkan, dan kenyaringan sekata mengekalkan setiap buku pada satu tahap. Tetapkan bagi setiap buku atau setiap rancangan. Dalam aplikasi web, langkau senyap berfungsi pada fail M4B, Opus, Vorbis dan FLAC, dan pada fail MP3 dengan kadar bit tetap, seperti fail LibriVox, atau dengan sebarang kadar bit dalam Chrome.',
   'We ship the .apk directly so releases don’t wait on store review. The app checks for updates itself, or you can follow releases with Obtainium.':
     'Kami mengedarkan .apk secara terus supaya keluaran tidak perlu menunggu semakan gedung aplikasi. Aplikasi menyemak kemas kini sendiri, atau anda boleh mengikuti keluaran dengan Obtainium.',
   'Web app': 'Aplikasi web',

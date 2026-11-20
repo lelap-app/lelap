@@ -2,6 +2,65 @@
 
 What changed in each Lelap release, newest first.
 
+## 0.1.0-beta.15 (2026-11-20)
+
+This beta changes native code, so Android needs the new APK: beta 14 can't get it over the air.
+Two database changes run once at the first start. No new permissions.
+
+### New
+
+- Ask the Assistant or Android Auto to play a book or an episode by name, even with the app
+  closed: “play Pride and Prejudice on Lelap”, “resume my book” or “the latest episode of …”.
+  Android Auto's search lists the matches. (#267)
+- WebDAV, Jellyfin and Audiobookshelf servers can have a second address, such as one at home and
+  one outside. The app uses whichever answers and moves a playing book across without stopping.
+  Existing servers get an Addresses button in Settings → Library and sources. (#268)
+- Live streams from add-ons play as a station: “Live” instead of the bar, the song or programme
+  on air under the name, no saved place and no download. HLS streams play on Android and the web.
+  (#270)
+- Settings → Streams orders every add-on's streams by your languages and formats, and shows the
+  same release from several add-ons as one row. (#272)
+- A BookWyrm add-on shows your public shelves from your own instance as rows, without a password.
+  (#252)
+- Open lectures has Yale's transcripts: More → Transcript during a lecture. (#253)
+- OPDS: a Calibre content server's default login works, books bring their summary, language and
+  series, and a catalog with OPDS Progression gets your place back. (#257)
+
+### Improved
+
+- With voice boost, skip silence or other sound settings on, a cast speaker now plays them too.
+  (#258)
+- In Chrome, skip silence works on variable-bitrate MP3 as well. (#258)
+- Taking the leading speaker out of a group no longer stops the others, and each speaker's waits
+  fit how fast it answers. (#260)
+- The Library redraws only the books that changed, and the web app starts with less to load.
+  (#254)
+- A stream that is still being prepared says “Preparing…”, counts down and plays when ready, or
+  downloads when ready from the download queue. (#269)
+- The web app offers a new version with a Reload button instead of waiting for the next visit.
+  (#244)
+- The add-on review sheet's permission lines are in Malay. (#265)
+
+### Fixed
+
+- Pressing Play twice while a stream starts no longer adds two plays to the history. (#245)
+- Choosing an episode's automatic file again no longer reloads it, and the history logs seeks
+  while casting where they went. (#265)
+- An add-on whose manifest lists something this version doesn't know still loads. (#265)
+
+### Self-hosting and add-on developers
+
+- `@lelap/sdk` 0.6.0 is on npm with protocol revisions 10 to 13, `waitUntil`, field links and
+  groups, `fingerprint`, `log` and `mockFetch` (#264). Revision 14 (streams still preparing, parts
+  without lengths, `refreshAfter`, stream `format`, `language`, `releaseId` and `live`) is in the
+  app and the docs and comes with the next SDK release. (#269, #270)
+- The developer docs have `llms.txt` and `llms-full.txt`. (#266)
+
+### Known issues
+
+- Voice search, live streams, casting with sound settings, the second server address and the
+  BookWyrm and transcript add-ons haven't been tried on a phone, in a car or on real speakers yet.
+
 ## 0.1.0-beta.14 (2026-11-20)
 
 This beta changes only the app’s JavaScript, so Android apps on beta 13 get it over the air,
