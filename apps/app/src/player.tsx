@@ -10,6 +10,7 @@ import {
   finishFromPlayer,
   listUpNext,
   getBook,
+  learnFileDuration,
   getSettings,
   resumePoint,
   saveProgress,
@@ -943,6 +944,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (started) refreshedFor.current = state.bookId;
     if (saved && (paused || started)) refresh();
   }, [state, refresh, flushListening]);
+
+  // A file stored without a length, such as a stream its add-on gave none for, takes the one the
+  // player measured, so the bar and the book's timeline have one (M140).
+  useEffect(() => {
+    if (!state.fileLocation || !(state.durationMs > 0)) return;
+    if (learnFileDuration(db, state.fileLocation, state.durationMs)) refresh();
+  }, [state.fileLocation, state.durationMs, refresh]);
 
   // The service hands over to Up Next by itself, also with the app closed. Here the app folds in
   // what finished and sends the queue again whenever the book, its end or Up Next changes.

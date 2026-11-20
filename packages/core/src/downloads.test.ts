@@ -15,6 +15,7 @@ import {
   localFileUri,
   type NativeDownloadStatus,
   partFileName,
+  downloadAllowed,
   planDownload,
   removeDownload,
   requestDownload,
@@ -123,6 +124,10 @@ describe('downloads', () => {
     expect(() => planDownload(db, local)).toThrow('already on the phone');
     const locked = add(db, stream({ downloadable: false }));
     expect(() => planDownload(db, locked)).toThrow('does not allow downloads');
+    // So the book's menu offers no Download for it (M140).
+    expect(downloadAllowed(db, locked)).toBe(false);
+    expect(downloadAllowed(db, add(db, stream({ sourceKey: 'open' })))).toBe(true);
+    expect(downloadAllowed(db, local)).toBe(true);
   });
 
   it('plays finished parts from the phone and keeps the cover and snapshot', () => {

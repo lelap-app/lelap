@@ -6,6 +6,7 @@ import { createTestDb } from '../../test/db';
 import { ROOT, scanned } from '../../test/files';
 import { addBookmark, listBookmarks } from '../bookmarks';
 import type { Db } from '../db';
+import { learnFileDuration } from '../library/bookFiles';
 import { applyScan, splitScanned, upsertRoot } from '../library/scan';
 import { getBook, listBooks, saveFoundChapters } from '../library/queries';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
@@ -89,6 +90,55 @@ describe('addStreamedBook', () => {
     expect(detail?.files).toHaveLength(1);
     expect(detail?.book.durationMs).toBe(3_600_000);
     expect(detail?.chapters.map((c) => c.title)).toEqual(['Opening', 'Middle']);
+  });
+
+  describe('a stream without a length (M140)', () => {
+    const bare: Stream = {
+      sourceKey: 'bare',
+      name: 'Source',
+      url: 'https://audio.example/waiting.mp3',
+    };
+    const fileOf = (bookId: string) => getBook(db, ME, bookId)?.files[0];
+
+    it('takes the length the player measured', () => {
+      const bookId = add(db, bare);
+      expect(getBook(db, ME, bookId)?.book.durationMs).toBe(0);
+      const file = fileOf(bookId);
+      expect(learnFileDuration(db, file?.location ?? '', 30_000.4)).toBe(true);
+      expect(getBook(db, ME, bookId)?.book.durationMs).toBe(30_000);
+      expect(fileOf(bookId)?.durationMs).toBe(30_000);
+      // Once known, a later report changes nothing.
+      expect(learnFileDuration(db, file?.location ?? '', 31_000)).toBe(false);
+      expect(getBook(db, ME, bookId)?.book.durationMs).toBe(30_000);
+    });
+
+    it('ignores an unknown length and a file it does not know', () => {
+      const bookId = add(db, bare);
+      expect(learnFileDuration(db, fileOf(bookId)?.location ?? '', 0)).toBe(false);
+      expect(learnFileDuration(db, fileOf(bookId)?.location ?? '', Number.NaN)).toBe(false);
+      expect(learnFileDuration(db, 'stream:other:0', 30_000)).toBe(false);
+    });
+
+    it('keeps a measured length when the stream is added again without one', () => {
+      const bookId = add(db, bare);
+      learnFileDuration(db, fileOf(bookId)?.location ?? '', 30_000);
+      expect(add(db, bare, meta, 200)).toBe(bookId);
+      expect(getBook(db, ME, bookId)?.book.durationMs).toBe(30_000);
+    });
+
+    it('takes the add-on’s length over a measured one', () => {
+      const bookId = add(db, bare);
+      learnFileDuration(db, fileOf(bookId)?.location ?? '', 30_000);
+      add(db, { ...bare, durationMs: 29_000 }, meta, 200);
+      expect(getBook(db, ME, bookId)?.book.durationMs).toBe(29_000);
+    });
+
+    it('forgets a measured length when the file changes', () => {
+      const bookId = add(db, bare);
+      learnFileDuration(db, fileOf(bookId)?.location ?? '', 30_000);
+      add(db, { ...bare, url: 'https://audio.example/other.mp3' }, meta, 200);
+      expect(getBook(db, ME, bookId)?.book.durationMs).toBe(0);
+    });
   });
 
   describe('chapters from the meta', () => {

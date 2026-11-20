@@ -193,7 +193,7 @@ function AddonsManager() {
   };
 
   const [menu, setMenu] = useState<InstalledAddon | null>(null);
-  const offers = useOwnAddonOffers(addons, { pasteBelow: true });
+  const offers = useOwnAddonOffers(addons, { pasteAbove: true });
 
   // Real requests fill in most of the health; `/health` adds what the add-on says about itself.
   useEffect(() => {
@@ -306,27 +306,10 @@ function AddonsManager() {
         )}
       </Text>
 
-      {addons.map((addon) => (
-        <AddonRow key={addon.url} addon={addon} onMore={() => setMenu(addon)} />
-      ))}
-      {addons.length === 0 && <Text className="py-4 text-muted">{t('No add-ons installed.')}</Text>}
-
-      {offers.length > 0 && (
-        <Text
-          accessibilityRole="header"
-          className="pt-6 text-xs uppercase tracking-wider text-muted"
-        >
-          {t('Comes with Lelap')}
-        </Text>
-      )}
-      {offers.map((offer) => (
-        <OwnAddonOffer key={offer.key} offer={offer} />
-      ))}
-
-      <Text accessibilityRole="header" className="pt-6 text-xs uppercase tracking-wider text-muted">
+      <Text accessibilityRole="header" className="pt-2 text-xs uppercase tracking-wider text-muted">
         {t('Add an add-on')}
       </Text>
-      <View className="flex-row items-center gap-3 pt-2">
+      <View className="flex-row items-center gap-3 pb-2 pt-2">
         <TextInput
           value={url}
           onChangeText={setUrl}
@@ -353,6 +336,27 @@ function AddonsManager() {
           )}
         </Pressable>
       </View>
+
+      <Text accessibilityRole="header" className="pt-6 text-xs uppercase tracking-wider text-muted">
+        {t('Installed')}
+      </Text>
+      {addons.map((addon) => (
+        <AddonRow key={addon.url} addon={addon} onMore={() => setMenu(addon)} />
+      ))}
+      {addons.length === 0 && <Text className="py-4 text-muted">{t('No add-ons installed.')}</Text>}
+
+      {offers.length > 0 && (
+        <Text
+          accessibilityRole="header"
+          className="pt-6 text-xs uppercase tracking-wider text-muted"
+        >
+          {t('Comes with Lelap')}
+        </Text>
+      )}
+      {offers.map((offer) => (
+        <OwnAddonOffer key={offer.key} offer={offer} />
+      ))}
+
       <Text className="pt-3 text-xs text-muted">
         {t('Health shows how each add-on answered since Lelap started. It stays on this device.')}
       </Text>

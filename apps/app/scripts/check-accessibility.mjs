@@ -400,3 +400,7 @@ console.log(
   'Accessibility: every control is named with its state, screens have headings, errors are ' +
     'announced, text fits at font scale 2, layouts use start/end, every theme passes AA.',
 );
+
+// Run from here, not from `package.json`: its scripts are part of the app's fingerprint, and a
+// change there would keep an over-the-air update from older APKs.
+await import('./check-routes.mjs');
