@@ -19,6 +19,8 @@ data class Heard(
   val playing: Boolean,
   val engaged: Boolean,
   val speed: Float,
+  /** The player stopped at the book's end. */
+  val ended: Boolean = false,
 )
 
 /** One entry of the [AccountingLog]; [seq] grows by one per entry and is never reused. */
@@ -97,18 +99,6 @@ class AccountingLog(
     }
     list += SessionEvent(nextSeq++, kind, bookId, at, location, positionMs, start?.first, start?.second)
     trim()
-  }
-
-  /**
-   * Where the listening session of [bookId] began: the open one, else the one the last pause
-   * ended (the end of a book closes its session as it is logged). Null when none is known.
-   */
-  fun sessionStartOf(bookId: String): Pair<String, Long>? {
-    session?.takeIf { it.bookId == bookId }?.let { return it.startLocation to it.startPositionMs }
-    val pause = list.lastOrNull { it is SessionEvent && it.bookId == bookId && it.kind == PAUSE } as SessionEvent?
-    val location = pause?.startLocation ?: return null
-    val position = pause.startPositionMs ?: return null
-    return location to position
   }
 
   /** Everything not yet acknowledged; from now on these records stay as they are. */
@@ -241,6 +231,9 @@ class ListeningTally(
   // Only in memory: after process death the time since the last record is lost, never doubled.
   private var anchor: Anchor? = null
 
+  // The book and start of the session last seen playing, kept past the pause the end itself logs.
+  private var stretch: Pair<String, Pair<String, Long>>? = null
+
   /**
    * The player as it is now ([heard] null: nothing of a known book is loaded). Credits the time
    * since the last observation, at most the position's advance, so seeks and skips add nothing.
@@ -253,6 +246,22 @@ class ListeningTally(
     }
     anchor = heard?.takeIf { it.playing }?.let { Anchor(it, elapsedMs) }
     track(log, heard, elapsedMs, wallMs)
+    val open = log.session
+    stretch = when {
+      open != null -> open.bookId to (open.startLocation to open.startPositionMs)
+      heard != null && heard.ended && stretch?.first == heard.bookId -> stretch
+      // A pause or another book: a later stretch the tally never sees has no start known.
+      else -> null
+    }
+  }
+
+  /**
+   * Where the session that reached the end of [bookId] began, for its `finish`: the open one, or
+   * the one the end itself closed; never an earlier one. Null when unknown.
+   */
+  fun finishStart(log: AccountingLog, bookId: String): Pair<String, Long>? {
+    log.session?.takeIf { it.bookId == bookId }?.let { return it.startLocation to it.startPositionMs }
+    return stretch?.takeIf { it.first == bookId }?.second
   }
 
   /** A jump (seek, next file): the time up to [before] counts, then counting goes on from [after]. */
@@ -274,6 +283,7 @@ class ListeningTally(
    */
   fun recover(log: AccountingLog) {
     anchor = null
+    stretch = null
     val s = log.session ?: return
     log.addEvent(AccountingLog.PAUSE, s.bookId, s.lastAt, s.lastLocation, s.lastPositionMs, s.startLocation to s.startPositionMs)
     log.session = null

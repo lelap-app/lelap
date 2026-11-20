@@ -4,7 +4,9 @@ import {
   chapterJump,
   deleteBookmark,
   getBook,
+  bookHistory,
   isUndoableJump,
+  offersGoBack,
   UNDO_SHOWN_MS,
   getSettings,
   listBookmarks,
@@ -59,6 +61,7 @@ import * as history from '../history';
 import * as audio from '../platform/audio';
 import { askLocalNetwork, useLocalNetworkCause } from '../localNetwork';
 import {
+  playerProfile,
   reloadBook,
   seekToBookPosition,
   streamsFromLocalNetwork,
@@ -320,7 +323,13 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
         goingBackTo.current = null;
         return;
       }
-      if (!isUndoableJump(e) || Date.now() - e.at > UNDO_SHOWN_MS) return;
+      const now = Date.now();
+      if (!isUndoableJump(e) || now - e.at > UNDO_SHOWN_MS) return;
+      if (!offersGoBack(bookHistory(db, playerProfile(), bookId, now), e, now)) {
+        // The notification's Back went where this bar would have gone.
+        setUndo(null);
+        return;
+      }
       setUndo({
         text: t('Moved from {place}.', { place: formatClock(e.fromMs) }),
         undoText: t('Go back'),

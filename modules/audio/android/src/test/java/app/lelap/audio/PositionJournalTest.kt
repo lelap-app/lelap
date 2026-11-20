@@ -74,10 +74,10 @@ class PositionJournalTest {
 
   @Test
   fun seesWhenTheSameBookComesWithOtherFiles() {
-    assertFalse(PositionJournal.filesChanged(playlist, playlist.copy(chapters = emptyList(), speed = 2f)))
+    assertFalse(PositionJournal.filesChanged(playlist, playlist.copy(chapters = emptyList(), speed = 2f), mobileData = false))
     val downloaded = playlist.copy(files = playlist.files.map { it.copy(uri = "file:///downloads/${it.title}") })
-    assertTrue(PositionJournal.filesChanged(playlist, downloaded))
-    assertTrue(PositionJournal.filesChanged(playlist, playlist.copy(headers = mapOf("Authorization" to "Basic x"))))
+    assertTrue(PositionJournal.filesChanged(playlist, downloaded, mobileData = false))
+    assertTrue(PositionJournal.filesChanged(playlist, playlist.copy(headers = mapOf("Authorization" to "Basic x")), mobileData = false))
   }
 
   @Test

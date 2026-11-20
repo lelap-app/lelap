@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs';
+
 import type { Manifest } from '@lelap/sdk';
 import { describe, expect, it } from 'vitest';
 
 import { bestCover } from './client';
-import { addonPermissions, asksForMore } from './permissions';
+import { addonPermissions, asksForMore, type Translate } from './permissions';
 
 const manifest = (resources: Manifest['resources']): Manifest => ({
   id: 'org.example.a',
@@ -86,6 +88,56 @@ describe('addonPermissions', () => {
   it('keeps it short for a plain https catalog', () => {
     const list = addonPermissions(manifest(['catalog']), 'https://addon.example/manifest.json');
     expect(list.map((p) => p.kind)).toEqual(['catalog', 'host']);
+  });
+});
+
+describe('in Malay (M145)', () => {
+  // The app's catalog: the sheet shows these lines through its `t()`.
+  const ms = JSON.parse(
+    readFileSync(
+      new URL('../../../../apps/app/src/i18n/catalogs/ms.json', import.meta.url),
+      'utf8',
+    ),
+  ) as Record<string, string>;
+  const asked = new Set<string>();
+  const malay: Translate = (text, vars) => {
+    asked.add(text);
+    return (ms[text] || text).replace(/\{(\w+)\}/g, (hole, key: string) =>
+      vars && key in vars ? String(vars[key]) : hole,
+    );
+  };
+  const many = {
+    ...manifest(['catalog', 'meta', 'stream', 'artwork', 'series', 'library', 'scrobble']),
+    types: ['audiobook', 'podcast', 'episode'] as Manifest['types'],
+    catalogs: ['A', 'B', 'C', 'D'].map((name) => ({ type: 'audiobook' as const, id: name, name })),
+  };
+  const local = (hosts: string[], settings: NonNullable<Manifest['settings']>): Manifest => ({
+    ...manifest(['library']),
+    sandbox: { hosts },
+    settings,
+  });
+  const cases: [Manifest, string][] = [
+    [many, 'http://addon.example/?key=1'],
+    [{ ...manifest(['catalog']), types: ['podcast'] }, 'https://addon.example/manifest.json'],
+    [local([], []), 'lelap-local://a'],
+    [local(['a.example'], []), 'lelap-local://a'],
+    [local([], [{ key: 'u', type: 'url', label: 'Address', host: true }]), 'lelap-local://a'],
+    [
+      local(['a.example'], [{ key: 'u', type: 'url', label: 'Address', host: true }]),
+      'lelap-local://a',
+    ],
+    [local([], [{ key: 's', type: 'signin', label: 'Sign in' }]), 'lelap-local://a'],
+  ];
+
+  it('says every line in Malay', () => {
+    for (const [m, url] of cases) {
+      const english = addonPermissions(m, url);
+      const translated = addonPermissions(m, url, malay);
+      expect(translated.map((p) => p.kind)).toEqual(english.map((p) => p.kind));
+      translated.forEach((p, i) => expect(p.text).not.toBe(english[i]?.text));
+    }
+    const lacking = [...asked].filter((key) => !ms[key]);
+    expect(lacking).toEqual([]);
   });
 });
 

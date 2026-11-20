@@ -23,16 +23,40 @@ export type Permission = {
   notable: boolean;
 };
 
+/**
+ * The app's `t()`: English is the key, `{holes}` are filled from `vars`. Lines written through it
+ * here are checked against the app's catalogs like the app's own.
+ */
+export type Translate = (text: string, vars?: Record<string, string | number>) => string;
+
+const english: Translate = (text, vars) =>
+  text.replace(/\{(\w+)\}/g, (hole, key: string) =>
+    vars && key in vars ? String(vars[key]) : hole,
+  );
+
 const names = (manifest: Manifest) =>
   new Set(manifest.resources.map((r) => (typeof r === 'string' ? r : r.name)));
 
-const KINDS: Record<string, string> = {
-  audiobook: 'audiobooks',
-  podcast: 'podcasts',
-  episode: 'episodes',
-};
+const kindName = (t: Translate, type: string) =>
+  type === 'audiobook'
+    ? t('audiobooks')
+    : type === 'podcast'
+      ? t('podcasts')
+      : type === 'episode'
+        ? t('episodes')
+        : type;
 
-export function addonPermissions(manifest: Manifest, manifestUrl: string): Permission[] {
+/** `a, b and c`, in the language `t` speaks. */
+const listed = (t: Translate, items: readonly string[]) =>
+  items.length < 2
+    ? (items[0] ?? '')
+    : t('{list} and {last}', { list: items.slice(0, -1).join(', '), last: items.at(-1) ?? '' });
+
+export function addonPermissions(
+  manifest: Manifest,
+  manifestUrl: string,
+  t: Translate = english,
+): Permission[] {
   const resources = names(manifest);
   const list: Permission[] = [];
   let host = manifestUrl;
@@ -54,49 +78,58 @@ export function addonPermissions(manifest: Manifest, manifestUrl: string): Permi
     secure = true;
     query = false;
   }
-  const types = [...new Set(manifest.types.map((t) => KINDS[t] ?? t))].join(' and ');
+  const types = listed(t, [...new Set(manifest.types.map((type) => kindName(t, type)))]);
 
   if (resources.has('catalog') && manifest.catalogs.length > 0) {
     const shown = manifest.catalogs.slice(0, 3).map((c) => c.name);
-    const more = manifest.catalogs.length > 3 ? ` and ${manifest.catalogs.length - 3} more` : '';
+    const lists =
+      manifest.catalogs.length > 3
+        ? t('{names} and {n} more', { names: shown.join(', '), n: manifest.catalogs.length - 3 })
+        : shown.join(', ');
     list.push({
       kind: 'catalog',
-      text: `Shows lists of ${types} on Home, Discover and Search: ${shown.join(', ')}${more}.`,
+      text: t('Shows lists of {types} on Home, Discover and Search: {lists}.', { types, lists }),
       notable: false,
     });
   }
   if (resources.has('meta')) {
     list.push({
       kind: 'meta',
-      text: 'Looks up details about books: descriptions, narrators, chapters.',
+      text: t('Looks up details about books: descriptions, narrators, chapters.'),
       notable: false,
     });
   }
   if (resources.has('stream')) {
     list.push({
       kind: 'stream',
-      text: 'Finds audio to play. The audio comes from the sources it names, never through Lelap.',
+      text: t(
+        'Finds audio to play. The audio comes from the sources it names, never through Lelap.',
+      ),
       notable: false,
     });
   }
   if (resources.has('artwork')) {
     list.push({
       kind: 'artwork',
-      text: 'Supplies covers for items that have none.',
+      text: t('Supplies covers for items that have none.'),
       notable: false,
     });
   }
   if (resources.has('series')) {
     list.push({
       kind: 'series',
-      text: 'Lists every book of a series you open, in reading order. It gets the series’ name, its author, your language and a catalog book you matched in it.',
+      text: t(
+        'Lists every book of a series you open, in reading order. It gets the series’ name, its author, your language and a catalog book you matched in it.',
+      ),
       notable: false,
     });
   }
   if (resources.has('library') && manifest.sandbox) {
     list.push({
       kind: 'library',
-      text: 'Lists the books on a server you add under Settings → Library and sources → Add a server, so they play and download like your own.',
+      text: t(
+        'Lists the books on a server you add under Settings → Library and sources → Add a server, so they play and download like your own.',
+      ),
       notable: false,
     });
   }
@@ -105,29 +138,37 @@ export function addonPermissions(manifest: Manifest, manifestUrl: string): Permi
     list.push({
       kind: 'login',
       text: signin
-        ? 'Signs you in on a website it names when you add a server, with a code you enter there. What it gets back stays sealed on this device and reaches only this add-on.'
-        : 'Asks for an address and login when you add a server. They stay sealed on this device and reach only this add-on.',
+        ? t(
+            'Signs you in on a website it names when you add a server, with a code you enter there. What it gets back stays sealed on this device and reaches only this add-on.',
+          )
+        : t(
+            'Asks for an address and login when you add a server. They stay sealed on this device and reach only this add-on.',
+          ),
       notable: false,
     });
   }
   if (resources.has('scrobble')) {
     list.push({
       kind: 'scrobble',
-      text: 'Receives what you listen to and when: titles, places and finished books. Never your files or links.',
+      text: t(
+        'Receives what you listen to and when: titles, places and finished books. Never your files or links.',
+      ),
       notable: true,
     });
   }
   if (query) {
     list.push({
       kind: 'settings',
-      text: 'Its address holds your settings for it, which may include a key. Keep the address private.',
+      text: t(
+        'Its address holds your settings for it, which may include a key. Keep the address private.',
+      ),
       notable: true,
     });
   }
   if (!secure) {
     list.push({
       kind: 'insecure',
-      text: 'Not encrypted (http). Others on the network can see what Lelap asks it.',
+      text: t('Not encrypted (http). Others on the network can see what Lelap asks it.'),
       notable: true,
     });
   }
@@ -139,18 +180,28 @@ export function addonPermissions(manifest: Manifest, manifestUrl: string): Permi
       kind: 'sandbox',
       text: typed
         ? hosts.length > 0
-          ? `Runs on this device, in a sandbox. It can reach only ${hosts.join(', ')} and the address you enter.`
-          : 'Runs on this device, in a sandbox. It can reach only the address you enter.'
+          ? t(
+              'Runs on this device, in a sandbox. It can reach only {hosts} and the address you enter.',
+              { hosts: hosts.join(', ') },
+            )
+          : t('Runs on this device, in a sandbox. It can reach only the address you enter.')
         : hosts.length > 0
-          ? `Runs on this device, in a sandbox. It can reach only ${hosts.join(', ')}.`
-          : 'Runs on this device, in a sandbox, with no network at all.',
+          ? t('Runs on this device, in a sandbox. It can reach only {hosts}.', {
+              hosts: hosts.join(', '),
+            })
+          : t('Runs on this device, in a sandbox, with no network at all.'),
       notable: hosts.some((h) => h.startsWith('*')),
     });
     return list;
   }
   list.push({
     kind: 'host',
-    text: `Lelap talks to ${host} for it. That service sees what you browse and search through it.`,
+    text: t(
+      'Lelap talks to {host} for it. That service sees what you browse and search through it.',
+      {
+        host,
+      },
+    ),
     notable: false,
   });
   return list;

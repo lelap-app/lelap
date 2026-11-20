@@ -763,12 +763,32 @@ function applyBookSeries(db: Db, op: Extract<Op, { type: 'book' }>, bookId: stri
     .run();
 }
 
+/**
+ * A newer add-on reference for a streamed book this device has, so transcripts the add-on added
+ * later reach it (M145). Only for the same recording: another `sourceKey` has other parts.
+ */
+function applyAddonItem(db: Db, op: Extract<Op, { type: 'book' }>, bookId: string): void {
+  const next = op.data.addonItem;
+  if (!next) return;
+  const book = db
+    .select({ source: books.source, addonItem: books.addonItem, updatedAt: books.updatedAt })
+    .from(books)
+    .where(eq(books.id, bookId))
+    .get();
+  if (book?.source !== 'addon' || book.updatedAt >= op.at) return;
+  const own = book.addonItem;
+  if (own && own.sourceKey !== next.sourceKey) return;
+  if (JSON.stringify(own) === JSON.stringify(next)) return;
+  db.update(books).set({ addonItem: next, updatedAt: op.at }).where(eq(books.id, bookId)).run();
+}
+
 function applyBook(db: Db, op: Extract<Op, { type: 'book' }>, newId: IdGenerator): void {
   const { data } = op;
   const known = bookIdForKey(db, op.key);
   if (known) {
     // Older devices send no series; that says nothing about it.
     if (data.series !== undefined) applyBookSeries(db, op, known);
+    applyAddonItem(db, op, known);
     return;
   }
   if (!data.parts.every(webPart)) return;

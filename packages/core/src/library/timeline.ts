@@ -78,3 +78,36 @@ export function chapterJump(
     ? start
     : (chapters[current - 1]?.startMs ?? 0);
 }
+
+/**
+ * The whole-book place a skip of [deltaMs] from [filePositionMs] in [location] lands on, as the
+ * Android service skips (`SeekRules.skip`): across file ends, stopping at the book's start and end,
+ * and within the file when a neighbour's duration is unknown (≤ 0).
+ */
+export function skipLanding(
+  files: TimelineFile[],
+  location: string,
+  filePositionMs: number,
+  deltaMs: number,
+): number {
+  let i = files.findIndex((f) => f.location === location);
+  if (i < 0) return 0;
+  const length = (index: number) => files[index]?.durationMs ?? 0;
+  const place = (index: number, ms: number) =>
+    files.slice(0, index).reduce((sum, f) => sum + Math.max(0, f.durationMs), 0) + Math.max(0, ms);
+  let target = filePositionMs + deltaMs;
+  while (target < 0) {
+    if (i === 0) return 0;
+    const previous = length(i - 1);
+    if (previous <= 0) return place(i, 0);
+    i--;
+    target += previous;
+  }
+  for (;;) {
+    const duration = length(i);
+    if (duration <= 0 || target < duration) return place(i, target);
+    if (i === files.length - 1) return place(i, duration);
+    target -= duration;
+    i++;
+  }
+}

@@ -55,7 +55,7 @@ const NEEDS_LABEL = new Set(['TextInput', 'Switch', 'Modal']);
 const STATEFUL_ROLE = /^["'{]*(checkbox|radio|switch|tab|togglebutton)["'}]*$/;
 const STATE = ['accessibilityState', 'aria-checked', 'aria-selected', '...'];
 // Text that appears when something goes wrong, which TalkBack must say without being asked.
-const ALERT = /\berror\b|\.error\b|failed|failure/i;
+const ALERT = /\berror\b|\.error\b|\bisError\b|failed|failure/i;
 const LIVE = ['accessibilityLiveRegion', 'aria-live'];
 
 // Line heights of NativeWind's text sizes, to see what a fixed height holds at font scale 2.
@@ -150,6 +150,79 @@ const enclosedBy = (node, names) => {
   return false;
 };
 
+const roleOf = (a) => (a.get('accessibilityRole') ?? a.get('role'))?.initializer?.getText() ?? '';
+
+/** A live region or an alert role on the element itself or on anything inside it. */
+const holdsLive = (element) => {
+  let found = false;
+  const visit = (node) => {
+    const tag = tagOf(node);
+    if (tag) {
+      const a = attrs(tag);
+      if (LIVE.some((n) => a.has(n)) || /alert/.test(roleOf(a))) found = true;
+    }
+    if (!found) ts.forEachChild(node, visit);
+  };
+  visit(element);
+  return found;
+};
+
+const isJsx = (node) =>
+  ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node);
+
+const unwrap = (node) => {
+  while (node && ts.isParenthesizedExpression(node)) node = node.expression;
+  return node;
+};
+
+/** Whether the node only shows under a condition, somewhere between it and `stop`. */
+const conditional = (node, stop) => {
+  for (let p = node.parent; p && p !== stop; p = p.parent) {
+    if (ts.isConditionalExpression(p)) return true;
+    if (
+      ts.isBinaryExpression(p) &&
+      [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken].includes(
+        p.operatorToken.kind,
+      )
+    )
+      return true;
+  }
+  return false;
+};
+
+/** Descendants matching `test`, not looking inside a match. */
+const findAll = (root, test) => {
+  const found = [];
+  const visit = (node) => {
+    if (test(node)) {
+      found.push(node);
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(root, visit);
+  return found;
+};
+
+// Colours in a string: hex in any length, rgb() and rgba(). See-through ones carry their alpha.
+const COLOUR =
+  /#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})\b|rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+%?)\s*)?\)/gi;
+const two = (n) =>
+  Math.max(0, Math.min(255, Number(n)))
+    .toString(16)
+    .padStart(2, '0');
+const coloursIn = (text) =>
+  [...text.matchAll(COLOUR)].map((m) => {
+    if (m[1] !== undefined) {
+      const alpha = m[4] === undefined ? 1 : parseFloat(m[4]) / (m[4].endsWith('%') ? 100 : 1);
+      return { written: m[0], hex: `#${two(m[1])}${two(m[2])}${two(m[3])}`, alpha };
+    }
+    let h = m[0].slice(1).toLowerCase();
+    if (h.length <= 4) h = [...h].map((c) => c + c).join('');
+    const alpha = h.length === 8 ? parseInt(h.slice(6), 16) / 255 : 1;
+    return { written: m[0], hex: `#${h.slice(0, 6)}`, alpha };
+  });
+
 const routes = join(root, 'app');
 const sources = [...files(routes), ...files(join(root, 'src'))];
 
@@ -166,8 +239,8 @@ for (const file of sources) {
     if (/^[A-Z]/.test(m[1]) && m[1] !== 'Sheet') headingComponents.add(m[1]);
 }
 
-for (const file of sources) {
-  const source = readFileSync(file, 'utf8');
+// One source file's problems; the self-test below feeds it snippets that must fail.
+const checkSource = (file, source, problems) => {
   const lines = source.split('\n');
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const where = (node) => {
@@ -217,8 +290,17 @@ for (const file of sources) {
           problems.push(`${at}: ${tag} without accessibilityRole`);
         if (!named && !hasText(element))
           problems.push(`${at}: ${tag} with neither text nor accessibilityLabel`);
-        // A spinner in place of the text leaves the button without a name while it turns.
-        if (!named && /\?\s*\(?\s*<ActivityIndicator\b[^>]*\/>\s*\)?\s*:/.test(element.getText()))
+        // A spinner in place of the text leaves the button without a name while it turns: one
+        // that comes and goes, while every text in the button does too.
+        const spinners = findAll(
+          element,
+          (n) => tagOf(n)?.tagName.getText() === 'ActivityIndicator' && n === unwrap(n),
+        ).filter((n) => conditional(n, element));
+        if (
+          !named &&
+          spinners.length > 0 &&
+          findAll(element, isText).every((n) => conditional(n, element))
+        )
           problems.push(`${at}: ${tag} shows a spinner instead of its text; give it a label`);
         // Under 48 points: no size at all, or thin vertical padding without a minimum height.
         // A cover or avatar of at least 48 points inside makes the row tall enough.
@@ -305,23 +387,39 @@ for (const file of sources) {
       }
     }
 
-    // An error that appears is announced: a live region on it or around it.
+    // An error that appears is announced: a live region on it, around it or inside it. A text
+    // is an error by its own words; a View or fragment by the condition that shows it.
+    const announce = (branch, condition, shownWhenTrue) => {
+      branch = unwrap(branch);
+      if (!branch || !isJsx(branch)) return;
+      const text = isText(branch);
+      if (!text && !hasText(branch)) return;
+      const alert = text
+        ? ALERT.test(`${condition} ${branch.getText()}`.slice(0, 200))
+        : shownWhenTrue && ALERT.test(condition);
+      if (alert && !enclosedBy(branch, LIVE) && !holdsLive(branch))
+        problems.push(`${where(branch).at}: an error that appears without accessibilityLiveRegion`);
+    };
     if (
       ts.isJsxExpression(node) &&
       node.expression &&
       (ts.isBinaryExpression(node.expression) || ts.isConditionalExpression(node.expression))
     ) {
       const e = node.expression;
-      const branches = ts.isBinaryExpression(e) ? [e.right] : [e.whenTrue, e.whenFalse];
-      for (let branch of branches) {
-        while (ts.isParenthesizedExpression(branch)) branch = branch.expression;
-        if (!isText(branch)) continue;
-        if (!ALERT.test(e.getText().slice(0, 200))) continue;
-        if (!enclosedBy(branch, LIVE))
-          problems.push(
-            `${where(branch).at}: an error that appears without accessibilityLiveRegion`,
-          );
+      if (ts.isBinaryExpression(e)) announce(e.right, e.left.getText(), true);
+      else {
+        announce(e.whenTrue, e.condition.getText(), true);
+        announce(e.whenFalse, e.condition.getText(), false);
       }
+    }
+    // Returned early: `if (error) return <Text>…</Text>;`
+    if (ts.isIfStatement(node)) {
+      const then = ts.isBlock(node.thenStatement)
+        ? node.thenStatement.statements
+        : [node.thenStatement];
+      for (const statement of then)
+        if (ts.isReturnStatement(statement) && statement.expression)
+          announce(statement.expression, node.expression.getText(), true);
     }
 
     if (ts.isJsxAttribute(node) && node.name.getText() === 'className' && node.initializer) {
@@ -344,23 +442,29 @@ for (const file of sources) {
     // A colour nobody checked: only theme colours, or ones whose pairs are checked below, in a
     // string or in a class such as text-[#f7d9a0].
     if ((ts.isStringLiteralLike(node) || ts.isTemplateLiteralToken(node)) && !art) {
-      for (const [hex] of node.text.matchAll(/#[0-9a-f]{6}\b/gi)) {
-        const token = THEME_HEX.get(hex.toLowerCase());
-        if (token !== undefined) {
+      for (const { written, hex, alpha } of coloursIn(node.text)) {
+        const token = THEME_HEX.get(hex);
+        if (alpha < 1)
+          problems.push(
+            `${where(node).at}: colour ${written} is see-through, so no pair is checked; blend it into a hex and add it to EXTRA`,
+          );
+        else if (token !== undefined) {
           if (!dev)
             problems.push(
-              `${where(node).at}: colour ${hex} stays put when the theme changes; use useColors().${token} or a class`,
+              `${where(node).at}: colour ${written} stays put when the theme changes; use useColors().${token} or a class`,
             );
-        } else if (!checkedColours.has(hex.toLowerCase()))
+        } else if (!checkedColours.has(hex))
           problems.push(
-            `${where(node).at}: colour ${hex} is not in a checked pair; add it to EXTRA`,
+            `${where(node).at}: colour ${written} is not in a checked pair; add it to EXTRA`,
           );
       }
     }
     ts.forEachChild(node, visit);
   };
   visit(sf);
-}
+};
+
+for (const file of sources) checkSource(file, readFileSync(file, 'utf8'), problems);
 
 // Every theme with every accent: text on the backgrounds, buttons, borders, and the palettes of
 // car mode (by day and at night) and the stats. The pairs are in packages/core/src/themes.ts.
@@ -389,6 +493,52 @@ for (const [fg, bg, min] of EXTRA) {
   const ratio = contrast(fg, bg);
   if (ratio < min)
     problems.push(`Contrast ${fg} on ${bg} is ${ratio.toFixed(2)}:1, below ${min}:1`);
+}
+
+// The check checks itself: each snippet must be caught (M145), so a rule that stops matching
+// fails here rather than letting a later problem through.
+const MUST_FAIL = [
+  ['{error && <View><Text>{error}</Text></View>}', 'without accessibilityLiveRegion'],
+  ['{query.isError ? <><Text>Try again</Text></> : <List />}', 'without accessibilityLiveRegion'],
+  [
+    'function A() { if (failed) return <Text>Sorry</Text>; return null; }',
+    'accessibilityLiveRegion',
+  ],
+  ['function A() { if (error) { return <View><Text>{error}</Text></View>; } }', 'LiveRegion'],
+  ['<Text style={{ color: "#777" }}>Hi</Text>', 'colour #777 is not in a checked pair'],
+  ['<Text style={{ color: "rgb(1, 2, 3)" }}>Hi</Text>', 'rgb(1, 2, 3) is not in a checked pair'],
+  ['<View style={{ backgroundColor: "rgba(0,0,0,0.5)" }} />', 'is see-through'],
+  ['<View style={{ backgroundColor: "#00000080" }} />', 'is see-through'],
+  [`<Text style={{ color: "${colors.paper}" }}>Hi</Text>`, 'stays put when the theme changes'],
+  [
+    '<Pressable accessibilityRole="button" className="min-h-12">{busy && <ActivityIndicator />}{!busy && <Text>Save</Text>}</Pressable>',
+    'spinner instead of its text',
+  ],
+  [
+    '<Pressable accessibilityRole="button" className="min-h-12">{busy ? <Text>Save</Text> : <ActivityIndicator />}</Pressable>',
+    'spinner instead of its text',
+  ],
+];
+const MUST_PASS = [
+  '{error && <View accessibilityLiveRegion="polite"><Text>{error}</Text></View>}',
+  '{error && <View><Text accessibilityLiveRegion="polite">{error}</Text></View>}',
+  '<Pressable accessibilityRole="button" className="min-h-12">{busy && <ActivityIndicator />}<Text>Save</Text></Pressable>',
+];
+const selfTest = join(root, 'src', 'self-test.tsx');
+const wrap = (snippet) => `const x = ${snippet.startsWith('{') ? `<>${snippet}</>` : snippet};`;
+for (const [snippet, expected] of MUST_FAIL) {
+  const found = [];
+  checkSource(selfTest, wrap(snippet), found);
+  if (!found.some((p) => p.includes(expected)))
+    problems.push(
+      `Self-test: “${snippet}” should report “${expected}”, got ${JSON.stringify(found)}`,
+    );
+}
+for (const snippet of MUST_PASS) {
+  const found = [];
+  checkSource(selfTest, wrap(snippet), found);
+  if (found.length > 0)
+    problems.push(`Self-test: “${snippet}” should pass, got ${JSON.stringify(found)}`);
 }
 
 if (problems.length > 0) {

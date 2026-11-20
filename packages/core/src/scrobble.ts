@@ -147,8 +147,17 @@ export function enqueueScrobble(
   const item = scrobbleItemKey(event.item);
   db.transaction((tx) => {
     for (const addon of targets) {
-      const key = `${HEARD_PREFIX}${profileId}\n${addon.manifest.id}\n${item}`;
-      const heard = deviceValue(tx, key) !== null;
+      // An event still waiting goes out first, as order is kept, so it counts as heard too.
+      const heard =
+        deviceValue(tx, heardKey(profileId, addon.manifest.id, item)) !== null ||
+        tx
+          .select({ event: scrobbleOutbox.event })
+          .from(scrobbleOutbox)
+          .where(
+            and(eq(scrobbleOutbox.addonUrl, addon.url), eq(scrobbleOutbox.profileId, profileId)),
+          )
+          .all()
+          .some((row) => scrobbleItemKey(row.event.item) === item);
       // Revision 10: `resumed` only to an add-on that heard of the book before, so a book begun
       // before the add-on was set up still reaches it.
       const sent: ScrobbleEvent = { ...event };
@@ -164,15 +173,17 @@ export function enqueueScrobble(
         })
         .onConflictDoNothing()
         .run();
-      if (!heard) setDeviceValue(tx, key, '1', event.at);
     }
   });
   return event;
 }
 
 // Which add-on heard of which book, per profile, on this device only: never synced, since every
-// device keeps its own outbox. Device values, so no migration.
+// device keeps its own outbox. Device values, so no migration. Set when an event is delivered.
 const HEARD_PREFIX = 'scrobbled:';
+
+const heardKey = (profileId: string, addonId: string, item: string) =>
+  `${HEARD_PREFIX}${profileId}\n${addonId}\n${item}`;
 
 /** What names a scrobbled item across events: its ID, else a work ID, else title and author. */
 export function scrobbleItemKey(item: ScrobbleItem): string {
@@ -227,7 +238,7 @@ export async function sendScrobbles(
     .all();
   report.dropped += stale.length + old.length;
 
-  for (const url of urls) {
+  for (const { url, manifest } of installed) {
     // Order matters within an add-on, so a later event never overtakes one still waiting.
     for (;;) {
       const rows = db
@@ -247,6 +258,11 @@ export async function sendScrobbles(
       const ids = rows.map((r) => r.eventId);
       const done = status !== null && (status < 300 || isPermanent(status));
       db.transaction((tx) => {
+        if (status !== null && status < 300)
+          for (const row of rows) {
+            const key = heardKey(row.profileId, manifest.id, scrobbleItemKey(row.event.item));
+            if (deviceValue(tx, key) === null) setDeviceValue(tx, key, '1', now);
+          }
         for (const id of ids) {
           const where = and(eq(scrobbleOutbox.eventId, id), eq(scrobbleOutbox.addonUrl, url));
           if (done) tx.delete(scrobbleOutbox).where(where).run();

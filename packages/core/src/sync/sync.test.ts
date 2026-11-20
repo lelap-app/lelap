@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createTestDb } from '../../test/db';
 import { TEST_PAIRING_COST } from '../../test/setup';
 import { fakeSyncServer } from '../../test/syncServer';
-import { addStreamedBook } from '../addons/streamed';
+import { addStreamedBook, partTranscripts } from '../addons/streamed';
 import { addBookmark, deleteBookmark, listBookmarks } from '../bookmarks';
 import type { Db } from '../db';
 import { setOwnChapters } from '../library/ownChapters';
@@ -548,6 +548,46 @@ describe('sync between two devices', () => {
     ]);
     // Each device gives back its own; nothing is sent.
     expect(collectOps(phone, 100).filter((op) => op.type === 'chapters')).toEqual([]);
+  });
+
+  it('takes the add-on reference of a book this device has already, with its transcripts (M145)', () => {
+    const addonUrl = 'https://addon.example/manifest.json';
+    const phoneBook = addStreamedBook(phone, { addonUrl, meta, stream, now: 10, newId });
+    applyOps(laptop, collectOps(phone, 0), 20, newId);
+    const there = bookIdForKey(laptop, bookKey(phone, phoneBook) ?? '') ?? '';
+    const part = 'stream:librivox:garden:64kb:0';
+    expect(partTranscripts(laptop, there, part)).toEqual([]);
+
+    // The add-on adds transcripts later, and the phone opens the item again.
+    const transcript = { url: 'https://addon.example/t/0.txt', type: 'text/plain' };
+    const withText: Stream = {
+      ...stream,
+      parts: stream.parts.map((p, i) => (i === 0 ? { ...p, transcripts: [transcript] } : p)),
+    };
+    addStreamedBook(phone, { addonUrl, meta, stream: withText, now: 30, newId });
+    applyOps(laptop, collectOps(phone, 25), 40, newId);
+    expect(partTranscripts(laptop, there, part).map((t) => t.url)).toEqual([transcript.url]);
+
+    // An older op, or one without a reference, leaves the laptop's alone.
+    const [op] = collectOps(phone, 25).filter((o) => o.type === 'book');
+    if (op?.type !== 'book') throw new Error('no book op');
+    applyOps(laptop, [{ ...op, at: 35, data: { ...op.data, addonItem: null } }], 50, newId);
+    applyOps(
+      laptop,
+      [
+        {
+          ...op,
+          at: 5,
+          data: {
+            ...op.data,
+            addonItem: { addonUrl, type: meta.type, id: meta.id, sourceKey: stream.sourceKey },
+          },
+        },
+      ],
+      50,
+      newId,
+    );
+    expect(partTranscripts(laptop, there, part)).toHaveLength(1);
   });
 
   it('keeps only web covers from another device', () => {

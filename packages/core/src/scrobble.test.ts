@@ -87,6 +87,47 @@ describe('enqueueScrobble', () => {
   });
 });
 
+describe('resumed', () => {
+  const resumedStart = (at: number) => ({ ...event(at), positionMs: 60_000, resumed: true });
+  const queuedResumed = (db: ReturnType<typeof createTestDb>) =>
+    db.select().from(scrobbleOutbox).all().at(-1)?.event.resumed;
+  const refused: Poster = async () => ({ ok: false, status: 400 });
+
+  it('keeps resumed once the add-on has had an event of the book', async () => {
+    const db = createTestDb();
+    enqueueScrobble(db, { profileId: ME, addons: [scrobbler], event: event(0), newId });
+    await sendScrobbles(db, ok, [scrobbler], 1);
+    enqueueScrobble(db, { profileId: ME, addons: [scrobbler], event: resumedStart(2), newId });
+    expect(queuedResumed(db)).toBe(true);
+  });
+
+  it('keeps resumed behind an event of the book still waiting', () => {
+    const db = createTestDb();
+    enqueueScrobble(db, { profileId: ME, addons: [scrobbler], event: event(0), newId });
+    enqueueScrobble(db, { profileId: ME, addons: [scrobbler], event: resumedStart(2), newId });
+    expect(queuedResumed(db)).toBe(true);
+  });
+
+  it('drops resumed when the add-on never got the earlier event', async () => {
+    const db = createTestDb();
+    enqueueScrobble(db, { profileId: ME, addons: [scrobbler], event: event(0), newId });
+    await sendScrobbles(db, refused, [scrobbler], 1);
+    enqueueScrobble(db, { profileId: ME, addons: [scrobbler], event: resumedStart(2), newId });
+    expect(queuedResumed(db)).toBeUndefined();
+
+    const stale = createTestDb();
+    enqueueScrobble(stale, { profileId: ME, addons: [scrobbler], event: event(0), newId });
+    await sendScrobbles(stale, ok, [scrobbler], SCROBBLE_MAX_AGE_MS + 1);
+    enqueueScrobble(stale, {
+      profileId: ME,
+      addons: [scrobbler],
+      event: resumedStart(SCROBBLE_MAX_AGE_MS + 2),
+      newId,
+    });
+    expect(queuedResumed(stale)).toBeUndefined();
+  });
+});
+
 describe('sendScrobbles', () => {
   it('sends in order with the original timestamps and empties the outbox', async () => {
     const db = createTestDb();

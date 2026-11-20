@@ -207,7 +207,7 @@ export default function DiscoverScreen() {
             query.isPending ? (
               <ActivityIndicator color={colors.amber} className="pt-12" />
             ) : (
-              <Text className="px-4 pt-12 text-center text-muted">
+              <Text className="px-4 pt-12 text-center text-muted" accessibilityLiveRegion="polite">
                 {query.isError
                   ? `${current?.addon.manifest.name ?? t('The add-on')} did not answer. Pull Home down to try again.`
                   : t('Nothing here.')}

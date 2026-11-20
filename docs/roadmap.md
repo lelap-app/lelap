@@ -177,11 +177,11 @@ when it is planned.
   field and forbid lasting copies (so no Google fields in downloads or sync), it has no narrators or
   lengths, and its coverage of Danish editions is unknown until a key exists. Apple's iTunes Search
   API is out unless a store link is shown beside its data. M137 is left unused.
-- **Part transcripts, finer points (after M136):** a synced book that another device already has
-  keeps that device's add-on reference, so transcripts an add-on adds later reach it only when it
-  opens the book's item itself (`applyBook` in `packages/core/src/sync/ops.ts`); and the transcript
-  screen reads the database only when the part changes, so transcripts written while it is open
-  show after the next part.
+- **Hook dependencies in lint (left from M145):** `react-hooks/exhaustive-deps` stays off, since
+  about 80 `useMemo` calls list the library's `version` to read the database again, which the rule
+  calls unnecessary, and the few missing dependencies it finds are deliberate. A
+  `useLibraryMemo(read, deps)` that adds `version` itself, named in the rule's `additionalHooks`,
+  would let it run.
 - **Kotlin tests for the fold and headless modules in CI:** `:lelap-fold:testDebugUnitTest` (M113)
   and `:lelap-headless:testDebugUnitTest` (M123) pass locally but aren't in the `android-unit-tests`
   job's Gradle line in `ci.yml`. Adding them doesn't change when the job runs; waiting on the

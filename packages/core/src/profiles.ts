@@ -160,3 +160,14 @@ export function setDeviceValue(db: Db, key: string, value: string, now: number):
     .onConflictDoUpdate({ target: syncState.key, set: { value, updatedAt: now } })
     .run();
 }
+
+/** The device value naming the profile the player's book was loaded for. */
+export const PLAYER_PROFILE_KEY = 'playerProfile';
+
+/**
+ * The profile the player plays for: the one its book was loaded for, which may not be the one on
+ * screen ([screenProfile]) after a switch. Places and taps go there.
+ */
+export function playerProfileOf(db: Db, screenProfile: string): string {
+  return deviceValue(db, PLAYER_PROFILE_KEY) ?? screenProfile;
+}

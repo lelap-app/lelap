@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { chapterAt, chapterJump, mediaSpan, toBookPosition, toFilePosition } from './timeline';
+import {
+  chapterAt,
+  chapterJump,
+  mediaSpan,
+  skipLanding,
+  toBookPosition,
+  toFilePosition,
+} from './timeline';
 
 const files = [
   { location: 'a', durationMs: 1000 },
@@ -104,5 +111,28 @@ describe('chapterJump', () => {
     expect(chapterJump(chapters, 61_000, false)).toBe(0);
     expect(chapterJump(chapters, 1_000, false)).toBe(0);
     expect(chapterJump([], 50_000, false)).toBe(0);
+  });
+});
+
+describe('skipLanding', () => {
+  it('crosses file ends like a whole-book skip', () => {
+    expect(skipLanding(files, 'a', 900, 300)).toBe(1200);
+    expect(skipLanding(files, 'b', 100, -300)).toBe(800);
+  });
+
+  it('stops at the book’s start and end', () => {
+    expect(skipLanding(files, 'a', 100, -300)).toBe(0);
+    expect(skipLanding(files, 'c', 400, 300)).toBe(3500);
+  });
+
+  it('stays in the file when the next one’s length is unknown', () => {
+    const unknown = [
+      { location: 'a', durationMs: 1000 },
+      { location: 'b', durationMs: 0 },
+      { location: 'c', durationMs: 500 },
+    ];
+    // b takes everything past a's end, so the skip isn't cut at the 1.5 s the known files add up to.
+    expect(skipLanding(unknown, 'a', 900, 30_000)).toBe(30_900);
+    expect(skipLanding(unknown, 'c', 100, -300)).toBe(1000);
   });
 });

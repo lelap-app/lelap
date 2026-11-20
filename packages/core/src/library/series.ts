@@ -42,6 +42,8 @@ export type Series = {
   ordered: boolean;
   /** Numbers that books the profile hid hold (M115): not missing, and nothing to look for. */
   held: number[];
+  /** Titles of the books the profile hid, so a whole series list knows them by title too. */
+  heldTitles: string[];
 };
 
 /** Gaps are only shown up to this number, so a year or a catalogue number reads as no gap. */
@@ -355,6 +357,7 @@ function build(db: Db, profileId: string): Built {
       missing: missingNumbers(usual.map((b) => b.number)).filter((n) => !hiddenNumbers.has(n)),
       ordered: order.length > 0,
       held: [...hiddenNumbers].sort((a, b) => a - b),
+      heldTitles: [...new Set(group.filter((m) => m.hidden).map((m) => m.book.title))],
     });
   }
   return { series: out.sort((a, b) => compareNatural(a.name, b.name)), all, held };

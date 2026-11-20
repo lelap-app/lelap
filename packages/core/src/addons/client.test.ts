@@ -139,6 +139,31 @@ describe('requests', () => {
     ).toEqual(librivox.manifest);
   });
 
+  it('drops resources this app does not know and keeps the rest (M145)', async () => {
+    const later = {
+      ...librivox.manifest,
+      resources: ['catalog', 'reviews', { name: 'transcribe', types: ['audiobook'] }, 'meta'],
+    };
+    const read = await fetchManifest(
+      fake(() => later),
+      'https://x.example/manifest.json',
+    );
+    expect(read.resources).toEqual(['catalog', 'meta']);
+    // Still refused: a resource entry with no name, and a manifest with nothing this app knows.
+    await expect(
+      fetchManifest(
+        fake(() => ({ ...librivox.manifest, resources: ['catalog', { types: ['audiobook'] }] })),
+        'https://x.example/manifest.json',
+      ),
+    ).rejects.toThrow('not a Lelap add-on');
+    await expect(
+      fetchManifest(
+        fake(() => ({ ...librivox.manifest, resources: ['reviews'] })),
+        'https://x.example/manifest.json',
+      ),
+    ).rejects.toThrow('not a Lelap add-on');
+  });
+
   it('builds catalog URLs and drops invalid items', async () => {
     const fetcher = fake(() => ({ metas: [preview('librivox:1'), { id: 'broken' }] }));
     const [ref] = browseCatalogs([librivox], ['audiobook']);

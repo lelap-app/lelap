@@ -39,15 +39,26 @@ class ListeningTallyTest {
   fun knowsWhereTheSessionThatReachedTheEndBegan() {
     val log = log()
     val t = tally()
-    assertNull(log.sessionStartOf("book-1"))
+    assertNull(t.finishStart(log, "book-1"))
     t.observe(log, heard(40_000), elapsedMs = 0, wallMs = 0)
     // Still playing: the open session.
-    assertEquals("book-1/0.mp3" to 40_000L, log.sessionStartOf("book-1"))
+    assertEquals("book-1/0.mp3" to 40_000L, t.finishStart(log, "book-1"))
     // The end closes it with a pause; its start stays known.
-    t.observe(log, heard(90_000, playing = false), elapsedMs = 50_000, wallMs = 50_000)
+    t.observe(log, heard(90_000, playing = false).copy(ended = true), elapsedMs = 50_000, wallMs = 50_000)
     assertNull(log.session)
-    assertEquals("book-1/0.mp3" to 40_000L, log.sessionStartOf("book-1"))
-    assertNull(log.sessionStartOf("book-2"))
+    assertEquals("book-1/0.mp3" to 40_000L, t.finishStart(log, "book-1"))
+    assertNull(t.finishStart(log, "book-2"))
+  }
+
+  @Test
+  fun aSessionItNeverSawBorrowsNoEarlierStart() {
+    val log = log()
+    val t = tally()
+    t.observe(log, heard(40_000), elapsedMs = 0, wallMs = 0)
+    t.observe(log, heard(50_000, playing = false), elapsedMs = 10_000, wallMs = 10_000)
+    // A short stretch to the end that no observation caught, then the end itself.
+    t.observe(log, heard(90_000, playing = false).copy(ended = true), elapsedMs = 20_000, wallMs = 20_000)
+    assertNull(t.finishStart(log, "book-1"))
   }
 
   @Test

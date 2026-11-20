@@ -29,9 +29,14 @@ const plural =
   /\bt\(\s*('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")(?:[^()]|\([^()]*\))*\)\s*:\s*t\(\s*('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g;
 const used = new Set();
 const pairs = [];
+// Core can't import t(); a core file that takes the app's as a `Translate` writes its lines the same way.
+const core = files(join(repo, 'packages/core/src'), /^(?!.*\.test\.ts$).*\.ts$/).filter((file) =>
+  /\bt: Translate\b/.test(readFileSync(file, 'utf8')),
+);
 for (const file of [
   ...files(join(root, 'app'), /\.tsx?$/),
   ...files(join(root, 'src'), /\.tsx?$/),
+  ...core,
 ]) {
   const source = readFileSync(file, 'utf8');
   for (const m of source.matchAll(call)) used.add(unquote(m[1]));

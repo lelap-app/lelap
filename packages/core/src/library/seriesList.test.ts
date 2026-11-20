@@ -7,6 +7,7 @@ import { ROOT, scanned } from '../../test/files';
 import type { Db } from '../db';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { books, type KindTags } from '../schema';
+import { hideBooks } from './hidden';
 import { setFinished } from './queries';
 import { applyScan, splitScanned, upsertRoot } from './scan';
 import { getSeries, type Series, type SeriesBook, setSeriesOrder } from './series';
@@ -93,6 +94,7 @@ const seriesOf = (list: SeriesBook[], extra: Partial<Series> = {}): Series => ({
   missing: [],
   ordered: false,
   held: [],
+  heldTitles: [],
   ...extra,
 });
 
@@ -186,6 +188,18 @@ describe('a whole series on its page', () => {
     expect(rows.map(describeRow)).not.toContain('lack 2 Fasandræberne');
   });
 
+  it('leaves out a book a hidden one stands for by its title alone (M145)', () => {
+    const rows = seriesRows(
+      seriesOf([entry('Kvinden i buret', 1)], { heldTitles: ['Fasandræberne'] }),
+      DEPARTMENT_Q,
+    );
+    expect(rows.map(describeRow)).toEqual([
+      'have Kvinden i buret',
+      'lack 3 Flaskepost fra P',
+      'lack 4 Journal 64',
+    ]);
+  });
+
   it('shows gaps as before without a list', () => {
     const rows = seriesRows(
       seriesOf([entry('Kvinden i buret', 1), entry('Journal 64', 4)], { missing: [2, 3] }),
@@ -231,7 +245,7 @@ const tags = (series: string): KindTags => ({
   series,
 });
 
-function library(db: Db) {
+function library(db: Db, extra: ReturnType<typeof scanned>[] = []) {
   let id = 0;
   const newId = () => `id-${String(++id).padStart(6, '0')}`;
   const rootId = upsertRoot(
@@ -251,6 +265,7 @@ function library(db: Db) {
       albumArtist: 'Jussi Adler-Olsen',
       kindTags: tags('Afdeling Q #4'),
     }),
+    ...extra,
   ]);
   applyScan(db, {
     rootId,
@@ -267,7 +282,7 @@ function library(db: Db) {
       .from(books)
       .where(eq(books.location, `${ROOT}/${folder}`))
       .get()?.id ?? '';
-  return { first: idOf('Q1'), fourth: idOf('Q4') };
+  return { first: idOf('Q1'), fourth: idOf('Q4'), idOf };
 }
 
 describe('next in the whole series', () => {
@@ -285,6 +300,23 @@ describe('next in the whole series', () => {
       title: 'Fasandræberne',
       year: 2008,
     });
+  });
+
+  it('does not name a hidden book that has no number as one to look for (M145)', () => {
+    const db = createTestDb();
+    const { first, idOf } = library(db, [
+      scanned('Q2/book.m4b', {
+        album: 'Fasandræberne',
+        albumArtist: 'Jussi Adler-Olsen',
+        kindTags: tags('Afdeling Q'),
+      }),
+    ]);
+    hideBooks(db, ME, [idOf('Q2')], 2);
+    keepSeriesList(db, 'afdeling q', 'en', DEPARTMENT_Q, 1);
+    expect(nextInWholeSeries(db, ME, first, 'en')).toMatchObject({ book: null, number: 3 });
+    const series = getSeries(db, ME, 'afdeling q');
+    if (!series) throw new Error('no series');
+    expect(seriesRows(series, DEPARTMENT_Q).map(describeRow)).not.toContain('lack 2 Fasandræberne');
   });
 
   it('plays the next book the library has, past the finished ones', () => {

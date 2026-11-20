@@ -527,7 +527,7 @@ class PlaybackService : MediaLibraryService() {
     val ended = current ?: return
     // The session that reached the end, for the finish scrobble's start (M102).
     val start = try {
-      Accounting.edit(this) { it.sessionStartOf(ended.bookId) }
+      Accounting.edit(this) { tally.finishStart(it, ended.bookId) }
     } catch (e: Exception) {
       null
     }
@@ -638,12 +638,12 @@ class PlaybackService : MediaLibraryService() {
     if (loaded != null && PositionJournal.isSameBook(loaded, player.mediaItemCount, load)) {
       // Also an update: a list that starts or stops playing changes it (M112).
       currentHandsOver = load.handsOver
-      if (PositionJournal.filesChanged(loaded, playlist)) {
+      if (PositionJournal.filesChanged(loaded, playlist, onMobileData())) {
         switchFiles(load, autoplay)
         return
       }
-      // The same addresses with another automatic pair (M121): kept for the next rebuild of the
-      // items, which picks by the connection then.
+      // The same picked files with other addresses or another automatic pair (M121): kept for the
+      // next rebuild of the items, which picks by the connection then.
       if (loaded.files != playlist.files) current = (current ?: loaded).copy(files = playlist.files)
       // A changed intro or outro for the show, or chapters found from silences, apply to the
       // book that is loaded, at its live place.
@@ -957,7 +957,7 @@ class PlaybackService : MediaLibraryService() {
     val before = placeNow()
     val (index, position) = SeekRules.skip(active.currentMediaItemIndex, active.currentPosition, deltaMs, durations())
     active.seekTo(index, position)
-    jumped(before, PlaybackHistory.SKIP, source)
+    jumped(before, PlaybackHistory.SKIP, source, index to position)
   }
 
   private fun chapterTitleAt(playlist: BookPlaylist, index: Int, positionMs: Long): String? {
@@ -999,21 +999,22 @@ class PlaybackService : MediaLibraryService() {
     }
 
     /** A seek from a controller: the history, and Back on the notification after a long one. */
-    private fun sought(command: () -> Unit) {
+    private fun sought(index: Int, positionMs: Long?, command: () -> Unit) {
       val before = placeNow()
       command()
-      jumped(before, PlaybackHistory.SEEK, currentSource())
+      jumped(before, PlaybackHistory.SEEK, currentSource(), positionMs?.let { index to it })
     }
 
     override fun play() = pressed(PlaybackHistory.PLAY) { super.play() }
     override fun pause() = pressed(PlaybackHistory.PAUSE) { super.pause() }
     override fun setPlayWhenReady(playWhenReady: Boolean) =
       pressed(if (playWhenReady) PlaybackHistory.PLAY else PlaybackHistory.PAUSE) { super.setPlayWhenReady(playWhenReady) }
-    override fun seekTo(positionMs: Long) = sought { super.seekTo(positionMs) }
-    override fun seekTo(mediaItemIndex: Int, positionMs: Long) = sought { super.seekTo(mediaItemIndex, positionMs) }
+    override fun seekTo(positionMs: Long) = sought(currentMediaItemIndex, positionMs) { super.seekTo(positionMs) }
+    override fun seekTo(mediaItemIndex: Int, positionMs: Long) =
+      sought(mediaItemIndex, positionMs) { super.seekTo(mediaItemIndex, positionMs) }
     // Play on an ended book comes here (Media3's play button); not a jump the listener made.
     override fun seekToDefaultPosition() = super.seekToDefaultPosition()
-    override fun seekToDefaultPosition(mediaItemIndex: Int) = sought { super.seekToDefaultPosition(mediaItemIndex) }
+    override fun seekToDefaultPosition(mediaItemIndex: Int) = sought(mediaItemIndex, null) { super.seekToDefaultPosition(mediaItemIndex) }
 
     private val skipCommands = intArrayOf(
       Player.COMMAND_SEEK_TO_PREVIOUS, Player.COMMAND_SEEK_TO_NEXT,
@@ -1093,6 +1094,7 @@ class PlaybackService : MediaLibraryService() {
       playing = p.isPlaying,
       engaged = p.playWhenReady && p.playbackState != Player.STATE_ENDED && p.playbackState != Player.STATE_IDLE,
       speed = p.playbackParameters.speed,
+      ended = p.playbackState == Player.STATE_ENDED,
     )
   }
 
@@ -1143,8 +1145,10 @@ class PlaybackService : MediaLibraryService() {
   }
 
   /** A skip or seek moved the place from [before]: logged, and Back offered after a long one away from the app. */
-  private fun jumped(before: Pair<String, Long>?, action: String, source: String?) {
-    val after = placeNow() ?: return
+  private fun jumped(before: Pair<String, Long>?, action: String, source: String?, target: Pair<Int, Long>? = null) {
+    val now = placeNow() ?: return
+    // A receiver reports the place before the seek for a while, so the target says where it went.
+    val after = target?.let { (index, at) -> now.first to PlaybackHistory.landing(index, at, timelineDurations()) } ?: now
     if (before == null || before.first != after.first) return
     if (source != null) record(after.first, action, source, before.second, after.second)
     if (backOffer.jumped(after.first, before.second, after.second, external = source != null)) updateSleepButton()
@@ -1162,7 +1166,7 @@ class PlaybackService : MediaLibraryService() {
       val target = SleepBoundary.fileTarget(offer.fromMs, timelineDurations())
       // A place on a file's end is the next file's start, so the file doesn't end again.
       if (target.atFileEnd && target.index + 1 < active.mediaItemCount) active.seekTo(target.index + 1, 0L) else active.seekTo(target.index, target.positionMs)
-      placeNow()?.let { (bookId, at) -> if (source != null) record(bookId, PlaybackHistory.SEEK, source, before.second, at) }
+      if (source != null) record(offer.bookId, PlaybackHistory.SEEK, source, before.second, offer.fromMs)
     }
     updateSleepButton()
   }

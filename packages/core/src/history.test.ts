@@ -11,13 +11,20 @@ import {
   HISTORY_PER_BOOK,
   type HistoryReport,
   isUndoableJump,
+  offersGoBack,
   pruneHistory,
   readReport,
   recordHistory,
   repeatsPlay,
   sleepStopOf,
 } from './history';
-import { deleteProfile, DEFAULT_PROFILE_ID as ME } from './profiles';
+import {
+  deleteProfile,
+  DEFAULT_PROFILE_ID as ME,
+  PLAYER_PROFILE_KEY,
+  playerProfileOf,
+  setDeviceValue,
+} from './profiles';
 import { books, playbackHistory, profiles } from './schema';
 import { sleepStopChoices } from './sleep';
 
@@ -160,6 +167,12 @@ describe('playback history', () => {
     expect(db.select().from(playbackHistory).all()).toEqual([]);
   });
 
+  it('names the profile the player plays for, not the one on screen', () => {
+    expect(playerProfileOf(db, 'screen')).toBe('screen');
+    setDeviceValue(db, PLAYER_PROFILE_KEY, ME, NOW);
+    expect(playerProfileOf(db, 'screen')).toBe(ME);
+  });
+
   it('skips a report for a book that is gone', () => {
     expect(recordHistory(db, ME, report({ bookId: 'gone' }), NOW)).toBeNull();
   });
@@ -169,6 +182,40 @@ describe('playback history', () => {
     expect(isUndoableJump(report({ fromMs: 2 * MIN, toMs: 0, action: 'seek' }))).toBe(true);
     expect(isUndoableJump(report({ fromMs: 0, toMs: 5 * MIN, action: 'chapter' }))).toBe(true);
     expect(isUndoableJump(report({ fromMs: 0, toMs: 5 * MIN, action: 'play' }))).toBe(false);
+  });
+
+  it('does not offer going back after the notification’s own Back', () => {
+    const keep = (r: Partial<HistoryReport>) => {
+      const entry = recordHistory(db, ME, report(r), r.at ?? NOW);
+      if (!entry) throw new Error('not kept');
+      return entry;
+    };
+    const log = () => bookHistory(db, ME, bookId, NOW + MIN);
+    const skips = keep({ source: 'notification', at: NOW, fromMs: 10 * MIN, toMs: 12 * MIN });
+    expect(offersGoBack(log(), skips, NOW + 1_000)).toBe(true);
+    // Back lands where the skips started, a little later than it left.
+    const back = keep({
+      action: 'seek',
+      source: 'notification',
+      at: NOW + 20_000,
+      fromMs: 12 * MIN + 20_000,
+      toMs: 10 * MIN,
+    });
+    expect(offersGoBack(log(), back, NOW + 21_000)).toBe(false);
+  });
+
+  it('offers going back after a jump that only passes the place before', () => {
+    const first = recordHistory(db, ME, report({ fromMs: 10 * MIN, toMs: 12 * MIN }), NOW);
+    const seek = recordHistory(
+      db,
+      ME,
+      report({ action: 'seek', at: NOW + 20_000, fromMs: 12 * MIN, toMs: 30 * MIN }),
+      NOW,
+    );
+    if (!first || !seek) throw new Error('not kept');
+    expect(offersGoBack(bookHistory(db, ME, bookId, NOW), seek, NOW + 21_000)).toBe(true);
+    // Long after, nothing is offered.
+    expect(offersGoBack(bookHistory(db, ME, bookId, NOW), seek, NOW + MIN)).toBe(false);
   });
 
   it('reads what players report, and drops what it does not know', () => {
