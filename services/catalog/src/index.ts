@@ -18,7 +18,7 @@ const workersCache = (): ResponseCache => ({
 let app: Hono | undefined;
 
 export default {
-  fetch(request: Request, env: WorkerEnv): Response | Promise<Response> {
+  fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Response | Promise<Response> {
     const namespace = env.HARDCOVER_GRANTS;
     app ??= createApp(
       {
@@ -28,6 +28,7 @@ export default {
       },
       env,
     );
-    return app.fetch(request);
+    // The execution context reaches the add-ons, so their handlers' `waitUntil` outlives the answer.
+    return app.fetch(request, env, ctx);
   },
 } satisfies ExportedHandler<WorkerEnv>;

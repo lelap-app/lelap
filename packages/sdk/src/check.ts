@@ -1064,3 +1064,5 @@ function mergeRepeats(problems: CheckProblem[]): CheckProblem[] {
         },
   );
 }
+
+export { mockFetch, type MockAnswer, type MockFetch, type MockRoutes } from './mock';

@@ -38,25 +38,27 @@ import {
 
 type Awaitable<T> = T | Promise<T>;
 
+/** What Cloudflare Workers hands `fetch` as its third argument; only `waitUntil` is used. */
+export type ExecutionContextLike = { waitUntil(promise: Promise<unknown>): void };
+
+/**
+ * Every handler gets these. `waitUntil` keeps work going after the answer is sent, such as
+ * finishing a slow search into a cache: on Workers through the execution context, elsewhere the
+ * promise simply runs. A rejection goes to `onError`.
+ */
+export type HandlerArgs = {
+  config: Config | null;
+  request: Request;
+  waitUntil: (promise: Promise<unknown>) => void;
+};
+
 /** `config` is what the listener chose on the configure page, or `null` without one. */
-export type CatalogArgs = {
-  type: ContentType;
-  id: string;
-  extra: Extra;
-  config: Config | null;
-  request: Request;
-};
-export type ItemArgs = { type: ContentType; id: string; config: Config | null; request: Request };
-export type ScrobbleArgs = { events: ScrobbleEvent[]; config: Config | null; request: Request };
-export type HealthArgs = { config: Config | null; request: Request };
+export type CatalogArgs = HandlerArgs & { type: ContentType; id: string; extra: Extra };
+export type ItemArgs = HandlerArgs & { type: ContentType; id: string };
+export type ScrobbleArgs = HandlerArgs & { events: ScrobbleEvent[] };
+export type HealthArgs = HandlerArgs;
 /** `name` is the series' name; `extra` has `author`, `language` and `work` when the app knows them. */
-export type SeriesArgs = {
-  type: ContentType;
-  name: string;
-  extra: Extra;
-  config: Config | null;
-  request: Request;
-};
+export type SeriesArgs = HandlerArgs & { type: ContentType; name: string; extra: Extra };
 
 export type ConfigureOptions = {
   fields: ConfigField[];
@@ -147,7 +149,8 @@ export type AddonOptions = {
 
 export type Addon = {
   manifest: Manifest;
-  fetch: (request: Request) => Promise<Response>;
+  /** `env` is ignored; `ctx` is the Workers execution context, so `waitUntil` reaches it. */
+  fetch: (request: Request, env?: unknown, ctx?: ExecutionContextLike) => Promise<Response>;
 };
 
 export const CORS_HEADERS: Record<string, string> = {
@@ -252,7 +255,16 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
     return typeof definition === 'string' ? manifest.types : (definition.types ?? manifest.types);
   };
 
-  const handle = async (request: Request): Promise<Response> => {
+  const handle = async (
+    request: Request,
+    ctx: ExecutionContextLike | undefined,
+  ): Promise<Response> => {
+    const waitUntil = (promise: Promise<unknown>) => {
+      const watched = Promise.resolve(promise).catch((error: unknown) =>
+        options.onError?.(error, request),
+      );
+      ctx?.waitUntil(watched);
+    };
     if (request.method === 'OPTIONS')
       return new Response(null, { status: 204, headers: CORS_HEADERS });
 
@@ -282,7 +294,11 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
       if (request.method !== 'GET' && request.method !== 'HEAD')
         return json({ error: 'Method not allowed' }, 405);
       const body = handlers.health
-        ? checked(HealthResponseSchema, await handlers.health({ config, request }), validate)
+        ? checked(
+            HealthResponseSchema,
+            await handlers.health({ config, request, waitUntil }),
+            validate,
+          )
         : { status: 'ok' as const };
       return json(body, 200, body.cacheMaxAge ?? 0);
     }
@@ -302,7 +318,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
       }
       const parsed = ScrobbleRequest.safeParse(body);
       if (!parsed.success) return json({ error: 'These are not scrobble events' }, 400);
-      await handlers.scrobble({ events: parsed.data.events, config, request });
+      await handlers.scrobble({ events: parsed.data.events, config, request, waitUntil });
       return json({ received: parsed.data.events.length });
     }
     if (request.method !== 'GET' && request.method !== 'HEAD')
@@ -320,14 +336,14 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
         if (!known) return json({ error: 'Unknown catalog' }, 404);
         const body = checked(
           CatalogResponseSchema,
-          await handlers.catalog({ ...route, config, request }),
+          await handlers.catalog({ ...route, config, request, waitUntil }),
           validate,
         );
         return json(body, 200, body.cacheMaxAge);
       }
       case 'meta': {
         if (!handlers.meta) break;
-        const result = await handlers.meta({ ...route, config, request });
+        const result = await handlers.meta({ ...route, config, request, waitUntil });
         if (!result) return json({ error: 'Not found' }, 404);
         const body = checked(MetaResponseSchema, result, validate);
         return json(body, 200, body.cacheMaxAge);
@@ -336,7 +352,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
         if (!handlers.artwork) break;
         const body = checked(
           ArtworkResponseSchema,
-          await handlers.artwork({ ...route, config, request }),
+          await handlers.artwork({ ...route, config, request, waitUntil }),
           validate,
         );
         return json(body, 200, body.cacheMaxAge);
@@ -351,6 +367,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
             extra: route.extra,
             config,
             request,
+            waitUntil,
           }),
           validate,
         );
@@ -361,7 +378,7 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
         // A web add-on's answer passes through the network, so it never carries headers.
         const body = checked(
           WebStreamResponse as ZodType<StreamResponse>,
-          await handlers.stream({ ...route, config, request }),
+          await handlers.stream({ ...route, config, request, waitUntil }),
           validate,
         );
         // Also with validation off: a login in a header must not leave as JSON.
@@ -570,9 +587,9 @@ export function createAddon(handlers: AddonHandlers, options: AddonOptions = {})
 
   return {
     manifest,
-    fetch: async (request) => {
+    fetch: async (request, _env, ctx) => {
       try {
-        return await handle(request);
+        return await handle(request, ctx);
       } catch (error) {
         if (error instanceof AddonError) {
           const response = json({ error: error.message }, error.status);
