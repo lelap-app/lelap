@@ -24,6 +24,7 @@ import { SilenceSync } from '../src/silences';
 import { PlayerProvider, useLibrary } from '../src/player';
 import { BadgeSourceProvider } from '../src/components/CoverBadges';
 import { HandoffBanner } from '../src/components/HandoffBanner';
+import { WebUpdateBanner } from '../src/components/WebUpdateBanner';
 import { DetailPane } from '../src/components/DetailPane';
 import { DragHost } from '../src/drag';
 import { HingeSide } from '../src/components/HingeSide';
@@ -188,6 +189,7 @@ export default function RootLayout() {
           </BadgeSourceProvider>
           <ShortcutsHost key={look} />
           <InstalledAppHost />
+          <WebUpdateBanner />
           <HandoffBanner />
           <DialogHost />
           <AddonReviewHost />
