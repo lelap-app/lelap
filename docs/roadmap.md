@@ -156,6 +156,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M148 UI consistency 1](milestones/m148.md)          | Planned     |           5 | Shared header, button, empty and error states, notice and text field, swapped in on every screen                                                                     |
 | [M149 UI consistency 2](milestones/m149.md)          | Planned     |           4 | One tab header with Settings everywhere, a wider desktop rail, clear settings rows, a type scale and a copy pass                                                     |
 | [M150 Better sound 5](milestones/m150.md)            | Planned     |             | Skip silence on the web for VBR MP3 in Firefox and Safari, MP3 seeks placed per browser, time saved while casting rendered                                           |
+| [M151 Snappy navigation](milestones/m151.md)         | Planned     |             | Switching tabs and opening Settings without a wait: timed, then hidden screens frozen                                                                                |
 
 <!-- milestones:end -->
 
