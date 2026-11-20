@@ -97,6 +97,21 @@ export const SettingsSchema = z.object({
   accent: AccentChoiceSchema.default('amber'),
   /** The theme last read from a file, already checked for contrast; `theme: 'custom'` uses it. */
   customTheme: CustomThemeSchema.nullable().default(null),
+  /**
+   * Settings → Streams (M153), per profile and synced: formats in order, such as `['m4b']`;
+   * languages in order, null for the profile's language; and whether streams still preparing
+   * are listed.
+   */
+  streamFormats: z
+    .array(z.string().regex(/^[a-z0-9]{1,20}$/))
+    .max(20)
+    .default([]),
+  streamLanguages: z
+    .array(z.string().regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/))
+    .max(10)
+    .nullable()
+    .default(null),
+  showPreparingStreams: z.boolean().default(true),
   /** Speaker groups played on (M125), newest first, for one tap in the Cast sheet. */
   castGroups: z.array(CastGroupSchema).max(CAST_GROUPS_KEPT).default([]),
 });

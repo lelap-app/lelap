@@ -257,6 +257,14 @@ GET  /configure           (the add-on's own settings page)
   below. A stream's `format`, `language` and `releaseId` (a lowercase URN compared whole) feed
   M153's ordering and merging. An older app ignores the fields, plays a preparing stream as if it
   were ready, and skips a stream with an unmeasured part.
+- **Stream choice in the app** (M153): the item page orders every add-on's streams once, by the
+  profile's preferred languages (default: the profile's language), then preferred formats, then
+  the add-ons' order; a stream without the field sorts after those that match. Streams with the
+  same `releaseId` are one row naming each add-on, playing a ready copy first, then the
+  listener's language and format, then the add-ons' order; the player moving to the next copy
+  when one fails waits for M155.
+  Only preparing streams can be hidden. Three settings, per profile and synced; no rules editor,
+  so add-ons keep no ordering settings of their own for this.
 
 First-party add-ons: Catalog (Open Library, Audnexus, Podcast Index), LibriVox, Whole series
 (Wikidata), Internet Archive

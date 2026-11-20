@@ -74,6 +74,10 @@ export const SYNCED_SETTINGS = [
   'voiceEq',
   'skipSilence',
   'evenLoudness',
+  // Stream choice (M153): the listener's wishes, not the device's.
+  'streamFormats',
+  'streamLanguages',
+  'showPreparingStreams',
 ];
 
 type Part = {

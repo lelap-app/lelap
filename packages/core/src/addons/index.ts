@@ -14,3 +14,4 @@ export * from './sandboxFetch';
 export * from './editions';
 export * from './seriesVolume';
 export * from './preparing';
+export * from './streamChoice';

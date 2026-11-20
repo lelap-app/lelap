@@ -158,9 +158,9 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M150 Better sound 5](milestones/m150.md)            | Planned     |             | Skip silence on the web for VBR MP3 in Firefox and Safari, MP3 seeks placed per browser, time saved while casting rendered                                           |
 | [M151 Snappy navigation](milestones/m151.md)         | Planned     |             | Switching tabs and opening Settings without a wait: timed, then hidden screens frozen                                                                                |
 | [M152 Add-on protocol 5](milestones/m152.md)         | Done        |           7 | Revision 14 — streams that are still preparing, parts without lengths, a second look for slow answers, stream format, language and release                           |
-| [M153 Stream choice](milestones/m153.md)             | Planned     |             | The item page sorts streams from every add-on by the listener's formats and languages and merges the same release                                                    |
+| [M153 Stream choice](milestones/m153.md)             | Done        |           5 | The item page sorts streams from every add-on by the listener's formats and languages and merges the same release                                                    |
 | [M154 Live streams](milestones/m154.md)              | Done        |          10 | A live flag on streams — no place, progress or downloads, now-playing from ICY and ID3, HLS playback                                                                 |
-| [M155 Preparing in the player](milestones/m155.md)   | Planned     |             | What M152 left to the player — a preparing part mid-book, seeking past unmeasured parts, chapters once parts are measured                                            |
+| [M155 Preparing in the player](milestones/m155.md)   | Planned     |             | What M152 and M153 left to the player — preparing audio while playing, seeking past unmeasured parts, chapters once measured, the next copy on failure               |
 
 <!-- milestones:end -->
 
@@ -178,11 +178,11 @@ when it is planned.
   field and forbid lasting copies (so no Google fields in downloads or sync), it has no narrators or
   lengths, and its coverage of Danish editions is unknown until a key exists. Apple's iTunes Search
   API is out unless a store link is shown beside its data. M137 is left unused.
-- **Hook dependencies in lint (left from M145):** `react-hooks/exhaustive-deps` stays off, since
-  about 80 `useMemo` calls list the library's `version` to read the database again, which the rule
-  calls unnecessary, and the few missing dependencies it finds are deliberate. A
-  `useLibraryMemo(read, deps)` that adds `version` itself, named in the rule's `additionalHooks`,
-  would let it run.
+- **Part transcripts, finer points (after M136):** a synced book that another device already has
+  keeps that device's add-on reference, so transcripts an add-on adds later reach it only when it
+  opens the book's item itself (`applyBook` in `packages/core/src/sync/ops.ts`); and the transcript
+  screen reads the database only when the part changes, so transcripts written while it is open
+  show after the next part.
 - **Kotlin tests for the fold and headless modules in CI:** `:lelap-fold:testDebugUnitTest` (M113)
   and `:lelap-headless:testDebugUnitTest` (M123) pass locally but aren't in the `android-unit-tests`
   job's Gradle line in `ci.yml`. Adding them doesn't change when the job runs; waiting on the

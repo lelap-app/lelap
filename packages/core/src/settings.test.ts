@@ -40,6 +40,9 @@ describe('settings', () => {
       theme: 'night',
       accent: 'amber',
       customTheme: null,
+      streamFormats: [],
+      streamLanguages: null,
+      showPreparingStreams: true,
       castGroups: [],
     });
   });

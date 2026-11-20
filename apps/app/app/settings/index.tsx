@@ -9,6 +9,7 @@ import { useAddons } from '../../src/addons';
 import { db } from '../../src/db';
 import { isDiagnosticsOn } from '../../src/diagnostics';
 import { formatBytes, formatTimeOfDay } from '../../src/format';
+import { languageName } from '../../src/languageName';
 import { LANGUAGES, t } from '../../src/i18n';
 import { BLUETOOTH } from '../../src/platform/bluetooth';
 import * as downloads from '../../src/platform/downloads';
@@ -25,7 +26,7 @@ type Part = string | { text: string; spoken: string };
 type Group = { route: Href; title: string; summary: (Part | null | undefined | false)[] };
 
 /**
- * Settings (M133): eight groups, each a line with what it is set to now, opening its own page.
+ * Settings (M133): nine groups, each a line with what it is set to now, opening its own page.
  * A group with nothing to show on this platform or for this profile has no line.
  */
 export default function SettingsScreen() {
@@ -94,6 +95,19 @@ export default function SettingsScreen() {
         !kids && servers > 0 && (servers === 1 ? t('1 server') : t('{n} servers', { n: servers })),
         addons.length > 0 &&
           (addons.length === 1 ? t('1 add-on') : t('{n} add-ons', { n: addons.length })),
+      ],
+    },
+    // How a book's page orders streams (M153); kids' profiles keep the defaults.
+    !kids && {
+      route: '/settings/streams',
+      title: t('Streams'),
+      summary: [
+        settings.streamFormats.length > 0 && settings.streamFormats.slice(0, 3).join(', '),
+        settings.streamLanguages
+          ?.map((code) => languageName(code))
+          .slice(0, 2)
+          .join(', '),
+        !settings.showPreparingStreams && t('Ready ones only'),
       ],
     },
     {
