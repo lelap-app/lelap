@@ -253,7 +253,6 @@ export const ms: Record<string, string> = {
   Podcasts: 'Podcast',
   Search: 'Cari',
   'Self-improvement': 'Pembangunan diri',
-  Sound: 'Bunyi',
   '1 add-on': '1 alat tambah',
   '{h} h {m} min left': '{h} j {m} min lagi',
   '{n} bookmarks': '{n} penanda',

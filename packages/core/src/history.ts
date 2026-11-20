@@ -67,6 +67,8 @@ export const HISTORY_PER_BOOK = 50;
 export const HISTORY_KEEP_MS = 30 * 24 * 60 * 60_000;
 /** Skips this close together from the same place are one entry, from the first place to the last. */
 export const SKIP_RUN_MS = 5_000;
+/** A Play this soon after another, near the same place, changed nothing and isn't kept. */
+export const REPEAT_PLAY_MS = 10_000;
 /** A jump longer than this offers to go back. */
 export const UNDO_JUMP_MS = 60_000;
 /** How long the player's bar offers to go back after a jump. */
@@ -109,6 +111,22 @@ export function continuesSkips(last: HistoryReport | undefined, next: HistoryRep
   );
 }
 
+/**
+ * Whether [next] is a Play pressed again while [last], the newest entry, already started playing:
+ * a second tap while a stream starts, or Continue listening on a book that plays.
+ */
+export function repeatsPlay(last: HistoryReport | undefined, next: HistoryReport): boolean {
+  return (
+    last !== undefined &&
+    last.action === 'play' &&
+    next.action === 'play' &&
+    last.bookId === next.bookId &&
+    next.at >= last.at &&
+    next.at - last.at <= REPEAT_PLAY_MS &&
+    Math.abs(next.fromMs - last.toMs) <= REPEAT_PLAY_MS
+  );
+}
+
 /** A skip, seek or chapter jump far enough to offer going back. */
 export function isUndoableJump(entry: HistoryReport): boolean {
   return (
@@ -119,7 +137,8 @@ export function isUndoableJump(entry: HistoryReport): boolean {
 
 /**
  * Adds a report to the profile's log, merging a run of skips, and keeps the book's log short.
- * Returns the entry as stored, or null when its book is no longer in the library.
+ * Returns the entry as stored, or null when nothing was kept: its book is no longer in the
+ * library, or it repeats a Play just logged.
  */
 export function recordHistory(
   db: Db,
@@ -145,6 +164,7 @@ export function recordHistory(
       .orderBy(desc(playbackHistory.at), desc(playbackHistory.id))
       .limit(1)
       .get();
+    if (last && repeatsPlay(asReport(last), report)) return null;
     let entry: HistoryEntry;
     if (last && continuesSkips(asReport(last), report)) {
       tx.update(playbackHistory)
