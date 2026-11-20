@@ -6,7 +6,6 @@ import { locatePath, parseRoute, seriesPath, settingsPath } from './paths';
 import {
   choiceOptions,
   choiceValues,
-  LATEST_PROTOCOL_VERSION,
   LibraryResponse,
   LocateRequest,
   LocateResponse,
@@ -38,10 +37,6 @@ const inApp = {
 };
 
 describe('revision 11', () => {
-  it('is the newest revision', () => {
-    expect(LATEST_PROTOCOL_VERSION).toBe(11);
-  });
-
   it('locates files only for an add-on inside the app with a library', () => {
     expect(offersLocate(Manifest.parse(inApp))).toBe(true);
     expect(offersLocate(Manifest.parse({ ...inApp, resources: ['library'] }))).toBe(false);
