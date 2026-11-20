@@ -149,7 +149,6 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M140 App polish 5](milestones/m140.md)              | Done        |           9 | Add-ons page order, dialogs on wide screens, one copy of each screen, fewer player tools, streamed lengths                                                    |
 | [M141 Web app updates](milestones/m141.md)           | Done        |           5 | An open tab of the web app offers a new deploy with a Reload button                                                                                           |
 | [M142 Status page](milestones/m142.md)               | Planned     |             | A scheduled Worker checks the site, the web app and each service, and shows a status page                                                                     |
-| [M143 UI consistency](milestones/m143.md)            | Planned     |             | The changes the maintainer picks from the UI review, current against suggested, and nothing more                                                              |
 | [M144 SDK 0.6](milestones/m144.md)                   | Planned     |             | Publish the protocol revisions waiting in changesets as @lelap/sdk 0.6, with docs and examples that match                                                     |
 | [M145 Upkeep 2](milestones/m145.md)                  | Planned     |             | Small correctness leftovers from M102, M117, M121, M127, M138 and M83, gathered from Future goals                                                             |
 | [M146 Home and away addresses](milestones/m146.md)   | Planned     |             | Audiobookshelf, Jellyfin and WebDAV with a home and an outside address, switching to the one that answers                                                     |
@@ -222,8 +221,7 @@ Weighed on 2026-11-20 and left out, so they don't come back without a new reason
 and players (theme files of colours already cover looks, and skins would be a plugin surface to
 keep stable); following authors and narrators (the open catalogs have no reliable new-release
 data for audiobooks, so the row would be mostly empty); on-device transcripts for local files (a
-large model and the battery for a feature few would turn on). A second server address, voice
-search and the small leftovers became [M146](milestones/m146.md), [M147](milestones/m147.md) and
+large model and the battery for a feature few would turn on). The UI review became M148 and M149, so M143 is left unused. A second server address, voice search and the small leftovers became [M146](milestones/m146.md), [M147](milestones/m147.md) and
 [M145](milestones/m145.md).
 
 ## Environments
