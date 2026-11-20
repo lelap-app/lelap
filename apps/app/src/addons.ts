@@ -155,8 +155,14 @@ export async function playItem(
 ): Promise<string> {
   disarmFallback();
   const bookId = addItem(meta, found);
-  await playBook(bookId);
+  // Armed before the load, so it hears the player's first report on this copy.
   if (copies.length > 1) armFallback(bookId, meta, copies, found);
+  try {
+    await playBook(bookId);
+  } catch (error) {
+    disarmFallback();
+    throw error;
+  }
   return bookId;
 }
 

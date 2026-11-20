@@ -1,5 +1,5 @@
 import { type Chapter, hasParts, type Meta, type MetaPreview, type Stream } from '@lelap/sdk';
-import { and, asc, eq, like, notInArray } from 'drizzle-orm';
+import { and, asc, eq, isNull, like, notInArray } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { FeedTranscript } from '../podcasts/podcasting';
@@ -167,7 +167,8 @@ function applyWaitingChapters(db: Db, bookId: string, now: number, newId: IdGene
   const parts = db
     .select({ title: bookFiles.title, name: bookFiles.name, durationMs: bookFiles.durationMs })
     .from(bookFiles)
-    .where(eq(bookFiles.bookId, bookId))
+    // A missing part counts for nothing, as in the book's total.
+    .where(and(eq(bookFiles.bookId, bookId), isNull(bookFiles.missingSince)))
     .orderBy(asc(bookFiles.idx))
     .all();
   if (parts.some((p) => !(p.durationMs > 0))) return false;

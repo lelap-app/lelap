@@ -38,8 +38,8 @@ object PreparingAudio {
   }
 
   /**
-   * Whether another failure ends the load. The player may wait on preparing audio for as long as
-   * [delayMs] allows, so every other failure keeps Media3's usual number of tries itself.
+   * This load's failures that weren't preparing answers, at least 1: the count other rules (an
+   * expired link, M98) read, since Media3 counts every answer while the audio was preparing.
    */
-  fun givesUp(errorCount: Int, minRetries: Int): Boolean = errorCount > minRetries
+  fun errorsBesides(errorCount: Int, preparingAnswers: Int): Int = (errorCount - preparingAnswers).coerceAtLeast(1)
 }

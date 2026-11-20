@@ -460,6 +460,7 @@ function player(): HTMLAudioElement {
     // The element can't tell a 503 from any other failure: the address itself says.
     void preparingAnswer(index, audio.src).then((handled) => {
       if (handled || load !== partLoads) return;
+      clearPreparing();
       error = mediaErrorText(code);
       note('error', code);
       emit();

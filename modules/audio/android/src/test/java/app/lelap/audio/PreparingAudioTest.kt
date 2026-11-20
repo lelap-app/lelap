@@ -1,9 +1,7 @@
 package app.lelap.audio
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PreparingAudioTest {
@@ -34,8 +32,10 @@ class PreparingAudioTest {
     assertEquals(60L, PreparingAudio.retryAfterSeconds("Tue, 14 Nov 2023 22:14:20 GMT", now))
   }
 
-  @Test fun `other failures keep the usual number of tries`() {
-    assertFalse(PreparingAudio.givesUp(3, 3))
-    assertTrue(PreparingAudio.givesUp(4, 3))
+  @Test fun `other rules count only failures that weren't preparing answers`() {
+    assertEquals(1, PreparingAudio.errorsBesides(25, 24))
+    assertEquals(2, PreparingAudio.errorsBesides(26, 24))
+    // After Media3 reset its count on progress, the old answers no longer count.
+    assertEquals(1, PreparingAudio.errorsBesides(2, 24))
   }
 }
