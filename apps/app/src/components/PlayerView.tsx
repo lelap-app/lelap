@@ -54,6 +54,7 @@ import { db, newId } from '../db';
 import { showAlert } from '../dialog';
 import { HeadphoneBanner } from '../devices';
 import { formatClock, formatLeft } from '../format';
+import { languageName } from '../languageName';
 import * as history from '../history';
 import * as audio from '../platform/audio';
 import { askLocalNetwork, useLocalNetworkCause } from '../localNetwork';
@@ -271,6 +272,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
   const [lastBookmark, setLastBookmark] = useState<string | null>(null);
   // The bar covers the chapter; a tap on the note under it switches to the whole book.
   const [wholeBook, setWholeBook] = useState(false);
+  const [about, setAbout] = useState(false);
   const [jumpText, setJumpText] = useState('');
   // While the playhead is dragged the page holds still, so moving up for fine scrubbing works.
   const [scrubbing, setScrubbing] = useState(false);
@@ -532,10 +534,30 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
               </Text>
             </Pressable>
           )}
-          {detail.narrator !== null && (
+          {/* The narrator and the language a server gives (M135). */}
+          {(detail.narrator !== null || detail.language !== null) && (
             <Text numberOfLines={1} className="text-sm text-muted">
-              {t('Read by {names}', { names: detail.narrator })}
+              {[
+                detail.narrator !== null ? t('Read by {names}', { names: detail.narrator }) : null,
+                detail.language !== null ? languageName(detail.language) : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </Text>
+          )}
+          {/* What the book is about, as its server says (M135); a tap shows all of it. */}
+          {detail.description !== null && (
+            <Pressable
+              onPress={() => setAbout((open) => !open)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: about }}
+              {...hint(about ? t('Shows less') : t('Shows all of it'))}
+              className="min-h-12 justify-center"
+            >
+              <Text numberOfLines={about ? undefined : 2} className="text-sm text-soft">
+                {detail.description}
+              </Text>
+            </Pressable>
           )}
         </View>
         <Pressable

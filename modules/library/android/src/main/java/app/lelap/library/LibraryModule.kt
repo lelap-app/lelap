@@ -93,6 +93,11 @@ class LibraryModule : Module() {
       }
     }
 
+    // A server's file, such as a cover, saved with its login; a Digest login is answered (M135).
+    AsyncFunction("saveRemote") Coroutine { url: String, headers: Map<String, String>, path: String ->
+      withContext(Dispatchers.IO) { RemoteFile.save(url, headers, File(path)) }
+    }
+
     AsyncFunction("readImage") Coroutine { uri: String, coverDir: String, fileName: String? ->
       withContext(Dispatchers.IO) { TagReader(context).readImage(Uri.parse(uri), File(coverDir), fileName) }
     }

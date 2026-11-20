@@ -210,6 +210,9 @@ export type BookDetail = {
    * from a server, its tags or its add-on (M65, M109).
    */
   series: string | null;
+  /** What the book is about and its language, as its server or add-on says (M135). */
+  description: string | null;
+  language: string | null;
 };
 
 export function getBook(db: Db, profileId: string, bookId: string): BookDetail | null {
@@ -241,6 +244,8 @@ export function getBook(db: Db, profileId: string, bookId: string): BookDetail |
     speed: entry?.speed ?? 1,
     narrator: (!music && first?.kindTags?.narrator?.trim()) || null,
     series: linkedSeries(db, bookId) ?? (first?.kindTags?.series?.trim() || null),
+    description: first?.kindTags?.description?.trim() || null,
+    language: first?.kindTags?.language?.trim() || null,
   };
 }
 

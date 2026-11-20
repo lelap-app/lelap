@@ -22,9 +22,11 @@ export const PROTOCOL_VERSION = 1;
  * `resumed` only to an add-on that heard of the book before, and `sessionStartMs` on every
  * `finish` that ends a session; 11 adds a library's `settings`, the `locate` resource, `choice`
  * settings and the `settings` resource that lists their options, for add-ons inside the app, and
- * the `series` resource: every book of a series, in order; 12 adds `transcripts` on a stream part.
+ * the `series` resource: every book of a series, in order; 12 adds `transcripts` on a stream part;
+ * 13 adds a library file's `description`, `language`, `series` and `ref`, a library's `digest`
+ * login, and each file's `durationMs` and `ref` in a place report.
  */
-export const LATEST_PROTOCOL_VERSION = 12;
+export const LATEST_PROTOCOL_VERSION = 13;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
@@ -127,6 +129,8 @@ const RESERVED_HEADERS = new Set([
   'referer',
   'user-agent',
   'accept-encoding',
+  // Where the app keeps a library's `digest` login on its way to the native code (revision 13).
+  'x-lelap-digest',
 ]);
 
 /**
@@ -598,6 +602,17 @@ export const LibraryFile = z.object({
   downloadUrl: Url.optional(),
   /** Since revision 6: the listener's place in this file as the source keeps it. */
   place: LibraryPlace.optional(),
+  /** Since revision 13: what the book is about, as plain text. From the book's first file. */
+  description: z.string().max(10_000).optional(),
+  /** Since revision 13: the book's language, BCP 47 or ISO 639, such as `en` or `da`. */
+  language: z.string().min(2).max(35).optional(),
+  /** Since revision 13: the book's series, the main one first, like a meta's. */
+  series: z.array(Series).max(8).optional(),
+  /**
+   * Since revision 13: the add-on's own note for this file, such as where the server keeps its
+   * place, handed back in place reports. Never shown; stored with the file.
+   */
+  ref: z.string().min(1).max(1024).optional(),
 });
 export type LibraryFile = z.infer<typeof LibraryFile>;
 
@@ -606,6 +621,17 @@ export const LibraryResponse = z.object({
   files: z.array(LibraryFile).max(50_000),
   /** Sent with every request for these files on the phone, and only to the add-on's own hosts. */
   headers: RequestHeaders.optional(),
+  /**
+   * Since revision 13: a login the app answers with HTTP Digest (RFC 7616) on the phone, for each
+   * request to the add-on's own hosts, such as a Calibre content server's default without https.
+   * Sealed like `headers`. A browser can't use it.
+   */
+  digest: z
+    .object({
+      username: z.string().min(1).max(256),
+      password: z.string().max(1024),
+    })
+    .optional(),
   /** Since revision 6: added to every address of these files, only on the add-on's own hosts. */
   query: QueryParams.optional(),
   /**
@@ -636,6 +662,12 @@ export type LibraryResponse = z.infer<typeof LibraryResponse>;
 
 const PlaceFile = z.object({ path: LibraryPath, url: Url });
 
+/** Since revision 13, in a place report: the file's length as the app knows it, and its `ref`. */
+const ReportedFile = PlaceFile.extend({
+  durationMs: Duration.optional(),
+  ref: z.string().min(1).max(1024).optional(),
+});
+
 /**
  * Since revision 6, for add-ons with the `place` resource: what the app hands the add-on's `place`
  * handler, next to `settings`, when the listener's place in one of its library's books moves. The
@@ -643,9 +675,9 @@ const PlaceFile = z.object({ path: LibraryPath, url: Url });
  */
 export const PlaceReport = z.object({
   /** The file the listener is in, as the library listed it (its address without `query`). */
-  file: PlaceFile,
+  file: ReportedFile,
   /** Every file of the book, in order, so the add-on can tidy places it kept for the others. */
-  files: z.array(PlaceFile).max(5000),
+  files: z.array(ReportedFile).max(5000),
   /** Where the listener is in `file`. */
   positionMs: Duration,
   /** When, as Unix time in milliseconds. */

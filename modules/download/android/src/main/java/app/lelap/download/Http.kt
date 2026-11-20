@@ -72,11 +72,15 @@ object Http {
     }
   }
 
-  // Redirects by hand: HttpURLConnection does not follow them from http to https or back.
+  // Redirects by hand: HttpURLConnection does not follow them from http to https or back. A Digest
+  // login among the headers (M135) is answered on the file's own server instead of sent.
   private fun open(url: String, existing: Long, headers: Map<String, String>, text: NativeCatalog): HttpURLConnection {
+    val (plain, digest) = HttpDigest.split(headers)
     val origin = URL(url)
     var current = origin
-    repeat(MAX_REDIRECTS) {
+    var redirects = 0
+    var answered = false
+    while (true) {
       if (current.protocol != "https" && current.protocol != "http") {
         throw PermanentFailure(text.t("Only web addresses can be downloaded."))
       }
@@ -88,19 +92,32 @@ object Http {
       c.setRequestProperty("Accept-Encoding", "identity")
       if (existing > 0) c.setRequestProperty("Range", "bytes=$existing-")
       // A login goes to the server it belongs to, never to a host a redirect points at.
-      if (current.host == origin.host && current.protocol == origin.protocol) {
-        headers.forEach { (name, value) -> c.setRequestProperty(name, value) }
+      val own = current.host == origin.host && current.protocol == origin.protocol
+      if (own) {
+        plain.forEach { (name, value) -> c.setRequestProperty(name, value) }
+        if (digest != null) HttpDigest.answer(current, digest, c.requestMethod)?.let { c.setRequestProperty("Authorization", it) }
       }
       val code = c.responseCode
+      if (code == 401 && own && digest != null && !answered) {
+        val challenge = HttpDigest.challenge(HttpDigest.challenges(c))
+        if (challenge != null) {
+          c.disconnect()
+          HttpDigest.remember(current, digest, challenge)
+          answered = true
+          continue
+        }
+      }
       if (code in 300..399 && code != 304) {
         val location = c.getHeaderField("Location")
         c.disconnect()
+        if (++redirects >= MAX_REDIRECTS) {
+          throw PermanentFailure(text.t("The server sent the download through too many addresses."))
+        }
         current = URL(current, location ?: throw PermanentFailure(text.t("The server answered HTTP {status} without an address to go to.", "status" to code)))
       } else {
         return c
       }
     }
-    throw PermanentFailure(text.t("The server sent the download through too many addresses."))
   }
 
   private suspend fun copy(

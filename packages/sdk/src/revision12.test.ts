@@ -13,8 +13,8 @@ const part = { url: 'https://example.org/01.mp3', durationMs: 1000 };
 const transcript = { url: 'https://example.org/01.txt', type: 'text/plain', language: 'en' };
 
 describe('revision 12', () => {
-  it('is the newest revision', () => {
-    expect(LATEST_PROTOCOL_VERSION).toBe(12);
+  it('is known', () => {
+    expect(LATEST_PROTOCOL_VERSION).toBeGreaterThanOrEqual(12);
   });
 
   it('reads a part’s transcripts', () => {

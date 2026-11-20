@@ -17,6 +17,7 @@ export function presentFiles(db: Db, bookId: string) {
       name: bookFiles.name,
       downloadPath: bookFiles.downloadPath,
       rootId: bookFiles.rootId,
+      ref: bookFiles.ref,
     })
     .from(bookFiles)
     .where(and(eq(bookFiles.bookId, bookId), isNull(bookFiles.missingSince)))

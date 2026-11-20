@@ -1,3 +1,5 @@
+import { withoutDigestLogin } from '@lelap/core';
+
 import * as opfs from './platform/opfs';
 
 // The web app's covers folder (M67): server folder covers (WebDAV, S3, Subsonic, Plex) need the
@@ -17,7 +19,8 @@ export async function saveWebCover(
 ): Promise<string> {
   const path = `${COVERS}/${name}`;
   if (await opfs.exists(path)) return path;
-  const response = await fetch(uri, { headers });
+  // A browser can't answer a Digest login (M135); it stays out of the request.
+  const response = await fetch(uri, { headers: withoutDigestLogin(headers) });
   if (!response.ok) throw new Error(`The cover answered HTTP ${response.status}.`);
   const blob = await response.blob();
   if (blob.size === 0 || blob.size > MAX_BYTES) throw new Error('The cover is empty or too big.');

@@ -115,6 +115,8 @@ export async function sandboxFetch(
     const cookie = response.headers.get('set-cookie');
     // The server's clock, for an add-on that compares its times with the phone's (M65).
     const date = response.headers.get('date');
+    // A server's login challenge, for an add-on that answers HTTP Digest itself (M135).
+    const challenge = response.headers.get('www-authenticate');
     return {
       status: response.status,
       text,
@@ -122,6 +124,7 @@ export async function sandboxFetch(
         ...(type ? { 'content-type': type } : {}),
         ...(cookie ? { 'set-cookie': cookie } : {}),
         ...(date ? { date } : {}),
+        ...(challenge ? { 'www-authenticate': challenge } : {}),
       },
     };
   } catch (error) {

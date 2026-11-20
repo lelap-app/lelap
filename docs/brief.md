@@ -212,6 +212,14 @@ GET  /configure           (the add-on's own settings page)
   in a sandbox of its own with the hosts the form grants. A resource rather than a sign-in's
   result, because a sign-in reaches only the add-on's declared hosts, never the server, and a
   resource also serves forms without a sign-in. Plex's libraries are picked this way (M118).
+- **Library details, notes and Digest** (revision 13, inside the app): a library file may name its
+  book's `description`, `language` and `series`, which take the place of the file's own, and a
+  `ref` the app stores and hands back in place reports, with each file's length (M135). A
+  listing's `digest` login is answered by the app's native code per request, as Digest binds each
+  answer to one address: it travels sealed among the library's headers as `X-Lelap-Digest`, a name
+  add-ons may not use, which the player, downloads, cast server and tag reader take out and
+  answer, and code that can't (a browser, Expo's `fetch`) drops. The add-on answers Digest for its
+  own requests, as the sandbox's `fetch` shows `www-authenticate`.
 
 First-party add-ons: Catalog (Open Library, Audnexus, Podcast Index), LibriVox, Whole series
 (Wikidata), Internet Archive

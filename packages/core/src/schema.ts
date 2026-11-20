@@ -61,6 +61,10 @@ export type KindTags = {
    * tags or an add-on's meta for a streamed book (M109). Absent from files read before M109.
    */
   series?: string | null;
+  /** What the book is about, as its server or add-on says (M135). Absent before M135. */
+  description?: string | null;
+  /** The book's language as its server or add-on says, such as `en` (M135). */
+  language?: string | null;
 };
 
 export const profiles = sqliteTable('profiles', {
@@ -236,6 +240,8 @@ export const bookFiles = sqliteTable(
     uri: text('uri').notNull(),
     /** Where a server's file downloads from, when not from `uri` (a Subsonic `download` address). */
     downloadUri: text('download_uri'),
+    /** An add-on's own note for the file (revision 13), handed back in its place reports. */
+    ref: text('ref'),
     relPath: text('rel_path').notNull(),
     name: text('name').notNull(),
     size: integer('size').notNull(),
