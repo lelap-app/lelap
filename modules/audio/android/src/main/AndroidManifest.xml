@@ -26,6 +26,20 @@
       android:authorities="${applicationId}.covers"
       android:exported="false"
       android:grantUriPermissions="true" />
+    <!-- The Assistant's “play X on Lelap” on the phone (M147); shows nothing, see VoiceSearchActivity.kt. -->
+    <activity
+      android:name="app.lelap.audio.VoiceSearchActivity"
+      android:exported="true"
+      android:excludeFromRecents="true"
+      android:noHistory="true"
+      android:taskAffinity=""
+      android:launchMode="singleInstance"
+      android:theme="@android:style/Theme.NoDisplay">
+      <intent-filter>
+        <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+    </activity>
     <!-- Lets headphone and Bluetooth Play restart playback after the app and service are gone. -->
     <receiver android:name="androidx.media3.session.MediaButtonReceiver" android:exported="true">
       <intent-filter>

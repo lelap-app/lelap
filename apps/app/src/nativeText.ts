@@ -30,6 +30,8 @@ const nativeLines = (): Record<string, string> => ({
   'Up Next': t('Up Next'),
   Lists: t('Lists'),
   'Play list': t('Play list'),
+  // A spoken request (M147) that nothing on the phone or in the add-ons matched.
+  'Nothing found for “{query}”.': t('Nothing found for “{query}”.'),
   // Download and chapter-finding notifications.
   Downloading: t('Downloading'),
   Cancel: t('Cancel'),
