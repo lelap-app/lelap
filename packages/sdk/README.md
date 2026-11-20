@@ -118,6 +118,8 @@ Coding assistants (Claude Code, Cursor and the like) working in an add-on's proj
 [`llms.txt`](llms.txt), which ships in the package: how an add-on is meant to look, the rules that
 matter, settings and testing, on one page. Point your `AGENTS.md` or `CLAUDE.md` at
 `node_modules/@lelap/sdk/llms.txt`.
+For the developer docs, [lelap.app/llms.txt](https://lelap.app/llms.txt) lists every page and
+[lelap.app/llms-full.txt](https://lelap.app/llms-full.txt) holds them all as Markdown in one file.
 
 [Your first add-on](https://lelap.app/docs/guide/) builds one step by step: a catalog, settings, a
 source for your own files and a deploy. The [SDK guide](https://lelap.app/docs/sdk/), the
