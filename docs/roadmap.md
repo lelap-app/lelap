@@ -137,7 +137,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M126 Speed and battery 2](milestones/m126.md)       | Planned     |             | What M106 left: Android's start, a Library that rereads only what changed, a smaller start bundle                                                             |
 | [M127 Series 3](milestones/m127.md)                  | Done        |           6 | Whole series from Wikidata, in release order, with the books the library lacks by title                                                                       |
 | [M128 OPDS](milestones/m128.md)                      | Done        |           8 | Any OPDS catalog as a source, such as a Calibre content server at home or a library's open catalog                                                            |
-| [M130 BookWyrm](milestones/m130.md)                  | Planned     |             | The listener's public BookWyrm shelves as catalog rows, from their own instance                                                                               |
+| [M130 BookWyrm](milestones/m130.md)                  | Done        |           5 | The listener's public BookWyrm shelves as catalog rows, from their own instance                                                                               |
 | [M131 Lepak](milestones/m131.md)                     | Done        |           7 | Free Malay, Indonesian and Singaporean podcasts from Podcast Index by language, in rows Cerita, Sembang, Sejarah and Singapura                                |
 | [M132 Open lectures](milestones/m132.md)             | Done        |           6 | 37 complete Open Yale Courses as books, one lecture per part, with Yale's credit and licence on every course                                                  |
 | [M133 Settings 2](milestones/m133.md)                | Done        |           8 | Settings as eight groups, each line saying what is set now and opening its own page                                                                           |
@@ -204,6 +204,9 @@ when it is planned.
   once BookWyrm ships a client API with its own sign-in
   ([issue #785](https://github.com/bookwyrm-social/bookwyrm/issues/785)). Until then the add-on
   only shows shelves: no password, no posting of the site's forms.
+- **BookWyrm covers from RSS (from M130):** on an instance that requires signed GET the shelves come
+  from RSS, which has no covers; matched books get Open Library's. BookWyrm's `search.json`, allowed
+  there, could give the rest theirs, at one more request a book.
 - **“More like this” and “I have N hours”:** what is left of Taste 2 after it was weighed on
   2026-11-20. Separate story and narration ratings and “why this pick” were dropped: a second
   rating doubles every rating control for a distinction few listeners make.

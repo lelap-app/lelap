@@ -29,6 +29,7 @@ type HostedId = (typeof hostedAddons)[number]['id'];
 const NAMES: Record<HostedId, string> = {
   hardcover: 'Hardcover',
   gpodder: 'gPodder sync',
+  bookwyrm: 'BookWyrm',
   lectures: 'Open lectures',
   lepak: 'Lepak',
 };
@@ -41,6 +42,9 @@ const description = (id: HostedId): string =>
     ),
     gpodder: t(
       'Reports the episodes you play to a gPodder-compatible server, so other podcast apps continue where you stopped.',
+    ),
+    bookwyrm: t(
+      'Shows your public BookWyrm shelves as rows: Want to read, Currently reading, Read and Stopped reading.',
     ),
     lectures: t(
       'Complete lecture courses from Open Yale Courses as books, one lecture per part, with Yale’s credit and licence on every course.',
@@ -59,7 +63,7 @@ const OWN_SOURCES = new Set(['app.lelap.opds']);
 /**
  * Lelap's own optional add-ons not added yet: those that come with the app (the Open Library
  * reading log, OPDS), those on our catalog host that need the listener's account (Hardcover,
- * gPodder) and those there that need nothing (Open lectures, Lepak).
+ * gPodder, BookWyrm) and those there that need nothing (Open lectures, Lepak).
  */
 export function useOwnAddonOffers(
   addons: InstalledAddon[],

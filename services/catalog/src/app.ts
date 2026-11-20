@@ -1,6 +1,8 @@
 import { CORS_HEADERS } from '@lelap/sdk';
 import { Hono } from 'hono';
 
+import { BASE_PATH as BOOKWYRM, bookwyrmAddon } from './bookwyrm/addon';
+import { createInstance } from './bookwyrm/instance';
 import { createCatalogAddon } from './catalog/addon';
 import {
   BASE_PATH as INTERNET_ARCHIVE,
@@ -141,6 +143,18 @@ export function createApp(platform: Platform, env: Env): Hono {
     ...shared,
     legacy: createSealer(env.CONFIG_SECRET, 'gpodder'),
   });
+  // BookWyrm (M130): the listener's own instance, so through the fetch that keeps off private hosts.
+  const bookwyrm = serveScrobbleAddon(
+    bookwyrmAddon(
+      createInstance(platform.userFetch ?? platform.fetch, agent, {
+        ...(platform.cache ? { cache: platform.cache } : {}),
+        ...(platform.now ? { now: platform.now } : {}),
+        ...(platform.wait ? { wait: platform.wait } : {}),
+      }),
+      upstream,
+    ),
+    { ...shared, legacy: null },
+  );
 
   const app = new Hono();
   // JSON only: never let a browser treat an answer as a page on this origin.
@@ -165,7 +179,11 @@ export function createApp(platform: Platform, env: Env): Hono {
           manifest(`${LECTURES}/manifest.json`),
           ...(lepak ? [manifest(`${LEPAK}/manifest.json`)] : []),
         ],
-        configure: [manifest(`${HARDCOVER}/configure`), manifest(`${GPODDER}/configure`)],
+        configure: [
+          manifest(`${HARDCOVER}/configure`),
+          manifest(`${GPODDER}/configure`),
+          manifest(`${BOOKWYRM}/configure`),
+        ],
       },
       200,
       CORS_HEADERS,
@@ -174,6 +192,7 @@ export function createApp(platform: Platform, env: Env): Hono {
   for (const [path, serve] of [
     [HARDCOVER, hardcover],
     [GPODDER, gpodder],
+    [BOOKWYRM, bookwyrm],
   ] as const) {
     app.all(path, (c) => serve(c.req.raw));
     app.all(`${path}/*`, (c) => serve(c.req.raw));
