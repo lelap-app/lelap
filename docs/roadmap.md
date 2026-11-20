@@ -148,6 +148,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M139 Casting 6](milestones/m139.md)                 | Planned     |             | Receiver waits tuned from measured timings, and the leading speaker leaving a group                                                                           |
 | [M140 App polish 5](milestones/m140.md)              | Done        |           9 | Add-ons page order, dialogs on wide screens, one copy of each screen, fewer player tools, streamed lengths                                                    |
 | [M141 Web app updates](milestones/m141.md)           | Done        |           5 | An open tab of the web app offers a new deploy with a Reload button                                                                                           |
+| [M142 Status page](milestones/m142.md)               | Planned     |             | A scheduled Worker checks the site, the web app and each service, and shows a status page                                                                     |
 
 <!-- milestones:end -->
 
