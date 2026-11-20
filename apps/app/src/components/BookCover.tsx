@@ -4,6 +4,7 @@ import { Image, Platform, Text, View } from 'react-native';
 
 import { CoverBadgeRow } from './CoverBadges';
 import { FadeIn } from './Motion';
+import { coverAtAddressInUse } from '../addresses';
 import { catalogCoverSource, savedCatalogCover } from '../catalogCovers';
 import { proxyBase } from '../config';
 import { OPFS_SCHEME, opfsImageUrl } from '../webCovers';
@@ -28,7 +29,8 @@ export function coverUri(book: {
   if (saved) return saved;
   // The web keeps its saved covers in OPFS, which an <img> can't read: the cover URL first, and
   // a server folder's cover through a blob URL (see CoverImage).
-  const url = webSafe(book.coverUrl);
+  // A server's cover from the address it answers at now (M146).
+  const url = webSafe(coverAtAddressInUse(book.coverUrl));
   if (url || !book.coverPath) return url;
   return `${OPFS_SCHEME}${book.coverPath}`;
 }

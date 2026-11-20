@@ -1,8 +1,15 @@
-import { listRoots, localRoot, removeRemoteRoot, sameAddonCode } from '@lelap/core';
+import {
+  listRoots,
+  localRoot,
+  removeRemoteRoot,
+  sameAddonCode,
+  takesSecondAddress,
+} from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
+import { serversChanged } from '../../src/addresses';
 import { codeFingerprint } from '../../src/addonSources';
 import { TextButton, Toggle } from '../../src/components/TextButton';
 import { db } from '../../src/db';
@@ -139,6 +146,12 @@ export default function LibrarySettings() {
                   }
                 />
               )}
+              {!s.needsLogin && takesSecondAddress(s.remote) && (
+                <TextButton
+                  text={t('Addresses')}
+                  onPress={() => router.push(`/server?root=${s.id}&addresses=1`)}
+                />
+              )}
               <TextButton
                 text={t('Remove')}
                 onPress={() =>
@@ -154,6 +167,7 @@ export default function LibrarySettings() {
                         style: 'destructive',
                         onPress: () => {
                           removeRemoteRoot(db, s.id);
+                          serversChanged();
                           if (s.remote?.type === 'addon') {
                             closeSandbox(`${s.remote.addonUrl}#${s.id}`);
                           }

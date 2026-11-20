@@ -6,6 +6,7 @@ import {
   setNetServerRefused,
 } from '@lelap/core';
 
+import { atServer, probeAfterError } from './addresses';
 import { withKey } from './audiobookshelf';
 import { db } from './db';
 import type { PlayerState } from './platform/audio';
@@ -30,6 +31,7 @@ export function checkServerAfterError(state: PlayerState, onMarked: () => void):
   const root = listRoots(db).find((r) => r.remote && location.startsWith(`${r.location}/`));
   const remote = root?.remote;
   if (!root || !remote || root.needsLogin) return;
+  probeAfterError(root.id);
   if (remote.type === 'smb' || remote.type === 'sftp') {
     check(netRootUri(remote), netfsHeaders(remote))
       .then(() => setNetServerRefused(db, root.id, null, Date.now()))
@@ -45,7 +47,7 @@ export function checkServerAfterError(state: PlayerState, onMarked: () => void):
     // `withKey` marks a refused key, and clears the mark when the key works.
     void withKey(
       root.id,
-      audiobookshelfMe((u, i) => fetch(u, i), remote.url, remote.token),
+      atServer(root.id, remote, (at) => audiobookshelfMe((u, i) => fetch(u, i), at.url, at.token)),
     )
       .catch(() => {})
       .finally(onMarked);

@@ -29,6 +29,7 @@ import {
 } from '@lelap/core';
 import { offersPlaces } from '@lelap/sdk';
 
+import { atServer } from './addresses';
 import { codeFingerprint, sourceManifest } from './addonSources';
 import { withKey } from './audiobookshelf';
 import { db } from './db';
@@ -163,7 +164,7 @@ async function sendPlace(root: Root, files: Part[], place: Place, at: number): P
     if (finished) {
       for (const part of files) {
         const id = jellyfinItemId(part.location);
-        if (id) await markJellyfinPlayed(send, remote, id);
+        if (id) await atServer(root.id, remote, (at) => markJellyfinPlayed(send, at, id));
       }
       return true;
     }
@@ -177,7 +178,9 @@ async function sendPlace(root: Root, files: Part[], place: Place, at: number): P
         : place.event === 'start'
           ? 'start'
           : 'progress';
-    await reportJellyfinProgress(send, remote, id, file.positionMs, state);
+    await atServer(root.id, remote, (at) =>
+      reportJellyfinProgress(send, at, id, file.positionMs, state),
+    );
     return true;
   }
   if (remote?.type === 'audiobookshelf') {
@@ -185,11 +188,13 @@ async function sendPlace(root: Root, files: Part[], place: Place, at: number): P
     if (!itemId) return false;
     await withKey(
       root.id,
-      reportAudiobookshelfProgress(send, remote.url, remote.token, itemId, {
-        positionMs: place.positionMs,
-        durationMs: files.reduce((sum, p) => sum + Math.max(0, p.durationMs), 0),
-        finished,
-      }),
+      atServer(root.id, remote, (at) =>
+        reportAudiobookshelfProgress(send, at.url, at.token, itemId, {
+          positionMs: place.positionMs,
+          durationMs: files.reduce((sum, p) => sum + Math.max(0, p.durationMs), 0),
+          finished,
+        }),
+      ),
     );
     return true;
   }

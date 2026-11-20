@@ -1,4 +1,5 @@
 import {
+  AddressBook,
   addonSettings,
   addonSource,
   addonSourceHosts,
@@ -19,6 +20,8 @@ import {
   type RemoteSource,
   sftpSecretJson,
   signInJellyfin,
+  takesSecondAddress,
+  tryAddresses,
   updateRemoteRoot,
 } from '@lelap/core';
 import * as DocumentPicker from 'expo-document-picker';
@@ -45,6 +48,7 @@ import { db, newId } from '../src/db';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { scanLibrary } from '../src/scan';
+import { addressesSaved, serversChanged } from '../src/addresses';
 import { Pill } from '../src/components/Pill';
 import {
   codeFingerprint,
@@ -169,6 +173,36 @@ function Field({
   );
 }
 
+/**
+ * A second address for the same server (M146), such as the public one beside the home one;
+ * folded away, so a server with one address looks as before.
+ */
+function AlsoReachable({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(value !== '');
+  if (!open) {
+    return (
+      <TextButton
+        text={t('Also reachable at')}
+        onPress={() => setOpen(true)}
+        className="self-start"
+      />
+    );
+  }
+  return (
+    <Field
+      label={t('Also reachable at')}
+      value={value}
+      onChange={onChange}
+      placeholder={'http://192.168.1.10'}
+      hint={t(
+        'Another address of the same server, such as its home address beside the public one. Lelap uses whichever answers and keeps one login for both.',
+      )}
+    />
+  );
+}
+
+const isHttp = (url: string) => /^https?:\/\//.test(url.trim());
+
 /** Adds a WebDAV server, an S3-compatible bucket, or a Jellyfin or Audiobookshelf server. */
 export default function ServerScreen() {
   const colors = useColors();
@@ -177,9 +211,15 @@ export default function ServerScreen() {
   const { refresh } = useLibrary();
   // `?root=` enters the login again for a server whose password this phone can't open; `?addon=`
   // opens the form of an add-on inside the app, such as OPDS from Lelap's own add-ons.
-  const { root: rootId, addon: chosenAddon } = useLocalSearchParams<{
+  // `?root=…&addresses=1` changes only the server's second address, with no login asked.
+  const {
+    root: rootId,
+    addon: chosenAddon,
+    addresses: addressesOnly,
+  } = useLocalSearchParams<{
     root?: string;
     addon?: string;
+    addresses?: string;
   }>();
   const [existing] = useState(() => listRoots(db).find((r) => r.id === rootId)?.remote ?? null);
   const dav = existing?.type === 'webdav' ? existing : null;
@@ -217,6 +257,7 @@ export default function ServerScreen() {
     [kinds, serverKey],
   );
   const [busy, setBusy] = useState(false);
+  const [alsoUrl, setAlsoUrlValue] = useState(dav?.alsoUrl ?? jf?.alsoUrl ?? abs?.alsoUrl ?? '');
   const [url, setUrlValue] = useState(
     dav?.url ?? smb?.url ?? sftp?.url ?? jf?.url ?? abs?.url ?? '',
   );
@@ -246,6 +287,21 @@ export default function ServerScreen() {
     setAbsSignedIn(null);
     setHostKey(null);
   };
+  const setAlsoUrl = (v: string) => {
+    setAlsoUrlValue(v);
+    setSignedIn(null);
+    setAbsSignedIn(null);
+  };
+  // Both addresses for a test: the one entered first, then the other on a connection error.
+  const testBook = useState(() => new AddressBook())[0];
+  const atEither = <T,>(request: (address: string) => Promise<T>): Promise<T> =>
+    tryAddresses(
+      testBook,
+      'form',
+      [url.trim(), alsoUrl.trim()].filter((a) => a !== ''),
+      request,
+    );
+  const also = (): { alsoUrl?: string } => (alsoUrl.trim() ? { alsoUrl: alsoUrl.trim() } : {});
   const setUsername = (v: string) => {
     setUsernameValue(v);
     setSignedIn(null);
@@ -280,7 +336,7 @@ export default function ServerScreen() {
     if (chosenSource) {
       return addonSourceHosts(chosenSource.manifest, values).some(isLocalAddress);
     }
-    return isLocalAddress(kind === 's3' ? endpoint : url);
+    return isLocalAddress(kind === 's3' ? endpoint : url) || isLocalAddress(alsoUrl);
   };
   // A failed connection, with missing local network access named when it may be the cause.
   const couldNotConnect = async (message: string) =>
@@ -289,12 +345,11 @@ export default function ServerScreen() {
   const testJellyfin = async () => {
     setBusy(true);
     try {
-      const login = { url: url.trim(), username: username.trim(), password, deviceId };
-      const { userId, token } = await signInJellyfin((u, i) => fetch(u, i), login);
-      const libraries = await listJellyfinLibraries((u, i) => fetch(u, i), {
-        ...login,
-        userId,
-        token,
+      const { userId, token, libraries } = await atEither(async (address) => {
+        const login = { url: address, username: username.trim(), password, deviceId };
+        const signed = await signInJellyfin((u, i) => fetch(u, i), login);
+        const found = await listJellyfinLibraries((u, i) => fetch(u, i), { ...login, ...signed });
+        return { ...signed, libraries: found };
       });
       setSignedIn({ userId, token, libraries });
       // Book libraries are picked to begin with; music libraries only when the user says so.
@@ -310,11 +365,12 @@ export default function ServerScreen() {
     setBusy(true);
     try {
       const fetcher = (u: string, i?: RequestInit) => fetch(u, i);
-      const address = url.trim();
       // The key is sent as it is; the server refuses it once it expires or is turned off.
       const key = apiKey.trim();
-      const me = await audiobookshelfMe(fetcher, address, key);
-      const libraries = await listAudiobookshelfLibraries(fetcher, address, key);
+      const { me, libraries } = await atEither(async (address) => ({
+        me: await audiobookshelfMe(fetcher, address, key),
+        libraries: await listAudiobookshelfLibraries(fetcher, address, key),
+      }));
       setAbsSignedIn({ userId: me.id, username: me.username ?? '', libraries });
       if (!abs) setPicked(new Set(libraries.map((l) => l.id)));
     } catch (error) {
@@ -360,7 +416,7 @@ export default function ServerScreen() {
 
   const source = (): RemoteSource =>
     kind === 'webdav'
-      ? { type: 'webdav', url: url.trim(), username: username.trim(), password }
+      ? { type: 'webdav', url: url.trim(), ...also(), username: username.trim(), password }
       : kind === 'smb'
         ? { type: 'smb', url: url.trim(), username: username.trim(), password }
         : kind === 'sftp'
@@ -379,6 +435,7 @@ export default function ServerScreen() {
             ? {
                 type: 'jellyfin',
                 url: url.trim(),
+                ...also(),
                 username: username.trim(),
                 userId: signedIn?.userId ?? '',
                 deviceId,
@@ -392,6 +449,7 @@ export default function ServerScreen() {
               ? {
                   type: 'audiobookshelf',
                   url: url.trim(),
+                  ...also(),
                   username: absSignedIn?.username ?? '',
                   userId: absSignedIn?.userId ?? '',
                   token: apiKey.trim(),
@@ -471,7 +529,11 @@ export default function ServerScreen() {
       const remote = source();
       // One request checks the address and the login before anything is saved: the WebDAV
       // folder entered, or the bucket's listing. Jellyfin was checked by "Test connection".
-      if (remote.type === 'webdav') await checkWebdav((u, i) => fetch(u, i), remote);
+      if (remote.type === 'webdav') {
+        await atEither((address) =>
+          checkWebdav((u, i) => fetch(u, i), { ...remote, url: address }),
+        );
+      }
       // SMB and SFTP: the folder entered, with the login and (SFTP) the key just shown.
       if (remote.type === 'smb' || remote.type === 'sftp') {
         await checkNetServer(netRootUri(remote), netfsHeaders(remote));
@@ -480,6 +542,7 @@ export default function ServerScreen() {
         remote.type === 's3' ? await listS3((u, i) => fetch(u, i), remote, Date.now()) : null;
       if (existing && rootId) updateRemoteRoot(db, rootId, remote, Date.now());
       else addRemoteRoot(db, remote, Date.now(), newId);
+      serversChanged();
       void scanLibrary().finally(refresh);
       refresh();
       showAlert(
@@ -498,24 +561,85 @@ export default function ServerScreen() {
     }
   };
 
+  // Only the second address changes: the server's login and its books stay as they are.
+  const saveAddresses = () => {
+    // Read again: a scan may have changed the server's state since the screen opened.
+    const root = rootId ? listRoots(db).find((r) => r.id === rootId) : undefined;
+    const current = root?.remote;
+    if (!root || !rootId || root.needsLogin || !takesSecondAddress(current)) return;
+    const next = { ...current, ...also() };
+    if (!alsoUrl.trim()) delete next.alsoUrl;
+    updateRemoteRoot(db, rootId, next, Date.now());
+    // Asked at once, so the next stream goes where the server answers.
+    addressesSaved(rootId);
+    refresh();
+    router.back();
+  };
+  const alsoOk = alsoUrl.trim() === '' || isHttp(alsoUrl);
+
+  if (addressesOnly && (dav || jf || abs)) {
+    return (
+      <ScrollView
+        className="flex-1 bg-night"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          ...READABLE,
+          paddingTop: insets.top + 8,
+          paddingHorizontal: 16,
+          paddingBottom: 32,
+          gap: 16,
+        }}
+      >
+        <View className="-ms-2 self-start">
+          <IconButton
+            name="back"
+            label={t('Back')}
+            color={colors.soft}
+            onPress={() => router.back()}
+          />
+        </View>
+        <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
+          {t('Addresses')}
+        </Text>
+        <Text className="text-soft">
+          {t(
+            'A server you reach at home and from outside can have both addresses. Lelap uses whichever answers; the login, books and places stay.',
+          )}
+        </Text>
+        <Field label={t('Server address')} locked value={url} onChange={setUrl} />
+        <AlsoReachable value={alsoUrl} onChange={setAlsoUrl} />
+        <Pressable
+          disabled={!alsoOk}
+          onPress={saveAddresses}
+          accessibilityRole="button"
+          className={`min-h-12 items-center justify-center rounded-full py-3 ${alsoOk ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
+        >
+          <Text className={`font-semibold ${alsoOk ? 'text-ink' : 'text-muted'}`}>{t('Save')}</Text>
+        </Pressable>
+      </ScrollView>
+    );
+  }
+
   const ready = chosenSource
     ? (chosenSource.manifest.settings ?? []).every(
         (f) => !f.required || (values[f.key] ?? '').trim() !== '',
       )
-    : kind === 'webdav'
-      ? /^https?:\/\//.test(url.trim())
-      : kind === 'smb' || kind === 'sftp'
-        ? NETFS &&
-          parseNetAddress(url)?.scheme === kind &&
-          (kind === 'smb' ||
-            (username.trim() !== '' && (password !== '' || privateKey.trim() !== '')))
-        : kind === 'jellyfin'
-          ? /^https?:\/\//.test(url.trim()) && username.trim() !== ''
-          : kind === 'audiobookshelf'
-            ? /^https?:\/\//.test(url.trim()) && apiKey.trim() !== ''
-            : /^https?:\/\//.test(endpoint.trim()) &&
-              bucket.trim() !== '' &&
-              accessKeyId.trim() !== '';
+    : !alsoOk && (kind === 'webdav' || kind === 'jellyfin' || kind === 'audiobookshelf')
+      ? false
+      : kind === 'webdav'
+        ? /^https?:\/\//.test(url.trim())
+        : kind === 'smb' || kind === 'sftp'
+          ? NETFS &&
+            parseNetAddress(url)?.scheme === kind &&
+            (kind === 'smb' ||
+              (username.trim() !== '' && (password !== '' || privateKey.trim() !== '')))
+          : kind === 'jellyfin'
+            ? /^https?:\/\//.test(url.trim()) && username.trim() !== ''
+            : kind === 'audiobookshelf'
+              ? /^https?:\/\//.test(url.trim()) && apiKey.trim() !== ''
+              : /^https?:\/\//.test(endpoint.trim()) &&
+                bucket.trim() !== '' &&
+                accessKeyId.trim() !== '';
   // Jellyfin and Audiobookshelf connect in two steps: test the login, then pick libraries. SFTP
   // first shows the server's key.
   const testing =
@@ -675,6 +799,7 @@ export default function ServerScreen() {
             placeholder={'https://jellyfin.example.org'}
             hint={t('The address you open Jellyfin at, with its path if it has one.')}
           />
+          <AlsoReachable value={alsoUrl} onChange={setAlsoUrl} />
           <Field label={t('Username')} value={username} onChange={setUsername} />
           <Field
             label={t('Password')}
@@ -726,6 +851,7 @@ export default function ServerScreen() {
             placeholder={'https://abs.example.org'}
             hint={t('The address you open Audiobookshelf at, with its path if it has one.')}
           />
+          <AlsoReachable value={alsoUrl} onChange={setAlsoUrl} />
           <Field
             label={t('API key')}
             value={apiKey}
@@ -863,6 +989,7 @@ export default function ServerScreen() {
               'Nextcloud and ownCloud: Files → Settings → WebDAV shows the address; add your audiobooks folder.',
             )}
           />
+          <AlsoReachable value={alsoUrl} onChange={setAlsoUrl} />
           <Field label={t('Username')} value={username} onChange={setUsername} />
           <Field
             label={t('Password')}

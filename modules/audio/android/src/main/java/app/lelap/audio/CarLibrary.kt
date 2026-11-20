@@ -12,6 +12,12 @@ data class CarSnapshot(
   val podcasts: List<BookLoad> = emptyList(),
   val upNext: List<BookLoad> = emptyList(),
   val lists: List<CarList> = emptyList(),
+  /** More of the library, for voice search only (M147); not a shelf in the car. */
+  val library: List<BookLoad> = emptyList(),
+  /** Which of these books are podcast episodes, so voice search puts books first. */
+  val episodes: Set<String> = emptySet(),
+  /** The installed add-ons' search catalogs this profile sees, for voice search. */
+  val searchCatalogs: List<SearchCatalog> = emptyList(),
 )
 
 /**
@@ -195,6 +201,9 @@ object CarLibrary {
       podcasts = UpNext.decodeQueue(root.optJSONArray("podcasts")?.toString()),
       upNext = UpNext.decodeQueue(root.optJSONArray("upNext")?.toString()),
       lists = decodeLists(root.optJSONArray("lists")),
+      library = UpNext.decodeQueue(root.optJSONArray("library")?.toString()),
+      episodes = root.optJSONArray("episodes")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() }.toSet() }.orEmpty(),
+      searchCatalogs = AddonSearch.decodeCatalogs(root.optJSONArray("searchCatalogs")),
     )
   } catch (e: JSONException) {
     CarSnapshot()
@@ -206,6 +215,9 @@ object CarLibrary {
     .put("podcasts", loads(snapshot.podcasts))
     .put("upNext", loads(snapshot.upNext))
     .put("lists", JSONArray(snapshot.lists.map(::encodeList)))
+    .put("library", loads(snapshot.library))
+    .put("episodes", JSONArray(snapshot.episodes.toList()))
+    .put("searchCatalogs", AddonSearch.encodeCatalogs(snapshot.searchCatalogs))
     .toString()
 
   private fun encodeList(list: CarList) = JSONObject()

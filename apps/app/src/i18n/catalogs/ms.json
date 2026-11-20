@@ -1259,5 +1259,9 @@
   "Runs on this device, in a sandbox. It can reach only the address you enter.": "Berjalan dalam peranti ini, dalam kotak pasir. Ia hanya boleh mencapai alamat yang anda masukkan.",
   "Runs on this device, in a sandbox. It can reach only {hosts}.": "Berjalan dalam peranti ini, dalam kotak pasir. Ia hanya boleh mencapai {hosts}.",
   "Runs on this device, in a sandbox, with no network at all.": "Berjalan dalam peranti ini, dalam kotak pasir, tanpa rangkaian langsung.",
-  "Lelap talks to {host} for it. That service sees what you browse and search through it.": "Lelap berhubung dengan {host} untuknya. Perkhidmatan itu melihat apa yang anda layari dan cari melaluinya."
+  "Lelap talks to {host} for it. That service sees what you browse and search through it.": "Lelap berhubung dengan {host} untuknya. Perkhidmatan itu melihat apa yang anda layari dan cari melaluinya.",
+  "Also reachable at": "Juga boleh dicapai di",
+  "Addresses": "Alamat",
+  "Another address of the same server, such as its home address beside the public one. Lelap uses whichever answers and keeps one login for both.": "Alamat lain bagi pelayan yang sama, seperti alamat rumahnya di samping alamat awam. Lelap menggunakan mana-mana yang menjawab dan menyimpan satu log masuk untuk kedua-duanya.",
+  "A server you reach at home and from outside can have both addresses. Lelap uses whichever answers; the login, books and places stay.": "Pelayan yang anda capai di rumah dan dari luar boleh mempunyai kedua-dua alamat. Lelap menggunakan mana-mana yang menjawab; log masuk, buku dan kedudukan kekal."
 }

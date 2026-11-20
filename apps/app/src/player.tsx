@@ -37,6 +37,9 @@ import {
   listPrevious,
   listEarlier,
   playsFromStart,
+  getProfile,
+  listAddons,
+  voiceCatalogs,
   type LibraryBook,
   type ListFollow,
 } from '@lelap/core';
@@ -70,6 +73,7 @@ import { fileAccess } from './remote';
 import { onRootScanned } from './scan';
 import { flushScrobbles, foldServiceAccounting, trackFinished, trackPlayerState } from './scrobble';
 import { checkServerAfterError } from './serverCheck';
+import { coverAtAddressInUse, watchServerAddresses } from './addresses';
 import {
   flushServerPlaces,
   keepsServerPlaces,
@@ -509,7 +513,8 @@ export function bookLoad(
         ? coverUri(detail.book)
         : detail.book.coverPath
           ? localFileUri(detail.book.coverPath)
-          : (savedCatalogCover(detail.book.coverUrl, { check: true }) ?? detail.book.coverUrl),
+          : (savedCatalogCover(detail.book.coverUrl, { check: true }) ??
+            coverAtAddressInUse(detail.book.coverUrl)),
     files: detail.files.map((f, i) => ({
       // A downloaded part plays from the phone; the rest stream (signed, if on a server).
       uri: f.downloadPath ? localFileUri(f.downloadPath) : (access[i]?.uri ?? f.uri),
@@ -564,6 +569,22 @@ export function relocateBook(bookId: string): Promise<void> {
     if ((await audio.getState()).bookId !== bookId) return;
     const book = bookLoad(bookId);
     // Only for the book still loaded; files at the same addresses change nothing.
+    if (book) await audio.updateBook(book);
+  });
+}
+
+/**
+ * The loaded book's server answers at its other address now (M146), such as away from home Wi-Fi:
+ * the book plays on from there at its live place. Downloaded parts and other books stay as they are.
+ */
+function followServerAddress(rootIds: Set<string>): Promise<void> {
+  return enqueue(async () => {
+    if (playerProfile() !== profileId) return;
+    const bookId = (await audio.getState()).bookId;
+    if (!bookId) return;
+    const files = getBook(db, profileId, bookId)?.files ?? [];
+    if (!files.some((f) => f.rootId !== null && rootIds.has(f.rootId) && !f.downloadPath)) return;
+    const book = bookLoad(bookId);
     if (book) await audio.updateBook(book);
   });
 }
@@ -711,6 +732,8 @@ async function syncCar(): Promise<void> {
   const episodes = shelves.latestEpisodes.map(
     (e) => e.bookId ?? episodeBook(db, e.episodeId, Date.now(), newId),
   );
+  // The add-ons this profile sees, for voice search with the app closed (M147).
+  const hidden = new Set(getProfile(db, profileId)?.hiddenAddons ?? []);
   await audio
     .setCarLibrary({
       continueListening: loads(shelves.continueListening),
@@ -718,6 +741,9 @@ async function syncCar(): Promise<void> {
       podcasts: loads(episodes),
       upNext: loads(shelves.upNext),
       lists,
+      library: loads(shelves.library),
+      episodes: [...shelves.episodes, ...episodes],
+      searchCatalogs: voiceCatalogs(listAddons(db).filter((a) => !hidden.has(a.url))),
     })
     .catch(() => {});
 }
@@ -812,6 +838,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const subscription = audio.addStateListener(setState);
+    watchServerAddresses((moved) => void followServerAddress(moved).catch(logCaught));
     const start = async () => {
       const folded = foldJournal().catch(logCaught);
       await Promise.race([folded, new Promise((resolve) => setTimeout(resolve, JOURNAL_WAIT_MS))]);

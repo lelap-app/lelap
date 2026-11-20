@@ -151,8 +151,8 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M142 Status page](milestones/m142.md)               | Planned     |             | A scheduled Worker checks the site, the web app and each service, and shows a status page                                                                            |
 | [M144 SDK 0.6](milestones/m144.md)                   | Done        |           1 | Publish revisions 10 to 13 as @lelap/sdk 0.6, with waitUntil, field links and groups, credential helpers and a fetch mock                                            |
 | [M145 Upkeep 2](milestones/m145.md)                  | Done        |          10 | Small correctness leftovers from M102, M117, M121, M127, M136, M138 and M83, gathered from Future goals                                                              |
-| [M146 Home and away addresses](milestones/m146.md)   | Planned     |             | Audiobookshelf, Jellyfin and WebDAV with a home and an outside address, switching to the one that answers                                                            |
-| [M147 Play by voice](milestones/m147.md)             | Planned     |             | “Play X on Lelap” through the Assistant and Android Auto's voice search                                                                                              |
+| [M146 Home and away addresses](milestones/m146.md)   | Done        |           5 | Audiobookshelf, Jellyfin and WebDAV with a home and an outside address, switching to the one that answers                                                            |
+| [M147 Play by voice](milestones/m147.md)             | Done        |          10 | “Play X on Lelap” through the Assistant and Android Auto's voice search                                                                                              |
 | [M148 UI consistency 1](milestones/m148.md)          | Planned     |           5 | Shared header, button, empty and error states, notice and text field, swapped in on every screen                                                                     |
 | [M149 UI consistency 2](milestones/m149.md)          | Planned     |           4 | One tab header with Settings everywhere, a wider desktop rail, clear settings rows, a type scale and a copy pass                                                     |
 | [M150 Better sound 5](milestones/m150.md)            | Planned     |             | Skip silence on the web for VBR MP3 in Firefox and Safari, MP3 seeks placed per browser, time saved while casting rendered                                           |
@@ -224,6 +224,15 @@ when it is planned.
 - **Saving on the web off the main thread (after M126):** a save fingerprints the 49 MB test
   database in about 27 ms on a Mac, more on a phone's browser. A worker could do it, or SQLite's
   own page list could say which chunks changed.
+- **Home and away addresses for SMB and SFTP (after M146):** WebDAV, Jellyfin and Audiobookshelf
+  servers take a second address; SMB and SFTP don't, as their listing and streams run in native
+  code (`modules/netfs`) and would need their own probe and their own way to move a stream.
+- **Home and away addresses, the rest (after M146):** a download takes the address in use when it
+  is queued, so one held for Wi-Fi or charging may start on a network where that address is
+  silent (`apps/app/src/downloads.ts`; the URL would be chosen when WorkManager starts it); the
+  web player's `updateBook` keeps its files, so a book in the browser doesn't follow the address,
+  and the web only notices coming online, not a new network; and a switch from one Wi-Fi to
+  another without a drop between is noticed only when a stream fails.
 
 Weighed on 2026-11-20 and left out, so they don't come back without a new reason: community skins
 and players (theme files of colours already cover looks, and skins would be a plugin surface to

@@ -104,3 +104,28 @@ describe('WebDAV', () => {
     await expect(checkWebdav(refused, source)).rejects.toThrow(/refused the login/);
   });
 });
+
+describe('WebDAV at its other address (M146)', () => {
+  it('names files by the server’s own address, whichever address listed them', async () => {
+    const answers: Record<string, string> = {
+      '/remote/Audiobooks/': folder(
+        '/remote/Audiobooks/',
+        file('/remote/Audiobooks/Dune%201.mp3', 5),
+      ),
+    };
+    const fetcher = async (url: string) =>
+      new Response(answers[new URL(url).pathname] ?? '', { status: 207 });
+    const files = await listWebdav(
+      fetcher,
+      { url: 'https://me.example.org/remote/Audiobooks', username: 'me', password: 'pw' },
+      { nameAt: 'http://192.168.1.5:8080/Audiobooks/' },
+    );
+    expect(files.map((f) => [f.relPath, f.location, f.uri])).toEqual([
+      [
+        'Dune 1.mp3',
+        'webdav:192.168.1.5:8080/Audiobooks/Dune 1.mp3',
+        'http://192.168.1.5:8080/Audiobooks/Dune%201.mp3',
+      ],
+    ]);
+  });
+});

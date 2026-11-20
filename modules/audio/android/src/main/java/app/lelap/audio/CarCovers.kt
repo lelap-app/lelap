@@ -72,7 +72,7 @@ object CarCovers {
 
   /** The local cover behind [key], among the books the car can list now; null for any other. */
   fun find(key: String, snapshot: CarSnapshot, journal: BookPlaylist?): String? =
-    sequenceOf(snapshot.continueListening, snapshot.onPhone, snapshot.podcasts, snapshot.upNext)
+    sequenceOf(snapshot.continueListening, snapshot.onPhone, snapshot.podcasts, snapshot.upNext, snapshot.library)
       .flatten()
       .map { it.playlist.coverUri }
       .plus(journal?.coverUri)

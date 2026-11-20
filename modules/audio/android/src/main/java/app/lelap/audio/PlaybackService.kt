@@ -2,6 +2,7 @@ package app.lelap.audio
 
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.SearchManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -18,6 +19,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.provider.MediaStore
 import android.util.Log
 import androidx.annotation.OptIn
 import app.lelap.headless.ServerTasks
@@ -54,6 +56,7 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import app.lelap.text.NativeText
 import com.google.common.collect.ImmutableList
+import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
@@ -447,6 +450,31 @@ class PlaybackService : MediaLibraryService() {
    * language; this one has the profile's, and a new one is made on a switch.
    */
   private fun notificationProvider() = DefaultMediaNotificationProvider.Builder(NativeText.localized(this)).build()
+
+  override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    if (intent?.action != VoiceSearchActivity.PLAY_FROM_SEARCH) return super.onStartCommand(intent, flags, startId)
+    // The phone's Assistant (M147): answered as Android Auto's play-from-search is.
+    @Suppress("DEPRECATION")
+    val extras = intent.getBundleExtra(VoiceSearchActivity.EXTRAS)
+    val query = intent.getStringExtra(SearchManager.QUERY).orEmpty()
+    Futures.addCallback(
+      playFromSearch(query, extras),
+      object : FutureCallback<MediaSession.MediaItemsWithStartPosition> {
+        override fun onSuccess(result: MediaSession.MediaItemsWithStartPosition) {
+          session.player.setMediaItems(result.mediaItems, result.startIndex, result.startPositionMs)
+          session.player.prepare()
+          session.player.play()
+        }
+
+        // Nothing matched, or the app plays an add-on's item itself: don't stay started for nothing.
+        override fun onFailure(t: Throwable) {
+          if (!active.playWhenReady || player.mediaItemCount == 0) stopSelf(startId)
+        }
+      },
+      ContextCompat.getMainExecutor(this),
+    )
+    return START_NOT_STICKY
+  }
 
   override fun onTaskRemoved(rootIntent: Intent?) {
     account(durable = true)
@@ -1725,6 +1753,94 @@ class PlaybackService : MediaLibraryService() {
     }
   }
 
+  // Voice search (M147). The last few searches' matches, for Android Auto's result list; read
+  // and written on the main thread.
+  private val voiceResults = object : LinkedHashMap<String, List<VoiceMatch>>() {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<VoiceMatch>>?) = size > 4
+  }
+
+  /** A network that reaches the internet; offline, voice search stays on the phone. */
+  private fun online(): Boolean = try {
+    val connectivity = getSystemService(ConnectivityManager::class.java)
+    connectivity?.getNetworkCapabilities(connectivity.activeNetwork)
+      ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+  } catch (e: SecurityException) {
+    false
+  }
+
+  /**
+   * The matches for [answer]: the phone's at once, the add-ons' within [AddonSearch.DEADLINE_MS]
+   * when the phone has no clear one. [done] runs on the main thread with both.
+   */
+  private fun voiceSearch(answer: VoiceAnswer, snapshot: CarSnapshot, done: (List<VoiceMatch>, List<VoiceMatch>) -> Unit) {
+    val text = VoiceLibrary.addonQuery(answer.request)
+    val request = answer.request as? VoiceRequest.Find
+    if (!answer.askAddons || text == null || request == null || snapshot.searchCatalogs.isEmpty() || !online()) {
+      handler.post { done(answer.local, emptyList()) }
+      return
+    }
+    AddonSearch.submit {
+      // Whatever goes wrong, the car still gets the phone's matches and stops waiting.
+      var addons = emptyList<VoiceMatch>()
+      try {
+        addons = VoiceSearch.rank(request, AddonSearch.search(snapshot.searchCatalogs, text).map(AddonSearch::candidate))
+      } catch (e: RuntimeException) {
+        Log.w(TAG, "Add-on voice search failed: ${e.message}")
+      } finally {
+        handler.post { done(answer.local, addons) }
+      }
+    }
+  }
+
+  private fun voiceNode(match: VoiceMatch): CarNode = CarNode(
+    id = match.candidate.id,
+    title = match.candidate.title,
+    subtitle = match.candidate.subtitle,
+    artworkUri = CarCovers.artworkUri(match.candidate.artworkUri, CarCovers.authority(packageName)),
+    browsable = false,
+    playable = true,
+  )
+
+  /** Play by voice: a clear match on the phone at once, else the best after asking the add-ons. */
+  private fun playFromSearch(query: String, extras: Bundle?): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+    val snapshot = carSnapshot()
+    val answer = VoiceLibrary.answer(
+      query,
+      extras?.getString(MediaStore.EXTRA_MEDIA_TITLE),
+      extras?.getString(MediaStore.EXTRA_MEDIA_ARTIST),
+      snapshot,
+      journalLoad(),
+    )
+    val result = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
+    voiceSearch(answer, snapshot) { local, addons ->
+      val matches = VoiceSearch.merge(local, addons)
+      voiceResults[query] = matches
+      val choice = VoiceSearch.choose(local, addons)
+      when {
+        choice == null -> {
+          session.sendError(SessionError(SessionError.ERROR_BAD_VALUE, NativeText.t(this, "Nothing found for “{query}”.", "query" to query)))
+          result.setException(UnsupportedOperationException("No match"))
+        }
+        choice.candidate.local -> {
+          val load = VoiceLibrary.resolve(choice.candidate.id, carSnapshot(), journalLoad())
+          if (load != null) result.set(carPlay(load)) else result.setException(UnsupportedOperationException("Gone"))
+        }
+        else -> result.setException(startAddonItem(choice.candidate.id))
+      }
+    }
+    return result
+  }
+
+  /**
+   * An add-on's item picked by voice or in the results: the app adds it to the library and plays
+   * it, with the app closed too, since only the app resolves an add-on's sources.
+   */
+  private fun startAddonItem(mediaId: String): Exception {
+    val (type, id) = AddonSearch.parseMediaId(mediaId) ?: return UnsupportedOperationException("Not an add-on item")
+    ServerTasks.request(this, ServerTasks.PLAY, itemType = type, itemId = id)
+    return UnsupportedOperationException("The app plays this add-on item")
+  }
+
   private inner class Callback : MediaLibrarySession.Callback {
     override fun onConnect(
       session: MediaSession,
@@ -1978,6 +2094,40 @@ class PlaybackService : MediaLibraryService() {
       return Futures.immediateFuture(LibraryResult.ofItem(carItem(node), null))
     }
 
+    // Android Auto's search (M147): the matches come a moment later, once the add-ons answered.
+    override fun onSearch(
+      session: MediaLibrarySession,
+      browser: MediaSession.ControllerInfo,
+      query: String,
+      params: LibraryParams?,
+    ): ListenableFuture<LibraryResult<Void>> {
+      val snapshot = carSnapshot()
+      voiceSearch(VoiceLibrary.answer(query, null, null, snapshot, journalLoad()), snapshot) { local, addons ->
+        val matches = VoiceSearch.merge(local, addons)
+        voiceResults[query] = matches
+        session.notifySearchResultChanged(browser, query, matches.size, params)
+      }
+      return Futures.immediateFuture(LibraryResult.ofVoid(params))
+    }
+
+    override fun onGetSearchResult(
+      session: MediaLibrarySession,
+      browser: MediaSession.ControllerInfo,
+      query: String,
+      page: Int,
+      pageSize: Int,
+      params: LibraryParams?,
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+      // Asked without a search first: what the phone has, without waiting on add-ons.
+      val matches = voiceResults[query] ?: VoiceLibrary.answer(query, null, null, carSnapshot(), journalLoad()).local
+      val nodes = matches.map(::voiceNode)
+      val from = (page.toLong() * pageSize).coerceAtMost(nodes.size.toLong()).toInt()
+      val to = (from.toLong() + pageSize).coerceAtMost(nodes.size.toLong()).toInt()
+      val shown = nodes.subList(from, to)
+      grantCovers(browser, shown)
+      return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(shown.map(::carItem)), params))
+    }
+
     // A controller (Android Auto) picked an item from the browse tree: load that whole book.
     override fun onSetMediaItems(
       mediaSession: MediaSession,
@@ -1987,6 +2137,13 @@ class PlaybackService : MediaLibraryService() {
       startPositionMs: Long,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
       val picked = mediaItems.singleOrNull()?.takeIf { it.localConfiguration == null }
+      // “Play X on Lelap” from the Assistant or Android Auto's voice button (M147).
+      picked?.requestMetadata?.searchQuery?.let { return playFromSearch(it, picked.requestMetadata.extras) }
+      picked?.let { VoiceLibrary.resolve(it.mediaId, carSnapshot(), journalLoad()) }
+        ?.let { return Futures.immediateFuture(carPlay(it)) }
+      if (picked != null && AddonSearch.parseMediaId(picked.mediaId) != null) {
+        return Futures.immediateFailedFuture(startAddonItem(picked.mediaId))
+      }
       picked?.let { CarLibrary.resolveList(it.mediaId, carSnapshot(), journalLoad()) }
         ?.let { return Futures.immediateFuture(carPlayList(it)) }
       val load = picked?.let { CarLibrary.resolve(it.mediaId, carSnapshot(), journalLoad()) }

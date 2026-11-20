@@ -89,7 +89,14 @@ export const profiles = sqliteTable('profiles', {
  * synced. Jellyfin keeps a token, not the password; Audiobookshelf an API key.
  */
 export type RemoteSource =
-  | { type: 'webdav'; url: string; username: string; password: string }
+  | {
+      type: 'webdav';
+      url: string;
+      /** Where the server is also reachable, such as its public address beside the home one (M146). */
+      alsoUrl?: string;
+      username: string;
+      password: string;
+    }
   /** A Windows share or a NAS over SMB 2 or 3 (M62): `smb://host/share/folder`. Android only. */
   | {
       type: 'smb';
@@ -114,6 +121,8 @@ export type RemoteSource =
   | {
       type: 'jellyfin';
       url: string;
+      /** Where the server is also reachable, such as its public address beside the home one (M146). */
+      alsoUrl?: string;
       username: string;
       userId: string;
       deviceId: string;
@@ -124,6 +133,8 @@ export type RemoteSource =
   | {
       type: 'audiobookshelf';
       url: string;
+      /** Where the server is also reachable, such as its public address beside the home one (M146). */
+      alsoUrl?: string;
       username: string;
       userId: string;
       /** An API key, made in Audiobookshelf's settings. */

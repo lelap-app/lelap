@@ -14,7 +14,9 @@ What the app needs to do while none of its screens is up (M123), on Android.
   to run the app's JavaScript task registered with `registerServerTask`, starting the app
   without a screen if it isn't running. The playback service asks for `places` after a pause of
   a book whose server keeps places, and for `locate` after it started a book from an add-on
-  server that locates files (Up Next, Android Auto, the widget, resuming from headphones). Other
+  server that locates files (Up Next, Android Auto, the widget, resuming from headphones), and
+  for `play` with an add-on item's type and ID found by voice search (M147), which the app adds
+  to the library and plays. Other
   modules depend on this one (`implementation project(':lelap-headless')`).
 
 Unit tests for the pure part run on the JVM:
