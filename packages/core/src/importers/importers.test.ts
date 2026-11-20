@@ -180,7 +180,7 @@ describe('AntennaPod', () => {
   });
 
   it('subscribes and carries played marks and places over', async () => {
-    saveFeed(db, FEED_URL, parseFeed(rss), { etag: null, lastModified: null }, 100, newId);
+    saveFeed(db, FEED_URL, await parseFeed(rss), { etag: null, lastModified: null }, 100, newId);
     const data = await readAntennaPod(await antennaPodExport());
     const result = applyAntennaPod(db, ME, data, 9_000, newId);
 
@@ -204,7 +204,7 @@ describe('AntennaPod', () => {
   });
 
   it('keeps a place Lelap saved after AntennaPod played it', async () => {
-    saveFeed(db, FEED_URL, parseFeed(rss), { etag: null, lastModified: null }, 100, newId);
+    saveFeed(db, FEED_URL, await parseFeed(rss), { etag: null, lastModified: null }, 100, newId);
     const data = await readAntennaPod(await antennaPodExport());
     applyAntennaPod(db, ME, data, 9_000, newId);
     const episode = listAllBooks(db, ME).find((b) => b.title === 'Episode 2');
@@ -223,9 +223,9 @@ describe('AntennaPod', () => {
     expect(listAllBooks(db, ME).find((b) => b.title === 'Episode 2')?.bookPositionMs).toBe(90_000);
   });
 
-  it('takes subscriptions from an OPML export', () => {
+  it('takes subscriptions from an OPML export', async () => {
     const opml = `<opml version="2.0"><body><outline text="Garden" xmlUrl="${FEED_URL}"/></body></opml>`;
-    expect(antennaPodFromOpml(opml).feeds).toEqual([
+    expect((await antennaPodFromOpml(opml)).feeds).toEqual([
       { title: 'Garden', feedUrl: FEED_URL, episodes: [] },
     ]);
   });

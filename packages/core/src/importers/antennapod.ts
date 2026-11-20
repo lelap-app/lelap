@@ -104,9 +104,13 @@ export async function readAntennaPod(all: SqlAll): Promise<AntennaPodData> {
 }
 
 /** Subscriptions only, from AntennaPod's OPML export. */
-export function antennaPodFromOpml(xml: string): AntennaPodData {
+export async function antennaPodFromOpml(xml: string): Promise<AntennaPodData> {
   return {
-    feeds: parseOpml(xml).map((f) => ({ title: f.title, feedUrl: f.feedUrl, episodes: [] })),
+    feeds: (await parseOpml(xml)).map((f) => ({
+      title: f.title,
+      feedUrl: f.feedUrl,
+      episodes: [],
+    })),
     localFeeds: [],
   };
 }

@@ -16,8 +16,11 @@ const fixture = (name: string) =>
 let n = 0;
 const newId = () => `id-${String(++n).padStart(6, '0')}`;
 
+// Read once for the tests below; the parser loads on first use (M126).
+const gardenHour = await parseFeed(fixture('garden-hour.xml'));
+
 describe('soundbites, location, value and alternate enclosures', () => {
-  const feed = parseFeed(fixture('garden-hour.xml'));
+  const feed = gardenHour;
   const [tomatoes, leeks, seeds] = feed.episodes;
 
   it('reads soundbites in order and drops ones without a time or a length', () => {
@@ -127,8 +130,8 @@ describe('place links', () => {
 });
 
 describe('value information', () => {
-  it('takes the fee off the top and shares the rest by split', () => {
-    const feed = parseFeed(fixture('garden-hour.xml'));
+  it('takes the fee off the top and shares the rest by split', async () => {
+    const feed = await parseFeed(fixture('garden-hour.xml'));
     expect(valueInfoOf(feed.extras.value ?? [])).toEqual([
       {
         type: 'lightning',
@@ -184,8 +187,11 @@ describe('value information', () => {
   });
 });
 
+// Read once for the tests below; the parser loads on first use (M126).
+const gardenHourAtom = await parseFeed(fixture('garden-hour.atom'));
+
 describe('Atom text constructs', () => {
-  const feed = parseFeed(fixture('garden-hour.atom'));
+  const feed = gardenHourAtom;
   const [tomatoes, leeks] = feed.episodes;
 
   it('reads xhtml content with nested elements as text', () => {
@@ -216,7 +222,7 @@ describe('refreshFeeds', () => {
       const { podcastId } = saveFeed(
         db,
         `https://feeds.example.org/${name}.xml`,
-        parseFeed(xml),
+        await parseFeed(xml),
         { etag: null, lastModified: null },
         100,
         newId,

@@ -35,8 +35,11 @@ let n = 0;
 const newId = () => `id-${String(++n).padStart(6, '0')}`;
 const FEED_URL = 'https://example.org/night-sky.xml';
 
+// Read once for the tests below; the parser loads on first use (M126).
+const podcasting2 = await parseFeed(fixture('podcasting2.xml'));
+
 describe('Podcasting 2.0 feed tags', () => {
-  const feed = parseFeed(fixture('podcasting2.xml'));
+  const feed = podcasting2;
   const [orion, plain] = feed.episodes;
 
   it('reads people and funding links of the show', () => {
@@ -208,18 +211,18 @@ describe('storing Podcasting 2.0 fields', () => {
     db = await createTestDb();
   });
 
-  const save = () =>
+  const save = async () =>
     saveFeed(
       db,
       FEED_URL,
-      parseFeed(fixture('podcasting2.xml')),
+      await parseFeed(fixture('podcasting2.xml')),
       { etag: '"v1"', lastModified: null },
       1,
       newId,
     );
 
-  it('keeps extras on the podcast and its episodes', () => {
-    const { podcastId } = save();
+  it('keeps extras on the podcast and its episodes', async () => {
+    const { podcastId } = await save();
     const orion = listEpisodes(db, ME, podcastId).find((e) => e.title === 'Orion in winter');
     const bookId = episodeBook(db, orion?.id ?? '', 2, newId);
     const detail = episodeDetail(db, bookId);
@@ -229,8 +232,8 @@ describe('storing Podcasting 2.0 fields', () => {
     expect(episodeDetail(db, 'not-an-episode')).toBeNull();
   });
 
-  it('reads a feed stored before the fields existed in full once', () => {
-    const { podcastId } = save();
+  it('reads a feed stored before the fields existed in full once', async () => {
+    const { podcastId } = await save();
     expect(feedCache(db, FEED_URL)).toEqual({ etag: '"v1"', lastModified: null });
     db.update(podcasts).set({ extras: null }).where(eq(podcasts.id, podcastId)).run();
     expect(feedCache(db, FEED_URL)).toEqual({ etag: null, lastModified: null });
@@ -242,8 +245,8 @@ describe('storing Podcasting 2.0 fields', () => {
     expect(feedCache(db, FEED_URL)).toEqual({ etag: null, lastModified: null });
   });
 
-  it('gives an episode without chapters the chapters file, once', () => {
-    const { podcastId } = save();
+  it('gives an episode without chapters the chapters file, once', async () => {
+    const { podcastId } = await save();
     const orion = listEpisodes(db, ME, podcastId).find((e) => e.title === 'Orion in winter');
     const bookId = episodeBook(db, orion?.id ?? '', 2, newId);
     const list = parseChaptersFile(fixture('chapters.json'));
@@ -255,8 +258,8 @@ describe('storing Podcasting 2.0 fields', () => {
     expect(getBook(db, ME, bookId)?.chapters).toEqual(shown);
   });
 
-  it('never replaces chapters embedded in the audio', () => {
-    const { podcastId } = save();
+  it('never replaces chapters embedded in the audio', async () => {
+    const { podcastId } = await save();
     const orion = listEpisodes(db, ME, podcastId).find((e) => e.title === 'Orion in winter');
     const bookId = episodeBook(db, orion?.id ?? '', 2, newId);
     db.update(bookFiles)

@@ -3,8 +3,8 @@ import { asArray, FeedError, isNode, parseXml, textOf, type XmlNode } from './xm
 export type OpmlFeed = { title: string; feedUrl: string };
 
 /** Every feed in an OPML file, including those inside folders, without duplicates. */
-export function parseOpml(xml: string): OpmlFeed[] {
-  const doc = parseXml(xml);
+export async function parseOpml(xml: string): Promise<OpmlFeed[]> {
+  const doc = await parseXml(xml);
   const opml = doc.opml;
   const body = isNode(opml) ? asArray(opml.body).find(isNode) : undefined;
   if (!body) throw new FeedError('This is not an OPML file.');

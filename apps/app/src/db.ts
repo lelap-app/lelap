@@ -15,6 +15,7 @@ import { openDatabaseSync } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
 
 import { loadSecretBox } from './secrets';
+import { startupMark } from './startup';
 
 const sqlite = openDatabaseSync('lelap.db');
 sqlite.execSync('PRAGMA journal_mode = WAL;');
@@ -46,8 +47,10 @@ export function useDbReady(): { ready: boolean; error: Error | null } {
     error: null,
   });
   useEffect(() => {
+    startupMark('db-migrating');
     migrateSafely(db, () => migrate(expoDb, migrations)).then(
       () => {
+        startupMark('db-migrated');
         // Seals secrets older versions stored in plain text; notices ones this phone can't open.
         if (secretsLoaded) sealStoredSecrets(db, Date.now());
         setStatus({ ready: true, error: null });

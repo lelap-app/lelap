@@ -91,6 +91,14 @@ Storage                               SQLite (Android), SQLite WASM on OPFS (web
 
 The repository layout is in [`AGENTS.md`](../AGENTS.md#repository-map).
 
+**Library reads (M126).** SQLite triggers note each book whose row a list shows changes (the book,
+a place, an entry, a download, hiding it, a catalog link) in `book_changes`, one row per book with
+a rising `seq`. The Library reads every book once, then only the books noted since
+(`libraryBooks` in `packages/core/src/library/bookChanges.ts`). Triggers rather than each writer
+saying what it touched, so a scan, sync's apply or a writer added later can't leave a stale row.
+They are made in code by `migrateSafely`, dropped for the migrations and made again after:
+drizzle-kit rebuilds a table to change it, which would drop them or fail on them.
+
 ### Web
 
 - **Database:** sql.js in memory, saved to OPFS about a second after each change and when the tab
@@ -105,7 +113,10 @@ The repository layout is in [`AGENTS.md`](../AGENTS.md#repository-map).
 - **One bundle:** every screen is in the start bundle (`asyncRoutes` off for the web in
   `app.json`, M106). With a screen per chunk, the first screen waited for its chunk and React then
   held it back: with 10,000 books Home took 0.69 s instead of 0.27 s and the Library 0.68 s
-  instead of 0.38 s, for 222 KB (56 KB gzipped) less JavaScript at start.
+  instead of 0.38 s, for 222 KB (56 KB gzipped) less JavaScript at start. What no screen needs to draw
+  loads when first used instead (M126): the XML parser for feeds and server listings, and the
+  bundled add-ons' code, each a chunk of its own that the service worker caches; zod's
+  `fromJSONSchema` is left out by a Metro shim. Android keeps one bundle.
 - **Covers from servers** (WebDAV, S3, Subsonic, Plex folder covers) need the server's login, which
   an `<img>` can't send: they are fetched once into OPFS and shown as blob URLs.
 - **Audio:** one `<audio>` element and Media Session. The sleep timer fades the element's volume;

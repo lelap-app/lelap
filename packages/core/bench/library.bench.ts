@@ -15,12 +15,14 @@ import { groupByProgress } from '../src/library/byProgress';
 import { hiddenCount } from '../src/library/hidden';
 import { musicSuggestions } from '../src/library/musicSuggestions';
 import { continueListening, listAllBooks, listBooks, listBooksFrom } from '../src/library/queries';
+import { libraryBooks } from '../src/library/bookChanges';
 import { groupIntoBooks } from '../src/library/group';
 import { applyScan, filesNeedingTags, listRoots, localRoot, upsertRoot } from '../src/library/scan';
 import { listPlaylistsWithCounts, listTags } from '../src/organise';
 import { listEpisodes, listSubscriptions } from '../src/podcasts/repository';
 import { DEFAULT_PROFILE_ID as ME } from '../src/profiles';
 import * as schema from '../src/schema';
+import { saveProgress } from '../src/progress';
 import { getSettings } from '../src/settings';
 import { bookIdForKey, bookKey } from '../src/sync/keys';
 
@@ -118,6 +120,41 @@ describe('10,000 books, 500 podcasts', () => {
     measure('  hidden count', () => hiddenCount(db, ME));
     measure('  music suggestions', () => musicSuggestions(db, ME), 15, 30);
     measure('  tags', () => listTags(db, ME));
+  });
+
+  it('Library refresh', () => {
+    // A pause or a finished download changes one book (M126): the whole read against a reader
+    // that rereads only the changed book, each followed by the sort the list draws from.
+    let at = 1;
+    const play = () => {
+      at += 1;
+      saveProgress(db, ME, {
+        bookId: 'bench-book-5',
+        fileLocation: 'bench-book-5-file-0',
+        filePositionMs: at * 1000,
+        savedAt: at,
+      });
+    };
+    measure('Library refresh, whole read', () => {
+      play();
+      listBooksFrom(db, ME, listAllBooks(db, ME), 'recent');
+    });
+    const reader = libraryBooks(db);
+    reader.read(ME);
+    measure(
+      'Library refresh, one book changed',
+      () => {
+        play();
+        listBooksFrom(db, ME, reader.read(ME), 'recent');
+      },
+      15,
+      40,
+    );
+    measure('  read of one changed book', () => {
+      play();
+      reader.read(ME);
+    });
+    measure('  saveProgress', play);
   });
 
   it('Home screen', () => {

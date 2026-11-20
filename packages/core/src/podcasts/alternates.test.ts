@@ -41,8 +41,11 @@ function must<T>(value: T | null | undefined): T {
   return value;
 }
 
+// Read once for the tests below; the parser loads on first use (M126).
+const gardenHour = await parseFeed(fixture('garden-hour.xml'));
+
 describe('alternate enclosures', () => {
-  const feed = parseFeed(fixture('garden-hour.xml'));
+  const feed = gardenHour;
   const leeks = must(feed.episodes[1]);
   const seeds = must(feed.episodes[2]);
 

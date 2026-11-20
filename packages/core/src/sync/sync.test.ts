@@ -376,7 +376,7 @@ describe('sync between two devices', () => {
     const { podcastId } = saveFeed(
       phone,
       feedUrl,
-      parseFeed(xml),
+      await parseFeed(xml),
       { etag: null, lastModified: null },
       10,
       newId,
@@ -480,10 +480,10 @@ describe('sync between two devices', () => {
   it('fills in a show’s intro and outro that a version before M45 left out', async () => {
     const xml = `<rss><channel><title>Garden Hour</title></channel></rss>`;
     const feedUrl = 'https://feeds.example/garden.xml';
-    const show = (db: Db) =>
-      saveFeed(db, feedUrl, parseFeed(xml), { etag: null, lastModified: null }, 10, newId)
+    const show = async (db: Db) =>
+      saveFeed(db, feedUrl, await parseFeed(xml), { etag: null, lastModified: null }, 10, newId)
         .podcastId;
-    const podcastId = show(phone);
+    const podcastId = await show(phone);
     subscribe(phone, ME, podcastId, 11);
     setTrim(phone, ME, podcastId, { skipIntroMs: 30_000, skipOutroMs: 15_000 }, 12);
     await syncNow(phone, server, random, 100, newId);
@@ -621,12 +621,12 @@ describe('sync between two devices', () => {
     ]);
   });
 
-  it('fills intro and outro only from the newest change that carries them', () => {
+  it('fills intro and outro only from the newest change that carries them', async () => {
     const feedUrl = 'https://feeds.example/garden.xml';
     const { podcastId } = saveFeed(
       laptop,
       feedUrl,
-      parseFeed('<rss><channel><title>Garden Hour</title></channel></rss>'),
+      await parseFeed('<rss><channel><title>Garden Hour</title></channel></rss>'),
       { etag: null, lastModified: null },
       10,
       newId,

@@ -33,6 +33,7 @@ export const SHARED_TABLES = [
   'work_links',
   'place_outbox',
   'series_lists',
+  'book_changes',
 ] as const;
 
 export type StoredChapter = {
@@ -832,4 +833,13 @@ export const diagnostics = sqliteTable('diagnostics', {
   at: integer('at').notNull(),
   /** A `DiagnosticEvent` as JSON: words from Lelap's code, numbers and row IDs; no free text. */
   event: text('event').notNull(),
+});
+
+/**
+ * Which books changed since a reader last looked (M126): one row per book, its `seq` raised on
+ * each change. Written only by triggers (`library/bookChanges.ts`), never synced or backed up.
+ */
+export const bookChanges = sqliteTable('book_changes', {
+  seq: integer('seq').primaryKey({ autoIncrement: true }),
+  bookId: text('book_id').notNull().unique(),
 });

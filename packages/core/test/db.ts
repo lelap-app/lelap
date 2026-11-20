@@ -5,6 +5,7 @@ import { migrate } from 'drizzle-orm/sql-js/migrator';
 import initSqlJs, { type BindParams } from 'sql.js';
 
 import type { Db } from '../src/db';
+import { watchBookChanges } from '../src/library/bookChanges';
 import * as schema from '../src/schema';
 
 const migrationsFolder = fileURLToPath(new URL('../drizzle', import.meta.url));
@@ -27,6 +28,8 @@ export function createPlannedDb() {
     logger: { logQuery: (sql, params) => log?.push({ sql, params }) },
   });
   migrate(database, { migrationsFolder });
+  // As `migrateSafely` does in the app.
+  watchBookChanges(database);
   database.run('pragma foreign_keys = on');
   const db: Db = database;
 

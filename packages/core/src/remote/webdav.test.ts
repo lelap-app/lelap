@@ -21,9 +21,9 @@ describe('WebDAV', () => {
     expect(basicAuth('ø', 'å')).toBe('Basic w7g6w6U=');
   });
 
-  it('reads a folder listing, whatever prefix the server uses', () => {
+  it('reads a folder listing, whatever prefix the server uses', async () => {
     const root = webdavRoot('https://cloud.example.org/remote.php/dav/files/me/Audiobooks');
-    const entries = parseMultistatus(
+    const entries = await parseMultistatus(
       folder(
         '/remote.php/dav/files/me/Audiobooks/',
         dir('/remote.php/dav/files/me/Audiobooks/Dune/') +
