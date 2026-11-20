@@ -1,5 +1,6 @@
 import type { ListedFile } from '../library/scan';
 import { asArray, isNode, parseXml, textOf } from '../podcasts/xml';
+import { rebaseUri } from './addresses';
 import { basicAuth, failure, type Fetch, fetchText } from './http';
 
 export type WebdavSource = { url: string; username: string; password: string };
@@ -73,6 +74,13 @@ export async function parseMultistatus(xml: string, folder: URL): Promise<Entry[
 }
 
 type Options = { timeoutMs?: number };
+type ListOptions = Options & {
+  /**
+   * The server's own address when `source.url` is its other one (M146): files are named and
+   * stored by their place at the own address, whichever address listed them.
+   */
+  nameAt?: string;
+};
 
 const listingHeaders = (source: WebdavSource) => ({
   ...webdavHeaders(source),
@@ -113,9 +121,16 @@ export async function checkWebdav(
 export async function listWebdav(
   fetcher: Fetch,
   source: WebdavSource,
-  { timeoutMs = FOLDER_TIMEOUT_MS }: Options = {},
+  { timeoutMs = FOLDER_TIMEOUT_MS, nameAt }: ListOptions = {},
 ): Promise<ListedFile[]> {
   const root = webdavRoot(source.url);
+  const named = (url: URL): URL => {
+    if (!nameAt) return url;
+    const moved = rebaseUri(url.href, root.href, webdavRoot(nameAt).href);
+    // Named by the other address, a file would be a new book: the scan fails and changes nothing.
+    if (!moved) throw new Error(`${url.href} is not below ${root.href}.`);
+    return new URL(moved);
+  };
   const files: ListedFile[] = [];
   const queue: URL[] = [root];
   const seen = new Set<string>();
@@ -130,13 +145,14 @@ export async function listWebdav(
         continue;
       }
       const relPath = decodeURIComponent(entry.url.pathname.slice(root.pathname.length));
+      const url = named(entry.url);
       files.push({
-        location: webdavLocation(entry.url),
+        location: webdavLocation(url),
         relPath,
         name: relPath.split('/').pop() ?? relPath,
         size: entry.size,
         modifiedAt: entry.modifiedAt,
-        uri: entry.url.href,
+        uri: url.href,
       });
     }
   }

@@ -11,6 +11,7 @@ import {
   setAudiobookshelfKeyRefused,
 } from '@lelap/core';
 
+import { atServer } from './addresses';
 import { db } from './db';
 
 const send = (url: string, init?: RequestInit) => fetch(url, init);
@@ -54,7 +55,9 @@ export async function prepareAudiobookshelfBook(bookId: string, profile: string)
   if (!server || !itemId || placeOwner(db, server.profileId) !== profile) return;
   const progress = await withKey(
     server.rootId,
-    audiobookshelfItemProgress(send, server.url, server.token, itemId),
+    atServer(server.rootId, { type: 'audiobookshelf', ...server }, (at) =>
+      audiobookshelfItemProgress(send, at.url, at.token, itemId),
+    ),
   ).catch(() => null);
   if (progress) applyRemotePlaces(db, profile, audiobookshelfPlaces(progress, files), Date.now());
 }

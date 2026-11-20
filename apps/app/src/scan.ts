@@ -43,6 +43,7 @@ import { idsFromTags } from '@lelap/sdk';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
+import { atServer } from './addresses';
 import { forgetLocated } from './addonLocate';
 import { codeFingerprint, listAddonLibrary, sourceManifest } from './addonSources';
 import { withKey } from './audiobookshelf';
@@ -106,7 +107,13 @@ type Root = ReturnType<typeof listRoots>[number];
 
 async function listRoot(root: Root): Promise<ListedFile[]> {
   if (!root.remote) return listTree(root.uri);
-  if (root.remote.type === 'webdav') return listWebdav((u, i) => fetch(u, i), root.remote);
+  if (root.remote.type === 'webdav') {
+    const own = root.remote.url;
+    // Named by the server's own address, whichever of its two answered (M146).
+    return atServer(root.id, root.remote, (at) =>
+      listWebdav((u, i) => fetch(u, i), at, at.url === own ? {} : { nameAt: own }),
+    );
+  }
   if (root.remote.type === 'smb' || root.remote.type === 'sftp') {
     if (root.needsLogin)
       throw new Error(t('The password for {name} is needed again.', { name: root.name }));
@@ -369,7 +376,9 @@ async function scanJellyfin(
   remote: Extract<NonNullable<Root['remote']>, { type: 'jellyfin' }>,
 ): Promise<{ added: number; missing: number }> {
   if (root.needsLogin) throw new Error(t('The Jellyfin login is needed again.'));
-  const items = await listJellyfinItems((u, i) => fetch(u, i), remote);
+  const items = await atServer(root.id, remote, (at) =>
+    listJellyfinItems((u, i) => fetch(u, i), at),
+  );
   const scan = jellyfinScan(remote, items);
   const now = Date.now();
   const result = applyScan(db, {
@@ -400,10 +409,12 @@ async function scanAudiobookshelf(
   const fetcher = (u: string, i?: RequestInit) => fetch(u, i);
   const [items, me] = await withKey(
     root.id,
-    Promise.all([
-      listAudiobookshelfItems(fetcher, remote, remote.token),
-      audiobookshelfMe(fetcher, remote.url, remote.token),
-    ]),
+    atServer(root.id, remote, (at) =>
+      Promise.all([
+        listAudiobookshelfItems(fetcher, at, at.token),
+        audiobookshelfMe(fetcher, at.url, at.token),
+      ]),
+    ),
   );
   const scan = audiobookshelfScan(remote, items, me.mediaProgress);
   const now = Date.now();
