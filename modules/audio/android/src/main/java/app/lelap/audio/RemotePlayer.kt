@@ -15,8 +15,10 @@ import androidx.media3.common.SimpleBasePlayer
 import androidx.media3.common.util.UnstableApi
 import app.lelap.cast.CastLink
 import app.lelap.cast.CastRequest
+import app.lelap.cast.LiveAudio
 import app.lelap.cast.ReceiverFade
 import app.lelap.cast.RemoteSession
+import app.lelap.cast.RenderClock
 import app.lelap.cast.RendererStatus
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -39,6 +41,11 @@ class RemotePlayer(
   private val onLoaded: (String?) -> Unit,
   /** On Play: where smart rewind resumes the part at [index] from [positionMs], or null to play on. */
   private val resumePlace: (index: Int, positionMs: Long) -> Long?,
+  /**
+   * The part rendered by the phone with the listener's effects (M134), from a place at a speed;
+   * null when it can't be, and the receiver then plays the file.
+   */
+  private val render: (request: CastRequest, startMs: Long, speed: Float) -> LiveAudio? = { _, _, _ -> null },
 ) : SimpleBasePlayer(looper) {
   private val handler = Handler(looper)
   private val session = RemoteSession(SystemClock::elapsedRealtime, link::canPlayAt, ::logTiming)
@@ -46,12 +53,19 @@ class RemotePlayer(
   private var items: List<MediaItem> = emptyList()
   private var released = false
 
+  // The rendered stream's clock, mapping the receiver's place to the part's; null for a file.
+  private var clock: RenderClock? = null
+
   private val linkListener = object : CastLink.Listener {
     override fun onStatus(status: RendererStatus) {
       handler.post { if (!released) onStatus(status) }
     }
 
     override fun onClosed(error: String?) = Unit
+
+    override fun onRestartNeeded() {
+      handler.post { if (!released) run(session.restart()) }
+    }
   }
 
   init {
@@ -77,6 +91,21 @@ class RemotePlayer(
   ) {
     items = bookItems
     run(session.start(durations, index, positionMs, play, speed, outroAtMs))
+  }
+
+  /**
+   * The listener's sound effects are on (M134): the phone renders each part with them. A part
+   * that plays starts again from the place, rendered or as the file.
+   */
+  fun setEffects(on: Boolean) = run(session.setEffects(on))
+
+  /** Whether the phone renders the parts now. */
+  val rendering: Boolean
+    get() = session.phoneRenders
+
+  /** Skip silence went on or off while the phone renders: the stream starts again with it. */
+  fun restartRendering() {
+    if (session.phoneRenders) run(session.restart())
   }
 
   /** The show's outro changed while its episode plays on the receiver. */
@@ -107,7 +136,9 @@ class RemotePlayer(
   }
 
   private fun onStatus(status: RendererStatus) {
-    run(session.onStatus(status))
+    // A rendered stream's place is the stream's; the part's comes from the renderer's clock.
+    val mapped = clock?.let { status.copy(positionMs = it.mediaAt(status.positionMs), durationMs = 0L) } ?: status
+    run(session.onStatus(mapped))
     if (fadeLevel < 1f || fade.isFading) applyFade()
   }
 
@@ -115,13 +146,19 @@ class RemotePlayer(
     for (command in commands) {
       when (command) {
         is RemoteSession.Command.Load -> {
-          val request = requestFor(command.index)
+          val file = requestFor(command.index)
+          val live = if (file != null && session.phoneRenders) render(file, command.positionMs, command.speed) else null
+          clock = live?.clock
+          val request = if (live != null) file?.copy(live = live) else file
           if (request == null) {
             session.onLoaded(command.seq, MISSING)
             handler.post { if (!released) onLoaded(MISSING) }
             continue
           }
-          link.load(request, command.positionMs, command.autoplay, command.speed) { failure ->
+          // A rendered stream starts at the place and carries the speed; the receiver plays it at 1×.
+          val startMs = if (live != null) 0L else command.positionMs
+          val speed = if (live != null) 1f else command.speed
+          link.load(request, startMs, command.autoplay, speed) { failure ->
             handler.post {
               if (released) return@post
               // A load that a newer one replaced (quick skips) changes nothing.

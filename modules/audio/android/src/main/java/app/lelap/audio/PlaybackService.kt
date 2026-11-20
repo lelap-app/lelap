@@ -59,6 +59,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import app.lelap.cast.CastLink
 import app.lelap.cast.CastRequest
+import app.lelap.cast.LiveAudio
 import app.lelap.cast.RendererStatus
 import java.util.TimeZone
 import org.json.JSONArray
@@ -482,7 +483,7 @@ class PlaybackService : MediaLibraryService() {
 
   /**
    * Voice boost, skip silence and even loudness for the loaded book: its own choices over the
-   * listener's defaults (M84). They act on ExoPlayer only; a cast receiver plays without them.
+   * listener's defaults (M84). While casting, the phone renders the parts with them (M134).
    */
   private fun applySound() {
     if (!::player.isInitialized) return
@@ -490,7 +491,27 @@ class PlaybackService : MediaLibraryService() {
     sound.voiceEq = choice.voiceEq
     sound.evenLoudness = choice.evenLoudness
     if (player.skipSilenceEnabled != choice.skipSilence) player.skipSilenceEnabled = choice.skipSilence
+    remote?.let(::applyCastSound)
   }
+
+  // Skip silence as the rendered stream last started with; it can't change mid-stream.
+  private var castSkipSilence = false
+
+  /** Any effect on: the phone renders for the receiver. Skip silence changing starts the stream again. */
+  private fun applyCastSound(r: RemotePlayer) {
+    val choice = soundDefaults.with(current?.sound)
+    val skip = choice.skipSilence
+    val skipChanged = skip != castSkipSilence
+    castSkipSilence = skip
+    val wasRendering = r.rendering
+    r.setEffects(choice.voiceEq || skip || choice.evenLoudness || sound.mono || sound.boost)
+    // Switching rendering on or off already started the stream again.
+    if (skipChanged && wasRendering && r.rendering) r.restartRendering()
+  }
+
+  /** A part rendered for the receiver with the listener's effects (M134). */
+  private fun renderForCast(request: CastRequest, startMs: Long, speed: Float): LiveAudio =
+    EffectsStream(this, request, startMs, speed, castSkipSilence, sound)
 
   /** Adds what skip silence left out since the last call to each book's time saved. */
   private fun bankSilence() {
@@ -1524,8 +1545,11 @@ class PlaybackService : MediaLibraryService() {
     player.stop()
     handingOver = false
     val items = List(player.mediaItemCount) { player.getMediaItemAt(it) }
-    val r = RemotePlayer(Looper.getMainLooper(), link, ::castRequest, ::onRemoteItemsPicked, ::onRemoteLoaded, ::rewoundPlace)
+    val r = RemotePlayer(Looper.getMainLooper(), link, ::castRequest, ::onRemoteItemsPicked, ::onRemoteLoaded, ::rewoundPlace, ::renderForCast)
     remote = r
+    // Before the first load, so it is rendered when an effect is on.
+    castSkipSilence = soundDefaults.with(current?.sound).skipSilence
+    applyCastSound(r)
     remoteLink = link
     link.addListener(linkWatcher)
     r.addListener(remoteListener)

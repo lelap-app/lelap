@@ -2,7 +2,8 @@
 // decodes the file a little ahead of the place, finds the long pauses, and plays the middle of
 // each one four times faster. The element's time stays the file's time, so the place is always
 // right. MP3s are decoded by the browser; other files (`webTracks.ts`) packet by packet with
-// WebCodecs. Only audio.web.ts imports this.
+// WebCodecs. A seek in a variable-bitrate MP3 moves the browser's own timeline (M134), and the
+// pauses are found again from there. Only audio.web.ts imports this.
 
 import {
   type FastStretch,
@@ -30,7 +31,9 @@ type Loaded = {
   element: HTMLMediaElement;
   file: FileBytes;
   track: WebTrack;
+  /** Replaced when a seek moves the track's timeline. */
   map: PauseMap;
+  durationMs: number;
 };
 
 type Decoded = { channels: Float32Array[]; sampleRate: number; frames: number };
@@ -119,6 +122,19 @@ export function createSilenceSkipper(onSaved: (ms: number) => void) {
   let lastMs: number | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let decoding = false;
+  // The last seek, which a track opened later (the part started mid-file) must still hear about.
+  let lastSeek: { element: HTMLMediaElement; src: string; toMs: number } | null = null;
+  const heard = new WeakSet<HTMLMediaElement>();
+  const onSeeking = (event: Event) => {
+    const element = event.target as HTMLMediaElement;
+    lastSeek = { element, src: element.currentSrc, toMs: element.currentTime * 1000 };
+    const current = loaded;
+    if (current?.element === element && current.track.seeked?.(lastSeek.toMs)) {
+      current.map = new PauseMap(current.durationMs);
+      lastFromMs = null;
+      tries = 0;
+    }
+  };
   // Where the last chunk was asked for, and how often: a place that teaches nothing isn't asked
   // for again and again.
   let lastFromMs: number | null = null;
@@ -210,7 +226,8 @@ export function createSilenceSkipper(onSaved: (ms: number) => void) {
       const { track, map } = current;
       const range = track.range(fromMs, CHUNK_MS);
       const bytes = await current.file.read(range.start, range.end);
-      if (loaded !== current) return;
+      // Another file, or a seek that moved the timeline while this was read.
+      if (loaded !== current || current.map !== map) return;
       if (!bytes) {
         tries = 0;
         lastFromMs = null;
@@ -225,7 +242,7 @@ export function createSilenceSkipper(onSaved: (ms: number) => void) {
       const decoded = track.decoder
         ? await decodePackets(track.decoder, data, run.packets)
         : await decodeWhole(data.subarray(first.at, last.at + last.size), track.sampleRate);
-      if (loaded !== current || decoded.frames === 0) return;
+      if (loaded !== current || current.map !== map || decoded.frames === 0) return;
       // Sound placed by its end starts as long before it as the decoder gave back.
       const startMs =
         run.startMs ?? (run.endMs ?? 0) - (decoded.frames / decoded.sampleRate) * 1000;
@@ -256,6 +273,11 @@ export function createSilenceSkipper(onSaved: (ms: number) => void) {
     /** A new file in the element: null when it can't be read or its format isn't known. */
     attach(element: HTMLMediaElement, file: FileBytes | null, track: WebTrack | null): void {
       this.detach();
+      // Seeks are heard from the start of each file, before its track is open.
+      if (!heard.has(element)) {
+        heard.add(element);
+        element.addEventListener('seeking', onSeeking);
+      }
       lastMs = null;
       lastFromMs = null;
       tries = 0;
@@ -263,7 +285,11 @@ export function createSilenceSkipper(onSaved: (ms: number) => void) {
       fast = false;
       if (file && track) {
         const durationMs = Number.isFinite(element.duration) ? element.duration * 1000 : 0;
-        loaded = { element, file, track, map: new PauseMap(durationMs) };
+        // The file was seeked before its track opened (a start mid-part): its timeline is there.
+        const seek = lastSeek;
+        if (seek && seek.element === element && seek.src === element.currentSrc)
+          track.seeked?.(seek.toMs);
+        loaded = { element, file, track, map: new PauseMap(durationMs), durationMs };
         for (const type of events) element.addEventListener(type, onEvent);
       }
       element.playbackRate = speed;

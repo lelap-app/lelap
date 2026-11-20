@@ -31,6 +31,8 @@ data class CastRequest(
   val viaPhone: Boolean = false,
   /** The file's own name, whose extension tells the type when the address has none (Subsonic). */
   val fileName: String? = null,
+  /** The part as the phone renders it with its sound effects (M134), instead of the file. */
+  val live: LiveAudio? = null,
 ) {
   /** Whether the receiver fetches this file from the phone, which adds the login on the way. */
   val throughPhone: Boolean
@@ -66,6 +68,12 @@ class CastLink private constructor(
 
     /** The session is over: handed back ([error] null) or lost. */
     fun onClosed(error: String?)
+
+    /**
+     * A speaker joined while the phone renders the part (M134): a rendered stream can't be joined
+     * halfway, so the whole group starts it again from the place.
+     */
+    fun onRestartNeeded() = Unit
   }
 
   private val app = context.applicationContext
@@ -363,7 +371,9 @@ class CastLink private constructor(
     }
     val status = lastStatus
     val playing = status?.state == PlayState.PLAYING || status?.state == PlayState.BUFFERING
-    val catchUp: ((Renderer) -> Unit)? = if (media == null || status == null || status.state == PlayState.IDLE || status.state == PlayState.ENDED) {
+    // A rendered stream starts where the phone began it; the group loads it again together instead.
+    val restart = media?.live == true
+    val catchUp: ((Renderer) -> Unit)? = if (restart || media == null || status == null || status.state == PlayState.IDLE || status.state == PlayState.ENDED) {
       null
     } else {
       val speed = first.speed
@@ -374,8 +384,12 @@ class CastLink private constructor(
     members = members + member
     device = standIn(members).copy(id = device.id)
     Log.i(TAG, "group: a speaker joined, ${members.size} play")
+    if (restart && !playingNone(status)) for (listener in listeners) listener.onRestartNeeded()
     return loaded
   }
+
+  private fun playingNone(status: RendererStatus?) =
+    status == null || status.state == PlayState.IDLE || status.state == PlayState.ENDED
 
   private fun groupOf(first: Renderer, rest: List<Renderer>) = GroupRenderer(
     first,
@@ -428,6 +442,7 @@ class CastLink private constructor(
   private fun lost(message: String) = closeInBackground(message)
 
   private fun media(request: CastRequest): CastMedia {
+    request.live?.let { return liveMedia(request, it) }
     val uri = request.uri
     val local = uri.startsWith("file://") || uri.startsWith("content://")
     val name = Mime.nameFor(if (local) server().displayName(uri) else uri, request.fileName)
@@ -437,25 +452,38 @@ class CastLink private constructor(
       request.throughPhone -> server().publish(MediaServer.Source.Remote(uri, request.headers), mimeType, name)
       else -> uri
     }
-    val cover = request.coverUri?.let { c ->
-      when {
-        c.startsWith("file://") || c.startsWith("content://") -> {
-          val coverName = server().displayName(c)
-          server().publish(MediaServer.Source.Local(c), Mime.image(coverName), coverName)
-        }
-        c.startsWith("http://") || c.startsWith("https://") -> c
-        else -> null
-      }
-    }
     return CastMedia(
       url = url,
       mimeType = mimeType,
       title = request.title,
       artist = request.artist,
       album = request.album,
-      coverUrl = cover,
+      coverUrl = cover(request),
       durationMs = request.durationMs,
     )
+  }
+
+  private fun liveMedia(request: CastRequest, live: LiveAudio): CastMedia = CastMedia(
+    url = server().publish(MediaServer.Source.Live(live), live.mimeType, "part.${live.extension}"),
+    mimeType = live.mimeType,
+    title = request.title,
+    artist = request.artist,
+    album = request.album,
+    coverUrl = cover(request),
+    // With skip silence and speed, the stream is shorter than the file, by an amount not known yet.
+    durationMs = 0L,
+    live = true,
+  )
+
+  private fun cover(request: CastRequest): String? = request.coverUri?.let { c ->
+    when {
+      c.startsWith("file://") || c.startsWith("content://") -> {
+        val coverName = server().displayName(c)
+        server().publish(MediaServer.Source.Local(c), Mime.image(coverName), coverName)
+      }
+      c.startsWith("http://") || c.startsWith("https://") -> c
+      else -> null
+    }
   }
 
   private fun server(): MediaServer = server ?: MediaServer(app).also { server = it }

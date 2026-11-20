@@ -25,6 +25,8 @@ data class CastMedia(
   val album: String?,
   val coverUrl: String?,
   val durationMs: Long,
+  /** A stream the phone renders as it goes (M134): no length, no seeking on the receiver. */
+  val live: Boolean = false,
 )
 
 enum class PlayState { IDLE, BUFFERING, PLAYING, PAUSED, ENDED }

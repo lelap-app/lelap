@@ -256,6 +256,14 @@ class SoundChain {
     boostMix = if (boost) 1f else 0f
   }
 
+  /** Takes [other]'s switches, so a part rendered for a cast receiver follows the listener's (M134). */
+  fun follow(other: SoundChain) {
+    mono = other.mono
+    voiceEq = other.voiceEq
+    evenLoudness = other.evenLoudness
+    boost = other.boost
+  }
+
   /** The next book or episode is measured afresh. */
   fun restartLoudness() {
     forgetLoudness = true
