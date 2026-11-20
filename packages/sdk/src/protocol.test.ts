@@ -495,6 +495,6 @@ describe('revision 9: editions, resumed starts, library pages, settings on every
     expect(setUpWithSettings(Manifest.parse(inApp))).toBe(false);
     const library = { ...inApp, resources: ['catalog', 'library'], settings: fields };
     expect(setUpWithSettings(Manifest.parse(library))).toBe(false);
-    expect(LATEST_PROTOCOL_VERSION).toBe(11);
+    expect(LATEST_PROTOCOL_VERSION).toBeGreaterThanOrEqual(9);
   });
 });

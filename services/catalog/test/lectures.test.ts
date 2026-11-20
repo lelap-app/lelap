@@ -3,7 +3,10 @@ import { readFileSync } from 'node:fs';
 import { CatalogResponse, Manifest, MetaResponse, WebStreamResponse } from '@lelap/sdk';
 import { describe, expect, it } from 'vitest';
 
+import { createApp } from '../src/app';
 import { createLecturesAddon, lecturesManifest } from '../src/lectures/addon';
+import { transcriptOfPage, transcriptText } from '../src/lectures/transcript';
+import type { ResponseCache } from '../src/upstream';
 import { Course, creditLine } from '../src/lectures/course';
 import { COURSES } from '../src/lectures/courses';
 import { fixture } from './helpers';
@@ -136,7 +139,17 @@ describe('the Open lectures add-on', () => {
       url: roman().lectures[0]?.audio,
       title: 'Introduction to Roman Architecture',
       durationMs: 2_550_910,
+      transcripts: [
+        {
+          url: 'https://addons.test/lectures/transcript/hsar-252/1.txt',
+          type: 'text/plain',
+          language: 'en',
+        },
+      ],
     });
+    expect(stream.parts[23]?.transcripts?.[0]?.url).toBe(
+      'https://addons.test/lectures/transcript/hsar-252/24.txt',
+    );
     expect(stream.parts[13]?.title).toBe(
       'Paper Topics: Discovering the Roman Provinces and Designing a Roman City',
     );
@@ -147,5 +160,118 @@ describe('the Open lectures add-on', () => {
     expect((await get('meta/audiobook/oyc:none-1.json')).status).toBe(404);
     const { body } = await get('stream/audiobook/oyc:none-1.json');
     expect(body).toMatchObject({ streams: [] });
+  });
+});
+
+describe('lecture transcripts (M136)', () => {
+  const page = recorded('yale-hsar-252-lecture-1-transcript.html');
+  const TRANSCRIPT = 'https://addons.test/lectures/transcript/hsar-252/1.txt';
+
+  function serve(answer: (url: URL) => Response, env = {}) {
+    const asked: URL[] = [];
+    const store = new Map<string, Response>();
+    const cache: ResponseCache = {
+      match: async (key) => store.get(key)?.clone(),
+      put: async (key, response) => void store.set(key, response),
+    };
+    const fetch = async (url: string) => {
+      asked.push(new URL(url));
+      return answer(new URL(url));
+    };
+    return { app: createApp({ fetch, cache }, env), asked };
+  }
+
+  it('reads the transcript from Yale’s lecture page, without the page around it', () => {
+    const paragraphs = transcriptOfPage(page) ?? [];
+    expect(paragraphs[0]).toBe('HSAR 252 - Lecture 1 - Introduction to Roman Architecture');
+    expect(paragraphs[1]).toBe('Chapter 1. Introduction: Roman Urbanism [00:00:00]');
+    expect(paragraphs[2]).toMatch(
+      /^Professor Diana E\. E\. Kleiner: Welcome to Roman Architecture\. I'm Professor Kleiner,/,
+    );
+    expect(paragraphs).toContain('Chapter 2. The Urban Grid and Public Architecture [00:09:47]');
+    expect(paragraphs.some((p) => p.includes('the location of the cardo and the decumanus.'))).toBe(
+      true,
+    );
+    expect(paragraphs.at(-1)).toBe('[end of transcript]');
+    const text = paragraphs.join('\n');
+    expect(text).not.toMatch(/[<>]|Back to Top|^Roman Architecture$/m);
+    expect(transcriptOfPage(recorded('yale-hsar-252-lecture-1-media.html'))).toBeNull();
+    expect(
+      transcriptOfPage('<div id="inline_content"><p>A &amp; B &#8217;s &rsquo; &bogus;</p></div>'),
+    ).toEqual(['A & B ’s ’ &bogus;']);
+  });
+
+  it('puts Yale’s credit line first', () => {
+    expect(transcriptText(roman(), ['One.', 'Two.'])).toBe(
+      `${creditLine(roman())}\n\nOne.\n\nTwo.\n`,
+    );
+  });
+
+  it('serves it as plain text, cached for a month, asking Yale once', async () => {
+    const { app, asked } = serve((url) =>
+      url.pathname === '/history-art/hsar-252/lecture-1'
+        ? new Response(page, { headers: { 'Content-Type': 'text/html' } })
+        : new Response('missing', { status: 404 }),
+    );
+    const response = await app.request(TRANSCRIPT);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('text/plain; charset=utf-8');
+    expect(response.headers.get('Cache-Control')).toBe('public, max-age=2592000');
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    const text = await response.text();
+    expect(text.startsWith(`${creditLine(roman())}\n\nHSAR 252 - Lecture 1 -`)).toBe(true);
+    expect(text.endsWith('[end of transcript]\n')).toBe(true);
+
+    const again = await app.request(TRANSCRIPT);
+    expect(await again.text()).toBe(text);
+    expect(asked.map((u) => u.href)).toEqual([
+      'https://oyc.yale.edu/history-art/hsar-252/lecture-1',
+    ]);
+  });
+
+  it('answers 404 for a lecture it does not know or a page without a transcript', async () => {
+    const { app, asked } = serve(() => new Response('<html><body>No text</body></html>'));
+    for (const route of ['hsar-252/25.txt', 'hsar-252/0.txt', 'none-1/1.txt', 'hsar-252/1.mp3'])
+      expect((await app.request(`https://addons.test/lectures/transcript/${route}`)).status).toBe(
+        404,
+      );
+    expect(asked).toEqual([]);
+    expect((await app.request(TRANSCRIPT)).status).toBe(404);
+    const again = await app.request(TRANSCRIPT);
+    expect(again.status).toBe(404);
+    expect(again.headers.get('Cache-Control')).toBe('public, max-age=86400');
+    expect(asked).toHaveLength(1);
+  });
+
+  it('refuses a page far larger than a lecture page', async () => {
+    const { app } = serve(() => new Response(`${page}${' '.repeat(2_000_001)}`));
+    expect((await app.request(TRANSCRIPT)).status).toBe(404);
+  });
+
+  it('answers 502 when Yale fails, and caches nothing', async () => {
+    let up = false;
+    const { app, asked } = serve(() =>
+      up ? new Response(page) : new Response('down', { status: 503 }),
+    );
+    expect((await app.request(TRANSCRIPT)).status).toBe(502);
+    up = true;
+    expect((await app.request(TRANSCRIPT)).status).toBe(200);
+    expect(asked).toHaveLength(2);
+  });
+
+  it('names the configured origin in the stream behind a proxy', async () => {
+    const { app } = serve(() => new Response(page), {
+      CATALOG_ORIGIN: 'https://catalog.example.org',
+    });
+    const response = await app.request(
+      `http://internal:8787/lectures/stream/audiobook/${encodeURIComponent(ROMAN)}.json`,
+    );
+    const { streams } = WebStreamResponse.parse(await response.json());
+    const stream = streams[0];
+    if (!stream || !('parts' in stream)) throw new Error('Expected parts');
+    expect(stream.parts[1]?.transcripts?.[0]?.url).toBe(
+      'https://catalog.example.org/lectures/transcript/hsar-252/2.txt',
+    );
   });
 });

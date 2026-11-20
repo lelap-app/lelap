@@ -16,6 +16,7 @@ import {
   addStreamedBook,
   findBookBySource,
   findStreamedBook,
+  partTranscripts,
   removeStreamedBook,
 } from './streamed';
 
@@ -341,5 +342,52 @@ describe('removeStreamedBook', () => {
     const local = db.select().from(books).get();
     expect(removeStreamedBook(db, local?.id ?? '')).toBe(false);
     expect(db.select().from(books).all()).toHaveLength(1);
+  });
+});
+
+describe('partTranscripts', () => {
+  const text = (i: number) => ({
+    url: `https://addon.example/lectures/transcript/garden/${i}.txt`,
+    type: 'text/plain',
+    language: 'en',
+  });
+  const withTranscripts = (): Stream => {
+    const stream = parts(3);
+    if (!('parts' in stream)) throw new Error('Expected parts');
+    return {
+      ...stream,
+      parts: stream.parts.map((p, i) => (i === 1 ? p : { ...p, transcripts: [text(i)] })),
+    };
+  };
+
+  it('finds the playing part’s transcripts, shaped like a feed’s', () => {
+    const db = createTestDb();
+    const bookId = add(db, withTranscripts());
+    const at = (i: number) => partTranscripts(db, bookId, `stream:librivox:garden:64kb:${i}`);
+    expect(at(0)).toEqual([{ ...text(0), rel: null }]);
+    expect(at(1)).toEqual([]);
+    expect(at(2)).toEqual([{ ...text(2), rel: null }]);
+    expect(at(3)).toEqual([]);
+    expect(partTranscripts(db, 'nobody', 'stream:librivox:garden:64kb:0')).toEqual([]);
+  });
+
+  it('forgets them when the add-on stops sending them', () => {
+    const db = createTestDb();
+    const bookId = add(db, withTranscripts());
+    expect(db.select().from(books).get()?.addonItem?.transcripts).toHaveLength(3);
+    add(db, parts(3), meta, 200);
+    expect(db.select().from(books).get()?.addonItem).not.toHaveProperty('transcripts');
+    expect(partTranscripts(db, bookId, 'stream:librivox:garden:64kb:0')).toEqual([]);
+  });
+
+  it('takes them from another item that plays the same recording', () => {
+    const db = createTestDb();
+    const bookId = add(db, parts(3));
+    const work: Meta = { ...meta, id: 'openlibrary:OL1W' };
+    expect(add(db, withTranscripts(), work, 200)).toBe(bookId);
+    expect(db.select().from(books).get()?.addonItem?.id).toBe(meta.id);
+    expect(partTranscripts(db, bookId, 'stream:librivox:garden:64kb:2')).toEqual([
+      { ...text(2), rel: null },
+    ]);
   });
 });

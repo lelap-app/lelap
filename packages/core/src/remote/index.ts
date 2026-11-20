@@ -97,6 +97,13 @@ export {
   withQuery,
 } from './addon';
 export {
+  DIGEST_LOGIN_HEADER,
+  digestLoginValue,
+  hasDigestLogin,
+  libraryHeaders,
+  withoutDigestLogin,
+} from './digest';
+export {
   hostOf,
   isLocalAddress,
   isLocalHost,

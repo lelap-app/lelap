@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d915d3b3-134e-4151-997e-ffcbe0c715a2",
+  "id": "a47b9325-bf45-4e91-bc03-c9e434f1676b",
   "prevId": "cf6d6ebe-ef02-42db-8192-4484d392d738",
   "tables": {
     "addons": {
@@ -70,36 +70,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "book_changes": {
-      "name": "book_changes",
-      "columns": {
-        "seq": {
-          "name": "seq",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "book_id": {
-          "name": "book_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "book_changes_book_id_unique": {
-          "name": "book_changes_book_id_unique",
-          "columns": ["book_id"],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "book_files": {
       "name": "book_files",
       "columns": {
@@ -147,6 +117,13 @@
         },
         "download_uri": {
           "name": "download_uri",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ref": {
+          "name": "ref",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

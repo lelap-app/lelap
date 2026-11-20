@@ -33,6 +33,7 @@ export const pickFolder = (): Promise<PickedFolder | null> => Promise.resolve(nu
 export const hasPermission = (): Promise<boolean> => Promise.resolve(false);
 export const listTree = (): Promise<ListedFile[]> => unsupported();
 export const readTags = (): Promise<FileTags> => unsupported();
+export const saveRemote = (): Promise<void> => unsupported();
 export const readImage = (): Promise<string | null> => Promise.resolve(null);
 export const imageSize = (): Promise<{ width: number; height: number } | null> =>
   Promise.resolve(null);

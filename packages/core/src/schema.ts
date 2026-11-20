@@ -1,4 +1,4 @@
-import type { Meta, ScrobbleEvent, SeriesList } from '@lelap/sdk';
+import type { Meta, PartTranscript, ScrobbleEvent, SeriesList } from '@lelap/sdk';
 
 import type { EpisodeExtras, PodcastExtras } from './podcasts/podcasting';
 import {
@@ -62,6 +62,10 @@ export type KindTags = {
    * tags or an add-on's meta for a streamed book (M109). Absent from files read before M109.
    */
   series?: string | null;
+  /** What the book is about, as its server or add-on says (M135). Absent before M135. */
+  description?: string | null;
+  /** The book's language as its server or add-on says, such as `en` (M135). */
+  language?: string | null;
 };
 
 export const profiles = sqliteTable('profiles', {
@@ -184,6 +188,11 @@ export type AddonItemRef = {
   sourceKey: string;
   /** False when the stream said it may not be downloaded. */
   downloadable?: boolean;
+  /**
+   * Each part's transcripts by its index, when the stream gave any (revision 12, M136). Kept here
+   * rather than on the part's row, so no migration was needed.
+   */
+  transcripts?: PartTranscript[][];
 };
 
 export const books = sqliteTable(
@@ -232,6 +241,8 @@ export const bookFiles = sqliteTable(
     uri: text('uri').notNull(),
     /** Where a server's file downloads from, when not from `uri` (a Subsonic `download` address). */
     downloadUri: text('download_uri'),
+    /** An add-on's own note for the file (revision 13), handed back in its place reports. */
+    ref: text('ref'),
     relPath: text('rel_path').notNull(),
     name: text('name').notNull(),
     size: integer('size').notNull(),

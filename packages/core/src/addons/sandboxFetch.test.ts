@@ -154,6 +154,18 @@ describe('the sandbox’s fetch', () => {
       text: 'answer',
       headers: { 'content-type': 'application/json', 'set-cookie': 'session=abc; Path=/' },
     });
+    // A login challenge, for an add-on that answers Digest itself (M135).
+    const challenge = 'Digest realm="calibre", nonce="abc", qop="auth"';
+    const refused = network(() => ({ status: 401, headers: { 'www-authenticate': challenge } }));
+    expect(
+      await sandboxFetch(
+        refused.fetch,
+        'https://openlibrary.org/',
+        undefined,
+        ['openlibrary.org'],
+        options,
+      ),
+    ).toMatchObject({ status: 401, headers: { 'www-authenticate': challenge } });
     const moved = network(() => ({ status: 200, url: 'https://evil.example/' }));
     expect(
       await sandboxFetch(

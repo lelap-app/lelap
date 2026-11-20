@@ -99,17 +99,17 @@ export const BUNDLED_FILES: { file: string; sha256: string; manifest: unknown }[
   },
   {
     file: 'opds.js',
-    sha256: '3d1505c1c7c750b169285be2fc3373c421d6aca3e2cab885f47b70031aef2f1c',
+    sha256: '7ce5760f79389305888420ced97a1eb1a5688819893800376620df7a48b6e0da',
     manifest: {
       id: 'app.lelap.opds',
-      version: '1.0.0',
+      version: '1.1.0',
       protocol: 1,
-      protocolVersion: 9,
+      protocolVersion: 13,
       name: 'OPDS',
       description:
         'The audiobooks in an OPDS catalog, such as a Calibre content server or a library’s open catalog. Ebooks are left out.',
       types: ['audiobook'],
-      resources: ['library'],
+      resources: ['library', 'place'],
       catalogs: [],
       sandbox: {
         hosts: [],
@@ -134,7 +134,7 @@ export const BUNDLED_FILES: { file: string; sha256: string; manifest: unknown }[
           key: 'password',
           label: 'Password',
           type: 'password',
-          help: 'Stays on this phone. Sent as HTTP Basic, so use https outside your home network.',
+          help: 'Stays on this phone. Sent as HTTP Basic, or as Digest when the server asks for it; use https outside your home network.',
         },
       ],
     },

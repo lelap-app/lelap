@@ -1,4 +1,4 @@
-import { integrityCheck } from '@lelap/core';
+import { integrityCheck, withoutDigestLogin } from '@lelap/core';
 
 import { t } from '../i18n';
 import type {
@@ -96,7 +96,9 @@ async function fetchTo(
   headers?: Record<string, string>,
   integrity?: string,
 ) {
-  const response = await fetch(url, { signal, ...(headers ? { headers } : {}) });
+  // A browser can't answer a Digest login (M135); it stays out of the request.
+  const sent = headers ? withoutDigestLogin(headers) : undefined;
+  const response = await fetch(url, { signal, ...(sent ? { headers: sent } : {}) });
   if (!response.ok || !response.body)
     throw new Error(t('The server answered HTTP {status}.', { status: response.status }));
   const part = `${path}.part`;
