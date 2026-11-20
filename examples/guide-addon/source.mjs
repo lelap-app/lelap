@@ -3,7 +3,7 @@
 import { readdir } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 
-import { createAddon, createWorkIndex, lookupWork, splitAuthors } from '@lelap/sdk';
+import { createAddon, createWorkIndex, log, lookupWork, splitAuthors } from '@lelap/sdk';
 
 import { handlers as settingsHandlers } from './settings.mjs';
 
@@ -59,6 +59,9 @@ export async function createSourceAddon({ folder, filesUrl, ...lookupOptions }) 
       // An `isbn:` needs no request; an `ol:` work's title and authors come from Open Library.
       const work = await lookupWork(args.id, lookupOptions);
       const matches = work ? index.find(work) : [];
+      // One JSON line per lookup. `log` takes only strings, numbers and booleans, so an error or
+      // a URL with a key in it can't slip into your logs.
+      log('stream.lookup', { id: args.id, found: matches.length });
       return {
         streams: matches.map(({ item }) => {
           const file = files[item];

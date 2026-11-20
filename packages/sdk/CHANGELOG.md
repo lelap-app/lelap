@@ -1,5 +1,86 @@
 # @lelap/sdk
 
+## 0.6.0
+
+### Minor Changes
+
+- f768770: Protocol revision 11, for add-ons inside the app. A `LibraryResponse` can carry `settings`: new
+  values for the add-on's own fields, such as a server's new address. The app saves them before it
+  reads the files; address fields that grant a host change only for add-ons that come with the app.
+  The new `locate` resource is asked where a book's files are just before it streams
+  (`LocateRequest`, `LocateResponse`, `locatePath`, `offersLocate`); a file left out streams
+  without the library's login.
+
+  Revision 11 also adds `choice` settings, a list to pick from instead of a name to type. A
+  `SettingField` of type `choice` has its own `options` (`ChoiceOption`: `value`, `label`,
+  `detail`), or the add-on lists the `settings` resource and answers `SettingsOptions` at
+  `settingsPath()` with the form's values so far, such as a server's libraries after signing in.
+  With `multiple` the value is the picked values, one per line: `choiceValues` splits it,
+  `choiceOptions` merges both kinds of options, and `offersSettingOptions` says whether the app asks.
+  `readSettings` checks fixed options. `lelap-sdk check` warns of a choice field without revision
+  11, a `settings` resource that no field needs and a choice with one option.
+
+- 0180dc2: Protocol revision 10. A `scrobble` resource can list the `events` it uses, such as
+  `['finish', 'rate']`, and the app sends only those; `wantsScrobble` takes the event as a fourth
+  argument. A `rate` without `rating` means the listener took their rating back. The app now sends
+  `resumed` only to an add-on it told about the book before, and `sessionStartMs` on every `finish`
+  that ends a session.
+
+  The configure page grows into what a service with tokens and lists needs: `text` (an intro, a link,
+  steps and a note), `url` and `choices` fields (a group of boxes, kept as a list), `placeholder`, a
+  second page with `choose` whose fields depend on the first (its settings ride along sealed for an
+  hour), `manifest` for catalogs that depend on the settings, and `legacy` to keep add-on addresses
+  made before the add-on used this configure. `Config` values can now be lists of strings. The page
+  after saving copies the address with a tap. `lelap-sdk check` warns of `events` off the scrobble
+  resource, editions that share a key and a single edition the app never shows.
+
+- d2ea0b4: Sealed settings are bound to the add-on that sealed them. `encodeConfig` and `decodeConfig` take
+  the manifest ID as a third argument and seal it in as AES-GCM associated data, in a new `e2.`
+  token, so of two add-ons sharing one `configure.secret`, neither accepts the other's settings. It
+  authenticates the ID; it doesn't hide anything more from whoever holds the secret.
+  `createAddon` passes the ID itself. Backward compatible: `e1.` tokens from earlier versions still
+  open, so configured URLs keep working; new configure pages hand out `e2.` tokens.
+- 4131c31: The add-on test kit. `lelap-sdk check <url>` (or `npx @lelap/sdk check <url>`) fetches an add-on's
+  manifest and every resource it declares, validates each answer with the SDK's schemas and says
+  what is wrong: the field, what was expected and the address that answered. It also checks CORS,
+  response times, caching headers, catalog paging that ends, IDs that come back unchanged, stream
+  addresses and configure pages that use `PAGE_STYLE`. `--json` prints the report for CI; the exit
+  code is 0 when it passes, 1 for problems and 2 for wrong use. `checkAddon(url, { fetch })` and
+  `formatReport`, from `@lelap/sdk/check`, do the same from code, so a test can check `addon.fetch`
+  without a server.
+- 4dd2eff: Protocol revision 11 also adds the `series` resource: every book of a series in reading order,
+  asked by the series' name with `author`, `language` and `work` as extras
+  (`GET /series/{type}/{name}/{extra}.json`). The answer is a `SeriesResponse`; a book has a
+  `title`, `titles` by language, a `position` such as `1` or `0.5`, a `released` year or date and
+  `externalIds`, and `{ "series": null }` means the add-on doesn't know the series. `createAddon`
+  takes a `series` handler; `seriesPath`, `offersSeries`, `positionNumber` and `orderSeriesVolumes`
+  (by position, a book without one after the last book released before it) come with it. An app
+  before revision 11 refuses a manifest that lists `series`, so keep it in an add-on of its own or
+  one that needs revision 11 anyway. `lelap-sdk check` asks a name no series has, and with
+  `--series name/author` a series you know, and warns of books with neither a position nor a date.
+- Protocol revision 13, for add-ons inside the app with a library. A `LibraryFile` can carry the
+  book's `description`, `language` and `series` (from the book's first file, in place of the file's
+  own), and a `ref`: the add-on's own note for the file, which the app stores and hands back in
+  place reports. A `LibraryResponse` can carry `digest`, a user name and password that the app
+  answers with HTTP Digest per request on the phone, for servers such as Calibre's content server
+  without https. Each file of a `PlaceReport` now has its `durationMs` where the app knows it, and
+  its `ref`. `X-Lelap-Digest` is a header the app keeps for itself.
+- Every handler gets `waitUntil(promise)` for work after the answer; `fetch(request, env, ctx)` hands
+  it to the Workers execution context, and elsewhere the promise simply runs. Configure fields take a
+  `link` (`href`, `text`) shown beside them and a `group`, a heading the page sorts them under.
+  `fingerprint(secret)` is a short stable hash for cache keys per account, and `log(event, fields)`
+  prints one JSON line from strings, numbers and booleans only, with URLs cut to their path.
+  `mockFetch(routes)` in `@lelap/sdk/check` answers the routes given and fails every other request,
+  so an add-on's tests never reach a real service.
+- 59d468c: The configure page can offer signing in with the service instead of typing a token:
+  `text.signIn` (`href`, `label`, `note`, `other`) puts a button to a path on the add-on's own host
+  first, with the page's `return` address added, and folds the form under `other`.
+
+### Patch Changes
+
+- 8a2f0ce: The page after saving a configure form names the app's new Settings path: Settings → Library and
+  sources → Add-ons.
+
 ## 0.5.0
 
 ### Minor Changes

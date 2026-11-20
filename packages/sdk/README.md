@@ -2,8 +2,7 @@
 
 Types, zod schemas and a request handler for [Lelap](https://github.com/lelap-app/lelap) add-ons.
 An add-on is a stateless HTTP service that answers with JSON: catalogs, metadata and audio sources
-for the Lelap player. The SDK speaks protocol v1, revision 9 (revisions 10 to 13 from the next version, 0.6), so your code is a manifest and a
-handler for each resource.
+for the Lelap player. The SDK speaks protocol v1, revision 13 (0.5 knew revision 9), so your code is a manifest and a handler for each resource.
 
 ```sh
 npm install @lelap/sdk
@@ -51,9 +50,8 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
 - **`createAddon(handlers, options)`** turns handlers into `fetch(request)`. `options.basePath`
   mounts several add-ons under one host.
 - **Settings and sign-in:** `createAddon({ configure: { fields, secret, check } })` serves a form at
-  `/configure` and puts the listener's settings, encrypted, into the add-on's URL (`e1.` tokens;
-  from the next version, 0.6, bound to the manifest's `id` as `e2.` tokens, and `e1.` ones still
-  open); handlers get them as `config`. Nothing is stored on a server. The pages say who runs
+  `/configure` and puts the listener's settings, encrypted, into the add-on's URL (`e2.` tokens,
+  bound to the manifest's `id` since 0.6; `e1.` ones from earlier versions still open); handlers get them as `config`. Nothing is stored on a server. The pages say who runs
   them (“This page is run by {host}, not by Lelap.”) and use `PAGE_STYLE`, the stylesheet Lelap's
   own configure pages share.
 - **Health:** every add-on answers `GET /health`; pass a `health` handler to report `degraded` or
@@ -74,11 +72,11 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
   from; `resumed` on a `start` that carries on with a book; `next` on a `LibraryResponse` for a
   library in pages; and `setUpWithSettings`, for an add-on inside the app whose settings reach every
   call.
-- **Revision 10** (from the next version, 0.6): `events` on the `scrobble` resource, which
+- **Revision 10** (since 0.6): `events` on the `scrobble` resource, which
   `wantsScrobble(manifest, type, id, event)` reads; a `rate` without `rating` takes a rating back.
   The configure page gains `url` and `choices` fields, `text` (intro, link, steps, note), a second
   page with `choose`, a `manifest` per listener and `legacy` for addresses made before.
-- **Revision 11** (from the next version, 0.6), for add-ons inside the app: `settings` on a
+- **Revision 11** (since 0.6), for add-ons inside the app: `settings` on a
   `LibraryResponse`, new values for the add-on's own fields such as a server's new address; and
   the `locate` resource, with `LocateRequest`, `LocateResponse`, `locatePath` and `offersLocate`,
   which says where a book's files stream from just before it plays; `choice` settings, a list to
@@ -87,16 +85,28 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
   resource lists a whole series in reading order: `SeriesResponse`, `SeriesList`, `seriesPath`,
   `offersSeries`, and `orderSeriesVolumes`, the order the app shows. `lelap-sdk check --series
 name/author` checks one.
-- **Revision 12** (from the next version, 0.6): `transcripts` on a `StreamPart` (`PartTranscript`:
+- **Revision 12** (since 0.6): `transcripts` on a `StreamPart` (`PartTranscript`:
   `url`, `type`, `language`), shaped like a feed's `podcast:transcript`. The app shows the playing
   part's on its transcript screen; an older app drops the field and still plays.
-- **Add-on test kit** (from the next version, 0.6): `npx @lelap/sdk check <url>` fetches an
+- **Add-on test kit** (since 0.6): `npx @lelap/sdk check <url>` fetches an
   add-on's manifest and everything it declares, validates each answer with these schemas, and
   checks what schemas can't see: CORS, speed, caching, paging that ends, IDs that come back and
   configure pages in the shared style. `--json` and exit codes (0 passed, 1 problems, 2 wrong use)
   are for CI. `checkAddon(url, { fetch })` from `@lelap/sdk/check` does the same in your tests,
   without a server, and stays out of bundles that import the SDK's root; see
-  [Checking an add-on](https://lelap.app/docs/checking/).
+  [Checking an add-on](https://lelap.app/docs/checking/). `mockFetch(routes)` from the same
+  entry answers the routes you give and fails every other request, so your tests never reach a
+  real service.
+- **Revision 13** (since 0.6), for add-ons inside the app with a library: a `LibraryFile` can
+  carry the book's `description`, `language`, `series` and a `ref` of the add-on's own, and a
+  `LibraryResponse` a `digest` login for servers without https.
+- **Since 0.6:** every handler gets `waitUntil(promise)` for work after the answer, such as
+  finishing a slow search into a cache; `fetch(request, env, ctx)` hands it to the Workers
+  execution context, and elsewhere the promise simply runs. Configure fields take a `link`
+  (`href`, `text`) shown beside them and a `group`, a heading the page sorts them under.
+  `fingerprint(secret)` is a short stable hash for cache keys that differ per account, and
+  `log(event, fields)` prints one JSON line from strings, numbers and booleans only, with URLs
+  cut to their path, so a key can't reach your logs by accident.
 - **Paths:** `catalogPath`, `metaPath`, `streamPath`, `libraryPath`, `placePath`, `locatePath`, `settingsPath`, `seriesPath`, `parseRoute`, `encodeExtra`,
   `parseExtra`.
 - **Helpers:** `supports`, `prefixesFor`, `hasParts`, `isConfigurable`, `needsConfiguration`,

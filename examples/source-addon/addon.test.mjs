@@ -1,19 +1,19 @@
-import { checkAddon } from '@lelap/sdk/check';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { checkAddon, mockFetch } from '@lelap/sdk/check';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createSourceAddon, manifest } from './addon.mjs';
 import { createAddonServer } from './server.mjs';
 
-const json = (body) => new Response(JSON.stringify(body), { status: 200 });
-
-// Open Library as the add-on sees it for A Christmas Carol; nothing else is known.
-const openLibrary = vi.fn(async (url) => {
-  if (url.endsWith('/works/OL1W.json')) {
-    return json({ title: 'A Christmas Carol', authors: [{ author: { key: '/authors/OL2A' } }] });
-  }
-  if (url.endsWith('/authors/OL2A.json')) return json({ name: 'Charles Dickens' });
-  if (url.includes('/works/OL1W/editions.json')) return json({ entries: [] });
-  return new Response('{}', { status: 404 });
+// Open Library as the add-on sees it for A Christmas Carol; nothing else is known. Any request
+// to another host fails, so the tests never reach a real service.
+const openLibrary = mockFetch({
+  'https://ol.test/works/OL1W.json': {
+    title: 'A Christmas Carol',
+    authors: [{ author: { key: '/authors/OL2A' } }],
+  },
+  'https://ol.test/authors/OL2A.json': { name: 'Charles Dickens' },
+  'https://ol.test/works/OL1W/editions.json*': { entries: [] },
+  'https://ol.test/*': () => new Response('{}', { status: 404 }),
 });
 
 const addon = createSourceAddon({ fetch: openLibrary, openLibrary: 'https://ol.test' });
@@ -36,17 +36,16 @@ describe('source add-on', () => {
   });
 
   it('answers an ISBN from the tags without asking anyone', async () => {
-    openLibrary.mockClear();
     const found = await streams('isbn:9780000000002');
     expect(found.map((s) => s.title)).toEqual(['The Raven']);
-    expect(openLibrary).not.toHaveBeenCalled();
+    expect(openLibrary.calls).toHaveLength(0);
   });
 
   it('answers a Catalog work page by title and author', async () => {
     const found = await streams('ol:OL1W');
     expect(found.map((s) => s.title)).toEqual(['A Christmas Carol (Unabridged)']);
     expect(found[0].parts).toHaveLength(5);
-    expect(openLibrary.mock.calls.every(([url]) => url.startsWith('https://ol.test/'))).toBe(true);
+    expect(openLibrary.unmatched).toEqual([]);
   });
 
   it('has nothing for works it does not have', async () => {

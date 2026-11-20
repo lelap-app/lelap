@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { type Context, Hono } from 'hono';
 
 import { addon } from './addon';
 
@@ -6,6 +6,14 @@ import { addon } from './addon';
 const app = new Hono();
 // People open the base URL in a browser; the manifest is what they came for.
 app.get('/', (c) => c.redirect('/manifest.json'));
-app.all('*', (c) => addon.fetch(c.req.raw));
+// Handlers' `waitUntil` reaches the Workers execution context; elsewhere the work simply runs.
+const contextOf = (c: Context) => {
+  try {
+    return c.executionCtx;
+  } catch {
+    return undefined;
+  }
+};
+app.all('*', (c) => addon.fetch(c.req.raw, undefined, contextOf(c)));
 
 export default app;

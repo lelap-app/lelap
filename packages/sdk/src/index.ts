@@ -5,3 +5,4 @@ export * from './match';
 export * from './paths';
 export * from './protocol';
 export * from './series';
+export * from './credentials';
