@@ -7,3 +7,5 @@ apps/app/ios/
 .expo/
 modules/*/android/build/
 modules/*/android/.gradle/
+# Recorded as Yale serves it (M136): its markup is not valid HTML, and the test reads it as is.
+services/catalog/test/fixtures/yale-*-transcript.html

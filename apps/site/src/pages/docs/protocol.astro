@@ -1122,6 +1122,13 @@ const partFields: Field[] = [
     meaning: 'Length in milliseconds. The app builds the book’s timeline from it.',
   },
   { name: 'size', type: 'integer ≥ 0', required: false, meaning: 'Size in bytes.' },
+  {
+    name: 'transcripts',
+    type: 'PartTranscript[]',
+    required: false,
+    meaning:
+      'Revision 12: the part’s transcripts, at most 10, one per format and language, as a feed’s `podcast:transcript`. Each has a `url`, a MIME `type` (`text/plain`, `text/html`, `text/vtt`, `application/x-subrip` or `application/json`) and an optional `language`. The transcript screen shows the playing part’s, a timed one first; the web app reads it through Lelap’s proxy. A list that does not fit is dropped, not the part.',
+  },
 ];
 
 const toc: [string, string][] = [
@@ -1536,9 +1543,10 @@ const toc: [string, string][] = [
     <a href="#whole-series">whole series</a> and <a href="#choices">choice settings</a> with the{' '}
     <code>settings</code> resource; an app before revision 11 ignores the settings and refuses a
     manifest that lists <code>locate</code>, <code>series</code> or <code>settings</code>, or has a
-    choice field. When an add-on declares a newer revision than the app knows, Settings → Library
-    and sources → Add-ons says so. Revision 9 comes with SDK 0.5.0; 0.4.0 covers revisions up to 8.
-    Revisions 10 and 11 come with the next SDK release, 0.6.
+    choice field. Revision 12 adds a part’s <a href="#stream-part">transcripts</a>; an app before
+    revision 12 ignores them. When an add-on declares a newer revision than the app knows, Settings
+    → Library and sources → Add-ons says so. Revision 9 comes with SDK 0.5.0; 0.4.0 covers revisions
+    up to 8. Revisions 10, 11 and 12 come with the next SDK release, 0.6.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />

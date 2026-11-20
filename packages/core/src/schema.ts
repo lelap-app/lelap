@@ -1,4 +1,4 @@
-import type { Meta, ScrobbleEvent, SeriesList } from '@lelap/sdk';
+import type { Meta, PartTranscript, ScrobbleEvent, SeriesList } from '@lelap/sdk';
 
 import type { EpisodeExtras, PodcastExtras } from './podcasts/podcasting';
 import {
@@ -183,6 +183,11 @@ export type AddonItemRef = {
   sourceKey: string;
   /** False when the stream said it may not be downloaded. */
   downloadable?: boolean;
+  /**
+   * Each part's transcripts by its index, when the stream gave any (revision 12, M136). Kept here
+   * rather than on the part's row, so no migration was needed.
+   */
+  transcripts?: PartTranscript[][];
 };
 
 export const books = sqliteTable(

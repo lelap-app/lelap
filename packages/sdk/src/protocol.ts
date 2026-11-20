@@ -22,9 +22,9 @@ export const PROTOCOL_VERSION = 1;
  * `resumed` only to an add-on that heard of the book before, and `sessionStartMs` on every
  * `finish` that ends a session; 11 adds a library's `settings`, the `locate` resource, `choice`
  * settings and the `settings` resource that lists their options, for add-ons inside the app, and
- * the `series` resource: every book of a series, in order.
+ * the `series` resource: every book of a series, in order; 12 adds `transcripts` on a stream part.
  */
-export const LATEST_PROTOCOL_VERSION = 11;
+export const LATEST_PROTOCOL_VERSION = 12;
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
@@ -451,11 +451,28 @@ export const Meta = MetaPreview.extend({
 });
 export type Meta = z.infer<typeof Meta>;
 
+/**
+ * Since revision 12: a transcript of one part, shaped like a feed's `podcast:transcript`. `type`
+ * is its MIME type, such as `text/plain`, `text/vtt` or `application/json`.
+ */
+export const PartTranscript = z.object({
+  url: Url,
+  type: z.string().min(1).max(100),
+  /** Such as `en`. */
+  language: z.string().min(1).max(35).optional(),
+});
+export type PartTranscript = z.infer<typeof PartTranscript>;
+
 export const StreamPart = z.object({
   url: Url,
   title: z.string().optional(),
   durationMs: Duration,
   size: z.number().int().nonnegative().optional(),
+  /**
+   * Since revision 12: the part's transcripts, one per format and language, at most 10. A list
+   * that does not fit is dropped, not the part: it plays without one.
+   */
+  transcripts: z.array(PartTranscript).max(10).optional().catch(undefined),
 });
 export type StreamPart = z.infer<typeof StreamPart>;
 

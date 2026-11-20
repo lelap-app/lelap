@@ -13,6 +13,7 @@ import { searchWords, truncate, yearOf } from '../text';
 import { TTL } from '../upstream';
 import { type Course, creditLine, LICENCE, TERMS, YALE } from './course';
 import { COURSES } from './courses';
+import { transcriptPath } from './transcript';
 
 export const BASE_PATH = '/lectures';
 export const PREFIX = 'oyc:';
@@ -27,11 +28,12 @@ const departments = [...new Set(COURSES.map((c) => c.department))].sort((a, b) =
 /**
  * Open lectures (M132): complete university courses from a hand-kept list, one course a book and
  * one lecture a part. Audio streams from the publisher (Yale) or archive.org; this add-on only
- * hands out the addresses, and asks nobody at runtime.
+ * hands out the addresses. Since M136 each lecture has its transcript, read from Yale's lecture
+ * page by `transcript.ts` when first asked for.
  */
 export const lecturesManifest: Manifest = {
   id: 'app.lelap.lectures',
-  version: '1.0.0',
+  version: '1.1.0',
   protocol: 1,
   name: 'Open lectures',
   description:
@@ -89,7 +91,8 @@ export function metaOf(course: Course): Meta {
   };
 }
 
-export function streamOf(course: Course): Stream {
+/** `origin` is where this service answers, for each lecture's transcript (M136). */
+export function streamOf(course: Course, origin: string): Stream {
   const yale = course.host === 'yale';
   return {
     // One stream per course, not both hosts: places are kept by this key.
@@ -98,7 +101,19 @@ export function streamOf(course: Course): Stream {
     title: yale ? `${course.code}, ${course.term}` : `${course.code}, ${course.term}, archive.org`,
     mime: 'audio/mpeg',
     downloadable: true,
-    parts: course.lectures.map((l) => ({ url: l.audio, title: l.title, durationMs: l.durationMs })),
+    parts: course.lectures.map((l, i) => ({
+      url: l.audio,
+      title: l.title,
+      durationMs: l.durationMs,
+      // Text from Yale's lecture page, through this service; the audio never is.
+      transcripts: [
+        {
+          url: `${origin}${transcriptPath(BASE_PATH, course, i + 1)}`,
+          type: 'text/plain',
+          language: 'en',
+        },
+      ],
+    })),
   };
 }
 
@@ -111,7 +126,11 @@ function matches(course: Course, words: string[]): boolean {
   return words.every((word) => text.some((t) => t.startsWith(word)));
 }
 
-export function createLecturesAddon(courses: Course[] = COURSES): Addon {
+/**
+ * `origin`: this service's public origin, when requests arrive under another (Docker behind a
+ * proxy); otherwise each request's own.
+ */
+export function createLecturesAddon(courses: Course[] = COURSES, origin?: string): Addon {
   const byId = new Map(courses.map((c) => [`${PREFIX}${c.id}`, c]));
   return createAddon(
     {
@@ -133,9 +152,10 @@ export function createLecturesAddon(courses: Course[] = COURSES): Addon {
         const course = byId.get(id);
         return course ? { meta: metaOf(course), cacheMaxAge: TTL.reference } : null;
       },
-      stream({ id }): StreamResponse {
+      stream({ id, request }): StreamResponse {
         const course = byId.get(id);
-        return { streams: course ? [streamOf(course)] : [], cacheMaxAge: TTL.reference };
+        const base = origin ?? new URL(request.url).origin;
+        return { streams: course ? [streamOf(course, base)] : [], cacheMaxAge: TTL.reference };
       },
     },
     { basePath: BASE_PATH, onError: (error) => console.error(error) },

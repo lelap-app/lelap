@@ -202,6 +202,10 @@ GET  /configure           (the add-on's own settings page)
 - **Whole series** (revision 11): every book of a series in reading order, with titles by
   language, positions and release dates (M127). An app before revision 11 refuses a manifest with
   a resource it doesn't know, so a new resource for every app goes into an add-on of its own.
+- **Part transcripts** (revision 12): a stream part may carry `transcripts`, shaped like a feed's
+  `podcast:transcript` (address, MIME type, language). The transcript screen shows the playing
+  part's, as it does an episode's; an older app drops the field and still plays (M136). Open
+  lectures serves Yale's from `/lectures/transcript/{course}/{n}.txt`.
 - **Choice settings** (revision 11, inside the app): a setting of type `choice` is a list to pick
   from, with its own `options` or those the add-on's `settings` resource lists for the form so far,
   in a sandbox of its own with the hosts the form grants. A resource rather than a sign-in's

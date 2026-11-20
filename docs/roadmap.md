@@ -143,7 +143,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M133 Settings 2](milestones/m133.md)                | Done        |           8 | Settings as eight groups, each line saying what is set now and opening its own page                                                                           |
 | [M134 Better sound 4](milestones/m134.md)            | Planned     |             | The sound effects on cast receivers through a stream the phone renders; skip silence on the web for variable-bitrate MP3, and MP3's encoder delay per browser |
 | [M135 OPDS 2](milestones/m135.md)                    | Planned     |             | What M128 left: Digest logins for audio, OPDS Progression places, a feed's summary, language and series                                                       |
-| [M136 Lecture transcripts](milestones/m136.md)       | Planned     |             | Yale's transcripts for Open lectures on the transcript screen, through a stream part's transcripts                                                            |
+| [M136 Lecture transcripts](milestones/m136.md)       | Done        |           4 | Yale's transcripts for Open lectures on the transcript screen, through a stream part's transcripts                                                            |
 | [M138 Playback history](milestones/m138.md)          | Done        |          13 | A short log per book of plays, pauses, skips, seeks, chapter jumps and sleep timer stops, so one tap undoes an accidental jump                                |
 | [M139 Casting 6](milestones/m139.md)                 | Planned     |             | Receiver waits tuned from measured timings, and the leading speaker leaving a group                                                                           |
 | [M140 App polish 5](milestones/m140.md)              | Done        |           9 | Add-ons page order, dialogs on wide screens, one copy of each screen, fewer player tools, streamed lengths                                                    |
@@ -171,6 +171,11 @@ when it is planned.
   field and forbid lasting copies (so no Google fields in downloads or sync), it has no narrators or
   lengths, and its coverage of Danish editions is unknown until a key exists. Apple's iTunes Search
   API is out unless a store link is shown beside its data. M137 is left unused.
+- **Part transcripts, finer points (after M136):** a synced book that another device already has
+  keeps that device's add-on reference, so transcripts an add-on adds later reach it only when it
+  opens the book's item itself (`applyBook` in `packages/core/src/sync/ops.ts`); and the transcript
+  screen reads the database only when the part changes, so transcripts written while it is open
+  show after the next part.
 - **Kotlin tests for the fold and headless modules in CI:** `:lelap-fold:testDebugUnitTest` (M113)
   and `:lelap-headless:testDebugUnitTest` (M123) pass locally but aren't in the `android-unit-tests`
   job's Gradle line in `ci.yml`. Adding them doesn't change when the job runs; waiting on the

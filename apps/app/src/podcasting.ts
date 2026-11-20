@@ -6,10 +6,12 @@ import {
   parseChapterImages,
   parseChaptersFile,
   parseTranscript,
+  partTranscripts,
   pickTranscript,
   saveEpisodeChapters,
   type ChapterImage,
   type FeedSoundbite,
+  type FeedTranscript,
   type TranscriptCue,
 } from '@lelap/core';
 import { useQuery } from '@tanstack/react-query';
@@ -138,14 +140,16 @@ export function soundbitesOf(bookId: string): FeedSoundbite[] {
   return episodeDetail(db, bookId)?.extras?.soundbites ?? [];
 }
 
-/** The transcript to show for a book, if it is an episode whose feed lists one. */
-export function transcriptOf(bookId: string) {
+/**
+ * The transcript to show for a book: an episode's from its feed, or the playing part's from its
+ * add-on's stream (M136, such as an Open lectures lecture).
+ */
+export function transcriptOf(bookId: string, fileLocation: string | null) {
   const extras = episodeDetail(db, bookId)?.extras;
-  return extras ? pickTranscript(extras.transcripts) : null;
+  if (extras) return pickTranscript(extras.transcripts);
+  return fileLocation ? pickTranscript(partTranscripts(db, bookId, fileLocation)) : null;
 }
 
-export async function loadTranscript(bookId: string): Promise<TranscriptCue[]> {
-  const transcript = transcriptOf(bookId);
-  if (!transcript) return [];
+export async function loadTranscript(transcript: FeedTranscript): Promise<TranscriptCue[]> {
   return parseTranscript(await fetchText(transcript.url), transcript.type);
 }

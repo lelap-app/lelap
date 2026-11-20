@@ -87,6 +87,9 @@ caching headers, answers `OPTIONS`, and checks every answer against the protocol
   resource lists a whole series in reading order: `SeriesResponse`, `SeriesList`, `seriesPath`,
   `offersSeries`, and `orderSeriesVolumes`, the order the app shows. `lelap-sdk check --series
 name/author` checks one.
+- **Revision 12** (from the next version, 0.6): `transcripts` on a `StreamPart` (`PartTranscript`:
+  `url`, `type`, `language`), shaped like a feed's `podcast:transcript`. The app shows the playing
+  part's on its transcript screen; an older app drops the field and still plays.
 - **Add-on test kit** (from the next version, 0.6): `npx @lelap/sdk check <url>` fetches an
   add-on's manifest and everything it declares, validates each answer with these schemas, and
   checks what schemas can't see: CORS, speed, caching, paging that ends, IDs that come back and
