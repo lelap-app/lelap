@@ -114,6 +114,11 @@ name/author` checks one.
   `LATEST_PROTOCOL_VERSION`.
 - **JSON Schema** of every response, for other languages: `@lelap/sdk/protocol.schema.json`.
 
+Coding assistants (Claude Code, Cursor and the like) working in an add-on's project can read
+[`llms.txt`](llms.txt), which ships in the package: how an add-on is meant to look, the rules that
+matter, settings and testing, on one page. Point your `AGENTS.md` or `CLAUDE.md` at
+`node_modules/@lelap/sdk/llms.txt`.
+
 [Your first add-on](https://lelap.app/docs/guide/) builds one step by step: a catalog, settings, a
 source for your own files and a deploy. The [SDK guide](https://lelap.app/docs/sdk/), the
 [protocol reference](https://lelap.app/docs/protocol/)

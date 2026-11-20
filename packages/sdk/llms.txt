@@ -1,0 +1,111 @@
+# @lelap/sdk
+
+> Types, zod schemas, a request handler and a test kit for Lelap add-ons. An add-on is a
+> stateless HTTP service that answers JSON: catalogs, metadata and audio sources for the Lelap
+> audiobook and podcast player. This file is for coding assistants working in an add-on's
+> project; the `.d.ts` files next to it document every field.
+
+Protocol 1, revision 13 (`LATEST_PROTOCOL_VERSION`). Revisions only add fields; an older app
+ignores what it doesn't know. ESM only; any runtime with `Request` and `Response` (Cloudflare
+Workers, Deno, Bun, Node 20+).
+
+## How an add-on is meant to look
+
+```ts
+import { createAddon, type Manifest } from '@lelap/sdk';
+
+const manifest: Manifest = {
+  id: 'org.example.classics', // reverse-DNS of a domain you control; never change it
+  version: '1.0.0',
+  protocol: 1,
+  name: 'Classics',
+  description: 'Public-domain books.',
+  types: ['audiobook'], // 'audiobook' | 'podcast' | 'episode'
+  resources: ['catalog', 'meta', 'stream'],
+  idPrefixes: ['classics:'], // the app asks this add-on for meta and streams of these IDs
+  catalogs: [{ type: 'audiobook', id: 'classics', name: 'Classics' }],
+};
+
+export const addon = createAddon({
+  manifest,
+  catalog: ({ id, extra }) => ({ metas: [], cacheMaxAge: 86400 }), // extra: { search, skip, … }
+  meta: ({ id }) => null, // null → 404
+  stream: ({ id }) => ({ streams: [] }),
+});
+
+export default { fetch: addon.fetch }; // Workers; Deno.serve(addon.fetch); Bun likewise
+```
+
+- Every handler gets `{ config, request, waitUntil }` plus its route (`type`, `id`, `extra`).
+  `config` is the listener's settings from the configure page, or `null`.
+- `addon.fetch(request, env?, ctx?)`: pass the Workers execution context as `ctx` so
+  `waitUntil(promise)` outlives the answer. With Hono, pass `c.executionCtx` (it throws on Node:
+  catch and pass `undefined`).
+- The SDK serves `/manifest.json`, `/health`, `/configure`, CORS and `Cache-Control` from
+  `cacheMaxAge`, sets `protocolVersion`, and validates every answer against the schemas
+  (`validate: false` turns that off). Don't hand-write those routes.
+- Throw `new AddonError(status, message, { retryAfter })` for answers the app should show or
+  retry; anything else becomes a 500 and reaches `options.onError`.
+- Several add-ons can share a host with `createAddon(handlers, { basePath: '/name' })`.
+
+## Rules that matter
+
+- `sourceKey` on a stream is stable across versions: the app keeps the listener's place under it.
+- Web add-ons never send stream `headers`; only add-ons bundled inside the app may.
+- Stream URLs are https and point at audio the add-on may share. A stream is a single file (`url`,
+  optional `durationMs`, `chapters`) or `parts` (each `url`, `durationMs`, `title`).
+- IDs arrive decoded; use `catalogPath`, `metaPath`, `streamPath`, `seriesPath` to build paths the
+  way the app does (they percent-encode).
+- Keep secrets out of logs: `log(event, fields)` takes only strings, numbers and booleans and cuts
+  URLs to their path; `fingerprint(secret)` gives a per-account cache key without the token.
+
+## Settings (configure page)
+
+`createAddon({ ..., configure: { fields, secret, check, text, choose, manifest, legacy } })`.
+
+- Fields: `text`, `password` (needs `secret`), `url`, `select` and `choices` (need `options`),
+  `checkbox`; each with `label`, `required`, `default`, `help`, `placeholder`, `link`
+  (`{ href, text }`, shown under it) and `group` (a heading).
+- With `secret` the settings are sealed with AES-GCM into the add-on's URL (`e2.` tokens); nothing
+  is stored on a server. Keep the secret in a Workers secret or environment variable.
+- `check(config)` returns a message to show, or nothing to accept. `choose` adds a second page
+  whose fields depend on the first. `manifest(config)` gives each listener their own catalogs.
+
+## Testing
+
+```ts
+import { checkAddon, mockFetch } from '@lelap/sdk/check';
+
+const fetch = mockFetch({
+  'https://openlibrary.org/works/OL1W.json': { title: 'A Christmas Carol' },
+  'GET https://archive.org/*': () => new Response('{}', { status: 404 }),
+});
+const addon = createMyAddon({ fetch }); // inject fetch; requests no route matches fail
+const report = await checkAddon('https://addon.test/manifest.json', {
+  fetch: (url, init) => addon.fetch(new Request(url, init)),
+});
+expect(report.ok).toBe(true); // report.problems says what and where
+```
+
+- `addon.fetch(new Request(url))` needs no server.
+- `npx @lelap/sdk check <manifest-url>` runs the same checks over HTTP; exit 0 passed, 1 problems,
+  2 wrong use; `--json` for CI.
+
+## Other exports
+
+- Schemas and types of the same name: `Manifest`, `MetaPreview`, `Meta`, `Stream`, `StreamPart`,
+  `CatalogResponse`, `MetaResponse`, `StreamResponse`, `SeriesResponse`, `ArtworkResponse`,
+  `HealthResponse`, `ScrobbleEvent`, `Edition`, `Badges`, `SettingField`, `LibraryResponse`, ….
+- Source add-ons that map files to works: `createWorkIndex`, `idsFromTags`, `lookupWork`,
+  `splitAuthors`, `matchStrength`.
+- Manifest helpers: `supports`, `prefixesFor`, `hasParts`, `wantsScrobble`, `offersSeries`, ….
+- JSON Schema for other languages: `@lelap/sdk/protocol.schema.json`.
+
+## Docs
+
+- Your first add-on, step by step: https://lelap.app/docs/guide/
+- SDK guide: https://lelap.app/docs/sdk/
+- Protocol reference, every field and revision: https://lelap.app/docs/protocol/
+- Checking an add-on: https://lelap.app/docs/checking/
+- Samples in Node and Python: https://lelap.app/docs/samples/
+- Changelog: CHANGELOG.md in this package

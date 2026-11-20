@@ -27,7 +27,8 @@
     "./check": "./src/check.ts"
   },
   "files": [
-    "dist"
+    "dist",
+    "llms.txt"
   ],
   "publishConfig": {
     "access": "public",

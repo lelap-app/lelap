@@ -4,6 +4,8 @@
 
 ### Minor Changes
 
+- `llms.txt` ships in the package: a one-page guide for coding assistants working in an add-on's
+  project, pointing at the `.d.ts` files and the docs.
 - f768770: Protocol revision 11, for add-ons inside the app. A `LibraryResponse` can carry `settings`: new
   values for the add-on's own fields, such as a server's new address. The app saves them before it
   reads the files; address fields that grant a host change only for add-ons that come with the app.
