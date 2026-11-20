@@ -154,6 +154,8 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M145 Upkeep 2](milestones/m145.md)                  | Planned     |             | Small correctness leftovers from M102, M117, M121, M127, M138 and M83, gathered from Future goals                                                             |
 | [M146 Home and away addresses](milestones/m146.md)   | Planned     |             | Audiobookshelf, Jellyfin and WebDAV with a home and an outside address, switching to the one that answers                                                     |
 | [M147 Play by voice](milestones/m147.md)             | Planned     |             | “Play X on Lelap” through the Assistant and Android Auto's voice search                                                                                       |
+| [M148 UI consistency 1](milestones/m148.md)          | Planned     |           5 | Shared header, button, empty and error states, notice and text field, swapped in on every screen                                                              |
+| [M149 UI consistency 2](milestones/m149.md)          | Planned     |           4 | One tab header with Settings everywhere, a wider desktop rail, clear settings rows, a type scale and a copy pass                                              |
 
 <!-- milestones:end -->
 
