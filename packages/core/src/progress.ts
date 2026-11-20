@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { presentFiles } from './library/bookFiles';
+import { isLiveBook } from './live';
 import { type FilePosition, toBookPosition, toFilePosition } from './library/timeline';
 import { bookFiles, books, libraryEntries, progress } from './schema';
 
@@ -40,6 +41,8 @@ export function saveProgress(
         ? file.bookId
         : tx.select({ id: books.id }).from(books).where(eq(books.id, entry.bookId)).get()?.id;
     if (!bookId) return false;
+    // A live stream keeps no place, so it never shows up in Continue listening (M154).
+    if (isLiveBook(tx, bookId)) return false;
 
     const key = and(eq(progress.profileId, profileId), eq(progress.bookId, bookId));
     const stored = tx

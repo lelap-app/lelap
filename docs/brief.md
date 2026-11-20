@@ -200,6 +200,13 @@ GET  /configure           (the add-on's own settings page)
 - **Stream objects:** one file with `chapters`, or `parts` (files with durations); `size`, `mime`,
   `bitrate`, `downloadable`, a stable `sourceKey`. A chapter with an empty title is named by the
   app in the listener's language (M99).
+- **Live streams (M154):** `live: true` on a stream (revision 14) makes it a station: no place,
+  progress, finish, download, seeking or speed, at most a `start` scrobble event, and the current
+  song from ICY or HLS ID3 metadata. The flag lives on the book's `addonItem`, so no migration.
+  HLS plays through Media3's HLS module on Android; on the web through the browser's own HLS, else
+  hls.js's light build, loaded only when a playlist needs it (the one player library, since MSE
+  playback of HLS is too much to write ourselves). Schedules and a `station` type wait for add-ons
+  that would use them.
 - **Resolve redirect:** a stable `/resolve/…` URL that redirects to a fresh link; the player calls
   it again on 403 or 410.
 - **IDs:** Open Library work IDs are canonical; meta add-ons return `externalIds`. Podcasts use

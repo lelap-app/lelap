@@ -29,6 +29,7 @@ import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Metadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -162,6 +163,11 @@ class PlaybackService : MediaLibraryService() {
         .orEmpty()
     }
 
+  /** What the live stream that is loaded plays now (M154), from its ICY or ID3 metadata. */
+  private var nowPlaying: String? = null
+  private val live: Boolean
+    get() = current?.live == true
+
   @Volatile private var headersByUri: Map<String, Map<String, String>> = emptyMap()
 
   // Media3 sends the same headers after a redirect, to any host, so a file with a login is read
@@ -210,6 +216,7 @@ class PlaybackService : MediaLibraryService() {
   // The notification's and car's Back after a jump made away from the app (M138).
   private val backOffer = BackOffer(SystemClock::elapsedRealtime)
   private var buttonsBack: Boolean? = null
+  private var buttonsLive: Boolean? = null
   /** True while Media3 handles a headphone or Bluetooth button; see onMediaButtonEvent. */
   private var mediaButtonPressed = false
   private val backExpired = Runnable { if (backOffer.expire()) updateSleepButton() }
@@ -399,6 +406,15 @@ class PlaybackService : MediaLibraryService() {
       }
 
       override fun onEvents(player: Player, events: Player.Events) = publishNowPlaying()
+
+      override fun onMetadata(metadata: Metadata) {
+        if (!live) return
+        // An empty update between songs keeps the last line.
+        val line = LiveStream.lineOf(metadata) ?: return
+        if (line == nowPlaying) return
+        nowPlaying = line
+        showNowPlaying()
+      }
     })
 
     val builder = MediaLibrarySession.Builder(this, SkippingPlayer(), Callback())
@@ -532,7 +548,8 @@ class PlaybackService : MediaLibraryService() {
     val skipChanged = skip != castSkipSilence
     castSkipSilence = skip
     val wasRendering = r.rendering
-    r.setEffects(choice.voiceEq || skip || choice.evenLoudness || sound.mono || sound.boost)
+    // A live stream goes to the receiver as it is: the phone can't render an endless stream (M154).
+    r.setEffects(!live && (choice.voiceEq || skip || choice.evenLoudness || sound.mono || sound.boost))
     // Switching rendering on or off already started the stream again.
     if (skipChanged && wasRendering && r.rendering) r.restartRendering()
   }
@@ -553,6 +570,9 @@ class PlaybackService : MediaLibraryService() {
   /** The book played to its end: log it, then hand over to Up Next if it is an episode. */
   private fun onBookEnded() {
     val ended = current ?: return
+    // A live stream that stopped (the station went off air) is not finished, and hands over to
+    // nothing (M154).
+    if (ended.live) return
     // The session that reached the end, for the finish scrobble's start (M102).
     val start = try {
       Accounting.edit(this) { it.sessionStartOf(ended.bookId) }
@@ -705,6 +725,7 @@ class PlaybackService : MediaLibraryService() {
     keepEarlierPlace(playlist.bookId)
     account()
     current = playlist
+    nowPlaying = null
     val start = load.startPositionMs.coerceAtLeast(0L)
     val index = load.startIndex.coerceIn(0, playlist.files.lastIndex)
     val position = SeekRules.startPosition(
@@ -718,8 +739,9 @@ class PlaybackService : MediaLibraryService() {
     pausedAt = if (autoplay) null else load.pausedAt
     placeChangedAt = load.pausedAt ?: 0L
     val items = mediaItems(playlist)
-    player.setMediaItems(items, index, position)
-    player.setPlaybackSpeed(playlist.speed.coerceIn(0.5f, 3f))
+    // A live stream starts at what is on air, at its own speed (M154).
+    player.setMediaItems(items, index, if (playlist.live) C.TIME_UNSET else position)
+    player.setPlaybackSpeed(if (playlist.live) 1f else playlist.speed.coerceIn(0.5f, 3f))
     // While casting the book (or the next in Up Next) goes to the same receiver; ExoPlayer only
     // keeps it for the hand-back, so it fetches nothing meanwhile.
     val r = remote
@@ -727,6 +749,8 @@ class PlaybackService : MediaLibraryService() {
     r?.setBook(items, timelineDurations(), index, position, playlist.speed.coerceIn(0.5f, 3f), autoplay, remoteOutroAt())
     // A chapter timer carries over to the new book's chapter.
     placeBoundary()
+    // A live stream's notification has no skip buttons; a book's has them again.
+    updateSleepButton()
     if (autoplay && r == null) player.play()
     writeJournal(PositionJournal.Event.ITEM_CHANGE)
   }
@@ -898,6 +922,8 @@ class PlaybackService : MediaLibraryService() {
     return MediaItem.Builder()
       .setMediaId(file.location)
       .setUri(uri)
+      // An HLS playlist whose address has no `.m3u8` (M154).
+      .apply { LiveStream.mimeFor(uri.toString(), file.mime)?.let(::setMimeType) }
       .setRequestMetadata(MediaItem.RequestMetadata.Builder().setMediaUri(uri).build())
       .setMediaMetadata(
         MediaMetadata.Builder()
@@ -908,14 +934,48 @@ class PlaybackService : MediaLibraryService() {
           .setTrackNumber(index + 1)
           .setTotalTrackCount(playlist.files.size)
           .setExtras(Bundle().apply { putString(Commands.METADATA_BOOK_ID, playlist.bookId) })
+          .apply { if (playlist.live) liveMetadata(this, playlist, null) }
           .build(),
       )
       .build()
   }
 
+  /**
+   * A live stream's lines (M154): what is on air over “Live” and the station, so the notification,
+   * lock screen, widget and car show “Live” where a book shows its time.
+   */
+  private fun liveMetadata(builder: MediaMetadata.Builder, playlist: BookPlaylist, line: String?) {
+    builder
+      .setTitle(line ?: playlist.title)
+      .setArtist(NativeText.get(this).t("Live"))
+      .setAlbumTitle(playlist.title)
+      .setExtras(
+        Bundle().apply {
+          putString(Commands.METADATA_BOOK_ID, playlist.bookId)
+          putBoolean(Commands.METADATA_LIVE, true)
+          line?.let { putString(Commands.METADATA_NOW_PLAYING, it) }
+        },
+      )
+  }
+
+  /** Puts the live stream's new line on the item; the same URI, so playback goes on (M154). */
+  private fun showNowPlaying() {
+    val playlist = current ?: return
+    val p = active
+    val item = p.currentMediaItem ?: return
+    val metadata = item.mediaMetadata.buildUpon().apply { liveMetadata(this, playlist, nowPlaying) }.build()
+    p.replaceMediaItem(p.currentMediaItemIndex, item.buildUpon().setMediaMetadata(metadata).build())
+  }
+
   private fun rewindAfterPause() {
     if (player.mediaItemCount == 0) return
     val p = active
+    // After a pause a live stream goes back to what is on air now, not where it stopped (M154).
+    if (live) {
+      if (pausedAt != null) p.seekToDefaultPosition()
+      pausedAt = null
+      return
+    }
     val index = p.currentMediaItemIndex
     rewoundPlace(index, p.currentPosition)?.let { p.seekTo(index, it) }
   }
@@ -927,6 +987,8 @@ class PlaybackService : MediaLibraryService() {
   private fun rewoundPlace(index: Int, position: Long): Long? {
     val since = pausedAt ?: return null
     pausedAt = null
+    // No smart rewind in a live stream, on the phone or a receiver (M154).
+    if (live) return null
     if (!smartRewind) return null
     val rewind = SeekRules.rewindOnResume(System.currentTimeMillis() - since)
     if (rewind <= 0) return null
@@ -981,7 +1043,7 @@ class PlaybackService : MediaLibraryService() {
    * logged from [source]; null for the app, which logs its own.
    */
   private fun skipBy(deltaMs: Long, source: String?) {
-    if (player.mediaItemCount == 0) return
+    if (player.mediaItemCount == 0 || live) return
     val before = placeNow()
     val (index, position) = SeekRules.skip(active.currentMediaItemIndex, active.currentPosition, deltaMs, durations())
     active.seekTo(index, position)
@@ -1052,7 +1114,21 @@ class PlaybackService : MediaLibraryService() {
     override fun getAvailableCommands(): Player.Commands {
       val commands = super.getAvailableCommands()
       if (base.mediaItemCount == 0) return commands
+      // A live stream has nothing to seek in and no speed (M154).
+      if (live) return commands.buildUpon().removeAll(*skipCommands).removeAll(*liveCommands).build()
       return commands.buildUpon().addAll(*skipCommands).build()
+    }
+
+    private val liveCommands = intArrayOf(
+      Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM, Player.COMMAND_SEEK_TO_MEDIA_ITEM, Player.COMMAND_SET_SPEED_AND_PITCH,
+    )
+
+    override fun setPlaybackSpeed(speed: Float) {
+      if (!live) super.setPlaybackSpeed(speed)
+    }
+
+    override fun setPlaybackParameters(playbackParameters: PlaybackParameters) {
+      if (!live) super.setPlaybackParameters(playbackParameters)
     }
 
     val increments = SkipIncrements()
@@ -1220,22 +1296,24 @@ class PlaybackService : MediaLibraryService() {
     val offersPrevious = ListSteps.offersPrevious(following, current?.bookId)
     val offersBack = backOffer.offer != null
     if (step == sleepButtonStep && skipIntervalMs == buttonsSkipMs && offersNext == buttonsListNext &&
-      offersPrevious == buttonsListPrevious && offersBack == buttonsBack
+      offersPrevious == buttonsListPrevious && offersBack == buttonsBack && live == buttonsLive
     ) {
       return
     }
     buttonsBack = offersBack
+    buttonsLive = live
     sleepButtonStep = step
     buttonsSkipMs = skipIntervalMs
     buttonsListNext = offersNext
     buttonsListPrevious = offersPrevious
     val seconds = skipIntervalMs / 1_000L
-    val back = CommandButton.Builder(SkipIcons.back(skipIntervalMs))
+    // A live stream has nothing to skip in (M154).
+    val back = if (live) null else CommandButton.Builder(SkipIcons.back(skipIntervalMs))
       .setPlayerCommand(Player.COMMAND_SEEK_BACK)
       .setDisplayName(NativeText.t(this, "Back {n} seconds", "n" to seconds))
       .setSlots(CommandButton.SLOT_BACK)
       .build()
-    val forward = CommandButton.Builder(SkipIcons.forward(skipIntervalMs))
+    val forward = if (live) null else CommandButton.Builder(SkipIcons.forward(skipIntervalMs))
       .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
       .setDisplayName(NativeText.t(this, "Forward {n} seconds", "n" to seconds))
       .setSlots(CommandButton.SLOT_FORWARD)
@@ -1668,10 +1746,12 @@ class PlaybackService : MediaLibraryService() {
       artist = book.author,
       album = book.title,
       coverUri = book.coverUri,
-      durationMs = file.durationMs,
+      durationMs = if (book.live) 0L else file.durationMs,
       fileName = file.name,
       headers = book.headers,
+      mimeType = file.mime,
       viaPhone = book.privateUris,
+      onAir = book.live,
     )
   }
 

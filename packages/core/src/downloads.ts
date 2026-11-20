@@ -88,7 +88,7 @@ export function downloadAllowed(db: Db, bookId: string): boolean {
     .from(books)
     .where(eq(books.id, bookId))
     .get();
-  return book?.addonItem?.downloadable !== false;
+  return book?.addonItem?.downloadable !== false && book?.addonItem?.live !== true;
 }
 
 /** The parts and cover to download for a streamed book. */
@@ -105,7 +105,7 @@ export function planDownload(db: Db, bookId: string): DownloadPlan {
   if (book.source === 'local' && !onServer) {
     throw new DownloadError('This book is already on the phone.');
   }
-  if (book.addonItem?.downloadable === false)
+  if (book.addonItem?.downloadable === false || book.addonItem?.live === true)
     throw new DownloadError('This source does not allow downloads.');
   const parts = db
     .select({

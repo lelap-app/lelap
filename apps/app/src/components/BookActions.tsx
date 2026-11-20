@@ -5,6 +5,7 @@ import {
   bookLinks,
   createPlaylist,
   downloadAllowed,
+  isLiveBook,
   getTags,
   hideBooks,
   isHidden,
@@ -116,6 +117,7 @@ export function BookActions({
   const hidden = useMemo(() => (book ? isHidden(db, profileId, book.id) : false), [book]);
   // A source that forbids downloads gets no Download row rather than one that only says no.
   const downloadable = useMemo(() => (book ? downloadAllowed(db, book.id) : false), [book]);
+  const live = useMemo(() => (book ? isLiveBook(db, book.id) : false), [book]);
   // Stop reading means something only to a tracker that hears about this book (M66).
   const tracked = useMemo(() => (book ? scrobblesFor(book.id, profileId) : false), [book]);
 
@@ -152,16 +154,19 @@ export function BookActions({
     <Sheet visible title={title} onClose={onClose}>
       {mode === 'menu' && (
         <ScrollView>
-          <Row
-            icon="check"
-            label={book.finishedAt === null ? t('Mark as finished') : t('Mark as not finished')}
-            onPress={() => {
-              const finishing = book.finishedAt === null;
-              setFinished(db, profileId, book.id, finishing, now());
-              if (finishing) trackMarkedFinished(book.id, profileId);
-              done();
-            }}
-          />
+          {/* A live stream has no end (M154). */}
+          {!live && (
+            <Row
+              icon="check"
+              label={book.finishedAt === null ? t('Mark as finished') : t('Mark as not finished')}
+              onPress={() => {
+                const finishing = book.finishedAt === null;
+                setFinished(db, profileId, book.id, finishing, now());
+                if (finishing) trackMarkedFinished(book.id, profileId);
+                done();
+              }}
+            />
+          )}
           {tracked && book.finishedAt === null && book.bookPositionMs > 0 && (
             <Row
               icon="close"

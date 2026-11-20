@@ -12,7 +12,9 @@ import {
   getBook,
   learnFileDuration,
   getSettings,
+  isLiveBook,
   resumePoint,
+  streamMime,
   saveProgress,
   stripExtension,
   toFilePosition,
@@ -101,6 +103,8 @@ export const IDLE: audio.PlayerState = {
   sleepTimerRemainingMs: null,
   sleepTimerMode: null,
   error: null,
+  live: false,
+  nowPlaying: null,
 };
 
 const SAVE_INTERVAL_MS = 10_000;
@@ -498,6 +502,9 @@ export function bookLoad(
   const trim = detail.book.source === 'feed' ? trimOfBook(db, profileId, bookId) : null;
   const now = Date.now();
   const access = detail.files.map((f) => fileAccess({ ...f, bookId }, now));
+  // A live stream (M154) starts at what is on air; its MIME type tells HLS without `.m3u8`.
+  const live = isLiveBook(db, bookId);
+  const mime = streamMime(db, bookId);
   // The Android service picks an automatic episode's file by itself (M121); the web is unmetered.
   const auto =
     Platform.OS === 'android' && detail.book.source === 'feed' && detail.files.length === 1
@@ -522,6 +529,7 @@ export function bookLoad(
       title: f.title ?? stripExtension(f.name),
       durationMs: f.durationMs,
       name: f.name,
+      ...(mime && !f.downloadPath ? { mime } : {}),
       ...(auto && !f.downloadPath && (f.uri === auto.unmetered || f.uri === auto.metered)
         ? { auto }
         : {}),
@@ -543,6 +551,7 @@ export function bookLoad(
     sound: setOverrides(bookSound(db, profileId, bookId).overrides),
     ...(detail.book.source === 'feed' ? artworksOf(bookId) : {}),
     ...serverTasksOf(detail.files),
+    ...(live ? { live: true, speed: 1, startIndex: 0, startPositionMs: 0, pausedAt: null } : {}),
   };
 }
 

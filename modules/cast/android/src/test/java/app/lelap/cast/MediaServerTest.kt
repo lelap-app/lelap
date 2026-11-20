@@ -46,6 +46,8 @@ class MediaServerTest {
     assertEquals("audio/mpeg", Mime.audio("no-extension"))
     assertEquals("audio/mp4", Mime.audioOr("audio/x-m4b", "stream"))
     assertEquals("audio/flac", Mime.audioOr("audio/flac; charset=binary", "stream"))
+    assertEquals("application/x-mpegurl", Mime.audioOr("application/vnd.apple.mpegurl", "live"))
+    assertEquals("application/x-mpegurl", Mime.audioOr(null, "live.m3u8"))
     assertEquals("audio/mp4", Mime.audioOr("application/octet-stream", "book.m4b"))
     assertEquals("image/png", Mime.image("cover.PNG"))
     assertEquals("m4b", Mime.extension("content://x/document/primary%3ABooks%2FDune.m4b"))

@@ -160,6 +160,19 @@ const podcast = example(MetaResponse, {
 });
 
 const streamUrl = `${base}/${streamPath('audiobook', 'example:secret-garden')}`;
+const liveUrl = `${base}/${streamPath('episode', 'example:world-service')}`;
+const liveStreams = example(StreamResponse, {
+  streams: [
+    {
+      sourceKey: 'world-service-hls',
+      name: 'Example Public Radio',
+      title: 'World service',
+      url: 'https://radio.example.org/world/live.m3u8',
+      mime: 'application/vnd.apple.mpegurl',
+      live: true,
+    },
+  ],
+});
 const streams = example(StreamResponse, {
   streams: [
     {
@@ -1107,6 +1120,13 @@ const streamFields: Field[] = [
     meaning: 'The source allows keeping a copy for offline listening.',
   },
   {
+    name: 'live',
+    type: 'boolean',
+    required: false,
+    meaning:
+      'Revision 14: a live stream, such as a public radio station’s Icecast, Shoutcast or HLS address. The app keeps no place, progress or finish for it, sends at most a `start` scrobble event, hides seeking and speed, never downloads it and leaves it out of Continue listening and the stats. Play after a pause goes back to what is on air. ICY metadata and an HLS playlist’s timed ID3 tags (`TIT2`, `TPE1`) become the line under the station’s name; the web app shows only what the browser exposes, which is no ICY metadata. Give an HLS playlist without `.m3u8` its `mime`, such as `application/vnd.apple.mpegurl`. An app before revision 14 plays it as an episode.',
+  },
+  {
     name: 'headers',
     type: 'object',
     required: false,
@@ -1476,6 +1496,18 @@ const toc: [string, string][] = [
     has none: the app names it “Chapter 3” in the listener’s language.
   </p>
   <CodeBlock code={streams} label={`GET ${streamUrl}`} />
+  <h3 id="live">Live streams</h3>
+  <p>
+    Since revision 14, <code>live: true</code> makes a stream a station, such as a public
+    broadcaster’s Icecast, Shoutcast or HLS address, listed as an <code>episode</code>. The app
+    plays it from what is on air, keeps no place, progress or finish, sends at most a{' '}
+    <code>start</code> scrobble event, never downloads it and leaves it out of Continue listening
+    and the stats. The player shows “Live” instead of a time, with no seeking or speed. ICY metadata
+    and an HLS playlist’s timed ID3 tags become the line under the station’s name; a browser exposes
+    no ICY metadata, so the web app shows a song only for HLS. Give an HLS address without{' '}
+    <code>.m3u8</code> its <code>mime</code>.
+  </p>
+  <CodeBlock code={liveStreams} label={`GET ${liveUrl}`} />
   <h3 id="resolve">Links that expire</h3>
   <p>
     If your source hands out audio URLs that stop working after a while, give the stream or part a
@@ -1632,12 +1664,12 @@ const toc: [string, string][] = [
     <a href="#places">place report</a>; an app before revision 13 ignores them. Revision 14 adds a
     stream’s <code>availability</code>, <code>format</code>, <code>language</code> and{' '}
     <code>releaseId</code>, <code>refreshAfter</code>, parts without <code>durationMs</code>,{' '}
-    <a href="#preparing">streams that are still preparing</a> and the meta’s chapters for parts; an
-    app before revision 14 ignores the fields, plays a preparing stream as if it were ready and
-    skips a stream with a part that has no length. When an add-on declares a newer revision than the
-    app knows, Settings → Library and sources → Add-ons says so. Revision 9 comes with SDK 0.5.0;
-    0.4.0 covers revisions up to 8. Revisions 10 to 13 come with SDK 0.6; revision 14 comes with the
-    next SDK release.
+    <a href="#preparing">streams that are still preparing</a>, <a href="#live">live streams</a> and
+    the meta’s chapters for parts; an app before revision 14 ignores the fields, plays a preparing
+    stream as if it were ready, plays a live stream as an ordinary episode and skips a stream with a
+    part that has no length. When an add-on declares a newer revision than the app knows, Settings →
+    Library and sources → Add-ons says so. Revision 9 comes with SDK 0.5.0; 0.4.0 covers revisions
+    up to 8. Revisions 10 to 13 come with SDK 0.6; revision 14 comes with the next SDK release.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />

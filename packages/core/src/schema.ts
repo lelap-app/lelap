@@ -204,6 +204,10 @@ export type AddonItemRef = {
    * rather than on the part's row, so no migration was needed.
    */
   transcripts?: PartTranscript[][];
+  /** A live stream (M154): no place, progress, finish or download. */
+  live?: boolean;
+  /** The stream's MIME type, when it said one: tells an HLS playlist without `.m3u8` (M154). */
+  mime?: string;
 };
 
 export const books = sqliteTable(

@@ -47,7 +47,9 @@ export function MiniPlayer({ inset = true }: { inset?: boolean }) {
               {state.bookTitle}
             </Text>
             <Text numberOfLines={1} className="text-sm text-muted">
-              {state.partTitle}
+              {state.live
+                ? [t('Live'), state.nowPlaying].filter(Boolean).join(' · ')
+                : state.partTitle}
             </Text>
           </View>
           <Pressable

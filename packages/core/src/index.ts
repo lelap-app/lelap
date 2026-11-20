@@ -9,6 +9,7 @@ export * from './library/imageSize';
 export * from './library/group';
 export * from './library/timeline';
 export * from './progress';
+export * from './live';
 export * from './library/scan';
 export { chapterTitleAt, learnFileDuration, regroupedBook } from './library/bookFiles';
 export * from './bookmarks';

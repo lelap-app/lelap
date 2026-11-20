@@ -14,6 +14,7 @@ import { presentFiles } from './bookFiles';
 import { namedChapters } from './chapterNames';
 import { compareNatural } from './files';
 import { kidFilter } from '../kids';
+import { isLiveBook } from '../live';
 import { linkedMetaByKey, linkedSeriesByKey } from './links';
 import { notHidden, onlyHidden } from './hidden';
 import { bookChapters, getOwnChapters } from './ownChapters';
@@ -356,5 +357,7 @@ export function setFinished(
   now: number,
   at = now,
 ): void {
+  // A live stream has no end to reach (M154).
+  if (finished && isLiveBook(db, bookId)) return;
   upsertEntry(db, profileId, bookId, { finishedAt: finished ? at : null }, now);
 }

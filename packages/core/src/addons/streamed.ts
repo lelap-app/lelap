@@ -25,6 +25,8 @@ export type StreamedBookArgs = {
   newId: IdGenerator;
 };
 
+const isLive = (stream: Stream) => stream.live === true;
+
 type Part = { url: string; title: string; durationMs: number; size: number };
 
 /** The location of a streamed book: one per add-on item, whatever source plays it. */
@@ -107,6 +109,14 @@ function chaptersOf(meta: Meta | MetaPreview, stream: Stream, parts: Part[]): Ch
   });
 }
 
+/** Whether the stream is live, and its MIME type, for the player (M154). */
+function streamKind(stream: Stream): Pick<AddonItemRef, 'live' | 'mime'> {
+  return {
+    ...(isLive(stream) ? { live: true } : {}),
+    ...(stream.mime ? { mime: stream.mime } : {}),
+  };
+}
+
 /** Each part's transcripts by index, left out when no part has one. */
 function transcriptsOf(stream: Stream): Pick<AddonItemRef, 'transcripts'> {
   if (!hasParts(stream)) return {};
@@ -179,8 +189,10 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
     type: meta.type,
     id: meta.id,
     sourceKey: stream.sourceKey,
-    downloadable: stream.downloadable !== false,
+    // A live stream is never downloaded, whatever it says (M154).
+    downloadable: stream.downloadable !== false && !isLive(stream),
     ...transcriptsOf(stream),
+    ...streamKind(stream),
   };
   // `cover_path` is left out: a downloaded book keeps its downloaded cover when added again.
   const values = {
@@ -228,12 +240,14 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
       // title and cover the book was added with. Its parts' transcripts follow the stream.
       const kept = { ...(found.addonItem ?? addonItem) };
       delete kept.transcripts;
+      delete kept.live;
+      delete kept.mime;
       tx.update(books)
         .set({
           durationMs: bookRow.durationMs,
           missingSince: null,
           updatedAt: now,
-          addonItem: { ...kept, ...transcriptsOf(stream) },
+          addonItem: { ...kept, ...transcriptsOf(stream), ...streamKind(stream) },
         })
         .where(eq(books.id, bookId))
         .run();

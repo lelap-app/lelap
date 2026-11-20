@@ -1,6 +1,7 @@
 import { and, asc, eq } from 'drizzle-orm';
 
 import type { Db } from './db';
+import { isLiveBook } from './live';
 import { setFinished } from './library/queries';
 import { books, upNext } from './schema';
 import { bookKey, recordDeletion } from './sync/keys';
@@ -112,6 +113,7 @@ export function finishAndNext(
   bookId: string,
   now: number,
 ): string | null {
+  if (isLiveBook(db, bookId)) return null;
   setFinished(db, profileId, bookId, true, now);
   removeFromUpNext(db, profileId, bookId, now);
   const book = db.select({ source: books.source }).from(books).where(eq(books.id, bookId)).get();
@@ -124,6 +126,8 @@ export function finishAndNext(
  * the next itself): it is finished and leaves Up Next.
  */
 export function finishFromPlayer(db: Db, profileId: string, bookId: string, at: number): void {
+  // A live stream that stopped (the station went off air) is not finished (M154).
+  if (isLiveBook(db, bookId)) return;
   setFinished(db, profileId, bookId, true, at);
   removeFromUpNext(db, profileId, bookId, at);
 }
