@@ -358,4 +358,57 @@ class RemoteSessionTest {
     session.onStatus(status(PlayState.ENDED))
     assertEquals(listOf(RemoteSession.Timing("part-end", 1_500L)), timings)
   }
+
+  // M134: the phone renders the part with its effects.
+
+  @Test
+  fun effectsOnStartThePartAgainRenderedFromThePlace() {
+    started()
+    session.onStatus(status(PlayState.PLAYING, 20_000L))
+    val commands = session.setEffects(true)
+    assertEquals(Command.Load(0, 20_000L, true, 1f, 2), commands.single())
+    assertTrue(session.phoneRenders)
+    // Already on: nothing to do.
+    session.onLoaded(2, null)
+    assertEquals(emptyList<Command>(), session.setEffects(true))
+  }
+
+  @Test
+  fun aSeekInARenderedPartStartsTheStreamAgain() {
+    session.setEffects(true)
+    started()
+    session.onStatus(status(PlayState.PLAYING, 5_000L))
+    val commands = session.seek(0, 30_000L)
+    assertEquals(0, (commands.single() as Command.Load).index)
+    assertEquals(30_000L, (commands.single() as Command.Load).positionMs)
+  }
+
+  @Test
+  fun theSpeedOfARenderedPartIsThePhonesEvenWhereTheReceiverCant() {
+    session.setEffects(true)
+    started()
+    session.onStatus(status(PlayState.PLAYING, 5_000L))
+    val commands = session.setSpeed(2.5f)
+    assertEquals(2.5f, (commands.single() as Command.Load).speed)
+    assertEquals(2.5f, session.speed)
+  }
+
+  @Test
+  fun aRenderedStreamsLengthIsNotThePartsAndSmartRewindReloads() {
+    session.setEffects(true)
+    started()
+    session.onStatus(RendererStatus(PlayState.PLAYING, 4_000L, 31_000L, null))
+    assertEquals(60_000L, session.durationOf(0))
+    session.pause()
+    settle()
+    session.onStatus(status(PlayState.PAUSED, 4_000L))
+    val commands = session.play(resumeAtMs = 1_000L)
+    assertEquals(1_000L, (commands.single() as Command.Load).positionMs)
+  }
+
+  @Test
+  fun aRestartWhileNothingPlaysDoesNothing() {
+    session.setEffects(true)
+    assertEquals(emptyList<Command>(), session.restart())
+  }
 }

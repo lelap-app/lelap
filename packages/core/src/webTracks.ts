@@ -53,6 +53,11 @@ export type WebTrack = {
   range(fromMs: number, spanMs: number): { start: number; end: number };
   /** The whole packets in `bytes`, read from byte `start`; null when there are none. */
   run(bytes: Uint8Array, start: number): TrackRun | null;
+  /**
+   * The element seeked to `toMs`. True when the element's time now counts from somewhere else in
+   * the file, so the pauses found so far no longer line up (a variable-bitrate MP3, M134).
+   */
+  seeked?(toMs: number): boolean;
 };
 
 /** Leaves out this much at the start of a run that doesn't start the file. */
@@ -208,8 +213,16 @@ export function mp3Track(layout: Mp3Layout): WebTrack {
   };
 }
 
-/** The Xing header of an MP3: its frames and bytes, and the LAME tag's encoder delay. */
-export type XingInfo = { frames: number; bytes: number | null; delayMs: number };
+/**
+ * The Xing header of an MP3: its frames and bytes, its table of contents (the byte, in 256ths of
+ * the file, where each hundredth of the time starts) and the LAME tag's encoder delay.
+ */
+export type XingInfo = {
+  frames: number;
+  bytes: number | null;
+  toc: number[] | null;
+  delayMs: number;
+};
 
 /** The Xing or Info header in the frame at `at`, or null. */
 export function xingInfo(head: Uint8Array, at: number): XingInfo | null {
@@ -233,7 +246,11 @@ export function xingInfo(head: Uint8Array, at: number): XingInfo | null {
     bytes = u32(head, p);
     p += 4;
   }
-  if (flags & 4) p += 100;
+  let toc: number[] | null = null;
+  if (flags & 4) {
+    if (p + 100 <= head.length) toc = Array.from(head.subarray(p, p + 100));
+    p += 100;
+  }
   if (flags & 8) p += 4;
   let delayMs = 0;
   // Nine bytes name the encoder (`LAME3.100`); the delay sits 21 bytes in, plus the decoder's 529.
@@ -241,13 +258,54 @@ export function xingInfo(head: Uint8Array, at: number): XingInfo | null {
     const delay = (byte(head, p + 21) << 4) | (byte(head, p + 22) >> 4);
     delayMs = ((delay + 529) / frame.sampleRate) * 1000;
   }
-  return { frames, bytes, delayMs };
+  return { frames, bytes, toc, delayMs };
 }
 
+/** Where the element's time counts from: a frame's byte and the time it plays at. */
+type VbrSegment = {
+  /** The TOC step it came from; -1 for the file's start. */
+  step: number;
+  /** Where to look for the frame holding `seekByte`; the frame's own byte once found. */
+  at: number;
+  /** The byte the seek aimed at, until the frame holding it is found. */
+  seekByte: number | null;
+  /** The element's time where the segment's first frame starts. */
+  ms: number;
+};
+
 /**
- * A variable-bitrate MP3. A frame's time is its count from the first frame, so the track counts
- * frames as the file is read in order and keeps the byte of every 64th. Ahead of what has been
- * counted, `range` asks for the next bytes to count, at most 4 MB at a time.
+ * Where Chrome's time counts from after a seek to `toMs` in a variable-bitrate MP3 (M134,
+ * measured in Chrome 158 against the sound playing). Its demuxer (FFmpeg's, with fast seeking)
+ * goes to the table of contents' byte for the seek's whole hundredth, starts with the frame
+ * holding that byte, and gives that frame the hundredth's time: so after a seek the element's
+ * time can be seconds away from the frames' own. A seek before the encoder delay ends, or none,
+ * keeps the file's start, where the delay is left out. Null without a table of contents.
+ */
+export function xingSeek(
+  head: Extract<TrackHead, { kind: 'vbr-mp3' }>,
+  size: number | null,
+  toMs: number,
+): { step: number; byte: number; ms: number } | null {
+  const { xing, frame } = head;
+  const fileBytes = xing?.bytes || size;
+  if (!xing?.toc || !xing.frames || !fileBytes) return null;
+  if (toMs < frame.delayMs) return { step: -1, byte: head.audioStart, ms: -frame.delayMs };
+  const durationMs = ((xing.frames * frame.samplesPerFrame) / frame.sampleRate) * 1000;
+  let step = 0;
+  while (step < 99 && ((step + 1) * durationMs) / 100 <= toMs) step++;
+  // Places in the table count from the end of the Xing frame.
+  const byte = head.audioStart + Math.round(((xing.toc[step] ?? 0) * fileBytes) / 256);
+  return { step, byte, ms: (step * durationMs) / 100 };
+}
+
+/** How far before a seek's byte the frame holding it is looked for. */
+const SYNC_BACK = 4096;
+
+/**
+ * A variable-bitrate MP3. A frame's time is its count from where the element's time counts from
+ * (the file's start, or the frame a seek landed on, [xingSeek]), so the track counts frames as
+ * the file is read in order and keeps the byte of every 64th. Ahead of what has been counted,
+ * `range` asks for the next bytes to count, at most 4 MB at a time.
  */
 export function vbrMp3Track(
   head: Extract<TrackHead, { kind: 'vbr-mp3' }>,
@@ -261,16 +319,56 @@ export function vbrMp3Track(
       : size && xing?.frames
         ? (size - audioStart) / xing.frames
         : 420;
-  const marks: number[] = [audioStart];
+  let segment: VbrSegment = { step: -1, at: audioStart, seekByte: null, ms: -frame.delayMs };
+  let marks: number[] = [audioStart];
   let counted = 0;
   let countedTo = audioStart;
-  return {
+
+  /** Finds the frame holding the seek's byte in bytes read from `start`; its offset, or null. */
+  const holding = (bytes: Uint8Array, start: number, target: number): number | null => {
+    for (let from = 0; from < Math.min(bytes.length, target - start + 1);) {
+      const first = findMp3Frame(bytes, from);
+      if (first === null || start + first > target) return null;
+      let at = first;
+      for (;;) {
+        const info = mp3FrameAt(bytes, at);
+        if (!info) break;
+        if (start + at + info.bytes > target) return at;
+        at += info.bytes;
+      }
+      // The chain broke before the byte: a false sync; look again past it.
+      from = first + 1;
+    }
+    return null;
+  };
+
+  const track: WebTrack & { counted(): number } = {
     kind: 'vbr-mp3',
     decoder: null,
     sampleRate: frame.sampleRate,
     counted: () => counted,
+    seeked(toMs) {
+      const place = xingSeek(head, size, toMs);
+      if (!place || place.step === segment.step) return false;
+      const start = place.step < 0;
+      segment = {
+        step: place.step,
+        at: start ? audioStart : Math.max(audioStart, place.byte - SYNC_BACK),
+        seekByte: start ? null : place.byte,
+        ms: place.ms,
+      };
+      marks = [segment.at];
+      counted = 0;
+      countedTo = segment.at;
+      return true;
+    },
     range(fromMs, spanMs) {
-      const want = Math.max(0, Math.floor((fromMs + frame.delayMs) / frameMs) - 2 * MP3_WARM_UP);
+      if (segment.seekByte !== null) {
+        const ahead =
+          SYNC_BACK + Math.ceil(((fromMs - segment.ms + spanMs) / frameMs) * average * 1.2) + 4096;
+        return { start: segment.at, end: segment.at + Math.min(ahead, 4 * 1024 * 1024) };
+      }
+      const want = Math.max(0, Math.floor((fromMs - segment.ms) / frameMs) - 2 * MP3_WARM_UP);
       const frames = Math.ceil(spanMs / frameMs) + 2 * MP3_WARM_UP;
       if (want + frames > counted) {
         const ahead = Math.ceil((want + frames - counted) * average * 1.2) + 4096;
@@ -278,13 +376,25 @@ export function vbrMp3Track(
         return { start: countedTo, end: countedTo + Math.min(ahead, 4 * 1024 * 1024) };
       }
       const mark = Math.floor(want / 64);
-      const start = marks[mark] ?? audioStart;
+      const start = marks[mark] ?? segment.at;
       return {
         start,
         end: start + Math.ceil((want - mark * 64 + frames) * average * 1.5) + 4096,
       };
     },
     run(bytes, start) {
+      if (segment.seekByte !== null) {
+        if (start !== segment.at) return null;
+        const at = holding(bytes, start, segment.seekByte);
+        if (at === null) return null;
+        segment = { ...segment, at: start + at, seekByte: null };
+        marks = [segment.at];
+        counted = 0;
+        countedTo = segment.at;
+        const run = track.run(bytes.subarray(at), start + at);
+        // Packets are placed in the bytes the caller holds.
+        return run && { ...run, packets: run.packets.map((p) => ({ ...p, at: p.at + at })) };
+      }
       // A run starts where counting stopped or at a kept 64th frame.
       const counting = start === countedTo;
       let index = counting ? counted : marks.indexOf(start) * 64;
@@ -311,12 +421,14 @@ export function vbrMp3Track(
       const first = places[from] ?? 0;
       return {
         packets: [{ at: first, size: at - first }],
-        startMs: firstIndex * frameMs - frame.delayMs,
-        skipMs: firstIndex === 0 ? 0 : MP3_WARM_UP * frameMs,
+        startMs: segment.ms + firstIndex * frameMs,
+        // Only the file's own first frame needs no warming up.
+        skipMs: firstIndex === 0 && segment.step < 0 ? 0 : MP3_WARM_UP * frameMs,
         dropMs: 0,
       };
     },
   };
+  return track;
 }
 
 // ---------------------------------------------------------------------------------------------

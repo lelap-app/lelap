@@ -85,9 +85,36 @@ class RemoteSession(
   private var stateHoldUntil = 0L
   private var placeHoldUntil = 0L
 
-  /** The speed the receiver plays at: the book's, or 1× where the receiver cannot. */
+  /**
+   * Whether the phone renders the part with the listener's sound effects (M134). Then the
+   * receiver plays a stream at 1×, a seek or a new speed starts the stream again, and the owner
+   * maps the receiver's place back to the part's.
+   */
+  var phoneRenders = false
+    private set
+
+  /** The speed the part plays at: the book's, or 1× where the receiver cannot and the phone doesn't render. */
   val speed: Float
-    get() = if (canPlayAt(requestedSpeed)) requestedSpeed else 1f
+    get() = if (phoneRenders || canPlayAt(requestedSpeed)) requestedSpeed else 1f
+
+  /** The listener's effects went on or off: the part starts again, rendered or as the file. */
+  fun setEffects(on: Boolean): List<Command> {
+    if (on == phoneRenders) return emptyList()
+    // The place as of now, at the speed it moved at, before the speed may change with the mode.
+    positionMs = position()
+    positionAt = clock()
+    phoneRenders = on
+    return restart()
+  }
+
+  /**
+   * The rendered stream must start again at the place: an effect that can't change mid-stream
+   * changed, or a speaker joined the group. Nothing happens while nothing plays.
+   */
+  fun restart(): List<Command> {
+    if (durations.isEmpty() || phase == Phase.ENDED || (phase == Phase.IDLE && !loading)) return emptyList()
+    return load(index, position(), playWhenReady)
+  }
 
   val partCount: Int
     get() = durations.size
@@ -192,7 +219,8 @@ class RemoteSession(
       // Stopped without reaching the end: the place stays, and Play loads the file again.
       PlayState.IDLE -> if (phase != Phase.ENDED) stop()
     }
-    if (status.durationMs > 0) receiverDurationMs = status.durationMs
+    // A rendered stream's length isn't the part's.
+    if (status.durationMs > 0 && !phoneRenders) receiverDurationMs = status.durationMs
     return emptyList()
   }
 
@@ -205,6 +233,8 @@ class RemoteSession(
     if (durations.isEmpty() || phase == Phase.ENDED) return emptyList()
     val resume = resumeAtMs?.coerceAtLeast(0L)
     if (phase == Phase.IDLE && !loading) return load(index, resume ?: position(), play = true)
+    // A rendered stream can't be seeked: it starts again from the rewound place.
+    if (resume != null && phoneRenders) return load(index, resume, play = true)
     val commands = mutableListOf<Command>()
     if (resume != null && !loading) {
       positionMs = resume
@@ -236,7 +266,7 @@ class RemoteSession(
     if (durations.isEmpty()) return emptyList()
     val target = toIndex.coerceIn(0, durations.lastIndex)
     val place = toMs.coerceAtLeast(0L)
-    if (target == index && !loading && (phase == Phase.READY || phase == Phase.BUFFERING)) {
+    if (target == index && !loading && !phoneRenders && (phase == Phase.READY || phase == Phase.BUFFERING)) {
       positionMs = place
       positionAt = clock()
       reportedMs = place
@@ -252,6 +282,8 @@ class RemoteSession(
     positionMs = position()
     positionAt = clock()
     requestedSpeed = value
+    // The phone renders the speed into the stream, which starts again at the place.
+    if (phoneRenders) return if (speed != before) restart() else emptyList()
     return if (speed != before) listOf(Command.SetSpeed(speed)) else emptyList()
   }
 

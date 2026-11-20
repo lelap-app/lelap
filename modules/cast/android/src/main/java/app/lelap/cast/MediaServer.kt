@@ -80,13 +80,20 @@ class MediaServer(private val context: Context) {
   sealed class Source {
     data class Local(val uri: String) : Source()
     data class Remote(val url: String, val headers: Map<String, String>) : Source()
+
+    /** A part the phone renders as it is fetched (M134). */
+    class Live(val audio: LiveAudio) : Source()
   }
 
   private class Entry(val source: Source, val mimeType: String)
 
   private val entries = ConcurrentHashMap<String, Entry>()
+
+  // The connections each live stream feeds, closed when a newer stream replaces it: a receiver
+  // that paused holds its socket open, and with it a rendering thread.
+  private val liveClients = ConcurrentHashMap<String, MutableSet<Socket>>()
   private val random = SecureRandom()
-  private val pool = Executors.newFixedThreadPool(6) { Thread(it, "lelap-cast-server").apply { isDaemon = true } }
+  private val pool = Executors.newFixedThreadPool(10) { Thread(it, "lelap-cast-server").apply { isDaemon = true } }
   private var server: ServerSocket? = null
   private var base: String? = null
 
@@ -104,6 +111,7 @@ class MediaServer(private val context: Context) {
   @Synchronized
   fun stop() {
     entries.clear()
+    closeLive(except = null)
     runCatching { server?.close() }
     server = null
     base = null
@@ -114,6 +122,8 @@ class MediaServer(private val context: Context) {
     val root = start()
     val bytes = ByteArray(16).also(random::nextBytes)
     val token = bytes.joinToString("") { "%02x".format(it) }
+    // One rendered part at a time: a new load or seek ends the stream before.
+    if (source is Source.Live) closeLive(except = token)
     entries[token] = Entry(source, mimeType)
     val ext = Mime.extension(name).ifEmpty { "bin" }
     return "$root/$token/media.$ext"
@@ -130,6 +140,15 @@ class MediaServer(private val context: Context) {
       }
     }
     return uri
+  }
+
+  private fun closeLive(except: String?) {
+    for (token in liveClients.keys.toList()) {
+      if (token == except) continue
+      entries.remove(token)
+      liveClients.remove(token)?.forEach { runCatching { it.close() } }
+    }
+    for ((token, entry) in entries) if (entry.source is Source.Live && token != except) entries.remove(token)
   }
 
   private fun lanAddress(): InetAddress? {
@@ -161,7 +180,7 @@ class MediaServer(private val context: Context) {
   }
 
   private fun serve(client: Socket) {
-    // The request's head in 10 s, so a slow sender can't hold one of the six threads for good.
+    // The request's head in 10 s, so a slow sender can't hold one of the threads for good.
     client.soTimeout = 10_000
     val deadline = System.nanoTime() + HEAD_DEADLINE_NANOS
     val input = client.getInputStream()
@@ -175,6 +194,7 @@ class MediaServer(private val context: Context) {
     if (method != "GET" && method != "HEAD") return status(out, 405, "Method Not Allowed")
     val entry = entries[token] ?: return status(out, 404, "Not Found")
     when (val source = entry.source) {
+      is Source.Live -> serveLive(client, out, token, source.audio, entry.mimeType, headers["range"], method == "HEAD")
       is Source.Local -> serveLocal(out, source.uri, entry.mimeType, headers["range"], method == "HEAD")
       // SMB and SFTP (M62): read from the server by the phone, like a file on it.
       is Source.Remote -> if (Netfs.handles(source.url)) {
@@ -185,6 +205,39 @@ class MediaServer(private val context: Context) {
       }
     }
   }
+
+  /**
+   * A rendered part: no length and no ranges, as for a radio stream. A range from the start (as
+   * some receivers ask to probe) gets the stream; one from further in can't be served, and the
+   * refusal leaves the receiver stopped, which Play turns into a new stream at the place.
+   */
+  private fun serveLive(client: Socket, out: OutputStream, token: String, audio: LiveAudio, mimeType: String, range: String?, head: Boolean) {
+    val from = range?.trim()?.removePrefix("bytes=")?.substringBefore('-')?.trim()?.toLongOrNull()
+    if (from != null && from > 0L) return writeHead(out, 416, "Range Not Satisfiable", mapOf("Content-Range" to "bytes */*", "Content-Length" to "0"))
+    writeHead(out, 200, "OK", liveHeaders(mimeType))
+    if (head) return
+    val clients = liveClients.getOrPut(token) { ConcurrentHashMap.newKeySet() }
+    clients += client
+    // Replaced between the lookup and here: the newer stream wins.
+    if (!entries.containsKey(token)) return
+    // The receiver reads at its own pace; writes wait for it while it pauses.
+    client.soTimeout = 0
+    try {
+      audio.writeTo(out)
+    } finally {
+      clients -= client
+    }
+  }
+
+  private fun liveHeaders(mimeType: String): Map<String, String> = mapOf(
+    "Content-Type" to mimeType,
+    "Accept-Ranges" to "none",
+    "Cache-Control" to "no-store",
+    "transferMode.dlna.org" to "Streaming",
+    // No seeking by time or byte (OP=00), converted content (CI=1), a live stream (FLAGS).
+    "contentFeatures.dlna.org" to "DLNA.ORG_OP=00;DLNA.ORG_CI=1;DLNA.ORG_FLAGS=41700000000000000000000000000000",
+    "Access-Control-Allow-Origin" to "*",
+  )
 
   private fun serveLocal(out: OutputStream, uri: String, mimeType: String, range: String?, head: Boolean) {
     serveRanges(out, openLocal(uri) ?: return status(out, 404, "Not Found"), mimeType, range, head)

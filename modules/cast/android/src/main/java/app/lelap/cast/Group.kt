@@ -242,7 +242,14 @@ class GroupRenderer(
     }
   }
 
-  override fun load(media: CastMedia, startMs: Long, autoplay: Boolean, speed: Float) = all { it.load(media, startMs, autoplay, speed) }
+  // A stream the phone renders (M134) can't be seeked on a speaker; its speakers start it together.
+  @Volatile
+  private var live = false
+
+  override fun load(media: CastMedia, startMs: Long, autoplay: Boolean, speed: Float) {
+    live = media.live
+    all { it.load(media, startMs, autoplay, speed) }
+  }
 
   override fun play() = all { it.play() }
 
@@ -281,6 +288,7 @@ class GroupRenderer(
     for (m in list) if (m.silent >= SILENT_POLLS) leave(m, "silent")
     val actions = synchronized(sync) { sync.onStatuses(status, statuses) }
     for (action in actions) {
+      if (live && action is GroupSync.Action.Seek) continue
       val member = members.firstOrNull { it.number == action.follower } ?: continue
       // Queued behind the follower's other calls, so it never overtakes a newer command.
       on(member) { r ->

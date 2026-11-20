@@ -13,6 +13,7 @@ import {
   oggTrack,
   trackHead,
   vbrMp3Track,
+  xingSeek,
 } from './webTracks';
 
 const encoder = new TextEncoder();
@@ -371,6 +372,89 @@ describe('variable-bitrate MP3s', () => {
     run = must(track.run(file.subarray(range.start, range.end), range.start));
     expect(run.startMs).toBeCloseTo(64 * frameMs, 6);
     expect(run.skipMs).toBeCloseTo(2 * frameMs, 6);
+  });
+});
+
+/** A Xing frame with frames, bytes and a table of contents, and a LAME tag with `delay` samples. */
+function xingTocFrame(frames: number, bytes: number, toc: number[], delay: number): Uint8Array {
+  const frame = mp3Frame(9, 0);
+  frame.set([...encoder.encode('Xing'), 0, 0, 0, 7, ...be32(frames), ...be32(bytes), ...toc], 21);
+  const lame = 21 + 8 + 8 + 100;
+  frame.set(encoder.encode('LAME3.100'), lame);
+  frame.set([(delay >> 4) & 255, (delay & 15) << 4], lame + 21);
+  return frame;
+}
+
+describe('seeking in variable-bitrate MP3s (M134)', () => {
+  const frames = Array.from({ length: 2000 }, (_, i) => mp3Frame(5 + (i % 4)));
+  const audioBytes = frames.reduce((sum, f) => sum + f.length, 0);
+  // A table that runs ahead of the bytes' real share, as LAME's often does.
+  const toc = Array.from({ length: 100 }, (_, i) => Math.min(255, Math.round(i * 2.6)));
+  const xing = xingTocFrame(2000, 417 + audioBytes, toc, 576);
+  const file = concat([xing, ...frames]);
+  const frameMs = (1152 / 44_100) * 1000;
+  const durationMs = 2000 * frameMs;
+  const head = (() => {
+    const h = trackHead(file, file.length);
+    if (h?.kind !== 'vbr-mp3') throw new Error('not VBR');
+    return h;
+  })();
+
+  it('reads the table of contents and the delay', () => {
+    expect(head.xing?.toc?.slice(0, 4)).toEqual([0, 3, 5, 8]);
+    expect(head.frame.delayMs).toBeCloseTo(((576 + 529) / 44_100) * 1000, 6);
+  });
+
+  it('lands where Chrome does: the hundredth before the place, at its byte', () => {
+    const place = must(xingSeek(head, file.length, 0.255 * durationMs));
+    expect(place.step).toBe(25);
+    expect(place.ms).toBeCloseTo(0.25 * durationMs, 6);
+    expect(place.byte).toBe(417 + Math.round((65 * (417 + audioBytes)) / 256));
+    // Before the encoder delay ends, the file's start, where the delay is left out.
+    expect(xingSeek(head, file.length, 10)).toEqual({
+      step: -1,
+      byte: 417,
+      ms: -head.frame.delayMs,
+    });
+    expect(must(xingSeek(head, file.length, 30)).step).toBe(0);
+  });
+
+  it('counts from the frame holding that byte, at the hundredth’s time', () => {
+    const track = vbrMp3Track(head, file.length);
+    const toMs = 0.405 * durationMs;
+    expect(track.seeked?.(toMs)).toBe(true);
+    // Another place in the same hundredth: the same timeline.
+    expect(track.seeked?.(0.409 * durationMs)).toBe(false);
+    const place = must(xingSeek(head, file.length, toMs));
+    const range = track.range(toMs, 5000);
+    expect(range.start).toBe(place.byte - 4096);
+    const run = must(track.run(file.subarray(range.start, range.end), range.start));
+    // The frame holding the byte starts at or before it, and plays at the hundredth's time.
+    let at = 417;
+    let holding = 0;
+    for (const [i, f] of frames.entries()) {
+      if (at + f.length > place.byte) {
+        holding = i;
+        break;
+      }
+      at += f.length;
+    }
+    expect(holding).toBeGreaterThan(0);
+    expect(range.start + must(run.packets[0]).at).toBe(at);
+    expect(must(run.startMs)).toBeCloseTo(place.ms, 6);
+    expect(run.skipMs).toBeCloseTo(2 * frameMs, 6);
+    // Later chunks count on from there.
+    const next = track.range(toMs + 4000, 3000);
+    expect(next.start).toBeGreaterThan(range.start);
+    // Back to the start: the file's own timeline again.
+    expect(track.seeked?.(0)).toBe(true);
+    expect(track.range(0, 1000).start).toBe(417);
+  });
+
+  it('without a table of contents a seek changes nothing', () => {
+    const plain = trackHead(concat([xingFrame(300), ...frames.slice(0, 300)]), null);
+    if (plain?.kind !== 'vbr-mp3') throw new Error('not VBR');
+    expect(vbrMp3Track(plain, null).seeked?.(5000)).toBe(false);
   });
 });
 
