@@ -32,12 +32,13 @@ export const catalogBase = `https://catalog.${domain}`;
  * configure page. `add`: they need nothing, and Add installs the manifest straight away.
  */
 export const hostedAddons: {
-  id: 'hardcover' | 'gpodder' | 'lectures' | 'lepak';
+  id: 'hardcover' | 'gpodder' | 'bookwyrm' | 'lectures' | 'lepak';
   base: string;
   setUp: 'configure' | 'add';
 }[] = [
   { id: 'hardcover', base: `${catalogBase}/hardcover`, setUp: 'configure' },
   { id: 'gpodder', base: `${catalogBase}/gpodder`, setUp: 'configure' },
+  { id: 'bookwyrm', base: `${catalogBase}/bookwyrm`, setUp: 'configure' },
   { id: 'lectures', base: `${catalogBase}/lectures`, setUp: 'add' },
   { id: 'lepak', base: `${catalogBase}/lepak`, setUp: 'add' },
 ];

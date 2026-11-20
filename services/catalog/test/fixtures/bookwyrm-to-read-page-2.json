@@ -1,0 +1,35 @@
+{
+  "id": "https://books.example/user/reader/shelf/to-read?page=2",
+  "type": "OrderedCollectionPage",
+  "partOf": "https://books.example/user/reader/shelf/to-read",
+  "orderedItems": [
+    {
+      "id": "https://books.example/book/15",
+      "type": "Edition",
+      "title": "A Very Obscure Pamphlet",
+      "sortTitle": "a very obscure pamphlet",
+      "subtitle": "",
+      "description": "",
+      "authors": ["https://books.example/author/1015"],
+      "work": "https://books.example/book/16",
+      "isbn13": "",
+      "isbn10": "",
+      "oclcNumber": "",
+      "physicalFormat": "Paperback",
+      "publishers": [],
+      "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        {
+          "Hashtag": "as:Hashtag"
+        }
+      ]
+    }
+  ],
+  "prev": "https://books.example/user/reader/shelf/to-read?page=1",
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    {
+      "Hashtag": "as:Hashtag"
+    }
+  ]
+}
