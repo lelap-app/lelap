@@ -32,6 +32,7 @@ import m0027 from './0027_chapter_names.sql';
 import m0028 from './0028_swift_revanche.sql';
 import m0029 from './0029_square_toxin.sql';
 import m0030 from './0030_funny_salo.sql';
+import m0031 from './0031_lucky_expediter.sql';
 
 export default {
   journal,
@@ -67,5 +68,6 @@ export default {
     m0028,
     m0029,
     m0030,
+    m0031,
   },
 };

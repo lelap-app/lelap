@@ -7,7 +7,6 @@ import {
   hideBooks,
   isKidsProfile,
   type LibraryBook,
-  listAllBooks,
   listBooks,
   listBooksFrom,
   type ListeningStatus,
@@ -53,6 +52,7 @@ import { ContinueCard } from '../../src/components/ContinueCard';
 import { EmptyState, Lori } from '../../src/components/Lori';
 import { Sheet } from '../../src/components/Sheet';
 import { db, newId } from '../../src/db';
+import { bookReader } from '../../src/libraryBooks';
 import { HeadphoneBanner } from '../../src/devices';
 import { playBook, useLibrary } from '../../src/player';
 import { activeProfile, profileId } from '../../src/profile';
@@ -207,15 +207,17 @@ export default function LibraryScreen() {
   const hasRoots = useMemo(() => listRoots(db).length > 0, [version]);
   const grouped = view === 'progress' && !showHidden;
   const bySeries = view === 'series' && !showHidden;
-  // Read once for the list and the lists' counts: the biggest read of the first draw (M106).
-  const all = useMemo(() => listAllBooks(db, profileId), [version]);
+  // Read once for the list and the lists' counts (M106); after the first draw only the books that
+  // changed are read again (M126).
+  const all = useMemo(() => bookReader.read(profileId), [version]);
   // The Hidden view stays one flat list; in the grouped view each group sorts itself.
   const books = useMemo(() => {
     const sort = view === 'progress' ? 'recent' : view === 'series' ? 'title' : view;
     return showHidden
       ? listBooks(db, profileId, sort, 'hidden')
       : listBooksFrom(db, profileId, all, sort);
-  }, [view, all, showHidden]);
+    // `version` too: a kids profile's shelf can change while no book does.
+  }, [view, all, showHidden, version]);
   // Read again on `version`, so switching profiles shows the new listener's choice.
   const [toggled, setToggled] = useState(0);
   const finishedOpen = useMemo(
@@ -259,7 +261,8 @@ export default function LibraryScreen() {
   // Only what this profile sees in its Library (a kids profile sees its shelf).
   const music = useMemo(() => books.filter((b) => musicIds.has(b.id)), [books, musicIds]);
   const next = useMemo(() => continueListening(db, profileId), [version]);
-  const lists = useMemo(() => listPlaylistsWithCounts(db, profileId, all), [all]);
+  // `version` too: the counts follow tags, which no book row holds.
+  const lists = useMemo(() => listPlaylistsWithCounts(db, profileId, all), [all, version]);
   const tags = useMemo(() => listTags(db, profileId), [version]);
   useEffect(() => {
     if (rows.length > 0) markLibraryRows();
