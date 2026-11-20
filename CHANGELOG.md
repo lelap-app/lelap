@@ -2,6 +2,30 @@
 
 What changed in each Lelap release, newest first.
 
+## 0.1.0-beta.14 (2026-11-20)
+
+This beta changes only the app’s JavaScript, so Android apps on beta 13 get it over the air,
+without a new APK. No database changes, no new permissions.
+
+### Improved
+
+- The player shows fewer buttons under the controls: Sleep, Chapters, Bookmarks and Cast, with
+  More for Speed, Sound, Transcript, Soundbites and History. Speed stays in the row while it isn’t
+  1×, and Sound while its settings are on. (#241)
+- On a tablet or a computer, menus and sheets open as a dialog in the middle of the window instead
+  of rising from the bottom edge. (#241)
+- The Add-ons page puts the field for adding an add-on at the top, above the installed ones.
+  (#241)
+
+### Fixed
+
+- A quick double tap, on Settings for example, no longer opens the same screen twice, so one Back
+  is enough. Opening a page that is already open further back brings that page forward. (#241)
+- A stream whose add-on gives no length no longer shows 0:00 of 0:00 in the player: the app keeps
+  the length the player measures. (#241)
+- A book from a source that doesn’t allow downloads no longer offers Download in its menu, only to
+  refuse. (#241)
+
 ## 0.1.0-beta.13 (2026-11-19)
 
 This beta changes the app’s Android code for playback and casting, so it needs the new APK; an
