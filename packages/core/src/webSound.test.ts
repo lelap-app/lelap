@@ -4,6 +4,7 @@ import { levelTargetDb, Loudness, readTags, replayGainDb } from './webLoudness';
 import {
   fastStretch,
   findMp3Frame,
+  firefoxGuessesMp3,
   id3v2Size,
   mp3ByteAt,
   mp3FrameAt,
@@ -180,6 +181,20 @@ describe('MP3 layout', () => {
       ...frame(),
     ]);
     expect(findMp3Frame(bytes, 0)).toBe(6);
+  });
+
+  it('tells files whose seeks Firefox guesses (M150)', () => {
+    // 22.05 kHz at 64 kbit/s: 208.98 bytes a frame, so frames differ by a padding byte.
+    const plain = mp3Layout(Uint8Array.from([...frame(), ...frame(), ...frame()]), 0);
+    if (!plain) throw new Error('no layout');
+    expect(plain.counted).toBe(false);
+    expect(firefoxGuessesMp3(plain)).toBe(true);
+    // With an Info frame Firefox counts from its numbers.
+    const info = mp3Layout(Uint8Array.from([...frame(0, true), ...frame(), ...frame()]), 0);
+    if (!info) throw new Error('no layout');
+    expect(firefoxGuessesMp3(info)).toBe(false);
+    // Frames of a whole number of bytes, as at 48 kHz, average to the file's own.
+    expect(firefoxGuessesMp3({ ...plain, frameBytes: 192 })).toBe(false);
   });
 
   it('gives up on a variable bitrate', () => {

@@ -218,6 +218,8 @@ export function mp3Track(layout: Mp3Layout): WebTrack {
  * the file, where each hundredth of the time starts) and the LAME tag's encoder delay.
  */
 export type XingInfo = {
+  /** The Xing or Info frame's own length: the first audio frame follows it. */
+  frameBytes: number;
   frames: number;
   bytes: number | null;
   toc: number[] | null;
@@ -258,7 +260,7 @@ export function xingInfo(head: Uint8Array, at: number): XingInfo | null {
     const delay = (byte(head, p + 21) << 4) | (byte(head, p + 22) >> 4);
     delayMs = ((delay + 529) / frame.sampleRate) * 1000;
   }
-  return { frames, bytes, toc, delayMs };
+  return { frameBytes: frame.bytes, frames, bytes, toc, delayMs };
 }
 
 /** Where the element's time counts from: a frame's byte and the time it plays at. */
@@ -298,6 +300,63 @@ export function xingSeek(
   return { step, byte, ms: (step * durationMs) / 100 };
 }
 
+/** How a browser seeks a variable-bitrate MP3 (M134, M150). */
+export type Mp3SeekRule = 'chrome' | 'firefox';
+
+/**
+ * How this browser seeks an MP3 (M134, M150): Chrome and the browsers built on it as `xingSeek`
+ * describes, Firefox as `firefoxXingSeek` does. Safari wasn't measured; there variable-bitrate
+ * MP3s play unchanged.
+ */
+export function mp3SeekRule(userAgent: string): Mp3SeekRule | null {
+  // Every browser on iOS is Safari's engine underneath.
+  if (/\b(FxiOS|CriOS|EdgiOS)\//.test(userAgent)) return null;
+  if (/\bFirefox\//.test(userAgent)) return 'firefox';
+  if (/\b(Chrome|Chromium)\//.test(userAgent)) return 'chrome';
+  return null;
+}
+
+/**
+ * Where Firefox's time counts from after a seek to `toMs` in a variable-bitrate MP3 (M150,
+ * measured in Firefox 147 against the sound playing: of 74 seeks in six files, 73 within 15 ms
+ * and one a frame off). Its
+ * demuxer takes the table of contents' place for the seek's whole hundredth, without
+ * interpolating, counted from the file's own start (an ID3 tag moves it), turns that into a frame
+ * index from the Xing header's bytes and frames in 32-bit floats, and plays from the first frame
+ * at or after that index's byte. A first guess past the seek is made again from 1 % earlier. The
+ * frame it lands on gets the index's time, so the element's time can be seconds from the frames'.
+ * Null without a table of contents.
+ */
+export function firefoxXingSeek(
+  head: Extract<TrackHead, { kind: 'vbr-mp3' }>,
+  toMs: number,
+): { step: number; byte: number; ms: number } | null {
+  const { xing, frame } = head;
+  if (!xing?.toc || !xing.frames || !xing.bytes) return null;
+  const { toc, frames, bytes } = xing;
+  const start = { step: -1, byte: head.audioStart, ms: -frame.delayMs };
+  if (toMs <= 0) return start;
+  const frameMs = (frame.samplesPerFrame / frame.sampleRate) * 1000;
+  const durationMs = frames * frameMs;
+  // The Xing frame's own byte: the demuxer's first frame.
+  const first = head.audioStart - xing.frameBytes;
+  const f32 = Math.fround;
+  const index = (ms: number) => {
+    const step = Math.floor(Math.min(99, Math.max(0, (ms * 100) / durationMs)));
+    const offset = Math.trunc(f32(f32(f32(1 / 256) * (toc[step] ?? 0)) * bytes));
+    const i = Math.trunc(f32(f32(f32(offset - first) / bytes) * frames));
+    return Math.max(0, Math.min(frames, i));
+  };
+  let i = index(toMs);
+  if (i * frameMs > toMs) i = index(toMs - toMs / 100);
+  if (i === 0) return start;
+  return {
+    step: i,
+    byte: first + Math.trunc((i * bytes) / frames),
+    ms: (i - 1) * frameMs - frame.delayMs,
+  };
+}
+
 /** How far before a seek's byte the frame holding it is looked for. */
 const SYNC_BACK = 4096;
 
@@ -310,6 +369,7 @@ const SYNC_BACK = 4096;
 export function vbrMp3Track(
   head: Extract<TrackHead, { kind: 'vbr-mp3' }>,
   size: number | null,
+  rule: Mp3SeekRule = 'chrome',
 ): WebTrack & { counted(): number } {
   const { frame, xing, audioStart } = head;
   const frameMs = (frame.samplesPerFrame / frame.sampleRate) * 1000;
@@ -333,7 +393,8 @@ export function vbrMp3Track(
       for (;;) {
         const info = mp3FrameAt(bytes, at);
         if (!info) break;
-        if (start + at + info.bytes > target) return at;
+        // Chrome plays from the frame holding the byte, Firefox from the next to start.
+        if (rule === 'firefox' ? start + at >= target : start + at + info.bytes > target) return at;
         at += info.bytes;
       }
       // The chain broke before the byte: a false sync; look again past it.
@@ -348,7 +409,7 @@ export function vbrMp3Track(
     sampleRate: frame.sampleRate,
     counted: () => counted,
     seeked(toMs) {
-      const place = xingSeek(head, size, toMs);
+      const place = rule === 'firefox' ? firefoxXingSeek(head, toMs) : xingSeek(head, size, toMs);
       if (!place || place.step === segment.step) return false;
       const start = place.step < 0;
       segment = {

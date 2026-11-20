@@ -72,10 +72,17 @@ class CastLink private constructor(
     fun onClosed(error: String?)
 
     /**
-     * A speaker joined while the phone renders the part (M134): a rendered stream can't be joined
-     * halfway, so the whole group starts it again from the place.
+     * A speaker joined while the phone renders the part (M134) and [joinStream] gave it no stream
+     * of its own: a rendered stream can't be joined halfway, so the whole group starts it again
+     * from the place.
      */
     fun onRestartNeeded() = Unit
+
+    /**
+     * A speaker joins while the phone renders the part (M150): the part rendered for it alone,
+     * from the leader's place [leadMs] from now, or null. Called on the cast thread.
+     */
+    fun joinStream(leadMs: Long): CastRequest? = null
   }
 
   private val app = context.applicationContext
@@ -430,13 +437,18 @@ class CastLink private constructor(
     }
     val status = lastStatus
     val playing = status?.state == PlayState.PLAYING || status?.state == PlayState.BUFFERING
-    // A rendered stream starts where the phone began it; the group loads it again together instead.
-    val restart = media?.live == true
-    val catchUp: ((Renderer) -> Unit)? = if (restart || media == null || status == null || status.state == PlayState.IDLE || status.state == PlayState.ENDED) {
-      null
-    } else {
-      val speed = first.speed
-      { r -> r.load(media, status.positionMs, playing, speed) }
+    val stopped = media == null || status == null || status.state == PlayState.IDLE || status.state == PlayState.ENDED
+    // A rendered stream starts where the phone began it: the newcomer gets one of its own from the
+    // leader's place (M150), else the group loads it again together.
+    val own = if (media?.live == true && !stopped) joinStream(0L) else null
+    val restart = media?.live == true && own == null
+    val catchUp: ((Renderer) -> Unit)? = when {
+      own != null -> { r -> catchUpLive(r, own, playing) }
+      restart || stopped -> null
+      else -> {
+        val speed = first.speed
+        { r -> r.load(media!!, status!!.positionMs, playing, speed) }
+      }
     }
     val loaded = g.add(joining, catchUp)
     followers[member.id] = joining
@@ -445,6 +457,24 @@ class CastLink private constructor(
     Log.i(TAG, "group: a speaker joined, ${members.size} play")
     if (restart && !playingNone(status)) for (listener in listeners) listener.onRestartNeeded()
     return loaded
+  }
+
+  private fun joinStream(leadMs: Long): CastRequest? =
+    listeners.firstNotNullOfOrNull { runCatching { it.joinStream(leadMs) }.getOrNull() }
+
+  /**
+   * Loads a newcomer's own rendered stream, on its thread; one that took long to load gets a
+   * second stream that much further ahead, so it lands near the others ([LiveJoin]).
+   */
+  private fun catchUpLive(r: Renderer, request: CastRequest, playing: Boolean) {
+    val live = request.live ?: return
+    val started = android.os.SystemClock.elapsedRealtime()
+    r.load(liveMedia(request, live, alongside = true), 0L, playing, 1f)
+    val took = android.os.SystemClock.elapsedRealtime() - started
+    val lead = if (playing) LiveJoin.secondLead(took) else null
+    Log.i(TAG, "group: a speaker joined a rendered stream, loaded in $took ms")
+    val again = lead?.let { joinStream(it) }?.live ?: return
+    r.load(liveMedia(request, again, alongside = true), 0L, playing, 1f)
   }
 
   private fun playingNone(status: RendererStatus?) =
@@ -523,8 +553,8 @@ class CastLink private constructor(
     )
   }
 
-  private fun liveMedia(request: CastRequest, live: LiveAudio): CastMedia = CastMedia(
-    url = server().publish(MediaServer.Source.Live(live), live.mimeType, "part.${live.extension}"),
+  private fun liveMedia(request: CastRequest, live: LiveAudio, alongside: Boolean = false): CastMedia = CastMedia(
+    url = server().publish(MediaServer.Source.Live(live), live.mimeType, "part.${live.extension}", alongside),
     mimeType = live.mimeType,
     title = request.title,
     artist = request.artist,

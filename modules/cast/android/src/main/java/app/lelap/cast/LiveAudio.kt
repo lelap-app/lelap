@@ -68,6 +68,45 @@ class RenderClock(private val startMs: Long) {
     return m0 + ((m1 - m0) * ((atStreamMs - s0).toDouble() / (s1 - s0))).toLong()
   }
 
+  /**
+   * The part's time skip silence left out of the stream up to [atStreamMs], at the last mark
+   * there, for a stream rendered at [speed] (M150): what the receiver has played of the part,
+   * less what it heard of it. Marks are exact; past the last one nothing is guessed.
+   */
+  @Synchronized
+  fun skippedMs(atStreamMs: Long, speed: Float): Long {
+    if (count == 0 || atStreamMs < streamMs[0]) return 0L
+    var lo = 0
+    var hi = count - 1
+    while (lo < hi) {
+      val mid = (lo + hi + 1) / 2
+      if (streamMs[mid] <= atStreamMs) lo = mid else hi = mid - 1
+    }
+    return (mediaMs[lo] - startMs - (streamMs[lo] * speed.toDouble()).toLong()).coerceAtLeast(0L)
+  }
+
   val marks: Int
     @Synchronized get() = count
+}
+
+/**
+ * How a speaker that joins a group while the phone renders the part catches up (M150): a stream
+ * of its own, rendered from the leader's place, so the others play on. Loading takes the
+ * newcomer a while, during which the leader moves on; when it took longer than [CLOSE_ENOUGH_MS],
+ * a second stream starts that much further ahead.
+ */
+object LiveJoin {
+  const val CLOSE_ENOUGH_MS = 1_000L
+
+  /** The lead for a second stream, or null when [loadMs] kept the newcomer close enough. */
+  fun secondLead(loadMs: Long): Long? = loadMs.takeIf { it > CLOSE_ENOUGH_MS }
+
+  /**
+   * The leader's place in the part [leadMs] from now: [placeMs] as of [atMs] on the same clock,
+   * moving at [speed] while it plays.
+   */
+  fun placeMs(placeMs: Long, atMs: Long, nowMs: Long, speed: Float, playing: Boolean, leadMs: Long): Long {
+    if (!playing) return placeMs
+    return placeMs + (((nowMs - atMs).coerceAtLeast(0L) + leadMs.coerceAtLeast(0L)) * speed.toDouble()).toLong()
+  }
 }

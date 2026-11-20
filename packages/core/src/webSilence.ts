@@ -222,6 +222,8 @@ export type Mp3Layout = {
    * 529 samples), so decoded frames line up with the element's time.
    */
   delayMs: number;
+  /** An Info frame says how many frames and bytes there are (M150). */
+  counted?: boolean;
 };
 
 /** Size of an ID3v2 tag at the start, or 0. */
@@ -277,6 +279,7 @@ export function mp3Layout(head: Uint8Array, start: number): Mp3Layout | null {
     samplesPerFrame: first.samplesPerFrame,
     frameBytes: (first.samplesPerFrame / 8) * (first.bitrate / first.sampleRate),
     delayMs,
+    counted: tag === 'Info',
   };
 }
 
@@ -304,3 +307,13 @@ export const mp3ByteAt = (layout: Mp3Layout, ms: number): number =>
 /** The element's time where decoding from a frame at `byte` starts, in milliseconds. */
 export const mp3MsAt = (layout: Mp3Layout, byte: number): number =>
   ((byte - layout.audioStart) / layout.bytesPerSecond) * 1000 - layout.delayMs;
+
+/**
+ * Whether Firefox's time after a seek in this constant-bitrate MP3 can be off by seconds (M150,
+ * measured in Firefox 147): without an Info frame it estimates the frame from the average length
+ * of the frames it has read so far. Where frames differ by a padding byte (44.1, 22.05 and
+ * 11.025 kHz) that average isn't the file's, by up to half a percent: 4.2 s at 15 minutes.
+ */
+export function firefoxGuessesMp3(layout: Mp3Layout): boolean {
+  return !layout.counted && !Number.isInteger(layout.frameBytes);
+}

@@ -5,8 +5,10 @@
 
 import {
   flacInfo,
+  firefoxGuessesMp3,
   flacTrack,
   id3v2Size,
+  mp3SeekRule,
   mp3Track,
   mp4BoxHeader,
   mp4Index,
@@ -145,17 +147,6 @@ export async function readHead(file: FileBytes): Promise<FileHead | null> {
   return { tags: tagBytes ? readTags(tagBytes) : [], head, track, size };
 }
 
-/**
- * Whether this browser seeks a variable-bitrate MP3 the way `xingSeek` describes: Chrome and the
- * browsers built on it (M134). Firefox estimates the frame from an average instead, a frame or
- * three off, and Safari wasn't measured; there these files play unchanged.
- */
-export function seeksByXingTable(userAgent: string): boolean {
-  return (
-    /\b(Chrome|Chromium)\//.test(userAgent) && !/\b(Firefox|FxiOS|CriOS|EdgiOS)\//.test(userAgent)
-  );
-}
-
 /** Bigger tables than this aren't read: about 80 hours of AAC. */
 const MOOV_LIMIT = 48 * 1024 * 1024;
 
@@ -169,16 +160,16 @@ export async function openTrack(
   durationMs: number,
 ): Promise<WebTrack | null> {
   let opened: WebTrack | null = null;
-  if (track?.kind === 'mp3') opened = mp3Track(track.layout);
-  // A variable-bitrate MP3's time after a seek is the browser's own guess (M134): followed where
-  // it is known, from the Xing table of contents; elsewhere the file plays unchanged.
+  const rule = typeof navigator === 'undefined' ? null : mp3SeekRule(navigator.userAgent);
+  // Firefox's time in some constant-bitrate MP3s is its own guess after a seek (M150).
+  if (track?.kind === 'mp3')
+    opened = rule === 'firefox' && firefoxGuessesMp3(track.layout) ? null : mp3Track(track.layout);
+  // A variable-bitrate MP3's time after a seek is the browser's own guess (M134, M150): followed
+  // where it is known, from the Xing table of contents; elsewhere the file plays unchanged.
   else if (track?.kind === 'vbr-mp3')
     opened =
-      track.xing?.toc &&
-      (track.xing.bytes || size) &&
-      typeof navigator !== 'undefined' &&
-      seeksByXingTable(navigator.userAgent)
-        ? vbrMp3Track(track, size)
+      rule && track.xing?.toc && (rule === 'firefox' ? track.xing.bytes : track.xing.bytes || size)
+        ? vbrMp3Track(track, size, rule)
         : null;
   else if (track?.kind === 'ogg') {
     const codec = oggCodec(head);

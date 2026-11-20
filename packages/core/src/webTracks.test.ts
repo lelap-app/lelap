@@ -14,6 +14,8 @@ import {
   trackHead,
   vbrMp3Track,
   xingSeek,
+  firefoxXingSeek,
+  mp3SeekRule,
 } from './webTracks';
 
 const encoder = new TextEncoder();
@@ -466,5 +468,118 @@ describe('ByteClock', () => {
     expect(clock.byteAt(50_000)).toBe(7000);
     expect(clock.byteAt(25_000)).toBe(3550);
     expect(clock.byteAt(75_000)).toBe(8550);
+  });
+});
+
+describe('seeking in variable-bitrate MP3s in Firefox (M150)', () => {
+  const frames = Array.from({ length: 2000 }, (_, i) => mp3Frame(5 + (i % 4)));
+  const audioBytes = frames.reduce((sum, f) => sum + f.length, 0);
+  const toc = Array.from({ length: 100 }, (_, i) => Math.min(255, Math.round(i * 2.6)));
+  const xing = xingTocFrame(2000, 417 + audioBytes, toc, 576);
+  const frameMs = (1152 / 44_100) * 1000;
+  const durationMs = 2000 * frameMs;
+  /** The file with an ID3 tag of `tag` bytes in front, as a podcast's cover makes. */
+  const tagged = (tag: number) => {
+    const size = tag - 10;
+    const id3 = [
+      0x49,
+      0x44,
+      0x33,
+      3,
+      0,
+      0,
+      (size >> 21) & 127,
+      (size >> 14) & 127,
+      (size >> 7) & 127,
+      size & 127,
+    ];
+    const file = concat(tag > 0 ? [id3, new Uint8Array(size), xing, ...frames] : [xing, ...frames]);
+    const head = trackHead(file, file.length);
+    if (head?.kind !== 'vbr-mp3') throw new Error('not VBR');
+    return { file, head };
+  };
+  /** Firefox's index for a table step: the step's byte from the file's start, over the Xing average. */
+  const indexAt = (step: number, first: number) => {
+    const offset = Math.trunc(
+      Math.fround(Math.fround(1 / 256) * (toc[step] ?? 0)) * (417 + audioBytes),
+    );
+    return Math.trunc(Math.fround(Math.fround(offset - first) / (417 + audioBytes)) * 2000);
+  };
+
+  it('takes the hundredth’s byte from the file’s start and gives it the index’s time', () => {
+    const { head } = tagged(0);
+    const place = must(firefoxXingSeek(head, 0.405 * durationMs));
+    const i = indexAt(40, 0);
+    // The table runs ahead of the bytes, so the index is past the seek: from 1 % earlier, the
+    // same hundredth here.
+    expect(i * frameMs).toBeGreaterThan(0.405 * durationMs);
+    expect(place.step).toBe(i);
+    expect(place.byte).toBe(Math.trunc((i * (417 + audioBytes)) / 2000));
+    expect(place.ms).toBeCloseTo((i - 1) * frameMs - head.frame.delayMs, 6);
+    expect(firefoxXingSeek(head, 0)).toEqual({ step: -1, byte: 417, ms: -head.frame.delayMs });
+  });
+
+  it('seeks again from 1 % earlier when the first guess is past the place', () => {
+    const { head } = tagged(0);
+    // 10.0 %: step 10's index is past it; 1 % earlier is step 9.
+    const toMs = 0.1 * durationMs + 1;
+    expect(indexAt(10, 0) * frameMs).toBeGreaterThan(toMs);
+    expect(must(firefoxXingSeek(head, toMs)).step).toBe(indexAt(9, 0));
+  });
+
+  it('counts an ID3 tag in, as Firefox does', () => {
+    const { head } = tagged(20_000);
+    const first = 20_000;
+    const toMs = 0.605 * durationMs;
+    const place = must(firefoxXingSeek(head, toMs));
+    // The tag's bytes come off the index: it falls short of the place, so no second guess.
+    expect(indexAt(60, first) * frameMs).toBeLessThan(toMs);
+    expect(place.step).toBe(indexAt(60, first));
+    expect(place.step).toBeLessThan(must(firefoxXingSeek(tagged(0).head, toMs)).step);
+    expect(place.byte).toBe(first + Math.trunc((place.step * (417 + audioBytes)) / 2000));
+  });
+
+  it('counts from the first frame at or after that byte', () => {
+    const { file, head } = tagged(0);
+    const track = vbrMp3Track(head, file.length, 'firefox');
+    const toMs = 0.405 * durationMs;
+    expect(track.seeked?.(toMs)).toBe(true);
+    const place = must(firefoxXingSeek(head, toMs));
+    const range = track.range(toMs, 5000);
+    const run = must(track.run(file.subarray(range.start, range.end), range.start));
+    let at = 417;
+    for (const f of frames) {
+      if (at >= place.byte) break;
+      at += f.length;
+    }
+    expect(range.start + must(run.packets[0]).at).toBe(at);
+    expect(must(run.startMs)).toBeCloseTo(place.ms, 6);
+  });
+});
+
+describe('mp3SeekRule (M150)', () => {
+  it('names the rule each browser seeks by', () => {
+    const chrome =
+      'Mozilla/5.0 (Macintosh) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0 Safari/537.36';
+    expect(mp3SeekRule(chrome)).toBe('chrome');
+    expect(mp3SeekRule(`${chrome} Edg/158.0`)).toBe('chrome');
+    expect(
+      mp3SeekRule('Mozilla/5.0 (X11; Linux x86_64; rv:147.0) Gecko/20100101 Firefox/147.0'),
+    ).toBe('firefox');
+    expect(
+      mp3SeekRule(
+        'Mozilla/5.0 (Macintosh) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/19.0 Safari/605.1.15',
+      ),
+    ).toBeNull();
+    expect(
+      mp3SeekRule(
+        'Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/147.0 Mobile/15E148 Safari/605.1.15',
+      ),
+    ).toBeNull();
+    expect(
+      mp3SeekRule(
+        'Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/158.0 Mobile/15E148 Safari/604.1',
+      ),
+    ).toBeNull();
   });
 });
