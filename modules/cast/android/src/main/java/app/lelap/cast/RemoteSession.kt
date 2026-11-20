@@ -100,6 +100,9 @@ class RemoteSession(
   /** The listener's effects went on or off: the part starts again, rendered or as the file. */
   fun setEffects(on: Boolean): List<Command> {
     if (on == phoneRenders) return emptyList()
+    // The place as of now, at the speed it moved at, before the speed may change with the mode.
+    positionMs = position()
+    positionAt = clock()
     phoneRenders = on
     return restart()
   }

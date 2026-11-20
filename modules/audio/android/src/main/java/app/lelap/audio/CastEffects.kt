@@ -34,8 +34,12 @@ class EffectsPipeline(
   private val frameBytes = 2 * channels
   private val inputRate = sampleRate
 
-  /** The rate it gives out: ADTS knows a fixed list of rates, so an odd one is resampled. */
-  val outputRate: Int = if (Adts.rateIndex(sampleRate) >= 0) sampleRate else 44_100
+  /** The rate it gives out: Android's AAC encoder takes 8 to 48 kHz, so others are resampled. */
+  val outputRate: Int = when {
+    sampleRate in ENCODER_RATES -> sampleRate
+    sampleRate % 11_025 == 0 -> 44_100
+    else -> 48_000
+  }
   private val usesSonic: Boolean
   private var outFrames = 0L
   private var lastMarkMs = Long.MIN_VALUE / 2
@@ -146,6 +150,7 @@ class EffectsPipeline(
 
   private companion object {
     const val MARK_EVERY_MS = 200L
+    val ENCODER_RATES = setOf(8_000, 11_025, 12_000, 16_000, 22_050, 24_000, 32_000, 44_100, 48_000)
   }
 }
 

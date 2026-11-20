@@ -174,7 +174,10 @@ export async function openTrack(
   // it is known, from the Xing table of contents; elsewhere the file plays unchanged.
   else if (track?.kind === 'vbr-mp3')
     opened =
-      track.xing?.toc && typeof navigator !== 'undefined' && seeksByXingTable(navigator.userAgent)
+      track.xing?.toc &&
+      (track.xing.bytes || size) &&
+      typeof navigator !== 'undefined' &&
+      seeksByXingTable(navigator.userAgent)
         ? vbrMp3Track(track, size)
         : null;
   else if (track?.kind === 'ogg') {

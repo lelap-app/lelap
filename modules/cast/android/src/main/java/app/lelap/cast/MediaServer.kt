@@ -194,7 +194,7 @@ class MediaServer(private val context: Context) {
     if (method != "GET" && method != "HEAD") return status(out, 405, "Method Not Allowed")
     val entry = entries[token] ?: return status(out, 404, "Not Found")
     when (val source = entry.source) {
-      is Source.Live -> serveLive(client, out, token, source.audio, entry.mimeType, method == "HEAD")
+      is Source.Live -> serveLive(client, out, token, source.audio, entry.mimeType, headers["range"], method == "HEAD")
       is Source.Local -> serveLocal(out, source.uri, entry.mimeType, headers["range"], method == "HEAD")
       // SMB and SFTP (M62): read from the server by the phone, like a file on it.
       is Source.Remote -> if (Netfs.handles(source.url)) {
@@ -207,10 +207,13 @@ class MediaServer(private val context: Context) {
   }
 
   /**
-   * A rendered part: no length and no ranges, as for a radio stream. A receiver that asks for a
-   * range (as some do to probe) gets the stream from its start, which is all there is.
+   * A rendered part: no length and no ranges, as for a radio stream. A range from the start (as
+   * some receivers ask to probe) gets the stream; one from further in can't be served, and the
+   * refusal leaves the receiver stopped, which Play turns into a new stream at the place.
    */
-  private fun serveLive(client: Socket, out: OutputStream, token: String, audio: LiveAudio, mimeType: String, head: Boolean) {
+  private fun serveLive(client: Socket, out: OutputStream, token: String, audio: LiveAudio, mimeType: String, range: String?, head: Boolean) {
+    val from = range?.trim()?.removePrefix("bytes=")?.substringBefore('-')?.trim()?.toLongOrNull()
+    if (from != null && from > 0L) return writeHead(out, 416, "Range Not Satisfiable", mapOf("Content-Range" to "bytes */*", "Content-Length" to "0"))
     writeHead(out, 200, "OK", liveHeaders(mimeType))
     if (head) return
     val clients = liveClients.getOrPut(token) { ConcurrentHashMap.newKeySet() }

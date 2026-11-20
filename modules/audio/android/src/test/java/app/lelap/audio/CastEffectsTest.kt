@@ -72,9 +72,13 @@ class CastEffectsTest {
   }
 
   @Test
-  fun anOddRateIsResampledForAdts() {
+  fun ratesTheEncoderCantTakeAreResampled() {
     val pipeline = EffectsPipeline(37_800, 2, 0L, 1f, false, SoundChain(), RenderClock(0L))
-    assertEquals(44_100, pipeline.outputRate)
+    assertEquals(48_000, pipeline.outputRate)
+    // Hi-res files: ADTS could name 96 and 88.2 kHz, the encoder can't take them.
+    assertEquals(48_000, EffectsPipeline(96_000, 2, 0L, 1f, false, SoundChain(), RenderClock(0L)).outputRate)
+    assertEquals(44_100, EffectsPipeline(88_200, 2, 0L, 1f, false, SoundChain(), RenderClock(0L)).outputRate)
+    assertEquals(22_050, EffectsPipeline(22_050, 1, 0L, 1f, false, SoundChain(), RenderClock(0L)).outputRate)
   }
 
   @Test
