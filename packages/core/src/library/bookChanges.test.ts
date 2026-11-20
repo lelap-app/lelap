@@ -119,4 +119,12 @@ describe('libraryBooks', () => {
     );
     expect(triggers).toHaveLength(18);
   });
+
+  it('forgets the changes of books that are gone, at start', async () => {
+    const { db, ids } = setup();
+    db.delete(books).where(eq(books.id, ids[0])).run();
+    expect(booksChangedSince(db, 0).ids).toContain(ids[0]);
+    await migrateSafely(db, () => {});
+    expect(booksChangedSince(db, 0).ids).not.toContain(ids[0]);
+  });
 });

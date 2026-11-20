@@ -21,7 +21,16 @@ export type XmlNode = Record<string, unknown>;
 export class FeedError extends Error {}
 
 export async function parseXml(xml: string): Promise<XmlNode> {
-  parser ??= import('fast-xml-parser').then(({ XMLParser }) => new XMLParser(OPTIONS));
+  parser ??= import('fast-xml-parser').then(
+    ({ XMLParser }) => new XMLParser(OPTIONS),
+    (error: unknown) => {
+      // A chunk that didn't load (offline, an old deploy) is asked for again next time.
+      parser = null;
+      throw new FeedError(
+        `The feed reader didn't load: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    },
+  );
   const loaded = await parser;
   try {
     return loaded.parse(xml) as XmlNode;

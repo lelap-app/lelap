@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 
-import { unwatchBookChanges, watchBookChanges } from './library/bookChanges';
+import { forgetGoneBooks, unwatchBookChanges, watchBookChanges } from './library/bookChanges';
 import type * as schema from './schema';
 
 /** A synchronous Drizzle SQLite database: expo-sqlite in the app, sql.js in tests. */
@@ -19,6 +19,7 @@ export async function migrateSafely(db: Db, migrate: () => unknown): Promise<voi
   if (hasTable(db, 'book_changes')) unwatchBookChanges(db);
   await migrate();
   watchBookChanges(db);
+  forgetGoneBooks(db);
   db.run(sql`pragma foreign_keys = on`);
 }
 

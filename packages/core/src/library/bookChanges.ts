@@ -7,7 +7,8 @@ import { type LibraryBook, listAllBooks, listBooksById } from './queries';
 // A Library that rereads only the books that changed (M126). Triggers note each book whose row a
 // list shows changes: the book itself, a profile's place or entry, its download, hiding it and a
 // link with a catalog (by the book's location). Triggers rather than every writer saying what it
-// touched, so a scan, sync's apply or a writer added later can't leave a stale row.
+// touched, so a scan, sync's apply or a writer added later can't leave a stale row. Writers must
+// not use `insert or replace` on these tables: the row it removes fires no trigger.
 
 // Tables keyed by book id; `hidden_books` and `work_links` are keyed by the book's location.
 const BY_ID = ['books', 'progress', 'library_entries', 'downloads'] as const;
@@ -49,6 +50,14 @@ export function watchBookChanges(db: Db): void {
   for (const table of TABLES) {
     for (const event of EVENTS) db.run(sql.raw(triggerSql(table, event)));
   }
+}
+
+/**
+ * Forgets the changes of books that are gone, such as old podcast episodes. Only at start
+ * (`migrateSafely`), before any reader has read: one that had would miss the book leaving.
+ */
+export function forgetGoneBooks(db: Db): void {
+  db.run(sql`delete from book_changes where book_id not in (select id from books)`);
 }
 
 /** The latest change noted, 0 before any. */
