@@ -218,6 +218,22 @@ describe('426 Upgrade Required', () => {
     expect(kept).toEqual({});
   });
 
+  it('reads the store once it can, such as after the web app’s database opens', () => {
+    let open = false;
+    const storage = {
+      read: (): Record<string, Refusal> => {
+        if (!open) throw new Error('not open');
+        return { 'https://a.example/manifest.json': { revision: 15, note: null } };
+      },
+      write: () => undefined,
+    };
+    const refusals = new AddonRefusals(15);
+    refusals.attach(storage);
+    expect(refusals.get('https://a.example/manifest.json')).toBeNull();
+    open = true;
+    expect(refusals.get('https://a.example/manifest.json')).toEqual({ revision: 15, note: null });
+  });
+
   it('reads only well-formed kept refusals', () => {
     expect(parseRefusals(null)).toEqual({});
     expect(parseRefusals('not json')).toEqual({});

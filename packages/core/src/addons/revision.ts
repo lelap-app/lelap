@@ -68,36 +68,45 @@ const without = (all: Record<string, Refusal>, urls: string[]): Record<string, R
 export class AddonRefusals {
   private entries: Record<string, Refusal> = {};
   private storage: RefusalStorage | null = null;
+  private loaded = false;
   private readonly listeners = new Set<() => void>();
   private version = 0;
 
   constructor(private readonly app: number = APP_PROTOCOL_VERSION) {}
 
-  /** Keeps refusals in `storage` from now on, starting with what it holds. */
+  /**
+   * Keeps refusals in `storage` from now on. What it holds is read on first use, not here: the
+   * app attaches while its database may still be opening, and a failed read is tried again.
+   */
   attach(storage: RefusalStorage): void {
     this.storage = storage;
+    this.loaded = false;
+  }
+
+  private load(): void {
+    if (this.loaded || !this.storage) return;
+    let kept: Record<string, Refusal>;
     try {
-      this.entries = storage.read();
+      kept = this.storage.read();
     } catch {
-      this.entries = {};
+      return;
     }
+    this.loaded = true;
     // A refusal of another revision is over: this app is newer (or older) than the one refused.
-    const stale = Object.keys(this.entries).filter(
-      (url) => this.entries[url]?.revision !== this.app,
-    );
-    if (stale.length > 0) {
-      this.entries = without(this.entries, stale);
-      this.save();
-    }
-    this.emit();
+    const stale = Object.keys(kept).filter((url) => kept[url]?.revision !== this.app);
+    // Refusals met before the store could be read stay.
+    this.entries = { ...without(kept, stale), ...this.entries };
+    if (stale.length > 0) this.save();
   }
 
   get(url: string): Refusal | null {
+    this.load();
     const entry = this.entries[url];
     return entry && entry.revision === this.app ? entry : null;
   }
 
   record(url: string, note: string | null): void {
+    this.load();
     const current = this.entries[url];
     if (current && current.revision === this.app && current.note === note) return;
     this.entries[url] = { revision: this.app, note };
@@ -107,6 +116,7 @@ export class AddonRefusals {
 
   /** Forgets an add-on's refusal, such as when it is removed. */
   forget(url: string): void {
+    this.load();
     if (!(url in this.entries)) return;
     this.entries = without(this.entries, [url]);
     this.save();
