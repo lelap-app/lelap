@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { type WorkRef, workKey } from './addons/availability';
 import type { Db } from './db';
 import { findBook, titleKey } from './importers/match';
-import { type LibraryBook, listAllBooks } from './library/queries';
+import { bookFraction, type LibraryBook, listAllBooks } from './library/queries';
 import { books } from './schema';
 
 /** What this profile has done with an item: finished it, or got `progress` (0 to 1) into it. */
@@ -23,7 +23,7 @@ export type CoverBadge =
 /** A library book's own state, for its cover's badges. */
 export const listeningOf = (book: LibraryBook): ListeningState => ({
   finished: book.finishedAt !== null,
-  progress: book.durationMs > 0 ? Math.min(1, book.bookPositionMs / book.durationMs) : 0,
+  progress: bookFraction(book),
 });
 
 /**

@@ -121,7 +121,7 @@ describe('checkAddon', () => {
         expect.stringMatching(/^error stream streams\[0\]\.url The address carries a login/),
         expect.stringMatching(/^warning stream streams\[0\]\.url Plain http/),
         expect.stringMatching(
-          /^error stream streams\[1\]\.parts\[0\]\.durationMs Missing; expected number/,
+          /^warning stream streams\[1\]\.parts Parts without durationMs came with revision 14/,
         ),
         expect.stringMatching(/^error stream streams\[1\]\.sourceKey Two streams share sourceKey/),
         expect.stringMatching(/^error catalog {2}Answered 500 for a catalog it does not list/),

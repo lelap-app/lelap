@@ -20,9 +20,12 @@ import {
   offersHealth,
   offersSeries,
   prefixesFor,
+  REFRESH_AFTER_MAX_S,
+  RELEASE_ID,
   type ResourceName,
   SeriesResponse,
   SingleFileStream,
+  STREAM_FORMATS,
   supports,
 } from './protocol';
 
@@ -732,6 +735,25 @@ export async function checkAddon(input: string, options: CheckOptions = {}): Pro
         issuesOf(CatalogResponse.shape.cacheMaxAge, body.cacheMaxAge, ['cacheMaxAge']),
       );
     if (body.streams.length === 0) notes.push(`No streams for ${item.type} ${item.id}.`);
+    const revision = manifest.protocolVersion ?? 1;
+    if (body.refreshAfter !== undefined) {
+      if (revision < 14)
+        report(
+          'warning',
+          'stream',
+          answer.url,
+          'refreshAfter came with revision 14, so declare protocolVersion 14: an older app never asks again.',
+          'refreshAfter',
+        );
+      if (typeof body.refreshAfter === 'number' && body.refreshAfter > REFRESH_AFTER_MAX_S)
+        report(
+          'warning',
+          'stream',
+          answer.url,
+          `refreshAfter is ${body.refreshAfter} seconds; the listener has usually left the page by then. Keep it to ${REFRESH_AFTER_MAX_S}.`,
+          'refreshAfter',
+        );
+    }
     const keys = new Set<string>();
     for (const [index, stream] of body.streams.entries()) {
       const field = ['streams', index];
@@ -758,6 +780,46 @@ export async function checkAddon(input: string, options: CheckOptions = {}): Pro
           );
         keys.add(stream.sourceKey);
       }
+      const at = formatField(field);
+      if (stream.availability !== undefined && revision < 14)
+        report(
+          'warning',
+          'stream',
+          answer.url,
+          'availability came with revision 14, so declare protocolVersion 14: an older app plays the stream as if it were ready.',
+          `${at}.availability`,
+        );
+      if (
+        typeof stream.format === 'string' &&
+        !(STREAM_FORMATS as readonly string[]).includes(stream.format)
+      )
+        report(
+          'warning',
+          'stream',
+          answer.url,
+          `The app doesn't know the format ${short(stream.format)}; use one of ${STREAM_FORMATS.join(', ')}.`,
+          `${at}.format`,
+        );
+      if (typeof stream.releaseId === 'string' && !RELEASE_ID.test(stream.releaseId))
+        report(
+          'warning',
+          'stream',
+          answer.url,
+          `releaseId ${short(stream.releaseId)} is not a lowercase URN (urn:<namespace>:<id>), so other add-ons with the same files won't match it.`,
+          `${at}.releaseId`,
+        );
+      if (
+        revision < 14 &&
+        Array.isArray(stream.parts) &&
+        stream.parts.some((part) => isObject(part) && part.durationMs === undefined)
+      )
+        report(
+          'warning',
+          'stream',
+          answer.url,
+          'Parts without durationMs came with revision 14, so declare protocolVersion 14: an app before it skips this stream.',
+          `${at}.parts`,
+        );
       if (typeof stream.mime === 'string' && !isAudioType(stream.mime))
         report(
           'warning',
@@ -819,6 +881,12 @@ export async function checkAddon(input: string, options: CheckOptions = {}): Pro
       true,
     );
     if (!answer) return;
+    if (answer.status === 503 && answer.headers.get('retry-after')) {
+      notes.push(
+        `${url} is still preparing (503, Retry-After ${answer.headers.get('retry-after')}); the app waits and tries again.`,
+      );
+      return;
+    }
     if (answer.status !== 200 && answer.status !== 206) {
       report('error', 'audio', url, `Answered ${answer.status}; the app cannot play it.`);
       return;

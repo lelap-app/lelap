@@ -64,4 +64,28 @@ class DownloadRulesTest {
     assertEquals("stopped", DownloadRules.state(partsDone = false, WorkState.CANCELLED, hasError = false))
     assertEquals("stopped", DownloadRules.state(partsDone = false, WorkState.NONE, hasError = false))
   }
+
+  @Test fun `waits for a source that is still preparing`() {
+    assertEquals(Resume.PREPARING, DownloadRules.decide(503, 0, null, 0, retryAfter = "120"))
+    assertEquals(Resume.RETRY, DownloadRules.decide(503, 0, null, 0))
+    assertEquals(Resume.RETRY, DownloadRules.decide(503, 0, null, 0, retryAfter = "soon"))
+  }
+
+  @Test fun `reads Retry-After as seconds or a date, held between 5 seconds and an hour`() {
+    val now = 1_700_000_000_000L
+    assertEquals(120L, DownloadRules.retryAfterSeconds("120", now))
+    assertEquals(5L, DownloadRules.retryAfterSeconds("0", now))
+    assertEquals(3600L, DownloadRules.retryAfterSeconds("86400", now))
+    // 2023-11-14 22:13:20 GMT is `now`; a minute later.
+    assertEquals(60L, DownloadRules.retryAfterSeconds("Tue, 14 Nov 2023 22:14:20 GMT", now))
+    assertNull(DownloadRules.retryAfterSeconds("soon", now))
+    assertNull(DownloadRules.retryAfterSeconds(null, now))
+  }
+
+  @Test fun `shows a short plain-text reason when a file won't come`() {
+    assertEquals("The source no longer has this file.", DownloadRules.endMessage("text/plain; charset=utf-8", "The source no longer has this file.\n"))
+    assertNull(DownloadRules.endMessage("text/html", "<p>Gone</p>"))
+    assertNull(DownloadRules.endMessage("text/plain", "x".repeat(201)))
+    assertNull(DownloadRules.endMessage("text/plain", ""))
+  }
 }

@@ -1113,6 +1113,33 @@ const streamFields: Field[] = [
     meaning:
       'Revision 5, from add-ons inside the app only: request headers for the audio, such as `Authorization`. The app sends them on the phone, only to the add-on’s hosts. A web add-on’s stream with headers is refused.',
   },
+  {
+    name: 'availability',
+    type: 'string',
+    required: false,
+    meaning:
+      'Revision 14: `ready` (the default) or `preparing`, for audio the source is still making, such as an Internet Archive item whose files are still being derived. The item page marks such a stream. See [Streams that are still preparing](#preparing).',
+  },
+  {
+    name: 'format',
+    type: 'string',
+    required: false,
+    meaning:
+      'Revision 14: the file format in lowercase, such as `m4b`, `mp3` or `flac`; `mime` can’t tell M4B from M4A. The app knows `aac`, `alac`, `flac`, `m4a`, `m4b`, `mp3`, `mp4`, `oga`, `ogg`, `opus`, `wav`, `webm` and `wma`.',
+  },
+  {
+    name: 'language',
+    type: 'string',
+    required: false,
+    meaning: 'Revision 14: the recording’s language, BCP 47 as on metas, such as `en`.',
+  },
+  {
+    name: 'releaseId',
+    type: 'string',
+    required: false,
+    meaning:
+      'Revision 14: the same for the same files across add-ons, so the app can show them as one. A lowercase URN, `urn:<namespace>:<id>`, at most 200 characters, compared as a whole string. Use the form the source already has, such as `urn:ia:<identifier>` for an Internet Archive item; leave it out when the source has no shared ID.',
+  },
 ];
 
 const singleFields: Field[] = [
@@ -1146,8 +1173,9 @@ const partFields: Field[] = [
   {
     name: 'durationMs',
     type: 'integer ≥ 0',
-    required: true,
-    meaning: 'Length in milliseconds. The app builds the book’s timeline from it.',
+    required: false,
+    meaning:
+      'Length in milliseconds. The app builds the book’s timeline from it. Required before revision 14: without it, the app measures each part when it opens it, shows the book’s total once every part is known and counts progress by parts until then. An app before revision 14 skips a stream with a part that has none.',
   },
   { name: 'size', type: 'integer ≥ 0', required: false, meaning: 'Size in bytes.' },
   {
@@ -1187,8 +1215,8 @@ const toc: [string, string][] = [
   <h1>Protocol v{PROTOCOL_VERSION}</h1>
   <p class="lead">
     The reference for what an add-on answers. The <a href="/docs/sdk/">SDK</a> implements all of it
-    (revisions 10 to 13 since 0.6); you only need this page to check a detail or to write an add-on
-    in another language. For whole objects to copy, see the{' '}
+    (revisions 10 to 13 since 0.6, revision 14 from its next release); you only need this page to
+    check a detail or to write an add-on in another language. For whole objects to copy, see the{' '}
     <a href="/docs/data-model/">data model samples</a>.
   </p>
 
@@ -1419,9 +1447,16 @@ const toc: [string, string][] = [
     <code>
       GET /stream/{'{type}'}/{'{id}'}.json
     </code>{' '}
-    answers with <code>{'{ "streams": Stream[], "cacheMaxAge"?: number }'}</code>. Each stream is
-    one way to play the item, such as one reading of a book. With nothing to offer, answer{' '}
+    answers with{' '}
+    <code>{'{ "streams": Stream[], "cacheMaxAge"?: number, "refreshAfter"?: number }'}</code>. Each
+    stream is one way to play the item, such as one reading of a book. With nothing to offer, answer{' '}
     <code>{'{ "streams": [] }'}</code>.
+  </p>
+  <p>
+    Since revision 14, <code>refreshAfter</code> (seconds, 1 to 3600) says the answer is incomplete,
+    such as a slow search still running. While the item page is open, the app asks once more after
+    that delay, past its own cache, and adds new streams below the ones shown without reordering
+    them; that answer replaces the cached one. Keep it short: the test kit warns above 30 seconds.
   </p>
   <p>
     A stream is either a single file, with <code>url</code>, or a list of files, with{' '}
@@ -1436,8 +1471,9 @@ const toc: [string, string][] = [
   <FieldTable fields={partFields} />
   <p>
     With parts, each part becomes a chapter. A single file uses its own <code>chapters</code>, or
-    the meta’s. Leave a chapter’s <code>title</code> empty when it has none: the app names it
-    “Chapter 3” in the listener’s language.
+    the meta’s; since revision 14 so does a stream of parts whose lengths add up to the meta’s{' '}
+    <code>durationMs</code> within 15 seconds. Leave a chapter’s <code>title</code> empty when it
+    has none: the app names it “Chapter 3” in the listener’s language.
   </p>
   <CodeBlock code={streams} label={`GET ${streamUrl}`} />
   <h3 id="resolve">Links that expire</h3>
@@ -1449,6 +1485,24 @@ const toc: [string, string][] = [
     downloader request your <code>url</code> again, once per expiry, and continue at the same place.
     The web player can’t see the status of a failed audio request, so it does this after any network
     error. The audio still goes straight from the source to the listener.
+  </p>
+
+  <h3 id="preparing">Streams that are still preparing</h3>
+  <p>
+    Since revision 14, a stream’s audio may answer <code>503</code> with <code>Retry-After</code>{' '}
+    (seconds or an HTTP date) while the source makes it, such as an Internet Archive item still
+    being derived or a NAS whose disks are waking up. The app holds the wait between 5 seconds and
+    an hour, shows “Preparing…” and asks again when it says, for up to 10 minutes while the page is
+    open; the listener can cancel, or choose Download when ready, which hands the stream to the
+    download queue. The queue waits the same way, with no limit of its own, keeps its Wi-Fi and
+    charging rules, and says when the book is ready. Nothing is played, so no place is saved, until
+    the audio is there. Keep the stream’s <code>sourceKey</code> when it becomes ready.
+  </p>
+  <p>
+    Any other answer ends the wait. <code>404</code> or <code>410</code> means it won’t come: the
+    app and the queue stop, and show the answer’s body when it is plain text of at most 200
+    characters, such as “The source no longer has this file.”, else words of their own. Send{' '}
+    <code>Access-Control-Expose-Headers: Retry-After</code> so the web app can read the wait.
   </p>
 
   <h2 id="errors">Errors</h2>
@@ -1575,10 +1629,15 @@ const toc: [string, string][] = [
     revision 12 ignores them. Revision 13 adds a library file’s <code>description</code>,{' '}
     <code>language</code>, <code>series</code> and <code>ref</code>, a library’s{' '}
     <a href="#digest">Digest login</a>, and each file’s length and <code>ref</code> in a{' '}
-    <a href="#places">place report</a>; an app before revision 13 ignores them. When an add-on
-    declares a newer revision than the app knows, Settings → Library and sources → Add-ons says so.
-    Revision 9 comes with SDK 0.5.0; 0.4.0 covers revisions up to 8. Revisions 10 to 13 come with
-    SDK 0.6.
+    <a href="#places">place report</a>; an app before revision 13 ignores them. Revision 14 adds a
+    stream’s <code>availability</code>, <code>format</code>, <code>language</code> and{' '}
+    <code>releaseId</code>, <code>refreshAfter</code>, parts without <code>durationMs</code>,{' '}
+    <a href="#preparing">streams that are still preparing</a> and the meta’s chapters for parts; an
+    app before revision 14 ignores the fields, plays a preparing stream as if it were ready and
+    skips a stream with a part that has no length. When an add-on declares a newer revision than the
+    app knows, Settings → Library and sources → Add-ons says so. Revision 9 comes with SDK 0.5.0;
+    0.4.0 covers revisions up to 8. Revisions 10 to 13 come with SDK 0.6; revision 14 comes with the
+    next SDK release.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />

@@ -76,12 +76,21 @@ export function learnFileDuration(db: Db, fileLocation: string, durationMs: numb
       .set({ durationMs: Math.round(durationMs) })
       .where(eq(bookFiles.id, file.id))
       .run();
-    const total = tx
+    const lengths = tx
       .select({ durationMs: bookFiles.durationMs })
       .from(bookFiles)
       .where(and(eq(bookFiles.bookId, bookId), isNull(bookFiles.missingSince)))
       .all()
-      .reduce((sum, f) => sum + Math.max(0, f.durationMs), 0);
+      .map((f) => f.durationMs);
+    const source = tx
+      .select({ source: books.source })
+      .from(books)
+      .where(eq(books.id, bookId))
+      .get()?.source;
+    // A streamed book's total shows once every part is measured (M152), progress counting parts
+    // until then; a local book keeps the sum its scan gives, so the two never disagree.
+    const sum = lengths.reduce((all, ms) => all + Math.max(0, ms), 0);
+    const total = source !== 'addon' || lengths.every((ms) => ms > 0) ? sum : 0;
     tx.update(books).set({ durationMs: total }).where(eq(books.id, bookId)).run();
     return true;
   });

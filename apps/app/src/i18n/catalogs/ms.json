@@ -1243,5 +1243,13 @@
   "Also reachable at": "Juga boleh dicapai di",
   "Addresses": "Alamat",
   "Another address of the same server, such as its home address beside the public one. Lelap uses whichever answers and keeps one login for both.": "Alamat lain bagi pelayan yang sama, seperti alamat rumahnya di samping alamat awam. Lelap menggunakan mana-mana yang menjawab dan menyimpan satu log masuk untuk kedua-duanya.",
-  "A server you reach at home and from outside can have both addresses. Lelap uses whichever answers; the login, books and places stay.": "Pelayan yang anda capai di rumah dan dari luar boleh mempunyai kedua-dua alamat. Lelap menggunakan mana-mana yang menjawab; log masuk, buku dan kedudukan kekal."
+  "A server you reach at home and from outside can have both addresses. Lelap uses whichever answers; the login, books and places stay.": "Pelayan yang anda capai di rumah dan dari luar boleh mempunyai kedua-dua alamat. Lelap menggunakan mana-mana yang menjawab; log masuk, buku dan kedudukan kekal.",
+  "Preparing": "Sedang disediakan",
+  "The source is getting this book ready. Trying again in {time}.": "Sumber sedang menyediakan buku ini. Mencuba lagi dalam {time}.",
+  "Download when ready": "Muat turun apabila siap",
+  "Still preparing": "Masih disediakan",
+  "The source is still getting this book ready. Try again later, or download it when ready.": "Sumber masih menyediakan buku ini. Cuba lagi nanti, atau muat turun apabila siap.",
+  "The source no longer has this book.": "Sumber tidak lagi mempunyai buku ini.",
+  "Preparing… downloads when ready": "Sedang disediakan… dimuat turun apabila siap",
+  "Downloaded and ready to play.": "Sudah dimuat turun dan sedia dimainkan."
 }

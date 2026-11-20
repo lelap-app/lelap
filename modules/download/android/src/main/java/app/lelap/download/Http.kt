@@ -5,6 +5,7 @@ import app.lelap.text.ShownException
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 
 /** The server refused for good; retrying will not help. */
@@ -29,6 +30,7 @@ object Http {
     headers: Map<String, String> = emptyMap(),
     text: NativeCatalog = NativeCatalog.ENGLISH,
     integrity: String? = null,
+    onPreparing: suspend (seconds: Long) -> Unit = {},
     onBytes: suspend (Long) -> Unit,
   ) {
     val part = name + PART_SUFFIX
@@ -42,7 +44,8 @@ object Http {
         if (code in 200..299 && DownloadRules.isMessage(connection.contentType)) {
           throw PermanentFailure(text.t("The server sent a message instead of the file."))
         }
-        when (DownloadRules.decide(code, existing, connection.getHeaderField("Content-Range"), expectedSize, refreshed)) {
+        val retryAfter = connection.getHeaderField("Retry-After")
+        when (DownloadRules.decide(code, existing, connection.getHeaderField("Content-Range"), expectedSize, refreshed, retryAfter)) {
           Resume.APPEND -> copy(connection, folder, part, append = true, start = existing, text, onBytes)
           Resume.RESTART -> copy(connection, folder, part, append = false, start = 0L, text, onBytes)
           Resume.COMPLETE -> Unit
@@ -56,8 +59,20 @@ object Http {
             refreshed = true
             continue
           }
+          Resume.PREPARING -> {
+            // No limit of its own: the source ends the wait with any other answer. WorkManager
+            // stops this run when the Wi-Fi or charging rule no longer holds.
+            val seconds = DownloadRules.retryAfterSeconds(retryAfter, System.currentTimeMillis()) ?: DownloadRules.RETRY_AFTER_MIN_S
+            connection.disconnect()
+            onPreparing(seconds)
+            delay(seconds * 1000)
+            continue
+          }
           Resume.RETRY -> throw ShownException(text.t("The server answered HTTP {status}.", "status" to code))
-          Resume.FAIL -> throw PermanentFailure(text.t("The server answered HTTP {status}.", "status" to code))
+          Resume.FAIL -> throw PermanentFailure(
+            (if (code == 404 || code == 410) DownloadRules.endMessage(connection.contentType, errorBody(connection)) else null)
+              ?: text.t("The server answered HTTP {status}.", "status" to code),
+          )
         }
       } finally {
         connection.disconnect()
@@ -71,6 +86,20 @@ object Http {
       return
     }
   }
+
+  // A short reason from the server; never more than a few hundred bytes are read.
+  private fun errorBody(connection: HttpURLConnection): String? = runCatching {
+    connection.errorStream?.use { stream ->
+      val buffer = ByteArray(DownloadRules.END_MESSAGE_MAX * 4 + 1)
+      var read = 0
+      while (read < buffer.size) {
+        val n = stream.read(buffer, read, buffer.size - read)
+        if (n < 0) break
+        read += n
+      }
+      String(buffer, 0, read, Charsets.UTF_8)
+    }
+  }.getOrNull()
 
   // Redirects by hand: HttpURLConnection does not follow them from http to https or back. A Digest
   // login among the headers (M135) is answered on the file's own server instead of sent.

@@ -233,6 +233,23 @@ GET  /configure           (the add-on's own settings page)
   add-ons may not use, which the player, downloads, cast server and tag reader take out and
   answer, and code that can't (a browser, Expo's `fetch`) drops. The add-on answers Digest for its
   own requests, as the sandbox's `fetch` shows `www-authenticate`.
+- **Preparing streams, unmeasured parts, a second look and stream identity** (revision 14, M152):
+  audio that answers `503` with `Retry-After` (held between 5 s and an hour) is still preparing:
+  for a stream marked `availability: preparing`, the item page probes its first byte before Play,
+  shows “Preparing…”, probes again when told, for up to 10 minutes,
+  and offers Download when ready; the download worker waits inside its run with no limit of its
+  own, so WorkManager's Wi-Fi and charging rules still stop it, and posts “ready” when it is in.
+  `404` or `410` ends the wait, with the answer's body when it is plain text of at most 200
+  characters. Probing before playing, rather than reading Media3's error, works the same on the
+  web and keeps the player free of a waiting state; only marked streams are probed, since a
+  server that ignores `Range` sends the whole file. Unmarked preparing audio is the player's
+  (M155).
+  Parts may come without `durationMs`: the app measures each when it opens it, keeps the book's
+  total at 0 until every part is known and counts progress by parts meanwhile. `refreshAfter`
+  asks the app for one more look, past its cache, while the item page is open; new streams go
+  below. A stream's `format`, `language` and `releaseId` (a lowercase URN compared whole) feed
+  M153's ordering and merging. An older app ignores the fields, plays a preparing stream as if it
+  were ready, and skips a stream with an unmeasured part.
 
 First-party add-ons: Catalog (Open Library, Audnexus, Podcast Index), LibriVox, Whole series
 (Wikidata), Internet Archive

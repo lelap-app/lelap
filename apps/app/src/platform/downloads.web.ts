@@ -1,4 +1,4 @@
-import { integrityCheck, withoutDigestLogin } from '@lelap/core';
+import { endMessage, integrityCheck, retryAfterSeconds, withoutDigestLogin } from '@lelap/core';
 
 import { t } from '../i18n';
 import type {
@@ -88,6 +88,19 @@ async function readJob(bookId: string): Promise<DownloadJob | null> {
  * with an SRI hash (`podcast:integrity`, M121) is hashed part by part as it is written, so it
  * never sits in memory whole, and is not kept when it doesn't match.
  */
+const waitFor = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const stop = () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', stop);
+      resolve();
+    }, ms);
+    signal.addEventListener('abort', stop, { once: true });
+  });
+
 async function fetchTo(
   url: string,
   path: string,
@@ -98,7 +111,24 @@ async function fetchTo(
 ) {
   // A browser can't answer a Digest login (M135); it stays out of the request.
   const sent = headers ? withoutDigestLogin(headers) : undefined;
-  const response = await fetch(url, { signal, ...(sent ? { headers: sent } : {}) });
+  let response = await fetch(url, { signal, ...(sent ? { headers: sent } : {}) });
+  // A source still preparing the file (M152): wait as long as it says, while the page is open.
+  for (;;) {
+    const seconds =
+      response.status === 503
+        ? retryAfterSeconds(response.headers.get('retry-after'), Date.now())
+        : null;
+    if (seconds === null) break;
+    await waitFor(seconds * 1000, signal);
+    response = await fetch(url, { signal, ...(sent ? { headers: sent } : {}) });
+  }
+  if ((response.status === 404 || response.status === 410) && !response.ok) {
+    const own = endMessage(
+      response.headers.get('content-type'),
+      await response.text().catch(() => null),
+    );
+    if (own) throw new Error(own);
+  }
   if (!response.ok || !response.body)
     throw new Error(t('The server answered HTTP {status}.', { status: response.status }));
   const part = `${path}.part`;

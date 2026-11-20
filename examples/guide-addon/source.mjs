@@ -71,6 +71,8 @@ export async function createSourceAddon({ folder, filesUrl, ...lookupOptions }) 
             title: file.title,
             url: `${base}/${file.path.map(encodeURIComponent).join('/')}`,
             ...(MIME[file.ext] ? { mime: MIME[file.ext] } : {}),
+            // `mime` can't tell an M4B from an M4A; `format` can (revision 14).
+            format: file.ext.slice(1),
             downloadable: true,
           };
         }),

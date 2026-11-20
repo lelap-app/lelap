@@ -23,7 +23,8 @@ import {
 /** What the client needs from `fetch`; tests pass a fake. */
 export type Fetcher = (
   url: string,
-  init: { signal: AbortSignal; headers: Record<string, string> },
+  /** `cache: 'no-store'` asks past every cache, for a second look at a slow answer (M152). */
+  init: { signal: AbortSignal; headers: Record<string, string>; cache?: 'no-store' },
 ) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
 
 export type InstalledAddon = {
@@ -73,13 +74,14 @@ export function normalizeManifestUrl(input: string): string | null {
   return `${origin.toLowerCase()}${path}${query}`;
 }
 
-async function getJson(fetcher: Fetcher, url: string): Promise<unknown> {
+async function getJson(fetcher: Fetcher, url: string, fresh = false): Promise<unknown> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const response = await fetcher(url, {
       signal: controller.signal,
       headers: { Accept: 'application/json' },
+      ...(fresh ? { cache: 'no-store' as const } : {}),
     });
     if (!response.ok)
       throw new AddonRequestError(url, response.status, `The add-on answered ${response.status}`);
@@ -297,11 +299,38 @@ export async function fetchAddonStreams(
   type: ContentType,
   id: string,
 ): Promise<FoundStream[]> {
-  return validEntries(
-    await getJson(fetcher, addonBase(addon.url) + streamPath(type, id)),
+  return (await fetchStreamAnswer(fetcher, addon, type, id)).found;
+}
+
+/** One add-on's streams, with its `refreshAfter` in seconds when the answer is incomplete. */
+export type StreamAnswer = { found: FoundStream[]; refreshAfter: number | null };
+
+/**
+ * One add-on's streams and whether to ask again (M152). `fresh` asks past every cache: the
+ * second look a `refreshAfter` asks for.
+ */
+export async function fetchStreamAnswer(
+  fetcher: Fetcher,
+  addon: InstalledAddon,
+  type: ContentType,
+  id: string,
+  fresh = false,
+): Promise<StreamAnswer> {
+  const body = await getJson(fetcher, addonBase(addon.url) + streamPath(type, id), fresh);
+  const found = validEntries(
+    body,
     'streams',
     parseWith<Stream>(isLocalAddonUrl(addon.url) ? Stream : WebStream),
   ).map((stream) => ({ addon, stream }));
+  const after =
+    typeof body === 'object' && body !== null
+      ? (body as { refreshAfter?: unknown }).refreshAfter
+      : undefined;
+  const refreshAfter =
+    typeof after === 'number' && Number.isInteger(after) && after > 0 && after <= 3600
+      ? after
+      : null;
+  return { found, refreshAfter };
 }
 
 /** Streams from every add-on that answers for this ID, in add-on order. */

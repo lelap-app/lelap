@@ -34,6 +34,8 @@ const nativeLines = (): Record<string, string> => ({
   'Nothing found for “{query}”.': t('Nothing found for “{query}”.'),
   // Download and chapter-finding notifications.
   Downloading: t('Downloading'),
+  'Preparing… downloads when ready': t('Preparing… downloads when ready'),
+  'Downloaded and ready to play.': t('Downloaded and ready to play.'),
   Cancel: t('Cancel'),
   'Listening for long silences': t('Listening for long silences'),
   'Finding chapters in {title}': t('Finding chapters in {title}'),
