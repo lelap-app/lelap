@@ -1,5 +1,6 @@
 ---
 import Base from './Base.astro';
+import { docsPages } from '../lib/docs';
 import { site } from '../site';
 
 interface Props {
@@ -10,20 +11,7 @@ interface Props {
 }
 
 const { title, description, toc = [] } = Astro.props;
-const pages = [
-  { href: '/docs/', label: 'Overview' },
-  { href: '/docs/guide/', label: 'Your first add-on' },
-  { href: '/docs/protocol/', label: 'Protocol v1' },
-  { href: '/docs/data-model/', label: 'Data model samples' },
-  { href: '/docs/sdk/', label: 'SDK guide' },
-  { href: '/docs/samples/', label: 'Samples' },
-  { href: '/docs/mapping-files/', label: 'Mapping files to works' },
-  { href: '/docs/hosting/', label: 'Hosting' },
-  { href: '/docs/manifest-builder/', label: 'Manifest builder' },
-  { href: '/docs/checking/', label: 'Checking an add-on' },
-  { href: '/docs/car-and-offline/', label: 'Car and offline' },
-  { href: '/docs/scrobbling/', label: 'Scrobbling' },
-];
+const pages = docsPages;
 const current = Astro.url.pathname.replace(/\/?$/, '/');
 ---
 

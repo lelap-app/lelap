@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createTestDb } from '../test/db';
 import { seedBook } from '../test/seed';
-import { carLists, carShelves } from './car';
+import type { InstalledAddon } from './addons/client';
+import { LOCAL_SCHEME } from './addons/local';
+import { carLists, carShelves, voiceCatalogs } from './car';
 import type { Db } from './db';
 import { setFinished } from './library/queries';
 import { episodeBook, listEpisodes, saveFeed, subscribe } from './podcasts/repository';
@@ -90,6 +92,16 @@ describe('car shelves', () => {
     expect(carShelves(db, ME).continueListening).toEqual([bookId, alpha]);
   });
 
+  it('offers more of the library for voice search, unfinished and off the shelves', () => {
+    const gamma = seedBook(db, 'Gamma', [{ location: 'gamma/1', durationMs: 1000 }]);
+    setFinished(db, ME, gamma, true, 3);
+    // One book per shelf: the other unfinished one is only for voice search.
+    const shelves = carShelves(db, ME, 1);
+    expect(shelves.onPhone).toHaveLength(1);
+    expect(shelves.library).toEqual([alpha, beta].filter((id) => !shelves.onPhone.includes(id)));
+    expect(shelves.episodes).toEqual([]);
+  });
+
   it('follows Up Next in order', () => {
     addToUpNext(db, ME, beta, 'last', 1);
     addToUpNext(db, ME, alpha, 'last', 2);
@@ -129,5 +141,42 @@ describe('car shelves', () => {
     expect(list?.id).toBe(id);
     expect(list?.order).toEqual(list?.items.map((i) => i.bookId));
     expect(list?.order).toHaveLength(2);
+  });
+});
+
+describe('voice catalogs', () => {
+  const addon = (url: string, search: boolean): InstalledAddon => ({
+    id: url,
+    url,
+    builtin: false,
+    manifest: {
+      id: url,
+      version: '1.0.0',
+      protocol: 1,
+      name: 'Books',
+      description: '',
+      types: ['audiobook'],
+      resources: ['catalog'],
+      catalogs: [
+        {
+          type: 'audiobook',
+          id: 'all',
+          name: 'All',
+          extra: search ? [{ name: 'search', isRequired: true }] : [],
+        },
+      ],
+    },
+  });
+
+  it('lists the web add-ons that search audiobooks, not in-app ones', () => {
+    expect(
+      voiceCatalogs([
+        addon('https://books.example.org/x/manifest.json', true),
+        addon('https://browse.example.org/manifest.json', false),
+        addon(`${LOCAL_SCHEME}mine/manifest.json`, true),
+      ]),
+    ).toEqual([
+      { base: 'https://books.example.org/x/', type: 'audiobook', id: 'all', addon: 'Books' },
+    ]);
   });
 });

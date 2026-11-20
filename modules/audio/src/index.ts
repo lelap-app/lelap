@@ -393,6 +393,12 @@ export type CarLibrary = {
   upNext: BookLoad[];
   /** The Lists shelf (M119): each list with its items around where it stands. */
   lists: CarLibraryList[];
+  /** More of the library, for voice search only (M147); not a shelf in the car. */
+  library: BookLoad[];
+  /** Which of these books are podcast episodes, so voice search offers books first. */
+  episodes: string[];
+  /** Add-on search catalogs the service asks by itself; `base` ends in `/`. */
+  searchCatalogs: { base: string; type: string; id: string; addon: string }[];
 };
 
 export type CarLibraryList = {

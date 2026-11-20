@@ -23,6 +23,11 @@ Kotlin Expo module for Android playback.
   headphones, watches, cars), the widget's skips, setting or extending the timer, and a shake.
   The service's own moves (smart rewind, auto-advance, the timer's stop) use the players directly
   and don't.
+- Voice search (M147): `VoiceQuery` reads a spoken request, `VoiceSearch` ranks titles and
+  authors, `VoiceLibrary` searches the car snapshot (with its `library` of more books) and
+  `AddonSearch` asks web add-ons' search catalogs for at most three seconds, online only. The
+  service answers Android Auto's search and play-from-search, and the phone's Assistant through
+  `VoiceSearchActivity`; an add-on's item goes to the app's `play` server task.
 - `ExpiringLinks`: a 403 or 410 from an audio host opens the item's own URL again, once, from the
   same byte, so an add-on's `/resolve/…` redirect hands out a fresh link.
 - `SoundChain` and `SoundProcessor`: mono, voice EQ (high-pass at 80 Hz, +4 dB around 3 kHz) and

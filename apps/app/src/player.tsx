@@ -36,6 +36,9 @@ import {
   listPrevious,
   listEarlier,
   playsFromStart,
+  getProfile,
+  listAddons,
+  voiceCatalogs,
   type LibraryBook,
   type ListFollow,
 } from '@lelap/core';
@@ -729,6 +732,8 @@ async function syncCar(): Promise<void> {
   const episodes = shelves.latestEpisodes.map(
     (e) => e.bookId ?? episodeBook(db, e.episodeId, Date.now(), newId),
   );
+  // The add-ons this profile sees, for voice search with the app closed (M147).
+  const hidden = new Set(getProfile(db, profileId)?.hiddenAddons ?? []);
   await audio
     .setCarLibrary({
       continueListening: loads(shelves.continueListening),
@@ -736,6 +741,9 @@ async function syncCar(): Promise<void> {
       podcasts: loads(episodes),
       upNext: loads(shelves.upNext),
       lists,
+      library: loads(shelves.library),
+      episodes: [...shelves.episodes, ...episodes],
+      searchCatalogs: voiceCatalogs(listAddons(db).filter((a) => !hidden.has(a.url))),
     })
     .catch(() => {});
 }
