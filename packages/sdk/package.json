@@ -1,6 +1,6 @@
 {
   "name": "@lelap/sdk",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Types, schemas and a request handler for Lelap add-ons.",
   "license": "MIT",
   "type": "module",
@@ -27,7 +27,8 @@
     "./check": "./src/check.ts"
   },
   "files": [
-    "dist"
+    "dist",
+    "llms.txt"
   ],
   "publishConfig": {
     "access": "public",
