@@ -143,7 +143,7 @@ export async function listS3(fetcher: Fetch, source: S3Source, now: number): Pro
       },
     });
     if (!response.ok) throw failure(response.status, 'S3 bucket');
-    const doc = parseXml(await response.text());
+    const doc = await parseXml(await response.text());
     const result = asArray(doc.ListBucketResult).find(isNode);
     for (const item of asArray(result?.Contents).filter(isNode)) {
       const key = textOf(item.Key);

@@ -29,8 +29,8 @@ export const webdavLocation = (url: URL) => `webdav:${url.host}${decodeURICompon
 type Entry = { url: URL; folder: boolean; size: number; modifiedAt: number };
 
 /** One folder's entries from a `PROPFIND` with `Depth: 1` (the folder itself left out). */
-export function parseMultistatus(xml: string, folder: URL): Entry[] {
-  const doc = parseXml(xml);
+export async function parseMultistatus(xml: string, folder: URL): Promise<Entry[]> {
+  const doc = await parseXml(xml);
   // Servers write `d:`, `D:` or no prefix; drop namespace prefixes from keys.
   const strip = (node: unknown): unknown => {
     if (Array.isArray(node)) return node.map(strip);

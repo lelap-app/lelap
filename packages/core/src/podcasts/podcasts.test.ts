@@ -64,12 +64,19 @@ const rss = (count: number) => `<?xml version="1.0" encoding="UTF-8"?>
   </channel>
 </rss>`;
 
-const save = (db: Db, count = 3) =>
-  saveFeed(db, FEED_URL, parseFeed(rss(count)), { etag: '"v1"', lastModified: null }, 100, newId);
+const save = async (db: Db, count = 3) =>
+  saveFeed(
+    db,
+    FEED_URL,
+    await parseFeed(rss(count)),
+    { etag: '"v1"', lastModified: null },
+    100,
+    newId,
+  );
 
 describe('RSS', () => {
-  it('reads the podcast and its audio episodes', () => {
-    const feed = parseFeed(rss(2));
+  it('reads the podcast and its audio episodes', async () => {
+    const feed = await parseFeed(rss(2));
     expect(feed).toMatchObject({
       title: 'The Garden Hour',
       author: 'Garden Folk',
@@ -110,18 +117,22 @@ describe('RSS', () => {
     expect(parseDuration('soon')).toBe(0);
   });
 
-  it('refuses what is not a feed', () => {
-    expect(() => parseFeed('<html><body>Hi</body></html>')).toThrow('not an RSS or Atom feed');
-    expect(() => parseFeed('<rss><channel><title></title></channel></rss>')).toThrow('no title');
-    expect(() => parseFeed('<feed><title/></feed>')).toThrow('no title');
+  it('refuses what is not a feed', async () => {
+    await expect(parseFeed('<html><body>Hi</body></html>')).rejects.toThrow(
+      'not an RSS or Atom feed',
+    );
+    await expect(parseFeed('<rss><channel><title></title></channel></rss>')).rejects.toThrow(
+      'no title',
+    );
+    await expect(parseFeed('<feed><title/></feed>')).rejects.toThrow('no title');
   });
 });
 
 describe('Atom', () => {
   const atom = readFileSync(new URL('../../test/fixtures/atom.xml', import.meta.url), 'utf8');
 
-  it('reads the podcast and the entries with an audio enclosure', () => {
-    const feed = parseFeed(atom);
+  it('reads the podcast and the entries with an audio enclosure', async () => {
+    const feed = await parseFeed(atom);
     expect(feed).toMatchObject({
       title: 'Night Shift Radio',
       author: 'Mira Okafor',
@@ -165,12 +176,12 @@ describe('Atom', () => {
     ]);
   });
 
-  it('subscribes like an RSS feed', () => {
+  it('subscribes like an RSS feed', async () => {
     const db = createTestDb();
     const saved = saveFeed(
       db,
       'https://feeds.example.org/night-shift.atom',
-      parseFeed(atom),
+      await parseFeed(atom),
       { etag: null, lastModified: null },
       100,
       newId,
@@ -183,20 +194,20 @@ describe('Atom', () => {
 });
 
 describe('OPML', () => {
-  it('reads feeds in folders once and writes them back', () => {
+  it('reads feeds in folders once and writes them back', async () => {
     const xml = `<opml version="2.0"><body>
       <outline text="Garden" type="rss" xmlUrl="https://a.example/feed"/>
       <outline text="Folder"><outline title="Tom &amp; Jerry" xmlUrl="https://b.example/rss"/>
       <outline text="Again" xmlUrl="https://a.example/feed"/></outline>
       <outline text="Night shift" type="atom" xmlUrl="https://c.example/night.atom"/>
     </body></opml>`;
-    const feeds = parseOpml(xml);
+    const feeds = await parseOpml(xml);
     expect(feeds).toEqual([
       { title: 'Garden', feedUrl: 'https://a.example/feed' },
       { title: 'Tom & Jerry', feedUrl: 'https://b.example/rss' },
       { title: 'Night shift', feedUrl: 'https://c.example/night.atom' },
     ]);
-    expect(parseOpml(buildOpml(feeds, 0))).toEqual(feeds);
+    expect(await parseOpml(buildOpml(feeds, 0))).toEqual(feeds);
   });
 });
 
@@ -206,10 +217,10 @@ describe('subscriptions', () => {
     db = createTestDb();
   });
 
-  it('stores a feed, adds only new episodes on refresh, and lists them newest first', () => {
-    const first = save(db, 2);
+  it('stores a feed, adds only new episodes on refresh, and lists them newest first', async () => {
+    const first = await save(db, 2);
     expect(first.added).toHaveLength(2);
-    const again = save(db, 3);
+    const again = await save(db, 3);
     expect(again.podcastId).toBe(first.podcastId);
     expect(again.added).toHaveLength(1);
     subscribe(db, ME, first.podcastId, 200);
@@ -220,18 +231,18 @@ describe('subscriptions', () => {
     expect(listSubscriptions(db, ME)).toEqual([]);
   });
 
-  it('counts unstarted episodes that arrived since the podcast was last opened as new', () => {
+  it('counts unstarted episodes that arrived since the podcast was last opened as new', async () => {
     const june = (day: number) => Date.parse(`2026-06-0${day}T08:00:00Z`);
-    const at = (day: number, count: number) =>
+    const at = async (day: number, count: number) =>
       saveFeed(
         db,
         FEED_URL,
-        parseFeed(rss(count)),
+        await parseFeed(rss(count)),
         { etag: null, lastModified: null },
         june(day),
         newId,
       );
-    const { podcastId } = at(1, 1);
+    const { podcastId } = await at(1, 1);
     subscribe(db, ME, podcastId, june(1) + 1);
     expect(listSubscriptions(db, ME)[0]?.newEpisodes).toBe(0);
     // Episodes 2 and 3 come out, the page is opened before a refresh, then the refresh brings
@@ -240,7 +251,7 @@ describe('subscriptions', () => {
       seenAt: june(1) + 1,
       newSince: june(1) + 1,
     });
-    at(5, 3);
+    await at(5, 3);
     expect(listSubscriptions(db, ME)[0]?.newEpisodes).toBe(2);
     // Starting one takes it off.
     const third = must(listEpisodes(db, ME, podcastId).find((e) => e.number === 3));
@@ -257,14 +268,14 @@ describe('subscriptions', () => {
     expect(markPodcastSeen(db, ME, 'not-subscribed', 1)).toBeNull();
   });
 
-  it('never counts old episodes that arrive after counting started, as for a synced show', () => {
-    const { podcastId } = save(db, 0);
+  it('never counts old episodes that arrive after counting started, as for a synced show', async () => {
+    const { podcastId } = await save(db, 0);
     subscribe(db, ME, podcastId, Date.parse('2026-07-01T00:00:00Z'));
     // A refresh after the clock started brings the back catalogue, all from June.
     saveFeed(
       db,
       FEED_URL,
-      parseFeed(rss(3)),
+      await parseFeed(rss(3)),
       { etag: null, lastModified: null },
       Date.parse('2026-07-02T00:00:00Z'),
       newId,
@@ -272,8 +283,8 @@ describe('subscriptions', () => {
     expect(listSubscriptions(db, ME)[0]?.newEpisodes).toBe(0);
   });
 
-  it('starts counting for subscriptions from before M105 when the app starts', () => {
-    const { podcastId } = save(db, 3);
+  it('starts counting for subscriptions from before M105 when the app starts', async () => {
+    const { podcastId } = await save(db, 3);
     subscribe(db, ME, podcastId, 1);
     db.update(subscriptions).set({ seenAt: null, newSince: null }).run();
     expect(listSubscriptions(db, ME)[0]?.newEpisodes).toBe(0);
@@ -281,8 +292,8 @@ describe('subscriptions', () => {
     expect(listSubscriptions(db, ME)[0]).toMatchObject({ seenAt: 500, newSince: 500 });
   });
 
-  it('plays an episode as a book that stays out of the Library list', () => {
-    const { podcastId } = save(db, 1);
+  it('plays an episode as a book that stays out of the Library list', async () => {
+    const { podcastId } = await save(db, 1);
     const episode = must(listEpisodes(db, ME, podcastId)[0]);
     const bookId = episodeBook(db, episode.id, 300, newId);
     expect(episodeBook(db, episode.id, 301, newId)).toBe(bookId);
@@ -294,8 +305,8 @@ describe('subscriptions', () => {
     expect(planDownload(db, bookId).files[0]?.name).toBe('001.mp3');
   });
 
-  it('skips the intro and outro set for the show, per profile', () => {
-    const { podcastId } = save(db, 1);
+  it('skips the intro and outro set for the show, per profile', async () => {
+    const { podcastId } = await save(db, 1);
     const bookId = episodeBook(db, must(listEpisodes(db, ME, podcastId)[0]).id, 1, newId);
     expect(trimOfBook(db, ME, bookId)).toEqual({ skipIntroMs: 0, skipOutroMs: 0 });
     subscribe(db, ME, podcastId, 1);
@@ -304,8 +315,8 @@ describe('subscriptions', () => {
     expect(trimOfBook(db, 'someone-else', bookId)).toEqual({ skipIntroMs: 0, skipOutroMs: 0 });
   });
 
-  it('auto-downloads the newest unplayed episodes and removes played ones', () => {
-    const { podcastId } = save(db, 4);
+  it('auto-downloads the newest unplayed episodes and removes played ones', async () => {
+    const { podcastId } = await save(db, 4);
     subscribe(db, ME, podcastId, 1);
     expect(autoDownloadWork(db, ME).download).toEqual([]);
     setAutoDownload(db, ME, podcastId, { autoDownload: true, keepLatest: 2 }, 2);
@@ -344,8 +355,8 @@ describe('Up Next', () => {
     db = createTestDb();
   });
 
-  it('orders, moves and hands over after an episode but not after a book', () => {
-    const { podcastId } = save(db, 3);
+  it('orders, moves and hands over after an episode but not after a book', async () => {
+    const { podcastId } = await save(db, 3);
     const queued = listEpisodes(db, ME, podcastId).map((e) => episodeBook(db, e.id, 1, newId));
     const [a, b, c] = [must(queued[0]), must(queued[1]), must(queued[2])];
     const novel = seedBook(db, 'primary:A/Novel', [{ location: 'n1', durationMs: 1 }]);
@@ -364,8 +375,8 @@ describe('Up Next', () => {
     expect(listUpNext(db, ME).map((i) => i.bookId)).toEqual([a, b]);
   });
 
-  it('folds in what the playback service finished with the app closed', () => {
-    const { podcastId } = save(db, 2);
+  it('folds in what the playback service finished with the app closed', async () => {
+    const { podcastId } = await save(db, 2);
     const [first, second] = listEpisodes(db, ME, podcastId).map((e) =>
       episodeBook(db, e.id, 1, newId),
     );
@@ -404,9 +415,9 @@ describe('a podcast folder becoming a subscription', () => {
     );
   });
 
-  it('carries the place: earlier episodes played, the current one at its position', () => {
+  it('carries the place: earlier episodes played, the current one at its position', async () => {
     const db = createTestDb();
-    const { podcastId } = save(db, 3);
+    const { podcastId } = await save(db, 3);
     const folder = seedBook(db, 'primary:Podcasts/Garden', [
       { location: 'primary:Podcasts/Garden/S01E01.mp3', durationMs: 60_000 },
       { location: 'primary:Podcasts/Garden/S01E02.mp3', durationMs: 120_000 },

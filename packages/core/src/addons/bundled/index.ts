@@ -12,7 +12,8 @@ export type BundledAddon = {
   /** Its `lelap-local://` manifest URL, as for an add-on installed from a file. */
   url: string;
   manifest: Manifest;
-  code: string;
+  /** The file in this folder; its code comes from `bundledAddonCode`. */
+  file: string;
   sha256: string;
 };
 
@@ -21,10 +22,21 @@ let parsed: BundledAddon[] | null = null;
 export function bundledAddons(): BundledAddon[] {
   parsed ??= BUNDLED_FILES.map((entry) => {
     const manifest = Manifest.parse(entry.manifest);
-    return { url: localAddonUrl(manifest.id), manifest, code: entry.code, sha256: entry.sha256 };
+    return { url: localAddonUrl(manifest.id), manifest, file: entry.file, sha256: entry.sha256 };
   });
   return parsed;
 }
 
 export const bundledAddon = (url: string): BundledAddon | null =>
   bundledAddons().find((a) => a.url === url) ?? null;
+
+/**
+ * A bundled add-on's code, null for another URL. Loaded when first asked, so the web app's start
+ * bundle leaves the code out (M126).
+ */
+export async function bundledAddonCode(url: string): Promise<string | null> {
+  const addon = bundledAddon(url);
+  if (!addon) return null;
+  const { BUNDLED_CODE } = await import('./generatedCode');
+  return BUNDLED_CODE[addon.file] ?? null;
+}

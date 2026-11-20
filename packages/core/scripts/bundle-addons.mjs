@@ -1,5 +1,6 @@
-// Writes src/addons/bundled/generated.ts from the add-on files next to it, so the app ships each
-// file's code as text (Metro can't import a file as text) with the manifest it declares. Run it
+// Writes src/addons/bundled/generated.ts from the add-on files next to it, with the manifest each
+// declares, and generatedCode.ts with each file's code as text (Metro can't import a file as
+// text). The code is a chunk of its own on the web, loaded when an add-on first runs (M126). Run it
 // after changing a bundled add-on: `pnpm --filter @lelap/core bundle-addons`. A test fails when
 // the generated file is out of date.
 import { createHash } from 'node:crypto';
@@ -29,10 +30,21 @@ const entries = readdirSync(dir)
     return { file, sha256, manifest, code };
   });
 
-const out = `// Written by scripts/bundle-addons.mjs from the add-on files in this folder; don't edit it.
-
-export const BUNDLED_FILES: { file: string; sha256: string; manifest: unknown; code: string }[] =
-  ${JSON.stringify(entries, null, 2)};
+const header = `// Written by scripts/bundle-addons.mjs from the add-on files in this folder; don't edit it.
 `;
-writeFileSync(new URL('generated.ts', dir), out);
+const manifests = entries.map(({ file, sha256, manifest }) => ({ file, sha256, manifest }));
+writeFileSync(
+  new URL('generated.ts', dir),
+  `${header}
+export const BUNDLED_FILES: { file: string; sha256: string; manifest: unknown }[] =
+  ${JSON.stringify(manifests, null, 2)};
+`,
+);
+const code = Object.fromEntries(entries.map((e) => [e.file, e.code]));
+writeFileSync(
+  new URL('generatedCode.ts', dir),
+  `${header}
+export const BUNDLED_CODE: Record<string, string> = ${JSON.stringify(code, null, 2)};
+`,
+);
 console.log(`Bundled ${entries.map((e) => e.file).join(', ')}.`);

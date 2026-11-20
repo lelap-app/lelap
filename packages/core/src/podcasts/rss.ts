@@ -96,8 +96,8 @@ function enclosureOf(item: XmlNode): Enclosure | null {
 }
 
 /** Reads an RSS 2.0 or Atom podcast feed. Items without an audio enclosure are left out. */
-export function parseFeed(xml: string): ParsedFeed {
-  const doc = parseXml(xml);
+export async function parseFeed(xml: string): Promise<ParsedFeed> {
+  const doc = await parseXml(xml);
   const atom = asArray(doc.feed).find(isNode);
   if (atom) return parseAtom(atom);
   const rss = doc.rss;

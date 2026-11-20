@@ -19,7 +19,8 @@ import { describe, expect, it } from 'vitest';
 
 import { hostAllowed } from '../local';
 import { BUNDLED_FILES } from './generated';
-import { bundledAddon, bundledAddons } from './index';
+import { BUNDLED_CODE } from './generatedCode';
+import { bundledAddon, bundledAddonCode, bundledAddons } from './index';
 
 const dir = new URL('./', import.meta.url);
 
@@ -82,10 +83,11 @@ describe('bundled add-ons', () => {
   it('ships each add-on file as it is in the repository', () => {
     const files = readdirSync(dir).filter((f) => f.endsWith('.js'));
     expect(BUNDLED_FILES.map((b) => b.file).sort()).toEqual(files.sort());
+    expect(Object.keys(BUNDLED_CODE).sort()).toEqual(files.sort());
     for (const entry of BUNDLED_FILES) {
       const code = readFileSync(new URL(entry.file, dir), 'utf8');
       // Out of date: run `pnpm --filter @lelap/core bundle-addons`.
-      expect(entry.code, entry.file).toBe(code);
+      expect(BUNDLED_CODE[entry.file], entry.file).toBe(code);
       expect(entry.sha256).toBe(createHash('sha256').update(code).digest('hex'));
     }
   });
@@ -103,6 +105,14 @@ describe('bundled add-ons', () => {
       expect(bundledAddon(addon.url)).toBe(addon);
     }
     expect(bundledAddon('lelap-local://org.example.unknown/manifest.json')).toBeNull();
+  });
+
+  it('loads an add-on’s code when asked', async () => {
+    const plex = bundledAddon('lelap-local://app.lelap.plex/manifest.json');
+    expect(await bundledAddonCode(plex?.url ?? '')).toBe(
+      readFileSync(new URL('plex.js', dir), 'utf8'),
+    );
+    expect(await bundledAddonCode('lelap-local://org.example.unknown/manifest.json')).toBeNull();
   });
 });
 

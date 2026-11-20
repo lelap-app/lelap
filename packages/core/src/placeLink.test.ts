@@ -198,11 +198,11 @@ describe('a shared place in a podcast episode', () => {
   const fixture = (name: string) =>
     readFileSync(new URL(`../test/fixtures/${name}`, import.meta.url), 'utf8');
 
-  function follow(db: Db, feedUrl = FEED) {
+  async function follow(db: Db, feedUrl = FEED) {
     const { podcastId } = saveFeed(
       db,
       feedUrl,
-      parseFeed(fixture('garden-hour.xml')),
+      await parseFeed(fixture('garden-hour.xml')),
       { etag: null, lastModified: null },
       1,
       newId,
@@ -212,9 +212,9 @@ describe('a shared place in a podcast episode', () => {
     return { podcastId, bookId: episodeBook(db, episode.id, 2, newId), episodeId: episode.id };
   }
 
-  it('names the episode by its feed and guid, and goes through a link and back', () => {
+  it('names the episode by its feed and guid, and goes through a link and back', async () => {
     const db = createTestDb();
-    const { bookId } = follow(db);
+    const { bookId } = await follow(db);
     const place = placeOfBook(db, bookId, 1_234_500, 1_276_750);
     expect(place).toEqual({
       title: 'Why tomatoes split',
@@ -230,9 +230,9 @@ describe('a shared place in a podcast episode', () => {
     expect(parsePlace(query(url))).toEqual({ ...place, atMs: 1_234_000, toMs: 1_276_000 });
   });
 
-  it('is not shared from a feed with a login or a query, which may hold a token', () => {
+  it('is not shared from a feed with a login or a query, which may hold a token', async () => {
     const db = createTestDb();
-    const { bookId } = follow(db, 'https://example.org/private.xml?auth=s3cret');
+    const { bookId } = await follow(db, 'https://example.org/private.xml?auth=s3cret');
     expect(placeOfBook(db, bookId, 0)).toBeNull();
     expect(isShareableFeed('https://rosa:pw@example.org/feed.xml')).toBe(false);
     expect(isShareableFeed('ftp://example.org/feed.xml')).toBe(false);
@@ -248,9 +248,9 @@ describe('a shared place in a podcast episode', () => {
     );
   });
 
-  it('is not shared when the episode has no guid, so its audio address would travel', () => {
+  it('is not shared when the episode has no guid, so its audio address would travel', async () => {
     const db = createTestDb();
-    const { bookId, episodeId } = follow(db);
+    const { bookId, episodeId } = await follow(db);
     db.update(episodes)
       .set({ guid: 'https://cdn.example.org/gh42.mp3' })
       .where(eq(episodes.id, episodeId))
@@ -268,9 +268,9 @@ describe('a shared place in a podcast episode', () => {
     });
   });
 
-  it('finds the episode here, a show whose stored feed lacks it, or a show to subscribe to', () => {
+  it('finds the episode here, a show whose stored feed lacks it, or a show to subscribe to', async () => {
     const db = createTestDb();
-    const { podcastId, bookId, episodeId } = follow(db);
+    const { podcastId, bookId, episodeId } = await follow(db);
     expect(findPlaceEpisode(db, ME, { feed: FEED, guid: 'garden-hour-42' })).toEqual({
       kind: 'here',
       episodeId,
@@ -292,9 +292,9 @@ describe('a shared place in a podcast episode', () => {
     });
   });
 
-  it('never offers a kids profile a show it has not got', () => {
+  it('never offers a kids profile a show it has not got', async () => {
     const db = createTestDb();
-    follow(db);
+    await follow(db);
     const kid = createProfile(db, { name: 'Mia', avatar: null, kids: true }, 1, newId);
     expect(findPlaceEpisode(db, kid, { feed: FEED, guid: 'garden-hour-42' })).toBeNull();
     expect(findPlaceEpisode(db, kid, { feed: 'https://example.org/o.xml', guid: 'x' })).toBeNull();

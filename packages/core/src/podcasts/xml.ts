@@ -1,7 +1,7 @@
-import { XMLParser } from 'fast-xml-parser';
+import type { XMLParser } from 'fast-xml-parser';
 
 // Entities stay off: RSS text is decoded below, and no feed gets to define its own.
-const parser = new XMLParser({
+const OPTIONS = {
   ignoreAttributes: false,
   attributeNamePrefix: '@_',
   processEntities: false,
@@ -10,15 +10,21 @@ const parser = new XMLParser({
   trimValues: true,
   // Atom text constructs stay raw, so `type="xhtml"` keeps its markup in order (M75).
   stopNodes: ['feed.subtitle', 'feed.entry.content', 'feed.entry.summary'],
-});
+};
+
+// Loaded with the first feed or listing read, so the web app's start bundle leaves the parser
+// (about 90 KB) out (M126).
+let parser: Promise<XMLParser> | null = null;
 
 export type XmlNode = Record<string, unknown>;
 
 export class FeedError extends Error {}
 
-export function parseXml(xml: string): XmlNode {
+export async function parseXml(xml: string): Promise<XmlNode> {
+  parser ??= import('fast-xml-parser').then(({ XMLParser }) => new XMLParser(OPTIONS));
+  const loaded = await parser;
   try {
-    return parser.parse(xml) as XmlNode;
+    return loaded.parse(xml) as XmlNode;
   } catch (error) {
     throw new FeedError(
       `Not readable XML: ${error instanceof Error ? error.message : String(error)}`,

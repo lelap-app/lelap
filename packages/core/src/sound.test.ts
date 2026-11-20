@@ -67,14 +67,14 @@ describe('bookSound', () => {
     expect(bookSound(db, ME, bookId).overrides).toEqual(NO_OVERRIDES);
   });
 
-  it('gives an episode its show’s choice once the profile follows the show', () => {
+  it('gives an episode its show’s choice once the profile follows the show', async () => {
     const db = createTestDb();
     const xml = `<rss><channel><title>Garden Hour</title><item><title>One</title><guid>g1</guid>
       <enclosure url="https://cdn.example/1.mp3" type="audio/mpeg" length="1"/></item></channel></rss>`;
     const { podcastId } = saveFeed(
       db,
       'https://feeds.example/garden.xml',
-      parseFeed(xml),
+      await parseFeed(xml),
       { etag: null, lastModified: null },
       1,
       newId,

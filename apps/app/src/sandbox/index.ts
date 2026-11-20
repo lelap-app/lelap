@@ -1,6 +1,7 @@
 import { t } from '../i18n';
 import {
   bundledAddon,
+  bundledAddonCode,
   fetchLimit,
   getLocalAddonCode,
   listAddons,
@@ -227,21 +228,30 @@ export function sandboxMessage(key: string, data: string): void {
   }
 }
 
-/** An add-on's code and manifest: bundled with the app first, else installed from a file. */
-function codeOf(manifestUrl: string) {
+/**
+ * An add-on's code and manifest: bundled with the app first, else installed from a file. A bundled
+ * one's code is loaded on first use, out of the web app's start bundle (M126).
+ */
+async function codeOf(manifestUrl: string) {
   const bundled = bundledAddon(manifestUrl);
-  if (bundled) return { code: bundled.code, manifest: bundled.manifest };
+  if (bundled) {
+    const code = await bundledAddonCode(manifestUrl);
+    return code === null ? null : { code, manifest: bundled.manifest };
+  }
   const stored = getLocalAddonCode(db, manifestUrl);
   const addon = listAddons(db).find((a) => a.url === manifestUrl);
   return stored && addon ? { code: stored.code, manifest: addon.manifest } : null;
 }
 
-function boxFor(manifestUrl: string): Box | null {
+async function boxFor(manifestUrl: string): Promise<Box | null> {
   const existing = boxes.get(manifestUrl);
   if (existing) return existing;
-  const found = codeOf(manifestUrl);
+  const found = await codeOf(manifestUrl);
   if (!found) return null;
-  return open(manifestUrl, found.code, found.manifest.sandbox?.hosts ?? []);
+  // Another call may have opened it while the code loaded.
+  return (
+    boxes.get(manifestUrl) ?? open(manifestUrl, found.code, found.manifest.sandbox?.hosts ?? [])
+  );
 }
 
 async function call(
@@ -301,7 +311,7 @@ export async function callLocalAddon(
   manifestUrl: string,
   path: string,
 ): Promise<{ status: number; body: unknown }> {
-  const box = boxFor(manifestUrl);
+  const box = await boxFor(manifestUrl);
   if (!box) throw new Error(t('This add-on is not on this device.'));
   return call(box, path);
 }
@@ -319,7 +329,7 @@ export async function callAddonLibrary(args: {
   /** A page's `next` (revision 9), for the page after it. */
   cursor?: string;
 }): Promise<{ status: number; body: unknown }> {
-  return call(serverBox(args), libraryPath(), args.settings, {
+  return call(await serverBox(args), libraryPath(), args.settings, {
     timeoutMs: LIBRARY_TIMEOUT_MS,
     library: args.cursor === undefined ? {} : { cursor: args.cursor },
   });
@@ -337,9 +347,14 @@ export function closeServerSandbox(addonUrl: string, sandboxId: string): void {
 }
 
 /** One server's sandbox, started again when its hosts changed. */
-function serverBox(args: { addonUrl: string; sandboxId: string; hosts: string[] }): Box {
-  const found = codeOf(args.addonUrl);
+async function serverBox(args: {
+  addonUrl: string;
+  sandboxId: string;
+  hosts: string[];
+}): Promise<Box> {
+  const found = await codeOf(args.addonUrl);
   if (!found) throw new Error(t('This add-on is not on this device.'));
+  // Looked up after the code loaded, so two calls at once share one sandbox.
   const id = `${args.addonUrl}#${args.sandboxId}`;
   let box = boxes.get(id);
   if (box && box.hosts.join(' ') !== args.hosts.join(' ')) {
@@ -360,7 +375,7 @@ export async function callAddonPlace(args: {
   settings: Settings;
   place: PlaceReport;
 }): Promise<{ status: number; body: unknown }> {
-  return call(serverBox(args), placePath(), args.settings, {
+  return call(await serverBox(args), placePath(), args.settings, {
     place: args.place,
     timeoutMs: PLACE_TIMEOUT_MS,
   });
@@ -377,7 +392,7 @@ export async function callAddonLocate(args: {
   settings: Settings;
   locate: LocateRequest;
 }): Promise<{ status: number; body: unknown }> {
-  return call(serverBox(args), locatePath(), args.settings, {
+  return call(await serverBox(args), locatePath(), args.settings, {
     locate: args.locate,
     timeoutMs: LOCATE_TIMEOUT_MS,
   });
@@ -396,7 +411,7 @@ export async function callAddonSignin(args: {
   step: 'start' | 'check';
   state?: string;
 }): Promise<{ status: number; body: unknown }> {
-  return call(serverBox(args), signinPath(args.step), args.settings, {
+  return call(await serverBox(args), signinPath(args.step), args.settings, {
     signin: args.state === undefined ? {} : { state: args.state },
   });
 }
@@ -413,7 +428,7 @@ export async function callAddonSettings(args: {
   settings: Settings;
 }): Promise<{ status: number; body: unknown }> {
   try {
-    return await call(serverBox(args), settingsPath(), args.settings);
+    return await call(await serverBox(args), settingsPath(), args.settings);
   } finally {
     closeServerSandbox(args.addonUrl, args.sandboxId);
   }
@@ -434,7 +449,7 @@ export async function callAddonScrobble(args: {
   events: ScrobbleEvent[];
 }): Promise<{ status: number; body: unknown }> {
   return call(
-    serverBox({ addonUrl: args.addonUrl, sandboxId: SETTINGS_BOX, hosts: args.hosts }),
+    await serverBox({ addonUrl: args.addonUrl, sandboxId: SETTINGS_BOX, hosts: args.hosts }),
     scrobblePath(),
     args.settings,
     { events: args.events, timeoutMs: PLACE_TIMEOUT_MS },
@@ -452,7 +467,7 @@ export async function callAddonWithSettings(args: {
   path: string;
 }): Promise<{ status: number; body: unknown }> {
   return call(
-    serverBox({ addonUrl: args.addonUrl, sandboxId: SETTINGS_BOX, hosts: args.hosts }),
+    await serverBox({ addonUrl: args.addonUrl, sandboxId: SETTINGS_BOX, hosts: args.hosts }),
     args.path,
     args.settings,
   );

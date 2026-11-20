@@ -25,12 +25,20 @@ config.resolver.assetExts.push('wasm');
 // Metro does not drop unused exports, so zod's `locales` export would bring all 50 languages into
 // both bundles. Only English is used; the shim keeps the export with that one.
 const zodLocales = path.join(__dirname, 'metro/zod-locales.js');
+// The same for `fromJSONSchema`, which nothing in the app calls (M126).
+const zodFromJsonSchema = path.join(__dirname, 'metro/zod-from-json-schema.js');
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (
     moduleName === '../locales/index.js' &&
     /[\\/]zod[\\/]v4[\\/](core|classic)[\\/]/.test(context.originModulePath)
   ) {
     return { type: 'sourceFile', filePath: zodLocales };
+  }
+  if (
+    moduleName === './from-json-schema.js' &&
+    /[\\/]zod[\\/]v4[\\/]classic[\\/]external\.js$/.test(context.originModulePath)
+  ) {
+    return { type: 'sourceFile', filePath: zodFromJsonSchema };
   }
   return context.resolveRequest(context, moduleName, platform);
 };

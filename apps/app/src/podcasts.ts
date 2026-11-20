@@ -79,7 +79,7 @@ export async function fetchFeed(feedUrl: string): Promise<string> {
     const existing = findPodcast(db, { feedUrl });
     if (response.status === 304 && existing) return existing.id;
     if (!response.ok) throw new FeedError(`The feed answered HTTP ${response.status}.`);
-    const feed = parseFeed(await response.text());
+    const feed = await parseFeed(await response.text());
     return saveFeed(
       db,
       feedUrl,
@@ -193,7 +193,7 @@ export async function playSharedEpisode(place: SharedPlace): Promise<boolean> {
 
 /** Subscribes to every feed in an OPML file. Returns how many were added and which failed. */
 export async function importOpml(xml: string): Promise<{ added: number; failed: string[] }> {
-  const feeds = parseOpml(xml);
+  const feeds = await parseOpml(xml);
   const failed: string[] = [];
   let added = 0;
   for (const feed of feeds) {

@@ -55,11 +55,11 @@ describe('car shelves', () => {
     expect(carShelves(db, ME).onPhone).toEqual([alpha]);
   });
 
-  it('offers the newest unfinished episode of each subscription', () => {
+  it('offers the newest unfinished episode of each subscription', async () => {
     const feed = saveFeed(
       db,
       'https://feeds.example.org/garden.xml',
-      parseFeed(rss(3)),
+      await parseFeed(rss(3)),
       { etag: null, lastModified: null },
       100,
       newId,
@@ -73,11 +73,11 @@ describe('car shelves', () => {
     expect(carShelves(db, ME).latestEpisodes).toEqual([{ episodeId: middle?.id, bookId: null }]);
   });
 
-  it('keeps the latest played episode in Continue listening', () => {
+  it('keeps the latest played episode in Continue listening', async () => {
     const feed = saveFeed(
       db,
       'https://feeds.example.org/garden.xml',
-      parseFeed(rss(1)),
+      await parseFeed(rss(1)),
       { etag: null, lastModified: null },
       100,
       newId,
