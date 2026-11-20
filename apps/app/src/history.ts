@@ -108,8 +108,8 @@ export function playPause(playing: boolean): Promise<void> {
 
 /** Back or forward by the skip interval from one of the app's buttons. */
 export function skip(forward: boolean): Promise<void> {
-  // The player skips by the interval of the profile it plays for.
-  const step = getSettings(db, tapProfile()).skipIntervalMs * (forward ? 1 : -1);
+  // The service skips by the settings last sent to it: the profile on screen's.
+  const step = getSettings(db, profileId).skipIntervalMs * (forward ? 1 : -1);
   return logged(
     'skip',
     () => audio.skip(forward),

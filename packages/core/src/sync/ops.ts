@@ -778,8 +778,10 @@ function applyAddonItem(db: Db, op: Extract<Op, { type: 'book' }>, bookId: strin
   if (book?.source !== 'addon' || book.updatedAt >= op.at) return;
   const own = book.addonItem;
   if (own && own.sourceKey !== next.sourceKey) return;
-  if (JSON.stringify(own) === JSON.stringify(next)) return;
-  db.update(books).set({ addonItem: next, updatedAt: op.at }).where(eq(books.id, bookId)).run();
+  // The add-on's address is this device's own: a configured one may differ from the other's.
+  const merged = own ? { ...next, addonUrl: own.addonUrl } : next;
+  if (JSON.stringify(own) === JSON.stringify(merged)) return;
+  db.update(books).set({ addonItem: merged, updatedAt: op.at }).where(eq(books.id, bookId)).run();
 }
 
 function applyBook(db: Db, op: Extract<Op, { type: 'book' }>, newId: IdGenerator): void {

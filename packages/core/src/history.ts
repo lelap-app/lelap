@@ -151,6 +151,8 @@ export function offersGoBack(
   now: number,
 ): boolean {
   if (!isUndoableJump(entry) || now - entry.at > UNDO_SHOWN_MS) return false;
+  // Only the notification and the car have a Back of their own.
+  if (entry.source !== 'notification' && entry.source !== 'car') return true;
   const index = log.findIndex((e) => e.id === entry.id);
   const before = index < 0 ? undefined : log[index + 1];
   return !(

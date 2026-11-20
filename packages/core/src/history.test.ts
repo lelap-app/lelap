@@ -204,6 +204,24 @@ describe('playback history', () => {
     expect(offersGoBack(log(), back, NOW + 21_000)).toBe(false);
   });
 
+  it('offers going back after a tap in the app that lands where the jump before started', () => {
+    const keep = (r: Partial<HistoryReport>) => {
+      const entry = recordHistory(db, ME, report(r), r.at ?? NOW);
+      if (!entry) throw new Error('not kept');
+      return entry;
+    };
+    const log = () => bookHistory(db, ME, bookId, NOW + MIN);
+    keep({ action: 'chapter', source: 'app', at: NOW, fromMs: 0, toMs: 70 * MIN });
+    const first = keep({
+      action: 'chapter',
+      source: 'app',
+      at: NOW + 10_000,
+      fromMs: 70 * MIN,
+      toMs: 0,
+    });
+    expect(offersGoBack(log(), first, NOW + 11_000)).toBe(true);
+  });
+
   it('offers going back after a jump that only passes the place before', () => {
     const first = recordHistory(db, ME, report({ fromMs: 10 * MIN, toMs: 12 * MIN }), NOW);
     const seek = recordHistory(

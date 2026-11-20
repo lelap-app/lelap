@@ -590,6 +590,29 @@ describe('sync between two devices', () => {
     expect(partTranscripts(laptop, there, part)).toHaveLength(1);
   });
 
+  it('keeps its own add-on address when it takes another device’s reference (M145)', () => {
+    const phoneUrl = 'https://addon.example/phone/manifest.json';
+    const laptopUrl = 'https://addon.example/laptop/manifest.json';
+    const phoneBook = addStreamedBook(phone, { addonUrl: phoneUrl, meta, stream, now: 10, newId });
+    applyOps(laptop, collectOps(phone, 0), 20, newId);
+    const there = bookIdForKey(laptop, bookKey(phone, phoneBook) ?? '') ?? '';
+    addStreamedBook(laptop, { addonUrl: laptopUrl, meta, stream, now: 25, newId });
+    const transcript = { url: 'https://addon.example/t/0.txt', type: 'text/plain' };
+    const withText: Stream = {
+      ...stream,
+      parts: stream.parts.map((p, i) => (i === 0 ? { ...p, transcripts: [transcript] } : p)),
+    };
+    addStreamedBook(phone, { addonUrl: phoneUrl, meta, stream: withText, now: 30, newId });
+    applyOps(laptop, collectOps(phone, 26), 40, newId);
+    const item = laptop
+      .select({ addonItem: books.addonItem })
+      .from(books)
+      .where(eq(books.id, there))
+      .get()?.addonItem;
+    expect(item?.addonUrl).toBe(laptopUrl);
+    expect(partTranscripts(laptop, there, 'stream:librivox:garden:64kb:0')).toHaveLength(1);
+  });
+
   it('keeps only web covers from another device', () => {
     const book = (key: string, coverUrl: string): Op => ({
       type: 'book',
