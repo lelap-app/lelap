@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { endMessage, probeStream, type ProbeFetcher, retryAfterSeconds } from './preparing';
+import {
+  endMessage,
+  PREPARING_WAIT_MS,
+  preparingRetryAt,
+  probeStream,
+  type ProbeFetcher,
+  retryAfterSeconds,
+} from './preparing';
 
 const now = Date.UTC(2026, 10, 20, 12, 0, 0);
 
@@ -73,5 +80,15 @@ describe('probeStream', () => {
     await probeStream(fetcher, 'https://a.test/x.mp3', now);
     expect(seen?.headers.Range).toBe('bytes=0-0');
     expect(seen?.cache).toBe('no-store');
+  });
+});
+
+describe('preparingRetryAt (M155)', () => {
+  it('asks again when told, for up to 10 minutes from the first answer', () => {
+    expect(preparingRetryAt(now, now, 30)).toBe(now + 30_000);
+    expect(preparingRetryAt(now, now + PREPARING_WAIT_MS - 30_000, 30)).toBe(
+      now + PREPARING_WAIT_MS,
+    );
+    expect(preparingRetryAt(now, now + PREPARING_WAIT_MS - 29_000, 30)).toBeNull();
   });
 });

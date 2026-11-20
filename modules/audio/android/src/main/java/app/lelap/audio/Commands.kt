@@ -117,4 +117,8 @@ object Commands {
   const val EXTRA_SLEEP_TIMER_END = "sleepTimerEndsAtElapsedMs"
   const val EXTRA_SLEEP_TIMER_FROZEN = "sleepTimerFrozenRemainingMs"
   const val EXTRA_SLEEP_TIMER_MODE = "sleepTimerMode"
+  /** When preparing audio is asked again (M155), on the elapsed clock. */
+  const val EXTRA_PREPARING_RETRY_AT = "preparingRetryAtElapsedMs"
+  /** The last error ended a wait for preparing audio (M155). */
+  const val EXTRA_PREPARING_GAVE_UP = "preparingGaveUp"
 }

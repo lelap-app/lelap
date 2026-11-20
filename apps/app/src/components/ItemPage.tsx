@@ -2,6 +2,7 @@ import {
   bookFraction,
   bookSourceChoice,
   chosenEdition,
+  copyKey,
   downloadAllowed,
   downloadSnapshot,
   findBookBySource,
@@ -86,8 +87,6 @@ const streamLength = (found: FoundStream) =>
   hasParts(found.stream)
     ? knownTotal(found.stream.parts.map((p) => p.durationMs ?? 0))
     : (found.stream.durationMs ?? 0);
-
-const copyKey = (f: FoundStream) => `${f.addon.url} ${f.stream.sourceKey}`;
 
 /** The second line of a release several add-ons have: each add-on, once. */
 const copiesDetails = (copies: FoundStream[]) =>
@@ -300,7 +299,9 @@ export function ItemPage({
           if (state.state === 'preparing') return preparing.wait(chosenStream, state.seconds);
           if (state.state === 'gone') return showGone(state);
         }
-        await playItem(item, chosenStream);
+        // The other copies of its row play if this one can't be opened (M155).
+        const row = rows.find((r) => r.copies.includes(chosenStream));
+        await playItem(item, chosenStream, row?.copies);
       } else if (saved) await playBook(saved.book.id);
       else return;
       refresh();

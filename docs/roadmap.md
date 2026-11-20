@@ -160,7 +160,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M152 Add-on protocol 5](milestones/m152.md)         | Done        |           7 | Revision 14 — streams that are still preparing, parts without lengths, a second look for slow answers, stream format, language and release                           |
 | [M153 Stream choice](milestones/m153.md)             | Done        |           5 | The item page sorts streams from every add-on by the listener's formats and languages and merges the same release                                                    |
 | [M154 Live streams](milestones/m154.md)              | Done        |          10 | A live flag on streams — no place, progress or downloads, now-playing from ICY and ID3, HLS playback                                                                 |
-| [M155 Preparing in the player](milestones/m155.md)   | Planned     |             | What M152 and M153 left to the player — preparing audio while playing, seeking past unmeasured parts, chapters once measured, the next copy on failure               |
+| [M155 Preparing in the player](milestones/m155.md)   | Done        |           7 | What M152 and M153 left to the player — preparing audio while playing, seeking past unmeasured parts, chapters once measured, the next copy on failure               |
 
 <!-- milestones:end -->
 
@@ -172,6 +172,9 @@ far.
 Ideas without a number or a place in the order yet. One becomes a milestone, with its own file,
 when it is planned.
 
+- **“Still preparing” for a part waited on ahead:** when the next part's 10-minute wait runs out
+  while the part before it still plays, the player shows its generic error instead of saying the
+  source is still preparing (M155's review).
 - **Metadata from Google Books:** fill missing descriptions, covers, genres and years from the Google
   Books API in the Catalog add-on, as the metadata rule in the brief allows. Planned as M137 on
   2026-11-19, then set aside the same day: Google's terms require its mark and a link beside every

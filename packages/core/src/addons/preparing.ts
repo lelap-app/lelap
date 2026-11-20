@@ -99,3 +99,12 @@ export async function probeStream(
     controller.abort();
   }
 }
+
+/**
+ * When the player asks a preparing part again (M155): [seconds] from now, or null once that
+ * would be more than 10 minutes after it first said so, when it shows an error instead.
+ */
+export function preparingRetryAt(sinceMs: number, nowMs: number, seconds: number): number | null {
+  const at = nowMs + seconds * 1000;
+  return at - sinceMs > PREPARING_WAIT_MS ? null : at;
+}

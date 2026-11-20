@@ -28,6 +28,7 @@ const INITIAL_STATE: PlayerState = {
   sleepTimerRemainingMs: null,
   sleepTimerMode: null,
   error: null,
+  preparingUntil: null,
   live: false,
   nowPlaying: null,
 };

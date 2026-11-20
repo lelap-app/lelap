@@ -2,7 +2,14 @@ import type { Manifest, Stream } from '@lelap/sdk';
 import { describe, expect, it } from 'vitest';
 
 import type { FoundStream, InstalledAddon } from './client';
-import { orderStreams, parseCodeList, type StreamPreferences } from './streamChoice';
+import {
+  copyFallbackStep,
+  copyKey,
+  nextCopy,
+  orderStreams,
+  parseCodeList,
+  type StreamPreferences,
+} from './streamChoice';
 
 const addon = (name: string): InstalledAddon => ({
   id: name,
@@ -110,5 +117,36 @@ describe('parseCodeList', () => {
   it('reads formats and languages typed with commas or spaces', () => {
     expect(parseCodeList('M4B, mp3 m4b; ??', 'format')).toEqual(['m4b', 'mp3']);
     expect(parseCodeList('en, ms-MY, english', 'language')).toEqual(['en', 'ms-my']);
+  });
+});
+
+describe('the next copy when one fails (M155)', () => {
+  const ia = found(librivox, 'ia:garden:mp3', { releaseId: 'urn:ia:garden' });
+  const home = found(nas, 'nas:garden', { releaseId: 'urn:ia:garden' });
+  const deriving = found(nas, 'ia:garden:m4b', {
+    releaseId: 'urn:ia:garden',
+    availability: 'preparing',
+  });
+
+  it("takes the row's next copy in its order, skipping preparing ones", () => {
+    const [row] = orderStreams([deriving, ia, home], prefs());
+    const copies = row?.copies ?? [];
+    expect(copies[0]).toBe(ia);
+    expect(nextCopy(copies, [copyKey(ia)])).toBe(home);
+    expect(nextCopy(copies, [copyKey(ia), copyKey(home)])).toBeNull();
+  });
+
+  it('moves on only while the copy has not played', () => {
+    const fallback = { bookId: 'b1', tried: [copyKey(ia)], seen: false };
+    const state = { bookId: 'b1', playing: false, error: null };
+    const failed = { ...state, error: 'No answer from the server.' };
+    expect(copyFallbackStep(fallback, { ...state, bookId: 'old' }).step).toBe('wait');
+    // The last copy's error may still be on its way: only one after a clean report counts.
+    expect(copyFallbackStep(fallback, failed).step).toBe('wait');
+    const seen = copyFallbackStep(fallback, state);
+    expect(seen).toEqual({ step: 'wait', fallback: { ...fallback, seen: true } });
+    expect(copyFallbackStep(seen.fallback, failed).step).toBe('next');
+    expect(copyFallbackStep(seen.fallback, { ...state, playing: true }).step).toBe('done');
+    expect(copyFallbackStep(seen.fallback, { ...state, bookId: 'b2' }).step).toBe('done');
   });
 });

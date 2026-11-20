@@ -74,6 +74,10 @@ const nativeLines = (): Record<string, string> => ({
   'The server address is not valid.': t('The server address is not valid.'),
   'The server did not answer within 30 s.': t('The server did not answer within 30 s.'),
   'No answer from the server.': t('No answer from the server.'),
+  // Audio still preparing after the player waited for it (M155).
+  'The source is still getting this book ready. Try again later, or download it when ready.': t(
+    'The source is still getting this book ready. Try again later, or download it when ready.',
+  ),
   // Android 17: a download from a server at home without local network access.
   'Lelap can’t reach this server on your home network: “nearby devices” is off. Download again to allow it.':
     t(

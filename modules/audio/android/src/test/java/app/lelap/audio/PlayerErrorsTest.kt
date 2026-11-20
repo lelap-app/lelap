@@ -32,4 +32,11 @@ class PlayerErrorsTest {
     assertEquals("Sambungan ke Dapur terputus", PlayerErrors.text(PlaybackException.ERROR_CODE_REMOTE_ERROR, "Sambungan ke Dapur terputus", ms))
     assertEquals("Casting stopped", PlayerErrors.text(PlaybackException.ERROR_CODE_REMOTE_ERROR, null, en))
   }
+
+  @Test fun saysAudioIsStillPreparingAfterTheWait() {
+    assertEquals(
+      "The source is still getting this book ready. Try again later, or download it when ready.",
+      PlayerErrors.stillPreparing(en),
+    )
+  }
 }

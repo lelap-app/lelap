@@ -208,6 +208,11 @@ export type AddonItemRef = {
   live?: boolean;
   /** The stream's MIME type, when it said one: tells an HLS playlist without `.m3u8` (M154). */
   mime?: string;
+  /**
+   * The meta's chapters and length, kept while a part has no length yet (M155): once the player
+   * measured the last one, `chaptersOnceMeasured` applies them without adding the book again.
+   */
+  waitingChapters?: { chapters: { title: string; startMs: number }[]; durationMs?: number };
 };
 
 export const books = sqliteTable(

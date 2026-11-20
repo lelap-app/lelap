@@ -170,6 +170,11 @@ export type PlayerState = {
   /** What the running timer counts down to; null without a timer. */
   sleepTimerMode: SleepTimerMode | null;
   error: string | null;
+  /**
+   * While the player waits for audio its source is still making (M155): when it asks again, in
+   * epoch milliseconds. Null when it isn't waiting.
+   */
+  preparingUntil: number | null;
   /** The book is a live stream (M154). */
   live: boolean;
   /** What a live stream plays now, from its ICY or ID3 metadata; null when it says nothing. */

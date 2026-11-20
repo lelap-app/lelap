@@ -111,3 +111,29 @@ export function skipLanding(
     i++;
   }
 }
+
+/**
+ * Where a seek into a part of unknown length lands once the player opened it and learned its
+ * [lengthMs] (M155): past its end, on into the parts after it, as if every length had been known.
+ * [lengths] are the book's stored lengths (≤ 0 unknown). Null when the place is inside the part.
+ * A later part of unknown length takes whatever is left, and is opened in turn.
+ */
+export function pastPart(
+  lengths: number[],
+  index: number,
+  positionMs: number,
+  lengthMs: number,
+): { index: number; positionMs: number } | null {
+  if (!(lengthMs > 0) || positionMs < lengthMs) return null;
+  let remaining = positionMs - lengthMs;
+  for (let i = index + 1; i < lengths.length; i++) {
+    const length = lengths[i] ?? 0;
+    if (length <= 0 || remaining < length) return { index: i, positionMs: remaining };
+    remaining -= length;
+  }
+  // Past the book's end: its last part's end.
+  const last = lengths.length - 1;
+  return last === index
+    ? { index, positionMs: lengthMs }
+    : { index: last, positionMs: Math.max(0, lengths[last] ?? 0) };
+}

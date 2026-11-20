@@ -27,4 +27,8 @@ object PlayerErrors {
       else -> text.t("The file could not be played. Press play to try again.")
     }
   }
+
+  /** Audio still preparing after the player waited 10 minutes for it (M155). */
+  fun stillPreparing(text: NativeCatalog): String =
+    text.t("The source is still getting this book ready. Try again later, or download it when ready.")
 }

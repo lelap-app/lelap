@@ -19,7 +19,11 @@ import {
   isHls,
   mediaSpan,
   outroStartMs,
+  pastPart,
   PLAY_REFUSED,
+  preparingRetryAt,
+  type ProbeFetcher,
+  probeStream,
   replayGainDb,
   shouldRefreshLink,
   sleepBoundaryMs,
@@ -73,6 +77,11 @@ let index = -1;
 let ended = false;
 let buffering = false;
 let error: string | null = null;
+// Audio its source is still making (M155): when the player asks again, and when it first said so.
+let preparingUntil: number | null = null;
+let preparingSince: number | null = null;
+let preparingTimer: ReturnType<typeof setTimeout> | null = null;
+const probeFetch: ProbeFetcher = (url, init) => fetch(url, init);
 let pausedAt: number | null = null;
 /** What a live stream plays now (M154). */
 let nowPlaying: string | null = null;
@@ -313,6 +322,7 @@ function state(): PlayerState {
       sleepBoundary !== null ? Math.max(0, untilBoundary() ?? 0) : sleepRemainingMs,
     sleepTimerMode: sleepMode,
     error,
+    preparingUntil,
     live: live(),
     nowPlaying: live() ? nowPlaying : null,
   };
@@ -445,9 +455,16 @@ function player(): HTMLAudioElement {
       void setPart(index, lastPositionMs, lastPlaying);
       return;
     }
-    error = mediaErrorText(audio.error?.code ?? null);
-    note('error', audio.error?.code ?? null);
-    emit();
+    const code = audio.error?.code ?? null;
+    const load = partLoads;
+    // The element can't tell a 503 from any other failure: the address itself says.
+    void preparingAnswer(index, audio.src).then((handled) => {
+      if (handled || load !== partLoads) return;
+      clearPreparing();
+      error = mediaErrorText(code);
+      note('error', code);
+      emit();
+    });
   });
   on('ended', () => {
     // A live stream that stopped (the station went off air) is not finished, and hands over to
@@ -733,10 +750,65 @@ async function readPart(audio: HTMLAudioElement, src: string, blob: Blob | null)
   note(track ? 'silence-map' : 'silence-none');
 }
 
+function clearPreparing(): void {
+  if (preparingTimer) clearTimeout(preparingTimer);
+  preparingTimer = null;
+  preparingUntil = null;
+  preparingSince = null;
+}
+
+/**
+ * After the element failed on a part from the web: whether its source is still preparing it
+ * (M155), as the item page asks (M152). It then shows “Preparing…” and opens the part again when
+ * told, for up to 10 minutes, or says the source's own words for a part that won't come. False
+ * leaves the element's own error. A server without CORS can't be asked, so its error stays.
+ */
+async function preparingAnswer(i: number, src: string): Promise<boolean> {
+  const file = book?.files[i];
+  if (!book || !file || live() || !/^https?:\/\//i.test(src)) return false;
+  const load = partLoads;
+  const answer = await probeStream(probeFetch, src, Date.now(), book.headers ?? {});
+  if (load !== partLoads) return true;
+  if (answer.state === 'gone') {
+    if (!answer.message) return false;
+    clearPreparing();
+    error = answer.message;
+    note('error', answer.status);
+    emit();
+    return true;
+  }
+  if (answer.state !== 'preparing') return false;
+  const now = Date.now();
+  preparingSince ??= now;
+  const at = preparingRetryAt(preparingSince, now, answer.seconds);
+  if (at === null) {
+    clearPreparing();
+    error = t(
+      'The source is still getting this book ready. Try again later, or download it when ready.',
+    );
+    note('error', 503);
+    emit();
+    return true;
+  }
+  preparingUntil = at;
+  error = null;
+  buffering = true;
+  emit();
+  if (preparingTimer) clearTimeout(preparingTimer);
+  preparingTimer = setTimeout(() => {
+    preparingTimer = null;
+    if (load === partLoads) void setPart(i, lastPositionMs, lastPlaying);
+  }, at - now);
+  return true;
+}
+
 async function setPart(i: number, startMs: number, autoplay: boolean): Promise<void> {
   const file = book?.files[i];
   if (!file) return;
-  if (i !== index) linkRefreshed = false;
+  if (i !== index) {
+    linkRefreshed = false;
+    clearPreparing();
+  }
   index = i;
   loadedIndex = -1;
   ended = false;
@@ -744,6 +816,8 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
   lastPositionMs = startMs;
   lastPlaying = autoplay;
   partLoads++;
+  // The last part's error is gone; a copy's fallback tells its own error from that one (M155).
+  emit();
   const { src, blob } = await sourceFor(file.uri);
   const audio = await playerFor(src);
   // Until the new file is read, it plays at the listening speed without skipping.
@@ -766,10 +840,27 @@ async function setPart(i: number, startMs: number, autoplay: boolean): Promise<v
     if (hls) attachHls(audio, src).catch(ready);
     else audio.load();
   });
+  if (!audio.error) {
+    buffering = false;
+    clearPreparing();
+  }
+  // A seek into a part whose length nobody knew goes on past its end, now that it is known
+  // (M155), as if every length had been.
+  const lengthMs = Number.isFinite(audio.duration) ? audio.duration * 1000 : 0;
+  const past =
+    book && !live() && !audio.error && !(file.durationMs > 0)
+      ? pastPart(
+          book.files.map((f) => f.durationMs),
+          i,
+          startMs,
+          lengthMs,
+        )
+      : null;
+  if (past && past.index !== i) return setPart(past.index, past.positionMs, autoplay);
   // A live stream starts at what is on air.
   if (!live()) {
     seekingForLoad = true;
-    audio.currentTime = startMs / 1000;
+    audio.currentTime = (past?.positionMs ?? startMs) / 1000;
   }
   partSource = { audio, src, blob };
   loadedIndex = i;
@@ -794,6 +885,7 @@ export async function load(next: BookLoad, autoplay: boolean): Promise<void> {
     sound.setTagGain(element, null);
     nowPlaying = null;
   }
+  clearPreparing();
   book = next;
   pausedAt = next.pausedAt;
   placeChangedAt = next.pausedAt ?? 0;
