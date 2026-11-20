@@ -1,7 +1,6 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import Svg, { Circle, Ellipse, Path, Rect } from 'react-native-svg';
 
-import { TextButton } from './TextButton';
 
 // Lori, Lelap's mascot: a slow loris, nocturnal like the app's night theme and, like the name,
 // from Indonesia. Drawn asleep, curled up with headphones on, from the mascot sketch. Her colours
@@ -59,35 +58,6 @@ export function Lori({ size = 120 }: { size?: number }) {
           opacity={0.8}
         />
       </Svg>
-    </View>
-  );
-}
-
-/**
- * An empty list or screen: Lori asleep, a line saying what's missing, a hint, and buttons for
- * what to do next.
- */
-export function EmptyState({
-  title,
-  hint,
-  actions = [],
-}: {
-  title: string;
-  hint?: string | undefined;
-  actions?: { label: string; onPress: () => void }[];
-}) {
-  return (
-    <View className="items-center gap-2 px-8 pt-10">
-      <Lori />
-      <Text className="text-center text-base text-paper">{title}</Text>
-      {hint !== undefined && <Text className="text-center text-sm text-muted">{hint}</Text>}
-      {actions.length > 0 && (
-        <View className="flex-row flex-wrap justify-center gap-x-4">
-          {actions.map((action) => (
-            <TextButton key={action.label} text={action.label} onPress={action.onPress} />
-          ))}
-        </View>
-      )}
     </View>
   );
 }

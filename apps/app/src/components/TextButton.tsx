@@ -28,7 +28,7 @@ const TONE = { amber: 'text-amber', muted: 'text-muted', danger: 'text-danger' }
 export const RowLabel = createContext<string | undefined>(undefined);
 
 /**
- * A text-only button, such as “Open” at the end of a settings row. At least 48 points tall so a
+ * The text kind of `Button`: a text-only button, such as “Open” at the end of a settings row. At least 48 points tall so a
  * finger finds it; `accessibilityLabel` names it when the text alone says too little.
  */
 export function TextButton({
@@ -57,9 +57,9 @@ export function TextButton({
       accessibilityRole="button"
       {...(accessibilityLabel === undefined ? {} : { accessibilityLabel })}
       {...hint(row)}
-      className={`min-h-12 min-w-12 items-center justify-center ${className}`}
+      className={`min-h-12 min-w-12 items-center justify-center ${disabled ? 'opacity-40' : ''} ${className}`}
     >
-      <Text className={`${disabled ? 'text-muted' : TONE[tone]}${strong ? ' font-semibold' : ''}`}>
+      <Text className={`${TONE[tone]}${strong ? ' font-semibold' : ''}`}>
         {text}
       </Text>
     </Pressable>
