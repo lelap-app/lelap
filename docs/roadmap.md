@@ -149,6 +149,11 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M140 App polish 5](milestones/m140.md)              | Done        |           9 | Add-ons page order, dialogs on wide screens, one copy of each screen, fewer player tools, streamed lengths                                                    |
 | [M141 Web app updates](milestones/m141.md)           | Done        |           5 | An open tab of the web app offers a new deploy with a Reload button                                                                                           |
 | [M142 Status page](milestones/m142.md)               | Planned     |             | A scheduled Worker checks the site, the web app and each service, and shows a status page                                                                     |
+| [M143 UI consistency](milestones/m143.md)            | Planned     |             | The changes the maintainer picks from the UI review, current against suggested, and nothing more                                                              |
+| [M144 SDK 0.6](milestones/m144.md)                   | Planned     |             | Publish the protocol revisions waiting in changesets as @lelap/sdk 0.6, with docs and examples that match                                                     |
+| [M145 Upkeep 2](milestones/m145.md)                  | Planned     |             | Small correctness leftovers from M102, M117, M121, M127, M138 and M83, gathered from Future goals                                                             |
+| [M146 Home and away addresses](milestones/m146.md)   | Planned     |             | Audiobookshelf, Jellyfin and WebDAV with a home and an outside address, switching to the one that answers                                                     |
+| [M147 Play by voice](milestones/m147.md)             | Planned     |             | “Play X on Lelap” through the Assistant and Android Auto's voice search                                                                                       |
 
 <!-- milestones:end -->
 
@@ -166,11 +171,6 @@ when it is planned.
   field and forbid lasting copies (so no Google fields in downloads or sync), it has no narrators or
   lengths, and its coverage of Danish editions is unknown until a key exists. Apple's iTunes Search
   API is out unless a store link is shown beside its data. M137 is left unused.
-- **Playback history, finer points (after M138):** while casting, log a seek's target rather than
-  the receiver's position, which may lag; log the app's skips at the place the service lands on
-  across file ends rather than the place plus the interval; log taps for the profile the player
-  plays for when it differs from the one on screen; don't offer “Go back” in the app after the
-  notification's own Back.
 - **Kotlin tests for the fold and headless modules in CI:** `:lelap-fold:testDebugUnitTest` (M113)
   and `:lelap-headless:testDebugUnitTest` (M123) pass locally but aren't in the `android-unit-tests`
   job's Gradle line in `ci.yml`. Adding them doesn't change when the job runs; waiting on the
@@ -179,9 +179,6 @@ when it is planned.
   `PODCASTINDEX_SECRET`, so Lepak (M131) is hidden and the Catalog has no podcast rows. Once set
   with `wrangler secret put`, run `scripts/lepak-languages.mts` and fetch the four Lepak rows to
   check they fill (M131's open checks).
-- **Add-on permission lines in Malay:** the review sheet (`apps/app/src/addonReview.tsx`) shows the
-  permission texts from `packages/core/src/addons/permissions.ts` in English only; wrap them in
-  `t()` and add Malay.
 - **Wear OS:** control playback from the watch (tile and app: play, pause, skip, the sleep timer),
   and maybe play downloads on it. Was M89; set aside on 2026-11-18 until there is a watch to test
   on.
@@ -191,35 +188,15 @@ when it is planned.
   `<filePosition>` (141 for a preface), and whether `filePosition` is seconds or milliseconds is
   unknown. The import waits for someone to send a real `bookmarks.sabp.xml` with places they
   know.
-
-- **Rules of hooks in lint (left from M117):** colours outside a class come from `useColors()`
-  since M117, and nothing checks where a hook is called. `eslint-plugin-react-hooks` would catch
-  one in a callback, a condition or a render helper.
-
-- **Scrobble bookkeeping (left from M102):** mark a book as heard by an add-on when its event is
-  delivered rather than queued, and log a session's start with the Android `finish` itself, so a
-  session too short for the tally to see never borrows an earlier one's start.
-
-- **More from Podcasting 2.0 tags (left from M75):** play a soundbite as a clip that stops at its
-  end, and list soundbites in the player; let the listener pick among alternate enclosures (a
-  smaller file on mobile data) and check `podcast:integrity`. Sending value-for-value payments
-  would move money and needs a decision first.
-- **Accessibility leftovers (from M83):** the web app ignores the browser's default text size, since
-  react-native-web sets sizes in pixels; zooming works. Following it would mean reading the root
-  font size and scaling text the way Android's font scale does. The accessibility check has gaps
-  that pass today's code but could hide a later problem: an error inside a `View` or returned
-  early isn't seen, colours in short hex or `rgba()` aren't checked, and a spinner is only found
-  in `cond ? <ActivityIndicator /> : …`.
-- **Themes and community looks:** community skins and community players. M108 brought built-in
-  themes, accents and theme files of colours only.
-- **Episode file leftovers (from M121):** the Android service compares the addresses the app sent,
-  not the file it picked: when the app re-picks a loaded episode's automatic file, the service may
-  prepare the same file again, a short rebuffer. Comparing what `EpisodeFiles` would pick avoids it.
-- **Series leftovers (from M127):** Hardcover's series for listeners who connected Hardcover with
-  their own token, to fill what Wikidata lacks (Department Q's book 10, years it doesn't have).
-  A hidden book matched only by its title still shows as a book the listener lacks. And an app
-  that drops resources it doesn't know, instead of refusing the manifest, would let later
-  resources join existing add-ons.
+- **Podcasting 2.0, soundbites as clips (left from M75):** play a soundbite as a clip that stops at
+  its end. Weighed on 2026-11-20: alternate enclosures and `podcast:integrity` were dropped, since
+  few feeds carry them and a picker for them is an option almost nobody would use. Value-for-value
+  payments would move money and need a decision first.
+- **Web text size (from M83):** the web app ignores the browser's default text size, since
+  react-native-web sets sizes in pixels. Zooming works, so this waits until someone asks.
+- **Series from Hardcover (from M127):** Hardcover's series for listeners who connected Hardcover
+  with their own token, to fill what Wikidata lacks (Department Q's book 10, years it doesn't
+  have).
 - **BookBrainz (skipped, M129 left unused):** BookBrainz's API gives a series' books without their
   positions, and the app takes meta from the first add-on that answers, so a second metadata source
   for Open Library works would never be used. Worth another look if both change.
@@ -230,12 +207,17 @@ when it is planned.
 - **BookWyrm covers from RSS (from M130):** on an instance that requires signed GET the shelves come
   from RSS, which has no covers; matched books get Open Library's. BookWyrm's `search.json`, allowed
   there, could give the rest theirs, at one more request a book.
-- **A second server address:** Audiobookshelf, Jellyfin and WebDAV with a home and an outside
-  address, switching by itself to the one that answers.
-- **“Play X” by voice:** voice search through the Assistant and Android Auto.
-- **Following authors and narrators:** follow a person and get a Home row of their new books.
-- **Taste 2:** separate ratings for story and narration, “why this pick”, “More like this” and an
-  “I have N hours” filter.
+- **“More like this” and “I have N hours”:** what is left of Taste 2 after it was weighed on
+  2026-11-20. Separate story and narration ratings and “why this pick” were dropped: a second
+  rating doubles every rating control for a distinction few listeners make.
+
+Weighed on 2026-11-20 and left out, so they don't come back without a new reason: community skins
+and players (theme files of colours already cover looks, and skins would be a plugin surface to
+keep stable); following authors and narrators (the open catalogs have no reliable new-release
+data for audiobooks, so the row would be mostly empty); on-device transcripts for local files (a
+large model and the battery for a feature few would turn on). A second server address, voice
+search and the small leftovers became [M146](milestones/m146.md), [M147](milestones/m147.md) and
+[M145](milestones/m145.md).
 
 ## Environments
 
