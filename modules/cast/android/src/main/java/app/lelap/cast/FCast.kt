@@ -1,5 +1,6 @@
 package app.lelap.cast
 
+import android.util.Log
 import app.lelap.text.NativeText
 import java.io.BufferedOutputStream
 import java.io.DataInputStream
@@ -70,28 +71,62 @@ object FCastProtocol {
  * that has answered a ping is held to it. Then the place stops moving on [GRACE_MS] after its last
  * word, and after [LOST_AFTER_MS] it counts as lost. One that never answers a ping keeps the place
  * moving until the connection drops, as before. Pure; times are on a monotonic clock.
+ *
+ * A receiver whose pongs come slower than that (M139) gets longer: the grace is half again its
+ * slower gaps (the 90th percentile), lost is four of them, up to [MAX_LOST_AFTER_MS]. Never
+ * shorter than the defaults: a quick receiver going quiet is no surer a loss.
  */
 class FCastWatch(start: Long) {
   private var heardAt = start
   private var polledAt = start
   private var answersPings = false
   private var reported = false
+  private var pongAt = -1L
+  private val gaps = ArrayDeque<Long>()
+
+  /** The 90th percentile of the gaps between pongs, once a few came; for tuning and the log. */
+  val slowGapMs: Long?
+    get() {
+      if (gaps.size < ENOUGH_GAPS) return null
+      val sorted = gaps.sorted()
+      return sorted[((sorted.size * 9 + 9) / 10 - 1).coerceIn(0, sorted.lastIndex)]
+    }
+
+  /** How long after its last word the place still moves on. */
+  val graceMs: Long
+    get() = slowGapMs?.let { maxOf(GRACE_MS, it * 3 / 2) }?.coerceAtMost(MAX_LOST_AFTER_MS / 2) ?: GRACE_MS
+
+  /** How long a receiver that answers pings may be quiet before it counts as lost. */
+  val lostAfterMs: Long
+    get() = slowGapMs?.let { maxOf(LOST_AFTER_MS, it * 4) }?.coerceAtMost(MAX_LOST_AFTER_MS) ?: LOST_AFTER_MS
 
   /** Anything came from the receiver; [pong] when it was the answer to a ping. */
   fun heard(now: Long, pong: Boolean) {
     heardAt = now
-    if (pong) answersPings = true
+    if (pong) {
+      answersPings = true
+      // A gap longer than a late poll is the phone asleep, not the receiver slow.
+      if (pongAt >= 0 && now - pongAt <= POLL_GAP_MS + PING_EVERY_MS) {
+        gaps.addLast(now - pongAt)
+        while (gaps.size > KEEP_GAPS) gaps.removeFirst()
+      }
+      pongAt = now
+    }
   }
 
   /** Until when the place may move on from the last update. */
-  fun placeUntil(now: Long): Long = if (answersPings) minOf(now, heardAt + GRACE_MS) else now
+  fun placeUntil(now: Long): Long = if (answersPings) minOf(now, heardAt + graceMs) else now
 
   /** A poll at [now]; true once, when a receiver that answers pings has been quiet too long. */
   fun polled(now: Long): Boolean {
     // A late poll (the phone slept, the thread stalled) gives the receiver a fresh chance.
-    if (now - polledAt > POLL_GAP_MS) heardAt = maxOf(heardAt, now)
+    if (now - polledAt > POLL_GAP_MS) {
+      heardAt = maxOf(heardAt, now)
+      // The gap across the sleep is the phone's, not the receiver's.
+      pongAt = -1L
+    }
     polledAt = now
-    if (!answersPings || reported || now - heardAt <= LOST_AFTER_MS) return false
+    if (!answersPings || reported || now - heardAt <= lostAfterMs) return false
     reported = true
     return true
   }
@@ -103,6 +138,9 @@ class FCastWatch(start: Long) {
 
     /** As for Google Cast: Chromium gives up on a channel after 10 s; we wait a little longer. */
     const val LOST_AFTER_MS = 15_000L
+    const val MAX_LOST_AFTER_MS = 30_000L
+    const val ENOUGH_GAPS = 3
+    const val KEEP_GAPS = 20
 
     /** Polls come every second; one this late means the poller, not the receiver, was away. */
     const val POLL_GAP_MS = 5_000L
@@ -219,6 +257,8 @@ class FCastRenderer(private val device: CastDevice, private val onLost: (String)
   }
 
   override fun close() {
+    // For tuning from a test round (M139): numbers only.
+    synchronized(lock) { watch.slowGapMs }?.let { Log.i("LelapCast", "fcast pong gap $it ms, lost after ${watch.lostAfterMs} ms") }
     synchronized(lock) { closed = true }
     pinger.shutdownNow()
     runCatching { send(FCastProtocol.STOP) }

@@ -59,13 +59,18 @@ interface Renderer {
  * A receiver that remembers the file it was last given and the speed it plays at, so a speaker
  * that joins later can start the same file (M125). Everything else goes straight through.
  */
-class RememberingRenderer(private val inner: Renderer) : Renderer {
+class RememberingRenderer(
+  private val inner: Renderer,
+  /** What the speaker it takes over from had been given (M139). */
+  media: CastMedia? = null,
+  speed: Float = 1f,
+) : Renderer {
   @Volatile
-  var media: CastMedia? = null
+  var media: CastMedia? = media
     private set
 
   @Volatile
-  var speed: Float = 1f
+  var speed: Float = speed
     private set
 
   override fun load(media: CastMedia, startMs: Long, autoplay: Boolean, speed: Float) {

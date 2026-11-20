@@ -113,7 +113,7 @@ class RemotePlayer(
 
   // Read with `adb logcat -s LelapCast`: the protocol and numbers only, no names or addresses.
   private fun logTiming(timing: RemoteSession.Timing) {
-    Log.i(TAG, "${link.device.kind} ${timing.what} ${timing.ms} ms")
+    Log.i(TAG, "${link.device.kind} ${timing.what} ${timing.ms} ms, waits ${session.commandSettleMs}/${session.loadSettleMs} ms")
   }
 
   // The level last asked for; kept, since a receiver says its volume only after its first status.

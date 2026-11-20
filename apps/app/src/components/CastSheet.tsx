@@ -172,7 +172,6 @@ export function CastSheet({
   };
 
   const sessionIds = casting.device?.members.map((m) => m.id) ?? null;
-  const leaderId = sessionIds?.[0] ?? null;
   const groupsHere =
     group === null
       ? castGroupsHere(remembered, new Set(devices.map((d) => d.id)), sessionIds).flatMap((g) => {
@@ -369,15 +368,11 @@ export function CastSheet({
             const current = playingOn(device);
             const ticked = group?.includes(device.id) ?? false;
             const highlighted = group === null ? current : ticked;
-            // While a session plays (M125): any other speaker can join it, and one that follows
-            // in a group can leave. The leading speaker stays; a new group replaces it.
+            // While a session plays (M125): any other speaker can join it, and any of a group's
+            // can leave; when the leading one does, the next leads (M139).
             const canJoin = group === null && casting.device !== null && !current;
             const canLeave =
-              group === null &&
-              current &&
-              sessionIds !== null &&
-              sessionIds.length > 1 &&
-              device.id !== leaderId;
+              group === null && current && sessionIds !== null && sessionIds.length > 1;
             return (
               <View key={device.id} className="flex-row items-center gap-2">
                 <Pressable

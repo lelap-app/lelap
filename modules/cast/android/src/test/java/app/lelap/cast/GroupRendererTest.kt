@@ -185,4 +185,59 @@ class GroupRendererTest {
     while (!follower.closed && System.currentTimeMillis() < deadline) Thread.sleep(10L)
     assertTrue(follower.closed)
   }
+
+  // M139: the leading speaker leaves.
+
+  @Test
+  fun theLeaderLeavesAndTheFirstFollowerLeadsFromThere() {
+    val leader = Fake("a", playing(10_000L))
+    val next = Fake("b", playing(10_400L))
+    val last = Fake("c", playing(9_900L))
+    val group = GroupRenderer(leader, listOf(next, last), { now }, {})
+    group.load(media, 0L, autoplay = true, speed = 1f)
+    var wrapped: Renderer? = null
+    val promoted = group.handOver { r -> RememberingRenderer(r).also { wrapped = it } }
+    assertTrue(promoted === next)
+    assertEquals(1, group.followerCount)
+    // The group's status is the new leader's now, and commands reach it on this thread.
+    assertEquals(10_400L, group.status().positionMs)
+    group.pause()
+    assertEquals(listOf("load 0", "pause"), next.calls)
+    assertTrue(wrapped != null)
+    // The old leader stops and is let go, on a thread of its own.
+    Thread.sleep(200)
+    assertTrue(leader.closed)
+    assertFalse("pause" in leader.calls)
+  }
+
+  @Test
+  fun callsQueuedForTheNextLeaderRunBeforeItLeads() {
+    val leader = Fake("a", playing(0L))
+    val next = Fake("b", playing(0L))
+    val group = GroupRenderer(leader, listOf(next), { now }, {})
+    group.load(media, 0L, autoplay = true, speed = 1f)
+    group.seek(5_000L)
+    group.handOver { it }
+    group.play()
+    assertEquals(listOf("load 0", "seek 5000", "play"), next.calls)
+  }
+
+  @Test
+  fun aLeaderAloneHasNoOneToHandOverTo() {
+    val leader = Fake("a", playing(0L))
+    val group = GroupRenderer(leader, emptyList(), { now }, {})
+    assertEquals(null, group.handOver { it })
+    assertFalse(leader.closed)
+  }
+
+  @Test
+  fun aSpeakerStillJoiningDoesNotLead() {
+    val leader = Fake("a", playing(0L))
+    val joining = Fake("b", playing(0L))
+    val group = GroupRenderer(leader, emptyList(), { now }, {})
+    val gate = java.util.concurrent.CountDownLatch(1)
+    group.add(joining) { gate.await() }
+    assertEquals(null, group.handOver { it })
+    gate.countDown()
+  }
 }
