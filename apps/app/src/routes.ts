@@ -1,6 +1,6 @@
 /**
  * Every screen of the root stack besides the tabs, as Expo Router names them. Each is declared
- * singular in the root layout; `pnpm --filter @lelap/app test` checks the list against `app/`.
+ * singular in the root layout; `scripts/check-routes.mjs` checks the list against `app/`.
  */
 export const SCREENS = [
   'addon',

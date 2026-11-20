@@ -1,4 +1,4 @@
-// Fails when a screen in `app/` is missing from `src/routes.ts`, or the list names one that is
+// Run by check-accessibility.mjs. Fails when a screen in `app/` is missing from `src/routes.ts`, or the list names one that is
 // gone: a screen left out could open twice on a quick double tap.
 import { readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
