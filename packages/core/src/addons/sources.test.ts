@@ -151,7 +151,7 @@ describe('findSources', () => {
   it('finds nothing, without asking, when no add-on has streams for the work', async () => {
     const fetcher = fake(() => 500);
     const result = await findSources(fetcher, [catalog], 'audiobook', 'ol:OL1W');
-    expect(result).toEqual({ found: [], asked: [], failed: [] });
+    expect(result).toEqual({ found: [], asked: [], failed: [], refresh: [] });
     expect(fetcher.calls).toEqual([]);
   });
 });

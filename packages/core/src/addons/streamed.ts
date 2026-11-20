@@ -46,7 +46,8 @@ function partsOf(meta: Meta | MetaPreview, stream: Stream): Part[] {
     return stream.parts.map((part, index) => ({
       url: part.url,
       title: part.title ?? `Part ${index + 1}`,
-      durationMs: part.durationMs,
+      // Since revision 14 a part may come without a length; the player measures it (M140).
+      durationMs: part.durationMs ?? 0,
       size: part.size ?? 0,
     }));
   }
@@ -58,6 +59,14 @@ function partsOf(meta: Meta | MetaPreview, stream: Stream): Part[] {
       size: stream.size ?? 0,
     },
   ];
+}
+
+/**
+ * A book's length once every part has one, else 0: a total from some parts would make the bar
+ * and the percentage wrong. Until then the book's progress counts parts (M152).
+ */
+export function knownTotal(lengths: number[]): number {
+  return lengths.every((ms) => ms > 0) ? lengths.reduce((sum, ms) => sum + ms, 0) : 0;
 }
 
 /** How far a stream's length may be from the meta's for the meta's chapters to apply. */
@@ -88,7 +97,8 @@ function chaptersOf(meta: Meta | MetaPreview, stream: Stream, parts: Part[]): Ch
     parts.reduce((sum, p) => sum + p.durationMs, 0),
   );
   if (fromMeta.length > 0) return fromMeta;
-  if (parts.length === 1) return [];
+  // A part with no length yet would put every later chapter in the wrong place.
+  if (parts.length === 1 || parts.some((p) => !(p.durationMs > 0))) return [];
   let startMs = 0;
   return parts.map((part) => {
     const chapter = { title: part.title, startMs };
@@ -210,7 +220,7 @@ export function addStreamedBook(db: Db, args: StreamedBookArgs): string {
         was.durationMs > 0;
       return keep ? { ...part, durationMs: was.durationMs } : part;
     });
-    const bookRow = { ...values, durationMs: filled.reduce((sum, p) => sum + p.durationMs, 0) };
+    const bookRow = { ...values, durationMs: knownTotal(filled.map((p) => p.durationMs)) };
     if (found?.location === location) {
       tx.update(books).set(bookRow).where(eq(books.id, bookId)).run();
     } else if (found) {

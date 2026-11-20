@@ -383,10 +383,10 @@ export function toMeta(item: Item, feed: string): Meta | null {
     let startMs = 0;
     meta.chapters = files.map((file): Chapter => {
       const chapter = { title: file.title, startMs };
-      startMs += file.durationMs;
+      startMs += file.durationMs ?? 0;
       return chapter;
     });
-    if (files.every((file) => file.durationMs > 0)) meta.durationMs = startMs;
+    if (files.every((file) => (file.durationMs ?? 0) > 0)) meta.durationMs = startMs;
   }
 
   const reviews = item.reviews;
@@ -480,7 +480,7 @@ export function toFeed(item: Item, self: string): string | null {
       `<guid isPermaLink="false">${xmlText(`${PREFIX}${identifier}/${file.name}`)}</guid>`,
       `<enclosure url="${xmlText(file.url)}" length="${file.size ?? 0}" type="audio/mpeg"/>`,
       `<pubDate>${published.toUTCString()}</pubDate>`,
-      file.durationMs > 0
+      file.durationMs
         ? `<itunes:duration>${Math.round(file.durationMs / 1000)}</itunes:duration>`
         : '',
       `<itunes:episode>${index + 1}</itunes:episode>`,

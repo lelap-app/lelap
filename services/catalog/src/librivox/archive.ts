@@ -349,10 +349,10 @@ export function toMeta(item: Item): Meta | null {
     let startMs = 0;
     meta.chapters = chosen.parts.map((part): Chapter => {
       const chapter = { title: part.title ?? '', startMs };
-      startMs += part.durationMs;
+      startMs += part.durationMs ?? 0;
       return chapter;
     });
-    if (chosen.parts.every((part) => part.durationMs > 0)) total = startMs;
+    if (chosen.parts.every((part) => (part.durationMs ?? 0) > 0)) total = startMs;
   }
   const durationMs = total ?? durationOf(metadata.runtime);
   if (durationMs) meta.durationMs = durationMs;

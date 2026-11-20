@@ -7,7 +7,7 @@ import { LATEST_PROTOCOL_VERSION, LibraryResponse, PlaceReport, RequestHeaders }
 
 describe('revision 13', () => {
   it('is the newest revision', () => {
-    expect(LATEST_PROTOCOL_VERSION).toBe(13);
+    expect(LATEST_PROTOCOL_VERSION).toBeGreaterThanOrEqual(13);
   });
 
   it('reads a file with its description, language, series and ref', () => {

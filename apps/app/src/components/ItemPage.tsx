@@ -1,4 +1,5 @@
 import {
+  bookFraction,
   bookSourceChoice,
   chosenEdition,
   downloadSnapshot,
@@ -11,6 +12,7 @@ import {
   findSeries,
   formatSeries,
   getSourceChoice,
+  knownTotal,
   linkBook,
   type LinkableWork,
   pickSource,
@@ -24,7 +26,7 @@ import {
 import { CONTENT_TYPES, type ContentType, type Edition, hasParts, type Meta } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -32,8 +34,9 @@ import { t } from '../i18n';
 import { READABLE, useWide } from '../layout';
 import { openPlayer } from '../navigation';
 import { showAlert } from '../dialog';
+import { PreparingPanel, showGone, streamState, usePreparing } from './Preparing';
 import { Icon, IconButton } from './Icon';
-import { addItem, playItem, queries, useAddons, useArtwork } from '../addons';
+import { addItem, playItem, queries, refreshItemSources, useAddons, useArtwork } from '../addons';
 import { sourceCache } from '../availability';
 import { BookCover, coverUri } from './BookCover';
 import { badgeWords, keepShownRating, useBookBadges, useMetaBadges } from './CoverBadges';
@@ -77,7 +80,7 @@ const seriesLabel = (series: Meta['series']) => {
 
 const streamLength = (found: FoundStream) =>
   hasParts(found.stream)
-    ? found.stream.parts.reduce((sum, p) => sum + p.durationMs, 0)
+    ? knownTotal(found.stream.parts.map((p) => p.durationMs ?? 0))
     : (found.stream.durationMs ?? 0);
 
 /** The second line of a source: which add-on, how long, how many parts. */
@@ -86,6 +89,7 @@ const sourceDetails = (found: FoundStream) => {
   const count = hasParts(found.stream) ? found.stream.parts.length : 1;
   return [
     found.addon.manifest.name,
+    found.stream.availability === 'preparing' ? t('Preparing') : null,
     ms > 0 ? formatDuration(ms) : null,
     count > 1 ? t('{n} parts', { n: count }) : null,
   ]
@@ -145,6 +149,22 @@ export function ItemPage({
   });
 
   const found = sources.data?.found ?? [];
+  // A slow add-on's second look (`refreshAfter`, M152): once, while this page is open.
+  const refreshAfter = sources.data?.refresh.length
+    ? Math.min(...sources.data.refresh.map((r) => r.after))
+    : null;
+  // The timer keys on the query, not on objects that are new each render, so it isn't restarted.
+  const refreshArgs = useRef({ addons, externalIds: work?.externalIds });
+  refreshArgs.current = { addons, externalIds: work?.externalIds };
+  const sourcesKey = JSON.stringify([type, id, work?.externalIds ?? {}, addons.map((a) => a.url)]);
+  useEffect(() => {
+    if (refreshAfter === null) return;
+    const timer = setTimeout(() => {
+      const { addons: now, externalIds } = refreshArgs.current;
+      void refreshItemSources(now, type, id, externalIds);
+    }, refreshAfter * 1000);
+    return () => clearTimeout(timer);
+  }, [refreshAfter, sourcesKey, type, id]);
   // What this page learned saves the cover badge a request of its own.
   useEffect(() => {
     const data = sources.data;
@@ -248,14 +268,22 @@ export function ItemPage({
     if (item && stream) refresh();
     await startDownload(bookId, work ?? null);
   };
-  const progress =
-    saved && saved.book.durationMs > 0 ? saved.book.bookPositionMs / saved.book.durationMs : 0;
+  const progress = saved ? bookFraction(saved.book) : 0;
 
-  const play = async () => {
+  // No place is saved while a stream prepares: nothing plays until it is ready (M152).
+  const start = async (ready?: FoundStream) => {
     setStarting(true);
     try {
-      if (item && stream) await playItem(item, stream);
-      else if (saved) await playBook(saved.book.id);
+      const chosenStream = ready ?? stream;
+      if (item && chosenStream) {
+        // A copy on this device plays whatever the source says now.
+        if (!ready && !saved?.book.downloaded) {
+          const state = await streamState(chosenStream);
+          if (state.state === 'preparing') return preparing.wait(chosenStream, state.seconds);
+          if (state.state === 'gone') return showGone(state);
+        }
+        await playItem(item, chosenStream);
+      } else if (saved) await playBook(saved.book.id);
       else return;
       refresh();
       openPlayer(router);
@@ -264,6 +292,13 @@ export function ItemPage({
     } finally {
       setStarting(false);
     }
+  };
+  const preparing = usePreparing((ready) => void start(ready));
+  const play = () => start();
+  // Download when ready: the download queue waits for the source on its own, with its rules.
+  const downloadWhenReady = () => {
+    preparing.cancel();
+    void download();
   };
 
   const title = item?.name ?? saved?.book.title ?? '';
@@ -410,7 +445,7 @@ export function ItemPage({
             </View>
           ) : (
             <Pressable
-              disabled={!canPlay || starting}
+              disabled={!canPlay || starting || preparing.waiting !== null}
               onPress={() => void play()}
               accessibilityRole="button"
               accessibilityLabel={looking ? t('Looking for audio…') : playLabel}
@@ -425,6 +460,14 @@ export function ItemPage({
                 </Text>
               )}
             </Pressable>
+          )}
+          {preparing.waiting && (
+            <PreparingPanel
+              secondsLeft={preparing.secondsLeft}
+              canDownload={preparing.waiting.found.stream.downloadable !== false}
+              onDownload={downloadWhenReady}
+              onCancel={preparing.cancel}
+            />
           )}
           {saved && (
             <Text className="-mt-3 text-center text-xs text-muted">
@@ -539,7 +582,9 @@ export function ItemPage({
                   <Text numberOfLines={1} className="flex-1 text-paper">
                     {part.title ?? t('Part {n}', { n: index + 1 })}
                   </Text>
-                  <Text className="text-muted">{formatClock(part.durationMs)}</Text>
+                  {part.durationMs !== undefined && (
+                    <Text className="text-muted">{formatClock(part.durationMs)}</Text>
+                  )}
                 </View>
               ))}
               {!allParts && parts.length > PARTS_SHOWN && (
