@@ -85,6 +85,14 @@ class CastMessageTest {
   }
 
   @Test
+  fun aLiveStreamLoadsAsLive() {
+    val media = CastMedia("https://radio.example/live.m3u8", "application/x-mpegurl", "Radio", null, null, null, 0, onAir = true)
+    val item = JSONObject(CastJson.load(1, media, 0, true, 1f)).getJSONObject("media")
+    assertEquals("LIVE", item.getString("streamType"))
+    assertEquals(false, item.has("duration"))
+  }
+
+  @Test
   fun buildsALoadForTheDefaultMediaReceiver() {
     val media = CastMedia("http://192.168.1.4:40000/abc/media.m4b", "audio/mp4", "Part 1", "Author", "Book", "https://covers/x.jpg", 600_000)
     val load = JSONObject(CastJson.load(7, media, 61_500, true, 1.5f))

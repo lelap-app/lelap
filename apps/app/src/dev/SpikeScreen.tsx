@@ -28,6 +28,8 @@ const INITIAL_STATE: PlayerState = {
   sleepTimerRemainingMs: null,
   sleepTimerMode: null,
   error: null,
+  live: false,
+  nowPlaying: null,
 };
 
 function formatTime(ms: number): string {

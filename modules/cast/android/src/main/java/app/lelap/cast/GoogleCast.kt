@@ -87,7 +87,7 @@ object CastJson {
       .put("contentId", media.url)
       .put("contentUrl", media.url)
       .put("contentType", media.mimeType)
-      .put("streamType", "BUFFERED")
+      .put("streamType", if (media.onAir) "LIVE" else "BUFFERED")
       .put("metadata", metadata)
     if (media.durationMs > 0) item.put("duration", media.durationMs / 1000.0)
     return JSONObject()

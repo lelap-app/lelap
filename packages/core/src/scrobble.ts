@@ -10,6 +10,7 @@ import { and, asc, eq, lte, notInArray } from 'drizzle-orm';
 
 import { addonBase, type InstalledAddon, REQUEST_TIMEOUT_MS } from './addons/client';
 import type { Db } from './db';
+import { isLiveBook } from './live';
 import type { IdGenerator } from './ids';
 import { bookLinks } from './library/links';
 import { deviceValue, setDeviceValue } from './profiles';
@@ -129,6 +130,9 @@ export function enqueueScrobble(
   },
 ): ScrobbleEvent | null {
   const { profileId, addons, newId } = args;
+  // A live stream reports that it started, nothing more: it has no progress or end (M154).
+  if (args.bookId !== undefined && args.event.event !== 'start' && isLiveBook(db, args.bookId))
+    return null;
   // Going back into a finished book is never a fresh start, also for an add-on that never heard
   // of it: it may have heard the finish before this device kept track.
   const finished =

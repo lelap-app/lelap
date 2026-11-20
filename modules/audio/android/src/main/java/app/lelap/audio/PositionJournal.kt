@@ -15,6 +15,8 @@ data class BookFile(
   val durationMs: Long,
   val name: String? = null,
   val auto: AutoFile? = null,
+  /** The stream's MIME type, for an HLS playlist without `.m3u8` (M154). */
+  val mime: String? = null,
 )
 
 /** The feed's own file and the smallest one, for mobile data (M121). */
@@ -55,6 +57,8 @@ data class BookPlaylist(
    * starts by itself asks the app, also when closed.
    */
   val locate: Boolean = false,
+  /** A live stream (M154): no seeking, speed, smart rewind or end; Play rejoins what is on air. */
+  val live: Boolean = false,
 )
 
 /**
@@ -227,6 +231,7 @@ object PositionJournal {
           JSONObject().put("uri", it.uri).put("location", it.location).put("title", it.title).put("durationMs", it.durationMs)
             .apply { it.name?.let { name -> put("name", name) } }
             .apply { it.auto?.let { a -> put("auto", JSONObject().put("unmetered", a.unmetered).put("metered", a.metered)) } }
+            .apply { it.mime?.let { mime -> put("mime", mime) } }
         },
       ),
     )
@@ -239,6 +244,7 @@ object PositionJournal {
     .put("artworks", JSONArray(p.artworks.map { JSONObject().put("startMs", it.startMs).put("uri", it.uri ?: JSONObject.NULL) }))
     .put("serverPlaces", p.serverPlaces)
     .put("locate", p.locate)
+    .put("live", p.live)
 
   private fun decodePlaylist(o: JSONObject): BookPlaylist {
     val files = o.getJSONArray("files")
@@ -257,6 +263,7 @@ object PositionJournal {
           f.getLong("durationMs"),
           f.optStringOrNull("name"),
           f.optJSONObject("auto")?.let { a -> AutoFile(a.getString("unmetered"), a.getString("metered")) },
+          f.optStringOrNull("mime"),
         )
       },
       chapters = List(chapters.length()) {
@@ -278,6 +285,7 @@ object PositionJournal {
       } ?: emptyList(),
       serverPlaces = o.optBoolean("serverPlaces", false),
       locate = o.optBoolean("locate", false),
+      live = o.optBoolean("live", false),
     )
   }
 

@@ -23,6 +23,8 @@ const nativeLines = (): Record<string, string> => ({
   'Next in list': t('Next in list'),
   'Previous in list': t('Previous in list'),
   'Back to where you were': t('Back to where you were'),
+  // A live stream's line on the notification, lock screen, widget and car (M154).
+  Live: t('Live'),
   // Android Auto's shelves.
   'Continue listening': t('Continue listening'),
   'On this phone': t('On this phone'),

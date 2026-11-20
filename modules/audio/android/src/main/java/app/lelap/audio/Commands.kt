@@ -85,6 +85,9 @@ object Commands {
 
   /** Media metadata extra naming the book an item belongs to. */
   const val METADATA_BOOK_ID = "bookId"
+  /** Media metadata extras of a live stream (M154): that it is one, and what it plays now. */
+  const val METADATA_LIVE = "live"
+  const val METADATA_NOW_PLAYING = "nowPlaying"
 
   /** SharedPreferences file of the service's settings (duck, skip interval, smart rewind, sound). */
   const val AUDIO_PREFS = "lelap_audio"
