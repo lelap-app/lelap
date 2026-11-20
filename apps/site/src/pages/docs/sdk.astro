@@ -460,9 +460,9 @@ const toc: [string, string][] = [
   <p>
     Every SDK add-on answers <code>GET /health</code> with <code>{'{ "status": "ok" }'}</code> and
     declares <code>behaviorHints.health</code>; the SDK also sets <code>protocolVersion</code> to
-    the newest revision it knows: <code>{LATEST_PROTOCOL_VERSION}</code> in SDK 0.6, 9 in 0.5.0 and
-    8 in 0.4.0. Pass a <code>health</code> handler to check what your add-on relies on. Keep it
-    quick: the app asks when Settings → Library and sources → Add-ons opens.
+    the newest revision it knows: <code>{LATEST_PROTOCOL_VERSION}</code> in SDK 0.7, 13 in 0.6, 9 in
+    0.5.0 and 8 in 0.4.0. Pass a <code>health</code> handler to check what your add-on relies on.
+    Keep it quick: the app asks when Settings → Library and sources → Add-ons opens.
   </p>
   <CodeBlock code={health} />
 
