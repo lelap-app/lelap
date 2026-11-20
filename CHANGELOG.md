@@ -50,10 +50,10 @@ Two database changes run once at the first start. No new permissions.
 
 ### Self-hosting and add-on developers
 
-- `@lelap/sdk` 0.6.0 is on npm with protocol revisions 10 to 13, `waitUntil`, field links and
-  groups, `fingerprint`, `log` and `mockFetch` (#264). Revision 14 (streams still preparing, parts
-  without lengths, `refreshAfter`, stream `format`, `language`, `releaseId` and `live`) is in the
-  app and the docs and comes with the next SDK release. (#269, #270)
+- `@lelap/sdk` 0.7.0 is on npm with protocol revision 14: streams still preparing, parts without
+  lengths, `refreshAfter`, and stream `format`, `language`, `releaseId` and `live`. (#269, #270,
+  #274) 0.6.0 brought revisions 10 to 13, `waitUntil`, field links and groups, `fingerprint`,
+  `log` and `mockFetch`. (#264)
 - The developer docs have `llms.txt` and `llms-full.txt`. (#266)
 
 ### Known issues
