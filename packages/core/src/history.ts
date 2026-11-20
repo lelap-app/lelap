@@ -136,6 +136,34 @@ export function isUndoableJump(entry: HistoryReport): boolean {
   );
 }
 
+/** How long the notification's and car's Back stays after a jump (`BackOffer` on Android). */
+export const BACK_OFFER_MS = 30_000;
+/** A jump that lands this close to where the one before it started goes back there. */
+const BACK_MATCH_MS = 1_000;
+
+/**
+ * Whether the player's bar offers going back after [entry], with [log] the book's log newest
+ * first. Not for a jump that itself goes back to where the one before it started, as the
+ * notification's Back does: offering to undo that would only repeat the jump.
+ */
+export function offersGoBack(
+  log: readonly HistoryEntry[],
+  entry: HistoryEntry,
+  now: number,
+): boolean {
+  if (!isUndoableJump(entry) || now - entry.at > UNDO_SHOWN_MS) return false;
+  // Only the notification and the car have a Back of their own.
+  if (entry.source !== 'notification' && entry.source !== 'car') return true;
+  const index = log.findIndex((e) => e.id === entry.id);
+  const before = index < 0 ? undefined : log[index + 1];
+  return !(
+    before !== undefined &&
+    isUndoableJump(before) &&
+    entry.at - before.at <= BACK_OFFER_MS &&
+    Math.abs(entry.toMs - before.fromMs) <= BACK_MATCH_MS
+  );
+}
+
 /**
  * Adds a report to the profile's log, merging a run of skips, and keeps the book's log short.
  * Returns the entry as stored, or null when nothing was kept: its book is no longer in the

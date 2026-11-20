@@ -27,6 +27,15 @@ class PlaybackHistoryTest {
     assertEquals(emptyList<HistoryReport>(), PlaybackHistory.decode(null))
   }
 
+  @Test fun aSeekLandsOnItsTargetAcrossFiles() {
+    val durations = listOf(60_000L, 120_000L, 0L)
+    assertEquals(90_000L, PlaybackHistory.landing(1, 30_000L, durations))
+    // Past a file's end stays at that end; a file of unknown length takes the place as given.
+    assertEquals(180_000L, PlaybackHistory.landing(1, 500_000L, durations))
+    assertEquals(60_000L, PlaybackHistory.landing(1, -5_000L, durations))
+    assertEquals(200_000L, PlaybackHistory.landing(2, 20_000L, durations))
+  }
+
   @Test fun namesWhereACommandCameFrom() {
     fun of(pkg: String, app: Boolean = false, notification: Boolean = false, car: Boolean = false) =
       PlaybackHistory.sourceOf(pkg, "app.lelap", app, notification, car)

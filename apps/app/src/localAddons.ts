@@ -6,9 +6,9 @@ import {
   installAddon,
   listRoots,
   localAddonUrl,
+  readManifest,
   saveLocalAddonCode,
 } from '@lelap/core';
-import { Manifest } from '@lelap/sdk';
 import * as Crypto from 'expo-crypto';
 
 import { reviewAddon } from './addonReview';
@@ -31,7 +31,7 @@ export async function installAddonFile(sourceUrl: string): Promise<boolean> {
     throw new Error(t('The file could not be loaded ({status}).', { status: response.status }));
   const code = await response.text();
   if (code.length > MAX_CODE_CHARS) throw new Error(t('The file is too large for an add-on.'));
-  const parsed = Manifest.safeParse(await previewManifest(code));
+  const parsed = readManifest(await previewManifest(code));
   if (!parsed.success) throw new Error(t('The file’s manifest is not valid.'));
   const manifest = parsed.data;
   if (!manifest.sandbox) {

@@ -1,7 +1,9 @@
 package app.lelap.audio
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EpisodeFilesTest {
@@ -19,6 +21,16 @@ class EpisodeFilesTest {
     assertEquals(auto.unmetered, EpisodeFiles.uriFor(streamed.copy(auto = null), mobileData = true))
     val downloaded = streamed.copy(uri = "file:///downloads/ep/gh42.mp3")
     assertEquals(downloaded.uri, EpisodeFiles.uriFor(downloaded, mobileData = true))
+  }
+
+  @Test fun `the app's pick of the loaded file is no new file`() {
+    val loaded = BookPlaylist("ep", "T", null, null, listOf(streamed), emptyList(), 1f)
+    // Loaded with the feed's own address, playing the small file on mobile data; the app picks it too.
+    val picked = loaded.copy(files = listOf(streamed.copy(uri = auto.metered)))
+    assertFalse(PositionJournal.filesChanged(loaded, picked, mobileData = true))
+    assertFalse(PositionJournal.filesChanged(picked, loaded, mobileData = false))
+    val downloaded = loaded.copy(files = listOf(streamed.copy(uri = "file:///downloads/ep/gh42.mp3")))
+    assertTrue(PositionJournal.filesChanged(loaded, downloaded, mobileData = true))
   }
 
   @Test fun `the pair survives the journal and the queue`() {

@@ -195,6 +195,15 @@ export function seriesRows(series: Series, list: SeriesList | null): SeriesRow[]
       matchOf.set(book, at);
     }
   }
+  // A hidden book is one the listener has: the listed book it is by title is not one they lack.
+  const hiddenBy = new Set<number>();
+  for (const title of series.heldTitles) {
+    const own = keys(title);
+    const at = titled.findIndex(
+      (k, i) => !taken.has(i) && !hiddenBy.has(i) && own.some((key) => k.has(key)),
+    );
+    if (at >= 0) hiddenBy.add(at);
+  }
   const matched = [...matchOf].map(([book, at]) => ({
     book,
     volume: volumes[at] as SeriesListVolume,
@@ -204,7 +213,8 @@ export function seriesRows(series: Series, list: SeriesList | null): SeriesRow[]
   const lacking = (i: number): SeriesRow | null => {
     const volume = volumes[i];
     const number = numbers[i] ?? null;
-    if (!volume || taken.has(i) || (number !== null && held.has(number))) return null;
+    if (!volume || taken.has(i) || hiddenBy.has(i) || (number !== null && held.has(number)))
+      return null;
     // Two works at one number (a novel and its novella): the one the library has stands for both.
     if (number !== null && numbers.some((n, j) => n === number && taken.has(j))) return null;
     return {

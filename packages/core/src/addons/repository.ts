@@ -1,4 +1,4 @@
-import { Manifest } from '@lelap/sdk';
+import type { Manifest } from '@lelap/sdk';
 import { and, asc, eq, like, sql } from 'drizzle-orm';
 
 import type { Db } from '../db';
@@ -14,6 +14,7 @@ import {
   settings,
 } from '../schema';
 import { type Fetcher, fetchManifest, type InstalledAddon } from './client';
+import { readManifest } from './manifest';
 import { pruneStreamHeaders } from './streamHeaders';
 
 /** Installed add-ons in the user's order. Rows whose stored manifest no longer parses are skipped. */
@@ -30,7 +31,7 @@ export function listAddons(db: Db): InstalledAddon[] {
       } catch {
         return [];
       }
-      const parsed = Manifest.safeParse(manifest);
+      const parsed = readManifest(manifest);
       return parsed.success
         ? [{ id: row.id, url: row.url, manifest: parsed.data, builtin: row.builtin }]
         : [];

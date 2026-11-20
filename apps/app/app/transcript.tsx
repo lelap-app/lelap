@@ -11,7 +11,7 @@ import { IconButton } from '../src/components/Icon';
 import { useReducedMotion } from '../src/components/Motion';
 import { db } from '../src/db';
 import { formatClock } from '../src/format';
-import { seekToBookPosition, usePlayerState } from '../src/player';
+import { seekToBookPosition, useLibrary, usePlayerState } from '../src/player';
 import { loadTranscript, transcriptOf } from '../src/podcasting';
 import { profileId } from '../src/profile';
 import { READABLE } from '../src/layout';
@@ -32,14 +32,17 @@ export default function TranscriptScreen() {
   const list = useRef<FlatList<TranscriptCue>>(null);
   const [heldUntil, setHeldUntil] = useState(0);
   const reduced = useReducedMotion();
+  // Read again when the library changes: an add-on's refreshed item or a sync may bring the
+  // transcript while the screen is open (M145).
+  const { version } = useLibrary();
 
-  const detail = useMemo(() => (bookId ? getBook(db, profileId, bookId) : null), [bookId]);
-  const episode = useMemo(() => (bookId ? episodeDetail(db, bookId) : null), [bookId]);
+  const detail = useMemo(() => (bookId ? getBook(db, profileId, bookId) : null), [bookId, version]);
+  const episode = useMemo(() => (bookId ? episodeDetail(db, bookId) : null), [bookId, version]);
   // A book's parts each have their own (M136): the next lecture brings its own text.
   const fileLocation = state.fileLocation;
   const source = useMemo(
     () => (bookId ? transcriptOf(bookId, fileLocation) : null),
-    [bookId, fileLocation],
+    [bookId, fileLocation, version],
   );
   // Fetched when opened and kept for the session; the web app's proxy caches it for a day.
   const transcript = useQuery({

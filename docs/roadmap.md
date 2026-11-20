@@ -150,7 +150,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M141 Web app updates](milestones/m141.md)           | Done        |           5 | An open tab of the web app offers a new deploy with a Reload button                                                                                                  |
 | [M142 Status page](milestones/m142.md)               | Planned     |             | A scheduled Worker checks the site, the web app and each service, and shows a status page                                                                            |
 | [M144 SDK 0.6](milestones/m144.md)                   | Done        |             | Publish revisions 10 to 13 as @lelap/sdk 0.6, with waitUntil, field links and groups, credential helpers and a fetch mock                                            |
-| [M145 Upkeep 2](milestones/m145.md)                  | Planned     |             | Small correctness leftovers from M102, M117, M121, M127, M138 and M83, gathered from Future goals                                                                    |
+| [M145 Upkeep 2](milestones/m145.md)                  | Done        |          10 | Small correctness leftovers from M102, M117, M121, M127, M136, M138 and M83, gathered from Future goals                                                              |
 | [M146 Home and away addresses](milestones/m146.md)   | Done        |           5 | Audiobookshelf, Jellyfin and WebDAV with a home and an outside address, switching to the one that answers                                                            |
 | [M147 Play by voice](milestones/m147.md)             | Done        |          10 | “Play X on Lelap” through the Assistant and Android Auto's voice search                                                                                              |
 | [M148 UI consistency 1](milestones/m148.md)          | Planned     |           5 | Shared header, button, empty and error states, notice and text field, swapped in on every screen                                                                     |
@@ -178,11 +178,11 @@ when it is planned.
   field and forbid lasting copies (so no Google fields in downloads or sync), it has no narrators or
   lengths, and its coverage of Danish editions is unknown until a key exists. Apple's iTunes Search
   API is out unless a store link is shown beside its data. M137 is left unused.
-- **Part transcripts, finer points (after M136):** a synced book that another device already has
-  keeps that device's add-on reference, so transcripts an add-on adds later reach it only when it
-  opens the book's item itself (`applyBook` in `packages/core/src/sync/ops.ts`); and the transcript
-  screen reads the database only when the part changes, so transcripts written while it is open
-  show after the next part.
+- **Hook dependencies in lint (left from M145):** `react-hooks/exhaustive-deps` stays off, since
+  about 80 `useMemo` calls list the library's `version` to read the database again, which the rule
+  calls unnecessary, and the few missing dependencies it finds are deliberate. A
+  `useLibraryMemo(read, deps)` that adds `version` itself, named in the rule's `additionalHooks`,
+  would let it run.
 - **Kotlin tests for the fold and headless modules in CI:** `:lelap-fold:testDebugUnitTest` (M113)
   and `:lelap-headless:testDebugUnitTest` (M123) pass locally but aren't in the `android-unit-tests`
   job's Gradle line in `ci.yml`. Adding them doesn't change when the job runs; waiting on the

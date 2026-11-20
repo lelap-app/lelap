@@ -1,4 +1,5 @@
 import { isLocalAddonUrl } from './local';
+import { readManifest } from './manifest';
 import {
   ArtworkImage,
   artworkPath,
@@ -98,7 +99,7 @@ async function getJson(fetcher: Fetcher, url: string, fresh = false): Promise<un
 }
 
 export async function fetchManifest(fetcher: Fetcher, manifestUrl: string): Promise<Manifest> {
-  const parsed = Manifest.safeParse(await getJson(fetcher, manifestUrl));
+  const parsed = readManifest(await getJson(fetcher, manifestUrl));
   if (!parsed.success)
     throw new AddonRequestError(manifestUrl, null, 'This is not a Lelap add-on manifest');
   return parsed.data;

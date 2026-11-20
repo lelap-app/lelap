@@ -69,6 +69,16 @@ object PlaybackHistory {
     else -> OTHER
   }
 
+  /**
+   * The whole-book place a seek to [positionMs] in file [index] lands on: the target, since a Cast
+   * receiver goes on reporting the place before the seek for a moment. Within a file of known length.
+   */
+  fun landing(index: Int, positionMs: Long, durations: List<Long>): Long {
+    val length = durations.getOrElse(index) { 0L }
+    val inFile = if (length > 0) positionMs.coerceIn(0L, length) else positionMs.coerceAtLeast(0L)
+    return SleepBoundary.bookPosition(index, inFile, durations)
+  }
+
   fun append(json: String?, entry: HistoryReport): String = encode((decode(json) + entry).takeLast(LIMIT))
 
   fun encode(list: List<HistoryReport>): String = JSONArray().apply {

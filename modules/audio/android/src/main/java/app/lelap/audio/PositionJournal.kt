@@ -124,11 +124,13 @@ object PositionJournal {
     current != null && mediaItemCount > 0 && current.bookId == load.playlist.bookId
 
   /**
-   * Whether the same book comes with other file addresses (a download finished, was removed or
-   * moved), so the player must switch to them at its live place.
+   * Whether the same book comes with other files (a download finished, was removed or moved), so
+   * the player must switch to them at its live place. An episode's automatic file compares as the
+   * file [EpisodeFiles] picks on this connection, so the app's own pick of it switches nothing.
    */
-  fun filesChanged(current: BookPlaylist, next: BookPlaylist): Boolean =
-    current.files.map { it.uri } != next.files.map { it.uri } || current.headers != next.headers
+  fun filesChanged(current: BookPlaylist, next: BookPlaylist, mobileData: Boolean): Boolean =
+    current.files.map { EpisodeFiles.uriFor(it, mobileData) } != next.files.map { EpisodeFiles.uriFor(it, mobileData) } ||
+      current.headers != next.headers
 
   /** [playlist] at the speed the player plays now, which any controller may have changed. */
   fun withSpeed(playlist: BookPlaylist, speed: Float): BookPlaylist {

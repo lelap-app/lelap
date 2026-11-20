@@ -123,7 +123,7 @@ export function SpikeScreen() {
           keyboardType="number-pad"
           placeholder="LibriVox book ID"
           accessibilityLabel="LibriVox book ID"
-          placeholderTextColor="#777"
+          placeholderTextColor="#8d8a83"
           style={styles.input}
         />
         <Button label={loading ? 'Loading…' : 'Load'} onPress={() => void load()} />

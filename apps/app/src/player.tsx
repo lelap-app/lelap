@@ -5,7 +5,8 @@ import {
   carShelves,
   continueListening,
   episodeBook,
-  deviceValue,
+  PLAYER_PROFILE_KEY,
+  playerProfileOf,
   setDeviceValue,
   finishFromPlayer,
   listUpNext,
@@ -164,14 +165,13 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
   return next;
 }
 
-const PLAYER_PROFILE = 'playerProfile';
 const JOURNAL_WAIT_MS = 1_500;
 
 /**
  * The profile the loaded book was loaded for. Its places go there, even after the listener has
  * switched profile, so one person's place never lands in another's.
  */
-export const playerProfile = () => deviceValue(db, PLAYER_PROFILE) ?? profileId;
+export const playerProfile = () => playerProfileOf(db, profileId);
 
 /**
  * Folds the service's journal into the database, for places saved while the app was closed. A
@@ -478,7 +478,7 @@ async function load(
     await audio.settleAccounting().catch(() => {});
     await foldServiceAccounting(playerProfile());
   }
-  setDeviceValue(db, PLAYER_PROFILE, profileId, Date.now());
+  setDeviceValue(db, PLAYER_PROFILE_KEY, profileId, Date.now());
   await audio.load(book, autoplay);
   // The listener's Play from the library, for the history (M138).
   if (autoplay) await logged('play', async () => {}, undefined, bookId);

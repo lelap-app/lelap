@@ -108,7 +108,9 @@ export default function RootLayout() {
   if (error) {
     return (
       <View className="flex-1 justify-center bg-night p-6">
-        <Text className="text-danger">Lelap could not open its library: {error.message}</Text>
+        <Text className="text-danger" accessibilityLiveRegion="assertive">
+          Lelap could not open its library: {error.message}
+        </Text>
       </View>
     );
   }

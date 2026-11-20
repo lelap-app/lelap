@@ -92,7 +92,7 @@ export function AddonReviewHost() {
           {t('What it can do')}
         </Text>
         <View className="gap-3 pb-4">
-          {addonPermissions(manifest, url).map((p) => (
+          {addonPermissions(manifest, url, t).map((p) => (
             <View key={p.kind} className="flex-row gap-3">
               <Icon name={ICONS[p.kind]} size={20} color={p.notable ? colors.amber : colors.soft} />
               <Text className={`flex-1 text-sm ${p.notable ? 'text-amber' : 'text-paper'}`}>

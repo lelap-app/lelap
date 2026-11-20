@@ -421,7 +421,7 @@ export function CastSheet({
           })}
           {startFailed !== null ? (
             <View className="gap-3 py-3">
-              <Text className="text-paper">
+              <Text className="text-paper" accessibilityLiveRegion="polite">
                 {t(
                   'Lelap couldn’t start looking for Google Cast and FCast devices (code {code}).',
                   {

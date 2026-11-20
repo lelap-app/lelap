@@ -4,9 +4,12 @@ import {
   type HistoryAction,
   type HistoryEntry,
   type HistoryReport,
+  playerProfileOf,
   pruneHistory,
   readReport,
   recordHistory,
+  skipLanding,
+  type TimelineFile,
   toBookPosition,
 } from '@lelap/core';
 import { useEffect, useState } from 'react';
@@ -47,16 +50,29 @@ export function useHistoryVersion(): number {
   return version;
 }
 
-/** The loaded book, its whole-book place now and its length. */
-async function placeNow(): Promise<{ bookId: string; ms: number; totalMs: number } | null> {
+/** The profile the player plays for, whose log its taps go to, even after a switch on screen. */
+const tapProfile = () => playerProfileOf(db, profileId);
+
+/** The loaded book's place now: whole-book, and in its file. */
+type Place = {
+  bookId: string;
+  ms: number;
+  files: TimelineFile[];
+  location: string;
+  positionMs: number;
+};
+
+async function placeNow(): Promise<Place | null> {
   const state = await audio.getState();
   if (!state.bookId || !state.fileLocation) return null;
-  const detail = getBook(db, profileId, state.bookId);
+  const detail = getBook(db, tapProfile(), state.bookId);
   if (!detail) return null;
   return {
     bookId: state.bookId,
     ms: toBookPosition(detail.files, state.fileLocation, state.positionMs),
-    totalMs: detail.book.durationMs,
+    files: detail.files,
+    location: state.fileLocation,
+    positionMs: state.positionMs,
   };
 }
 
@@ -68,20 +84,20 @@ async function placeNow(): Promise<{ bookId: string; ms: number; totalMs: number
 export async function logged(
   action: Exclude<HistoryAction, 'sleep'>,
   run: () => Promise<void>,
-  to?: (fromMs: number, totalMs: number) => number,
+  to?: (before: Place) => number,
   bookId?: string,
 ): Promise<void> {
   const before = await placeNow().catch(() => null);
   await run();
   // Right after a load the player may still report the last book; that place says nothing here.
   if (!before || (bookId !== undefined && before.bookId !== bookId)) return;
-  keep(profileId, {
+  keep(tapProfile(), {
     bookId: before.bookId,
     action,
     source: 'app',
     at: Date.now(),
     fromMs: before.ms,
-    toMs: to ? to(before.ms, before.totalMs) : before.ms,
+    toMs: to ? to(before) : before.ms,
   });
 }
 
@@ -92,11 +108,12 @@ export function playPause(playing: boolean): Promise<void> {
 
 /** Back or forward by the skip interval from one of the app's buttons. */
 export function skip(forward: boolean): Promise<void> {
+  // The service skips by the settings last sent to it: the profile on screen's.
   const step = getSettings(db, profileId).skipIntervalMs * (forward ? 1 : -1);
   return logged(
     'skip',
     () => audio.skip(forward),
-    (from, total) => Math.max(0, total > 0 ? Math.min(total, from + step) : from + step),
+    (p) => skipLanding(p.files, p.location, p.positionMs, step),
   );
 }
 
