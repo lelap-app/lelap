@@ -24,6 +24,7 @@ type LelapLibraryModule = {
   listTree(uri: string): Promise<ListedFile[]>;
   readTags(uri: string, name: string, coverDir: string): Promise<NativeTags>;
   readImage(uri: string, coverDir: string, fileName: string | null): Promise<string | null>;
+  saveRemote(url: string, headers: Record<string, string>, path: string): Promise<void>;
   imageSize(uri: string): Promise<{ width: number; height: number } | null>;
   readRemoteTags(
     url: string,
@@ -84,6 +85,18 @@ export function readImage(
   fileName: string | null = null,
 ): Promise<string | null> {
   return native.readImage(uri, coverDir, fileName);
+}
+
+/**
+ * Saves a server's file, such as a cover, at `path` with `headers` (its login); a Digest login
+ * among them is answered (M135). At most 32 MB.
+ */
+export function saveRemote(
+  url: string,
+  headers: Record<string, string>,
+  path: string,
+): Promise<void> {
+  return native.saveRemote(url, headers, path);
 }
 
 /** An image's width and height from its header, without decoding it; null when unknown. */

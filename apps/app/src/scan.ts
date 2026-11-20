@@ -21,6 +21,8 @@ import {
   filesNeedingTags,
   fillTags,
   folderCoverCacheName,
+  hasDigestLogin,
+  libraryHeaders,
   folderCoverFiles,
   IMAGE_HEAD_BYTES,
   imageSize,
@@ -54,6 +56,7 @@ import {
   readImage,
   readRemoteTags,
   readTags,
+  saveRemote,
 } from './platform/library';
 import { currentLocalNetworkAccess, isLocalServer, markNeedsLocalNetwork } from './localNetwork';
 import { listNetServer } from './netServers';
@@ -151,6 +154,9 @@ async function fetchFolderCover(root: Root, file: ListedFile): Promise<string | 
   try {
     if (root.remote?.type === 'smb' || root.remote?.type === 'sftp') {
       await copyTo(access.uri, access.headers, pathOf(part));
+    } else if (hasDigestLogin(access.headers)) {
+      // Expo can't answer a Digest login (M135); the native code does.
+      await saveRemote(access.uri, access.headers, pathOf(part));
     } else {
       await File.downloadFileAsync(access.uri, part, { headers: access.headers });
     }
@@ -180,6 +186,8 @@ async function imageSizeOf(root: Root, file: ListedFile): Promise<ImageSize | nu
   if (!root.remote) return readImageSize(file.uri);
   if (root.remote.type === 'smb' || root.remote.type === 'sftp') return null;
   const access = fileAccess({ uri: file.uri, rootId: root.id });
+  // `fetch` can't answer a Digest login (M135): such a guess goes by file size.
+  if (hasDigestLogin(access.headers)) return null;
   const response = await fetch(access.uri, {
     headers: { ...access.headers, Range: `bytes=0-${IMAGE_HEAD_BYTES - 1}` },
   });
@@ -332,6 +340,7 @@ async function run(onProgress: (done: number, total: number) => void): Promise<S
       folderCovers,
       fileCovers,
       looseCovers,
+      ...(fromAddon ? { kinds: fromAddon.kinds } : {}),
       now: Date.now(),
       newId,
     });
@@ -464,7 +473,8 @@ async function scanAddonSource(
   }
   forgetLocated(root.id);
   const login = addonLogin(remote);
-  const headers = response.headers ?? {};
+  // A Digest login (revision 12) travels sealed with the headers, for the native code to answer.
+  const headers = libraryHeaders(response);
   const query = response.query ?? {};
   const webQuery = response.webQuery ?? {};
   if (

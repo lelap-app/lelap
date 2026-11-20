@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { AddonError, CORS_HEADERS, createAddon } from './addon';
 import { PAGE_STYLE } from './config';
 import { catalogPath, metaPath, streamPath } from './paths';
-import type { Manifest } from './protocol';
+import { LATEST_PROTOCOL_VERSION, type Manifest } from './protocol';
 
 // Long and unusual: a short one like `pw` turns up by chance in sealed base64 now and then.
 const PASSWORD = 'correct-horse-battery-staple';
@@ -53,7 +53,7 @@ describe('createAddon', () => {
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
     expect(await response.json()).toEqual({
       ...manifest,
-      protocolVersion: 11,
+      protocolVersion: LATEST_PROTOCOL_VERSION,
       behaviorHints: { health: true },
     });
   });

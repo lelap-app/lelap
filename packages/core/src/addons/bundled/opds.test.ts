@@ -1,7 +1,8 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
-import { LibraryResponse, readSettings, settingHosts } from '@lelap/sdk';
+import { LibraryResponse, type PlaceReport, readSettings, settingHosts } from '@lelap/sdk';
 import { describe, expect, it } from 'vitest';
 
 import { hostAllowed } from '../local';
@@ -13,8 +14,9 @@ import { bundledAddon } from './index';
 const dir = new URL('./', import.meta.url);
 const fixture = (name: string) => readFileSync(new URL(`fixtures/opds/${name}`, dir), 'utf8');
 
-type Reply = { status: number; body: string; type?: string };
-type Server = (url: string, headers: Record<string, string>) => Reply;
+type Reply = { status: number; body: string; type?: string; headers?: Record<string, string> };
+type Asked = { url: string; headers: Record<string, string>; method: string; body?: string };
+type Server = (url: string, headers: Record<string, string>, asked: Asked) => Reply;
 
 const ATOM = 'application/atom+xml; charset=UTF-8';
 const OPDS2 = 'application/opds+json';
@@ -30,24 +32,37 @@ function run(settings: Record<string, string>, server: Server) {
   const read = readSettings(fields, settings);
   if ('error' in read) throw new Error(read.error);
   const hosts = [...(manifest?.sandbox?.hosts ?? []), ...settingHosts(fields, read.settings)];
-  const asked: { url: string; headers: Record<string, string> }[] = [];
+  const asked: Asked[] = [];
   let library: ((args: unknown) => Promise<unknown>) | null = null;
+  let place: ((args: unknown) => Promise<unknown>) | null = null;
   runInNewContext(readFileSync(new URL('opds.js', dir), 'utf8'), {
-    addon: (definition: { library: typeof library }) => {
+    addon: (definition: { library: typeof library; place: typeof place }) => {
       library = definition.library;
+      place = definition.place;
     },
     lelap: {
-      fetch: async (url: string, init?: { headers?: Record<string, string> }) => {
+      fetch: async (
+        url: string,
+        init?: { headers?: Record<string, string>; method?: string; body?: string },
+      ) => {
         if (!hostAllowed(url, hosts)) throw new Error(`Not allowed: ${url}`);
         const headers = init?.headers ?? {};
-        asked.push({ url, headers });
-        const reply = server(url, headers);
+        const request: Asked = {
+          url,
+          headers,
+          method: init?.method ?? 'GET',
+          ...(init?.body === undefined ? {} : { body: init.body }),
+        };
+        asked.push(request);
+        const reply = server(url, headers, request);
         return {
           ok: reply.status >= 200 && reply.status < 300,
           status: reply.status,
           headers: {
             get: (name: string) =>
-              name.toLowerCase() === 'content-type' ? (reply.type ?? null) : null,
+              name.toLowerCase() === 'content-type'
+                ? (reply.type ?? null)
+                : (reply.headers?.[name.toLowerCase()] ?? null),
           },
           text: async () => reply.body,
         };
@@ -56,7 +71,12 @@ function run(settings: Record<string, string>, server: Server) {
     URL,
     TextEncoder,
     btoa,
+    crypto: globalThis.crypto,
   });
+  const report = (args: { settings?: Record<string, string>; place: PlaceReport }) => {
+    if (!place) throw new Error('opds.js has no place handler');
+    return place({ settings: read.settings, ...args });
+  };
   const call = async (cursor?: string) => {
     if (!library) throw new Error('opds.js never called addon()');
     return LibraryResponse.parse(
@@ -74,7 +94,7 @@ function run(settings: Record<string, string>, server: Server) {
     }
     return { ...first, files, calls };
   };
-  return { call, list, asked };
+  return { call, list, asked, report };
 }
 
 function calibre(origin: string): Server {
@@ -93,7 +113,7 @@ function calibre(origin: string): Server {
 
 describe('OPDS', () => {
   it('is a library source whose only host is the address the listener types', () => {
-    expect(manifest?.resources).toEqual(['library']);
+    expect(manifest?.resources).toEqual(['library', 'place']);
     expect(manifest?.sandbox?.hosts).toEqual([]);
     expect(fields.find((f) => f.key === 'url')).toMatchObject({ type: 'url', host: true });
   });
@@ -115,6 +135,7 @@ describe('OPDS', () => {
         artist: 'Arthur Conan Doyle',
         albumArtist: 'Arthur Conan Doyle',
         ids: ['isbn:9780140437867'],
+        series: [{ name: 'Sherlock Holmes', position: '5' }],
       },
       {
         path: 'Arthur Conan Doyle/The Hound of the Baskervilles/cover.jpg',
@@ -205,9 +226,9 @@ describe('OPDS', () => {
     const expected = `Basic ${Buffer.from('kåre:pass:word', 'utf8').toString('base64')}`;
     const { list, asked } = run(
       { url: `${origin}/opds`, user: 'kåre', password: 'pass:word' },
-      (url, headers) =>
+      (url, headers, asked) =>
         headers.Authorization === expected
-          ? calibre(origin)(url, headers)
+          ? calibre(origin)(url, headers, asked)
           : { status: 401, body: '', type: 'text/plain' },
     );
     const result = await list();
@@ -375,5 +396,252 @@ describe('OPDS', () => {
       'Søren & Co/Tom & Jerry live/Tom & Jerry live.ogg',
     ]);
     expect(asked.some((a) => a.url.includes('fiction'))).toBe(false);
+  });
+});
+
+// M135: Digest logins, a book's summary, language and series, and OPDS Progression places.
+
+const md5 = (text: string) => createHash('md5').update(text, 'utf8').digest('hex');
+
+/** A Calibre server with its default login without https: Digest only, Basic turned down. */
+function digestOnly(origin: string, user: string, password: string): Server {
+  const realm = 'calibre';
+  const nonce = 'b1a2c3';
+  const challenge = {
+    'www-authenticate': `Digest realm="${realm}", nonce="${nonce}", qop="auth", algorithm="MD5"`,
+  };
+  return (url, headers, asked) => {
+    const auth = headers.Authorization ?? '';
+    if (auth.startsWith('Basic '))
+      return { status: 400, body: 'Unsupported authentication method', type: 'text/plain' };
+    const params = Object.fromEntries(
+      [...auth.matchAll(/(\w+)=(?:"([^"]*)"|([^\s,]+))/g)].map((m) => [m[1], m[2] ?? m[3]]),
+    );
+    const { pathname, search } = new URL(url);
+    // As Calibre does: the `uri` must be this request's own path.
+    const ok =
+      auth.startsWith('Digest ') &&
+      params.uri === pathname + search &&
+      params.response ===
+        md5(
+          `${md5(`${user}:${realm}:${password}`)}:${nonce}:${params.nc}:${params.cnonce}:auth:${md5(`${asked.method}:${params.uri}`)}`,
+        );
+    if (!ok) return { status: 401, body: '', type: 'text/plain', headers: challenge };
+    return calibre(origin)(url, headers, asked);
+  };
+}
+
+describe('OPDS 2 (M135)', () => {
+  it('answers Calibre’s Digest login for every feed, and hands the app the login for the audio', async () => {
+    const origin = 'http://192.168.1.20:8080';
+    const { list, asked } = run(
+      { url: `${origin}/opds`, user: 'kåre', password: 'blå bær' },
+      digestOnly(origin, 'kåre', 'blå bær'),
+    );
+    const result = await list();
+    expect(result.files.filter((f) => !f.path.endsWith('cover.jpg'))).toHaveLength(2);
+    expect(result.digest).toEqual({ username: 'kåre', password: 'blå bær' });
+    expect(result.headers).toBeUndefined();
+    // Basic once, asked without a login for the challenge once, then every feed answered at once
+    // with its own path.
+    const [basic, bare, ...feeds] = asked;
+    expect(basic?.headers.Authorization).toMatch(/^Basic /);
+    expect(bare?.headers.Authorization).toBeUndefined();
+    expect(feeds.length).toBeGreaterThan(2);
+    for (const feed of feeds) {
+      const { pathname, search } = new URL(feed.url);
+      expect(feed.headers.Authorization).toContain(`uri="${pathname}${search}"`);
+    }
+  });
+
+  it('says the password is wrong when the Digest answer is turned down', async () => {
+    const origin = 'http://192.168.1.20:8080';
+    await expect(
+      run(
+        { url: `${origin}/opds`, user: 'kåre', password: 'wrong' },
+        digestOnly(origin, 'kåre', 'right'),
+      ).list(),
+    ).rejects.toThrow('refused the user name or password');
+  });
+
+  it('takes a Calibre entry’s summary, language and series from its content', async () => {
+    const feed = `<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/terms/">
+  <id>urn:calibre:x</id>
+  <entry>
+    <title>Dune</title>
+    <author><name>Frank Herbert</name></author>
+    <id>urn:uuid:1</id>
+    <dc:language>en</dc:language>
+    <content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml">TAGS: Science Fiction<br/>SERIES: Dune [1]<br/><p>A desert planet.</p><p>Spice.</p></div></content>
+    <link type="audio/mp4" href="/get/m4b/7/Lib" rel="http://opds-spec.org/acquisition"/>
+  </entry>
+</feed>`;
+    const { list } = run({ url: 'http://nas.local/opds' }, () => atom(feed));
+    const [file] = (await list()).files;
+    expect(file).toMatchObject({
+      description: 'A desert planet.\nSpice.',
+      language: 'en',
+      series: [{ name: 'Dune', position: '1' }],
+    });
+  });
+
+  const PROGRESSION = 'application/opds-progression+json';
+  const catalog = (progression: unknown, reply?: (asked: Asked) => Reply): Server => {
+    const feed = {
+      metadata: { title: 'Audiobooks' },
+      publications: [
+        {
+          metadata: {
+            title: 'Pride and Prejudice',
+            author: 'Jane Austen',
+            identifier: 'urn:uuid:pp',
+            description: '<p>A <b>novel</b> of manners.</p>',
+            language: ['en', 'fr'],
+            belongsTo: { series: [{ name: 'Austen Classics', position: 2 }] },
+          },
+          links: [
+            { rel: 'http://opds-spec.org/progression', type: PROGRESSION, href: '/progress/pp' },
+          ],
+          readingOrder: [
+            { href: '/audio/pp-1.mp3', type: 'audio/mpeg', duration: 1000 },
+            { href: '/audio/pp-2.mp3', type: 'audio/mpeg', duration: 2000 },
+          ],
+        },
+      ],
+    };
+    return (url, _headers, asked) => {
+      const { pathname } = new URL(url);
+      if (pathname === '/opds') return json(JSON.stringify(feed));
+      if (pathname === '/progress/pp') {
+        if (reply) return reply(asked);
+        return { status: 200, body: JSON.stringify(progression), type: PROGRESSION };
+      }
+      return missing;
+    };
+  };
+
+  it('reads an OPDS 2 book’s description, language and series, and its place from the progression service', async () => {
+    const { list } = run(
+      { url: 'https://books.example/opds' },
+      catalog({
+        modified: '2026-11-01T12:00:00Z',
+        device: { id: 'urn:x:other', name: 'Other' },
+        progression: 0.5,
+        references: ['/audio/pp-2.mp3#t=500.25'],
+      }),
+    );
+    const { files } = await list();
+    expect(files[0]).toMatchObject({
+      description: 'A novel of manners.',
+      language: 'en',
+      series: [{ name: 'Austen Classics', position: '2' }],
+      ref: 'https://books.example/progress/pp',
+    });
+    expect(files[0]?.place).toBeUndefined();
+    expect(files[1]).toMatchObject({
+      ref: 'https://books.example/progress/pp',
+      place: { positionMs: 500_250, at: Date.UTC(2026, 10, 1, 12) },
+    });
+    expect(files[1]).not.toHaveProperty('description');
+  });
+
+  it('places a time without a file, or a share of the book, on the right file', async () => {
+    const at = '2026-11-01T12:00:00Z';
+    const device = { id: 'urn:x:other', name: 'Other' };
+    const time = await run(
+      { url: 'https://books.example/opds' },
+      catalog({ modified: at, device, progression: 0.9, references: ['#t=1500'] }),
+    ).list();
+    expect(time.files[1]?.place?.positionMs).toBe(500_000);
+    const share = await run(
+      { url: 'https://books.example/opds' },
+      catalog({ modified: at, device, progression: 1 }),
+    ).list();
+    expect(share.files[1]?.place).toEqual({
+      positionMs: 2_000_000,
+      at: Date.parse(at),
+      played: true,
+    });
+    // Nothing kept yet, or a broken answer: the book lists without a place.
+    for (const reply of [
+      () => ({ status: 200, body: '', type: PROGRESSION }),
+      () => ({ status: 500, body: 'oops', type: 'text/plain' }),
+      () => ({ status: 200, body: '{not json', type: PROGRESSION }),
+    ]) {
+      const { files } = await run(
+        { url: 'https://books.example/opds' },
+        catalog(null, reply),
+      ).list();
+      expect(files.map((f) => f.place)).toEqual([undefined, undefined]);
+      expect(files).toHaveLength(2);
+    }
+  });
+
+  it('saves a place to the progression service with the share of the book and the time in the file', async () => {
+    const puts: Asked[] = [];
+    let status = 200;
+    const { report } = run(
+      { url: 'https://books.example/opds' },
+      catalog(null, (asked) => {
+        if (asked.method === 'PUT') puts.push(asked);
+        return { status, body: asked.body ?? '', type: PROGRESSION };
+      }),
+    );
+    const [first, second] = [
+      {
+        path: 'Jane Austen/Pride/001.mp3',
+        url: 'https://books.example/audio/pp-1.mp3',
+        durationMs: 1_000_000,
+        ref: 'https://books.example/progress/pp',
+      },
+      {
+        path: 'Jane Austen/Pride/002.mp3',
+        url: 'https://books.example/audio/pp-2.mp3',
+        durationMs: 2_000_000,
+        ref: 'https://books.example/progress/pp',
+      },
+    ];
+    const files = [first, second];
+    const place: PlaceReport = {
+      file: second,
+      files,
+      positionMs: 500_250,
+      at: Date.UTC(2026, 10, 2, 8),
+      finished: false,
+    };
+    expect(await report({ place })).toEqual({ saved: true });
+    expect(puts).toHaveLength(1);
+    expect(puts[0]?.headers['Content-Type']).toBe(PROGRESSION);
+    expect(JSON.parse(puts[0]?.body ?? '')).toEqual({
+      modified: '2026-11-02T08:00:00.000Z',
+      device: { id: 'urn:x-lelap:app', name: 'Lelap' },
+      progression: 0.500083,
+      references: ['https://books.example/audio/pp-2.mp3#t=500.250'],
+    });
+    expect(
+      JSON.parse((await report({ place: { ...place, finished: true } }), puts[1]?.body ?? ''))
+        .progression,
+    ).toBe(1);
+    // Without every file's length the share would be a guess: nothing is sent yet.
+    const unsure = files.map((f, i) => (i === 1 ? { path: f.path, url: f.url, ref: f.ref } : f));
+    expect(await report({ place: { ...place, file: unsure[1] ?? second, files: unsure } })).toEqual(
+      { saved: false },
+    );
+    expect(puts).toHaveLength(2);
+    // A newer place on the server is no failure; a server error is tried again later.
+    status = 409;
+    expect(await report({ place })).toEqual({ saved: false });
+    status = 503;
+    await expect(report({ place })).rejects.toThrow('HTTP 503');
+    // A book without a progression service, or one on another server, saves nothing.
+    const plain = files.map((f) => ({ path: f.path, url: f.url, durationMs: f.durationMs }));
+    expect(await report({ place: { ...place, file: plain[1] ?? second, files: plain } })).toEqual({
+      saved: false,
+    });
+    const away = files.map((f) => ({ ...f, ref: 'https://elsewhere.example/p' }));
+    expect(await report({ place: { ...place, file: away[1] ?? second, files: away } })).toEqual({
+      saved: false,
+    });
   });
 });

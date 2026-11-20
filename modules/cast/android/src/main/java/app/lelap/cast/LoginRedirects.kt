@@ -23,27 +23,46 @@ object LoginRedirects {
 
   /**
    * Opens [url], following redirects by hand: [headers] are sent while the address stays on the
-   * first server and dropped once a redirect leaves it. [configure] sets the rest of each request.
+   * first server and dropped once a redirect leaves it. A Digest login among them
+   * ([HttpDigest.LOGIN_HEADER], M135) is answered there instead of sent. [configure] sets the rest
+   * of each request.
    */
   fun open(url: String, headers: Map<String, String>, configure: (HttpURLConnection) -> Unit): HttpURLConnection {
+    val (plain, digest) = HttpDigest.split(headers)
     val origin = URL(url)
     var current = origin
-    repeat(MAX_REDIRECTS) {
+    var redirects = 0
+    var answered = false
+    while (true) {
       if (current.protocol != "http" && current.protocol != "https") throw IOException("Not a web address.")
       val c = current.openConnection() as HttpURLConnection
       c.instanceFollowRedirects = false
       configure(c)
-      if (sameServer(origin, current)) headers.forEach { (name, value) -> c.setRequestProperty(name, value) }
+      val own = sameServer(origin, current)
+      if (own) {
+        plain.forEach { (name, value) -> c.setRequestProperty(name, value) }
+        if (digest != null) HttpDigest.answer(current, digest, c.requestMethod)?.let { c.setRequestProperty("Authorization", it) }
+      }
       val code = c.responseCode
+      // Refused: once more with the server's new challenge, such as for a nonce gone stale.
+      if (code == 401 && own && digest != null && !answered) {
+        val challenge = HttpDigest.challenge(HttpDigest.challenges(c))
+        if (challenge != null) {
+          c.disconnect()
+          HttpDigest.remember(current, digest, challenge)
+          answered = true
+          continue
+        }
+      }
       val location = c.getHeaderField("Location")
       if (code in 300..399 && code != 304 && location != null) {
         c.disconnect()
+        if (++redirects >= MAX_REDIRECTS) throw IOException("Too many redirects.")
         current = URL(current, location)
       } else {
         return c
       }
     }
-    throw IOException("Too many redirects.")
   }
 
   /** Where [url] ends up after its redirects, and whether that is still the first server. */

@@ -13,6 +13,7 @@ import {
   libraryRoots,
   placeOutbox,
   progress,
+  type KindTags,
   type StoredChapter,
 } from '../schema';
 import { addonRootLocation } from '../remote/addon';
@@ -199,14 +200,39 @@ export type ApplyScanArgs = {
   fileCovers?: Map<string, string>;
   /** Covers for books that are single files in a folder, by folder location (`forLoose`). */
   looseCovers?: Map<string, string>;
+  /**
+   * What a server says about a file's book (revision 12): its series, description and language,
+   * by file location. They take the place of the file's own, read now or stored.
+   */
+  kinds?: Map<string, ServerKinds>;
   now: number;
   newId: IdGenerator;
 };
+
+export type ServerKinds = Partial<Pick<KindTags, 'series' | 'description' | 'language'>>;
+
+const NO_KINDS: KindTags = {
+  genre: null,
+  isrc: null,
+  track: null,
+  year: null,
+  narrator: null,
+  mediaKind: null,
+};
+
+/** A file's kind tags with what its server says on top. */
+export function withServerKinds(
+  kindTags: KindTags | null | undefined,
+  kinds: ServerKinds,
+): KindTags {
+  return { ...(kindTags ?? NO_KINDS), ...kinds };
+}
 
 /** Brings the library in line with a listing of its folder. */
 export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing: number } {
   const { rootId, rootLocation, listed, tags, folderCovers, fileCovers, looseCovers, now, newId } =
     args;
+  const kinds = args.kinds;
 
   return db.transaction((tx) => {
     const storedFiles = new Map(
@@ -243,7 +269,7 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
       if (!isAudioFile(file.name)) continue;
       listedLocations.add(file.location);
       const stored = storedFiles.get(file.location);
-      const fileTags =
+      const ownTags =
         tags.get(file.location) ??
         (stored
           ? {
@@ -258,11 +284,16 @@ export function applyScan(db: Db, args: ApplyScanArgs): { added: number; missing
               kindTags: stored.kindTags,
             }
           : NO_TAGS);
+      const kind = kinds?.get(file.location);
+      const fileTags = kind
+        ? { ...ownTags, kindTags: withServerKinds(ownTags.kindTags, kind) }
+        : ownTags;
       scanned.push({ ...file, ...fileTags });
       const row = {
         rootId,
         uri: file.uri,
         downloadUri: file.downloadUri ?? null,
+        ref: file.ref ?? null,
         relPath: file.relPath,
         name: file.name,
         size: file.size,
@@ -509,6 +540,7 @@ function sameFile(
     stored.rootId === row.rootId &&
     stored.uri === row.uri &&
     stored.downloadUri === row.downloadUri &&
+    stored.ref === row.ref &&
     stored.relPath === row.relPath &&
     stored.name === row.name &&
     stored.size === row.size &&

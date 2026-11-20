@@ -92,6 +92,8 @@ class AddonFetch(private val system: Dns = Dns.SYSTEM) {
       response.header("Content-Type")?.let { seen["content-type"] = it }
       response.headers("Set-Cookie").takeIf { it.isNotEmpty() }?.let { seen["set-cookie"] = it.joinToString(", ") }
       response.header("Date")?.let { seen["date"] = it }
+      // A login challenge, for an add-on that answers HTTP Digest itself (M135).
+      response.headers("WWW-Authenticate").takeIf { it.isNotEmpty() }?.let { seen["www-authenticate"] = it.joinToString(", ") }
       return AddonAnswer(response.code, response.request.url.toString(), text, seen)
     }
   }

@@ -9,7 +9,7 @@ import { exportLibrary } from '../backup';
 import { scanFailureEvent } from '../diagnostics/build';
 import { diagnosticsReport } from '../diagnostics/report';
 import { planDownload } from '../downloads';
-import { listBooks } from '../library/queries';
+import { getBook, listBooks } from '../library/queries';
 import { addRemoteRoot, applyScan, listRoots, updateRemoteRoot } from '../library/scan';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { bookFiles, libraryRoots } from '../schema';
@@ -36,6 +36,7 @@ import {
   withListedSettings,
   withQuery,
 } from './addon';
+import { DIGEST_LOGIN_HEADER, hasDigestLogin, libraryHeaders, withoutDigestLogin } from './digest';
 
 const random = (n: number) => new Uint8Array(randomBytes(n));
 let n = 0;
@@ -601,5 +602,132 @@ describe('revision 11: settings from a listing, and files located before they st
       [`${HOME}/library/parts/2/file.mp3`, null],
       [`${HOME}/library/parts/3/file.mp3`, null],
     ]);
+  });
+});
+
+describe('revision 12: what a server says about a book, its own notes, and a Digest login', () => {
+  const hosts = addonSourceHosts(manifest, { url: 'http://calibre.local:8080/' });
+  const get = (id: string) => `http://calibre.local:8080/get/m4b/${id}`;
+
+  it('takes series, description and language into the book, over the file’s own', () => {
+    const db = createTestDb();
+    const root = addRemoteRoot(
+      db,
+      addonSource({
+        addonUrl: 'lelap-local://app.lelap.test-source/manifest.json',
+        manifest,
+        key: 'k12',
+        settings: { url: 'http://calibre.local:8080/' },
+        profileId: ME,
+      }),
+      1,
+      newId,
+    );
+    const location = addonRootLocation('k12');
+    const response = LibraryResponse.parse({
+      files: [
+        {
+          path: 'Frank Herbert/Dune/Dune.m4b',
+          url: get('1'),
+          title: 'Dune',
+          description: '  A desert planet. ',
+          language: 'en',
+          series: [{ name: 'Dune', position: '1' }],
+          ref: 'http://calibre.local:8080/progression/1',
+        },
+        { path: 'Frank Herbert/Plain/Plain.m4b', url: get('2'), durationMs: 1000 },
+      ],
+    });
+    const scan = addonLibraryScan(location, response, hosts);
+    expect(scan.listed[0]?.ref).toBe('http://calibre.local:8080/progression/1');
+    expect(scan.listed[1]).not.toHaveProperty('ref');
+    expect([...scan.kinds]).toEqual([
+      [
+        `${location}/Frank Herbert/Dune/Dune.m4b`,
+        { series: 'Dune #1', description: 'A desert planet.', language: 'en' },
+      ],
+    ]);
+    // The file's own tags, as read, said another series.
+    const tags = new Map([
+      [
+        `${location}/Frank Herbert/Dune/Dune.m4b`,
+        {
+          durationMs: 5000,
+          title: 'Dune',
+          album: 'Dune',
+          artist: null,
+          albumArtist: null,
+          coverPath: null,
+          chapters: [],
+          kindTags: {
+            genre: 'Audiobook',
+            isrc: null,
+            track: null,
+            year: null,
+            narrator: 'Scott Brick',
+            mediaKind: 'audiobook',
+            series: 'Wrong',
+          },
+        },
+      ],
+      ...scan.tags,
+    ]);
+    const args = {
+      rootId: root,
+      rootLocation: location,
+      listed: scan.listed,
+      tags,
+      folderCovers: new Map<string, string>(),
+      kinds: scan.kinds,
+      now: 2,
+      newId,
+    };
+    applyScan(db, args);
+    const book = listBooks(db, ME, 'title').find((b) => b.title === 'Dune');
+    const detail = book ? getBook(db, ME, book.id) : null;
+    expect(detail).toMatchObject({
+      series: 'Dune #1',
+      narrator: 'Scott Brick',
+      description: 'A desert planet.',
+      language: 'en',
+    });
+    expect(detail?.files[0]?.ref).toBe('http://calibre.local:8080/progression/1');
+    // A scan that reads nothing keeps the stored tags and still takes the server's word.
+    applyScan(db, { ...args, tags: new Map(), now: 3 });
+    expect(getBook(db, ME, book?.id ?? '')?.description).toBe('A desert planet.');
+  });
+
+  it('hands the add-on each file’s length and note in a place report', () => {
+    const root = addonRootLocation('k12');
+    const files = [
+      { location: `${root}/A/B/1.mp3`, uri: get('1'), durationMs: 60_000.4, ref: 'p1' },
+      { location: `${root}/A/B/2.mp3`, uri: get('2'), durationMs: 0, ref: null },
+    ];
+    const report = addonPlaceReport(root, files, {
+      location: `${root}/A/B/2.mp3`,
+      positionMs: 10,
+      when: 5,
+      finished: false,
+    });
+    expect(report?.files).toEqual([
+      { path: 'A/B/1.mp3', url: get('1'), durationMs: 60_000, ref: 'p1' },
+      { path: 'A/B/2.mp3', url: get('2') },
+    ]);
+    expect(report?.file).toEqual({ path: 'A/B/2.mp3', url: get('2') });
+  });
+
+  it('carries a Digest login among the headers, and leaves it out where it can’t be answered', () => {
+    const headers = libraryHeaders({
+      headers: { 'X-Other': '1' },
+      digest: { username: 'kirsten', password: 'blåbær' },
+    });
+    expect(headers[DIGEST_LOGIN_HEADER]).toBe(
+      `${btoa('kirsten')}:${Buffer.from('blåbær').toString('base64')}`,
+    );
+    expect(hasDigestLogin(headers)).toBe(true);
+    expect(withoutDigestLogin(headers)).toEqual({ 'X-Other': '1' });
+    expect(libraryHeaders({})).toEqual({});
+    // Only to the add-on's own hosts, like any of its headers.
+    expect(headersFor('http://elsewhere.example/x.mp3', headers, hosts)).toEqual({});
   });
 });

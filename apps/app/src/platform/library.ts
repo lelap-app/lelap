@@ -10,6 +10,7 @@ export {
   readRemoteTags,
   readTags,
   removeSilences,
+  saveRemote,
   silenceStatuses,
   type SilenceStatus,
 } from '@lelap/library';

@@ -38,8 +38,8 @@ const inApp = {
 };
 
 describe('revision 11', () => {
-  it('is the newest revision', () => {
-    expect(LATEST_PROTOCOL_VERSION).toBe(11);
+  it('is known', () => {
+    expect(LATEST_PROTOCOL_VERSION).toBeGreaterThanOrEqual(11);
   });
 
   it('locates files only for an add-on inside the app with a library', () => {

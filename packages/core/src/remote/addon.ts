@@ -13,7 +13,8 @@ import {
 } from '@lelap/sdk';
 
 import { hostAllowed } from '../addons/local';
-import type { FileTags, ListedFile } from '../library/scan';
+import type { FileTags, ListedFile, ServerKinds } from '../library/scan';
+import { formatSeries } from '../library/seriesNames';
 import type { RemoteSource } from '../schema';
 import type { RemotePlace } from './jellyfin';
 
@@ -209,6 +210,8 @@ export type AddonScan = {
   refused: number;
   /** The listener's places as the source keeps them, by file location (revision 6). */
   places: RemotePlace[];
+  /** What the add-on says about each file's book (revision 12): series, description, language. */
+  kinds: Map<string, ServerKinds>;
 };
 
 /**
@@ -226,6 +229,7 @@ export function addonLibraryScan(
   const hints = new Map<string, TagHints>();
   const covers = new Map<string, string>();
   const places: RemotePlace[] = [];
+  const kinds = new Map<string, ServerKinds>();
   const seen = new Set<string>();
   let refused = 0;
   for (const file of response.files) {
@@ -248,7 +252,10 @@ export function addonLibraryScan(
       modifiedAt: file.modifiedAt ?? 0,
       uri: file.url,
       ...(downloadUri ? { downloadUri } : {}),
+      ...(file.ref ? { ref: file.ref } : {}),
     });
+    const kind = serverKinds(file);
+    if (kind) kinds.set(location, kind);
     if (file.place) {
       places.push({
         fileLocation: location,
@@ -287,7 +294,19 @@ export function addonLibraryScan(
       covers.set(location, file.cover);
     }
   }
-  return { listed, tags, hints, covers, refused, places };
+  return { listed, tags, hints, covers, refused, places, kinds };
+}
+
+/** The series, description and language a library file names, or null when it names none. */
+function serverKinds(file: LibraryResponse['files'][number]): ServerKinds | null {
+  const kind: ServerKinds = {};
+  const series = formatSeries(file.series);
+  if (series) kind.series = series;
+  const description = file.description?.trim();
+  if (description) kind.description = description;
+  const language = file.language?.trim();
+  if (language) kind.language = language;
+  return Object.keys(kind).length > 0 ? kind : null;
 }
 
 export type TagHints = Pick<FileTags, 'title' | 'album' | 'artist' | 'albumArtist' | 'ids'>;
@@ -315,19 +334,34 @@ export function fillTags(read: FileTags, hints: TagHints | undefined): FileTags 
  */
 export function addonPlaceReport(
   rootLocation: string,
-  files: { location: string; uri: string }[],
+  files: { location: string; uri: string; durationMs?: number; ref?: string | null }[],
   at: { location: string; positionMs: number; when: number; finished: boolean },
 ): PlaceReport | null {
   const prefix = `${rootLocation}/`;
   const listed = files.flatMap((f) =>
     f.location.startsWith(prefix)
-      ? [{ location: f.location, path: f.location.slice(prefix.length), url: f.uri }]
+      ? [
+          {
+            location: f.location,
+            path: f.location.slice(prefix.length),
+            url: f.uri,
+            // Revision 12: the length the app knows and the add-on's own note.
+            ...(f.durationMs !== undefined && f.durationMs > 0
+              ? { durationMs: Math.round(f.durationMs) }
+              : {}),
+            ...(f.ref ? { ref: f.ref } : {}),
+          },
+        ]
       : [],
   );
   if (listed.length === 0 || listed.length !== files.length) return null;
   const current = listed.find((f) => f.location === at.location);
   if (!current) return null;
-  const strip = (f: { path: string; url: string }) => ({ path: f.path, url: f.url });
+  const strip = (f: (typeof listed)[number]) => {
+    const { location, ...reported } = f;
+    void location;
+    return reported;
+  };
   return {
     file: strip(current),
     files: listed.map(strip),

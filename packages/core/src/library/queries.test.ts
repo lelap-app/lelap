@@ -91,6 +91,8 @@ describe('library queries', () => {
       speed: 1.25,
       narrator: null,
       series: null,
+      description: null,
+      language: null,
     });
     expect(getBook(db, OTHER, alpha)?.speed).toBe(1);
     expect(getBook(db, ME, 'nope')).toBeNull();

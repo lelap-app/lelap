@@ -94,6 +94,19 @@ describe('0002_addons', () => {
   });
 });
 
+// Seeds a database migrated only so far with today's schema: columns added since are there while
+// the rows go in, and gone again before the later migrations add them.
+const LATER_COLUMNS = [['book_files', 'ref']] as const;
+function seedOld(...args: Parameters<typeof seedBook>): string {
+  const [db] = args;
+  for (const [table, column] of LATER_COLUMNS)
+    db.run(sql.raw(`ALTER TABLE ${table} ADD ${column} text`));
+  const id = seedBook(...args);
+  for (const [table, column] of LATER_COLUMNS)
+    db.run(sql.raw(`ALTER TABLE ${table} DROP COLUMN ${column}`));
+  return id;
+}
+
 describe('0027_chapter_names', () => {
   it('empties made-up chapter names in either language, and keeps real and typed ones', async () => {
     const source = fileURLToPath(new URL('../drizzle', import.meta.url));
@@ -107,7 +120,7 @@ describe('0027_chapter_names', () => {
     const SQL = await initSqlJs();
     const db = drizzle(new SQL.Database(), { schema });
     migrate(db, { migrationsFolder: before });
-    const bookId = seedBook(db, 'Novel', [{ location: 'n/01.mp3', durationMs: 9_000 }]);
+    const bookId = seedOld(db, 'Novel', [{ location: 'n/01.mp3', durationMs: 9_000 }]);
     const titles = ['Prologue', 'Chapter 2', 'Bab 3', 'Chapter 7'];
     db.update(schema.bookFiles)
       .set({ chaptersJson: titles.map((title, i) => ({ title, startMs: i * 1000 })) })
@@ -155,7 +168,7 @@ describe('0027_chapter_names', () => {
     const SQL = await initSqlJs();
     const db = drizzle(new SQL.Database(), { schema });
     migrate(db, { migrationsFolder: before });
-    const bookId = seedBook(db, 'Two', [
+    const bookId = seedOld(db, 'Two', [
       { location: 't/01.mp3', durationMs: 4_000 },
       { location: 't/02.mp3', durationMs: 4_000 },
       { location: 't/03.mp3', durationMs: 4_000 },

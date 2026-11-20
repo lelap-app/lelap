@@ -45,7 +45,7 @@ export type AddonFetchAnswer = {
   status: number;
   url: string;
   text: string;
-  /** Only `content-type`, `set-cookie` and `date`. */
+  /** Only `content-type`, `set-cookie`, `date` and `www-authenticate`. */
   headers: Record<string, string>;
 };
 

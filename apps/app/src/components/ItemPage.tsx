@@ -41,7 +41,8 @@ import { DownloadButton } from './DownloadButton';
 import { RatingRow } from './Rating';
 import { db } from '../db';
 import { startDownload } from '../downloads';
-import { formatClock, formatDuration, locale } from '../format';
+import { formatClock, formatDuration } from '../format';
+import { languageName } from '../languageName';
 import { playBook, useLibrary } from '../player';
 import { profileId } from '../profile';
 import { TextButton } from './TextButton';
@@ -93,15 +94,6 @@ const sourceDetails = (found: FoundStream) => {
 };
 
 const addonCount = (n: number) => (n === 1 ? t('1 add-on') : t('{n} add-ons', { n }));
-
-/** A language's name in the profile's; some engines lack `Intl.DisplayNames`, so fall back to the code. */
-function languageName(code: string): string {
-  try {
-    return new Intl.DisplayNames([locale()], { type: 'language' }).of(code) ?? code;
-  } catch {
-    return code;
-  }
-}
 
 /**
  * An add-on item's page: full screen, or the middle column on a very wide window (`column`, M113),
