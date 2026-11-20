@@ -28,6 +28,8 @@ describe('llms.txt', () => {
           'waitUntil',
           'retryAfter',
           'placeholder',
+          'appProtocol',
+          'minProtocolVersion',
         ].includes(name),
     );
     expect(helpers.length).toBeGreaterThan(10);

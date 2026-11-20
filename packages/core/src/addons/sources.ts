@@ -3,7 +3,13 @@ import { and, eq } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import { books, settings } from '../schema';
-import { type Fetcher, type FoundStream, fetchStreamAnswer, type InstalledAddon } from './client';
+import {
+  type Fetcher,
+  type FoundStream,
+  fetchStreamAnswer,
+  type InstalledAddon,
+  usableAddon,
+} from './client';
 
 /** One `stream` request: the add-on and the ID it is asked for. */
 export type SourceRequest = { addon: InstalledAddon; id: string };
@@ -32,6 +38,8 @@ export function sourceRequests(
   ids: string[],
 ): SourceRequest[] {
   return addons.flatMap((addon) => {
+    // An add-on that won't work with this app (revision 15) is not asked.
+    if (!usableAddon(addon)) return [];
     const id = ids.find((candidate) => supports(addon.manifest, 'stream', type, candidate));
     return id === undefined ? [] : [{ addon, id }];
   });

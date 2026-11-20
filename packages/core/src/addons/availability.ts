@@ -7,6 +7,7 @@ import type { LibraryBook } from '../library/queries';
 import { settings } from '../schema';
 import { type Fetcher, fetchMeta, type InstalledAddon } from './client';
 import { findSources, type Sources, sourceRequests, workIds } from './sources';
+import { APP_PROTOCOL_VERSION } from './revision';
 import { findStreamedBook } from './streamed';
 
 /**
@@ -20,6 +21,12 @@ export type Availability = { kind: 'local' } | { kind: 'stream'; addon: string }
 export type WorkRef = { type: ContentType; id: string; name: string; author?: string };
 
 export const workKey = (work: { type: string; id: string }) => `${work.type}\n${work.id}`;
+
+/** Where `SourceCache` keeps a work's answer: under the app's protocol revision too (M156). */
+export const sourceCacheKey = (
+  work: { type: string; id: string },
+  revision: number = APP_PROTOCOL_VERSION,
+) => `${revision}\n${workKey(work)}`;
 
 /**
  * Finds items already on this device: a streamed book whose download finished, or a book from a
@@ -96,6 +103,8 @@ export type SourceCacheOptions = {
   spacingMs?: number;
   /** Waiting items kept; older ones are dropped, as they have scrolled out of sight. */
   maxPending?: number;
+  /** The app's protocol revision, which every answer is kept under; for tests. */
+  revision?: number;
   now?: () => number;
   wait?: (ms: number) => Promise<void>;
 };
@@ -127,15 +136,21 @@ export class SourceCache {
       concurrency: 2,
       spacingMs: 250,
       maxPending: 40,
+      revision: APP_PROTOCOL_VERSION,
       now: () => Date.now(),
       wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
       ...options,
     };
   }
 
+  /** An answer is the app's revision's own (M156): a newer app never reuses an older one's. */
+  private key(work: { type: string; id: string }): string {
+    return sourceCacheKey(work, this.options.revision);
+  }
+
   /** A fresh answer for this work, if there is one. */
   get(work: { type: string; id: string }): Availability | undefined {
-    const entry = this.entries.get(workKey(work));
+    const entry = this.entries.get(this.key(work));
     if (!entry) return undefined;
     const ttl = entry.value.kind === 'none' ? this.options.noneTtlMs : this.options.foundTtlMs;
     return this.options.now() - entry.at < ttl ? entry.value : undefined;
@@ -143,14 +158,14 @@ export class SourceCache {
 
   /** Stores an answer found elsewhere, such as on the item page. */
   set(work: { type: string; id: string }, value: Availability): void {
-    this.entries.set(workKey(work), { value, at: this.options.now() });
+    this.entries.set(this.key(work), { value, at: this.options.now() });
     this.emit();
   }
 
   /** Asks for these works unless known; the newest asks go first. */
   request(works: WorkRef[]): void {
     for (const work of works) {
-      const key = workKey(work);
+      const key = this.key(work);
       if (this.get(work) !== undefined || this.inFlight.has(key)) continue;
       // Re-inserting moves the work to the end, which is asked first.
       this.pending.delete(key);
@@ -205,7 +220,7 @@ export class SourceCache {
   }
 
   private async run(work: WorkRef) {
-    const key = workKey(work);
+    const key = this.key(work);
     const generation = this.generation;
     this.running++;
     this.inFlight.add(key);

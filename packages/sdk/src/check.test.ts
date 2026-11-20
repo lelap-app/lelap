@@ -99,9 +99,9 @@ describe('checkAddon', () => {
     expect(report.problems).toEqual([]);
     expect(report.ok).toBe(true);
     expect(report.addon).toEqual({ id: manifest.id, name: manifest.name, version: '1.0.0' });
-    // Manifest, health, two catalog pages, the far page, an unknown catalog, meta and stream for
-    // two items, an unknown meta.
-    expect(report.requests).toBe(11);
+    // Manifest, health, the revision 15 preflight, two catalog pages, the far page, an unknown
+    // catalog, meta and stream for two items, an unknown meta.
+    expect(report.requests).toBe(12);
   });
 
   it('says what is wrong with a hand-written one', async () => {

@@ -1,6 +1,13 @@
 import { isLocalAddonUrl } from './local';
 import { readManifest } from './manifest';
 import {
+  type AddonBlock,
+  addonBlock,
+  addonRefusals,
+  protocolHeaders,
+  upgradeNote,
+} from './revision';
+import {
   ArtworkImage,
   artworkPath,
   catalogPath,
@@ -26,7 +33,14 @@ export type Fetcher = (
   url: string,
   /** `cache: 'no-store'` asks past every cache, for a second look at a slow answer (M152). */
   init: { signal: AbortSignal; headers: Record<string, string>; cache?: 'no-store' },
-) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
+) => Promise<{
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+  /** The body as text, for a `426`'s note; `fetch` has it, a fake may not. */
+  text?(): Promise<string>;
+  headers?: { get(name: string): string | null };
+}>;
 
 export type InstalledAddon = {
   id: string;
@@ -47,6 +61,21 @@ export class AddonRequestError extends Error {
     message: string,
   ) {
     super(message);
+  }
+}
+
+/**
+ * The add-on won't work with this app (revision 15): its `minProtocolVersion` is above the app's
+ * revision, so it was not asked, or it answered `426 Upgrade Required`. `block.note` is the
+ * add-on's own words, when it sent short plain text.
+ */
+export class AddonUpgradeError extends AddonRequestError {
+  constructor(
+    url: string,
+    readonly addonName: string,
+    readonly block: AddonBlock,
+  ) {
+    super(url, block.kind === 'refused' ? 426 : null, `Update Lelap to use ${addonName}`);
   }
 }
 
@@ -75,15 +104,53 @@ export function normalizeManifestUrl(input: string): string | null {
   return `${origin.toLowerCase()}${path}${query}`;
 }
 
-async function getJson(fetcher: Fetcher, url: string, fresh = false): Promise<unknown> {
+/** The add-on a resource request goes to: its manifest decides the header and whether to ask. */
+type AddonTarget = Pick<InstalledAddon, 'url' | 'manifest'>;
+
+/** Reads a `426`'s short plain-text note; never throws. */
+async function readUpgradeNote(response: Awaited<ReturnType<Fetcher>>): Promise<string | null> {
+  try {
+    const text = response.text ? await response.text() : null;
+    return upgradeNote(text, response.headers?.get('content-type') ?? null);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether the app may ask this add-on anything. A blocked add-on's catalogs show “Needs a newer
+ * Lelap” instead; its meta, streams and covers are simply not asked.
+ */
+export const usableAddon = (addon: AddonTarget): boolean => addonBlock(addon) === null;
+
+/**
+ * A resource request. `addon` is null only for the manifest, which never carries the app's
+ * revision: the app reads the revision an add-on declares from it.
+ */
+async function getJson(
+  fetcher: Fetcher,
+  addon: AddonTarget | null,
+  url: string,
+  fresh = false,
+): Promise<unknown> {
+  if (addon) {
+    const block = addonBlock(addon);
+    if (block) throw new AddonUpgradeError(url, addon.manifest.name, block);
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const response = await fetcher(url, {
       signal: controller.signal,
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...(addon ? protocolHeaders(addon.manifest) : {}) },
       ...(fresh ? { cache: 'no-store' as const } : {}),
     });
+    if (addon && response.status === 426) {
+      // Not asked again until the app's revision changes.
+      const note = await readUpgradeNote(response);
+      addonRefusals.record(addon.url, note);
+      throw new AddonUpgradeError(url, addon.manifest.name, { kind: 'refused', note });
+    }
     if (!response.ok)
       throw new AddonRequestError(url, response.status, `The add-on answered ${response.status}`);
     return await response.json();
@@ -99,7 +166,7 @@ async function getJson(fetcher: Fetcher, url: string, fresh = false): Promise<un
 }
 
 export async function fetchManifest(fetcher: Fetcher, manifestUrl: string): Promise<Manifest> {
-  const parsed = readManifest(await getJson(fetcher, manifestUrl));
+  const parsed = readManifest(await getJson(fetcher, null, manifestUrl));
   if (!parsed.success)
     throw new AddonRequestError(manifestUrl, null, 'This is not a Lelap add-on manifest');
   return parsed.data;
@@ -163,7 +230,7 @@ export async function fetchCatalog(
   extra: Extra = {},
 ): Promise<MetaPreview[]> {
   const url = addonBase(ref.addon.url) + catalogPath(ref.catalog.type, ref.catalog.id, extra);
-  return validEntries(await getJson(fetcher, url), 'metas', parseWith(MetaPreview));
+  return validEntries(await getJson(fetcher, ref.addon, url), 'metas', parseWith(MetaPreview));
 }
 
 export type SearchResult = { ref: CatalogRef; metas: MetaPreview[]; error: string | null };
@@ -219,9 +286,9 @@ export async function fetchArtwork(
   id: string,
 ): Promise<string | null> {
   for (const addon of addons) {
-    if (!supports(addon.manifest, 'artwork', type, id)) continue;
+    if (!supports(addon.manifest, 'artwork', type, id) || !usableAddon(addon)) continue;
     try {
-      const body = await getJson(fetcher, addonBase(addon.url) + artworkPath(type, id));
+      const body = await getJson(fetcher, addon, addonBase(addon.url) + artworkPath(type, id));
       const cover = bestCover(validEntries(body, 'artwork', parseWith(ArtworkImage)));
       if (cover) return cover;
     } catch {
@@ -247,10 +314,11 @@ export async function fetchSeriesList(
   if (want.work) extra.work = want.work;
   let answered = false;
   for (const addon of addons) {
-    if (!offersSeries(addon.manifest, 'audiobook')) continue;
+    if (!offersSeries(addon.manifest, 'audiobook') || !usableAddon(addon)) continue;
     try {
       const body = await getJson(
         fetcher,
+        addon,
         addonBase(addon.url) + seriesPath('audiobook', want.name, extra),
       );
       const parsed = SeriesResponse.safeParse(body);
@@ -272,9 +340,11 @@ export async function fetchMeta(
   id: string,
 ): Promise<{ addon: InstalledAddon; meta: Meta } | null> {
   let lastError: unknown = null;
-  for (const addon of addons.filter((a) => supports(a.manifest, 'meta', type, id))) {
+  for (const addon of addons.filter(
+    (a) => supports(a.manifest, 'meta', type, id) && usableAddon(a),
+  )) {
     try {
-      const body = await getJson(fetcher, addonBase(addon.url) + metaPath(type, id));
+      const body = await getJson(fetcher, addon, addonBase(addon.url) + metaPath(type, id));
       const parsed = Meta.safeParse(
         typeof body === 'object' && body !== null ? (body as { meta?: unknown }).meta : null,
       );
@@ -317,7 +387,7 @@ export async function fetchStreamAnswer(
   id: string,
   fresh = false,
 ): Promise<StreamAnswer> {
-  const body = await getJson(fetcher, addonBase(addon.url) + streamPath(type, id), fresh);
+  const body = await getJson(fetcher, addon, addonBase(addon.url) + streamPath(type, id), fresh);
   const found = validEntries(
     body,
     'streams',
@@ -341,7 +411,7 @@ export async function fetchStreams(
   type: ContentType,
   id: string,
 ): Promise<FoundStream[]> {
-  const sources = addons.filter((a) => supports(a.manifest, 'stream', type, id));
+  const sources = addons.filter((a) => supports(a.manifest, 'stream', type, id) && usableAddon(a));
   const settled = await Promise.allSettled(
     sources.map((addon) => fetchAddonStreams(fetcher, addon, type, id)),
   );

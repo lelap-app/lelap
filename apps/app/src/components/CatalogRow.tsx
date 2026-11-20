@@ -1,4 +1,4 @@
-import { type CatalogRef, fetchCatalog } from '@lelap/core';
+import { APP_PROTOCOL_VERSION, type CatalogRef, fetchCatalog } from '@lelap/core';
 import type { MetaPreview } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useRef } from 'react';
@@ -6,7 +6,8 @@ import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native
 
 import { t } from '../i18n';
 import { Icon } from './Icon';
-import { fetcher } from '../addons';
+import { fetcher, useAddonBlock } from '../addons';
+import { UpgradeNotice } from './UpgradeNotice';
 import { useAskWhenVisible, useAvailability } from '../availability';
 import { MetaTile } from './MetaCard';
 import { sessionCovers } from '../sessionCovers';
@@ -18,7 +19,14 @@ const TILE = 120;
 export const HOME_FIRST_DRAWN = 10;
 
 export const catalogQuery = (ref: CatalogRef, extra: Record<string, string> = {}) => ({
-  queryKey: ['catalog', ref.addon.url, ref.catalog.type, ref.catalog.id, extra],
+  queryKey: [
+    'catalog',
+    APP_PROTOCOL_VERSION,
+    ref.addon.url,
+    ref.catalog.type,
+    ref.catalog.id,
+    extra,
+  ],
   queryFn: () => fetchCatalog(fetcher, ref, extra),
 });
 
@@ -36,7 +44,11 @@ export function CatalogRow({
   onMore: () => void;
 }) {
   const colors = useColors();
-  const { data, isPending, isError } = useQuery(catalogQuery(catalogRef));
+  const block = useAddonBlock(catalogRef.addon);
+  const { data, isPending, isError } = useQuery({
+    ...catalogQuery(catalogRef),
+    enabled: block === null,
+  });
   const availability = useAvailability();
   const { onViewableItemsChanged: askVisible, viewabilityConfig } = useAskWhenVisible();
   // Tiles on screen also note their covers, which suggestion tiles may then show (M118).
@@ -44,6 +56,14 @@ export function CatalogRow({
     askVisible(info);
     sessionCovers.add(info.viewableItems.map((token) => (token.item ?? {}) as MetaPreview));
   }).current;
+  // An add-on that won't work with this app keeps its row, to say so (M156).
+  if (block)
+    return (
+      <View className="gap-1 px-4">
+        <Text className="text-lg font-semibold text-paper">{title ?? catalogRef.catalog.name}</Text>
+        <UpgradeNotice name={catalogRef.addon.manifest.name} block={block} />
+      </View>
+    );
   if (isError || (data && data.length === 0)) return null;
 
   return (

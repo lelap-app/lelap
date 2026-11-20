@@ -45,6 +45,13 @@ class AddonSearchTest {
     assertEquals(listOf(catalog), AddonSearch.decodeCatalogs(JSONArray(encoded.toString())))
   }
 
+  @Test fun `the app's revision goes only to an add-on of revision 15 or later`() {
+    assertEquals(mapOf("Accept" to "application/json"), AddonSearch.headers(0))
+    assertEquals("15", AddonSearch.headers(15)["Lelap-Protocol"])
+    val newer = catalog.copy(protocol = 15)
+    assertEquals(listOf(newer), AddonSearch.decodeCatalogs(JSONArray(AddonSearch.encodeCatalogs(listOf(newer)).toString())))
+  }
+
   @Test fun `nothing to ask returns at once`() {
     assertEquals(emptyList<AddonHit>(), AddonSearch.search(emptyList(), "dune"))
     assertEquals(emptyList<AddonHit>(), AddonSearch.search(listOf(catalog), " "))

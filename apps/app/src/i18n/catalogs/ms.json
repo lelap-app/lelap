@@ -1283,5 +1283,8 @@
   "A source may need minutes or hours before such a stream plays.": "Sumber mungkin memerlukan beberapa minit atau jam sebelum strim sebegitu dimainkan.",
   "Ready ones only": "Yang sedia sahaja",
   "Hide copies": "Sembunyikan salinan",
-  "{n} copies": "{n} salinan"
+  "{n} copies": "{n} salinan",
+  "Needs a newer Lelap": "Perlukan Lelap yang lebih baharu",
+  "Update Lelap to use {name}": "Kemas kini Lelap untuk menggunakan {name}",
+  "The add-on needs a version of Lelap that isn’t out yet. Try again in a few days.": "Alat tambah ini memerlukan versi Lelap yang belum keluar. Cuba lagi dalam beberapa hari."
 }

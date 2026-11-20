@@ -1,5 +1,8 @@
 import { t } from '../i18n';
 import {
+  addonBlock,
+  addonRefusals,
+  APP_PROTOCOL_VERSION,
   bundledAddon,
   bundledAddonCode,
   fetchLimit,
@@ -7,6 +10,7 @@ import {
   listAddons,
   sandboxFetch,
   type SandboxFetchInit,
+  upgradeNote,
 } from '@lelap/core';
 import {
   libraryPath,
@@ -16,6 +20,7 @@ import {
   placePath,
   type ScrobbleEvent,
   scrobblePath,
+  sendsAppProtocol,
   type Settings,
   settingsPath,
   signinPath,
@@ -254,6 +259,14 @@ async function boxFor(manifestUrl: string): Promise<Box | null> {
   );
 }
 
+/** The installed add-on a sandbox runs, by the manifest URL before any `#<server>`. */
+function sandboxAddon(id: string) {
+  const url = id.split('#')[0] ?? id;
+  const manifest =
+    bundledAddon(url)?.manifest ?? listAddons(db).find((a) => a.url === url)?.manifest;
+  return manifest ? { url, manifest } : null;
+}
+
 async function call(
   box: Box,
   path: string,
@@ -283,8 +296,14 @@ async function call(
   if (settings && !box.isolated) {
     throw new Error(t('This add-on needs a login, which this device can’t keep apart from it.'));
   }
+  // Revision 15, as for an add-on on the web: every call but the manifest gets the app's
+  // revision, if the add-on declares 15, and none goes to one that won't work with this app.
+  const addon = path === 'manifest.json' ? null : sandboxAddon(box.id);
+  if (addon && addonBlock(addon))
+    throw new Error(t('Update Lelap to use {name}', { name: addon.manifest.name }));
+  const appProtocol = addon && sendsAppProtocol(addon.manifest) ? APP_PROTOCOL_VERSION : undefined;
   const id = `c${++seq}`;
-  return new Promise((resolve, reject) => {
+  const answer = await new Promise<{ status: number; body: unknown }>((resolve, reject) => {
     const timer = setTimeout(() => {
       box.calls.delete(id);
       reject(new Error(t('The add-on did not answer in time.')));
@@ -301,9 +320,15 @@ async function call(
         ...(extra.events ? { events: extra.events } : {}),
         ...(extra.library ? { library: extra.library } : {}),
         ...(extra.locate ? { locate: extra.locate } : {}),
+        ...(appProtocol !== undefined ? { appProtocol } : {}),
       }),
     );
   });
+  if (addon && answer.status === 426) {
+    const said = (answer.body as { error?: unknown } | null)?.error;
+    addonRefusals.record(addon.url, upgradeNote(typeof said === 'string' ? said : null, null));
+  }
+  return answer;
 }
 
 /** Calls a route of an installed in-app add-on, such as `catalog/audiobook/all.json`. */

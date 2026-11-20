@@ -5,7 +5,7 @@
 > audiobook and podcast player. This file is for coding assistants working in an add-on's
 > project; the `.d.ts` files next to it document every field.
 
-Protocol 1, revision 14 (`LATEST_PROTOCOL_VERSION`). Revisions only add fields; an older app
+Protocol 1, revision 15 (`LATEST_PROTOCOL_VERSION`). Revisions only add fields; an older app
 ignores what it doesn't know. ESM only; any runtime with `Request` and `Response` (Cloudflare
 Workers, Deno, Bun, Node 20+).
 
@@ -47,6 +47,11 @@ export default { fetch: addon.fetch }; // Workers; Deno.serve(addon.fetch); Bun 
 - Throw `new AddonError(status, message, { retryAfter })` for answers the app should show or
   retry; anything else becomes a 500 and reaches `options.onError`.
 - Several add-ons can share a host with `createAddon(handlers, { basePath: '/name' })`.
+- Since revision 15 the app sends its own revision as `Lelap-Protocol` on every resource request,
+  and handlers get it as `appProtocol` (absent: revision 14 or older). Answer older apps
+  differently with it. `createAddon({ ..., minProtocolVersion: 15 })` puts the lowest revision you
+  work with in the manifest and answers an older app `426 Upgrade Required` by itself, so the
+  listener is told to update Lelap.
 
 ## Rules that matter
 

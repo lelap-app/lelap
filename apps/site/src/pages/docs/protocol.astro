@@ -541,7 +541,14 @@ const manifestFields: Field[] = [
     name: 'protocolVersion',
     type: 'integer ≥ 1',
     required: false,
-    meaning: `The revision of protocol ${PROTOCOL_VERSION} you write for; absent means 1. Revisions only add things. The newest is \`${LATEST_PROTOCOL_VERSION}\`.`,
+    meaning: `The revision of protocol ${PROTOCOL_VERSION} you write for; absent means 1. Revisions only add things. The newest is \`${LATEST_PROTOCOL_VERSION}\`. From 15 on, the app sends you its own revision; see [Revision 15](#revision-15).`,
+  },
+  {
+    name: 'minProtocolVersion',
+    type: 'integer ≥ 1',
+    required: false,
+    meaning:
+      'Revision 15: the lowest app revision the add-on works with. An app below it asks the add-on nothing and shows “Needs a newer Lelap” with Update. Declare `protocolVersion` 15 or higher with it; an app before revision 15 ignores the field, so answer it `426`. See [Revision 15](#revision-15).',
   },
   {
     name: 'behaviorHints',
@@ -1218,6 +1225,7 @@ const toc: [string, string][] = [
   ['errors', 'Errors'],
   ['scrobble', 'Scrobble'],
   ['versions', 'Versions'],
+  ['revision-15', 'Revision 15'],
   ['configure', 'Configuration page'],
   ['health', 'Health'],
   ['badges', 'Badges'],
@@ -1235,8 +1243,8 @@ const toc: [string, string][] = [
   <h1>Protocol v{PROTOCOL_VERSION}</h1>
   <p class="lead">
     The reference for what an add-on answers. The <a href="/docs/sdk/">SDK</a> implements all of it
-    (revisions 10 to 13 since 0.6, revision 14 from its next release); you only need this page to
-    check a detail or to write an add-on in another language. For whole objects to copy, see the{' '}
+    (revisions 10 to 13 since 0.6, 14 since 0.7, 15 from its next release); you only need this page
+    to check a detail or to write an add-on in another language. For whole objects to copy, see the{' '}
     <a href="/docs/data-model/">data model samples</a>.
   </p>
 
@@ -1672,13 +1680,69 @@ const toc: [string, string][] = [
     <a href="#preparing">streams that are still preparing</a>, <a href="#live">live streams</a> and
     the meta’s chapters for parts; an app before revision 14 ignores the fields, plays a preparing
     stream as if it were ready, plays a live stream as an ordinary episode and skips a stream with a
-    part that has no length. When an add-on declares a newer revision than the app knows, Settings →
-    Library and sources → Add-ons says so. Revision 9 comes with SDK 0.5.0; 0.4.0 covers revisions
-    up to 8. Revisions 10 to 13 come with SDK 0.6, and revision 14 with SDK 0.7.
+    part that has no length. Revision 15 adds the <a href="#revision-15">app’s revision</a> in a{' '}
+    <code>Lelap-Protocol</code> header, <code>minProtocolVersion</code> and <code>426</code>; an app
+    before revision 15 sends no header. When an add-on declares a newer revision than the app knows,
+    Settings → Library and sources → Add-ons says so. Revision 9 comes with SDK 0.5.0; 0.4.0 covers
+    revisions up to 8. Revisions 10 to 13 come with SDK 0.6, revision 14 with SDK 0.7 and revision
+    15 with SDK 0.8.
   </p>
   <h3 id="behavior-hints">BehaviorHints</h3>
   <FieldTable fields={behaviorFields} />
   <CodeBlock code={configuredManifest} label="An unconfigured revision 2 manifest" />
+
+  <h2 id="revision-15">Revision 15: the app’s revision</h2>
+  <p>
+    An app at revision 15 or later tells an add-on which revision it speaks, so the add-on can
+    answer older apps differently, and an add-on can name the oldest app it works with.
+  </p>
+  <ul>
+    <li>
+      The app sends <code>Lelap-Protocol: 15</code> (its own revision) on every resource request:
+      catalog, meta, stream, artwork, series, <code>/health</code>, scrobble and, for add-ons inside
+      the app, every call, where handlers get it as <code>appProtocol</code>. Never on the manifest
+      request, which tells the app the add-on’s revision, and never on audio. Android and the web
+      follow the same rule.
+    </li>
+    <li>
+      Only to an add-on whose manifest declares <code>protocolVersion</code> 15 or higher. On the
+      web a custom header makes the browser send a CORS preflight first; answer <code>OPTIONS</code>{' '}
+      with <code>Access-Control-Allow-Headers: *</code> (or one that names{' '}
+      <code>Lelap-Protocol</code>), and with <code>Access-Control-Max-Age: 86400</code> so the
+      browser asks once a day, not before every request.
+    </li>
+    <li>
+      No header means revision 14 or older. Read a value that isn’t a whole number as no header.
+    </li>
+    <li>
+      The app keeps every answer under its own revision, so an answer an older or newer app got is
+      never reused. If you answer revisions differently and an HTTP cache sits in front of you, send{' '}
+      <code>Vary: Lelap-Protocol</code>.
+    </li>
+    <li>
+      <code>minProtocolVersion</code> in the manifest is the lowest app revision you work with. An
+      app below it asks you nothing: its row in Settings → Library and sources → Add-ons and its
+      catalog rows say “Needs a newer Lelap”, with Update.
+    </li>
+    <li>
+      Answer <code>426 Upgrade Required</code> to any resource request from an app you refuse, such
+      as one without the header (it predates <code>minProtocolVersion</code>). The app shows “Update
+      Lelap to use” your add-on’s name with Update, adds your body when it is plain text (
+      <code>text/plain</code>) of at most 200 characters, and asks you nothing more until its
+      revision changes. An app before revision 15 shows the <code>426</code> as a failing add-on.
+    </li>
+  </ul>
+  <CodeBlock
+    code={`GET /catalog/audiobook/new.json
+Lelap-Protocol: 15
+
+HTTP/1.1 426 Upgrade Required
+Content-Type: text/plain; charset=utf-8
+Access-Control-Allow-Origin: *
+
+This add-on needs a newer version of Lelap. Update the app to use it.`}
+    label="An app the add-on refuses"
+  />
 
   <h2 id="configure">Configuration page</h2>
   <p>

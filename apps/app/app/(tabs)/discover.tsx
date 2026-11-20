@@ -1,4 +1,10 @@
-import { browseCatalogs, type CatalogRef, fetchCatalog, genreOptions } from '@lelap/core';
+import {
+  APP_PROTOCOL_VERSION,
+  browseCatalogs,
+  type CatalogRef,
+  fetchCatalog,
+  genreOptions,
+} from '@lelap/core';
 import type { MetaPreview } from '@lelap/sdk';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -79,7 +85,7 @@ export default function DiscoverScreen() {
   const tile = Math.floor(((wide ? (space ?? width) : width) - 32 - GAP * (columns - 1)) / columns);
 
   const query = useInfiniteQuery({
-    queryKey: ['discover', current ? keyOf(current) : null, genre],
+    queryKey: ['discover', APP_PROTOCOL_VERSION, current ? keyOf(current) : null, genre],
     enabled: current !== undefined,
     initialPageParam: 0,
     queryFn: ({ pageParam }) => {

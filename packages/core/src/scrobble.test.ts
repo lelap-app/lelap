@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createTestDb } from '../test/db';
 import { seedBook } from '../test/seed';
 import type { InstalledAddon } from './addons/client';
+import { addonBlock, addonRefusals } from './addons/revision';
 import { addStreamedBook } from './addons/streamed';
 import { linkBook } from './library/links';
 import { DEFAULT_PROFILE_ID as ME } from './profiles';
@@ -178,6 +179,33 @@ describe('sendScrobbles', () => {
     enqueueScrobble(db, { profileId: ME, addons: [scrobbler], event: event(0), newId });
     expect((await sendScrobbles(db, ok, [other], 1)).dropped).toBe(1);
     expect(db.select().from(scrobbleOutbox).all()).toHaveLength(0);
+  });
+
+  it('sends the app’s revision to a scrobbler of revision 15, and keeps events it refuses with 426', async () => {
+    const db = createTestDb();
+    const newer: InstalledAddon = {
+      ...scrobbler,
+      url: 'https://newer.example/manifest.json',
+      manifest: { ...manifest(['scrobble']), protocolVersion: 15 },
+    };
+    enqueueScrobble(db, { profileId: ME, addons: [newer], event: event(0), newId });
+    const refuse = vi.fn<Poster>(async () => ({ ok: false, status: 426 }));
+    expect((await sendScrobbles(db, refuse, [newer], 1)).failed).toBe(1);
+    expect(refuse.mock.calls[0]?.[1].headers['Lelap-Protocol']).toBe('15');
+    expect(addonBlock(newer)).toEqual({ kind: 'refused', note: null });
+    // Not asked again while the app stays at this revision; the event waits.
+    await sendScrobbles(db, refuse, [newer], 10 * 24 * 60 * 60 * 1000);
+    expect(refuse).toHaveBeenCalledTimes(1);
+    expect(db.select().from(scrobbleOutbox).all()).toHaveLength(1);
+    addonRefusals.forget(newer.url);
+  });
+
+  it('sends no revision header to an older scrobbler', async () => {
+    const db = createTestDb();
+    enqueueScrobble(db, { profileId: ME, addons: [scrobbler], event: event(0), newId });
+    const post = vi.fn<Poster>(async () => ({ ok: true, status: 200 }));
+    await sendScrobbles(db, post, [scrobbler], 1);
+    expect(post.mock.calls[0]?.[1].headers['Lelap-Protocol']).toBeUndefined();
   });
 
   it('retries a 429 rather than dropping it', async () => {

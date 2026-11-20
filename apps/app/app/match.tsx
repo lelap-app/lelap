@@ -1,4 +1,11 @@
-import { fetchMeta, formatSeries, getBook, linkBook, searchAll } from '@lelap/core';
+import {
+  APP_PROTOCOL_VERSION,
+  fetchMeta,
+  formatSeries,
+  getBook,
+  linkBook,
+  searchAll,
+} from '@lelap/core';
 import type { MetaPreview } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -34,7 +41,7 @@ export default function MatchScreen() {
   const [busy, setBusy] = useState(false);
 
   const results = useQuery({
-    queryKey: ['match-search', query, addons.map((a) => a.url)],
+    queryKey: ['match-search', APP_PROTOCOL_VERSION, query, addons.map((a) => a.url)],
     enabled: query.length >= 2,
     queryFn: async () => {
       const seen = new Set<string>();

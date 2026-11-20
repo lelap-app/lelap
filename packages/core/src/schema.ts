@@ -840,6 +840,8 @@ export const seriesLists = sqliteTable(
     /** The add-on's answer; null when no add-on knew the series. */
     list: text('list', { mode: 'json' }).$type<SeriesList>(),
     fetchedAt: integer('fetched_at').notNull(),
+    /** The app's protocol revision when it was asked (M156); another revision asks again. */
+    protocol: integer('protocol').notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.key, t.language] })],
 );

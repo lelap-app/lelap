@@ -29,7 +29,8 @@ import { closeSandboxesOf } from '../src/sandbox';
 import { ActionSheet, type Action } from '../src/components/ActionSheet';
 import { IconButton } from '../src/components/Icon';
 import { showAlert } from '../src/dialog';
-import { checkAddonHealth, useAddonHealth, useAddons } from '../src/addons';
+import { checkAddonHealth, useAddonBlock, useAddonHealth, useAddons } from '../src/addons';
+import { UpgradeNotice } from '../src/components/UpgradeNotice';
 import { confirmAddon, openConfigure } from '../src/addonInstall';
 import { db } from '../src/db';
 import { useLibrary } from '../src/player';
@@ -88,7 +89,9 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
   const router = useRouter();
   const health = useAddonHealth(addon.url);
   const state = healthState(health);
-  const newer = protocolVersionOf(addon.manifest) > LATEST_PROTOCOL_VERSION;
+  const block = useAddonBlock(addon);
+  // “Needs a newer Lelap” says more, and replaces this quiet note.
+  const newer = !block && protocolVersionOf(addon.manifest) > LATEST_PROTOCOL_VERSION;
   // Settings sealed on another phone or for other code can't be opened here; events wait for them.
   const settingsAgain =
     scrobblersWork && setUpWithSettings(addon.manifest) && scrobblerForm(addon.url).again;
@@ -129,18 +132,24 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
       {addon.manifest.description !== '' && (
         <Text className="text-sm text-soft">{addon.manifest.description}</Text>
       )}
-      <View className="flex-row items-center gap-2 pt-1">
-        <View
-          style={{ backgroundColor: stateColor(colors)[state] }}
-          className="h-2 w-2 rounded-full"
-        />
-        <Text className="text-xs text-soft">{stateLabel()[state]}</Text>
-      </View>
-      {healthLines(health, Date.now()).map((line) => (
-        <Text key={line} className="text-xs text-muted">
-          {line}
-        </Text>
-      ))}
+      {block ? (
+        <UpgradeNotice name={addon.manifest.name} block={block} className="pt-1" />
+      ) : (
+        <>
+          <View className="flex-row items-center gap-2 pt-1">
+            <View
+              style={{ backgroundColor: stateColor(colors)[state] }}
+              className="h-2 w-2 rounded-full"
+            />
+            <Text className="text-xs text-soft">{stateLabel()[state]}</Text>
+          </View>
+          {healthLines(health, Date.now()).map((line) => (
+            <Text key={line} className="text-xs text-muted">
+              {line}
+            </Text>
+          ))}
+        </>
+      )}
       {needsConfiguration(addon.manifest) && (
         <Text className="text-xs text-amber">{t('Needs settings before it can be used.')}</Text>
       )}

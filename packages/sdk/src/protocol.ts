@@ -27,9 +27,34 @@ export const PROTOCOL_VERSION = 1;
  * login, and each file's `durationMs` and `ref` in a place report; 14 adds a stream's
  * `availability`, `format`, `language`, `releaseId` and `live`, parts without `durationMs`, `refreshAfter`
  * on a stream response, `503` with `Retry-After` from audio that is still preparing, and the
- * meta's chapters for a multi-part stream whose parts add up to the meta's length.
+ * meta's chapters for a multi-part stream whose parts add up to the meta's length; 15 adds the
+ * `Lelap-Protocol` header with the app's revision on every resource request to an add-on that
+ * declares 15 or higher, `minProtocolVersion` on the manifest and `426 Upgrade Required` for an
+ * app the add-on refuses.
  */
-export const LATEST_PROTOCOL_VERSION = 14;
+export const LATEST_PROTOCOL_VERSION = 15;
+
+/**
+ * Since revision 15: the request header that carries the app's own revision, such as `15`. The
+ * app sends it on every resource request, never on the manifest or on audio, and only to an add-on
+ * whose manifest declares revision 15 or higher: on the web a custom header asks for a CORS
+ * preflight, which older add-ons may not answer. Without it, the app is at revision 14 or older.
+ */
+export const PROTOCOL_HEADER = 'Lelap-Protocol';
+
+/** The first revision whose add-ons are sent `PROTOCOL_HEADER`. */
+export const PROTOCOL_HEADER_SINCE = 15;
+
+/**
+ * The app's revision from a `Lelap-Protocol` header: a whole number from 1 up, else undefined, as
+ * if the header were absent.
+ */
+export function parseAppProtocol(value: string | null | undefined): number | undefined {
+  const text = (value ?? '').trim();
+  if (!/^\d{1,6}$/.test(text)) return undefined;
+  const revision = Number(text);
+  return revision >= 1 ? revision : undefined;
+}
 
 export const CONTENT_TYPES = ['audiobook', 'podcast', 'episode'] as const;
 export const ContentType = z.enum(CONTENT_TYPES);
@@ -265,6 +290,12 @@ export const Manifest = z
     protocol: z.literal(PROTOCOL_VERSION),
     /** The protocol revision the add-on is written for; absent means 1. */
     protocolVersion: z.number().int().min(1).optional(),
+    /**
+     * Since revision 15: the lowest app revision the add-on works with. An older app that knows
+     * the field asks the add-on nothing and tells the listener to update Lelap; one before
+     * revision 15 doesn't know it, so the add-on answers it `426 Upgrade Required`.
+     */
+    minProtocolVersion: z.number().int().min(1).optional(),
     name: z.string().min(1),
     description: z.string(),
     logo: Url.optional(),
@@ -954,6 +985,16 @@ export type HealthResponse = z.infer<typeof HealthResponse>;
 /** The revision a manifest is written for. */
 export function protocolVersionOf(manifest: Manifest): number {
   return manifest.protocolVersion ?? 1;
+}
+
+/** Whether the app sends this add-on `PROTOCOL_HEADER` (revision 15 and later). */
+export function sendsAppProtocol(manifest: Manifest): boolean {
+  return protocolVersionOf(manifest) >= PROTOCOL_HEADER_SINCE;
+}
+
+/** Whether an app at `appRevision` is too old for this add-on's `minProtocolVersion`. */
+export function needsNewerApp(manifest: Manifest, appRevision: number): boolean {
+  return (manifest.minProtocolVersion ?? 0) > appRevision;
 }
 
 /** Whether the add-on has a `/configure` page, in either spelling. */

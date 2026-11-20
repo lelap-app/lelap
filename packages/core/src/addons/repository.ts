@@ -15,6 +15,7 @@ import {
 } from '../schema';
 import { type Fetcher, fetchManifest, type InstalledAddon } from './client';
 import { readManifest } from './manifest';
+import { addonRefusals } from './revision';
 import { pruneStreamHeaders } from './streamHeaders';
 
 /** Installed add-ons in the user's order. Rows whose stored manifest no longer parses are skipped. */
@@ -156,6 +157,8 @@ export function removeAddon(db: Db, url: string, now: number): void {
     // An add-on that ran inside the app takes its code with it, and a scrobbler its settings.
     tx.delete(localAddonCode).where(eq(localAddonCode.url, url)).run();
     tx.delete(scrobblerSettings).where(eq(scrobblerSettings.url, url)).run();
+    // Added again later, it is asked again.
+    addonRefusals.forget(url);
     if (row.builtin) {
       tx.insert(removedAddons)
         .values({ url, removedAt: now, updatedAt: now })

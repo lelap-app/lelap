@@ -1,0 +1,1 @@
+ALTER TABLE `series_lists` ADD `protocol` integer DEFAULT 0 NOT NULL;

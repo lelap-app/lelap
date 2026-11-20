@@ -20,9 +20,12 @@ import {
   offersHealth,
   offersSeries,
   prefixesFor,
+  PROTOCOL_HEADER,
+  PROTOCOL_HEADER_SINCE,
   REFRESH_AFTER_MAX_S,
   RELEASE_ID,
   type ResourceName,
+  sendsAppProtocol,
   SeriesResponse,
   SingleFileStream,
   STREAM_FORMATS,
@@ -229,6 +232,8 @@ export async function checkAddon(input: string, options: CheckOptions = {}): Pro
   const notes: string[] = [];
   let requests = 0;
   let stopped = false;
+  // What the app sends with every resource request once the manifest declares revision 15.
+  let appHeaders: Record<string, string> = {};
 
   const report = (
     level: CheckLevel,
@@ -283,7 +288,11 @@ export async function checkAddon(input: string, options: CheckOptions = {}): Pro
           const response = await fetcher(url, {
             ...init,
             signal: controller.signal,
-            headers: { Accept: 'application/json', ...(init.headers as Record<string, string>) },
+            headers: {
+              Accept: 'application/json',
+              ...(init.method === 'OPTIONS' || kind === 'audio' ? {} : appHeaders),
+              ...(init.headers as Record<string, string>),
+            },
           });
           // Audio is never read: a host that ignores Range would send the whole file.
           if (init.method === 'OPTIONS' || kind === 'audio') {
@@ -411,6 +420,10 @@ export async function checkAddon(input: string, options: CheckOptions = {}): Pro
       'protocolVersion',
     );
   checkManifestSense(manifest, manifestAnswer.url, report);
+  if (sendsAppProtocol(manifest)) {
+    appHeaders = { [PROTOCOL_HEADER]: String(LATEST_PROTOCOL_VERSION) };
+    await checkProtocolPreflight();
+  }
 
   if (offersHealth(manifest)) {
     const answer = await get('health', 'health');
@@ -928,6 +941,33 @@ export async function checkAddon(input: string, options: CheckOptions = {}): Pro
       );
   }
 
+  /** Revision 15: the web app sends `Lelap-Protocol`, so a browser asks first for every resource. */
+  async function checkProtocolPreflight() {
+    const first = manifest.catalogs[0];
+    const path = first ? catalogPath(first.type, first.id) : 'health';
+    const answer = await get(path, 'cors', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'https://example.org',
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': PROTOCOL_HEADER.toLowerCase(),
+      },
+    });
+    if (!answer) return;
+    const allowHeaders = answer.headers.get('access-control-allow-headers') ?? '';
+    const allowed = allowHeaders
+      .split(',')
+      .map((h) => h.trim().toLowerCase())
+      .some((h) => h === '*' || h === PROTOCOL_HEADER.toLowerCase());
+    if (answer.status >= 300 || !answer.headers.get('access-control-allow-origin') || !allowed)
+      report(
+        'warning',
+        'cors',
+        answer.url,
+        `Declares revision ${manifest.protocolVersion}, but the preflight answered ${answer.status} without allowing ${PROTOCOL_HEADER}: the web app sends it with every request and cannot reach this add-on. Answer OPTIONS with Access-Control-Allow-Headers: *.`,
+      );
+  }
+
   async function checkScrobble() {
     if (!manifest.resources.some((r) => (typeof r === 'string' ? r : r.name) === 'scrobble'))
       return;
@@ -973,6 +1013,24 @@ function checkManifestSense(
   ) => void,
 ) {
   const names = manifest.resources.map((r) => (typeof r === 'string' ? r : r.name));
+  const revision = manifest.protocolVersion ?? 1;
+  const minimum = manifest.minProtocolVersion;
+  if (minimum !== undefined && revision < PROTOCOL_HEADER_SINCE)
+    report(
+      'warning',
+      'manifest',
+      url,
+      `minProtocolVersion came with revision ${PROTOCOL_HEADER_SINCE}, so declare protocolVersion ${PROTOCOL_HEADER_SINCE}: before it the app sends no revision, and an app before it ignores the field.`,
+      'minProtocolVersion',
+    );
+  if (minimum !== undefined && minimum > revision)
+    report(
+      'warning',
+      'manifest',
+      url,
+      `minProtocolVersion ${minimum} is above protocolVersion ${revision}: the add-on asks for an app newer than the revision it is written for.`,
+      'minProtocolVersion',
+    );
   manifest.resources.forEach((r, index) => {
     if (typeof r !== 'string' && r.name === 'series' && r.idPrefixes)
       report(

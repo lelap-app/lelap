@@ -1,4 +1,4 @@
-import { addonLabels, fetchCatalog, searchCatalogs } from '@lelap/core';
+import { addonLabels, APP_PROTOCOL_VERSION, fetchCatalog, searchCatalogs } from '@lelap/core';
 import { useQueries } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { type ComponentRef, useEffect, useMemo, useRef, useState } from 'react';
@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../../src/i18n';
 import { EmptyState } from '../../src/components/Lori';
-import { fetcher, SHOWN_TYPES, useAddons } from '../../src/addons';
+import { addonErrorText, fetcher, SHOWN_TYPES, useAddons } from '../../src/addons';
 import { useAskWhenVisible, useAvailability } from '../../src/availability';
 import { MetaListRow } from '../../src/components/MetaCard';
 import { openItem } from '../../src/navigation';
@@ -43,14 +43,21 @@ export default function SearchScreen() {
   }, [addons]);
   const results = useQueries({
     queries: refs.map((ref) => ({
-      queryKey: ['search', query, ref.addon.url, ref.catalog.type, ref.catalog.id],
+      queryKey: [
+        'search',
+        APP_PROTOCOL_VERSION,
+        query,
+        ref.addon.url,
+        ref.catalog.type,
+        ref.catalog.id,
+      ],
       enabled: query.length >= 2,
       queryFn: () =>
         fetchCatalog(fetcher, ref, { search: query }).then(
           (metas) => ({ metas, error: null as string | null }),
           (error: unknown) => ({
             metas: [],
-            error: error instanceof Error ? error.message : t('Search failed'),
+            error: addonErrorText(error) ?? t('Search failed'),
           }),
         ),
     })),
