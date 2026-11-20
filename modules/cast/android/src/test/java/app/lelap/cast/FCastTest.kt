@@ -106,4 +106,43 @@ class FCastTest {
     assertFalse(pollEverySecond(watch, 71_000L, 85_000L))
     assertTrue(watch.polled(86_000L))
   }
+
+  // M139: tuned from the receiver's own pong gaps.
+
+  @Test
+  fun aReceiverWhosePongsComeSlowlyGetsLongerBeforeItIsLost() {
+    val watch = FCastWatch(0L)
+    // Pongs 6 s apart, though pings go every 3 s.
+    var t = 0L
+    repeat(5) {
+      t += 6_000L
+      watch.heard(t, pong = true)
+    }
+    assertEquals(6_000L, watch.slowGapMs)
+    assertEquals(9_000L, watch.graceMs)
+    assertEquals(24_000L, watch.lostAfterMs)
+    // Polls ran all along; the first one here is a second after the last pong.
+    assertFalse(pollEverySecond(watch, t - 5_000L, t + 24_000L))
+    assertTrue(watch.polled(t + 25_000L))
+  }
+
+  @Test
+  fun aQuickReceiverKeepsTheDefaults() {
+    val watch = FCastWatch(0L)
+    var t = 0L
+    repeat(10) {
+      t += 3_000L
+      watch.heard(t, pong = true)
+    }
+    assertEquals(6_000L, watch.graceMs)
+    assertEquals(15_000L, watch.lostAfterMs)
+  }
+
+  @Test
+  fun aPongAfterThePhoneSleptIsNoGap() {
+    val watch = FCastWatch(0L)
+    listOf(3_000L, 6_000L, 9_000L, 70_000L, 73_000L).forEach { watch.heard(it, pong = true) }
+    assertEquals(3_000L, watch.slowGapMs)
+    assertEquals(15_000L, watch.lostAfterMs)
+  }
 }

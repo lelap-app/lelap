@@ -118,7 +118,7 @@ fun groupVolumes(level: Float, volumes: List<Float?>): List<Float> {
  * its own, so its calls still run one at a time and in order, as every [Renderer] expects.
  */
 class GroupRenderer(
-  private val leader: Renderer,
+  first: Renderer,
   followers: List<Renderer>,
   clock: () -> Long,
   /** For `adb logcat -s LelapCast`: numbers only. */
@@ -146,6 +146,10 @@ class GroupRenderer(
    */
   @Volatile
   var scale: Float = 1f
+
+  // The speaker whose status is the group's; another takes over when it leaves (M139).
+  @Volatile
+  private var leader: Renderer = first
 
   private val members = CopyOnWriteArrayList(followers.mapIndexed { i, r -> Member(i, r) })
   private val sync = GroupSync(clock)
@@ -193,6 +197,41 @@ class GroupRenderer(
         member.catchingUp = false
       }
     }
+  }
+
+  /**
+   * The leading speaker leaves (M139): the follower that joined first leads from here, [wrap]ped
+   * as the caller needs it, and the old leader stops (at the volume it had before a fade) and is
+   * let go. What was queued for the new leader runs first, then this thread calls it, so nothing
+   * it was told is reordered. Returns the new leader as it was before [wrap], or null when no
+   * speaker that already plays would be left. Call it on the thread the leader is called on.
+   */
+  fun handOver(wrap: (Renderer) -> Renderer): Renderer? {
+    // One still loading after it joined may yet fail; it can't lead before it plays.
+    val next = members.firstOrNull { !it.catchingUp } ?: return null
+    members.remove(next)
+    synchronized(sync) {
+      sync.forget(next.number)
+      // The others' places are judged against the new leader after a moment.
+      sync.commanded()
+    }
+    try {
+      next.thread.submit(Callable { }).get(COMMAND_WAIT_S, TimeUnit.SECONDS)
+    } catch (e: Exception) {
+      // Stuck on the network: it leads anyway, and its socket ends the stuck call.
+    }
+    next.thread.shutdown()
+    val old = leader
+    val oldVolume = leaderVolume
+    leader = wrap(next.renderer)
+    leaderVolume = next.volume
+    val lowered = scale
+    log("group: the leading speaker left, ${members.size + 1} left")
+    Thread({
+      if (lowered in 0.01f..0.999f && oldVolume != null) runCatching { old.setVolume((oldVolume / lowered).coerceIn(0f, 1f)) }
+      runCatching { old.close() }
+    }, "lelap-cast-leave").apply { isDaemon = true }.start()
+    return next.renderer
   }
 
   /** The listener took a follower out of the group: it stops, and the rest play on. */

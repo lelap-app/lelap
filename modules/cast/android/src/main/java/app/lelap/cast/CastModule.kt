@@ -135,7 +135,7 @@ class CastModule : Module() {
       }
     }
 
-    // A speaker other than the leading one leaves the group; it stops and the rest play on.
+    // A speaker leaves the group; it stops and the rest play on, the next leading if it led (M139).
     AsyncFunction("leave") { deviceId: String, promise: Promise ->
       val link = CastLink.current?.takeIf { !it.closed } ?: throw CastFailedException(NativeText.t(context, "Not casting"))
       offQueue(promise) {

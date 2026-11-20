@@ -39,6 +39,15 @@ class RemoteSession(
     ENDED,
   }
 
+  // How long statuses after a command count as stale, learnt from this receiver's answers (M139).
+  private val waits = ReceiverWaits()
+
+  /** The waits as tuned now, for the timing log. */
+  val commandSettleMs: Long
+    get() = waits.commandSettleMs
+  val loadSettleMs: Long
+    get() = waits.loadSettleMs
+
   private var durations: List<Long> = emptyList()
 
   var index = 0
@@ -170,7 +179,7 @@ class RemoteSession(
       return true
     }
     // Receivers report a stop or an idle moment while they start the new file.
-    hold(state = LOAD_SETTLE_MS, place = LOAD_SETTLE_MS)
+    hold(state = waits.loadSettleMs, place = waits.loadSettleMs)
     expect("load") { it.state == (if (playWhenReady) PlayState.PLAYING else PlayState.PAUSED) }
     return true
   }
@@ -241,11 +250,11 @@ class RemoteSession(
       positionAt = clock()
       reportedMs = resume
       receiverPlaying = false
-      hold(place = COMMAND_SETTLE_MS)
+      hold(place = waits.commandSettleMs)
       commands += Command.Seek(resume)
     }
     playWhenReady = true
-    hold(state = COMMAND_SETTLE_MS)
+    hold(state = waits.commandSettleMs)
     expect("play") { it.state == PlayState.PLAYING }
     commands += Command.Play
     return commands
@@ -257,7 +266,7 @@ class RemoteSession(
     positionAt = clock()
     receiverPlaying = false
     playWhenReady = false
-    hold(state = COMMAND_SETTLE_MS, place = COMMAND_SETTLE_MS)
+    hold(state = waits.commandSettleMs, place = waits.commandSettleMs)
     expect("pause") { it.state == PlayState.PAUSED }
     return listOf(Command.Pause)
   }
@@ -270,7 +279,7 @@ class RemoteSession(
       positionMs = place
       positionAt = clock()
       reportedMs = place
-      hold(place = COMMAND_SETTLE_MS)
+      hold(place = waits.commandSettleMs)
       expect("seek") { it.state != PlayState.BUFFERING && abs(it.positionMs - place) <= SEEK_MATCH_MS }
       return listOf(Command.Seek(place))
     }
@@ -377,7 +386,9 @@ class RemoteSession(
     }
     if (!p.agrees(status)) return
     probe = null
-    onTiming(Timing(p.what, now - p.at))
+    val timing = Timing(p.what, now - p.at)
+    waits.learn(timing)
+    onTiming(timing)
   }
 
   private fun contradicts(state: PlayState): Boolean = when (state) {
@@ -387,8 +398,6 @@ class RemoteSession(
   }
 
   private companion object {
-    const val COMMAND_SETTLE_MS = 2_500L
-    const val LOAD_SETTLE_MS = 5_000L
 
     /** How far before a part's end a stop still counts as its end: polls are a second apart. */
     const val END_TOLERANCE_MS = 10_000L

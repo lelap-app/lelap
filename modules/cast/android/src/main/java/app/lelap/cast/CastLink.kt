@@ -220,6 +220,10 @@ class CastLink private constructor(
   // The leader as the session plays it: remembers the file and speed, for a speaker that joins.
   private var leader: RememberingRenderer? = null
 
+  // Its own client, which a lost-connection callback names; changed on the cast thread.
+  @Volatile
+  private var leaderClient: Renderer? = null
+
   // Guarded by the cast thread: the group, once there is one, and each follower's client by id.
   @Volatile
   private var group: GroupRenderer? = null
@@ -250,7 +254,7 @@ class CastLink private constructor(
   private fun follower(member: CastDevice): Renderer {
     var self: Renderer? = null
     // A follower lost before the group exists is dropped by its first failed command.
-    return rendererFor(member) { self?.let { r -> group?.drop(r) } }.also { self = it }
+    return rendererFor(member) { message -> self?.let { r -> lostSpeaker(r, message) } }.also { self = it }
   }
 
   private fun open(pinned: Set<String>) {
@@ -258,9 +262,14 @@ class CastLink private constructor(
     // the verdicts with `adb logcat -s LelapCast`.
     val probes = members.mapNotNull { member -> probe(member)?.let { member to it } }
     val opened = mutableMapOf<String, Renderer>()
-    val first = rendererFor(members.first(), ::lost).also { opened[members.first().id] = it }
+    var self: Renderer? = null
+    val first = rendererFor(members.first()) { message -> lostSpeaker(self, message) }.also {
+      self = it
+      opened[members.first().id] = it
+    }
     val remembering = RememberingRenderer(first)
     leader = remembering
+    leaderClient = first
     renderer = remembering
     if (members.size > 1) {
       val missed = mutableListOf<CastDevice>()
@@ -305,9 +314,9 @@ class CastLink private constructor(
     val gone = AtomicBoolean(false)
     var joining: Renderer? = null
     val loaded = try {
-      val r = rendererFor(member) {
+      val r = rendererFor(member) { message ->
         gone.set(true)
-        joining?.let { j -> group?.drop(j) }
+        joining?.let { j -> lostSpeaker(j, message) }
       }
       joining = r
       if (probe != null) checkTrust(member, probe, r, pinned)
@@ -350,10 +359,58 @@ class CastLink private constructor(
   @Volatile
   private var fadeScale = 1f
 
-  /** Takes a speaker other than the leading one out of the group; it stops and the rest play on. */
+  /**
+   * Takes a speaker out of the group; it stops and the rest play on. When it is the leading one,
+   * the speaker that joined first after it leads from here (M139). The last one can't leave.
+   */
   fun leave(memberId: String) {
-    if (closed || members.firstOrNull()?.id == memberId) return
-    worker.submit(Callable { removeFollower(memberId) }).get(JOIN_WAIT_S, TimeUnit.SECONDS)
+    if (closed) return
+    // Decided on the cast thread: a hand-over just before (a double tap, a lost leader) changed who leads.
+    worker.submit(
+      Callable {
+        when {
+          members.size < 2 -> Unit
+          members.firstOrNull()?.id == memberId -> {
+            handOver()
+          }
+          else -> removeFollower(memberId)
+        }
+      },
+    ).get(JOIN_WAIT_S, TimeUnit.SECONDS)
+  }
+
+  /**
+   * A speaker's client lost its connection (any thread). A follower leaves the group; the leader
+   * hands over to the next speaker, and ends the session only when it played alone.
+   */
+  private fun lostSpeaker(client: Renderer?, message: String) {
+    client ?: return
+    // Alone, the session ends at once, as before: the cast thread may be stuck on that speaker.
+    // In a group (even one handing over right now) the cast thread decides, in order.
+    if (client === leaderClient && group == null) return lost(message)
+    val queued = later {
+      when {
+        client !== leaderClient -> group?.drop(client)
+        // No one ready to lead (all still joining): the session ends as it would alone.
+        !handOver() -> lost(message)
+      }
+    }
+    if (!queued && client === leaderClient) lost(message)
+  }
+
+  // On the cast thread: the next speaker leads, with the file and speed the leader had. False
+  // when no speaker is ready to.
+  private fun handOver(): Boolean {
+    val g = group ?: return false
+    val old = leader ?: return false
+    val next = g.handOver { client -> RememberingRenderer(client, old.media, old.speed).also { leader = it } } ?: return false
+    leaderClient = next
+    val id = followers.entries.firstOrNull { it.value === next }?.key
+    if (id != null) followers.remove(id)
+    val promoted = members.firstOrNull { it.id == id }
+    members = listOfNotNull(promoted) + members.drop(1).filter { it.id != id }
+    device = standIn(members).copy(id = device.id)
+    return true
   }
 
   // On the cast thread. The future is the new speaker's catch-up load, null when nothing plays.
