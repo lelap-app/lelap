@@ -13,7 +13,7 @@ const KIND = {
 /**
  * The app's one button. Primary for the main action of a screen, secondary beside a field or as
  * the second choice, text inside rows (that kind is `TextButton`). 48 tall in every kind and size;
- * disabled is the same button at lower opacity, never a different style.
+ * disabled is an outline with muted text in every kind, since opacity would take the text below AA.
  */
 export function Button({
   text,
@@ -56,7 +56,7 @@ export function Button({
   }
   const look = KIND[kind];
   const off = disabled || busy;
-  const ink = kind === 'primary' ? colors.ink : colors.paper;
+  const ink = disabled ? colors.muted : kind === 'primary' ? colors.ink : colors.paper;
   return (
     <Pressable
       onPress={onPress}
@@ -65,7 +65,7 @@ export function Button({
       accessibilityLabel={accessibilityLabel ?? text}
       accessibilityState={{ disabled: off, busy }}
       {...hintProps(hint)}
-      className={`min-h-12 flex-row items-center justify-center gap-2 rounded-full ${size === 'sm' ? 'px-4' : 'px-6'} ${look.box} ${disabled ? 'opacity-40' : ''} ${className}`}
+      className={`min-h-12 flex-row items-center justify-center gap-2 rounded-full ${size === 'sm' ? 'px-4' : 'px-6'} ${disabled ? 'border border-line' : look.box} ${className}`}
     >
       {busy ? (
         <ActivityIndicator color={ink} />
@@ -76,7 +76,11 @@ export function Button({
               <Icon name={icon} size={18} color={ink} />
             </View>
           )}
-          <Text className={`${size === 'sm' ? 'text-sm' : 'text-base'} ${look.text}`}>{text}</Text>
+          <Text
+            className={`${size === 'sm' ? 'text-sm' : 'text-base'} ${disabled ? 'font-medium text-muted' : look.text}`}
+          >
+            {text}
+          </Text>
         </>
       )}
     </Pressable>

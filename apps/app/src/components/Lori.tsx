@@ -1,7 +1,6 @@
 import { View } from 'react-native';
 import Svg, { Circle, Ellipse, Path, Rect } from 'react-native-svg';
 
-
 // Lori, Lelap's mascot: a slow loris, nocturnal like the app's night theme and, like the name,
 // from Indonesia. Drawn asleep, curled up with headphones on, from the mascot sketch. Her colours
 // are art, never text (contrast: illustration).

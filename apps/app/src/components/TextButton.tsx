@@ -57,9 +57,9 @@ export function TextButton({
       accessibilityRole="button"
       {...(accessibilityLabel === undefined ? {} : { accessibilityLabel })}
       {...hint(row)}
-      className={`min-h-12 min-w-12 items-center justify-center ${disabled ? 'opacity-40' : ''} ${className}`}
+      className={`min-h-12 min-w-12 items-center justify-center ${className}`}
     >
-      <Text className={`${TONE[tone]}${strong ? ' font-semibold' : ''}`}>
+      <Text className={`${disabled ? 'text-muted' : TONE[tone]}${strong ? ' font-semibold' : ''}`}>
         {text}
       </Text>
     </Pressable>

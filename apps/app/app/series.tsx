@@ -166,7 +166,7 @@ export default function SeriesScreen() {
         }
         ListEmptyComponent={
           // The library's books show at once; only a series with none waits on the add-ons.
-          <LoadState loading={asking && !list} onRetry={refresh}>
+          <LoadState loading={asking && !list}>
             <EmptyState
               lori
               title={t('No books in this series.')}

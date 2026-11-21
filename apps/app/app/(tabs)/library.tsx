@@ -531,8 +531,12 @@ export default function LibraryScreen() {
           className="mx-4"
           text={
             Platform.OS === 'web'
-              ? t('Offline. Everything on this device works; progress syncs when you’re back online.')
-              : t('Offline. Everything on this phone works; progress syncs when you’re back online.')
+              ? t(
+                  'Offline. Everything on this device works; progress syncs when you’re back online.',
+                )
+              : t(
+                  'Offline. Everything on this phone works; progress syncs when you’re back online.',
+                )
           }
         />
       )}

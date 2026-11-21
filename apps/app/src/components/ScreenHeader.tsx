@@ -16,6 +16,7 @@ export function ScreenHeader({
   subtitle,
   back = 'back',
   onBack,
+  backLabel,
   action,
   children,
 }: {
@@ -25,6 +26,8 @@ export function ScreenHeader({
   back?: 'back' | 'close';
   /** Router back when left out. */
   onBack?: () => void;
+  /** Names Back or Close when the screen needs more, such as “Close transcript”. */
+  backLabel?: string;
   action?: ReactNode;
   /** Anything that belongs to the header under the subtitle, such as a book's title. */
   children?: ReactNode;
@@ -36,7 +39,7 @@ export function ScreenHeader({
       <View className="-ms-2 h-12 flex-row items-center justify-between">
         <IconButton
           name={back}
-          label={back === 'close' ? t('Close') : t('Back')}
+          label={backLabel ?? (back === 'close' ? t('Close') : t('Back'))}
           color={colors.soft}
           onPress={onBack ?? (() => router.back())}
         />

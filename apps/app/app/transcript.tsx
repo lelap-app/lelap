@@ -70,7 +70,14 @@ export default function TranscriptScreen() {
   const title = episode?.title ?? part?.title ?? detail?.book.title ?? t('Transcript');
   const subtitle = episode?.podcastTitle ?? (part?.title ? detail?.book.title : undefined);
 
-  const header = <ScreenHeader back="close" title={title} subtitle={subtitle ?? undefined} />;
+  const header = (
+    <ScreenHeader
+      back="close"
+      backLabel={t('Close transcript')}
+      title={title}
+      subtitle={subtitle ?? undefined}
+    />
+  );
 
   return (
     <View className="flex-1 bg-night">

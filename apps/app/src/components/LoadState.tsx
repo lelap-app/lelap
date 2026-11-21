@@ -26,6 +26,8 @@ export function LoadState({
 }) {
   const colors = useColors();
   const [late, setLate] = useState(false);
+  // Bumped by Try again, so a retry that leaves the page loading starts a new timeout.
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!loading) {
       setLate(false);
@@ -33,12 +35,13 @@ export function LoadState({
     }
     const timer = setTimeout(() => setLate(true), LOAD_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [loading]);
+  }, [loading, attempt]);
 
   const retry = onRetry && {
     label: t('Try again'),
     onPress: () => {
       setLate(false);
+      setAttempt((n) => n + 1);
       onRetry();
     },
   };
