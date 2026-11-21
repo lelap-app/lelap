@@ -309,6 +309,7 @@ app; see Decisions.
 | `catalog.lelap.app` | Catalog add-on; Hardcover sign-ins    | Worker + Cache API + Durable Objects |
 | `proxy.lelap.app`   | RSS, covers, transcripts; never audio | Worker + Cache API                   |
 | `sync.lelap.app`    | Encrypted blobs and oplogs            | Worker + D1                          |
+| `status.lelap.app`  | Status page: every service, 5 minutes | Worker + Cron + Durable Object       |
 
 Self-hosting: images `web`, `catalog`, `proxy`, `sync` on `ghcr.io`; storage adapters swap D1 for
 SQLite and R2 for disk or MinIO. `docker compose up` runs them all and generates its secrets (M95).

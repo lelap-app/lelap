@@ -1,0 +1,37 @@
+# Status page for the hosted services (M142). A Cron Trigger asks every target every 5 minutes;
+# results live in a SQLite Durable Object, so there is no database to create first.
+# No routes here: the deploy passes the custom domain, so forks deploy to their own.
+name = "lelap-status"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+workers_dev = true
+send_metrics = false
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[[durable_objects.bindings]]
+name = "STORE"
+class_name = "StatusStore"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["StatusStore"]
+
+[vars]
+# One target per line: a name, `|`, an address. `{NAME}` is replaced by the variable NAME, which
+# the deploy passes with --var from the GitHub environment; a line whose variable is unset is left
+# out, so a fork checks only what it runs. Sync's production `/` never touches its database.
+TARGETS = """
+Landing page | https://{LELAP_DOMAIN}/
+Web app | {WEB_ORIGIN}/
+Catalog | https://{CATALOG_DOMAIN}/health
+LibriVox add-on | https://{CATALOG_DOMAIN}/librivox/manifest.json
+Proxy | https://{PROXY_DOMAIN}/health
+Sync | https://{SYNC_DOMAIN}/
+Sync staging | https://{SYNC_STAGING_DOMAIN}/health
+Updates | https://{UPDATES_DOMAIN}/health
+"""
+
+# Email on state changes is optional. The deploy adds a `send_email` binding named EMAIL when the
+# STATUS_EMAIL_FROM variable is set; the address it goes to is the STATUS_EMAIL_TO secret.

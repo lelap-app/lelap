@@ -75,6 +75,15 @@
         "cd services/proxy && pnpm exec wrangler pages dev ../../apps/app/dist-web --port 8083"
       ],
       "port": 8083
+    },
+    {
+      "name": "status",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "scripts/dev-node.sh",
+        "pnpm --filter @lelap/status exec wrangler dev --port 8790 --test-scheduled"
+      ],
+      "port": 8790
     }
   ]
 }

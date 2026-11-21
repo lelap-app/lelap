@@ -136,3 +136,11 @@ describe('published records', () => {
     expect(manifestId(MANIFEST)).toBe('0d4c7a52-7d1c-4a3e-9a51-0b3c2f6a9e10');
   });
 });
+
+describe('health', () => {
+  it('answers without reading the bucket', async () => {
+    const response = await setup({})('/health');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: 'ok' });
+  });
+});

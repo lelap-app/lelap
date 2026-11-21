@@ -293,6 +293,8 @@ export function createApp(platform: Platform, env: Env): Hono {
   });
 
   app.get('/', (c) => c.text('Lelap feed, cover and transcript proxy. Never audio.'));
+  // For the status page (M142): answers without fetching anything.
+  app.get('/health', (c) => c.json({ status: 'ok' }, 200, { 'Cache-Control': 'no-store' }));
   app.notFound((c) => c.json({ error: 'Not found.' }, 404));
   return app;
 }
