@@ -29,6 +29,9 @@ type Row = {
   lang: string;
   /** Category names from Podcast Index's `categories/list`, any of them. */
   cat?: string;
+  /** Searched when trending and recent feeds leave the row short: few feeds in these languages
+   * carry the category, while their titles say the word. */
+  term?: string;
   keep: (language: string) => boolean;
 };
 
@@ -49,6 +52,7 @@ const ROWS: Row[] = [
     id: 'cerita',
     name: 'Cerita',
     lang: MALAY_INDONESIAN,
+    term: 'cerita',
     cat: 'Fiction,Drama,Stories',
     keep: isMalayOrIndonesian,
   },
@@ -56,6 +60,7 @@ const ROWS: Row[] = [
     id: 'sembang',
     name: 'Sembang',
     lang: MALAY_INDONESIAN,
+    term: 'sembang',
     cat: 'Society,Culture,Comedy,Leisure',
     keep: isMalayOrIndonesian,
   },
@@ -63,6 +68,7 @@ const ROWS: Row[] = [
     id: 'sejarah',
     name: 'Sejarah',
     lang: MALAY_INDONESIAN,
+    term: 'sejarah',
     cat: 'History',
     keep: isMalayOrIndonesian,
   },
@@ -94,8 +100,9 @@ const keptBy = (keep: (language: string) => boolean) => (feed: Feed) =>
   feed.language !== undefined && keep(feed.language);
 
 /**
- * Trending shows first; recently updated ones fill the row when too few are trending. `failed`
- * when the top-up failed, so the row is kept briefly instead of for a day.
+ * Trending shows first; recently updated ones, then a search for the row's word, fill the row when
+ * too few are trending. `failed` when a top-up failed, so the row is kept briefly instead of for a
+ * day.
  */
 async function rowFeeds(
   podcasts: PodcastIndex,
@@ -110,18 +117,23 @@ async function rowFeeds(
   };
   const kept = (await podcasts.feeds('podcasts/trending', filter)).filter(keptBy(row.keep));
   let failed = false;
-  if (kept.length < ROW_SIZE) {
-    const seen = new Set(kept.map((f) => f.id));
-    const recent = await podcasts.feeds('recent/feeds', filter).catch(() => {
+  const seen = new Set(kept.map((f) => f.id));
+  const topUp = async (more: () => Promise<Feed[]>) => {
+    if (kept.length >= ROW_SIZE) return;
+    const feeds = await more().catch(() => {
       failed = true;
       return [];
     });
-    for (const feed of recent.filter(keptBy(row.keep))) {
+    for (const feed of feeds.filter(keptBy(row.keep))) {
       if (seen.has(feed.id)) continue;
       seen.add(feed.id);
       kept.push(feed);
     }
-  }
+  };
+  await topUp(() => podcasts.feeds('recent/feeds', filter));
+  // The same question as Lepak's search for the word, so one cached answer serves both.
+  const { term } = row;
+  if (term) await topUp(() => podcasts.searchFeeds(term, SEARCH_SIZE));
   return { feeds: kept.slice(0, ROW_SIZE), failed };
 }
 

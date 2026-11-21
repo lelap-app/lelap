@@ -17,7 +17,7 @@ const byFeedId = fixture('podcastindex-lepak-byfeedid.json') as Record<string, u
 
 // Podcast Index answers, as the shapes it returns: trending and recent feeds for History, trending
 // for the Singapore tags, and a search for “sejarah” in several languages.
-function setup(fail: { recent?: boolean; lookup?: string } = {}) {
+function setup(fail: { recent?: boolean; search?: boolean; lookup?: string } = {}) {
   const isRow = (endpoint: string, lang: string, cat: string | null) => (u: URL) =>
     u.pathname === `/api/1.0/${endpoint}` &&
     u.searchParams.get('lang')?.split(',').includes(lang) === true &&
@@ -34,7 +34,11 @@ function setup(fail: { recent?: boolean; lookup?: string } = {}) {
     ],
     [path('/api/1.0/recent/feeds'), fixture('podcastindex-lepak-recent-empty.json')],
     [path('/api/1.0/podcasts/trending'), fixture('podcastindex-lepak-recent-empty.json')],
-    [path('/api/1.0/search/byterm'), fixture('podcastindex-lepak-search-sejarah.json')],
+    [
+      (u) => u.pathname === '/api/1.0/search/byterm' && u.searchParams.get('q') === 'sejarah',
+      fixture('podcastindex-lepak-search-sejarah.json'),
+    ],
+    [path('/api/1.0/search/byterm'), fixture('podcastindex-lepak-recent-empty.json')],
     [
       (u) => u.pathname === '/api/1.0/podcasts/byguid' && u.searchParams.get('guid') === GUID,
       fixture('podcastindex-byguid.json'),
@@ -48,6 +52,7 @@ function setup(fail: { recent?: boolean; lookup?: string } = {}) {
       const id = parsed.searchParams.get('id') ?? '';
       const failing =
         (fail.recent === true && parsed.pathname === '/api/1.0/recent/feeds') ||
+        (fail.search === true && parsed.pathname === '/api/1.0/search/byterm') ||
         (parsed.pathname === '/api/1.0/podcasts/byfeedid' && id === fail.lookup);
       if (failing) return new Response('{}', { status: 503 });
       if (parsed.pathname === '/api/1.0/podcasts/byfeedid' && byFeedId[id] !== undefined) {
@@ -114,13 +119,17 @@ describe('Lepak rows', () => {
     expect(trending?.headers).toMatchObject({ 'X-Auth-Key': 'TESTKEY' });
   });
 
-  it('keeps Malay and Indonesian shows, and fills the row from recent feeds', async () => {
-    const metas = await setup().catalog('sejarah');
+  it('keeps Malay and Indonesian shows, and fills the row from recent feeds, then a search', async () => {
+    const { calls, catalog } = setup();
+    const metas = await catalog('sejarah');
     expect(metas.map((m) => [m.id, m.name])).toEqual([
       [guid(2001), 'Sembang Sejarah'],
       [guid(2002), 'Jejak Nusantara'],
       [guid(2004), 'Riwayat Kota'],
+      [guid(2006), 'Tawarikh Melayu'],
     ]);
+    const search = calls.find((c) => c.url.pathname === '/api/1.0/search/byterm');
+    expect(search?.url.search).toBe('?q=sejarah&max=30');
     // A recent feed lists no author, cover or description; the lookup brings them.
     expect(metas[2]).toMatchObject({
       type: 'podcast',
@@ -147,6 +156,10 @@ describe('Lepak rows', () => {
       .filter((c) => c.url.pathname === '/api/1.0/podcasts/trending')
       .map((c) => c.url.searchParams.get('cat'));
     expect(cats).toEqual(['Fiction,Drama,Stories', 'Society,Culture,Comedy,Leisure']);
+    const terms = calls
+      .filter((c) => c.url.pathname === '/api/1.0/search/byterm')
+      .map((c) => c.url.searchParams.get('q'));
+    expect(terms).toEqual(['cerita', 'sembang']);
   });
 
   it('keeps rows for a day', async () => {
@@ -154,14 +167,31 @@ describe('Lepak rows', () => {
     expect(body).toMatchObject({ cacheMaxAge: 24 * 60 * 60 });
   });
 
-  it('keeps the trending shows when recent feeds fail, for 5 minutes', async () => {
+  it('keeps the other shows when recent feeds fail, for 5 minutes', async () => {
     const { status, body } = await setup({ recent: true }).get('catalog/podcast/sejarah.json');
     expect(status).toBe(200);
     expect(CatalogResponse.parse(body).metas.map((m) => m.name)).toEqual([
       'Sembang Sejarah',
       'Jejak Nusantara',
+      'Tawarikh Melayu',
     ]);
     expect(body).toMatchObject({ cacheMaxAge: 5 * 60 });
+  });
+
+  it('keeps the listed shows when the search fails, for 5 minutes', async () => {
+    const { body } = await setup({ search: true }).get('catalog/podcast/sejarah.json');
+    expect(CatalogResponse.parse(body).metas.map((m) => m.name)).toEqual([
+      'Sembang Sejarah',
+      'Jejak Nusantara',
+      'Riwayat Kota',
+    ]);
+    expect(body).toMatchObject({ cacheMaxAge: 5 * 60 });
+  });
+
+  it('asks nobody else once trending fills the row', async () => {
+    const { calls, catalog } = setup();
+    await catalog('singapura');
+    expect(calls.some((c) => c.url.pathname === '/api/1.0/search/byterm')).toBe(false);
   });
 
   it('keeps a row briefly when a lookup fails', async () => {
@@ -169,6 +199,7 @@ describe('Lepak rows', () => {
     expect(CatalogResponse.parse(body).metas.map((m) => m.name)).toEqual([
       'Sembang Sejarah',
       'Riwayat Kota',
+      'Tawarikh Melayu',
     ]);
     expect(body).toMatchObject({ cacheMaxAge: 5 * 60 });
   });
@@ -180,7 +211,12 @@ describe('Lepak search', () => {
     const metas = await catalog('lepak-search/search=sejarah');
     // The same question as the Catalog's podcast search, so one cached answer serves both.
     expect(calls[0]?.url.search).toBe('?q=sejarah&max=30');
-    expect(metas.map((m) => m.name)).toEqual(['Sembang Sejarah', 'Jejak Nusantara', 'Kopi Talk']);
+    expect(metas.map((m) => m.name)).toEqual([
+      'Sembang Sejarah',
+      'Jejak Nusantara',
+      'Tawarikh Melayu',
+      'Kopi Talk',
+    ]);
   });
 
   it('asks nobody for an empty search', async () => {
