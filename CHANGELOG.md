@@ -2,6 +2,44 @@
 
 What changed in each Lelap release, newest first.
 
+## 0.1.0-beta.17 (2026-11-21)
+
+This beta changes one line of native code (Android Auto's “Up next”), so Android needs the new
+APK: beta 16 can't get it over the air. No database changes and no new permissions.
+
+### Improved
+
+- Every screen has the same header, buttons, text fields, empty screens and notices, in every
+  theme. (#284)
+- Every tab has the same header with Settings last, so Discover, Search and Podcasts reach
+  Settings too. The add-on count moved from Home to Settings › Library and sources. (#285)
+- On a wide screen the side rail stays beside every screen, a book's page and Settings included,
+  with whole labels and Settings at its foot. (#285)
+- Settings rows that open another screen show a chevron and their state, and text follows one
+  type scale throughout. (#285)
+- Clearer names everywhere: “Stats”, “Sleep timer”, “Up next”, “podcast” instead of “show”, and
+  “Needs a connection” on an offline book. The “Metadata only” badge is gone; the Playable only
+  filter covers it. (#285)
+- Switching tabs and opening Settings is quicker: screens out of sight no longer redraw on every
+  player tick or download. (#286)
+
+### Fixed
+
+- A page that can't load (a podcast, series, add-on, place or transcript) now shows Try again
+  after 15 seconds instead of spinning forever. (#284)
+- The offline line on Library is translated. (#284)
+
+### Self-hosting and add-on developers
+
+- A status page service (`services/status`) checks the landing page, web app, catalog, proxy,
+  sync and updates every 5 minutes and shows a page and `/status.json`, with optional email on
+  changes. Proxy, sync and updates answer `GET /health`. Docker leaves it out. (#283)
+
+### Known issues
+
+- None of the new look has been checked on a phone yet, and the Malay lines for it wait for a
+  native speaker. Tab switching times are measured in logcat but not yet compared on a phone.
+
 ## 0.1.0-beta.16 (2026-11-21)
 
 This beta changes native code, so Android needs the new APK: beta 15 can't get it over the air.

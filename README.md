@@ -22,17 +22,17 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Keeps a short history of each book's plays, pauses, skips and jumps on the device. After a long
   jump, one tap goes back; on Android the notification and Android Auto offer it too.
 - Boosts voices, skips silence (showing the time saved) and keeps loudness even, per book or per
-  show. In the browser, skip silence works on constant-bitrate MP3 files such as LibriVox's, on
+  podcast. In the browser, skip silence works on constant-bitrate MP3 files such as LibriVox's, on
   variable-bitrate MP3 in Chrome and Firefox, and on M4B, Opus, Ogg and FLAC files.
 - Opens the library in three groups: in progress, not started and finished.
 - Shows your listening: time today, this week and this year, streaks, finished books and a year
   in sound to share as an image.
-- Organises with tags, playlists, smart lists and one Up Next queue, and plays a list from start
+- Organises with tags, playlists, smart lists and one Up next queue, and plays a list from start
   to end. Hides what you don't want in the library, and points out files that look like music.
 - Lists a whole series in reading order where Wikidata knows it, with the books you don't have yet
   by their titles, and names the next book at the end of one.
 - Rates books in half stars, and marks new podcast episodes.
-- Plays a show's smallest file on mobile data when its feed offers several, and checks a download
+- Plays a podcast's smallest file on mobile data when its feed offers several, and checks a download
   against the hash the feed gives.
 - Syncs progress between devices with a pairing code. No account, end-to-end encrypted.
 - Plays from your own files and folders; your own WebDAV, S3-compatible, Jellyfin, Emby, Plex,
@@ -75,7 +75,7 @@ and on the web from one codebase, and every server piece can be self-hosted with
 | `apps/site`     | Landing page and add-on docs for lelap.app (Astro, static)   |
 | `packages/core` | Domain model, library, add-on client, sync                   |
 | `packages/sdk`  | Add-on SDK and protocol types, on npm as `@lelap/sdk`        |
-| `services/*`    | Catalog, proxy, sync and update services (Hono)              |
+| `services/*`    | Catalog, proxy, sync, update and status services (Hono)      |
 | `modules/*`     | Native Android modules: audio, library, downloads, casting … |
 | `docker/`       | Images and compose file for self-hosting                     |
 | `docs/`         | Brief, roadmap, one file per milestone, test lists           |
@@ -111,7 +111,7 @@ A pre-commit hook runs ESLint and Prettier on staged files. It is installed by `
 ## Deployment
 
 GitHub Actions deploys from `main`: the landing page and the web app to Cloudflare Pages, and the
-catalog, proxy and updates services to Cloudflare Workers (sync to staging). A `v*` tag builds the
+catalog, proxy, updates and status services to Cloudflare Workers (sync to staging). A `v*` tag builds the
 signed APKs, publishes them to GitHub Releases and the downloads host with an over-the-air bundle,
 an SBOM and the Docker images, and deploys sync to production. Setup is in
 [`apps/site/README.md`](apps/site/README.md) and [`services/README.md`](services/README.md);

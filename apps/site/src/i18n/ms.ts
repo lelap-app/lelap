@@ -137,8 +137,8 @@ export const ms: Record<string, string> = {
   'Offline first': 'Luar talian didahulukan',
   'On a wide screen the player stands beside your library. The web app has keyboard shortcuts for play, skip and speed.':
     'Pada skrin lebar, pemain berada di sebelah pustaka anda. Aplikasi web mempunyai pintasan papan kekunci untuk main, langkau dan kelajuan.',
-  'On Android, finds chapters at the long silences of a book without any. Skips a show’s intro and outro, set once per show.':
-    'Di Android, mencari bab pada senyap panjang dalam buku yang tiada bab. Melangkau pengenalan dan penutup rancangan, ditetapkan sekali bagi setiap rancangan.',
+  'On Android, finds chapters at the long silences of a book without any. Skips a podcast’s intro and outro, set once per podcast.':
+    'Di Android, mencari bab pada senyap panjang dalam buku yang tiada bab. Melangkau pengenalan dan penutup podcast, ditetapkan sekali bagi setiap podcast.',
   'Open source · Android · Web · Self-hosted': 'Sumber terbuka · Android · Web · Hos sendiri',
   'Open source · Beta · Android and web': 'Sumber terbuka · Beta · Android dan web',
   'Open source, so you can check every line of that claim.':
@@ -153,7 +153,7 @@ export const ms: Record<string, string> = {
     'Sambung di komputer riba dari tempat anda berhenti di telefon. Gandingkan peranti dengan kod; segerak disulitkan hujung ke hujung.',
   'Play straight from your WebDAV, S3-compatible, Jellyfin, Emby, Plex, Navidrome or Audiobookshelf server, or an OPDS catalog such as Calibre’s, and on Android from SMB and SFTP. A server can have a home and an away address, and the app uses whichever answers. The app talks to it directly and keeps the credentials on your device.':
     'Main terus dari pelayan WebDAV, storan serasi S3, Jellyfin, Emby, Plex, Navidrome atau Audiobookshelf anda, atau katalog OPDS seperti katalog Calibre, dan di Android dari SMB dan SFTP. Pelayan boleh mempunyai alamat di rumah dan alamat di luar, dan aplikasi menggunakan yang mana menjawab. Aplikasi berhubung terus dengannya dan menyimpan butiran log masuk dalam peranti anda.',
-  'Playlists, tags and Up Next': 'Senarai main, tag dan Seterusnya',
+  'Playlists, tags and Up next': 'Senarai main, tag dan Seterusnya',
   'Please include:': 'Sila sertakan:',
   Primary: 'Navigasi utama',
   Privacy: 'Privasi',
@@ -210,8 +210,8 @@ export const ms: Record<string, string> = {
   'Try the Android beta': 'Cuba beta Android',
   'Until the first stable release, use the <code>beta</code> tag of each image.':
     'Sehingga keluaran stabil pertama, gunakan tag <code>beta</code> bagi setiap imej.',
-  'Voice boost brings soft and loud words closer together. Skip silence shortens long pauses and shows the time it saved, and even loudness keeps every book at one level. Set per book or per show. In the web app, skip silence works on M4B, Opus, Vorbis and FLAC files, and on MP3s with a constant bitrate, such as LibriVox’s, and in Chrome and Firefox on MP3s with a variable bitrate.':
-    'Penguat suara merapatkan perkataan yang perlahan dan yang kuat. Langkau senyap memendekkan jeda yang panjang dan menunjukkan masa yang dijimatkan, dan kenyaringan sekata mengekalkan setiap buku pada satu tahap. Tetapkan bagi setiap buku atau setiap rancangan. Dalam aplikasi web, langkau senyap berfungsi pada fail M4B, Opus, Vorbis dan FLAC, dan pada fail MP3 dengan kadar bit tetap, seperti fail LibriVox, dan dalam Chrome dan Firefox pada fail MP3 dengan kadar bit berubah.',
+  'Voice boost brings soft and loud words closer together. Skip silence shortens long pauses and shows the time it saved, and even loudness keeps every book at one level. Set per book or per podcast. In the web app, skip silence works on M4B, Opus, Vorbis and FLAC files, and on MP3s with a constant bitrate, such as LibriVox’s, and in Chrome and Firefox on MP3s with a variable bitrate.':
+    'Penguat suara merapatkan perkataan yang perlahan dan yang kuat. Langkau senyap memendekkan jeda yang panjang dan menunjukkan masa yang dijimatkan, dan kenyaringan sekata mengekalkan setiap buku pada satu tahap. Tetapkan bagi setiap buku atau setiap podcast. Dalam aplikasi web, langkau senyap berfungsi pada fail M4B, Opus, Vorbis dan FLAC, dan pada fail MP3 dengan kadar bit tetap, seperti fail LibriVox, dan dalam Chrome dan Firefox pada fail MP3 dengan kadar bit berubah.',
   'We ship the .apk directly so releases don’t wait on store review. The app checks for updates itself, or you can follow releases with Obtainium.':
     'Kami mengedarkan .apk secara terus supaya keluaran tidak perlu menunggu semakan gedung aplikasi. Aplikasi menyemak kemas kini sendiri, atau anda boleh mengikuti keluaran dengan Obtainium.',
   'Web app': 'Aplikasi web',
