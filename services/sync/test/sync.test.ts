@@ -188,3 +188,11 @@ describe('the app against this server', () => {
     expect(getSettings(laptop, DEFAULT_PROFILE_ID).skipIntervalMs).toBe(45_000);
   });
 });
+
+describe('health', () => {
+  it('answers without a group', async () => {
+    const response = await setup().call('/health');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: 'ok' });
+  });
+});

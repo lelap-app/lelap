@@ -729,6 +729,31 @@ importers:
         specifier: ^4.158.0
         version: 4.158.0(@cloudflare/workers-types@5.20261109.1)(@types/node@26.6.6)
 
+  services/status:
+    dependencies:
+      hono:
+        specifier: ^4.13.17
+        version: 4.13.17
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20261109.1
+        version: 5.20261109.1
+      '@types/sql.js':
+        specifier: ^1.4.11
+        version: 1.4.11
+      sql.js:
+        specifier: ^1.15.2
+        version: 1.15.2
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^5.1.0
+        version: 5.1.0(@types/node@26.6.6)(vite@8.3.7(@types/node@26.6.6)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
+      wrangler:
+        specifier: ^4.158.0
+        version: 4.158.0(@cloudflare/workers-types@5.20261109.1)(@types/node@26.6.6)
+
   services/sync:
     dependencies:
       hono:

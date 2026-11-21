@@ -287,6 +287,8 @@ export function createApp(
   });
 
   app.get('/', (c) => c.text('Lelap sync. It stores sealed messages and cannot read them.'));
+  // For the status page (M142): answers without touching the database.
+  app.get('/health', (c) => c.json({ status: 'ok' }));
   app.notFound((c) => c.json({ error: 'Not found.' }, 404));
   return app;
 }

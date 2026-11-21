@@ -98,7 +98,9 @@ quick checks (the service's own port, and for sync one query), so calling it oft
 Docker's health check uses it. The image's health check needs `ADMIN_PORT`, which the images set.
 
 On Cloudflare (lelap.app) there is no admin page: it lives in the Node entries only, never in the
-Workers, and Cloudflare's dashboard shows the same.
+Workers, and Cloudflare's dashboard shows the same. The status page (`services/status`, M142) runs
+on Workers only and is not part of the Docker setup: the admin pages and `/health` cover a
+self-hosted server.
 
 ## Back up
 
