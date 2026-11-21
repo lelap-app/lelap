@@ -15,7 +15,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M2 Local library](milestones/m2.md)                 | Done        |          13 | Local files and folders, chapters from tags, progress, bookmarks                                                                                                     |
 | [M3 Add-on protocol and SDK](milestones/m3.md)       | Done        |           4 | Add-on protocol, SDK, Workers template, Catalog and LibriVox add-ons                                                                                                 |
 | [M4 Downloads](milestones/m4.md)                     | Done        |           8 | Background downloads with Wi-Fi and charging rules, storage overview                                                                                                 |
-| [M5 Podcasts](milestones/m5.md)                      | Done        |           6 | RSS, OPML in and out, auto-download, Up Next                                                                                                                         |
+| [M5 Podcasts](milestones/m5.md)                      | Done        |           5 | RSS, OPML in and out, auto-download, Up Next                                                                                                                         |
 | [M6 Web build](milestones/m6.md)                     | Done        |           3 | The same app on the web: OPFS storage, web audio, feed and cover proxy                                                                                               |
 | [M7 Sync](milestones/m7.md)                          | Done        |           5 | Pairing code and end-to-end encrypted sync of places and lists                                                                                                       |
 | [M8 Release pipeline](milestones/m8.md)              | Done        |           2 | Signed APK in CI, in-app updater, Docker images, landing page live                                                                                                   |
@@ -197,10 +197,9 @@ when it is planned.
   and `:lelap-headless:testDebugUnitTest` (M123) pass locally but aren't in the `android-unit-tests`
   job's Gradle line in `ci.yml`. Adding them doesn't change when the job runs; waiting on the
   maintainer's yes, since it edits CI.
-- **Podcast Index keys on the hosted catalog:** production has no `PODCASTINDEX_KEY` and
-  `PODCASTINDEX_SECRET`, so Lepak (M131) is hidden and the Catalog has no podcast rows. Once set
-  with `wrangler secret put`, run `scripts/lepak-languages.mts` and fetch the four Lepak rows to
-  check they fill (M131's open checks).
+- **Lepak's Sejarah row is empty:** with the production Podcast Index keys, Cerita, Sembang and
+  Singapura fill but Sejarah lists nothing, though a search for “sejarah” finds 30 shows. Run
+  `scripts/lepak-languages.mts` and look at the row's query (M131's open checks).
 - **Wear OS:** control playback from the watch (tile and app: play, pause, skip, the sleep timer),
   and maybe play downloads on it. Was M89; set aside on 2026-11-18 until there is a watch to test
   on.
