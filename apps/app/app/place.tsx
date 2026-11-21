@@ -98,7 +98,7 @@ export default function PlaceScreen() {
         ...READABLE,
       }}
     >
-      <ScreenHeader onBack={back} />
+      <ScreenHeader inGap onBack={back} />
       <LoadState
         loading={false}
         failed={!place && { title: t('This link does not name a place in a book.') }}

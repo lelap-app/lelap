@@ -64,7 +64,6 @@ import {
   NETFS,
 } from '../src/platform/netfs';
 import { READABLE } from '../src/layout';
-import { useColors } from '../src/theme';
 
 type BuiltIn = 'webdav' | 'smb' | 'sftp' | 's3' | 'jellyfin' | 'audiobookshelf';
 /** A built-in kind, or an add-on inside the app by its manifest URL (M57). */
@@ -144,7 +143,6 @@ function Field({
   locked?: boolean;
   hint?: string;
 }) {
-  const colors = useColors();
   return (
     <View className="gap-1">
       <Text className="text-detail text-soft">{label}</Text>
@@ -157,12 +155,10 @@ function Field({
         autoCapitalize="none"
         autoCorrect={false}
         secureTextEntry={secret}
-        editable={!locked}
+        locked={locked}
         multiline={multiline}
         mono={multiline}
         {...(multiline ? { numberOfLines: 4, textAlignVertical: 'top' as const } : {})}
-        // A locked field is shown, not edited: its text is muted.
-        {...(locked ? { style: { color: colors.muted } } : {})}
         className={multiline ? 'min-h-24' : ''}
       />
       {hint && <Text className="text-caption text-muted">{hint}</Text>}
@@ -587,6 +583,7 @@ export default function ServerScreen() {
         }}
       >
         <ScreenHeader
+          inGap
           title={t('Addresses')}
           subtitle={t(
             'A server you reach at home and from outside can have both addresses. Lelap uses whichever answers; the login, books and places stay.',
@@ -652,6 +649,7 @@ export default function ServerScreen() {
       }}
     >
       <ScreenHeader
+        inGap
         title={abs ? t('Change key') : locked ? t('Log in again') : t('Add a server')}
         subtitle={
           abs

@@ -39,7 +39,7 @@ function RailItem({
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
       aria-selected={active}
-      className="min-h-14 items-center justify-center gap-1 rounded-xl px-1 py-2 active:bg-night"
+      className="min-h-14 min-w-12 items-center justify-center gap-1 rounded-xl px-1 py-2 active:bg-night"
     >
       <Icon name={icon} color={color} />
       {/* Two lines rather than an ellipsis, so a long name in another language stays whole. */}

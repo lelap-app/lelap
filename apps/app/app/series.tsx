@@ -75,7 +75,7 @@ export default function SeriesScreen() {
         : null,
     [series],
   );
-  const { list, asking } = useSeriesList(lookup);
+  const { list, asking, retry } = useSeriesList(lookup);
   const rows = useMemo(() => (series ? seriesRows(series, list) : []), [series, list]);
 
   const open = useCallback(
@@ -166,7 +166,7 @@ export default function SeriesScreen() {
         }
         ListEmptyComponent={
           // The library's books show at once; only a series with none waits on the add-ons.
-          <LoadState loading={asking && !list}>
+          <LoadState loading={asking && !list} onRetry={retry}>
             <EmptyState
               lori
               title={t('No books in this series.')}

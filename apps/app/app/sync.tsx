@@ -76,7 +76,7 @@ export default function SyncScreen() {
         gap: 16,
       }}
     >
-      <ScreenHeader title={t('Sync')} />
+      <ScreenHeader inGap title={t('Sync')} />
       <Text className="text-soft">
         {t(
           'Your places, bookmarks, streamed books, podcasts and Up next follow you between your devices. Everything is encrypted on this device with a key only your devices have; the server stores what it cannot read. No account.',

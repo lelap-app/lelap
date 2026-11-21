@@ -76,6 +76,7 @@ export default function ScrobblerScreen() {
       }}
     >
       <ScreenHeader
+        inGap
         title={manifest && !kids ? manifest.name : undefined}
         subtitle={manifest && !kids ? manifest.description : undefined}
       />

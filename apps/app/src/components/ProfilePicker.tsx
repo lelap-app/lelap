@@ -83,7 +83,8 @@ export function ProfilePicker({
             placeholder={t('PIN')}
             accessibilityLabel={t('PIN')}
             mono
-            className="w-40 text-center"
+            digits
+            className="w-40"
           />
           {wrong && (
             <Text accessibilityLiveRegion="assertive" className="text-danger">

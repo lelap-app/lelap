@@ -154,8 +154,7 @@ export default function EditChaptersScreen() {
               accessibilityLabel={t('Start of chapter {n}', { n: index + 1 })}
               keyboardType="numbers-and-punctuation"
               className="w-24"
-              // TextField has no error look; a time Lelap can't read keeps its red border.
-              {...(startOf(item) === null ? { style: { borderColor: colors.danger } } : {})}
+              invalid={startOf(item) === null}
             />
             {here !== null && (
               <TextButton

@@ -10,6 +10,9 @@ import { useColors } from '../theme';
 export function TextField({
   className = '',
   mono = false,
+  invalid = false,
+  locked = false,
+  digits = false,
   onFocus,
   onBlur,
   ref,
@@ -19,6 +22,12 @@ export function TextField({
   className?: string;
   /** For codes and keys, which are read character by character. */
   mono?: boolean;
+  /** A short number such as a PIN: large, spaced, centred digits. */
+  digits?: boolean;
+  /** Says the value can't be used, such as a time past the book's end: a red border. */
+  invalid?: boolean;
+  /** Shown but not editable, such as a server's address once added: muted text. */
+  locked?: boolean;
   ref?: Ref<ComponentRef<typeof TextInput>>;
 }) {
   const colors = useColors();
@@ -27,6 +36,8 @@ export function TextField({
     <TextInput
       ref={ref}
       placeholderTextColor={colors.muted}
+      {...(locked ? { editable: false } : {})}
+      {...(invalid ? { 'aria-invalid': true } : {})}
       {...props}
       onFocus={(e) => {
         setFocused(true);
@@ -36,7 +47,7 @@ export function TextField({
         setFocused(false);
         onBlur?.(e);
       }}
-      className={`min-h-12 min-w-0 rounded-lg border px-3 py-2 text-body text-paper ${focused ? 'border-amber' : 'border-line'} ${mono ? 'font-mono' : ''} ${className}`}
+      className={`min-h-12 min-w-0 rounded-lg border px-3 py-2 ${digits ? 'text-center text-heading tracking-[12px]' : 'text-body'} ${locked ? 'text-muted' : 'text-paper'} ${invalid ? 'border-danger' : focused ? 'border-amber' : 'border-line'} ${mono ? 'font-mono' : ''} ${className}`}
     />
   );
 }

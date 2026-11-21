@@ -81,6 +81,7 @@ export default function DiagnosticsScreen() {
       }}
     >
       <ScreenHeader
+        inGap
         title={t('Diagnostics')}
         subtitle={t(
           'A log of what went wrong, for a bug report. It stays on this device: Lelap never sends it anywhere. It only leaves when you share the file yourself.',

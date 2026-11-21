@@ -2,7 +2,7 @@ import { parseAddonLink } from '@lelap/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { t } from '../src/i18n';
 import { confirmAddon } from '../src/addonInstall';
@@ -10,7 +10,6 @@ import { useLibrary } from '../src/player';
 import { activeProfile } from '../src/profile';
 import { LoadState } from '../src/components/LoadState';
 import { TextButton } from '../src/components/TextButton';
-import { useColors } from '../src/theme';
 
 /**
  * `lelap://addon?manifest=…` (and `/addon?manifest=…` on the web): where an add-on's configure page
@@ -18,7 +17,6 @@ import { useColors } from '../src/theme';
  * line, read as it changes, so it has no heading (a11y: no heading).
  */
 export default function AddonLinkScreen() {
-  const colors = useColors();
   const router = useRouter();
   const { refresh } = useLibrary();
   const queryClient = useQueryClient();
@@ -30,21 +28,34 @@ export default function AddonLinkScreen() {
   const kids = activeProfile()?.kids === true;
   const [error, setError] = useState<string | null>(null);
   const started = useRef(false);
-  // Try again bumps this, so the effect asks once more.
+  // Try again bumps this, so the effect asks once more; an older attempt that answers late is
+  // ignored, so it can't open a second question.
   const [attempt, setAttempt] = useState(0);
+  const current = useRef(0);
+  // While the manifest is fetched; the question that follows may stay open as long as it likes.
+  const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
     if (started.current || !manifestUrl || kids) return;
     started.current = true;
-    confirmAddon(manifestUrl)
+    const mine = ++current.current;
+    setFetching(true);
+    confirmAddon(manifestUrl, false, () => {
+      if (mine === current.current) setFetching(false);
+    })
       .then((result) => {
+        if (mine !== current.current) return;
         if (result === 'added') {
           refresh();
           void queryClient.invalidateQueries();
         }
         router.replace('/addons');
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => {
+        if (mine !== current.current) return;
+        setFetching(false);
+        setError(e instanceof Error ? e.message : String(e));
+      });
   }, [manifestUrl, kids, refresh, queryClient, router, attempt]);
 
   const message = kids
@@ -59,20 +70,19 @@ export default function AddonLinkScreen() {
     setAttempt((n) => n + 1);
   };
 
-  // Not loading in LoadState's sense: the add-on's own confirmation opens over this screen and
-  // may stay open past the load timeout, which would then say the page didn't load.
+  // Loading only while the manifest is fetched: the add-on's own question that follows opens over
+  // this screen and may stay open past the load timeout.
   return (
     <View className="flex-1 items-center justify-center gap-4 bg-night p-8">
       <LoadState
-        loading={false}
+        loading={fetching && message === null && error === null}
         failed={
           message !== null
             ? { title: message }
             : error !== null && { title: t('Cannot add'), body: error }
         }
-        onRetry={error !== null ? retry : undefined}
+        onRetry={message === null ? retry : undefined}
       >
-        <ActivityIndicator color={colors.amber} />
         <Text accessibilityLiveRegion="polite" className="text-soft">
           {t('Opening the add-on…')}
         </Text>

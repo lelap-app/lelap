@@ -18,6 +18,7 @@ export function ScreenHeader({
   onBack,
   backLabel,
   action,
+  inGap = false,
   children,
 }: {
   /** Left out while the screen has nothing to name yet, such as a series still loading. */
@@ -29,13 +30,19 @@ export function ScreenHeader({
   /** Names Back or Close when the screen needs more, such as “Close transcript”. */
   backLabel?: string;
   action?: ReactNode;
+  /**
+   * The screen's content sets a gap of its own between its parts, the header included; the
+   * header then adds no space under itself, so the title sits as far from what follows as in
+   * Settings.
+   */
+  inGap?: boolean;
   /** Anything that belongs to the header under the subtitle, such as a book's title. */
   children?: ReactNode;
 }) {
   const colors = useColors();
   const router = useRouter();
   return (
-    <View className="gap-2 pb-4">
+    <View className={inGap ? 'gap-2' : 'gap-2 pb-4'}>
       <View className="-ms-2 h-12 flex-row items-center justify-between">
         <IconButton
           name={back}

@@ -6,7 +6,7 @@ import {
   sleepStopOf,
 } from '@lelap/core';
 import { useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { db } from '../db';
 import { useHistoryVersion } from '../history';
@@ -74,19 +74,14 @@ export function SleepStopBanner({
         {t('The sleep timer stopped playback at {clock}.', { clock: clockOf(stop.stoppedAt) })}
       </Text>
       {lastUsed && (
-        <Pressable
+        <Button
+          text={t('Back to when you last used it')}
+          detail={t('{clock}, {n} min before it stopped', {
+            clock: clockOf(lastUsed.at),
+            n: Math.round(lastUsed.beforeStopMs / 60_000),
+          })}
           onPress={() => goTo(lastUsed.positionMs)}
-          accessibilityRole="button"
-          className="min-h-12 justify-center rounded-lg bg-amber px-4 py-2 active:opacity-80"
-        >
-          <Text className="font-semibold text-ink">{t('Back to when you last used it')}</Text>
-          <Text className="text-detail text-ink">
-            {t('{clock}, {n} min before it stopped', {
-              clock: clockOf(lastUsed.at),
-              n: Math.round(lastUsed.beforeStopMs / 60_000),
-            })}
-          </Text>
-        </Pressable>
+        />
       )}
       <View className="flex-row flex-wrap items-center gap-2">
         {choices.back.map((b) => (
