@@ -49,7 +49,9 @@ import { MusicCard, MusicReview } from '../../src/components/MusicSuggestions';
 import { SeriesRow } from '../../src/components/SeriesRow';
 import { type UndoNotice, UndoBar } from '../../src/components/UndoBar';
 import { ContinueCard } from '../../src/components/ContinueCard';
-import { EmptyState, Lori } from '../../src/components/Lori';
+import { EmptyState } from '../../src/components/EmptyState';
+import { Lori } from '../../src/components/Lori';
+import { Notice } from '../../src/components/Notice';
 import { Sheet } from '../../src/components/Sheet';
 import { db, newId } from '../../src/db';
 import { bookReader } from '../../src/libraryBooks';
@@ -60,6 +62,7 @@ import { LOCAL_FOLDERS } from '../../src/platform/library';
 import { chooseFolder, scanLibrary } from '../../src/scan';
 import { Pill } from '../../src/components/Pill';
 import { TextButton } from '../../src/components/TextButton';
+import { Button } from '../../src/components/Button';
 import { LIST_COLUMN } from '../../src/layout';
 import { DropTarget, useDragging } from '../../src/drag';
 import { useListDrop } from '../../src/listDrop';
@@ -473,23 +476,13 @@ export default function LibraryScreen() {
                   )}
             </Text>
             {LOCAL_FOLDERS && (
-              <Pressable
-                onPress={() => void pick()}
-                accessibilityRole="button"
-                className="min-h-12 justify-center rounded-full bg-amber px-6 py-3 active:opacity-80"
-              >
-                <Text className="font-semibold text-ink">{t('Choose your audiobooks folder')}</Text>
-              </Pressable>
+              <Button text={t('Choose your audiobooks folder')} onPress={() => void pick()} />
             )}
-            <Pressable
+            <Button
+              kind={LOCAL_FOLDERS ? 'secondary' : 'primary'}
+              text={t('Add a server')}
               onPress={() => router.push('/server')}
-              accessibilityRole="button"
-              className={`min-h-12 justify-center rounded-full px-6 py-3 ${LOCAL_FOLDERS ? 'border border-line active:bg-raised' : 'bg-amber active:opacity-80'}`}
-            >
-              <Text className={LOCAL_FOLDERS ? 'text-amber' : 'font-semibold text-ink'}>
-                {t('Add a server')}
-              </Text>
-            </Pressable>
+            />
           </>
         )}
         <TextButton text={t('Free books on Home')} onPress={() => router.navigate('/')} />
@@ -533,13 +526,15 @@ export default function LibraryScreen() {
         </View>
       </View>
       {network.isConnected === false && (
-        <View className="mx-4 flex-row items-center gap-3 rounded-xl bg-[#2b2414] px-4 py-3">
-          <Icon name="plane" size={20} color="#f7d9a0" />
-          <Text className="flex-1 text-sm text-[#f7d9a0]">
-            Offline. Everything on this {Platform.OS === 'web' ? 'device' : 'phone'} works; progress
-            syncs when you’re back online.
-          </Text>
-        </View>
+        <Notice
+          icon="plane"
+          className="mx-4"
+          text={
+            Platform.OS === 'web'
+              ? t('Offline. Everything on this device works; progress syncs when you’re back online.')
+              : t('Offline. Everything on this phone works; progress syncs when you’re back online.')
+          }
+        />
       )}
       <HeadphoneBanner className="mx-4" />
       {/* Rows grow with the system text size, so there is no fixed height to give getItemLayout.
@@ -610,15 +605,15 @@ export default function LibraryScreen() {
                 {lists.map(({ list, count }) => (
                   <ListCard key={list.id} list={list} count={count} />
                 ))}
-                <Pressable
-                  onPress={() => setChoosingList(true)}
-                  accessibilityRole="button"
+                <Button
+                  kind="secondary"
+                  size="sm"
+                  icon="plus"
+                  text={t('List')}
                   accessibilityLabel={t('New list')}
-                  className="min-h-12 w-28 flex-row items-center justify-center gap-1 rounded-xl border border-dashed border-line p-2.5 active:bg-raised"
-                >
-                  <Icon name="plus" size={16} color={colors.muted} />
-                  <Text className="text-sm text-muted">{t('List')}</Text>
-                </Pressable>
+                  onPress={() => setChoosingList(true)}
+                  className="self-center"
+                />
               </ScrollView>
             )}
             {!showHidden && tags.length > 0 && (
@@ -672,22 +667,25 @@ export default function LibraryScreen() {
         ListEmptyComponent={
           showHidden ? (
             <EmptyState
+              lori
               title={t('Nothing hidden')}
-              hint={t('Swipe a book to the left, or press and hold it, to hide it here.')}
+              body={t('Swipe a book to the left, or press and hold it, to hide it here.')}
             />
           ) : bySeries && books.length > 0 ? (
             <EmptyState
+              lori
               title={t('No series yet.')}
-              hint={t(
+              body={t(
                 'Books show here when their tags, their server or their add-on name a series.',
               )}
             />
           ) : scanning === null ? (
             <EmptyState
+              lori
               title={
                 root ? t('No audio files in {name}.', { name: root.name }) : t('Nothing here yet.')
               }
-              hint={
+              body={
                 root
                   ? t('Lori is saving his energy. Add audiobooks to the folder, then pull down.')
                   : t(

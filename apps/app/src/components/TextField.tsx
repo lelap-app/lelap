@@ -1,4 +1,4 @@
-import { type Ref, useState } from 'react';
+import { type ComponentRef, type Ref, useState } from 'react';
 import { TextInput, type TextInputProps } from 'react-native';
 
 import { useColors } from '../theme';
@@ -19,7 +19,7 @@ export function TextField({
   className?: string;
   /** For codes and keys, which are read character by character. */
   mono?: boolean;
-  ref?: Ref<TextInput>;
+  ref?: Ref<ComponentRef<typeof TextInput>>;
 }) {
   const colors = useColors();
   const [focused, setFocused] = useState(false);
