@@ -29,6 +29,8 @@ export function createApp(storage: Storage): Hono {
   const app = new Hono();
 
   app.get('/', (c) => c.json({ service: 'lelap-updates', protocol: 1 }));
+  // For the status page (M142): answers without reading the bucket.
+  app.get('/health', (c) => c.json({ status: 'ok' }, 200, { 'Cache-Control': 'no-store' }));
 
   // The Expo Updates protocol, version 1: https://docs.expo.dev/technical-specs/expo-updates-1/
   app.get('/manifest', async (c) => {

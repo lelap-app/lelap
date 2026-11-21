@@ -261,3 +261,13 @@ describe('text proxy', () => {
     expect((await large.get(textUrl('https://example.org/a.srt'))).status).toBe(413);
   });
 });
+
+describe('health', () => {
+  it('answers without fetching anything', async () => {
+    const { get, calls } = setup(() => new Response('never'));
+    const response = await get('/health');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: 'ok' });
+    expect(calls).toHaveLength(0);
+  });
+});

@@ -1,0 +1,4 @@
+# Copy to .dev.vars for `wrangler dev`, then run a check with
+# curl "http://localhost:8790/__scheduled?cron=*/5+*+*+*+*" and open http://localhost:8790
+LELAP_DOMAIN=example.org
+CATALOG_DOMAIN=catalog.example.org
