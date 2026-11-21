@@ -50,6 +50,23 @@
       }
     },
     {
+      "id": 2006,
+      "podcastGuid": "a1000000-0000-5000-8000-000000002006",
+      "title": "Tawarikh Melayu",
+      "url": "https://feeds.example.org/2006.xml",
+      "link": "https://example.org/2006",
+      "description": "Raja-raja dan pelabuhan lama.",
+      "author": "Contoh Pustaka",
+      "ownerName": "Contoh Pustaka",
+      "image": "https://images.example.org/2006.jpg",
+      "artwork": "https://images.example.org/2006-large.jpg",
+      "language": "ms-MY",
+      "categories": {
+        "77": "Society",
+        "78": "Culture"
+      }
+    },
+    {
       "id": 3001,
       "podcastGuid": "a1000000-0000-5000-8000-000000003001",
       "title": "Kopi Talk",
@@ -81,7 +98,7 @@
       "categories": {}
     }
   ],
-  "count": 5,
+  "count": 6,
   "query": "sejarah",
   "description": "Found matching feeds"
 }

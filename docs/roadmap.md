@@ -197,9 +197,6 @@ when it is planned.
   and `:lelap-headless:testDebugUnitTest` (M123) pass locally but aren't in the `android-unit-tests`
   job's Gradle line in `ci.yml`. Adding them doesn't change when the job runs; waiting on the
   maintainer's yes, since it edits CI.
-- **Lepak's Sejarah row is empty:** with the production Podcast Index keys, Cerita, Sembang and
-  Singapura fill but Sejarah lists nothing, though a search for “sejarah” finds 30 shows. Run
-  `scripts/lepak-languages.mts` and look at the row's query (M131's open checks).
 - **Wear OS:** control playback from the watch (tile and app: play, pause, skip, the sleep timer),
   and maybe play downloads on it. Was M89; set aside on 2026-11-18 until there is a watch to test
   on.
