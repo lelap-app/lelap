@@ -8,13 +8,15 @@ import { t } from '../i18n';
 import { useColors } from '../theme';
 import { Icon, type IconName } from './Icon';
 import { RailLists } from './RailLists';
+import { startNav } from '../navTiming';
 
-const TABS: { href: Href & string; icon: IconName; label: () => string }[] = [
-  { href: '/', icon: 'home', label: () => t('Home') },
-  { href: '/discover', icon: 'discover', label: () => t('Discover') },
-  { href: '/search', icon: 'search', label: () => t('Search') },
-  { href: '/podcasts', icon: 'podcast', label: () => t('Podcasts') },
-  { href: '/library', icon: 'library', label: () => t('Library') },
+// `name` is the tab's route, as the tabs' timing names it.
+const TABS: { href: Href & string; name: string; icon: IconName; label: () => string }[] = [
+  { href: '/', name: 'index', icon: 'home', label: () => t('Home') },
+  { href: '/discover', name: 'discover', icon: 'discover', label: () => t('Discover') },
+  { href: '/search', name: 'search', icon: 'search', label: () => t('Search') },
+  { href: '/podcasts', name: 'podcasts', icon: 'podcast', label: () => t('Podcasts') },
+  { href: '/library', name: 'library', icon: 'library', label: () => t('Library') },
 ];
 
 // Screens that fill the window by themselves: the welcome, car mode and the full player.
@@ -68,7 +70,11 @@ export function Rail() {
   const settings = pathname.startsWith('/settings');
   const onTab = TABS.some((tab) => tab.href === pathname);
   // From a pushed screen, back down to the tabs rather than pushing a second set of them.
-  const go = (href: Href & string) => (onTab ? router.navigate(href) : router.dismissTo(href));
+  const go = (href: Href & string, name: string) => {
+    startNav(name);
+    if (onTab) router.navigate(href);
+    else router.dismissTo(href);
+  };
   return (
     <View
       accessibilityRole="tablist"
@@ -81,7 +87,7 @@ export function Rail() {
           icon={tab.icon}
           label={tab.label()}
           active={!settings && last.current === tab.href}
-          onPress={() => go(tab.href)}
+          onPress={() => go(tab.href, tab.name)}
         />
       ))}
       <View className="flex-1">
@@ -92,7 +98,9 @@ export function Rail() {
         label={t('Settings')}
         active={settings}
         onPress={() => {
-          if (pathname !== '/settings') router.push('/settings');
+          if (pathname === '/settings') return;
+          startNav('settings/index');
+          router.push('/settings');
         }}
       />
     </View>

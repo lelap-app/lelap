@@ -41,6 +41,8 @@ import { registerBackgroundRefresh } from '../src/background';
 import { ThemeRoot, useTheme } from '../src/theme';
 import { useFold, useWide } from '../src/layout';
 import { Rail } from '../src/components/Rail';
+import { StillScreen } from '../src/components/StillScreen';
+import { endNav } from '../src/navTiming';
 import { startupMark } from '../src/startup';
 import { SCREENS, singularId } from '../src/routes';
 
@@ -155,6 +157,9 @@ export default function RootLayout() {
                     <HingeSide fold={fold} side="first">
                       <Stack
                         key={look}
+                        // A screen under a pushed one holds still (M151); a timed move ends here.
+                        screenLayout={({ children }) => <StillScreen>{children}</StillScreen>}
+                        screenListeners={({ route }) => ({ focus: () => endNav(route.name) })}
                         screenOptions={{
                           headerShown: false,
                           contentStyle: { backgroundColor: theme.colors.night },

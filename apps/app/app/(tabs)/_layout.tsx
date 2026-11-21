@@ -12,6 +12,8 @@ import { profileId } from '../../src/profile';
 import { useSourceCacheAddons } from '../../src/availability';
 import { Icon, type IconName } from '../../src/components/Icon';
 import { MiniPlayer } from '../../src/components/MiniPlayer';
+import { StillScreen } from '../../src/components/StillScreen';
+import { endNav, startNav } from '../../src/navTiming';
 import { useWide } from '../../src/layout';
 import { useColors } from '../../src/theme';
 
@@ -60,6 +62,12 @@ export default function TabsLayout() {
           </View>
         )
       }
+      // Tabs behind the one in front hold still (M151); switching is timed from the tap.
+      screenLayout={({ children }) => <StillScreen>{children}</StillScreen>}
+      screenListeners={({ route }) => ({
+        tabPress: () => startNav(route.name),
+        focus: () => endNav(route.name),
+      })}
       screenOptions={({ route }) => ({
         headerShown: false,
         sceneStyle: { backgroundColor: colors.night },
