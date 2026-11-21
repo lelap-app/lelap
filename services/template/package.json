@@ -14,12 +14,12 @@
   },
   "dependencies": {
     "@lelap/sdk": "workspace:*",
-    "hono": "^4.13.17"
+    "hono": "^4.13.18"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20261109.1",
+    "@cloudflare/workers-types": "^5.20261114.1",
     "typescript": "~6.0.3",
     "vitest": "^5.1.0",
-    "wrangler": "^4.158.0"
+    "wrangler": "^4.162.0"
   }
 }
