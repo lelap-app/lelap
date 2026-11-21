@@ -1,10 +1,13 @@
 import { chaptersOf, getBook, parseTime, setOwnChapters, toBookPosition } from '@lelap/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Text, TextInput, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EmptyState } from '../src/components/EmptyState';
 import { IconButton } from '../src/components/Icon';
+import { ScreenHeader } from '../src/components/ScreenHeader';
+import { TextField } from '../src/components/TextField';
 import { TextButton } from '../src/components/TextButton';
 import { db } from '../src/db';
 import { showAlert } from '../src/dialog';
@@ -63,10 +66,11 @@ export default function EditChaptersScreen() {
   if (!detail) {
     return (
       <View
-        style={{ paddingTop: insets.top }}
-        className="flex-1 items-center justify-center bg-night"
+        style={{ paddingTop: insets.top + 8, paddingHorizontal: 16 }}
+        className="flex-1 bg-night"
       >
-        <Text className="text-soft">{t('This book is no longer in the library.')}</Text>
+        <ScreenHeader />
+        <EmptyState title={t('This book is no longer in the library.')} />
       </View>
     );
   }
@@ -118,19 +122,10 @@ export default function EditChaptersScreen() {
           ...READABLE,
         }}
         ListHeaderComponent={
-          <View className="gap-2 pb-4">
-            <View className="-ms-2 flex-row items-center justify-between">
-              <IconButton
-                name="back"
-                label={t('Back')}
-                color={colors.soft}
-                onPress={() => router.back()}
-              />
-              <TextButton text={t('Save')} onPress={save} strong />
-            </View>
-            <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
-              {t('Edit chapters')}
-            </Text>
+          <ScreenHeader
+            title={t('Edit chapters')}
+            action={<TextButton text={t('Save')} onPress={save} strong />}
+          >
             <Text numberOfLines={2} className="text-soft">
               {detail.book.title}
             </Text>
@@ -139,27 +134,28 @@ export default function EditChaptersScreen() {
                 'Rename a chapter, change where it starts, or add and remove chapters. They become your own chapters for this book, on your other devices too, and stay when the library is scanned again.',
               )}
             </Text>
-          </View>
+          </ScreenHeader>
         }
-        ListEmptyComponent={<Text className="py-4 text-muted">{t('No chapters.')}</Text>}
+        ListEmptyComponent={<EmptyState title={t('No chapters.')} />}
         renderItem={({ item, index }) => (
           <View className="flex-row items-center gap-2 border-b border-line py-2">
-            <TextInput
+            <TextField
               value={item.title}
               onChangeText={(title) => change(item.key, { title })}
               placeholder={
                 item.found ? t('Part {n}', { n: index + 1 }) : t('Chapter {n}', { n: index + 1 })
               }
               accessibilityLabel={t('Name of chapter {n}', { n: index + 1 })}
-              placeholderTextColor={colors.muted}
-              className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+              className="flex-1"
             />
-            <TextInput
+            <TextField
               value={item.time}
               onChangeText={(time) => change(item.key, { time })}
               accessibilityLabel={t('Start of chapter {n}', { n: index + 1 })}
               keyboardType="numbers-and-punctuation"
-              className={`min-h-12 w-24 rounded-lg border px-3 py-2 text-paper ${startOf(item) === null ? 'border-danger' : 'border-line'}`}
+              className="w-24"
+              // TextField has no error look; a time Lelap can't read keeps its red border.
+              {...(startOf(item) === null ? { style: { borderColor: colors.danger } } : {})}
             />
             {here !== null && (
               <TextButton

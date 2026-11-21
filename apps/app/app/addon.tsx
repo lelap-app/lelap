@@ -8,6 +8,7 @@ import { t } from '../src/i18n';
 import { confirmAddon } from '../src/addonInstall';
 import { useLibrary } from '../src/player';
 import { activeProfile } from '../src/profile';
+import { LoadState } from '../src/components/LoadState';
 import { TextButton } from '../src/components/TextButton';
 import { useColors } from '../src/theme';
 
@@ -29,6 +30,8 @@ export default function AddonLinkScreen() {
   const kids = activeProfile()?.kids === true;
   const [error, setError] = useState<string | null>(null);
   const started = useRef(false);
+  // Try again bumps this, so the effect asks once more.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (started.current || !manifestUrl || kids) return;
@@ -42,30 +45,40 @@ export default function AddonLinkScreen() {
         router.replace('/addons');
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-  }, [manifestUrl, kids, refresh, queryClient, router]);
+  }, [manifestUrl, kids, refresh, queryClient, router, attempt]);
 
   const message = kids
     ? t('Ask a grown-up to change add-ons.')
     : !manifestUrl
       ? t('This link has no add-on address in it.')
-      : error;
+      : null;
 
+  const retry = () => {
+    started.current = false;
+    setError(null);
+    setAttempt((n) => n + 1);
+  };
+
+  // Not loading in LoadState's sense: the add-on's own confirmation opens over this screen and
+  // may stay open past the load timeout, which would then say the page didn't load.
   return (
     <View className="flex-1 items-center justify-center gap-4 bg-night p-8">
-      {message === null ? (
-        <>
-          <ActivityIndicator color={colors.amber} />
-          <Text accessibilityLiveRegion="polite" className="text-soft">
-            {t('Opening the add-on…')}
-          </Text>
-        </>
-      ) : (
-        <>
-          <Text accessibilityLiveRegion="polite" className="text-center text-paper">
-            {message}
-          </Text>
-          <TextButton text={t('Add-ons')} onPress={() => router.replace('/addons')} />
-        </>
+      <LoadState
+        loading={false}
+        failed={
+          message !== null
+            ? { title: message }
+            : error !== null && { title: t('Cannot add'), body: error }
+        }
+        onRetry={error !== null ? retry : undefined}
+      >
+        <ActivityIndicator color={colors.amber} />
+        <Text accessibilityLiveRegion="polite" className="text-soft">
+          {t('Opening the add-on…')}
+        </Text>
+      </LoadState>
+      {(message !== null || error !== null) && (
+        <TextButton text={t('Add-ons')} onPress={() => router.replace('/addons')} />
       )}
     </View>
   );

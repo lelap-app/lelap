@@ -19,8 +19,10 @@ import { openPlayer } from '../src/navigation';
 import { BookActions } from '../src/components/BookActions';
 import { BookRow } from '../src/components/BookRow';
 import { IconButton } from '../src/components/Icon';
-import { EmptyState } from '../src/components/Lori';
+import { EmptyState } from '../src/components/EmptyState';
+import { LoadState } from '../src/components/LoadState';
 import { MiniPlayer } from '../src/components/MiniPlayer';
+import { ScreenHeader } from '../src/components/ScreenHeader';
 import { TextButton } from '../src/components/TextButton';
 import { db } from '../src/db';
 import { showAlert } from '../src/dialog';
@@ -116,62 +118,61 @@ export default function SeriesScreen() {
     : '';
 
   return (
-    <View className="flex-1 bg-night" style={{ paddingTop: insets.top + 4 }}>
+    <View className="flex-1 bg-night">
       <FlatList
         data={rows}
         keyExtractor={rowKey}
-        contentContainerStyle={{ paddingBottom: 24, ...(wide ? READABLE : {}) }}
+        contentContainerStyle={{
+          paddingTop: insets.top + 8,
+          paddingBottom: 24,
+          ...(wide ? READABLE : {}),
+        }}
         ListHeaderComponent={
-          <View className="gap-2 px-4 pb-3">
-            <View className="-ms-2 self-start">
-              <IconButton
-                name="back"
-                label={t('Back')}
-                color={colors.soft}
-                onPress={() => router.back()}
-              />
-            </View>
-            {series && (
-              <>
-                <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
-                  {series.name}
-                </Text>
-                {series.author && <Text className="text-base text-soft">{series.author}</Text>}
-                <Text className="text-sm text-muted">{summary}</Text>
-                {asking && !list && (
-                  <Text accessibilityLiveRegion="polite" className="text-sm text-muted">
-                    {t('Looking up the whole series in your add-ons…')}
-                  </Text>
-                )}
-                {count > 1 && (
-                  <View className="flex-row flex-wrap gap-x-4">
-                    <TextButton
-                      text={reordering ? t('Done') : t('Change the order')}
-                      strong={reordering}
-                      onPress={() => setReordering(!reordering)}
-                      className="items-start"
-                    />
-                    {series.ordered && (
+          <View className="px-4">
+            <ScreenHeader title={series?.name}>
+              {series && (
+                <>
+                  {series.author && <Text className="text-base text-soft">{series.author}</Text>}
+                  <Text className="text-sm text-muted">{summary}</Text>
+                  {asking && !list && (
+                    <Text accessibilityLiveRegion="polite" className="text-sm text-muted">
+                      {t('Looking up the whole series in your add-ons…')}
+                    </Text>
+                  )}
+                  {count > 1 && (
+                    <View className="flex-row flex-wrap gap-x-4">
                       <TextButton
-                        text={t('Order by number')}
-                        tone="muted"
-                        onPress={() => {
-                          setSeriesOrder(db, profileId, series.key, [], Date.now());
-                          refresh();
-                        }}
+                        text={reordering ? t('Done') : t('Change the order')}
+                        strong={reordering}
+                        onPress={() => setReordering(!reordering)}
+                        className="items-start"
                       />
-                    )}
-                  </View>
-                )}
-              </>
-            )}
+                      {series.ordered && (
+                        <TextButton
+                          text={t('Order by number')}
+                          tone="muted"
+                          onPress={() => {
+                            setSeriesOrder(db, profileId, series.key, [], Date.now());
+                            refresh();
+                          }}
+                        />
+                      )}
+                    </View>
+                  )}
+                </>
+              )}
+            </ScreenHeader>
           </View>
         }
         ListEmptyComponent={
-          <EmptyState
-            title={t('No books in this series.')}
-            hint={t('Lori looked everywhere in your library.')}
-          />
+          // The library's books show at once; only a series with none waits on the add-ons.
+          <LoadState loading={asking && !list} onRetry={refresh}>
+            <EmptyState
+              lori
+              title={t('No books in this series.')}
+              body={t('Lori looked everywhere in your library.')}
+            />
+          </LoadState>
         }
         renderItem={({ item, index }) => {
           if (item.kind === 'gap') {

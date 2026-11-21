@@ -10,12 +10,15 @@ import type { MetaPreview } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
-import { IconButton } from '../src/components/Icon';
+import { Button } from '../src/components/Button';
+import { EmptyState } from '../src/components/EmptyState';
+import { ScreenHeader } from '../src/components/ScreenHeader';
+import { TextField } from '../src/components/TextField';
 import { fetcher, useAddons } from '../src/addons';
 import { MetaListRow } from '../src/components/MetaCard';
 import { db } from '../src/db';
@@ -92,56 +95,44 @@ export default function MatchScreen() {
         paddingBottom: insets.bottom + 24,
       }}
       ListHeaderComponent={
-        <View className="gap-3 px-4 pb-3">
-          <View className="-ms-2 self-start">
-            <IconButton
-              name="back"
-              label={t('Back')}
-              color={colors.soft}
-              onPress={() => router.back()}
-            />
-          </View>
-          <Text accessibilityRole="header" className="text-2xl font-semibold text-paper">
-            {t('Match with catalog')}
-          </Text>
-          <Text className="text-sm text-muted">
-            {t(
+        <View className="px-4 pb-3">
+          <ScreenHeader
+            title={t('Match with catalog')}
+            subtitle={t(
               'Pick the book “{title}” is. It then shows that book’s title, author and cover, and plays from its page. Your files stay as they are.',
               { title: book?.title ?? t('this book') },
             )}
-          </Text>
-          <View className="flex-row items-center gap-2">
-            <TextInput
-              value={text}
-              onChangeText={setText}
-              onSubmitEditing={() => setQuery(text.trim())}
-              placeholder={t('Title or author')}
-              accessibilityLabel={t('Search the catalogs')}
-              placeholderTextColor={colors.muted}
-              autoCorrect={false}
-              returnKeyType="search"
-              className="min-w-0 flex-1 rounded-lg bg-raised px-4 py-3 text-base text-paper"
-            />
-            <Pressable
-              disabled={text.trim().length < 2}
-              onPress={() => setQuery(text.trim())}
-              accessibilityRole="button"
-              className="min-h-12 min-w-12 items-center justify-center px-1"
-            >
-              <Text className={text.trim().length < 2 ? 'text-muted' : 'text-amber'}>
-                {t('Search')}
+          />
+          <View className="gap-3">
+            <View className="flex-row items-center gap-2">
+              <TextField
+                value={text}
+                onChangeText={setText}
+                onSubmitEditing={() => setQuery(text.trim())}
+                placeholder={t('Title or author')}
+                accessibilityLabel={t('Search the catalogs')}
+                autoCorrect={false}
+                returnKeyType="search"
+                className="flex-1"
+              />
+              <Button
+                kind="secondary"
+                size="sm"
+                text={t('Search')}
+                disabled={text.trim().length < 2}
+                onPress={() => setQuery(text.trim())}
+              />
+            </View>
+            {query.length < 2 && (
+              <Text className="text-xs text-muted">
+                {t('The search goes to your add-ons when you send it.')}
               </Text>
-            </Pressable>
+            )}
+            {(busy || results.isFetching) && <ActivityIndicator color={colors.amber} />}
+            {query.length >= 2 && results.isSuccess && results.data.length === 0 && (
+              <EmptyState title={t('Nothing found')} body={t('Try fewer words.')} />
+            )}
           </View>
-          {query.length < 2 && (
-            <Text className="text-xs text-muted">
-              {t('The search goes to your add-ons when you send it.')}
-            </Text>
-          )}
-          {(busy || results.isFetching) && <ActivityIndicator color={colors.amber} />}
-          {query.length >= 2 && results.isSuccess && results.data.length === 0 && (
-            <Text className="text-muted">{t('Nothing found. Try fewer words.')}</Text>
-          )}
         </View>
       }
       renderItem={({ item }) => <MetaListRow meta={item} onPress={() => void pick(item)} />}

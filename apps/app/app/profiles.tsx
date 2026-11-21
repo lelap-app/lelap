@@ -1,23 +1,23 @@
 import { createProfile, getSettings, listProfiles, setSetting } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
-import { IconButton } from '../src/components/Icon';
+import { Button } from '../src/components/Button';
+import { ScreenHeader } from '../src/components/ScreenHeader';
+import { TextField } from '../src/components/TextField';
 import { useAllAddons } from '../src/addons';
 import { Avatar, pickAvatar } from '../src/components/Avatar';
 import { db, newId } from '../src/db';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
-import { TextButton, Toggle } from '../src/components/TextButton';
+import { Toggle } from '../src/components/TextButton';
 import { READABLE } from '../src/layout';
-import { useColors } from '../src/theme';
 
 /** Everyone who listens on this device (and, with sync, the household). */
 export default function ProfilesScreen() {
-  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { version, refresh } = useLibrary();
@@ -61,17 +61,7 @@ export default function ProfilesScreen() {
         gap: 16,
       }}
     >
-      <View className="-ms-2 self-start">
-        <IconButton
-          name="back"
-          label={t('Back')}
-          color={colors.soft}
-          onPress={() => router.back()}
-        />
-      </View>
-      <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
-        {t('Profiles')}
-      </Text>
+      <ScreenHeader title={t('Profiles')} />
       <Text className="text-soft">
         {t(
           'Each profile has its own places, library, Up Next, podcasts and settings. Downloads are shared. With more than one, Lelap asks who’s listening when it opens.',
@@ -104,14 +94,12 @@ export default function ProfilesScreen() {
 
       <View className="gap-3 rounded-xl border border-line p-3">
         <Text className="text-paper">{t('Add a profile')}</Text>
-        <TextInput
+        <TextField
           value={name}
           onChangeText={setName}
           placeholder={t('Name')}
           accessibilityLabel={t('Name')}
-          placeholderTextColor={colors.muted}
           onSubmitEditing={add}
-          className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
         />
         <View className="flex-row items-center gap-3">
           <View className="flex-1">
@@ -122,11 +110,13 @@ export default function ProfilesScreen() {
           </View>
           <Toggle accessibilityLabel={t('Kids profile')} value={kids} onValueChange={setKids} />
         </View>
-        <TextButton
+        <Button
+          kind="secondary"
           text={t('Add')}
           accessibilityLabel={t('Add a profile')}
           disabled={name.trim() === ''}
           onPress={add}
+          className="self-start"
         />
       </View>
     </ScrollView>

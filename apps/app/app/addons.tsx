@@ -19,7 +19,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
@@ -27,7 +27,11 @@ import { reviewAddon } from '../src/addonReview';
 import { installAddonFile, isAddonFile } from '../src/localAddons';
 import { closeSandboxesOf } from '../src/sandbox';
 import { ActionSheet, type Action } from '../src/components/ActionSheet';
+import { Button } from '../src/components/Button';
+import { EmptyState } from '../src/components/EmptyState';
 import { IconButton } from '../src/components/Icon';
+import { ScreenHeader } from '../src/components/ScreenHeader';
+import { TextField } from '../src/components/TextField';
 import { showAlert } from '../src/dialog';
 import { checkAddonHealth, useAddonBlock, useAddonHealth, useAddons } from '../src/addons';
 import { UpgradeNotice } from '../src/components/UpgradeNotice';
@@ -35,7 +39,6 @@ import { confirmAddon, openConfigure } from '../src/addonInstall';
 import { db } from '../src/db';
 import { useLibrary } from '../src/player';
 import { activeProfile } from '../src/profile';
-import { TextButton } from '../src/components/TextButton';
 import { scrobblerForm, scrobblersWork } from '../src/scrobblers';
 import { OwnAddonOffer, useOwnAddonOffers } from '../src/components/OwnAddons';
 import { READABLE } from '../src/layout';
@@ -103,24 +106,22 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
           <Text className="text-sm text-muted"> {addon.manifest.version}</Text>
         </Text>
         {isConfigurable(addon.manifest) && (
-          <Pressable
+          <Button
+            kind="secondary"
+            size="sm"
+            text={t('Configure')}
             onPress={() => openConfigure(addon.url)}
-            accessibilityRole="button"
             accessibilityLabel={t('Configure {name}', { name: addon.manifest.name })}
-            className="min-h-12 justify-center rounded-full border border-line px-3 active:bg-raised"
-          >
-            <Text className="text-sm text-amber">{t('Configure')}</Text>
-          </Pressable>
+          />
         )}
         {setUpWithSettings(addon.manifest) && (
-          <Pressable
+          <Button
+            kind="secondary"
+            size="sm"
+            text={t('Settings')}
             onPress={() => openScrobbler(router, addon.url)}
-            accessibilityRole="button"
             accessibilityLabel={t('Settings for {name}', { name: addon.manifest.name })}
-            className="min-h-12 justify-center rounded-full border border-line px-3 active:bg-raised"
-          >
-            <Text className="text-sm text-amber">{t('Settings')}</Text>
-          </Pressable>
+          />
         )}
         <IconButton
           name="more"
@@ -177,9 +178,11 @@ export default function AddonsScreen() {
   const router = useRouter();
   if (activeProfile()?.kids) {
     return (
-      <View className="flex-1 items-center justify-center gap-4 bg-night p-8">
-        <Text className="text-center text-paper">{t('Ask a grown-up to change add-ons.')}</Text>
-        <TextButton text={t('Back')} onPress={() => router.back()} />
+      <View className="flex-1 justify-center bg-night p-8">
+        <EmptyState
+          title={t('Ask a grown-up to change add-ons.')}
+          action={{ label: t('Back'), onPress: () => router.back() }}
+        />
       </View>
     );
   }
@@ -187,8 +190,6 @@ export default function AddonsScreen() {
 }
 
 function AddonsManager() {
-  const colors = useColors();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { refresh } = useLibrary();
   const queryClient = useQueryClient();
@@ -298,52 +299,36 @@ function AddonsManager() {
         paddingBottom: 24,
       }}
     >
-      <View className="-ms-2 self-start">
-        <IconButton
-          name="back"
-          label={t('Back')}
-          color={colors.soft}
-          onPress={() => router.back()}
-        />
-      </View>
-      <Text accessibilityRole="header" className="pb-2 text-3xl font-semibold text-paper">
-        {t('Add-ons')}
-      </Text>
-      <Text className="pb-4 text-sm text-muted">
-        {t(
+      <ScreenHeader
+        title={t('Add-ons')}
+        subtitle={t(
           'Add-ons bring catalogs and audio. Audio always streams straight from the add-on’s source.',
         )}
-      </Text>
+      />
 
       <Text accessibilityRole="header" className="pt-2 text-xs uppercase tracking-wider text-muted">
         {t('Add an add-on')}
       </Text>
       <View className="flex-row items-center gap-3 pb-2 pt-2">
-        <TextInput
+        <TextField
           value={url}
           onChangeText={setUrl}
           placeholder={'https://…/manifest.json'}
           accessibilityLabel={t('Add-on address')}
-          placeholderTextColor={colors.muted}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="url"
           onSubmitEditing={() => void add()}
-          className="min-w-0 flex-1 rounded-lg bg-raised px-4 py-3 text-base text-paper"
+          className="flex-1"
         />
-        <Pressable
-          disabled={adding || url.trim() === ''}
+        <Button
+          kind="secondary"
+          size="sm"
+          text={t('Add')}
           onPress={() => void add()}
-          accessibilityRole="button"
-          accessibilityLabel={t('Add')}
-          className="min-h-12 justify-center rounded-full bg-amber px-4 py-3 active:opacity-80"
-        >
-          {adding ? (
-            <ActivityIndicator color={colors.ink} />
-          ) : (
-            <Text className="font-semibold text-ink">{t('Add')}</Text>
-          )}
-        </Pressable>
+          disabled={url.trim() === ''}
+          busy={adding}
+        />
       </View>
 
       <Text accessibilityRole="header" className="pt-6 text-xs uppercase tracking-wider text-muted">
@@ -352,7 +337,7 @@ function AddonsManager() {
       {addons.map((addon) => (
         <AddonRow key={addon.url} addon={addon} onMore={() => setMenu(addon)} />
       ))}
-      {addons.length === 0 && <Text className="py-4 text-muted">{t('No add-ons installed.')}</Text>}
+      {addons.length === 0 && <EmptyState title={t('No add-ons installed.')} />}
 
       {offers.length > 0 && (
         <Text

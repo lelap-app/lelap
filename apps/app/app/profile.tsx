@@ -11,12 +11,14 @@ import {
 } from '@lelap/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
-import { IconButton } from '../src/components/Icon';
+import { EmptyState } from '../src/components/EmptyState';
+import { ScreenHeader } from '../src/components/ScreenHeader';
+import { TextField } from '../src/components/TextField';
 import { useAllAddons } from '../src/addons';
 import { Avatar, AVATAR_IDS, avatarName } from '../src/components/Avatar';
 import { db } from '../src/db';
@@ -24,11 +26,9 @@ import { switchProfile, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { TextButton, Toggle } from '../src/components/TextButton';
 import { READABLE } from '../src/layout';
-import { useColors } from '../src/theme';
 
 /** One profile: name, avatar, PIN, kids limits, delete. */
 export default function ProfileScreen() {
-  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { version, refresh } = useLibrary();
@@ -46,8 +46,9 @@ export default function ProfileScreen() {
 
   if (!profile) {
     return (
-      <View className="flex-1 items-center justify-center bg-night">
-        <Text className="text-muted">{t('This profile is gone.')}</Text>
+      <View className="flex-1 bg-night px-4" style={{ paddingTop: insets.top + 8 }}>
+        <ScreenHeader />
+        <EmptyState title={t('This profile is gone.')} />
       </View>
     );
   }
@@ -95,22 +96,15 @@ export default function ProfileScreen() {
         gap: 16,
       }}
     >
-      <View className="-ms-2 self-start">
-        <IconButton
-          name="back"
-          label={t('Back')}
-          color={colors.soft}
-          onPress={() => router.back()}
-        />
-      </View>
+      <ScreenHeader />
       <View className="flex-row items-center gap-4">
         <Avatar avatar={profile.avatar} name={profile.name} size={72} />
-        <TextInput
+        <TextField
           value={name}
           onChangeText={setName}
           onEndEditing={() => save({ name })}
           accessibilityLabel={t('Name')}
-          className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-xl text-paper"
+          className="flex-1"
         />
       </View>
 
@@ -152,7 +146,7 @@ export default function ProfileScreen() {
         )}
       </Text>
       <View className="flex-row items-center gap-3">
-        <TextInput
+        <TextField
           value={pin}
           onChangeText={(t) => setPinText(t.replace(/\D/g, '').slice(0, 4))}
           keyboardType="number-pad"
@@ -160,8 +154,7 @@ export default function ProfileScreen() {
           maxLength={4}
           placeholder={profile.pinHash ? t('New PIN') : t('PIN')}
           accessibilityLabel={profile.pinHash ? t('New PIN') : t('PIN')}
-          placeholderTextColor={colors.muted}
-          className="min-h-12 w-32 rounded-lg border border-line px-3 py-2 text-paper"
+          className="w-32"
         />
         <TextButton
           text={t('Set PIN')}

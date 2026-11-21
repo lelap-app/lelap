@@ -7,7 +7,7 @@ import { TextButton } from './TextButton';
 
 const KIND = {
   primary: { box: 'bg-amber active:opacity-80', text: 'font-semibold text-ink' },
-  secondary: { box: 'border border-line active:bg-raised', text: 'font-medium text-paper' },
+  secondary: { box: 'border border-line active:opacity-70', text: 'font-medium text-paper' },
 } as const;
 
 /**

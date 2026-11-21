@@ -32,7 +32,7 @@ import { CONTENT_TYPES, type ContentType, type Edition, hasParts, type Meta } fr
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../i18n';
@@ -40,7 +40,10 @@ import { READABLE, useWide } from '../layout';
 import { openPlayer } from '../navigation';
 import { showAlert } from '../dialog';
 import { PreparingPanel, showGone, streamState, usePreparing } from './Preparing';
-import { Icon, IconButton } from './Icon';
+import { Button } from './Button';
+import { Icon } from './Icon';
+import { LoadState } from './LoadState';
+import { ScreenHeader } from './ScreenHeader';
 import { addItem, playItem, queries, refreshItemSources, useAddons, useArtwork } from '../addons';
 import { sourceCache } from '../availability';
 import { BookCover, coverUri } from './BookCover';
@@ -344,24 +347,21 @@ export function ItemPage({
         ...(wide && !column ? READABLE : {}),
       }}
     >
-      <View className="-ms-2 self-start px-2">
-        <IconButton
-          name={column ? 'close' : 'back'}
-          label={column ? t('Close') : t('Back')}
-          color={colors.soft}
-          onPress={onBack}
-        />
+      <View className="px-4">
+        <ScreenHeader back={column ? 'close' : 'back'} onBack={onBack} />
       </View>
 
-      {meta.isPending && !saved ? (
-        <ActivityIndicator color={colors.amber} className="pt-24" />
-      ) : !item && !saved ? (
-        <Text className="px-4 pt-24 text-center text-muted">
-          {meta.isError
-            ? t('The add-on did not answer. Try again later.')
-            : t('This item was not found.')}
-        </Text>
-      ) : (
+      <LoadState
+        loading={meta.isPending && !saved}
+        failed={
+          !item &&
+          !saved &&
+          (meta.isError
+            ? { title: t('This didn’t load'), body: t('Check the connection and try again.') }
+            : { title: t('This item was not found.') })
+        }
+        onRetry={() => void meta.refetch()}
+      >
         <View className="gap-5 px-4">
           <View className="items-center gap-3">
             {/* The cover is read only when it has badges, as one picture with them in its name. */}
@@ -431,20 +431,13 @@ export function ItemPage({
                   : t('“{title}” looks like this book.', { title: offer.title })}
               </Text>
               <View className="flex-row flex-wrap gap-2">
-                <Pressable
-                  onPress={() => confirm(true)}
-                  accessibilityRole="button"
-                  className="min-h-12 justify-center rounded-full bg-amber px-4 active:opacity-80"
-                >
-                  <Text className="font-semibold text-ink">{t('Yes, use my copy')}</Text>
-                </Pressable>
-                <Pressable
+                <Button size="sm" text={t('Yes, use my copy')} onPress={() => confirm(true)} />
+                <Button
+                  size="sm"
+                  kind="secondary"
+                  text={t('Not this one')}
                   onPress={() => confirm(false)}
-                  accessibilityRole="button"
-                  className="min-h-12 justify-center rounded-full border border-line px-4 active:opacity-80"
-                >
-                  <Text className="text-soft">{t('Not this one')}</Text>
-                </Pressable>
+                />
               </View>
             </View>
           )}
@@ -463,22 +456,12 @@ export function ItemPage({
               <TextButton strong text={t('Try again')} onPress={() => void sources.refetch()} />
             </View>
           ) : (
-            <Pressable
-              disabled={!canPlay || starting || preparing.waiting !== null}
+            <Button
+              text={looking ? t('Looking for audio…') : playLabel}
               onPress={() => void play()}
-              accessibilityRole="button"
-              accessibilityLabel={looking ? t('Looking for audio…') : playLabel}
-              accessibilityState={{ busy: starting, disabled: !canPlay || starting }}
-              className={`min-h-12 items-center justify-center rounded-full py-3 ${canPlay ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
-            >
-              {starting ? (
-                <ActivityIndicator color={colors.ink} />
-              ) : (
-                <Text className={`text-base font-semibold ${canPlay ? 'text-ink' : 'text-muted'}`}>
-                  {looking ? t('Looking for audio…') : playLabel}
-                </Text>
-              )}
-            </Pressable>
+              disabled={!canPlay || preparing.waiting !== null}
+              busy={starting}
+            />
           )}
           {preparing.waiting && (
             <PreparingPanel
@@ -674,7 +657,7 @@ export function ItemPage({
             </View>
           )}
         </View>
-      )}
+      </LoadState>
     </ScrollView>
   );
 }

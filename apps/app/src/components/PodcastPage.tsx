@@ -31,16 +31,7 @@ import { useQuery } from '@tanstack/react-query';
 import { eq } from 'drizzle-orm';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Linking,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../i18n';
@@ -48,7 +39,10 @@ import { READABLE, useWide } from '../layout';
 import { openPlayer } from '../navigation';
 import { showAlert } from '../dialog';
 import { type Action, ActionSheet } from './ActionSheet';
-import { Icon, IconButton } from './Icon';
+import { Button } from './Button';
+import { Icon } from './Icon';
+import { LoadState } from './LoadState';
+import { ScreenHeader } from './ScreenHeader';
 import { queries, useAddons } from '../addons';
 import { BookCover } from './BookCover';
 import { newEpisodesBadges, useBadgesOn, withBadges } from './CoverBadges';
@@ -503,8 +497,28 @@ export function PodcastPage({
     ];
   };
 
-  const loading = !podcast && (meta.isPending || fetched.isPending) && !meta.isError;
-  const failed = !podcast && !loading;
+  // A query that is switched off stays pending, so only the one that runs counts: a podcast that
+  // isn't saved, or a meta without a feed, is not found rather than loading without end.
+  const loading =
+    !podcast && !params.id && !!params.item && (meta.isPending || (!!feedUrl && fetched.isPending));
+  const failed =
+    !podcast &&
+    !loading &&
+    (fetched.isError
+      ? {
+          title: t('This didn’t load'),
+          body: t('The feed could not be read: {error}', { error: message(fetched.error) }),
+        }
+      : meta.isError
+        ? { title: t('This didn’t load'), body: t('Check the connection and try again.') }
+        : meta.data && !feedUrl
+          ? { title: t('This podcast has no feed address.') }
+          : { title: t('This podcast was not found.') });
+  const retry = () => {
+    refresh();
+    if (params.id || !params.item) return;
+    void (feedUrl ? fetched.refetch() : meta.refetch());
+  };
 
   return (
     <>
@@ -519,158 +533,138 @@ export function PodcastPage({
         }}
         ListHeaderComponent={
           <View className="gap-4 px-4 pb-2">
-            <View className="-ms-2 self-start">
-              <IconButton
-                name={column ? 'close' : 'back'}
-                label={column ? t('Close') : t('Back')}
-                color={colors.soft}
-                onPress={onBack}
-              />
-            </View>
-            {loading && <ActivityIndicator color={colors.amber} className="pt-24" />}
-            {failed && (
-              <Text accessibilityLiveRegion="polite" className="pt-24 text-center text-muted">
-                {fetched.isError
-                  ? t('The feed could not be read: {error}', { error: message(fetched.error) })
-                  : meta.data && !feedUrl
-                    ? t('This podcast has no feed address.')
-                    : t('This podcast was not found.')}
-              </Text>
-            )}
-            {podcast && (
-              <>
-                <View className="flex-row gap-4">
-                  <BookCover
-                    uri={podcast.coverUrl}
-                    title={podcast.title}
-                    size={112}
-                    badges={headerBadges}
-                  />
-                  <View className="flex-1 justify-center gap-1">
-                    <Text
-                      accessibilityRole="header"
-                      accessibilityLabel={withBadges([podcast.title], headerBadges)}
-                      className="text-xl font-semibold text-paper"
-                    >
-                      {podcast.title}
+            <ScreenHeader back={column ? 'close' : 'back'} onBack={onBack} />
+            <LoadState loading={loading} failed={failed} onRetry={retry}>
+              {podcast && (
+                <>
+                  <View className="flex-row gap-4">
+                    <BookCover
+                      uri={podcast.coverUrl}
+                      title={podcast.title}
+                      size={112}
+                      badges={headerBadges}
+                    />
+                    <View className="flex-1 justify-center gap-1">
+                      <Text
+                        accessibilityRole="header"
+                        accessibilityLabel={withBadges([podcast.title], headerBadges)}
+                        className="text-xl font-semibold text-paper"
+                      >
+                        {podcast.title}
+                      </Text>
+                      {podcast.author && <Text className="text-soft">{podcast.author}</Text>}
+                      {podcast.extras?.location && <PlaceLink location={podcast.extras.location} />}
+                    </View>
+                  </View>
+                  {podcast.description && (
+                    <Text numberOfLines={4} className="text-sm leading-5 text-soft">
+                      {podcast.description}
                     </Text>
-                    {podcast.author && <Text className="text-soft">{podcast.author}</Text>}
-                    {podcast.extras?.location && <PlaceLink location={podcast.extras.location} />}
-                  </View>
-                </View>
-                {podcast.description && (
-                  <Text numberOfLines={4} className="text-sm leading-5 text-soft">
-                    {podcast.description}
-                  </Text>
-                )}
-                {people.length > 0 && <People persons={people} />}
-                {funding.map((f) => (
-                  <Pressable
-                    key={f.url}
-                    accessibilityRole="link"
-                    onPress={() => openLink(f.url)}
-                    className="min-h-12 flex-row items-center gap-3 rounded-xl border border-line px-3 py-2 active:bg-raised"
-                  >
-                    <Icon name="heart" size={20} color={colors.amber} />
-                    <View className="flex-1">
-                      <Text className="text-paper">{t('Support this show')}</Text>
-                      {f.label && (
-                        <Text numberOfLines={1} className="text-sm text-muted">
-                          {f.label}
-                        </Text>
-                      )}
-                    </View>
-                  </Pressable>
-                ))}
-                {value.length > 0 && <ValueCard values={value} />}
-                {sub ? (
-                  <View className="gap-3 rounded-xl border border-line p-3">
-                    <View className="flex-row items-center gap-3">
+                  )}
+                  {people.length > 0 && <People persons={people} />}
+                  {funding.map((f) => (
+                    <Pressable
+                      key={f.url}
+                      accessibilityRole="link"
+                      onPress={() => openLink(f.url)}
+                      className="min-h-12 flex-row items-center gap-3 rounded-xl border border-line px-3 py-2 active:bg-raised"
+                    >
+                      <Icon name="heart" size={20} color={colors.amber} />
                       <View className="flex-1">
-                        <Text className="text-paper">{t('Auto-download')}</Text>
-                        <Text className="text-sm text-muted">
-                          {t(
-                            'Keep the newest unplayed episodes on the phone; played ones are removed.',
-                          )}
-                        </Text>
+                        <Text className="text-paper">{t('Support this show')}</Text>
+                        {f.label && (
+                          <Text numberOfLines={1} className="text-sm text-muted">
+                            {f.label}
+                          </Text>
+                        )}
                       </View>
-                      <Toggle
-                        accessibilityLabel={t('Auto-download')}
-                        value={sub.autoDownload}
-                        onValueChange={(v) => setRule(v, sub.keepLatest)}
+                    </Pressable>
+                  ))}
+                  {value.length > 0 && <ValueCard values={value} />}
+                  {sub ? (
+                    <View className="gap-3 rounded-xl border border-line p-3">
+                      <View className="flex-row items-center gap-3">
+                        <View className="flex-1">
+                          <Text className="text-paper">{t('Auto-download')}</Text>
+                          <Text className="text-sm text-muted">
+                            {t(
+                              'Keep the newest unplayed episodes on the phone; played ones are removed.',
+                            )}
+                          </Text>
+                        </View>
+                        <Toggle
+                          accessibilityLabel={t('Auto-download')}
+                          value={sub.autoDownload}
+                          onValueChange={(v) => setRule(v, sub.keepLatest)}
+                        />
+                      </View>
+                      {sub.autoDownload && (
+                        <View className="flex-row flex-wrap gap-2">
+                          {KEEP.map((k) => (
+                            <Pill
+                              key={k}
+                              onPress={() => setRule(true, k)}
+                              accessibilityState={{ selected: sub.keepLatest === k }}
+                              aria-selected={sub.keepLatest === k}
+                              className={`rounded-full border px-3 py-1 ${sub.keepLatest === k ? 'border-amber bg-amber' : 'border-line'}`}
+                            >
+                              <Text className={sub.keepLatest === k ? 'text-ink' : 'text-soft'}>
+                                {t('{n} newest', { n: k })}
+                              </Text>
+                            </Pill>
+                          ))}
+                        </View>
+                      )}
+                      <TrimRow
+                        label={t('Skip intro')}
+                        hint={t('Every episode starts this far in.')}
+                        valueMs={sub.skipIntroMs}
+                        onPick={(ms) =>
+                          changeTrim({ skipIntroMs: ms, skipOutroMs: sub.skipOutroMs })
+                        }
+                      />
+                      <TrimRow
+                        label={t('Skip outro')}
+                        hint={t('Every episode ends this long before its end.')}
+                        valueMs={sub.skipOutroMs}
+                        onPick={(ms) =>
+                          changeTrim({ skipIntroMs: sub.skipIntroMs, skipOutroMs: ms })
+                        }
+                      />
+                      {audioFiles.length > 1 && (
+                        <AudioChoiceRow
+                          files={audioFiles}
+                          choice={sub.audioChoice}
+                          onPick={changeAudioChoice}
+                        />
+                      )}
+                      <TextButton
+                        text={t('Unsubscribe')}
+                        onPress={() => {
+                          unsubscribe(db, profileId, podcast.id);
+                          refresh();
+                        }}
+                        tone="danger"
                       />
                     </View>
-                    {sub.autoDownload && (
-                      <View className="flex-row flex-wrap gap-2">
-                        {KEEP.map((k) => (
-                          <Pill
-                            key={k}
-                            onPress={() => setRule(true, k)}
-                            accessibilityState={{ selected: sub.keepLatest === k }}
-                            aria-selected={sub.keepLatest === k}
-                            className={`rounded-full border px-3 py-1 ${sub.keepLatest === k ? 'border-amber bg-amber' : 'border-line'}`}
-                          >
-                            <Text className={sub.keepLatest === k ? 'text-ink' : 'text-soft'}>
-                              {t('{n} newest', { n: k })}
-                            </Text>
-                          </Pill>
-                        ))}
-                      </View>
-                    )}
-                    <TrimRow
-                      label={t('Skip intro')}
-                      hint={t('Every episode starts this far in.')}
-                      valueMs={sub.skipIntroMs}
-                      onPick={(ms) => changeTrim({ skipIntroMs: ms, skipOutroMs: sub.skipOutroMs })}
+                  ) : (
+                    <Button
+                      text={t('Subscribe')}
+                      busy={busy}
+                      onPress={() =>
+                        void run(async () => void (await subscribeToFeed(podcast.feedUrl)))
+                      }
                     />
-                    <TrimRow
-                      label={t('Skip outro')}
-                      hint={t('Every episode ends this long before its end.')}
-                      valueMs={sub.skipOutroMs}
-                      onPick={(ms) => changeTrim({ skipIntroMs: sub.skipIntroMs, skipOutroMs: ms })}
-                    />
-                    {audioFiles.length > 1 && (
-                      <AudioChoiceRow
-                        files={audioFiles}
-                        choice={sub.audioChoice}
-                        onPick={changeAudioChoice}
-                      />
-                    )}
-                    <TextButton
-                      text={t('Unsubscribe')}
-                      onPress={() => {
-                        unsubscribe(db, profileId, podcast.id);
-                        refresh();
-                      }}
-                      tone="danger"
-                    />
-                  </View>
-                ) : (
-                  <Pressable
-                    disabled={busy}
-                    onPress={() =>
-                      void run(async () => void (await subscribeToFeed(podcast.feedUrl)))
-                    }
-                    accessibilityRole="button"
-                    accessibilityLabel={t('Subscribe')}
-                    accessibilityState={{ busy, disabled: busy }}
-                    className="min-h-12 items-center justify-center rounded-full bg-amber py-3 active:opacity-80"
+                  )}
+                  <Text
+                    accessibilityRole="header"
+                    className="pt-2 text-xs uppercase tracking-wider text-muted"
                   >
-                    {busy ? (
-                      <ActivityIndicator color={colors.ink} />
-                    ) : (
-                      <Text className="text-base font-semibold text-ink">{t('Subscribe')}</Text>
-                    )}
-                  </Pressable>
-                )}
-                <Text
-                  accessibilityRole="header"
-                  className="pt-2 text-xs uppercase tracking-wider text-muted"
-                >
-                  {list.length === 1 ? t('1 episode') : t('{n} episodes', { n: list.length })}
-                </Text>
-              </>
-            )}
+                    {list.length === 1 ? t('1 episode') : t('{n} episodes', { n: list.length })}
+                  </Text>
+                </>
+              )}
+            </LoadState>
           </View>
         }
         renderItem={({ item: row }) => {

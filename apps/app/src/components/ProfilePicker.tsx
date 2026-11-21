@@ -1,6 +1,6 @@
 import { checkPin, listProfiles, type Profile } from '@lelap/core';
 import { useMemo, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../i18n';
@@ -10,6 +10,7 @@ import { switchProfile, useLibrary } from '../player';
 import { profileId } from '../profile';
 import { Avatar } from './Avatar';
 import { TextButton } from './TextButton';
+import { TextField } from './TextField';
 import { useColors } from '../theme';
 
 /**
@@ -72,7 +73,7 @@ export function ProfilePicker({
       {asking ? (
         <View className="items-center gap-4">
           <Avatar avatar={asking.avatar} name={asking.name} size={96} />
-          <TextInput
+          <TextField
             value={pin}
             onChangeText={enter}
             autoFocus
@@ -81,8 +82,8 @@ export function ProfilePicker({
             maxLength={4}
             placeholder={t('PIN')}
             accessibilityLabel={t('PIN')}
-            placeholderTextColor={colors.muted}
-            className="w-40 rounded-lg border border-line px-3 py-3 text-center text-2xl tracking-[12px] text-paper"
+            mono
+            className="w-40 text-center"
           />
           {wrong && (
             <Text accessibilityLiveRegion="assertive" className="text-danger">

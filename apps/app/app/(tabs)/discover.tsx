@@ -22,7 +22,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../../src/i18n';
 import { fetcher, SHOWN_TYPES, useAddons } from '../../src/addons';
 import { useAskWhenVisible, useAvailability } from '../../src/availability';
+import { EmptyState } from '../../src/components/EmptyState';
 import { Icon } from '../../src/components/Icon';
+import { LoadState } from '../../src/components/LoadState';
 import { MetaTile } from '../../src/components/MetaCard';
 import { openItem } from '../../src/navigation';
 import { Pill } from '../../src/components/Pill';
@@ -128,9 +130,7 @@ export default function DiscoverScreen() {
         {t('Discover')}
       </Text>
       {wide && space === null ? null : catalogs.length === 0 ? (
-        <Text className="px-4 text-muted">
-          {t('No catalogs to browse. Add-ons in Settings bring them.')}
-        </Text>
+        <EmptyState title={t('No catalogs to browse. Add-ons in Settings bring them.')} />
       ) : (
         <FlatList
           data={rows}
@@ -210,15 +210,19 @@ export default function DiscoverScreen() {
             </View>
           }
           ListEmptyComponent={
-            query.isPending ? (
-              <ActivityIndicator color={colors.amber} className="pt-12" />
-            ) : (
-              <Text className="px-4 pt-12 text-center text-muted" accessibilityLiveRegion="polite">
-                {query.isError
-                  ? `${current?.addon.manifest.name ?? t('The add-on')} did not answer. Pull Home down to try again.`
-                  : t('Nothing here.')}
-              </Text>
-            )
+            <LoadState
+              loading={query.isPending}
+              failed={
+                query.isError && {
+                  title: t('{name} did not answer', {
+                    name: current?.addon.manifest.name ?? t('The add-on'),
+                  }),
+                }
+              }
+              onRetry={() => void query.refetch()}
+            >
+              <EmptyState title={t('Nothing here.')} />
+            </LoadState>
           }
           ListFooterComponent={
             query.isFetchingNextPage ? <ActivityIndicator color={colors.amber} /> : undefined

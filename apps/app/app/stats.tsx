@@ -5,8 +5,9 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
-import { Icon, IconButton } from '../src/components/Icon';
+import { Icon } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
+import { ScreenHeader } from '../src/components/ScreenHeader';
 import { Sheet } from '../src/components/Sheet';
 import {
   Bars,
@@ -60,24 +61,10 @@ export default function StatsScreen() {
   return (
     <View style={{ backgroundColor: palette.background }} className="flex-1">
       <ScrollView
-        contentContainerStyle={{ ...READABLE, paddingTop: insets.top + 4, paddingBottom: 24 }}
+        contentContainerStyle={{ ...READABLE, paddingTop: insets.top + 8, paddingBottom: 24 }}
         className="px-4"
       >
-        <View className="-ms-2 self-start">
-          <IconButton
-            name="back"
-            label={t('Back')}
-            color={palette.secondary}
-            onPress={() => router.back()}
-          />
-        </View>
-        <Text
-          accessibilityRole="header"
-          style={{ color: palette.text }}
-          className="pb-4 text-3xl font-semibold"
-        >
-          {t('Listening')}
-        </Text>
+        <ScreenHeader title={t('Listening')} />
 
         <View className="flex-row gap-3">
           <Figure palette={palette} label={t('Today')} value={listenedText(stats.todayMs)} />

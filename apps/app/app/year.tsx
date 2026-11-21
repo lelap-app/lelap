@@ -1,12 +1,14 @@
 import { dayDate, yearInSoundFor } from '@lelap/core';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type Svg from 'react-native-svg';
 
 import { t } from '../src/i18n';
-import { IconButton } from '../src/components/Icon';
+import { Button } from '../src/components/Button';
+import { EmptyState } from '../src/components/EmptyState';
+import { ScreenHeader } from '../src/components/ScreenHeader';
 import {
   Bars,
   CARD_HEIGHT,
@@ -31,7 +33,6 @@ import { READABLE } from '../src/layout';
  * leaves the phone when the listener shares it.
  */
 export default function YearScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const palette = useStatsPalette();
   const { width } = useWindowDimensions();
@@ -68,31 +69,17 @@ export default function YearScreen() {
       <ScrollView
         contentContainerStyle={{
           ...READABLE,
-          paddingTop: insets.top + 4,
+          paddingTop: insets.top + 8,
           paddingBottom: insets.bottom + 24,
         }}
         className="px-4"
       >
-        <View className="-ms-2 self-start">
-          <IconButton
-            name="back"
-            label={t('Back')}
-            color={palette.secondary}
-            onPress={() => router.back()}
-          />
-        </View>
-        <Text
-          accessibilityRole="header"
-          style={{ color: palette.text }}
-          className="pb-4 text-3xl font-semibold"
-        >
-          {title}
-        </Text>
+        <ScreenHeader title={title} />
 
         {year.ms === 0 && year.finished.length === 0 ? (
-          <Text style={{ color: palette.secondary }}>
-            {t('Nothing listened in {year} on this device.', { year: String(yearNumber) })}
-          </Text>
+          <EmptyState
+            title={t('Nothing listened in {year} on this device.', { year: String(yearNumber) })}
+          />
         ) : (
           <>
             {/* The picture repeats the figures below, which a screen reader reads instead. */}
@@ -104,18 +91,7 @@ export default function YearScreen() {
             >
               <YearCard ref={card} year={year} palette={palette} width={cardWidth} />
             </View>
-            <Pressable
-              onPress={share}
-              disabled={sharing}
-              accessibilityRole="button"
-              accessibilityState={{ busy: sharing }}
-              style={{ backgroundColor: palette.accent, opacity: sharing ? 0.6 : 1 }}
-              className="mt-4 min-h-12 items-center justify-center rounded-full px-5"
-            >
-              <Text style={{ color: palette.onAccent }} className="font-semibold">
-                {t('Share as image')}
-              </Text>
-            </Pressable>
+            <Button text={t('Share as image')} onPress={share} busy={sharing} className="mt-4" />
             <Text style={{ color: palette.secondary }} className="pt-2 text-xs">
               {failed
                 ? t('The image could not be shared. Try again.')

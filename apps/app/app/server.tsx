@@ -29,21 +29,16 @@ import { File } from 'expo-file-system';
 import { applySignin, offersPlaces, readSettings, type Settings } from '@lelap/sdk';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Platform, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { hint as hintProps } from '../src/a11y';
 import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
-import { IconButton } from '../src/components/Icon';
+import { Button } from '../src/components/Button';
+import { EmptyState } from '../src/components/EmptyState';
+import { ScreenHeader } from '../src/components/ScreenHeader';
+import { TextField } from '../src/components/TextField';
 import { db, newId } from '../src/db';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
@@ -153,20 +148,22 @@ function Field({
   return (
     <View className="gap-1">
       <Text className="text-sm text-soft">{label}</Text>
-      <TextInput
+      <TextField
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
         accessibilityLabel={label}
         {...hintProps(hint)}
-        placeholderTextColor={colors.muted}
         autoCapitalize="none"
         autoCorrect={false}
         secureTextEntry={secret}
         editable={!locked}
         multiline={multiline}
+        mono={multiline}
         {...(multiline ? { numberOfLines: 4, textAlignVertical: 'top' as const } : {})}
-        className={`rounded-lg border border-line px-3 py-2 ${locked ? 'text-muted' : 'text-paper'} ${multiline ? 'min-h-24 font-mono text-xs' : 'min-h-12'}`}
+        // A locked field is shown, not edited: its text is muted.
+        {...(locked ? { style: { color: colors.muted } } : {})}
+        className={multiline ? 'min-h-24' : ''}
       />
       {hint && <Text className="text-xs text-muted">{hint}</Text>}
     </View>
@@ -205,7 +202,6 @@ const isHttp = (url: string) => /^https?:\/\//.test(url.trim());
 
 /** Adds a WebDAV server, an S3-compatible bucket, or a Jellyfin or Audiobookshelf server. */
 export default function ServerScreen() {
-  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { refresh } = useLibrary();
@@ -590,32 +586,15 @@ export default function ServerScreen() {
           gap: 16,
         }}
       >
-        <View className="-ms-2 self-start">
-          <IconButton
-            name="back"
-            label={t('Back')}
-            color={colors.soft}
-            onPress={() => router.back()}
-          />
-        </View>
-        <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
-          {t('Addresses')}
-        </Text>
-        <Text className="text-soft">
-          {t(
+        <ScreenHeader
+          title={t('Addresses')}
+          subtitle={t(
             'A server you reach at home and from outside can have both addresses. Lelap uses whichever answers; the login, books and places stay.',
           )}
-        </Text>
+        />
         <Field label={t('Server address')} locked value={url} onChange={setUrl} />
         <AlsoReachable value={alsoUrl} onChange={setAlsoUrl} />
-        <Pressable
-          disabled={!alsoOk}
-          onPress={saveAddresses}
-          accessibilityRole="button"
-          className={`min-h-12 items-center justify-center rounded-full py-3 ${alsoOk ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
-        >
-          <Text className={`font-semibold ${alsoOk ? 'text-ink' : 'text-muted'}`}>{t('Save')}</Text>
-        </Pressable>
+        <Button text={t('Save')} onPress={saveAddresses} disabled={!alsoOk} />
       </ScrollView>
     );
   }
@@ -672,28 +651,20 @@ export default function ServerScreen() {
         gap: 16,
       }}
     >
-      <View className="-ms-2 self-start">
-        <IconButton
-          name="back"
-          label={t('Back')}
-          color={colors.soft}
-          onPress={() => router.back()}
-        />
-      </View>
-      <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
-        {abs ? t('Change key') : locked ? t('Log in again') : t('Add a server')}
-      </Text>
-      <Text className="text-soft">
-        {abs
-          ? t('Enter a new API key for this server. The server, its books and your places stay.')
-          : locked
-            ? t(
-                'Passwords stay on the phone they were entered on and are not in backups. Enter it again; your books and places stay.',
-              )
-            : t(
-                'Books on your own storage, played straight from it. The address and login stay on this device and are never synced.',
-              )}
-      </Text>
+      <ScreenHeader
+        title={abs ? t('Change key') : locked ? t('Log in again') : t('Add a server')}
+        subtitle={
+          abs
+            ? t('Enter a new API key for this server. The server, its books and your places stay.')
+            : locked
+              ? t(
+                  'Passwords stay on the phone they were entered on and are not in backups. Enter it again; your books and places stay.',
+                )
+              : t(
+                  'Books on your own storage, played straight from it. The address and login stay on this device and are never synced.',
+                )
+        }
+      />
 
       <View className={`flex-row flex-wrap gap-2 ${locked ? 'hidden' : ''}`}>
         {[...BUILT_IN, ...kinds.map((k) => addonKind(k.url))].map((k) => (
@@ -710,9 +681,7 @@ export default function ServerScreen() {
       </View>
 
       {addonUrl && !chosenSource ? (
-        <Text className="text-muted">
-          {t('The add-on for this server is no longer on this device.')}
-        </Text>
+        <EmptyState title={t('The add-on for this server is no longer on this device.')} />
       ) : chosenSource ? (
         <>
           <Text className="text-sm text-soft">{chosenSource.manifest.description}</Text>
@@ -814,9 +783,9 @@ export default function ServerScreen() {
             <View className="gap-2">
               <Text className="text-sm text-soft">{t('Libraries')}</Text>
               {signedIn.libraries.length === 0 ? (
-                <Text className="text-muted">
-                  {t('This account has no book or music libraries on the server.')}
-                </Text>
+                <EmptyState
+                  title={t('This account has no book or music libraries on the server.')}
+                />
               ) : (
                 signedIn.libraries.map((library) => (
                   <LibrarySwitch
@@ -865,9 +834,7 @@ export default function ServerScreen() {
             <View className="gap-2">
               <Text className="text-sm text-soft">{t('Libraries')}</Text>
               {absSignedIn.libraries.length === 0 ? (
-                <Text className="text-muted">
-                  {t('This account has no book libraries on the server.')}
-                </Text>
+                <EmptyState title={t('This account has no book libraries on the server.')} />
               ) : (
                 absSignedIn.libraries.map((library) => (
                   <LibrarySwitch
@@ -1046,8 +1013,10 @@ export default function ServerScreen() {
         </>
       )}
 
-      <Pressable
-        disabled={(testing ? !ready : !canConnect) || busy}
+      <Button
+        text={testing ? t('Test connection') : t('Connect')}
+        disabled={testing ? !ready : !canConnect}
+        busy={busy}
         onPress={() =>
           void askLocalNetwork(formIsLocal()).then((allowed) => {
             if (!allowed) return;
@@ -1060,20 +1029,7 @@ export default function ServerScreen() {
               : connect();
           })
         }
-        accessibilityRole="button"
-        {...(busy ? { accessibilityLabel: testing ? t('Test connection') : t('Connect') } : {})}
-        className={`min-h-12 items-center justify-center rounded-full py-3 ${(testing ? ready : canConnect) ? 'bg-amber active:opacity-80' : 'bg-raised'}`}
-      >
-        {busy ? (
-          <ActivityIndicator color={colors.ink} />
-        ) : (
-          <Text
-            className={`font-semibold ${(testing ? ready : canConnect) ? 'text-ink' : 'text-muted'}`}
-          >
-            {testing ? t('Test connection') : t('Connect')}
-          </Text>
-        )}
-      </Pressable>
+      />
     </ScrollView>
   );
 }

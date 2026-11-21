@@ -1,7 +1,8 @@
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
 import { chooseWebSpeaker, useCasting, useWebCast } from '../casting.web';
 import { t } from '../i18n';
+import { Button } from './Button';
 import { Sheet } from './Sheet';
 import { useColors } from '../theme';
 
@@ -33,16 +34,13 @@ export function CastSheet({
               )}
         </Text>
         <View className="flex-row items-center gap-3">
-          <Pressable
+          <Button
+            kind="secondary"
+            size="sm"
+            text={playing ? t('Change or stop') : t('Choose a speaker or TV')}
             // Straight from the tap: browsers only show their list for one.
             onPress={() => void chooseWebSpeaker()}
-            accessibilityRole="button"
-            className="min-h-12 justify-center rounded-full border border-line px-4 active:bg-night"
-          >
-            <Text className="text-soft">
-              {playing ? t('Change or stop') : t('Choose a speaker or TV')}
-            </Text>
-          </Pressable>
+          />
           {cast.state === 'connecting' && <ActivityIndicator color={colors.amber} />}
         </View>
         {casting.error !== null && (

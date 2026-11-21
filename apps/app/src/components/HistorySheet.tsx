@@ -1,12 +1,13 @@
 import { bookHistory, type HistoryEntry, type HistorySource } from '@lelap/core';
 import { useMemo } from 'react';
-import { Pressable, ScrollView, Text } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { db } from '../db';
 import { formatClock, formatTimeOfDay } from '../format';
 import { useHistoryVersion } from '../history';
 import { t } from '../i18n';
 import { profileId } from '../profile';
+import { EmptyState } from './EmptyState';
 import { Sheet } from './Sheet';
 
 const clockOf = (ms: number): string => {
@@ -87,9 +88,12 @@ export function HistorySheet({
   return (
     <Sheet visible={visible} title={t('History')} onClose={onClose}>
       {entries.length === 0 ? (
-        <Text className="pb-4 text-soft">
-          {t('Plays, pauses, skips and jumps in this book show here for 30 days.')}
-        </Text>
+        <View className="pb-4">
+          <EmptyState
+            title={t('No history yet')}
+            body={t('Plays, pauses, skips and jumps in this book show here for 30 days.')}
+          />
+        </View>
       ) : (
         <ScrollView className="max-h-96 pb-2">
           {entries.map((e) => {

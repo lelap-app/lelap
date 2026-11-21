@@ -2,19 +2,13 @@ import { listSubscriptions } from '@lelap/core';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../../src/i18n';
-import { EmptyState } from '../../src/components/Lori';
+import { Button } from '../../src/components/Button';
+import { EmptyState } from '../../src/components/EmptyState';
+import { TextField } from '../../src/components/TextField';
 import { showAlert } from '../../src/dialog';
 import { BookCover } from '../../src/components/BookCover';
 import { newEpisodesBadges, useBadgesOn, withBadges } from '../../src/components/CoverBadges';
@@ -108,33 +102,25 @@ export default function PodcastsScreen() {
           {!kids && (
             <>
               <View className="flex-row items-center gap-2">
-                <TextInput
+                <TextField
                   value={feedUrl}
                   onChangeText={setFeedUrl}
                   placeholder={t('Feed address (RSS)')}
                   accessibilityLabel={t('Feed address (RSS)')}
-                  placeholderTextColor={colors.muted}
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="url"
                   onSubmitEditing={() => void add()}
-                  className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+                  className="flex-1"
                 />
-                <Pressable
-                  disabled={busy || feedUrl.trim() === ''}
+                <Button
+                  kind="secondary"
+                  size="sm"
+                  text={t('Add')}
+                  disabled={feedUrl.trim() === ''}
+                  busy={busy}
                   onPress={() => void add()}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('Add')}
-                  className="min-h-12 min-w-12 items-center justify-center px-1"
-                >
-                  {busy ? (
-                    <ActivityIndicator color={colors.amber} />
-                  ) : (
-                    <Text className={feedUrl.trim() === '' ? 'text-muted' : 'text-amber'}>
-                      {t('Add')}
-                    </Text>
-                  )}
-                </Pressable>
+                />
               </View>
               <View className="flex-row gap-4">
                 <TextButton
@@ -155,15 +141,16 @@ export default function PodcastsScreen() {
       }
       ListEmptyComponent={
         <EmptyState
+          lori
           title={t('No podcasts yet.')}
-          hint={
+          body={
             kids
               ? t('Find podcasts in Search and subscribe there.')
               : t(
                   'Find podcasts in Search, paste a feed address, or import an OPML file from another app. A podcast folder in your Library can become a subscription too: long-press it there.',
                 )
           }
-          actions={[{ label: t('Search for podcasts'), onPress: () => router.navigate('/search') }]}
+          action={{ label: t('Search for podcasts'), onPress: () => router.navigate('/search') }}
         />
       }
       renderItem={({ item: sub }) => {

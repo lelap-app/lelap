@@ -14,6 +14,7 @@ import { t } from '../i18n';
 import { formatTimeOfDay } from '../format';
 import { seekToBookPosition } from '../player';
 import { profileId } from '../profile';
+import { Button } from './Button';
 import { TextButton } from './TextButton';
 
 const clockOf = (ms: number): string => {
@@ -89,14 +90,13 @@ export function SleepStopBanner({
       )}
       <View className="flex-row flex-wrap items-center gap-2">
         {choices.back.map((b) => (
-          <Pressable
+          <Button
             key={b.minutes}
+            kind="secondary"
+            size="sm"
+            text={t('{n} min back', { n: b.minutes })}
             onPress={() => goTo(b.positionMs)}
-            accessibilityRole="button"
-            className="min-h-12 justify-center rounded-full border border-line px-4 active:bg-night"
-          >
-            <Text className="text-soft">{t('{n} min back', { n: b.minutes })}</Text>
-          </Pressable>
+          />
         ))}
         <View className="flex-1" />
         <TextButton text={t('Not now')} tone="muted" onPress={close} />

@@ -7,7 +7,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../src/i18n';
 import { openPlayer } from '../src/navigation';
 import { showAlert } from '../src/dialog';
-import { Icon, IconButton } from '../src/components/Icon';
+import { Icon } from '../src/components/Icon';
+import { EmptyState } from '../src/components/EmptyState';
+import { ScreenHeader } from '../src/components/ScreenHeader';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { db } from '../src/db';
@@ -39,29 +41,21 @@ export default function UpNextScreen() {
         keyExtractor={(i) => i.bookId}
         contentContainerStyle={{ ...LIST_COLUMN, paddingTop: insets.top + 8, paddingBottom: 24 }}
         ListHeaderComponent={
-          <View className="gap-2 px-4 pb-4">
-            <View className="-ms-2 self-start">
-              <IconButton
-                name="back"
-                label={t('Back')}
-                color={colors.soft}
-                onPress={() => router.back()}
-              />
-            </View>
-            <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
-              {t('Up Next')}
-            </Text>
-            <Text className="text-sm text-muted">
-              {t(
+          <View className="px-4">
+            <ScreenHeader
+              title={t('Up Next')}
+              subtitle={t(
                 'When a podcast episode ends, the first item here plays. Books stop at their end.',
               )}
-            </Text>
+            />
           </View>
         }
         ListEmptyComponent={
-          <Text className="px-4 pt-8 text-center text-muted">
-            {t('Long-press an episode to play it next or add it here.')}
-          </Text>
+          <EmptyState
+            lori
+            title={t('Nothing in Up Next')}
+            body={t('Long-press an episode to play it next or add it here.')}
+          />
         }
         renderItem={({ item, index }) => (
           <Pressable

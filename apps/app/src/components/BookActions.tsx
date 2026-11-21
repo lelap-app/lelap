@@ -25,7 +25,7 @@ import {
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { t } from '../i18n';
 import { db, newId } from '../db';
@@ -37,6 +37,8 @@ import { Icon, type IconName } from './Icon';
 import { RatingRow } from './Rating';
 import { Sheet } from './Sheet';
 import { TextButton } from './TextButton';
+import { Button } from './Button';
+import { TextField } from './TextField';
 import { useColors } from '../theme';
 
 type Mode = 'menu' | 'tags' | 'lists' | 'shelf' | 'rating';
@@ -83,7 +85,6 @@ export function BookActions({
   onChanged: () => void;
   onHidden?: (book: LibraryBook) => void;
 }) {
-  const colors = useColors();
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('menu');
   const [draft, setDraft] = useState('');
@@ -343,24 +344,17 @@ export function BookActions({
             })}
           </View>
           <View className="flex-row gap-2">
-            <TextInput
+            <TextField
               value={draft}
               onChangeText={setDraft}
               onSubmitEditing={addDraft}
               placeholder={t('New tag')}
               accessibilityLabel={t('New tag')}
-              placeholderTextColor={colors.muted}
               autoCapitalize="none"
               returnKeyType="done"
-              className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+              className="flex-1"
             />
-            <Pressable
-              onPress={addDraft}
-              accessibilityRole="button"
-              className="justify-center rounded-lg bg-amber px-4"
-            >
-              <Text className="font-semibold text-ink">{t('Add')}</Text>
-            </Pressable>
+            <Button kind="secondary" size="sm" text={t('Add')} onPress={addDraft} />
           </View>
           <TextButton text={t('Done')} onPress={onClose} className="self-end" />
         </View>

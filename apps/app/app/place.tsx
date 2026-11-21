@@ -1,19 +1,13 @@
 import { findPlaceBook, findPlaceEpisode, getBook, parsePlace, placeQuery } from '@lelap/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Linking,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { Linking, Platform, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookCover, coverUri } from '../src/components/BookCover';
-import { IconButton } from '../src/components/Icon';
+import { Button } from '../src/components/Button';
+import { LoadState } from '../src/components/LoadState';
+import { ScreenHeader } from '../src/components/ScreenHeader';
 import { TextButton } from '../src/components/TextButton';
 import { db } from '../src/db';
 import { showAlert } from '../src/dialog';
@@ -25,7 +19,6 @@ import { playClip } from '../src/clips';
 import { playAt, useLibrary } from '../src/player';
 import { playSharedEpisode } from '../src/podcasts';
 import { profileId } from '../src/profile';
-import { useColors } from '../src/theme';
 
 // Only a browser on an Android phone may have the app to hand the link to.
 const androidBrowser =
@@ -37,7 +30,6 @@ const androidBrowser =
  * names its show's feed, which is fetched only when the listener taps Subscribe and play.
  */
 export default function PlaceScreen() {
-  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { version, refresh } = useLibrary();
@@ -93,22 +85,7 @@ export default function PlaceScreen() {
     void start.then(() => openPlayer(router)).catch(failed);
   };
 
-  const playButton = (label: string) => (
-    <Pressable
-      onPress={play}
-      disabled={busy}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ busy, disabled: busy }}
-      className="min-h-12 items-center justify-center rounded-full bg-amber px-6 active:opacity-80"
-    >
-      {busy ? (
-        <ActivityIndicator color={colors.ink} />
-      ) : (
-        <Text className="font-semibold text-ink">{label}</Text>
-      )}
-    </Pressable>
-  );
+  const playButton = (label: string) => <Button text={label} onPress={play} busy={busy} />;
 
   return (
     <ScrollView
@@ -121,100 +98,101 @@ export default function PlaceScreen() {
         ...READABLE,
       }}
     >
-      <View className="-ms-2 self-start">
-        <IconButton name="back" label={t('Back')} color={colors.soft} onPress={back} />
-      </View>
-      {!place ? (
-        <Text className="text-soft">{t('This link does not name a place in a book.')}</Text>
-      ) : (
-        <>
-          <View className="flex-row items-center gap-4">
-            {book && <BookCover uri={coverUri(book.book)} title={book.book.title} size={96} />}
-            <View className="flex-1 gap-1">
-              <Text accessibilityRole="header" className="text-2xl font-semibold text-paper">
-                {place.title}
-              </Text>
-              {place.author !== null && <Text className="text-soft">{place.author}</Text>}
-              <Text className="text-amber">
-                {place.toMs === null
-                  ? t('At {time}', { time: formatClock(place.atMs) })
-                  : t('From {start} to {end}', {
-                      start: formatClock(place.atMs),
-                      end: formatClock(place.toMs),
-                    })}
-              </Text>
+      <ScreenHeader onBack={back} />
+      <LoadState
+        loading={false}
+        failed={!place && { title: t('This link does not name a place in a book.') }}
+      >
+        {place && (
+          <>
+            <View className="flex-row items-center gap-4">
+              {book && <BookCover uri={coverUri(book.book)} title={book.book.title} size={96} />}
+              <View className="flex-1 gap-1">
+                <Text accessibilityRole="header" className="text-2xl font-semibold text-paper">
+                  {place.title}
+                </Text>
+                {place.author !== null && <Text className="text-soft">{place.author}</Text>}
+                <Text className="text-amber">
+                  {place.toMs === null
+                    ? t('At {time}', { time: formatClock(place.atMs) })
+                    : t('From {start} to {end}', {
+                        start: formatClock(place.atMs),
+                        end: formatClock(place.toMs),
+                      })}
+                </Text>
+              </View>
             </View>
-          </View>
-          {place.episode ? (
-            <View className="gap-2">
-              {episode?.kind === 'here' ? (
-                playButton(t('Play from {time}', { time: formatClock(place.atMs) }))
-              ) : episode?.kind === 'missing' && episode.subscribed ? (
-                <>
-                  <Text className="text-soft">
-                    {t('This episode is not in your copy of the show’s feed yet.')}
+            {place.episode ? (
+              <View className="gap-2">
+                {episode?.kind === 'here' ? (
+                  playButton(t('Play from {time}', { time: formatClock(place.atMs) }))
+                ) : episode?.kind === 'missing' && episode.subscribed ? (
+                  <>
+                    <Text className="text-soft">
+                      {t('This episode is not in your copy of the show’s feed yet.')}
+                    </Text>
+                    {playButton(t('Refresh and play'))}
+                    <TextButton
+                      className="self-start"
+                      text={t('Open the show')}
+                      onPress={() =>
+                        router.push({ pathname: '/podcast', params: { id: episode.podcastId } })
+                      }
+                    />
+                  </>
+                ) : episode ? (
+                  <>
+                    <Text className="text-soft">
+                      {t(
+                        'You are not subscribed to this show. Lelap can subscribe from its feed and play the episode; the audio comes from the show, not from the link.',
+                      )}
+                    </Text>
+                    {playButton(t('Subscribe and play'))}
+                  </>
+                ) : (
+                  <Text className="text-soft">{t('This episode is not on your shelf.')}</Text>
+                )}
+              </View>
+            ) : book ? (
+              <View className="gap-2">
+                {book.book.title !== place.title && (
+                  <Text className="text-sm text-muted">
+                    {t('In your library as “{title}”.', { title: book.book.title })}
                   </Text>
-                  {playButton(t('Refresh and play'))}
+                )}
+                {playButton(t('Play from {time}', { time: formatClock(place.atMs) }))}
+              </View>
+            ) : (
+              <View className="gap-2">
+                <Text className="text-soft">
+                  {t(
+                    'This book is not in your library. The link only says where in the book to listen; the audio comes from your own copy.',
+                  )}
+                </Text>
+                {place.work && (
                   <TextButton
                     className="self-start"
-                    text={t('Open the show')}
+                    text={t('Look for it in the catalog')}
                     onPress={() =>
-                      router.push({ pathname: '/podcast', params: { id: episode.podcastId } })
+                      router.push({
+                        pathname: '/item',
+                        params: { type: place.work?.type ?? '', id: place.work?.id ?? '' },
+                      })
                     }
                   />
-                </>
-              ) : episode ? (
-                <>
-                  <Text className="text-soft">
-                    {t(
-                      'You are not subscribed to this show. Lelap can subscribe from its feed and play the episode; the audio comes from the show, not from the link.',
-                    )}
-                  </Text>
-                  {playButton(t('Subscribe and play'))}
-                </>
-              ) : (
-                <Text className="text-soft">{t('This episode is not on your shelf.')}</Text>
-              )}
-            </View>
-          ) : book ? (
-            <View className="gap-2">
-              {book.book.title !== place.title && (
-                <Text className="text-sm text-muted">
-                  {t('In your library as “{title}”.', { title: book.book.title })}
-                </Text>
-              )}
-              {playButton(t('Play from {time}', { time: formatClock(place.atMs) }))}
-            </View>
-          ) : (
-            <View className="gap-2">
-              <Text className="text-soft">
-                {t(
-                  'This book is not in your library. The link only says where in the book to listen; the audio comes from your own copy.',
                 )}
-              </Text>
-              {place.work && (
-                <TextButton
-                  className="self-start"
-                  text={t('Look for it in the catalog')}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/item',
-                      params: { type: place.work?.type ?? '', id: place.work?.id ?? '' },
-                    })
-                  }
-                />
-              )}
-            </View>
-          )}
-          {androidBrowser && (
-            <TextButton
-              className="self-start"
-              text={t('Open in the Lelap app')}
-              onPress={() => void Linking.openURL(`lelap://place?${placeQuery(place)}`)}
-            />
-          )}
-        </>
-      )}
+              </View>
+            )}
+            {androidBrowser && (
+              <TextButton
+                className="self-start"
+                text={t('Open in the Lelap app')}
+                onPress={() => void Linking.openURL(`lelap://place?${placeQuery(place)}`)}
+              />
+            )}
+          </>
+        )}
+      </LoadState>
     </ScrollView>
   );
 }
