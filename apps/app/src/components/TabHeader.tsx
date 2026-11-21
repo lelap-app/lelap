@@ -3,6 +3,7 @@ import { type ReactNode } from 'react';
 import { Text, View } from 'react-native';
 
 import { t } from '../i18n';
+import { startNav } from '../navTiming';
 import { useColors } from '../theme';
 import { IconButton } from './Icon';
 
@@ -29,7 +30,10 @@ export function TabHeader({ title, children }: { title: string; children?: React
           name="settings"
           label={t('Settings')}
           color={colors.soft}
-          onPress={() => router.push('/settings')}
+          onPress={() => {
+            startNav('settings/index');
+            router.push('/settings');
+          }}
         />
       </View>
     </View>

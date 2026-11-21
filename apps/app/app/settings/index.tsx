@@ -2,7 +2,7 @@ import { listProfiles, listRoots, localRoot } from '@lelap/core';
 import { useQuery } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import { type Href, useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Platform, Text } from 'react-native';
 
 import { useAddons } from '../../src/addons';
@@ -21,6 +21,9 @@ import { GroupLine, SettingsPage } from '../../src/settings/rows';
 import { useSettingsState } from '../../src/settings/state';
 import { membership } from '../../src/sync';
 import { accentLabel, themeLabel } from '../../src/theme';
+
+// About as long as a pushed screen takes to slide in.
+const SETTLE_MS = 350;
 
 type Part = string | { text: string; spoken: string };
 type Group = { route: Href; title: string; summary: (Part | null | undefined | false)[] };
@@ -42,10 +45,19 @@ export default function SettingsScreen() {
   const root = useMemo(() => localRoot(db), [version]);
   const servers = useMemo(() => listRoots(db).filter((r) => r.remote !== null).length, [version]);
   const profiles = useMemo(() => listProfiles(db).length, [version]);
+  // The size of what is kept is read after the screen has slid in (M151): it walks the
+  // downloads folder, and the line shows the last answer meanwhile.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(true), SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, []);
   const storage = useQuery({
     queryKey: ['settings-storage', version],
     queryFn: () => downloads.storage(),
     networkMode: 'always',
+    enabled: settled,
+    placeholderData: (previous) => previous,
   });
   const used = storage.data?.usedBytes;
 

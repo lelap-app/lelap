@@ -1036,3 +1036,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     </LibraryContext.Provider>
   );
 }
+
+/**
+ * Holds the library's signal and the player's state still for a screen that is not in front
+ * (M151): it stays drawn as it was, but a pause, a finished download or the player's every tick
+ * no longer draws it again. Once `hidden` ends it gets the current values, and with them a fresh
+ * read. React's own `<Activity>` would hide the screen too, which shows through while another
+ * slides in and behind a modal.
+ */
+export function StillWhenHidden({ hidden, children }: { hidden: boolean; children: ReactNode }) {
+  const library = useContext(LibraryContext);
+  const state = useContext(PlayerStateContext);
+  const kept = useRef({ library, state });
+  if (!hidden) kept.current = { library, state };
+  // The same `children` and unchanged values: React draws nothing below here again.
+  return (
+    <LibraryContext.Provider value={kept.current.library}>
+      <PlayerStateContext.Provider value={kept.current.state}>
+        {children}
+      </PlayerStateContext.Provider>
+    </LibraryContext.Provider>
+  );
+}
