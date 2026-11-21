@@ -283,6 +283,8 @@ export function Scrubber({
           onPress={onPressElapsed}
           onLongPress={toggleZoom}
           accessibilityRole="button"
+          // The web names a button by its text alone, and “12:34” says nothing (M149).
+          accessibilityLabel={t('{time} played', { time: formatClock(at) })}
           className="min-h-12 min-w-12 justify-center"
           {...hint(
             onPressElapsed
@@ -301,13 +303,19 @@ export function Scrubber({
             onPress={onPressMiddle}
             disabled={!onPressMiddle}
             accessibilityRole={onPressMiddle ? 'button' : 'text'}
+            accessibilityLabel={middle}
             className="min-h-12 min-w-0 shrink items-center justify-center"
           >
             {/* Wraps between the two times when the text is large. */}
             <Text className="text-center text-caption text-muted">{middle}</Text>
           </Pressable>
         )}
-        <Text className="text-detail text-muted">-{formatClock(lengthMs - at)}</Text>
+        <Text
+          accessibilityLabel={t('{time} left', { time: formatClock(lengthMs - at) })}
+          className="text-detail text-muted"
+        >
+          -{formatClock(lengthMs - at)}
+        </Text>
       </View>
     </View>
   );

@@ -38,7 +38,8 @@ import { db } from '../../src/db';
 import { formatBytes } from '../../src/format';
 import { openCatalog, openItem, openPlayer } from '../../src/navigation';
 import { canNotify } from '../../src/platform/downloads';
-import { playBook, useLibrary } from '../../src/player';
+import { playBook, playerProfile, useLibrary, usePlayerState } from '../../src/player';
+import { useWide } from '../../src/layout';
 import { profileId } from '../../src/profile';
 import { startupMark } from '../../src/startup';
 import { SuggestionRows } from '../../src/components/SuggestionRows';
@@ -94,6 +95,15 @@ export default function HomeScreen() {
 
   // `version` is the signal to re-read the database.
   const next = useMemo(() => continueListening(db, profileId), [version]);
+  // The player pane beside Home already shows the book loaded in it, with Play (M149).
+  const wide = useWide();
+  const player = usePlayerState();
+  const inPane =
+    wide &&
+    next !== null &&
+    player.bookId === next.id &&
+    player.partIndex >= 0 &&
+    playerProfile() === profileId;
   // Nothing played and nothing of their own yet: say where books come from (M82).
   const empty = useMemo(
     () => !next && !me?.kids && libraryIsEmpty(db),
@@ -178,7 +188,7 @@ export default function HomeScreen() {
           onPress={() => router.push('/stats')}
         />
       </TabHeader>
-      {next && <ContinueCard book={next} onPress={() => void resume()} />}
+      {next && !inPane && <ContinueCard book={next} onPress={() => void resume()} />}
       {empty && (
         <EmptyState
           title={t('Nothing to continue yet')}

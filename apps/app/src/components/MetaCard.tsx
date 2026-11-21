@@ -13,34 +13,27 @@ import { useTheme } from '../theme';
 
 const onDevice = () => (Platform.OS === 'web' ? t('On this device') : t('On this phone'));
 
-/** The words on a badge, also used as the cover's accessibility hint. */
-export function badgeLabel(availability: Availability): string {
+/**
+ * The words on a badge, also used as the cover's accessibility hint. An item with nothing to play
+ * has none: the “Playable only” filter hides those (M149).
+ */
+export function badgeLabel(availability: Availability): string | undefined {
   if (availability.kind === 'local') return onDevice();
   if (availability.kind === 'stream') return availability.addon;
-  return t('Metadata only');
+  return undefined;
 }
 
 /**
- * Where an item plays from: on the device (amber), the add-on that streams it (amber outline),
- * or nowhere yet (muted outline). Nothing while the answer is still out.
+ * Where an item plays from: on the device (amber) or the add-on that streams it (amber outline).
+ * Nothing while the answer is still out, or when nothing plays it.
  */
 export function SourceBadge({ availability }: { availability: Availability | undefined }) {
   // High contrast puts no text over a picture: the badge covers the cover beneath it.
   const { highContrast } = useTheme();
-  if (!availability) return null;
+  if (!availability || availability.kind === 'none') return null;
   const back = highContrast ? 'bg-night' : 'bg-night/85';
-  const style =
-    availability.kind === 'local'
-      ? 'border-amber bg-amber'
-      : availability.kind === 'stream'
-        ? `border-amber ${back}`
-        : `border-line ${back}`;
-  const text =
-    availability.kind === 'local'
-      ? 'text-ink'
-      : availability.kind === 'stream'
-        ? 'text-amber'
-        : 'text-muted';
+  const style = availability.kind === 'local' ? 'border-amber bg-amber' : `border-amber ${back}`;
+  const text = availability.kind === 'local' ? 'text-ink' : 'text-amber';
   return (
     <View className={`self-start rounded-full border px-1.5 py-px ${style}`}>
       <Text numberOfLines={1} className={`text-caption font-semibold ${text}`}>

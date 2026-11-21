@@ -248,12 +248,10 @@ export const ms: Record<string, string> = {
   Home: 'Utama',
   'Horror and uncanny': 'Seram dan ganjil',
   Library: 'Pustaka',
-  'Metadata only': 'Metadata sahaja',
   More: 'Lagi',
   Podcasts: 'Podcast',
   Search: 'Cari',
   'Self-improvement': 'Pembangunan diri',
-  '1 add-on': '1 alat tambah',
   '{h} h {m} min left': '{h} j {m} min lagi',
   '{n} bookmarks': '{n} penanda',
   '{name} does not host, index or link to any content. Add-ons are made and run by third parties.':

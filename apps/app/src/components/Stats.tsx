@@ -133,11 +133,14 @@ export function Bars({
   bars,
   palette,
   height = 144,
+  lines = 1,
 }: {
   title: string;
   bars: Bar[];
   palette: StatsPalette;
   height?: number;
+  /** Two for labels with a second line, such as a week's month. */
+  lines?: 1 | 2;
 }) {
   const peak = Math.max(1, ...bars.map((b) => b.ms));
   const spoken = bars
@@ -164,9 +167,13 @@ export function Bars({
             />
           </View>
           <Text
-            numberOfLines={1}
-            style={{ color: b.current ? palette.accentText : palette.secondary }}
-            className={bars.length > 7 ? 'text-caption' : 'text-caption'}
+            numberOfLines={lines}
+            style={{
+              color: b.current ? palette.accentText : palette.secondary,
+              // Reserves the second line on every bar, so the bars all end at one height.
+              ...(lines === 2 ? { minHeight: 32 } : {}),
+            }}
+            className="text-center text-caption"
           >
             {b.label}
           </Text>

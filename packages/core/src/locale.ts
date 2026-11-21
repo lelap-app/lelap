@@ -33,9 +33,16 @@ export const numberText = (n: number, tag: string, fractionDigits = 0): string =
     maximumFractionDigits: fractionDigits,
   }).format(n);
 
+// Short months in three letters: British English writes September as “Sept” (M149).
+const threeLetters = (month: string): string =>
+  /^\p{Script=Latin}{4,}$/u.test(month) ? month.slice(0, 3) : month;
+
 /** `9 Nov` or `Nov 9`, as the language writes a day of a month. */
 export const dayMonthText = (date: Date, tag: string): string =>
-  new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'short' }).format(date);
+  new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'short' })
+    .formatToParts(date)
+    .map((part) => (part.type === 'month' ? threeLetters(part.value) : part.value))
+    .join('');
 
 /** `9 November 2026`, for screen readers and the year overview. */
 export const longDateText = (date: Date, tag: string): string =>
@@ -46,8 +53,10 @@ export const spokenDayText = (date: Date, tag: string): string =>
   new Intl.DateTimeFormat(tag, { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
 
 /** A month's name, `Nov` or `November`, for a month from 0 (January). */
-export const monthText = (month: number, tag: string, width: 'short' | 'long' = 'short'): string =>
-  new Intl.DateTimeFormat(tag, { month: width }).format(new Date(2026, month, 1));
+export function monthText(month: number, tag: string, width: 'short' | 'long' = 'short'): string {
+  const name = new Intl.DateTimeFormat(tag, { month: width }).format(new Date(2026, month, 1));
+  return width === 'short' ? threeLetters(name) : name;
+}
 
 // Where the week starts, from CLDR, for engines without `Intl.Locale` week info (Hermes on
 // Android). Every region not listed starts on Monday.

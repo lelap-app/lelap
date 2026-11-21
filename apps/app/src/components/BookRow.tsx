@@ -88,7 +88,7 @@ export const BookRow = memo(function BookRow({
   book: LibraryBook;
   /** Said first on the second line, such as the book's number in a series. */
   note?: string;
-  /** Offline and not on this phone: shown dimmed. */
+  /** Offline and not downloaded: shown dimmed. */
   unavailable?: boolean;
   onOpen: (book: LibraryBook) => void;
   onLongPress: (book: LibraryBook) => void;
@@ -175,7 +175,7 @@ export const BookRow = memo(function BookRow({
             <Text
               className={`text-detail ${book.finishedAt !== null ? 'text-amber' : 'text-muted'}`}
             >
-              {unavailable ? t('Not on this phone') : status(book)}
+              {unavailable ? t('Needs a connection') : status(book)}
             </Text>
             {/* A mouse can't long-press comfortably, so the web shows the menu as a button. */}
             {Platform.OS === 'web' && (

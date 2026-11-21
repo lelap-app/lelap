@@ -88,7 +88,11 @@ export default function TranscriptScreen() {
             <EmptyState
               lori
               title={
-                episode ? t('This episode has no transcript.') : t('This part has no transcript.')
+                episode
+                  ? t('This episode has no transcript.')
+                  : part && (detail?.files.length ?? 0) > 1
+                    ? t('This part has no transcript.')
+                    : t('This book has no transcript.')
               }
             />
           ) : (

@@ -45,7 +45,6 @@ export default function YearScreen() {
 
   // `version` is the signal to re-read the database.
   const year = useMemo(() => yearInSoundFor(db, profileId, yearNumber), [version, yearNumber]);
-  const title = t('{year} in sound', { year: String(yearNumber) });
   const cardWidth = Math.min(width - 32, 480);
   const busiestMonth = year.busiestMonth;
 
@@ -74,7 +73,10 @@ export default function YearScreen() {
         }}
         className="px-4"
       >
-        <ScreenHeader title={title} />
+        {/* The card under it says “2026 in sound”; the title doesn't repeat it (M149). */}
+        <ScreenHeader
+          title={yearNumber === new Date().getFullYear() ? t('Your year') : String(yearNumber)}
+        />
 
         {year.ms === 0 && year.finished.length === 0 ? (
           <EmptyState

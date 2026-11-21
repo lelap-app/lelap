@@ -110,8 +110,8 @@ export default function PodcastsScreen() {
                   <TextField
                     value={feedUrl}
                     onChangeText={setFeedUrl}
-                    placeholder={t('Podcast feed address')}
-                    accessibilityLabel={t('Podcast feed address')}
+                    placeholder={t('Paste a podcast’s feed address')}
+                    accessibilityLabel={t('Paste a podcast’s feed address')}
                     autoCapitalize="none"
                     autoCorrect={false}
                     keyboardType="url"
@@ -129,13 +129,13 @@ export default function PodcastsScreen() {
                 </View>
                 <View className="flex-row gap-4">
                   <TextButton
-                    text={t('Import subscriptions')}
+                    text={t('Bring podcasts from another app')}
                     disabled={busy}
                     onPress={() => void importFile()}
                   />
                   {subs.length > 0 && (
                     <TextButton
-                      text={t('Export subscriptions')}
+                      text={t('Save your podcasts as a file')}
                       onPress={() => void shareText('lelap-subscriptions.opml', exportOpml())}
                     />
                   )}

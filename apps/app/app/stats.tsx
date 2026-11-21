@@ -22,6 +22,7 @@ import {
 import { db } from '../src/db';
 import {
   formatDayMonth,
+  formatMonth,
   formatLongDate,
   formatNumber,
   formatSpokenDay,
@@ -118,11 +119,19 @@ export default function StatsScreen() {
         <Bars
           palette={palette}
           title={t('Time listened per week')}
+          lines={2}
+          height={160}
           bars={stats.weeks.map((w, index) => {
             const date = dayDate(w.start);
+            const before = index > 0 ? stats.weeks[index - 1] : undefined;
+            // The day on top and the month under the first week of each: “28 Sept” didn't fit.
+            const newMonth =
+              before === undefined || dayDate(before.start).getMonth() !== date.getMonth();
             return {
               key: w.start,
-              label: formatDayMonth(date),
+              label: newMonth
+                ? `${formatNumber(date.getDate())}\n${formatMonth(date.getMonth())}`
+                : formatNumber(date.getDate()),
               spoken: t('Week of {date}', { date: formatLongDate(date) }),
               ms: w.ms,
               current: index === stats.weeks.length - 1,

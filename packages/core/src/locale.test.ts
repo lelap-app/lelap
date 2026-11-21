@@ -61,6 +61,9 @@ describe('locale', () => {
     expect(spokenDayText(evening, 'en-GB')).toBe('Wednesday 18 November');
     expect(spokenDayText(evening, 'ms')).toBe('Rabu, 18 November');
     expect(monthText(0, 'en')).toBe('Jan');
+    expect(monthText(8, 'en-GB')).toBe('Sep');
+    expect(dayMonthText(new Date(2026, 8, 28), 'en-GB')).toBe('28 Sep');
+    expect(monthText(4, 'ms')).toBe('Mei');
     expect(monthText(7, 'ms', 'long')).toBe('Ogos');
   });
 

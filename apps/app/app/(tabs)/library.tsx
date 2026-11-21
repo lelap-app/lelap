@@ -1,5 +1,4 @@
 import {
-  continueListening,
   createPlaylist,
   getSettings,
   groupByProgress,
@@ -48,7 +47,6 @@ import { BookRow, type RowSwipe } from '../../src/components/BookRow';
 import { MusicCard, MusicReview } from '../../src/components/MusicSuggestions';
 import { SeriesRow } from '../../src/components/SeriesRow';
 import { type UndoNotice, UndoBar } from '../../src/components/UndoBar';
-import { ContinueCard } from '../../src/components/ContinueCard';
 import { EmptyState } from '../../src/components/EmptyState';
 import { Lori } from '../../src/components/Lori';
 import { Notice } from '../../src/components/Notice';
@@ -97,12 +95,12 @@ function ListCard({ list, count }: { list: Playlist; count: number }) {
             className={`min-h-12 w-40 flex-row items-center gap-2.5 rounded-xl border bg-raised p-2.5 active:opacity-80 ${frame}`}
           >
             <View
-              className={`h-10 w-10 items-center justify-center rounded-lg ${list.rule ? 'bg-[#2d3a63]' : 'bg-amber'}`}
+              className={`h-10 w-10 items-center justify-center rounded-lg ${list.rule ? 'bg-line' : 'bg-amber'}`}
             >
               <Icon
                 name={added ? 'check' : list.rule ? 'moon' : 'chapters'}
                 size={20}
-                color={list.rule ? '#dce3f5' : colors.ink}
+                color={list.rule ? colors.paper : colors.ink}
               />
             </View>
             <View className="flex-1">
@@ -267,7 +265,6 @@ export default function LibraryScreen() {
   );
   // Only what this profile sees in its Library (a kids profile sees its shelf).
   const music = useMemo(() => books.filter((b) => musicIds.has(b.id)), [books, musicIds]);
-  const next = useMemo(() => continueListening(db, profileId), [version]);
   // `version` too: the counts follow tags, which no book row holds.
   const lists = useMemo(() => listPlaylistsWithCounts(db, profileId, all), [all, version]);
   const tags = useMemo(() => listTags(db, profileId), [version]);
@@ -595,7 +592,6 @@ export default function LibraryScreen() {
                 onDismiss={dismissMusic}
               />
             )}
-            {!showHidden && next && <ContinueCard book={next} onPress={() => void open(next)} />}
             {!showHidden && (
               <ScrollView
                 horizontal

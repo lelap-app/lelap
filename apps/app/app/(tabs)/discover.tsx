@@ -107,7 +107,7 @@ export default function DiscoverScreen() {
     const seen = new Set<string>();
     return (query.data?.pages.flat() ?? []).filter((m) => !seen.has(m.id) && seen.add(m.id));
   }, [query.data]);
-  // Items still being asked about stay; only a known "Metadata only" is hidden.
+  // Items still being asked about stay; only one known to have nothing to play is hidden.
   const shown = useMemo(
     () => (playableOnly ? items.filter((m) => availability(m)?.kind !== 'none') : items),
     [items, playableOnly, availability],

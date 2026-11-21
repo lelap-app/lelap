@@ -145,12 +145,12 @@ function LookRows({ settings, update }: { settings: Settings; update: UpdateSett
         )}
       </View>
       <Row
-        label={t('Save as a file')}
+        label={t('Save this look as a file')}
         detail={t('A theme file holds only a name and colours, so you can share a look.')}
       >
         <TextButton text={t('Save')} onPress={() => void exportTheme()} />
       </Row>
-      <Row label={t('Open a theme file')}>
+      <Row label={t('Use a theme file')}>
         <TextButton text={t('Choose')} onPress={() => void openFile()} />
       </Row>
     </>
