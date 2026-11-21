@@ -41,7 +41,9 @@ export default function AddonLinkScreen() {
     const mine = ++current.current;
     setFetching(true);
     confirmAddon(manifestUrl, false, () => {
-      if (mine === current.current) setFetching(false);
+      if (mine !== current.current) return false;
+      setFetching(false);
+      return true;
     })
       .then((result) => {
         if (mine !== current.current) return;

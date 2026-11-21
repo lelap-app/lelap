@@ -33,15 +33,16 @@ export const numberText = (n: number, tag: string, fractionDigits = 0): string =
     maximumFractionDigits: fractionDigits,
   }).format(n);
 
-// Short months in three letters: British English writes September as “Sept” (M149).
-const threeLetters = (month: string): string =>
-  /^\p{Script=Latin}{4,}$/u.test(month) ? month.slice(0, 3) : month;
+// Short months in three letters: British English writes September as “Sept” (M149). Only
+// English and Malay, whose short months are otherwise three letters; French keeps “juin”.
+const threeLetters = (month: string, tag: string): string =>
+  /^(en|ms)\b/.test(tag) && /^\p{Script=Latin}{4,}$/u.test(month) ? month.slice(0, 3) : month;
 
 /** `9 Nov` or `Nov 9`, as the language writes a day of a month. */
 export const dayMonthText = (date: Date, tag: string): string =>
   new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'short' })
     .formatToParts(date)
-    .map((part) => (part.type === 'month' ? threeLetters(part.value) : part.value))
+    .map((part) => (part.type === 'month' ? threeLetters(part.value, tag) : part.value))
     .join('');
 
 /** `9 November 2026`, for screen readers and the year overview. */
@@ -55,7 +56,7 @@ export const spokenDayText = (date: Date, tag: string): string =>
 /** A month's name, `Nov` or `November`, for a month from 0 (January). */
 export function monthText(month: number, tag: string, width: 'short' | 'long' = 'short'): string {
   const name = new Intl.DateTimeFormat(tag, { month: width }).format(new Date(2026, month, 1));
-  return width === 'short' ? threeLetters(name) : name;
+  return width === 'short' ? threeLetters(name, tag) : name;
 }
 
 // Where the week starts, from CLDR, for engines without `Intl.Locale` week info (Hermes on

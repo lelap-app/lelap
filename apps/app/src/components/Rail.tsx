@@ -66,6 +66,9 @@ export function Rail() {
   if (TABS.some((tab) => tab.href === pathname)) last.current = pathname;
   if (BARE.has(pathname)) return null;
   const settings = pathname.startsWith('/settings');
+  const onTab = TABS.some((tab) => tab.href === pathname);
+  // From a pushed screen, back down to the tabs rather than pushing a second set of them.
+  const go = (href: Href & string) => (onTab ? router.navigate(href) : router.dismissTo(href));
   return (
     <View
       accessibilityRole="tablist"
@@ -78,7 +81,7 @@ export function Rail() {
           icon={tab.icon}
           label={tab.label()}
           active={!settings && last.current === tab.href}
-          onPress={() => router.navigate(tab.href)}
+          onPress={() => go(tab.href)}
         />
       ))}
       <View className="flex-1">
@@ -88,7 +91,9 @@ export function Rail() {
         icon="settings"
         label={t('Settings')}
         active={settings}
-        onPress={() => router.navigate('/settings')}
+        onPress={() => {
+          if (pathname !== '/settings') router.push('/settings');
+        }}
       />
     </View>
   );

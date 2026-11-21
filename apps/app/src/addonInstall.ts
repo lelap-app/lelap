@@ -44,15 +44,16 @@ export function openConfigure(manifestUrl: string): void {
  * still needs settings opens its configure page. `typed`: the listener entered the address in the
  * app, so a web add-on may also move to another server. Resolves once the listener has chosen;
  * `onFetched` is called once the manifest is in, before the question, so a screen waiting on the
- * fetch can stop its spinner and timeout there (M149).
+ * fetch can stop its spinner and timeout there (M149); it returns false to drop the question.
  */
 export async function confirmAddon(
   manifestUrl: string,
   typed = false,
-  onFetched?: () => void,
+  onFetched?: () => boolean | undefined,
 ): Promise<'added' | 'cancelled'> {
   const manifest: Manifest = await fetchManifest(fetcher, manifestUrl);
-  onFetched?.();
+  // False: the screen asked again meanwhile, so this older fetch asks nothing.
+  if (onFetched?.() === false) return 'cancelled';
   return new Promise((resolve) => {
     const cancel = {
       text: t('Cancel'),

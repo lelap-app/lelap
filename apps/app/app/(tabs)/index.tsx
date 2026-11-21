@@ -6,6 +6,7 @@ import {
   libraryIsEmpty,
   listDownloads,
   listProfiles,
+  type LibraryBook,
   setSetting,
   setWantedAlertsAsked,
   WANT_TO_READ,
@@ -95,15 +96,6 @@ export default function HomeScreen() {
 
   // `version` is the signal to re-read the database.
   const next = useMemo(() => continueListening(db, profileId), [version]);
-  // The player pane beside Home already shows the book loaded in it, with Play (M149).
-  const wide = useWide();
-  const player = usePlayerState();
-  const inPane =
-    wide &&
-    next !== null &&
-    player.bookId === next.id &&
-    player.partIndex >= 0 &&
-    playerProfile() === profileId;
   // Nothing played and nothing of their own yet: say where books come from (M82).
   const empty = useMemo(
     () => !next && !me?.kids && libraryIsEmpty(db),
@@ -188,7 +180,7 @@ export default function HomeScreen() {
           onPress={() => router.push('/stats')}
         />
       </TabHeader>
-      {next && !inPane && <ContinueCard book={next} onPress={() => void resume()} />}
+      {next && <HomeContinue book={next} onPress={() => void resume()} />}
       {empty && (
         <EmptyState
           title={t('Nothing to continue yet')}
@@ -255,4 +247,18 @@ export default function HomeScreen() {
       )}
     </ScrollView>
   );
+}
+
+/**
+ * Home's Continue listening card, left out on a wide screen while the player pane beside Home
+ * shows the same book with its own Play (M149). Its own component, so the player's every tick
+ * redraws only this and not Home.
+ */
+function HomeContinue({ book, onPress }: { book: LibraryBook; onPress: () => void }) {
+  const wide = useWide();
+  const player = usePlayerState();
+  const inPane =
+    wide && player.bookId === book.id && player.partIndex >= 0 && playerProfile() === profileId;
+  if (inPane) return null;
+  return <ContinueCard book={book} onPress={onPress} />;
 }
