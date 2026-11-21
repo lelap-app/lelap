@@ -1,13 +1,14 @@
 import { cueAt, episodeDetail, getBook, toBookPosition, type TranscriptCue } from '@lelap/core';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { hint } from '../src/a11y';
 import { t } from '../src/i18n';
-import { IconButton } from '../src/components/Icon';
+import { EmptyState } from '../src/components/EmptyState';
+import { LoadState } from '../src/components/LoadState';
+import { ScreenHeader } from '../src/components/ScreenHeader';
 import { useReducedMotion } from '../src/components/Motion';
 import { db } from '../src/db';
 import { formatClock } from '../src/format';
@@ -15,7 +16,6 @@ import { seekToBookPosition, useLibrary, usePlayerState } from '../src/player';
 import { loadTranscript, transcriptOf } from '../src/podcasting';
 import { profileId } from '../src/profile';
 import { READABLE } from '../src/layout';
-import { useColors } from '../src/theme';
 
 // After the listener scrolls, the list stops following the position for this long.
 const FOLLOW_PAUSE_MS = 8_000;
@@ -24,8 +24,6 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 
 /** The playing episode's or book part's transcript: the current line lit, a tap on a line seeks to it. */
 export default function TranscriptScreen() {
-  const colors = useColors();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const state = usePlayerState();
   const bookId = state.bookId;
@@ -72,47 +70,51 @@ export default function TranscriptScreen() {
   const title = episode?.title ?? part?.title ?? detail?.book.title ?? t('Transcript');
   const subtitle = episode?.podcastTitle ?? (part?.title ? detail?.book.title : undefined);
 
+  const header = (
+    <ScreenHeader
+      back="close"
+      backLabel={t('Close transcript')}
+      title={title}
+      subtitle={subtitle ?? undefined}
+    />
+  );
+
   return (
-    <View style={{ paddingTop: insets.top + 4 }} className="flex-1 bg-night">
-      <View className="flex-row items-center gap-2 px-2 pb-2">
-        <IconButton
-          name="down"
-          label={t('Close transcript')}
-          size={26}
-          color={colors.soft}
-          onPress={() => router.back()}
-        />
-        <View className="flex-1">
-          <Text numberOfLines={1} className="text-base font-semibold text-paper">
-            {title}
-          </Text>
-          {subtitle && (
-            <Text numberOfLines={1} className="text-sm text-muted">
-              {subtitle}
-            </Text>
+    <View className="flex-1 bg-night">
+      {!source || !transcript.isSuccess || cues.length === 0 ? (
+        <View style={{ paddingTop: insets.top + 8 }} className="px-6">
+          {header}
+          {!source ? (
+            <EmptyState
+              lori
+              title={
+                episode ? t('This episode has no transcript.') : t('This part has no transcript.')
+              }
+            />
+          ) : (
+            <LoadState
+              loading={transcript.isPending}
+              failed={
+                transcript.isError && {
+                  title: t('This didn’t load'),
+                  body: message(transcript.error),
+                }
+              }
+              onRetry={() => void transcript.refetch()}
+            >
+              <EmptyState lori title={t('The transcript is empty.')} />
+            </LoadState>
           )}
         </View>
-      </View>
-
-      {!source ? (
-        <Text className="px-6 pt-24 text-center text-muted">
-          {episode ? t('This episode has no transcript.') : t('This part has no transcript.')}
-        </Text>
-      ) : transcript.isPending ? (
-        <ActivityIndicator color={colors.amber} className="pt-24" />
-      ) : transcript.isError ? (
-        <Text className="px-6 pt-24 text-center text-muted">
-          {t('The transcript could not be read: {error}', { error: message(transcript.error) })}
-        </Text>
-      ) : cues.length === 0 ? (
-        <Text className="px-6 pt-24 text-center text-muted">{t('The transcript is empty.')}</Text>
       ) : (
         <FlatList
           ref={list}
           data={cues}
           keyExtractor={(_, i) => String(i)}
+          ListHeaderComponent={header}
           contentContainerStyle={{
             ...READABLE,
+            paddingTop: insets.top + 8,
             paddingHorizontal: 24,
             paddingBottom: insets.bottom + 120,
           }}

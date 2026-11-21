@@ -22,15 +22,7 @@ import {
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { hint } from '../a11y';
@@ -52,6 +44,8 @@ import { Icon, IconButton, type IconName } from './Icon';
 import { Scrubber, type ScrubMark } from './Scrubber';
 import { Sheet } from './Sheet';
 import { TextButton } from './TextButton';
+import { Button } from './Button';
+import { TextField } from './TextField';
 import { SoundSheet, useSound } from './SoundSheet';
 import { CASTING_SUPPORTED, useCastAvailable, useCasting } from '../casting';
 import { db, newId } from '../db';
@@ -230,15 +224,7 @@ function SleepOption({
 }
 
 function Chip({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      className="min-h-12 justify-center rounded-full border border-line px-4 active:bg-raised"
-    >
-      <Text className="text-soft">{label}</Text>
-    </Pressable>
-  );
+  return <Button kind="secondary" size="sm" text={label} onPress={onPress} />;
 }
 
 /**
@@ -993,28 +979,23 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
                   )}
             </Text>
             <View className="flex-row gap-2">
-              <TextInput
+              <TextField
                 value={jumpText}
                 onChangeText={setJumpText}
                 onSubmitEditing={() => jumpTarget !== null && jump(jumpTarget)}
                 placeholder="2:14:30"
                 accessibilityLabel={t('Time to jump to')}
-                placeholderTextColor={colors.muted}
                 keyboardType="numbers-and-punctuation"
                 returnKeyType="go"
                 autoFocus
-                className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-paper"
+                className="flex-1"
               />
-              <Pressable
+              <Button
+                size="sm"
+                text={t('Go')}
                 disabled={jumpTarget === null}
                 onPress={() => jumpTarget !== null && jump(jumpTarget)}
-                accessibilityRole="button"
-                className={`min-h-12 justify-center rounded-lg px-4 ${jumpTarget === null ? 'bg-line' : 'bg-amber'}`}
-              >
-                <Text className={jumpTarget === null ? 'text-muted' : 'font-semibold text-ink'}>
-                  {t('Go')}
-                </Text>
-              </Pressable>
+              />
             </View>
           </View>
         </Sheet>
@@ -1025,15 +1006,13 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
           onClose={() => setSheet(null)}
         />
         <Sheet visible={sheet === 'note'} title={t('Bookmark saved')} onClose={saveNote}>
-          <TextInput
+          <TextField
             value={note}
             onChangeText={setNote}
             placeholder={t('Add a note (optional)')}
             accessibilityLabel={t('Note')}
-            placeholderTextColor={colors.muted}
             autoFocus
             onSubmitEditing={saveNote}
-            className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
           />
           <View className="flex-row justify-end gap-2 py-3">
             <Chip label={t('Done')} onPress={saveNote} />

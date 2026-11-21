@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,7 +6,8 @@ import { formatTimeOfDay } from '../format';
 import { t } from '../i18n';
 import { READABLE, useWide } from '../layout';
 import { useColors } from '../theme';
-import { Icon, IconButton } from '../components/Icon';
+import { Icon } from '../components/Icon';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { MiniPlayer } from '../components/MiniPlayer';
 import { Pill } from '../components/Pill';
 import { RowLabel } from '../components/TextButton';
@@ -18,8 +18,6 @@ const BEDTIME_STEP = 30;
 
 /** Settings and each of its pages (M133): Back, a heading, the rows and the mini player. */
 export function SettingsPage({ title, children }: { title: string; children: ReactNode }) {
-  const colors = useColors();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const wide = useWide();
   return (
@@ -32,17 +30,7 @@ export function SettingsPage({ title, children }: { title: string; children: Rea
           ...(wide ? READABLE : {}),
         }}
       >
-        <View className="-ms-2 self-start">
-          <IconButton
-            name="back"
-            label={t('Back')}
-            color={colors.soft}
-            onPress={() => router.back()}
-          />
-        </View>
-        <Text accessibilityRole="header" className="pb-4 text-3xl font-semibold text-paper">
-          {title}
-        </Text>
+        <ScreenHeader title={title} />
         {children}
       </ScrollView>
       <MiniPlayer />

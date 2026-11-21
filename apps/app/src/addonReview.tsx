@@ -1,11 +1,13 @@
 import { addonPermissions, type Permission } from '@lelap/core';
 import type { Manifest } from '@lelap/sdk';
 import { useSyncExternalStore } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
 import { t } from './i18n';
+import { Button } from './components/Button';
 import { Icon, type IconName } from './components/Icon';
 import { Sheet } from './components/Sheet';
+import { TextButton } from './components/TextButton';
 import { isOwnAddon } from './config';
 import { useColors } from './theme';
 
@@ -107,23 +109,14 @@ export function AddonReviewHost() {
             ? t('This add-on is made by Lelap.')
             : t('Add-ons are made by their authors, not by Lelap. Only add ones you trust.')}
         </Text>
-        <View className="flex-row justify-end gap-2 pb-2">
-          <Pressable
+        <View className="flex-row items-center justify-end gap-4 pb-2">
+          <TextButton
+            text={action ? t('Cancel') : t('Close')}
             onPress={() => close(false)}
-            accessibilityRole="button"
-            className="min-h-12 justify-center rounded-full px-4 active:bg-line"
-          >
-            <Text className="font-semibold text-muted">{action ? t('Cancel') : t('Close')}</Text>
-          </Pressable>
-          {action && (
-            <Pressable
-              onPress={() => close(true)}
-              accessibilityRole="button"
-              className="min-h-12 justify-center rounded-full bg-amber px-5 active:opacity-80"
-            >
-              <Text className="font-semibold text-ink">{action}</Text>
-            </Pressable>
-          )}
+            tone="muted"
+            className="px-2"
+          />
+          {action && <Button text={action} onPress={() => close(true)} />}
         </View>
       </ScrollView>
     </Sheet>

@@ -1,15 +1,15 @@
 import { type DownloadEntry, getSettings, listDownloads } from '@lelap/core';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { FlatList, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
 import { showAlert } from '../src/dialog';
-import { IconButton } from '../src/components/Icon';
+import { EmptyState } from '../src/components/EmptyState';
 import { BookCover, coverUri } from '../src/components/BookCover';
 import { MiniPlayer } from '../src/components/MiniPlayer';
+import { ScreenHeader } from '../src/components/ScreenHeader';
 import { TextButton } from '../src/components/TextButton';
 import { db } from '../src/db';
 import {
@@ -23,12 +23,9 @@ import * as native from '../src/platform/downloads';
 import { useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { LIST_COLUMN } from '../src/layout';
-import { useColors } from '../src/theme';
 
 /** The storage overview: what Lelap keeps on the phone and the space left. */
 export default function DownloadsScreen() {
-  const colors = useColors();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { version, refresh } = useLibrary();
   const statuses = useDownloadStatuses();
@@ -83,77 +80,73 @@ export default function DownloadsScreen() {
         keyExtractor={(e) => e.bookId}
         contentContainerStyle={{ ...LIST_COLUMN, paddingTop: insets.top + 8, paddingBottom: 24 }}
         ListHeaderComponent={
-          <View className="gap-4 px-4 pb-4">
-            <View className="-ms-2 self-start">
-              <IconButton
-                name="back"
-                label={t('Back')}
-                color={colors.soft}
-                onPress={() => router.back()}
-              />
-            </View>
-            <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
-              {t('Downloads')}
-            </Text>
-            {storage.data && (
-              <View className="gap-2">
-                <Text className="text-base text-soft">
-                  {Platform.OS === 'web'
-                    ? t('Lelap uses {used} · {free} free in this browser', {
-                        used: formatBytes(used),
-                        free: formatBytes(storage.data.freeBytes),
-                      })
-                    : t('Lelap uses {used} · {free} free on this phone', {
-                        used: formatBytes(used),
-                        free: formatBytes(storage.data.freeBytes),
-                      })}
+          <View className="px-4 pb-4">
+            <ScreenHeader title={t('Downloads')} />
+            <View className="gap-4">
+              {storage.data && (
+                <View className="gap-2">
+                  <Text className="text-base text-soft">
+                    {Platform.OS === 'web'
+                      ? t('Lelap uses {used} · {free} free in this browser', {
+                          used: formatBytes(used),
+                          free: formatBytes(storage.data.freeBytes),
+                        })
+                      : t('Lelap uses {used} · {free} free on this phone', {
+                          used: formatBytes(used),
+                          free: formatBytes(storage.data.freeBytes),
+                        })}
+                  </Text>
+                  <View className="h-2 flex-row overflow-hidden rounded-full bg-line">
+                    <View
+                      style={{
+                        width: `${total > 0 ? ((total - storage.data.freeBytes) / total) * 100 : 0}%`,
+                      }}
+                      className="h-2 bg-soft"
+                    />
+                  </View>
+                </View>
+              )}
+              {native.RULES_APPLY ? (
+                <Text className="text-sm text-muted">
+                  {`${[
+                    settings.downloadOnWifiOnly
+                      ? t('Only on Wi-Fi')
+                      : t('On Wi-Fi and mobile data'),
+                    settings.downloadWhileChargingOnly ? t('only while charging') : null,
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}. ${t('Change this in Settings.')}`}
                 </Text>
-                <View className="h-2 flex-row overflow-hidden rounded-full bg-line">
-                  <View
-                    style={{
-                      width: `${total > 0 ? ((total - storage.data.freeBytes) / total) * 100 : 0}%`,
-                    }}
-                    className="h-2 bg-soft"
+              ) : kept.data === false ? (
+                <View className="flex-row items-center gap-4">
+                  <Text className="flex-1 text-sm text-muted">
+                    {t(
+                      'The browser may clear downloads when its disk runs low. Ask it to keep them, or install Lelap.',
+                    )}
+                  </Text>
+                  <TextButton
+                    text={t('Keep')}
+                    onPress={() => void native.keepStorage().then(() => kept.refetch())}
                   />
                 </View>
-              </View>
-            )}
-            {native.RULES_APPLY ? (
-              <Text className="text-sm text-muted">
-                {`${[
-                  settings.downloadOnWifiOnly ? t('Only on Wi-Fi') : t('On Wi-Fi and mobile data'),
-                  settings.downloadWhileChargingOnly ? t('only while charging') : null,
-                ]
-                  .filter(Boolean)
-                  .join(', ')}. ${t('Change this in Settings.')}`}
-              </Text>
-            ) : kept.data === false ? (
-              <View className="flex-row items-center gap-4">
-                <Text className="flex-1 text-sm text-muted">
+              ) : kept.data ? (
+                <Text className="text-sm text-muted">
                   {t(
-                    'The browser may clear downloads when its disk runs low. Ask it to keep them, or install Lelap.',
+                    'Downloads stay in this browser until you remove them. They download while Lelap is open.',
                   )}
                 </Text>
-                <TextButton
-                  text={t('Keep')}
-                  onPress={() => void native.keepStorage().then(() => kept.refetch())}
-                />
-              </View>
-            ) : kept.data ? (
-              <Text className="text-sm text-muted">
-                {t(
-                  'Downloads stay in this browser until you remove them. They download while Lelap is open.',
-                )}
-              </Text>
-            ) : null}
+              ) : null}
+            </View>
           </View>
         }
         ListEmptyComponent={
-          <Text className="px-4 pt-8 text-center text-muted">
-            {t(
+          <EmptyState
+            lori
+            title={t('No downloads yet')}
+            body={t(
               'Downloaded books play without a connection. Download one from its page or from the Library.',
             )}
-          </Text>
+          />
         }
         renderItem={({ item: entry }) => {
           const view = describeDownload(entry, statuses.get(entry.bookId), settings);

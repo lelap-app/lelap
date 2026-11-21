@@ -27,6 +27,7 @@ import {
 } from '../casting';
 import { t } from '../i18n';
 import { bookLoad } from '../player';
+import { Button } from './Button';
 import { Icon } from './Icon';
 import { Sheet } from './Sheet';
 import { useColors } from '../theme';
@@ -54,14 +55,13 @@ const KIND: Record<CastDevice['kind'], string> = {
 
 function Chip({ label, spoken, onPress }: { label: string; spoken?: string; onPress: () => void }) {
   return (
-    <Pressable
+    <Button
+      kind="secondary"
+      size="sm"
+      text={label}
       onPress={onPress}
-      accessibilityRole="button"
       {...(spoken === undefined ? {} : { accessibilityLabel: spoken })}
-      className="min-h-12 justify-center rounded-full border border-line px-4 active:bg-night"
-    >
-      <Text className="text-soft">{label}</Text>
-    </Pressable>
+    />
   );
 }
 

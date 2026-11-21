@@ -20,11 +20,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { hint } from '../src/a11y';
 import { t } from '../src/i18n';
 import { openPlayer } from '../src/navigation';
-import { EmptyState } from '../src/components/Lori';
+import { EmptyState } from '../src/components/EmptyState';
 import { BookActions } from '../src/components/BookActions';
 import { BookRow } from '../src/components/BookRow';
-import { Icon, IconButton } from '../src/components/Icon';
+import { Button } from '../src/components/Button';
+import { IconButton } from '../src/components/Icon';
 import { MiniPlayer } from '../src/components/MiniPlayer';
+import { ScreenHeader } from '../src/components/ScreenHeader';
 import { Sheet } from '../src/components/Sheet';
 import { db } from '../src/db';
 import { showAlert } from '../src/dialog';
@@ -259,101 +261,95 @@ export default function ListScreen() {
   const editing = name !== null || (params.rename === '1' && list?.name === 'New list');
 
   return (
-    <View className="flex-1 bg-night" style={{ paddingTop: insets.top + 4 }}>
+    <View className="flex-1 bg-night">
       <FlatList
         data={books}
         keyExtractor={(b) => b.id}
-        contentContainerStyle={{ ...LIST_COLUMN, paddingBottom: 24 }}
+        contentContainerStyle={{ ...LIST_COLUMN, paddingTop: insets.top + 8, paddingBottom: 24 }}
         ListHeaderComponent={
-          <View className="gap-2 px-4 pb-3">
-            <View className="flex-row items-center justify-between">
-              <View className="-ms-2">
-                <IconButton
-                  name="back"
-                  label={t('Back')}
-                  color={colors.soft}
-                  onPress={() => router.back()}
+          <View className="px-4">
+            <ScreenHeader
+              action={
+                list && (
+                  <IconButton
+                    name="close"
+                    label={t('Delete list')}
+                    color={colors.muted}
+                    onPress={remove}
+                  />
+                )
+              }
+            >
+              {/* The title is the list's name, renamed in place: an editable heading, not a field. */}
+              {list && editing ? (
+                <TextInput
+                  value={name ?? list.name}
+                  onChangeText={setName}
+                  onSubmitEditing={saveName}
+                  onBlur={saveName}
+                  autoFocus
+                  selectTextOnFocus
+                  returnKeyType="done"
+                  accessibilityLabel={t('List name')}
+                  className="border-b border-amber pb-1 text-3xl font-semibold text-paper"
                 />
-              </View>
-              {list && (
-                <IconButton
-                  name="close"
-                  label={t('Delete list')}
-                  color={colors.muted}
-                  onPress={remove}
-                />
-              )}
-            </View>
-            {list && editing ? (
-              <TextInput
-                value={name ?? list.name}
-                onChangeText={setName}
-                onSubmitEditing={saveName}
-                onBlur={saveName}
-                autoFocus
-                selectTextOnFocus
-                returnKeyType="done"
-                accessibilityLabel={t('List name')}
-                className="border-b border-amber pb-1 text-3xl font-semibold text-paper"
-              />
-            ) : (
-              <Pressable
-                disabled={!list}
-                onPress={() => setName(list?.name ?? '')}
-                accessibilityRole={list ? 'button' : 'header'}
-                {...hint(list ? t('Rename') : undefined)}
-                className="min-h-12 justify-center"
-              >
-                <Text className="text-3xl font-semibold text-paper">
-                  {list ? list.name : `# ${tag ?? ''}`}
-                </Text>
-              </Pressable>
-            )}
-            {list && books.length > 0 && (
-              <View className="flex-row flex-wrap items-center gap-2 pt-1">
+              ) : (
                 <Pressable
-                  onPress={() => void play()}
-                  accessibilityRole="button"
-                  {...hint(t('Plays the list from where it stands, one item after the other'))}
-                  className="min-h-12 flex-row items-center gap-2 rounded-full bg-amber px-5 active:opacity-80"
+                  disabled={!list}
+                  onPress={() => setName(list?.name ?? '')}
+                  accessibilityRole={list ? 'button' : 'header'}
+                  {...hint(list ? t('Rename') : undefined)}
+                  className="min-h-12 justify-center"
                 >
-                  <Icon name="play" size={18} color={colors.ink} />
-                  <Text className="font-semibold text-ink">{t('Play list')}</Text>
-                </Pressable>
-                <Pill
-                  onPress={toggleKeepFinished}
-                  accessibilityRole="switch"
-                  accessibilityState={{ checked: list.keepFinished }}
-                  aria-checked={list.keepFinished}
-                  className={`min-h-12 justify-center rounded-full border px-3 ${list.keepFinished ? 'border-amber' : 'border-line'}`}
-                >
-                  <Text className={list.keepFinished ? 'text-amber' : 'text-soft'}>
-                    {t('Play finished ones too')}
+                  <Text className="text-3xl font-semibold text-paper">
+                    {list ? list.name : `# ${tag ?? ''}`}
                   </Text>
-                </Pill>
-              </View>
-            )}
-            {list?.rule ? (
-              <Pressable
-                onPress={() => setEditingRule(true)}
-                accessibilityRole="button"
-                className="min-h-12 flex-row items-center gap-2 self-start rounded-full border border-line px-3 active:bg-raised"
-              >
-                <Icon name="moon" size={16} color={colors.amber} />
-                <Text className="text-sm text-soft">{describeRule(list.rule)}</Text>
-              </Pressable>
-            ) : (
-              <Text className="text-sm text-muted">
-                {books.length === 1 ? t('1 book') : t('{n} books', { n: books.length })}
-                {manual ? t(' · hold a book for more') : ''}
-              </Text>
-            )}
+                </Pressable>
+              )}
+              {list && books.length > 0 && (
+                <View className="flex-row flex-wrap items-center gap-2 pt-1">
+                  <Button
+                    text={t('Play list')}
+                    icon="play"
+                    onPress={() => void play()}
+                    hint={t('Plays the list from where it stands, one item after the other')}
+                  />
+                  <Pill
+                    onPress={toggleKeepFinished}
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: list.keepFinished }}
+                    aria-checked={list.keepFinished}
+                    className={`min-h-12 justify-center rounded-full border px-3 ${list.keepFinished ? 'border-amber' : 'border-line'}`}
+                  >
+                    <Text className={list.keepFinished ? 'text-amber' : 'text-soft'}>
+                      {t('Play finished ones too')}
+                    </Text>
+                  </Pill>
+                </View>
+              )}
+              {list?.rule ? (
+                <Button
+                  kind="secondary"
+                  size="sm"
+                  icon="moon"
+                  text={describeRule(list.rule)}
+                  onPress={() => setEditingRule(true)}
+                  className="self-start"
+                />
+              ) : (
+                <Text className="text-sm text-muted">
+                  {books.length === 1 ? t('1 book') : t('{n} books', { n: books.length })}
+                  {manual ? t(' · hold a book for more') : ''}
+                </Text>
+              )}
+            </ScreenHeader>
           </View>
         }
         ListEmptyComponent={
           <EmptyState
+            lori
             title={manual ? t('Nothing on this list yet.') : t('No books match yet.')}
-            hint={
+            body={
               manual
                 ? t('In the Library, hold a book and choose “Add to a list…”.')
                 : t('Lori will wait here until one does.')

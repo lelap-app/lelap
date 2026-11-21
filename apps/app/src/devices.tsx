@@ -20,11 +20,10 @@ import {
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
-import { Text, View } from 'react-native';
 
 import { t } from './i18n';
 import { showAlert } from './dialog';
-import { Icon } from './components/Icon';
+import { Notice } from './components/Notice';
 import { db } from './db';
 import * as bluetooth from './platform/bluetooth';
 import { useLibrary, usePlayerState } from './player';
@@ -281,15 +280,12 @@ export function HeadphoneBanner({
   const warning = useHeadphoneWarning();
   if (!warning) return null;
   return (
-    <View
-      accessibilityRole="alert"
-      className={`flex-row items-center gap-3 rounded-xl bg-[#2b2414] px-4 py-3 ${className}`}
-    >
-      <Icon name="headphones" size={large ? 28 : 20} color="#f7d9a0" />
-      <Text className={`flex-1 ${large ? 'text-lg' : 'text-sm'} text-[#f7d9a0]`}>
-        {t('{name} at {level}%.', { name: warning.name, level: warning.level })}{' '}
-        {warning.what || t('Charge it soon.')}
-      </Text>
-    </View>
+    <Notice
+      tone="warning"
+      icon="headphones"
+      large={large}
+      className={className}
+      text={`${t('{name} at {level}%.', { name: warning.name, level: warning.level })} ${warning.what || t('Charge it soon.')}`}
+    />
   );
 }

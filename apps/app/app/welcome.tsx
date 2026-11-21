@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAddons } from '../src/addons';
 import { showAlert } from '../src/dialog';
 import { t } from '../src/i18n';
+import { Button } from '../src/components/Button';
+import { EmptyState } from '../src/components/EmptyState';
 import { Icon, type IconName } from '../src/components/Icon';
 import { Lori } from '../src/components/Lori';
 import { OwnAddonOffer, useOwnAddonOffers } from '../src/components/OwnAddons';
@@ -91,18 +93,6 @@ function Choice({
         <Text className="text-sm text-soft">{detail}</Text>
       </View>
       <Icon name="forward" size={20} color={colors.muted} />
-    </Pressable>
-  );
-}
-
-function PrimaryButton({ text, onPress }: { text: string; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      className="min-h-12 items-center justify-center rounded-full bg-amber px-6 py-3 active:opacity-80"
-    >
-      <Text className="font-semibold text-ink">{text}</Text>
     </Pressable>
   );
 }
@@ -211,7 +201,7 @@ export default function WelcomeScreen() {
           )}
         </Text>
         <View className="gap-2 pt-4">
-          <PrimaryButton text={t('Get started')} onPress={() => setStep('source')} />
+          <Button text={t('Get started')} onPress={() => setStep('source')} />
           <TextButton text={t('Skip')} tone="muted" onPress={() => finish('/')} />
         </View>
       </>
@@ -283,7 +273,7 @@ export default function WelcomeScreen() {
           )}
         </Text>
         {offers.length === 0 ? (
-          <Text className="text-sm text-muted">{t('All of them are set up.')}</Text>
+          <EmptyState title={t('All of them are set up.')} />
         ) : (
           <View>
             {offers.map((offer) => (
@@ -295,7 +285,7 @@ export default function WelcomeScreen() {
           {t('Add-ons from others can be added in Settings → Library and sources → Add-ons.')}
         </Text>
         <View className="pt-2">
-          <PrimaryButton text={t('Done')} onPress={() => finish(landing)} />
+          <Button text={t('Done')} onPress={() => finish(landing)} />
         </View>
       </>
     );

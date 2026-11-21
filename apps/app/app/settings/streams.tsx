@@ -1,13 +1,13 @@
 import { parseCodeList } from '@lelap/core';
 import { useEffect, useRef, useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { hint as hintProps } from '../../src/a11y';
 import { Toggle } from '../../src/components/TextButton';
+import { TextField } from '../../src/components/TextField';
 import { t } from '../../src/i18n';
 import { Row, SettingsPage } from '../../src/settings/rows';
 import { useSettingsState } from '../../src/settings/state';
-import { useColors } from '../../src/theme';
 
 /**
  * Settings → Streams (M153): how a book's page orders the streams of every add-on. Three
@@ -65,7 +65,6 @@ function CodeField({
   onSave: (list: string[]) => void;
   kind: 'format' | 'language';
 }) {
-  const colors = useColors();
   const [draft, setDraft] = useState<string | null>(null);
   const save = () => {
     if (draft === null) return;
@@ -85,18 +84,16 @@ function CodeField({
   return (
     <View className="gap-1 border-b border-line py-4">
       <Text className="text-base text-paper">{label}</Text>
-      <TextInput
+      <TextField
         value={draft ?? value.join(', ')}
         onChangeText={setDraft}
         onBlur={save}
         onSubmitEditing={save}
         accessibilityLabel={label}
         {...hintProps(hint)}
-        placeholderTextColor={colors.muted}
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="done"
-        className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
       />
       <Text className="text-xs text-muted">{hint}</Text>
     </View>

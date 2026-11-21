@@ -1,14 +1,15 @@
 import type { Bookmark } from '@lelap/core';
 import { useState } from 'react';
-import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { deleteKeyAction } from '../a11y';
 import { t } from '../i18n';
 import { showAlert } from '../dialog';
 import { formatClock } from '../format';
+import { EmptyState } from './EmptyState';
 import { Sheet } from './Sheet';
+import { TextField } from './TextField';
 import { TextButton } from './TextButton';
-import { useColors } from '../theme';
 
 /** Asks before a bookmark is deleted. */
 export function confirmDeleteBookmark(bookmark: Bookmark, onDelete: () => void): void {
@@ -31,20 +32,18 @@ export function BookmarkEditor({
   onShare?: () => void;
   onDelete: () => void;
 }) {
-  const colors = useColors();
   const [note, setNote] = useState(bookmark.note ?? '');
   return (
     <View className="gap-3 pb-2">
       <Text className="text-amber">{formatClock(bookmark.bookPositionMs)}</Text>
-      <TextInput
+      <TextField
         value={note}
         onChangeText={setNote}
         placeholder={t('Add a note (optional)')}
         accessibilityLabel={t('Note')}
-        placeholderTextColor={colors.muted}
         multiline
         autoFocus
-        className="min-h-24 rounded-lg border border-line px-3 py-2 text-paper"
+        className="min-h-24"
       />
       <View className="flex-row flex-wrap items-center justify-end gap-x-2">
         <TextButton
@@ -173,9 +172,12 @@ export function BookmarksSheet({
             </View>
           )}
           {bookmarks.length === 0 ? (
-            <Text className="pb-4 text-muted">
-              {t('No bookmarks yet. Tap “Add bookmark” while listening.')}
-            </Text>
+            <View className="pb-4">
+              <EmptyState
+                title={t('No bookmarks yet')}
+                body={t('Tap “Add bookmark” while listening.')}
+              />
+            </View>
           ) : (
             <FlatList
               data={bookmarks}

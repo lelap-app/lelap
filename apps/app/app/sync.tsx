@@ -1,12 +1,13 @@
-import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../src/i18n';
 import { formatTime } from '../src/format';
 import { showAlert } from '../src/dialog';
-import { IconButton } from '../src/components/Icon';
+import { Button } from '../src/components/Button';
+import { ScreenHeader } from '../src/components/ScreenHeader';
+import { TextField } from '../src/components/TextField';
 import { useLibrary } from '../src/player';
 import {
   defaultDeviceName,
@@ -30,7 +31,6 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 /** Sync between devices: no account, a group key shared with a pairing code. */
 export default function SyncScreen() {
   const colors = useColors();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { refresh } = useLibrary();
   const [member, setMember] = useState(membership);
@@ -76,17 +76,7 @@ export default function SyncScreen() {
         gap: 16,
       }}
     >
-      <View className="-ms-2 self-start">
-        <IconButton
-          name="back"
-          label={t('Back')}
-          color={colors.soft}
-          onPress={() => router.back()}
-        />
-      </View>
-      <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
-        {t('Sync')}
-      </Text>
+      <ScreenHeader title={t('Sync')} />
       <Text className="text-soft">
         {t(
           'Your places, bookmarks, streamed books, podcasts and Up Next follow you between your devices. Everything is encrypted on this device with a key only your devices have; the server stores what it cannot read. No account.',
@@ -115,25 +105,20 @@ export default function SyncScreen() {
             >
               {t('This device')}
             </Text>
-            <TextInput
+            <TextField
               value={name}
               onChangeText={setName}
               placeholder={t('Name, such as Kitchen tablet')}
               accessibilityLabel={t('Name of this device')}
-              placeholderTextColor={colors.muted}
-              className="min-h-12 rounded-lg border border-line px-3 py-2 text-paper"
             />
           </View>
-          <Pressable
+          <Button
+            text={t('Start syncing from this device')}
             disabled={busy}
             onPress={() =>
               void run(async () => void (await startSyncing(name.trim() || defaultDeviceName())))
             }
-            accessibilityRole="button"
-            className="min-h-12 items-center justify-center rounded-full bg-amber py-3 active:opacity-80"
-          >
-            <Text className="font-semibold text-ink">{t('Start syncing from this device')}</Text>
-          </Pressable>
+          />
           <View className="gap-2">
             <Text
               accessibilityRole="header"
@@ -142,17 +127,19 @@ export default function SyncScreen() {
               {t('Or join with a code from another device')}
             </Text>
             <View className="flex-row items-center gap-2">
-              <TextInput
+              <TextField
                 value={code}
                 onChangeText={setCode}
                 placeholder={'7KQM-2XPA-9HRT'}
                 accessibilityLabel={t('Code from another device')}
-                placeholderTextColor={colors.muted}
                 autoCapitalize="characters"
                 autoCorrect={false}
-                className="min-h-12 min-w-0 flex-1 rounded-lg border border-line px-3 py-2 font-mono text-paper"
+                mono
+                className="flex-1"
               />
-              <TextButton
+              <Button
+                kind="secondary"
+                size="sm"
                 text={t('Join')}
                 disabled={busy || code.trim() === ''}
                 onPress={() =>

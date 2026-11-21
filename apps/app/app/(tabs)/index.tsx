@@ -33,6 +33,7 @@ import { Avatar } from '../../src/components/Avatar';
 import { CatalogRow } from '../../src/components/CatalogRow';
 import { ImportedWantedRow } from '../../src/components/ImportedWanted';
 import { ContinueCard } from '../../src/components/ContinueCard';
+import { EmptyState } from '../../src/components/EmptyState';
 import { db } from '../../src/db';
 import { formatBytes } from '../../src/format';
 import { openCatalog, openItem, openPlayer } from '../../src/navigation';
@@ -202,19 +203,15 @@ export default function HomeScreen() {
       </View>
       {next && <ContinueCard book={next} onPress={() => void resume()} />}
       {empty && (
-        <View className="mx-4 gap-1 rounded-xl border border-line px-4 py-3">
-          <Text className="text-base text-paper">{t('Nothing to continue yet')}</Text>
-          <Text className="text-sm text-muted">
-            {allRows.length > 0
+        <EmptyState
+          title={t('Nothing to continue yet')}
+          body={
+            allRows.length > 0
               ? t('Pick a free book in the rows below, or add your own audiobooks in Library.')
-              : t('Add your own audiobooks in Library.')}
-          </Text>
-          <TextButton
-            className="self-start"
-            text={t('Go to Library')}
-            onPress={() => router.navigate('/library')}
-          />
-        </View>
+              : t('Add your own audiobooks in Library.')
+          }
+          action={{ label: t('Go to Library'), onPress: () => router.navigate('/library') }}
+        />
       )}
       {offline.count > 0 && (
         <Pressable
@@ -262,14 +259,12 @@ export default function HomeScreen() {
         />
       ))}
       {allRows.length === 0 && (
-        <View className="mx-4 gap-2 rounded-xl border border-line p-4">
-          <Text className="text-base text-paper">{t('No catalogs yet')}</Text>
-          <Text className="text-sm text-muted">
-            {t(
-              'Catalogs come from add-ons. Pull down to try again, or add one in Settings → Library and sources → Add-ons.',
-            )}
-          </Text>
-        </View>
+        <EmptyState
+          title={t('No catalogs yet')}
+          body={t(
+            'Catalogs come from add-ons. Pull down to try again, or add one in Settings → Library and sources → Add-ons.',
+          )}
+        />
       )}
     </ScrollView>
   );

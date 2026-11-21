@@ -1,9 +1,10 @@
 import { bundledAddons, type InstalledAddon, listRoots } from '@lelap/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { Linking, Platform, Pressable, Text, View } from 'react-native';
+import { Linking, Platform, Text, View } from 'react-native';
 
 import { confirmAddon } from '../addonInstall';
+import { Button } from './Button';
 import { catalogBase, hostedAddons } from '../config';
 import { db } from '../db';
 import { showAlert } from '../dialog';
@@ -176,14 +177,13 @@ export function OwnAddonOffer({ offer }: { offer: Offer }) {
       <View className="flex-row items-center gap-3">
         <Text className="flex-1 text-base text-paper">{offer.name}</Text>
         {offer.setUp && (
-          <Pressable
+          <Button
+            kind="secondary"
+            size="sm"
+            text={offer.action}
             onPress={offer.setUp}
-            accessibilityRole="button"
             accessibilityLabel={offer.actionLabel}
-            className="min-h-12 justify-center rounded-full border border-line px-3 active:bg-raised"
-          >
-            <Text className="text-sm text-amber">{offer.action}</Text>
-          </Pressable>
+          />
         )}
       </View>
       <Text className="text-sm text-soft">{offer.description}</Text>

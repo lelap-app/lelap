@@ -9,8 +9,9 @@ import {
   SigninStart as SigninStartSchema,
 } from '@lelap/sdk';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Text, View } from 'react-native';
 
+import { Button } from './Button';
 import { showAlert } from '../dialog';
 import { t } from '../i18n';
 import { callAddonSignin } from '../sandbox';
@@ -172,22 +173,12 @@ export function AddonSignin({
             {pending.code}
           </Text>
           <View className="flex-row flex-wrap gap-2">
-            <Pressable
+            <Button
               accessibilityRole="link"
+              text={t('Open {host}', { host: hostOf(pending.url) })}
               onPress={() => void Linking.openURL(pending.url)}
-              className="min-h-12 items-center justify-center rounded-full bg-amber px-5 active:opacity-80"
-            >
-              <Text className="font-semibold text-ink">
-                {t('Open {host}', { host: hostOf(pending.url) })}
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setPending(null)}
-              className="min-h-12 items-center justify-center rounded-full border border-line px-5 active:opacity-80"
-            >
-              <Text className="text-soft">{t('Cancel')}</Text>
-            </Pressable>
+            />
+            <Button kind="secondary" text={t('Cancel')} onPress={() => setPending(null)} />
           </View>
           <View className="flex-row items-center gap-2">
             <ActivityIndicator size="small" color={colors.muted} />
@@ -196,21 +187,12 @@ export function AddonSignin({
         </View>
       ) : (
         <View className="flex-row flex-wrap items-center gap-3">
-          <Pressable
-            accessibilityRole="button"
-            disabled={busy}
+          <Button
+            kind="secondary"
+            text={signedIn ? t('Sign in again') : t('Sign in')}
             onPress={() => void start()}
-            {...(busy ? { accessibilityLabel: t('Sign in') } : {})}
-            className="min-h-12 items-center justify-center rounded-full border border-amber px-5 active:opacity-80"
-          >
-            {busy ? (
-              <ActivityIndicator color={colors.amber} />
-            ) : (
-              <Text className="font-semibold text-amber">
-                {signedIn ? t('Sign in again') : t('Sign in')}
-              </Text>
-            )}
-          </Pressable>
+            busy={busy}
+          />
           {signedIn && <Text className="text-soft">{t('Signed in.')}</Text>}
         </View>
       )}

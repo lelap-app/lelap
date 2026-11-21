@@ -2,11 +2,12 @@ import { addonLabels, APP_PROTOCOL_VERSION, fetchCatalog, searchCatalogs } from 
 import { useQueries } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { type ComponentRef, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, SectionList, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, SectionList, Text, type TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../../src/i18n';
-import { EmptyState } from '../../src/components/Lori';
+import { EmptyState } from '../../src/components/EmptyState';
+import { TextField } from '../../src/components/TextField';
 import { addonErrorText, fetcher, SHOWN_TYPES, useAddons } from '../../src/addons';
 import { useAskWhenVisible, useAvailability } from '../../src/availability';
 import { MetaListRow } from '../../src/components/MetaCard';
@@ -95,22 +96,22 @@ export default function SearchScreen() {
       <Text accessibilityRole="header" className="px-4 pb-3 text-3xl font-semibold text-paper">
         {t('Search')}
       </Text>
-      <TextInput
+      <TextField
         ref={input}
         value={text}
         onChangeText={setText}
         placeholder={t('Title, author or podcast')}
         accessibilityLabel={t('Search')}
-        placeholderTextColor={colors.muted}
         autoCorrect={false}
         returnKeyType="search"
         onSubmitEditing={() => setQuery(text.trim())}
-        className="mx-4 mb-3 rounded-lg bg-raised px-4 py-3 text-base text-paper"
+        className="mx-4 mb-3"
       />
       {refs.length === 0 ? (
-        <Text className="px-4 text-muted">
-          {t('No add-on can search. Add one in Settings → Library and sources → Add-ons.')}
-        </Text>
+        <EmptyState
+          lori
+          title={t('No add-on can search. Add one in Settings → Library and sources → Add-ons.')}
+        />
       ) : (
         <SectionList
           sections={sections}
@@ -154,8 +155,9 @@ export default function SearchScreen() {
           ListEmptyComponent={
             nothing ? (
               <EmptyState
+                lori
                 title={t('Nothing found for “{query}”.', { query })}
-                hint={t('Lori looked everywhere. Try fewer words, or another spelling.')}
+                body={t('Lori looked everywhere. Try fewer words, or another spelling.')}
               />
             ) : undefined
           }
