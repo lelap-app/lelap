@@ -323,7 +323,7 @@
   "Skip interval": "Selang langkau",
   "Skip silence": "Langkau senyap",
   "In the browser, skip silence works on MP3 files with a constant bitrate, such as LibriVox’s, and on M4B, Opus, Ogg and FLAC files the browser can decode. A file from a host that doesn’t let the browser read it plays without the effects.": "Dalam pelayar, langkau senyap berfungsi pada fail MP3 dengan kadar bit tetap, seperti fail LibriVox, dan pada fail M4B, Opus, Ogg dan FLAC yang boleh dinyahkod oleh pelayar. Fail daripada hos yang tidak membenarkan pelayar membacanya dimainkan tanpa kesan bunyi.",
-  "Sleep timer": "Tidur",
+  "Sleep timer": "Pemasa tidur",
   "Sleep timer off": "Pemasa tidur dimatikan",
   "Sleep timer, {time} left": "Pemasa tidur, tinggal {time}",
   "Slow": "Perlahan",
