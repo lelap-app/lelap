@@ -97,7 +97,7 @@ function PlaceLink({ location, compact }: { location: FeedLocation; compact?: bo
       className={`${compact ? 'min-h-10' : 'min-h-12'} flex-row items-center gap-1 self-start active:opacity-70`}
     >
       <Icon name="place" size={16} color={colors.amber} />
-      <Text numberOfLines={1} className="shrink text-sm text-amber">
+      <Text numberOfLines={1} className="shrink text-detail text-amber">
         {t('Place: {name}', { name: location.name })}
       </Text>
     </Pressable>
@@ -126,17 +126,17 @@ function ValueCard({ values }: { values: FeedValue[] }) {
       <Icon name="info" size={20} color={colors.muted} />
       <View className="flex-1 gap-1">
         <Text className="text-paper">{t('Value for value')}</Text>
-        <Text className="text-sm text-muted">
-          {t('This show takes small payments as you listen, through {through}.', { through })}{' '}
+        <Text className="text-detail text-muted">
+          {t('This podcast takes small payments as you listen, through {through}.', { through })}{' '}
           {t('Lelap does not send them.')}
         </Text>
         {shares.length === 1 && shares[0]?.name && (
-          <Text className="text-sm text-muted">
+          <Text className="text-detail text-muted">
             {t('Payments go to {name}.', { name: shares[0].name })}
           </Text>
         )}
         {shares.length > 1 && (
-          <Text className="text-sm text-muted">
+          <Text className="text-detail text-muted">
             {t('Shared between {names}.', {
               names: shares
                 .map((s) => `${s.name ?? t('Unnamed')} ${s.percent.toLocaleString()}%`)
@@ -167,10 +167,10 @@ function People({ persons }: { persons: FeedPerson[] }) {
         >
           <BookCover uri={p.img} title={p.name} size={28} />
           <View>
-            <Text numberOfLines={1} className="text-sm text-paper">
+            <Text numberOfLines={1} className="text-detail text-paper">
               {p.name}
             </Text>
-            <Text className="text-xs text-muted">{roleLabel(p.role)}</Text>
+            <Text className="text-caption text-muted">{roleLabel(p.role)}</Text>
           </View>
         </Pressable>
       ))}
@@ -204,7 +204,7 @@ function AudioChoiceRow({
     <View className="gap-2">
       <View>
         <Text className="text-paper">{label}</Text>
-        <Text className="text-sm text-muted">
+        <Text className="text-detail text-muted">
           {t('Automatic plays the feed’s own file, and the smallest one on mobile data.')}
         </Text>
       </View>
@@ -250,7 +250,7 @@ function TrimRow({
     <View className="gap-2">
       <View>
         <Text className="text-paper">{label}</Text>
-        <Text className="text-sm text-muted">{hint}</Text>
+        <Text className="text-detail text-muted">{hint}</Text>
       </View>
       <View
         accessibilityRole="radiogroup"
@@ -471,7 +471,7 @@ export function PodcastPage({
       },
       {
         icon: 'chapters',
-        label: t('Add to Up Next'),
+        label: t('Add to Up next'),
         onPress: () => addToUpNext(db, profileId, bookId(), 'last', Date.now()),
       },
       {
@@ -548,7 +548,7 @@ export function PodcastPage({
                       <Text
                         accessibilityRole="header"
                         accessibilityLabel={withBadges([podcast.title], headerBadges)}
-                        className="text-xl font-semibold text-paper"
+                        className="text-heading font-semibold text-paper"
                       >
                         {podcast.title}
                       </Text>
@@ -557,7 +557,7 @@ export function PodcastPage({
                     </View>
                   </View>
                   {podcast.description && (
-                    <Text numberOfLines={4} className="text-sm leading-5 text-soft">
+                    <Text numberOfLines={4} className="text-detail leading-5 text-soft">
                       {podcast.description}
                     </Text>
                   )}
@@ -571,9 +571,9 @@ export function PodcastPage({
                     >
                       <Icon name="heart" size={20} color={colors.amber} />
                       <View className="flex-1">
-                        <Text className="text-paper">{t('Support this show')}</Text>
+                        <Text className="text-paper">{t('Support this podcast')}</Text>
                         {f.label && (
-                          <Text numberOfLines={1} className="text-sm text-muted">
+                          <Text numberOfLines={1} className="text-detail text-muted">
                             {f.label}
                           </Text>
                         )}
@@ -586,7 +586,7 @@ export function PodcastPage({
                       <View className="flex-row items-center gap-3">
                         <View className="flex-1">
                           <Text className="text-paper">{t('Auto-download')}</Text>
-                          <Text className="text-sm text-muted">
+                          <Text className="text-detail text-muted">
                             {t(
                               'Keep the newest unplayed episodes on the phone; played ones are removed.',
                             )}
@@ -658,7 +658,7 @@ export function PodcastPage({
                   )}
                   <Text
                     accessibilityRole="header"
-                    className="pt-2 text-xs uppercase tracking-wider text-muted"
+                    className="pt-2 text-caption uppercase tracking-wider text-muted"
                   >
                     {list.length === 1 ? t('1 episode') : t('{n} episodes', { n: list.length })}
                   </Text>
@@ -671,10 +671,10 @@ export function PodcastPage({
           if (row.kind === 'season')
             return (
               <View className="flex-row items-baseline gap-2 border-b border-line px-4 pb-2 pt-5">
-                <Text numberOfLines={1} className="flex-1 text-base font-semibold text-paper">
+                <Text numberOfLines={1} className="flex-1 text-body font-semibold text-paper">
                   {row.title}
                 </Text>
-                <Text className="text-sm text-muted">{row.count}</Text>
+                <Text className="text-detail text-muted">{row.count}</Text>
               </View>
             );
           const e = row.episode;
@@ -696,11 +696,11 @@ export function PodcastPage({
                   {/* Finished episodes are dimmed by colour, not opacity, so they stay readable. */}
                   <Text
                     numberOfLines={2}
-                    className={`text-base ${e.finished ? 'text-muted' : 'text-paper'}`}
+                    className={`text-body ${e.finished ? 'text-muted' : 'text-paper'}`}
                   >
                     {e.title}
                   </Text>
-                  <Text numberOfLines={1} className="text-sm text-muted">
+                  <Text numberOfLines={1} className="text-detail text-muted">
                     {episodeStatus(e, isNewEpisode(e, seenAt))}
                   </Text>
                   {e.extras?.location &&

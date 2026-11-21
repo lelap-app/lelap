@@ -27,8 +27,8 @@ export function columnsFor(width: number, height: number): Columns {
   return width >= THREE_COLUMNS_MIN_WIDTH ? 3 : 2;
 }
 
-/** The rail's width, kept out of the room the columns share. */
-export const RAIL_WIDTH = 88;
+/** The rail's width, kept out of the room the columns share: room for “Discover” and “Podcasts” whole (M149). */
+export const RAIL_WIDTH = 96;
 
 /** The width of the line between two panes, which takes the drag. */
 export const DIVIDER_WIDTH = 12;

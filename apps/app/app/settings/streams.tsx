@@ -17,7 +17,7 @@ export default function StreamSettings() {
   const { settings, update } = useSettingsState();
   return (
     <SettingsPage title={t('Streams')}>
-      <Text className="text-sm leading-5 text-soft">
+      <Text className="text-detail leading-5 text-soft">
         {t(
           'A book’s page lists streams in a language you prefer first, then in a format you prefer, then in your add-ons’ order. Copies of the same recording from several add-ons show as one.',
         )}
@@ -83,7 +83,7 @@ function CodeField({
   );
   return (
     <View className="gap-1 border-b border-line py-4">
-      <Text className="text-base text-paper">{label}</Text>
+      <Text className="text-body text-paper">{label}</Text>
       <TextField
         value={draft ?? value.join(', ')}
         onChangeText={setDraft}
@@ -95,7 +95,7 @@ function CodeField({
         autoCorrect={false}
         returnKeyType="done"
       />
-      <Text className="text-xs text-muted">{hint}</Text>
+      <Text className="text-caption text-muted">{hint}</Text>
     </View>
   );
 }

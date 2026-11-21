@@ -36,7 +36,7 @@ const RETRY_AFTER_MS = 10 * 60 * 1000;
  */
 export function useSeriesList(
   series: { key: string; name: string; author: string | null; bookKeys?: string[] } | null,
-): { list: SeriesList | null; asking: boolean } {
+): { list: SeriesList | null; asking: boolean; retry: () => void } {
   const addons = useAddons();
   const language = currentLanguage();
   // Plain values, as `series` is a new object with every library version.
@@ -54,6 +54,8 @@ export function useSeriesList(
     list: key ? (storedSeriesList(db, key, language)?.list ?? null) : null,
   }));
   const [busy, setBusy] = useState(false);
+  // Bumped by Try again: asks now, past the hold after a failed request (M149).
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!key || !id) {
@@ -90,7 +92,10 @@ export function useSeriesList(
         .catch(() => {
           failedAt.set(id, Date.now());
         })
-        .finally(() => asking.delete(id));
+        .finally(() => {
+          // Try again may have started a newer request for the series meanwhile.
+          if (asking.get(id) === job) asking.delete(id);
+        });
     asking.set(id, job);
     void job.then(() => {
       if (!live) return;
@@ -100,11 +105,18 @@ export function useSeriesList(
     return () => {
       live = false;
     };
-  }, [id, key, name, author, bookKeys, language]);
+  }, [id, key, name, author, bookKeys, language, attempt]);
 
+  const retry = useCallback(() => {
+    if (id) {
+      failedAt.delete(id);
+      asking.delete(id);
+    }
+    setAttempt((n) => n + 1);
+  }, [id]);
   const list =
     kept.id === id ? kept.list : key ? (storedSeriesList(db, key, language)?.list ?? null) : null;
-  return { list, asking: busy };
+  return { list, asking: busy, retry };
 }
 
 /**

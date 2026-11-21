@@ -89,8 +89,8 @@ function Choice({
     >
       <Icon name={icon} color={colors.amber} />
       <View className="flex-1 gap-1">
-        <Text className="text-base font-semibold text-paper">{title}</Text>
-        <Text className="text-sm text-soft">{detail}</Text>
+        <Text className="text-body font-semibold text-paper">{title}</Text>
+        <Text className="text-detail text-soft">{detail}</Text>
       </View>
       <Icon name="forward" size={20} color={colors.muted} />
     </Pressable>
@@ -186,16 +186,16 @@ export default function WelcomeScreen() {
         <Text
           ref={title}
           accessibilityRole="header"
-          className="text-center text-3xl font-semibold text-paper"
+          className="text-center text-title font-semibold text-paper"
         >
           {t('Welcome to Lelap')}
         </Text>
-        <Text className="text-center text-base text-soft">
+        <Text className="text-center text-body text-soft">
           {t(
             'Lelap plays audiobooks and podcasts. It remembers your place in every book, and it needs no account.',
           )}
         </Text>
-        <Text className="text-center text-base text-soft">
+        <Text className="text-center text-body text-soft">
           {t(
             'Books come from your own files, a server you run, or free catalogs. Add-ons bring more.',
           )}
@@ -209,10 +209,14 @@ export default function WelcomeScreen() {
   } else if (step === 'source') {
     body = (
       <>
-        <Text ref={title} accessibilityRole="header" className="text-3xl font-semibold text-paper">
+        <Text
+          ref={title}
+          accessibilityRole="header"
+          className="text-title font-semibold text-paper"
+        >
           {t('Where are your books?')}
         </Text>
-        <Text className="text-base text-soft">
+        <Text className="text-body text-soft">
           {t('Choose one to start. You can add the others later in Settings.')}
         </Text>
         {LOCAL_FOLDERS ? (
@@ -264,10 +268,14 @@ export default function WelcomeScreen() {
   } else {
     body = (
       <>
-        <Text ref={title} accessibilityRole="header" className="text-3xl font-semibold text-paper">
+        <Text
+          ref={title}
+          accessibilityRole="header"
+          className="text-title font-semibold text-paper"
+        >
           {t('Optional add-ons')}
         </Text>
-        <Text className="text-base text-soft">
+        <Text className="text-body text-soft">
           {t(
             'Lelap’s own optional add-ons. Some connect a service you may already use and need your account there; others add more to listen to. Leave them for later if you like.',
           )}
@@ -281,7 +289,7 @@ export default function WelcomeScreen() {
             ))}
           </View>
         )}
-        <Text className="text-sm text-muted">
+        <Text className="text-detail text-muted">
           {t('Add-ons from others can be added in Settings → Library and sources → Add-ons.')}
         </Text>
         <View className="pt-2">

@@ -83,7 +83,7 @@ export function NextInSeries({
         >
           <BookCover uri={coverUri(book)} title={book.title} size={48} />
           <View className="flex-1">
-            <Text className="text-xs uppercase tracking-widest text-muted">{heading}</Text>
+            <Text className="text-caption uppercase tracking-widest text-muted">{heading}</Text>
             <Text numberOfLines={2} className="text-paper">
               {next.position ? `${bookNumber(next.position)} · ${book.title}` : book.title}
             </Text>
@@ -109,13 +109,13 @@ export function NextInSeries({
       accessibilityLiveRegion="polite"
       className={`gap-1 rounded-xl border border-line bg-raised p-3 ${className}`}
     >
-      <Text className="text-xs uppercase tracking-widest text-muted">{heading}</Text>
+      <Text className="text-caption uppercase tracking-widest text-muted">{heading}</Text>
       {title ? (
         <>
           <Text numberOfLines={2} className="text-paper">
             {[next.position ? bookNumber(next.position) : null, title].filter(Boolean).join(' · ')}
           </Text>
-          <Text className="text-sm text-muted">
+          <Text className="text-detail text-muted">
             {[next.year !== undefined ? String(next.year) : null, t('Not in your library')]
               .filter(Boolean)
               .join(' · ')}

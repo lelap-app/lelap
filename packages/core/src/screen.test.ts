@@ -167,8 +167,8 @@ describe('paneWidths', () => {
   });
 
   it('shares the rest between the list and the page with three', () => {
-    // 1920 − 88 for the rail − 24 for two dividers − 440 for the player: half for the page.
-    expect(paneWidths(1920, 3, none)).toEqual({ player: 440, detail: 684 });
+    // 1920 − 96 for the rail − 24 for two dividers − 440 for the player: half for the page.
+    expect(paneWidths(1920, 3, none)).toEqual({ player: 440, detail: 680 });
   });
 
   it('keeps a dragged width within the limits', () => {

@@ -57,7 +57,8 @@ export function TextButton({
       accessibilityRole="button"
       {...(accessibilityLabel === undefined ? {} : { accessibilityLabel })}
       {...hint(row)}
-      className={`min-h-12 min-w-12 items-center justify-center ${className}`}
+      // In a settings row the word sits flush with the row's end, like the switches and chevrons.
+      className={`min-h-12 min-w-12 justify-center ${row === undefined ? 'items-center' : 'items-end'} ${className}`}
     >
       <Text className={`${disabled ? 'text-muted' : TONE[tone]}${strong ? ' font-semibold' : ''}`}>
         {text}

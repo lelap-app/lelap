@@ -141,10 +141,9 @@ function WideButton({
         numberOfLines={2}
         style={{
           color: active && !disabled ? palette.accentText : color,
-          fontSize: 20,
           textAlign: 'center',
         }}
-        className="font-bold"
+        className="text-heading font-bold"
       >
         {caption}
       </Text>
@@ -239,7 +238,7 @@ export default function CarMode() {
         backgroundColor: down ? palette.surface : 'transparent',
       })}
     >
-      <Text style={{ color: palette.text, fontSize: 20 }} className="font-bold">
+      <Text style={{ color: palette.text }} className="text-heading font-bold">
         {t('Exit')}
       </Text>
     </Pressable>
@@ -292,11 +291,9 @@ export default function CarMode() {
         numberOfLines={2}
         style={{
           color: palette.text,
-          fontSize: 28,
-          lineHeight: 34,
           textAlign: 'center',
         }}
-        className="font-bold"
+        className="text-title font-bold"
       >
         {detail?.book.title ?? t('Nothing is playing')}
       </Text>
@@ -305,11 +302,9 @@ export default function CarMode() {
           numberOfLines={1}
           style={{
             color: chapter ? palette.accentText : palette.secondary,
-            fontSize: 20,
-            lineHeight: 26,
             textAlign: 'center',
           }}
-          className="font-semibold"
+          className="text-heading font-semibold"
         >
           {chapter?.title ?? detail?.book.author}
         </Text>
@@ -400,7 +395,7 @@ export default function CarMode() {
               ? t('Sleep timer off')
               : t('Sleep timer, {time} left', { time: formatClock(timer) })
           }
-          caption={timer === null ? t('Sleep') : formatClock(timer)}
+          caption={timer === null ? t('Sleep timer') : formatClock(timer)}
           palette={palette}
           height={landscape ? 80 : 88}
           active={timer !== null}

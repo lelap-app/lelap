@@ -61,12 +61,16 @@ const ICONS = {
   back: (c) => <Path d="m15 6-6 6 6 6" {...stroke(c)} />,
   forward: (c) => <Path d="m9 6 6 6-6 6" {...stroke(c)} />,
   close: (c) => <Path d="M6 6l12 12M18 6 6 18" {...stroke(c)} />,
+  // A gear: the sliders it replaced read as a filter (M149).
   settings: (c) => (
     <>
-      <Path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" {...stroke(c)} />
-      <Circle cx={16} cy={6} r={2} {...stroke(c)} />
-      <Circle cx={10} cy={12} r={2} {...stroke(c)} />
-      <Circle cx={18} cy={18} r={2} {...stroke(c)} />
+      <Path
+        d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"
+        {...stroke(c)}
+        strokeWidth={2.6}
+      />
+      <Circle cx={12} cy={12} r={6.2} {...stroke(c)} />
+      <Circle cx={12} cy={12} r={2.4} {...stroke(c)} />
     </>
   ),
   home: (c) => (

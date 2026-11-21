@@ -24,9 +24,9 @@ export function UpgradeNotice({
   return (
     <View className={`flex-row items-center gap-3 ${className}`}>
       <View className="flex-1 gap-0.5">
-        <Text className="text-sm text-amber">{line}</Text>
+        <Text className="text-detail text-amber">{line}</Text>
         {block.kind === 'refused' && block.note !== null && (
-          <Text className="text-xs text-muted">{block.note}</Text>
+          <Text className="text-caption text-muted">{block.note}</Text>
         )}
       </View>
       <TextButton

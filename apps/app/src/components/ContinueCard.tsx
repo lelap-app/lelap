@@ -29,19 +29,19 @@ export function ContinueCard({ book, onPress }: { book: LibraryBook; onPress: ()
     >
       <BookCover uri={coverUri(book)} title={book.title} size={72} />
       <View className="flex-1 gap-1">
-        <Text className="text-xs uppercase tracking-wider text-muted">
+        <Text className="text-caption uppercase tracking-wider text-muted">
           {t('Continue listening')}
         </Text>
-        <Text numberOfLines={2} className="text-base font-semibold text-paper">
+        <Text numberOfLines={2} className="text-body font-semibold text-paper">
           {book.title}
         </Text>
         {chapter !== null && (
-          <Text numberOfLines={1} className="text-sm text-soft">
+          <Text numberOfLines={1} className="text-detail text-soft">
             {chapter}
           </Text>
         )}
         {book.durationMs > 0 && (
-          <Text className="text-sm text-soft">
+          <Text className="text-detail text-soft">
             {formatLeft(book.durationMs - book.bookPositionMs)}
           </Text>
         )}

@@ -43,7 +43,7 @@ export default function UpNextScreen() {
         ListHeaderComponent={
           <View className="px-4">
             <ScreenHeader
-              title={t('Up Next')}
+              title={t('Up next')}
               subtitle={t(
                 'When a podcast episode ends, the first item here plays. Books stop at their end.',
               )}
@@ -53,7 +53,7 @@ export default function UpNextScreen() {
         ListEmptyComponent={
           <EmptyState
             lori
-            title={t('Nothing in Up Next')}
+            title={t('Nothing in Up next')}
             body={t('Long-press an episode to play it next or add it here.')}
           />
         }
@@ -74,10 +74,10 @@ export default function UpNextScreen() {
           >
             <BookCover uri={coverUri(item)} title={item.title} size={48} />
             <View className="flex-1 gap-1">
-              <Text numberOfLines={2} className="text-base text-paper">
+              <Text numberOfLines={2} className="text-body text-paper">
                 {item.title}
               </Text>
-              <Text numberOfLines={1} className="text-sm text-muted">
+              <Text numberOfLines={1} className="text-detail text-muted">
                 {[item.author, item.durationMs > 0 ? formatDuration(item.durationMs) : null]
                   .filter(Boolean)
                   .join(' · ')}
@@ -108,7 +108,7 @@ export default function UpNextScreen() {
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={t('Remove from Up Next')}
+                accessibilityLabel={t('Remove from Up next')}
                 className="h-12 w-12 items-center justify-center"
                 onPress={() => {
                   removeFromUpNext(db, profileId, item.bookId);

@@ -45,10 +45,10 @@ export const SeriesRow = memo(function SeriesRow({
         {first && <BookCover uri={coverUri(first)} title={series.name} size={56} />}
       </View>
       <View className="flex-1 gap-1">
-        <Text numberOfLines={2} className="text-base text-paper">
+        <Text numberOfLines={2} className="text-body text-paper">
           {series.name}
         </Text>
-        <Text numberOfLines={2} className="text-sm text-muted">
+        <Text numberOfLines={2} className="text-detail text-muted">
           {line}
         </Text>
       </View>

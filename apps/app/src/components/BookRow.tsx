@@ -88,7 +88,7 @@ export const BookRow = memo(function BookRow({
   book: LibraryBook;
   /** Said first on the second line, such as the book's number in a series. */
   note?: string;
-  /** Offline and not on this phone: shown dimmed. */
+  /** Offline and not downloaded: shown dimmed. */
   unavailable?: boolean;
   onOpen: (book: LibraryBook) => void;
   onLongPress: (book: LibraryBook) => void;
@@ -148,11 +148,11 @@ export const BookRow = memo(function BookRow({
               <BookCover uri={coverUri(book)} title={book.title} size={56} badges={badges} />
             </View>
             <View className="flex-1 gap-1">
-              <Text numberOfLines={2} className={`text-base ${dim ? 'text-muted' : 'text-paper'}`}>
+              <Text numberOfLines={2} className={`text-body ${dim ? 'text-muted' : 'text-paper'}`}>
                 {book.title}
               </Text>
               {(book.author !== null || book.source === 'addon' || note) && (
-                <Text numberOfLines={1} className="text-sm text-muted">
+                <Text numberOfLines={1} className="text-detail text-muted">
                   {[
                     note,
                     book.author,
@@ -172,8 +172,10 @@ export const BookRow = memo(function BookRow({
                 </View>
               )}
             </View>
-            <Text className={`text-sm ${book.finishedAt !== null ? 'text-amber' : 'text-muted'}`}>
-              {unavailable ? t('Not on this phone') : status(book)}
+            <Text
+              className={`text-detail ${book.finishedAt !== null ? 'text-amber' : 'text-muted'}`}
+            >
+              {unavailable ? t('Needs a connection') : status(book)}
             </Text>
             {/* A mouse can't long-press comfortably, so the web shows the menu as a button. */}
             {Platform.OS === 'web' && (

@@ -137,7 +137,7 @@ export function AddonChoice({
 
   return (
     <View className="gap-2">
-      <Text className="text-sm text-soft">{field.label}</Text>
+      <Text className="text-detail text-soft">{field.label}</Text>
       <View
         accessibilityRole={several ? 'list' : 'radiogroup'}
         accessibilityLabel={field.label}
@@ -164,7 +164,7 @@ export function AddonChoice({
               )}
               <View className="flex-1">
                 <Text className={on && !locked ? 'text-paper' : 'text-soft'}>{option.label}</Text>
-                {option.detail && <Text className="text-xs text-muted">{option.detail}</Text>}
+                {option.detail && <Text className="text-caption text-muted">{option.detail}</Text>}
               </View>
             </Pressable>
           );
@@ -173,7 +173,7 @@ export function AddonChoice({
       {loading ? (
         <View className="min-h-12 flex-row items-center gap-2">
           <ActivityIndicator size="small" color={colors.muted} />
-          <Text className="text-xs text-muted">{t('Loading the list…')}</Text>
+          <Text className="text-caption text-muted">{t('Loading the list…')}</Text>
         </View>
       ) : (
         onLoad &&
@@ -186,11 +186,11 @@ export function AddonChoice({
         )
       )}
       {error && (
-        <Text accessibilityLiveRegion="polite" className="text-sm text-danger">
+        <Text accessibilityLiveRegion="polite" className="text-detail text-danger">
           {error}
         </Text>
       )}
-      {field.help && <Text className="text-xs text-muted">{field.help}</Text>}
+      {field.help && <Text className="text-caption text-muted">{field.help}</Text>}
     </View>
   );
 }

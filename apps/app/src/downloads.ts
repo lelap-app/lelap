@@ -312,7 +312,7 @@ export function describeDownload(
       label:
         progress === null
           ? `${t('Downloading')} · ${formatBytes(status.bytesDone)}`
-          : `${t('Downloading')} · ${t('{percent} % of {size}', { percent: Math.floor(progress * 100), size: formatBytes(total) })}`,
+          : `${t('Downloading')} · ${t('{percent}% of {size}', { percent: Math.floor(progress * 100), size: formatBytes(total) })}`,
       progress,
       failed: false,
     };

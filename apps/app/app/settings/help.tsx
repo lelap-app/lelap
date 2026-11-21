@@ -3,12 +3,13 @@ import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 
 import { TextButton } from '../../src/components/TextButton';
+import { isDiagnosticsOn } from '../../src/diagnostics';
 import { db } from '../../src/db';
 import { t } from '../../src/i18n';
 import { LOCAL_FOLDERS } from '../../src/platform/library';
 import { useLibrary } from '../../src/player';
 import { activeProfile, profileId } from '../../src/profile';
-import { Row, SectionHeader, SettingsPage } from '../../src/settings/rows';
+import { LinkRow, Row, SectionHeader, SettingsPage } from '../../src/settings/rows';
 
 /** Settings → Help: diagnostics, and the developer's rows in a development build. */
 export default function HelpSettings() {
@@ -25,25 +26,21 @@ export default function HelpSettings() {
   return (
     <SettingsPage title={t('Help')}>
       {!me?.kids && (
-        <Row
+        <LinkRow
           label={t('Diagnostics')}
-          detail={t(
-            'A log of what went wrong, kept on this device, for a bug report. Off until you turn it on.',
-          )}
-        >
-          <TextButton text={t('Open')} onPress={() => router.push('/diagnostics')} />
-        </Row>
+          detail={isDiagnosticsOn() ? t('On') : t('Off')}
+          onPress={() => router.push('/diagnostics')}
+        />
       )}
       {__DEV__ && (
         <>
           <SectionHeader text={t('Developer')} />
           {LOCAL_FOLDERS && (
-            <Row
+            <LinkRow
               label={t('Audio spike')}
               detail={t('The M1 test screen, until its call checks pass.')}
-            >
-              <TextButton text={t('Open')} onPress={() => router.push('/dev/spike')} />
-            </Row>
+              onPress={() => router.push('/dev/spike')}
+            />
           )}
           <Row
             label={t('Test library')}

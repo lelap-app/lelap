@@ -85,7 +85,7 @@ export default function DownloadsScreen() {
             <View className="gap-4">
               {storage.data && (
                 <View className="gap-2">
-                  <Text className="text-base text-soft">
+                  <Text className="text-body text-soft">
                     {Platform.OS === 'web'
                       ? t('Lelap uses {used} · {free} free in this browser', {
                           used: formatBytes(used),
@@ -107,7 +107,7 @@ export default function DownloadsScreen() {
                 </View>
               )}
               {native.RULES_APPLY ? (
-                <Text className="text-sm text-muted">
+                <Text className="text-detail text-muted">
                   {`${[
                     settings.downloadOnWifiOnly
                       ? t('Only on Wi-Fi')
@@ -119,7 +119,7 @@ export default function DownloadsScreen() {
                 </Text>
               ) : kept.data === false ? (
                 <View className="flex-row items-center gap-4">
-                  <Text className="flex-1 text-sm text-muted">
+                  <Text className="flex-1 text-detail text-muted">
                     {t(
                       'The browser may clear downloads when its disk runs low. Ask it to keep them, or install Lelap.',
                     )}
@@ -130,7 +130,7 @@ export default function DownloadsScreen() {
                   />
                 </View>
               ) : kept.data ? (
-                <Text className="text-sm text-muted">
+                <Text className="text-detail text-muted">
                   {t(
                     'Downloads stay in this browser until you remove them. They download while Lelap is open.',
                   )}
@@ -158,12 +158,12 @@ export default function DownloadsScreen() {
             >
               <BookCover uri={coverUri(entry)} title={entry.title} size={56} />
               <View className="flex-1 gap-1">
-                <Text numberOfLines={2} className="text-base text-paper">
+                <Text numberOfLines={2} className="text-body text-paper">
                   {entry.title}
                 </Text>
                 <Text
                   numberOfLines={2}
-                  className={`text-sm ${view.failed ? 'text-danger' : 'text-muted'}`}
+                  className={`text-detail ${view.failed ? 'text-danger' : 'text-muted'}`}
                 >
                   {view.label}
                 </Text>

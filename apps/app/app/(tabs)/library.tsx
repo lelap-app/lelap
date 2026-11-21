@@ -1,5 +1,4 @@
 import {
-  continueListening,
   createPlaylist,
   getSettings,
   groupByProgress,
@@ -48,7 +47,6 @@ import { BookRow, type RowSwipe } from '../../src/components/BookRow';
 import { MusicCard, MusicReview } from '../../src/components/MusicSuggestions';
 import { SeriesRow } from '../../src/components/SeriesRow';
 import { type UndoNotice, UndoBar } from '../../src/components/UndoBar';
-import { ContinueCard } from '../../src/components/ContinueCard';
 import { EmptyState } from '../../src/components/EmptyState';
 import { Lori } from '../../src/components/Lori';
 import { Notice } from '../../src/components/Notice';
@@ -68,6 +66,7 @@ import { DropTarget, useDragging } from '../../src/drag';
 import { useListDrop } from '../../src/listDrop';
 import { startupMark } from '../../src/startup';
 import { useColors } from '../../src/theme';
+import { TabHeader } from '../../src/components/TabHeader';
 
 /**
  * A list at the top of the Library: opens it, and takes a book, an episode or a catalog item
@@ -96,22 +95,22 @@ function ListCard({ list, count }: { list: Playlist; count: number }) {
             className={`min-h-12 w-40 flex-row items-center gap-2.5 rounded-xl border bg-raised p-2.5 active:opacity-80 ${frame}`}
           >
             <View
-              className={`h-10 w-10 items-center justify-center rounded-lg ${list.rule ? 'bg-[#2d3a63]' : 'bg-amber'}`}
+              className={`h-10 w-10 items-center justify-center rounded-lg ${list.rule ? 'bg-line' : 'bg-amber'}`}
             >
               <Icon
                 name={added ? 'check' : list.rule ? 'moon' : 'chapters'}
                 size={20}
-                color={list.rule ? '#dce3f5' : colors.ink}
+                color={list.rule ? colors.paper : colors.ink}
               />
             </View>
             <View className="flex-1">
               <Text
                 numberOfLines={1}
-                className={`text-sm font-semibold ${lit ? 'text-amber' : 'text-paper'}`}
+                className={`text-detail font-semibold ${lit ? 'text-amber' : 'text-paper'}`}
               >
                 {list.name}
               </Text>
-              <Text className="text-xs text-muted">
+              <Text className="text-caption text-muted">
                 {added ? t('Added') : `${count} · ${list.rule ? t('smart list') : t('list')}`}
               </Text>
             </View>
@@ -161,7 +160,10 @@ function GroupTitle({
   const colors = useColors();
   if (header.group !== 'finished') {
     return (
-      <Text accessibilityRole="header" className="px-4 pb-1 pt-4 text-sm font-semibold text-soft">
+      <Text
+        accessibilityRole="header"
+        className="px-4 pb-1 pt-4 text-detail font-semibold text-soft"
+      >
         {groupTitle(header)}
       </Text>
     );
@@ -175,7 +177,7 @@ function GroupTitle({
       aria-expanded={open}
       className="mt-2 min-h-12 flex-row items-center justify-between px-4 active:bg-raised"
     >
-      <Text className="text-sm font-semibold text-soft">{groupTitle(header)}</Text>
+      <Text className="text-detail font-semibold text-soft">{groupTitle(header)}</Text>
       <Icon name={open ? 'up' : 'down'} size={20} color={colors.soft} />
     </Pressable>
   );
@@ -263,7 +265,6 @@ export default function LibraryScreen() {
   );
   // Only what this profile sees in its Library (a kids profile sees its shelf).
   const music = useMemo(() => books.filter((b) => musicIds.has(b.id)), [books, musicIds]);
-  const next = useMemo(() => continueListening(db, profileId), [version]);
   // `version` too: the counts follow tags, which no book row holds.
   const lists = useMemo(() => listPlaylistsWithCounts(db, profileId, all), [all, version]);
   const tags = useMemo(() => listTags(db, profileId), [version]);
@@ -457,7 +458,10 @@ export default function LibraryScreen() {
         }}
       >
         <Lori size={150} />
-        <Text accessibilityRole="header" className="text-center text-2xl font-semibold text-paper">
+        <Text
+          accessibilityRole="header"
+          className="text-center text-heading font-semibold text-paper"
+        >
           {t('Your audiobooks')}
         </Text>
         {kids ? (
@@ -494,37 +498,26 @@ export default function LibraryScreen() {
   // status bar when the banner comes and goes.
   return (
     <View style={{ ...LIST_COLUMN, paddingTop: insets.top + 12 }} className="flex-1 gap-3 bg-night">
-      <View className="flex-row items-center justify-between px-4">
-        <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
-          {t('Library')}
-        </Text>
-        <View className="flex-row">
-          {hasRoots && (
-            <IconButton
-              name="rescan"
-              label={scanning ? t('Scanning…') : t('Rescan')}
-              color={scanning ? colors.muted : colors.soft}
-              onPress={() => {
-                if (scanning) return;
-                setPulled(true);
-                void rescan();
-              }}
-            />
-          )}
+      <TabHeader title={t('Library')}>
+        {hasRoots && (
           <IconButton
-            name="bookmark"
-            label={t('Bookmarks')}
-            color={colors.soft}
-            onPress={() => router.push('/bookmarks')}
+            name="rescan"
+            label={scanning ? t('Scanning…') : t('Rescan')}
+            color={scanning ? colors.muted : colors.soft}
+            onPress={() => {
+              if (scanning) return;
+              setPulled(true);
+              void rescan();
+            }}
           />
-          <IconButton
-            name="settings"
-            label={t('Settings')}
-            color={colors.soft}
-            onPress={() => router.push('/settings')}
-          />
-        </View>
-      </View>
+        )}
+        <IconButton
+          name="bookmark"
+          label={t('Bookmarks')}
+          color={colors.soft}
+          onPress={() => router.push('/bookmarks')}
+        />
+      </TabHeader>
       {network.isConnected === false && (
         <Notice
           icon="plane"
@@ -588,7 +581,7 @@ export default function LibraryScreen() {
               </Pressable>
             )}
             {scanning !== null && scanning.total > 0 && (
-              <Text className="px-4 text-sm text-muted">
+              <Text className="px-4 text-detail text-muted">
                 {t('Scanning… {done} of {total}', { done: scanning.done, total: scanning.total })}
               </Text>
             )}
@@ -599,7 +592,6 @@ export default function LibraryScreen() {
                 onDismiss={dismissMusic}
               />
             )}
-            {!showHidden && next && <ContinueCard book={next} onPress={() => void open(next)} />}
             {!showHidden && (
               <ScrollView
                 horizontal
@@ -632,7 +624,7 @@ export default function LibraryScreen() {
                     onPress={() => router.push({ pathname: '/list', params: { tag } })}
                     className="rounded-full border border-line px-3 py-1.5 active:bg-raised"
                   >
-                    <Text className="text-sm text-paper">
+                    <Text className="text-detail text-paper">
                       <Text className="text-muted"># </Text>
                       {tag}
                     </Text>
@@ -673,7 +665,7 @@ export default function LibraryScreen() {
             <EmptyState
               lori
               title={t('Nothing hidden')}
-              body={t('Swipe a book to the left, or press and hold it, to hide it here.')}
+              body={t('Swipe a book to the left, or long-press it, to hide it here.')}
             />
           ) : bySeries && books.length > 0 ? (
             <EmptyState
@@ -713,7 +705,7 @@ export default function LibraryScreen() {
               <Icon name={preset.rule ? 'moon' : 'chapters'} size={22} color={colors.soft} />
               <View>
                 <Text className="text-paper">{preset.name}</Text>
-                <Text className="text-xs text-muted">
+                <Text className="text-caption text-muted">
                   {preset.rule
                     ? t('Smart list: fills itself')
                     : t('You pick the books and their order')}

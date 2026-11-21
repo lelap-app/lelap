@@ -41,7 +41,7 @@ export function HandoffBanner() {
         <Text numberOfLines={2} className="text-paper">
           {t('Continue from {name}?', { name: offer.deviceName })}
         </Text>
-        <Text numberOfLines={1} className="text-sm text-muted">
+        <Text numberOfLines={1} className="text-detail text-muted">
           {offer.title} · {formatClock(offer.positionMs)}
         </Text>
       </View>

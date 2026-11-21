@@ -31,7 +31,7 @@ export function Notice({
       <View aria-hidden>
         <Icon name={icon} size={large ? 28 : 20} color={colors.amber} />
       </View>
-      <Text className={`flex-1 ${large ? 'text-lg' : 'text-sm'} text-paper`}>{text}</Text>
+      <Text className={`flex-1 ${large ? 'text-section' : 'text-detail'} text-paper`}>{text}</Text>
     </View>
   );
 }

@@ -76,7 +76,7 @@ object CarLibrary {
     ON_PHONE -> text.t("On this phone")
     PODCASTS -> text.t("Podcasts")
     LISTS -> text.t("Lists")
-    else -> text.t("Up Next")
+    else -> text.t("Up next")
   }
 
   private fun shelfNode(id: String, text: NativeCatalog) =

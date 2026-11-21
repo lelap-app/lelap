@@ -325,7 +325,7 @@ async function shootLanguage(browser, lang) {
   await page.click(ui('Speed, {speed}×', { speed: 1 }));
   await page.click('1.25×');
   if (await page.has(ui('Close'))) await page.click(ui('Close'));
-  await page.click(ui('Sleep'));
+  await page.click(ui('Sleep timer'));
   await page.click(ui('{n} minutes', { n: 30 }));
   if (await page.has(ui('Close'))) await page.click(ui('Close'));
   await jump();

@@ -184,7 +184,7 @@ export function BookActions({
           )}
           <Row
             icon="queue"
-            label={t('Add to Up Next')}
+            label={t('Add to Up next')}
             onPress={() => {
               addToUpNext(db, profileId, book.id, 'last', now());
               done();
@@ -385,7 +385,7 @@ export function BookActions({
               />
             );
           })}
-          <Text className="px-2 pb-3 pt-1 text-xs text-muted">
+          <Text className="px-2 pb-3 pt-1 text-caption text-muted">
             {t('A kids profile sees the books on its shelf, and streamed books it starts itself.')}
           </Text>
         </ScrollView>

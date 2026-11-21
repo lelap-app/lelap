@@ -335,7 +335,7 @@ export function ItemPage({
   const language = item?.language ? languageName(item.language) : null;
   const playLabel =
     saved && saved.book.finishedAt === null && progress > 0
-      ? t('Continue · {percent} %', { percent: Math.min(99, Math.floor(progress * 100)) })
+      ? t('Continue · {percent}%', { percent: Math.min(99, Math.floor(progress * 100)) })
       : t('Play');
 
   return (
@@ -381,16 +381,16 @@ export function ItemPage({
             </View>
             <Text
               accessibilityRole="header"
-              className="text-center text-2xl font-semibold text-paper"
+              className="text-center text-heading font-semibold text-paper"
             >
               {title}
             </Text>
             {(item?.author ?? saved?.book.author) && (
-              <Text className="text-center text-base text-soft">
+              <Text className="text-center text-body text-soft">
                 {item?.author ?? saved?.book.author}
               </Text>
             )}
-            <Text className="text-center text-sm text-muted">
+            <Text className="text-center text-detail text-muted">
               {[
                 seriesLabel(item?.series),
                 item?.narrators?.length
@@ -419,10 +419,10 @@ export function ItemPage({
 
           {offer && (
             <View className="gap-3 rounded-2xl bg-raised p-4">
-              <Text accessibilityRole="header" className="text-base font-semibold text-paper">
+              <Text accessibilityRole="header" className="text-body font-semibold text-paper">
                 {t('In your library?')}
               </Text>
-              <Text className="text-sm leading-5 text-soft">
+              <Text className="text-detail leading-5 text-soft">
                 {offer.author
                   ? t('“{title}” by {author} looks like this book.', {
                       title: offer.title,
@@ -472,7 +472,7 @@ export function ItemPage({
             />
           )}
           {saved && (
-            <Text className="-mt-3 text-center text-xs text-muted">
+            <Text className="-mt-3 text-center text-caption text-muted">
               {playingOwn
                 ? t('Your copy, from your own library')
                 : saved.book.downloaded
@@ -494,7 +494,7 @@ export function ItemPage({
             <View className="gap-2">
               <Text
                 accessibilityRole="header"
-                className="text-xs uppercase tracking-wider text-muted"
+                className="text-caption uppercase tracking-wider text-muted"
               >
                 {sourceCount === 1 ? t('Source') : t('{n} sources', { n: sourceCount })}
               </Text>
@@ -549,7 +549,7 @@ export function ItemPage({
                 />
               )}
               {(sources.data?.failed.length ?? 0) > 0 && (
-                <Text accessibilityLiveRegion="polite" className="text-xs text-muted">
+                <Text accessibilityLiveRegion="polite" className="text-caption text-muted">
                   {t('{names} did not answer.', { names: sources.data?.failed.join(', ') ?? '' })}
                 </Text>
               )}
@@ -560,7 +560,7 @@ export function ItemPage({
             <View className="gap-2">
               <Text
                 accessibilityRole="header"
-                className="text-xs uppercase tracking-wider text-muted"
+                className="text-caption uppercase tracking-wider text-muted"
               >
                 {t('Editions')}
               </Text>
@@ -593,14 +593,14 @@ export function ItemPage({
           )}
 
           {item?.description && (
-            <Text className="text-base leading-6 text-soft">{item.description}</Text>
+            <Text className="text-body leading-6 text-soft">{item.description}</Text>
           )}
 
           {parts.length > 1 && (
             <View className="gap-1">
               <Text
                 accessibilityRole="header"
-                className="pb-1 text-xs uppercase tracking-wider text-muted"
+                className="pb-1 text-caption uppercase tracking-wider text-muted"
               >
                 {t('{n} parts', { n: parts.length })}
               </Text>
@@ -629,7 +629,7 @@ export function ItemPage({
               {[language, ...(item?.genres ?? []).slice(0, 6)].filter(Boolean).map((tag) => (
                 <Text
                   key={tag}
-                  className="rounded-full border border-line px-3 py-1 text-xs text-soft"
+                  className="rounded-full border border-line px-3 py-1 text-caption text-soft"
                 >
                   {tag}
                 </Text>
@@ -640,7 +640,7 @@ export function ItemPage({
           {(meta.data?.addon || item?.link) && (
             <View className="flex-row items-center justify-between gap-3">
               {meta.data?.addon && (
-                <Text className="flex-1 text-xs text-muted">
+                <Text className="flex-1 text-caption text-muted">
                   {t('From {name}', { name: meta.data.addon.manifest.name })}
                 </Text>
               )}
@@ -650,7 +650,7 @@ export function ItemPage({
                   accessibilityRole="link"
                   className="min-h-12 flex-row items-center gap-1"
                 >
-                  <Text className="text-sm text-amber">{t('More about this book')}</Text>
+                  <Text className="text-detail text-amber">{t('More about this book')}</Text>
                   <Icon name="forward" size={16} color={colors.amber} />
                 </Pressable>
               )}
@@ -692,7 +692,7 @@ function SourceRow({
         <Text numberOfLines={2} className={selected ? 'text-paper' : 'text-soft'}>
           {label}
         </Text>
-        <Text numberOfLines={1} className="text-xs text-muted">
+        <Text numberOfLines={1} className="text-caption text-muted">
           {details}
         </Text>
       </View>
@@ -715,10 +715,10 @@ function NoAudio({
   return (
     <View className="items-center gap-2 rounded-2xl bg-raised px-4 py-5">
       <Icon name="cloud" size={28} color={colors.muted} />
-      <Text className="text-center text-base font-semibold text-paper">
+      <Text className="text-center text-body font-semibold text-paper">
         {t('No audio for this book yet')}
       </Text>
-      <Text className="text-center text-sm leading-5 text-soft">
+      <Text className="text-center text-detail leading-5 text-soft">
         {asked === 0
           ? t('None of your add-ons has audio for books like this one.')
           : failed.length > 0

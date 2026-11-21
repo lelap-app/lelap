@@ -1,4 +1,4 @@
-import { needsFirstStart, RAIL_WIDTH } from '@lelap/core';
+import { needsFirstStart } from '@lelap/core';
 import { Redirect } from 'expo-router';
 import { BottomTabBar, Tabs } from 'expo-router/js-tabs';
 import { useState } from 'react';
@@ -12,7 +12,6 @@ import { profileId } from '../../src/profile';
 import { useSourceCacheAddons } from '../../src/availability';
 import { Icon, type IconName } from '../../src/components/Icon';
 import { MiniPlayer } from '../../src/components/MiniPlayer';
-import { RailLists } from '../../src/components/RailLists';
 import { useWide } from '../../src/layout';
 import { useColors } from '../../src/theme';
 
@@ -53,16 +52,8 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={(props) =>
-        wide ? (
-          // The rail: the tabs, then the lists, which take a dragged book or episode (M113).
-          <View
-            style={{ width: RAIL_WIDTH, paddingBottom: insets.bottom }}
-            className="border-e border-line bg-raised"
-          >
-            <BottomTabBar {...props} />
-            <RailLists />
-          </View>
-        ) : (
+        // On a wide screen the root layout draws the rail beside every screen instead (M149).
+        wide ? null : (
           <View>
             <MiniPlayer inset={false} />
             <BottomTabBar {...props} />
@@ -72,23 +63,7 @@ export default function TabsLayout() {
       screenOptions={({ route }) => ({
         headerShown: false,
         sceneStyle: { backgroundColor: colors.night },
-        ...(wide
-          ? {
-              tabBarPosition: 'left' as const,
-              tabBarVariant: 'material' as const,
-              tabBarLabelPosition: 'below-icon' as const,
-            }
-          : {}),
-        tabBarStyle: wide
-          ? // The rail's box draws the background and the line; the tabs keep to their height.
-            {
-              backgroundColor: colors.raised,
-              borderWidth: 0,
-              flexGrow: 0,
-              minWidth: 0,
-              paddingBottom: 8,
-            }
-          : { backgroundColor: colors.raised, borderTopColor: colors.line, ...tall },
+        tabBarStyle: { backgroundColor: colors.raised, borderTopColor: colors.line, ...tall },
         tabBarActiveTintColor: colors.amber,
         tabBarInactiveTintColor: colors.muted,
         tabBarIcon: ({ color }) => (

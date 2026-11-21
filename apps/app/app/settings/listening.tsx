@@ -6,7 +6,7 @@ import { Pill } from '../../src/components/Pill';
 import { soundOptions, SoundRow } from '../../src/components/SoundSheet';
 import { Toggle } from '../../src/components/TextButton';
 import { t } from '../../src/i18n';
-import { Choice, Row, SettingsPage } from '../../src/settings/rows';
+import { Choice, Row, SectionHeader, SettingsPage } from '../../src/settings/rows';
 import { useSettingsState } from '../../src/settings/state';
 
 const SKIP_SECONDS = [10, 15, 30, 45, 60];
@@ -16,9 +16,10 @@ export default function ListeningSettings() {
   const { settings, update } = useSettingsState();
   return (
     <SettingsPage title={t('Listening')}>
+      <SectionHeader text={t('Skipping')} />
       <View className="gap-3 border-b border-line py-4">
-        <Text className="text-base text-paper">{t('Skip interval')}</Text>
-        <Text className="text-sm text-muted">
+        <Text className="text-body text-paper">{t('Skip interval')}</Text>
+        <Text className="text-detail text-muted">
           {t('For the skip buttons, the lock screen and headphones.')}
         </Text>
         <View className="flex-row flex-wrap gap-2">
@@ -45,8 +46,9 @@ export default function ListeningSettings() {
       >
         <Toggle value={settings.smartRewind} onValueChange={(v) => update('smartRewind', v)} />
       </Row>
-      <Text className="pt-4 text-sm text-muted">
-        {t('Sound for every book and show. In the player, a book or show can have its own.')}
+      <SectionHeader text={t('Sound')} />
+      <Text className="pt-2 text-detail text-muted">
+        {t('Sound for every book and podcast. In the player, a book or podcast can have its own.')}
       </Text>
       {soundOptions().map((o) => (
         <SoundRow
@@ -58,11 +60,12 @@ export default function ListeningSettings() {
         />
       ))}
       {/* The web has no calls to make way for. */}
+      {Platform.OS === 'android' && <SectionHeader text={t('Calls')} />}
       {Platform.OS === 'android' && (
         <View className="gap-3 border-b border-line py-4">
           <View className="gap-1">
-            <Text className="text-base text-paper">{t('During calls')}</Text>
-            <Text className="text-sm text-muted">
+            <Text className="text-body text-paper">{t('During calls')}</Text>
+            <Text className="text-detail text-muted">
               {t(
                 'Also for other short interruptions. After a pause, playback resumes when the call ends.',
               )}
@@ -87,7 +90,7 @@ export default function ListeningSettings() {
               min={DUCK_PERCENT.min}
               max={DUCK_PERCENT.max}
               step={DUCK_PERCENT.step}
-              format={(percent) => t('{percent} %', { percent })}
+              format={(percent) => t('{percent}%', { percent })}
               onChange={(percent) => update('duckPercent', percent)}
             />
           )}

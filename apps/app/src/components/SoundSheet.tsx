@@ -117,9 +117,9 @@ export function SoundRow({
   return (
     <View className="flex-row items-center gap-4 border-b border-line py-4">
       <View className="flex-1 gap-1">
-        <Text className="text-base text-paper">{label}</Text>
-        <Text className="text-sm text-muted">{detail}</Text>
-        {note ? <Text className="text-sm text-amber">{note}</Text> : null}
+        <Text className="text-body text-paper">{label}</Text>
+        <Text className="text-detail text-muted">{detail}</Text>
+        {note ? <Text className="text-detail text-amber">{note}</Text> : null}
       </View>
       <Toggle value={value} onValueChange={onChange} accessibilityLabel={label} />
     </View>
@@ -151,7 +151,10 @@ function useSilenceSaved(bookId: string | null, visible: boolean, on: boolean): 
 }
 
 const Heading = ({ text }: { text: string }) => (
-  <Text accessibilityRole="header" className="pt-2 text-xs uppercase tracking-wider text-muted">
+  <Text
+    accessibilityRole="header"
+    className="pt-2 text-caption uppercase tracking-wider text-muted"
+  >
     {text}
   </Text>
 );
@@ -184,7 +187,7 @@ export function SoundSheet({
       <ScrollView>
         {book && (
           <>
-            <Heading text={show ? t('For this show') : t('For this book')} />
+            <Heading text={show ? t('For this podcast') : t('For this book')} />
             {bookSoundOptions().map((o) => (
               <SoundRow
                 key={o.key}
@@ -216,7 +219,7 @@ export function SoundSheet({
             onChange={(v) => sound.set(o.key, v)}
           />
         ))}
-        <Text className="py-4 text-sm text-muted">
+        <Text className="py-4 text-detail text-muted">
           {Platform.OS === 'android'
             ? t('Sound effects play on this phone. Speakers you cast to play without them.')
             : t(

@@ -17,6 +17,7 @@ const KIND = {
  */
 export function Button({
   text,
+  detail,
   onPress,
   kind = 'primary',
   size = 'md',
@@ -29,6 +30,8 @@ export function Button({
   className = '',
 }: {
   text: string;
+  /** A second, smaller line under the text, such as the time a choice goes back to. */
+  detail?: string;
   onPress: () => void;
   kind?: 'primary' | 'secondary' | 'text';
   size?: 'md' | 'sm';
@@ -62,10 +65,10 @@ export function Button({
       onPress={onPress}
       disabled={off}
       accessibilityRole={accessibilityRole}
-      accessibilityLabel={accessibilityLabel ?? text}
+      accessibilityLabel={accessibilityLabel ?? (detail ? `${text}, ${detail}` : text)}
       accessibilityState={{ disabled: off, busy }}
       {...hintProps(hint)}
-      className={`min-h-12 flex-row items-center justify-center gap-2 rounded-full ${size === 'sm' ? 'px-4' : 'px-6'} ${disabled ? 'border border-line' : look.box} ${className}`}
+      className={`min-h-12 flex-row items-center justify-center gap-2 ${detail ? 'rounded-xl py-2' : 'rounded-full'} ${size === 'sm' ? 'px-4' : 'px-6'} ${disabled ? 'border border-line' : look.box} ${className}`}
     >
       {busy ? (
         <ActivityIndicator color={ink} />
@@ -76,11 +79,20 @@ export function Button({
               <Icon name={icon} size={18} color={ink} />
             </View>
           )}
-          <Text
-            className={`${size === 'sm' ? 'text-sm' : 'text-base'} ${disabled ? 'font-medium text-muted' : look.text}`}
-          >
-            {text}
-          </Text>
+          <View className={detail ? 'shrink items-center' : 'shrink'}>
+            <Text
+              className={`text-center ${size === 'sm' ? 'text-detail' : 'text-body'} ${disabled ? 'font-medium text-muted' : look.text}`}
+            >
+              {text}
+            </Text>
+            {detail !== undefined && (
+              <Text
+                className={`text-center text-detail ${disabled ? 'text-muted' : kind === 'primary' ? 'text-ink' : 'text-soft'}`}
+              >
+                {detail}
+              </Text>
+            )}
+          </View>
         </>
       )}
     </Pressable>

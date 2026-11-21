@@ -22,10 +22,10 @@ export function ListBanner({ className = '' }: { className?: string }) {
       className={`flex-row items-center gap-1 rounded-xl border border-line bg-raised ps-3 ${className}`}
     >
       <View className="flex-1 py-2">
-        <Text numberOfLines={1} className="text-xs uppercase tracking-widest text-muted">
+        <Text numberOfLines={1} className="text-caption uppercase tracking-widest text-muted">
           {t('From the list “{name}”', { name: list.name })}
         </Text>
-        <Text numberOfLines={1} className="text-sm text-soft">
+        <Text numberOfLines={1} className="text-detail text-soft">
           {next ? t('Next: {title}', { title: next.title }) : t('Last in the list')}
         </Text>
       </View>

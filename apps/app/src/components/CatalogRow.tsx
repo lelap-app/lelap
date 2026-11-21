@@ -60,7 +60,9 @@ export function CatalogRow({
   if (block)
     return (
       <View className="gap-1 px-4">
-        <Text className="text-lg font-semibold text-paper">{title ?? catalogRef.catalog.name}</Text>
+        <Text className="text-section font-semibold text-paper">
+          {title ?? catalogRef.catalog.name}
+        </Text>
         <UpgradeNotice name={catalogRef.addon.manifest.name} block={block} />
       </View>
     );
@@ -73,9 +75,11 @@ export function CatalogRow({
         accessibilityRole="button"
         className="min-h-12 flex-row items-center justify-between px-4"
       >
-        <Text className="text-lg font-semibold text-paper">{title ?? catalogRef.catalog.name}</Text>
+        <Text className="text-section font-semibold text-paper">
+          {title ?? catalogRef.catalog.name}
+        </Text>
         <View className="flex-row items-center">
-          <Text className="text-sm text-amber">{t('More')}</Text>
+          <Text className="text-detail text-amber">{t('More')}</Text>
           <Icon name="forward" size={16} color={colors.amber} />
         </View>
       </Pressable>

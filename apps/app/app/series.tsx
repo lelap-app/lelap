@@ -75,7 +75,7 @@ export default function SeriesScreen() {
         : null,
     [series],
   );
-  const { list, asking } = useSeriesList(lookup);
+  const { list, asking, retry } = useSeriesList(lookup);
   const rows = useMemo(() => (series ? seriesRows(series, list) : []), [series, list]);
 
   const open = useCallback(
@@ -132,10 +132,10 @@ export default function SeriesScreen() {
             <ScreenHeader title={series?.name}>
               {series && (
                 <>
-                  {series.author && <Text className="text-base text-soft">{series.author}</Text>}
-                  <Text className="text-sm text-muted">{summary}</Text>
+                  {series.author && <Text className="text-body text-soft">{series.author}</Text>}
+                  <Text className="text-detail text-muted">{summary}</Text>
                   {asking && !list && (
-                    <Text accessibilityLiveRegion="polite" className="text-sm text-muted">
+                    <Text accessibilityLiveRegion="polite" className="text-detail text-muted">
                       {t('Looking up the whole series in your add-ons…')}
                     </Text>
                   )}
@@ -166,7 +166,7 @@ export default function SeriesScreen() {
         }
         ListEmptyComponent={
           // The library's books show at once; only a series with none waits on the add-ons.
-          <LoadState loading={asking && !list}>
+          <LoadState loading={asking && !list} onRetry={retry}>
             <EmptyState
               lori
               title={t('No books in this series.')}
@@ -181,7 +181,7 @@ export default function SeriesScreen() {
               <View className="min-h-16 flex-row items-center gap-3 px-4 py-2">
                 {/* An empty cover's outline, so the gap reads as a place in the row of books. */}
                 <View className="h-14 w-14 items-center justify-center rounded-md border border-dashed border-line">
-                  <Text className="text-sm text-muted">{item.number}</Text>
+                  <Text className="text-detail text-muted">{item.number}</Text>
                 </View>
                 <View className="flex-1">
                   <Text className="text-muted">
@@ -216,13 +216,13 @@ export default function SeriesScreen() {
             return (
               <View className="min-h-16 flex-row items-center gap-3 px-4 py-2">
                 <View className="h-14 w-14 items-center justify-center rounded-md border border-dashed border-line">
-                  <Text className="text-sm text-muted">{position ?? ''}</Text>
+                  <Text className="text-detail text-muted">{position ?? ''}</Text>
                 </View>
                 <View className="flex-1 gap-1">
-                  <Text numberOfLines={2} className="text-base text-soft">
+                  <Text numberOfLines={2} className="text-body text-soft">
                     {item.title}
                   </Text>
-                  <Text numberOfLines={1} className="text-sm text-muted">
+                  <Text numberOfLines={1} className="text-detail text-muted">
                     {second}
                   </Text>
                 </View>
@@ -252,11 +252,11 @@ export default function SeriesScreen() {
             return (
               <View className="min-h-16 flex-row items-center pe-2">
                 <View className="flex-1 gap-1 py-2 ps-4">
-                  <Text numberOfLines={2} className="text-base text-paper">
+                  <Text numberOfLines={2} className="text-body text-paper">
                     {entry.book.title}
                   </Text>
                   {label && (
-                    <Text numberOfLines={1} className="text-sm text-muted">
+                    <Text numberOfLines={1} className="text-detail text-muted">
                       {label}
                     </Text>
                   )}

@@ -15,6 +15,7 @@ import { openItem } from '../../src/navigation';
 import { useSearchFocus } from '../../src/shortcuts';
 import { LIST_COLUMN } from '../../src/layout';
 import { useColors } from '../../src/theme';
+import { TabHeader } from '../../src/components/TabHeader';
 
 const DEBOUNCE_MS = 400;
 
@@ -93,9 +94,9 @@ export default function SearchScreen() {
 
   return (
     <View className="flex-1 bg-night" style={{ ...LIST_COLUMN, paddingTop: insets.top + 12 }}>
-      <Text accessibilityRole="header" className="px-4 pb-3 text-3xl font-semibold text-paper">
-        {t('Search')}
-      </Text>
+      <View className="pb-3">
+        <TabHeader title={t('Search')} />
+      </View>
       <TextField
         ref={input}
         value={text}
@@ -124,7 +125,7 @@ export default function SearchScreen() {
             status !== null ? (
               <View className="flex-row items-center gap-2 px-4">
                 {pending && <ActivityIndicator size="small" color={colors.amber} />}
-                <Text accessibilityLiveRegion="polite" className="text-xs text-muted">
+                <Text accessibilityLiveRegion="polite" className="text-caption text-muted">
                   {status}
                 </Text>
               </View>
@@ -134,12 +135,12 @@ export default function SearchScreen() {
             <View className="bg-night px-4 pb-1 pt-4">
               <Text
                 accessibilityRole="header"
-                className="text-xs uppercase tracking-wider text-muted"
+                className="text-caption uppercase tracking-wider text-muted"
               >
                 {section.title}
               </Text>
               {section.error !== null && (
-                <Text accessibilityLiveRegion="polite" className="pt-1 text-sm text-danger">
+                <Text accessibilityLiveRegion="polite" className="pt-1 text-detail text-danger">
                   {section.error}
                 </Text>
               )}

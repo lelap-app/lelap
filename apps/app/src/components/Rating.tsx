@@ -54,7 +54,10 @@ export function RatingRow({
   return (
     <View className="gap-1">
       {heading && (
-        <Text accessibilityRole="header" className="text-xs uppercase tracking-wider text-muted">
+        <Text
+          accessibilityRole="header"
+          className="text-caption uppercase tracking-wider text-muted"
+        >
           {t('Your rating')}
         </Text>
       )}
@@ -88,7 +91,7 @@ export function RatingRow({
           <TextButton text={t('Remove rating')} tone="muted" onPress={() => change(null)} />
         )}
       </View>
-      <Text accessibilityLiveRegion="polite" className="text-xs text-muted">
+      <Text accessibilityLiveRegion="polite" className="text-caption text-muted">
         {ratingWords(rating)}
         {hearing.length > 0
           ? ` · ${t('Ratings go to {names}.', { names: hearing.join(', ') })}`

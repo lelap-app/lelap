@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '../i18n';
 import { useWide } from '../layout';
+import { useColors } from '../theme';
+import { Icon, type IconName } from './Icon';
 import { useReducedMotion } from './Motion';
 
 /**
@@ -14,21 +16,34 @@ export function Sheet({
   visible,
   title,
   onClose,
+  icon,
   children,
 }: {
   visible: boolean;
   title: string;
+  /** Drawn once beside the title, so the rows below don't each repeat it. */
+  icon?: IconName;
   onClose: () => void;
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const wide = useWide();
-  const heading = (
-    <Text accessibilityRole="header" className="pb-3 text-lg font-semibold text-paper">
+  const colors = useColors();
+  const text = (
+    <Text accessibilityRole="header" className="text-section font-semibold text-paper">
       {title}
     </Text>
   );
+  const heading =
+    icon === undefined ? (
+      <View className="pb-3">{text}</View>
+    ) : (
+      <View className="flex-row items-center gap-2 pb-3">
+        <Icon name={icon} size={20} color={colors.amber} />
+        {text}
+      </View>
+    );
   return (
     <Modal
       visible={visible}

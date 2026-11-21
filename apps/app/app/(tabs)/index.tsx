@@ -6,6 +6,7 @@ import {
   libraryIsEmpty,
   listDownloads,
   listProfiles,
+  type LibraryBook,
   setSetting,
   setWantedAlertsAsked,
   WANT_TO_READ,
@@ -38,13 +39,14 @@ import { db } from '../../src/db';
 import { formatBytes } from '../../src/format';
 import { openCatalog, openItem, openPlayer } from '../../src/navigation';
 import { canNotify } from '../../src/platform/downloads';
-import { playBook, useLibrary } from '../../src/player';
+import { playBook, playerProfile, useLibrary, usePlayerState } from '../../src/player';
+import { useWide } from '../../src/layout';
 import { profileId } from '../../src/profile';
 import { startupMark } from '../../src/startup';
-import { Pill } from '../../src/components/Pill';
 import { SuggestionRows } from '../../src/components/SuggestionRows';
 import { TextButton } from '../../src/components/TextButton';
 import { useColors } from '../../src/theme';
+import { TabHeader } from '../../src/components/TabHeader';
 
 /**
  * Asks once, next to the want-to-read row, whether Lelap may say when a wanted book can be
@@ -62,7 +64,7 @@ function WantedAlertsHint({ onDone }: { onDone: () => void }) {
   return (
     <View className="mx-4 flex-row items-center gap-3 rounded-xl border border-line px-4 py-3">
       <Icon name="bookmark" color={colors.amber} />
-      <Text className="flex-1 text-sm text-soft">
+      <Text className="flex-1 text-detail text-soft">
         {t('Get a notification when a book you want to read can be played?')}
       </Text>
       <TextButton text={t('Not now')} tone="muted" onPress={() => void answer(false)} />
@@ -160,48 +162,25 @@ export default function HomeScreen() {
         />
       }
     >
-      <View className="flex-row flex-wrap items-center justify-between gap-y-2 px-4">
-        <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
-          {'Lelap'}
-        </Text>
-        <View className="flex-row items-center gap-2">
-          <Pill
-            onPress={() => router.push('/addons')}
+      <TabHeader title="Lelap">
+        {profiles.length > 1 && (
+          <Pressable
+            onPress={() => router.push('/who')}
             accessibilityRole="button"
-            className="flex-row items-center gap-1.5 rounded-full border border-line px-3 py-2 active:bg-raised"
+            accessibilityLabel={t('Switch profile')}
+            className="h-12 w-12 items-center justify-center"
           >
-            <View
-              className={`h-1.5 w-1.5 rounded-full ${addons.length > 0 ? 'bg-ok' : 'bg-muted'}`}
-            />
-            <Text className="text-xs text-soft">
-              {addons.length === 1 ? t('1 add-on') : t('{n} add-ons', { n: addons.length })}
-            </Text>
-          </Pill>
-          {profiles.length > 1 && (
-            <Pressable
-              onPress={() => router.push('/who')}
-              accessibilityRole="button"
-              accessibilityLabel={t('Switch profile')}
-              className="h-12 w-12 items-center justify-center"
-            >
-              <Avatar avatar={me?.avatar ?? null} name={me?.name ?? ''} size={30} />
-            </Pressable>
-          )}
-          <IconButton
-            name="stats"
-            label={t('Listening stats')}
-            color={colors.soft}
-            onPress={() => router.push('/stats')}
-          />
-          <IconButton
-            name="settings"
-            label={t('Settings')}
-            color={colors.soft}
-            onPress={() => router.push('/settings')}
-          />
-        </View>
-      </View>
-      {next && <ContinueCard book={next} onPress={() => void resume()} />}
+            <Avatar avatar={me?.avatar ?? null} name={me?.name ?? ''} size={30} />
+          </Pressable>
+        )}
+        <IconButton
+          name="stats"
+          label={t('Stats')}
+          color={colors.soft}
+          onPress={() => router.push('/stats')}
+        />
+      </TabHeader>
+      {next && <HomeContinue book={next} onPress={() => void resume()} />}
       {empty && (
         <EmptyState
           title={t('Nothing to continue yet')}
@@ -222,7 +201,7 @@ export default function HomeScreen() {
           <Icon name="check" color={colors.amber} />
           <View className="flex-1 gap-0.5">
             <Text className="font-semibold text-paper">{t('Ready for offline')}</Text>
-            <Text className="text-xs text-muted">
+            <Text className="text-caption text-muted">
               {offline.count === 1 ? t('1 download') : t('{n} downloads', { n: offline.count })} ·{' '}
               {Platform.OS === 'web'
                 ? t('{size} on this device', { size: formatBytes(offline.bytes) })
@@ -268,4 +247,18 @@ export default function HomeScreen() {
       )}
     </ScrollView>
   );
+}
+
+/**
+ * Home's Continue listening card, left out on a wide screen while the player pane beside Home
+ * shows the same book with its own Play (M149). Its own component, so the player's every tick
+ * redraws only this and not Home.
+ */
+function HomeContinue({ book, onPress }: { book: LibraryBook; onPress: () => void }) {
+  const wide = useWide();
+  const player = usePlayerState();
+  const inPane =
+    wide && player.bookId === book.id && player.partIndex >= 0 && playerProfile() === profileId;
+  if (inPane) return null;
+  return <ContinueCard book={book} onPress={onPress} />;
 }

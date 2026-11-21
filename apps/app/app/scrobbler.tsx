@@ -76,6 +76,7 @@ export default function ScrobblerScreen() {
       }}
     >
       <ScreenHeader
+        inGap
         title={manifest && !kids ? manifest.name : undefined}
         subtitle={manifest && !kids ? manifest.description : undefined}
       />
@@ -92,7 +93,7 @@ export default function ScrobblerScreen() {
         {manifest && !kids && (
           <>
             {!scrobblersWork ? (
-              <Text className="text-sm text-muted">
+              <Text className="text-detail text-muted">
                 {t(
                   'This works in the Android app only: it signs in with a cookie, which a browser keeps from the page.',
                 )}
@@ -100,7 +101,7 @@ export default function ScrobblerScreen() {
             ) : (
               <>
                 {form.again && (
-                  <Text className="text-sm text-amber">
+                  <Text className="text-detail text-amber">
                     {t('Enter the keys again: this device can’t open the ones saved before.')}
                   </Text>
                 )}
@@ -120,7 +121,7 @@ export default function ScrobblerScreen() {
                     />
                   ) : (
                     <View key={field.key} className="gap-1">
-                      <Text className="text-sm text-soft">{field.label}</Text>
+                      <Text className="text-detail text-soft">{field.label}</Text>
                       <TextField
                         value={values[field.key] ?? ''}
                         onChangeText={(v) =>
@@ -135,18 +136,18 @@ export default function ScrobblerScreen() {
                         autoCorrect={false}
                         secureTextEntry={field.type === 'password'}
                       />
-                      {field.help && <Text className="text-xs text-muted">{field.help}</Text>}
+                      {field.help && <Text className="text-caption text-muted">{field.help}</Text>}
                     </View>
                   ),
                 )}
-                <Text className="text-xs text-muted">
+                <Text className="text-caption text-muted">
                   {t(
                     'Runs on this device, in a sandbox. It can reach only {hosts}, and what you enter stays sealed on this device.',
                     { hosts: (manifest.sandbox?.hosts ?? []).join(', ') },
                   )}
                 </Text>
                 {error && (
-                  <Text accessibilityLiveRegion="assertive" className="text-sm text-danger">
+                  <Text accessibilityLiveRegion="assertive" className="text-detail text-danger">
                     {error}
                   </Text>
                 )}

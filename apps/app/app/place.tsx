@@ -67,7 +67,7 @@ export default function PlaceScreen() {
       void playSharedEpisode(place)
         .then((played) => {
           if (played) openPlayer(router);
-          else showAlert(t('Cannot play'), t('The show’s feed no longer lists this episode.'));
+          else showAlert(t('Cannot play'), t('The podcast’s feed no longer lists this episode.'));
         })
         .catch(failed)
         .finally(() => {
@@ -98,7 +98,7 @@ export default function PlaceScreen() {
         ...READABLE,
       }}
     >
-      <ScreenHeader onBack={back} />
+      <ScreenHeader inGap onBack={back} />
       <LoadState
         loading={false}
         failed={!place && { title: t('This link does not name a place in a book.') }}
@@ -108,7 +108,7 @@ export default function PlaceScreen() {
             <View className="flex-row items-center gap-4">
               {book && <BookCover uri={coverUri(book.book)} title={book.book.title} size={96} />}
               <View className="flex-1 gap-1">
-                <Text accessibilityRole="header" className="text-2xl font-semibold text-paper">
+                <Text accessibilityRole="header" className="text-heading font-semibold text-paper">
                   {place.title}
                 </Text>
                 {place.author !== null && <Text className="text-soft">{place.author}</Text>}
@@ -129,12 +129,12 @@ export default function PlaceScreen() {
                 ) : episode?.kind === 'missing' && episode.subscribed ? (
                   <>
                     <Text className="text-soft">
-                      {t('This episode is not in your copy of the show’s feed yet.')}
+                      {t('This episode is not in your copy of the podcast’s feed yet.')}
                     </Text>
                     {playButton(t('Refresh and play'))}
                     <TextButton
                       className="self-start"
-                      text={t('Open the show')}
+                      text={t('Open the podcast')}
                       onPress={() =>
                         router.push({ pathname: '/podcast', params: { id: episode.podcastId } })
                       }
@@ -144,7 +144,7 @@ export default function PlaceScreen() {
                   <>
                     <Text className="text-soft">
                       {t(
-                        'You are not subscribed to this show. Lelap can subscribe from its feed and play the episode; the audio comes from the show, not from the link.',
+                        'You are not subscribed to this podcast. Lelap can subscribe from its feed and play the episode; the audio comes from the podcast, not from the link.',
                       )}
                     </Text>
                     {playButton(t('Subscribe and play'))}
@@ -156,7 +156,7 @@ export default function PlaceScreen() {
             ) : book ? (
               <View className="gap-2">
                 {book.book.title !== place.title && (
-                  <Text className="text-sm text-muted">
+                  <Text className="text-detail text-muted">
                     {t('In your library as “{title}”.', { title: book.book.title })}
                   </Text>
                 )}

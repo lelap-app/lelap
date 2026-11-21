@@ -159,7 +159,7 @@ export function AddonSignin({
 
   return (
     <View className="gap-2">
-      <Text className="text-sm text-soft">{field.label}</Text>
+      <Text className="text-detail text-soft">{field.label}</Text>
       {pending ? (
         <View className="gap-3 rounded-lg border border-line p-3">
           <Text className="text-soft">
@@ -168,7 +168,7 @@ export function AddonSignin({
           <Text
             accessibilityLabel={t('Code: {code}', { code: pending.code.split('').join(' ') })}
             selectable
-            className="text-3xl font-semibold tracking-widest text-paper"
+            className="text-title font-semibold tracking-widest text-paper"
           >
             {pending.code}
           </Text>
@@ -182,7 +182,9 @@ export function AddonSignin({
           </View>
           <View className="flex-row items-center gap-2">
             <ActivityIndicator size="small" color={colors.muted} />
-            <Text className="text-xs text-muted">{t('Waiting for the code to be entered…')}</Text>
+            <Text className="text-caption text-muted">
+              {t('Waiting for the code to be entered…')}
+            </Text>
           </View>
         </View>
       ) : (
@@ -196,7 +198,7 @@ export function AddonSignin({
           {signedIn && <Text className="text-soft">{t('Signed in.')}</Text>}
         </View>
       )}
-      {field.help && <Text className="text-xs text-muted">{field.help}</Text>}
+      {field.help && <Text className="text-caption text-muted">{field.help}</Text>}
     </View>
   );
 }

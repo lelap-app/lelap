@@ -64,7 +64,7 @@ export default function ProfilesScreen() {
       <ScreenHeader title={t('Profiles')} />
       <Text className="text-soft">
         {t(
-          'Each profile has its own places, library, Up Next, podcasts and settings. Downloads are shared. With more than one, Lelap asks who’s listening when it opens.',
+          'Each profile has its own places, library, Up next, podcasts and settings. Downloads are shared. With more than one, Lelap asks who’s listening when it opens.',
         )}
       </Text>
 
@@ -77,8 +77,8 @@ export default function ProfilesScreen() {
         >
           <Avatar avatar={p.avatar} name={p.name} size={48} />
           <View className="flex-1">
-            <Text className="text-base text-paper">{p.name}</Text>
-            <Text className="text-sm text-muted">
+            <Text className="text-body text-paper">{p.name}</Text>
+            <Text className="text-detail text-muted">
               {[
                 p.id === profileId ? t('Listening now') : null,
                 p.kids ? t('Kids') : null,
@@ -104,7 +104,7 @@ export default function ProfilesScreen() {
         <View className="flex-row items-center gap-3">
           <View className="flex-1">
             <Text className="text-paper">{t('Kids profile')}</Text>
-            <Text className="text-sm text-muted">
+            <Text className="text-detail text-muted">
               {t('Can’t change add-ons; sees the catalogs you allow.')}
             </Text>
           </View>

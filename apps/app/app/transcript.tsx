@@ -88,7 +88,11 @@ export default function TranscriptScreen() {
             <EmptyState
               lori
               title={
-                episode ? t('This episode has no transcript.') : t('This part has no transcript.')
+                episode
+                  ? t('This episode has no transcript.')
+                  : part && (detail?.files.length ?? 0) > 1
+                    ? t('This part has no transcript.')
+                    : t('This book has no transcript.')
               }
             />
           ) : (
@@ -131,13 +135,13 @@ export default function TranscriptScreen() {
                 {speakerChanged && (
                   <Text
                     accessibilityRole="header"
-                    className="pt-2 text-xs font-semibold uppercase tracking-wider text-muted"
+                    className="pt-2 text-caption font-semibold uppercase tracking-wider text-muted"
                   >
                     {item.speaker}
                   </Text>
                 )}
                 <Text
-                  className={`text-lg leading-7 ${lit ? 'text-amber' : index < current ? 'text-soft' : 'text-paper'}`}
+                  className={`text-section leading-7 ${lit ? 'text-amber' : index < current ? 'text-soft' : 'text-paper'}`}
                 >
                   {item.text}
                 </Text>

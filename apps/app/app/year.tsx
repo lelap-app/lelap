@@ -45,7 +45,6 @@ export default function YearScreen() {
 
   // `version` is the signal to re-read the database.
   const year = useMemo(() => yearInSoundFor(db, profileId, yearNumber), [version, yearNumber]);
-  const title = t('{year} in sound', { year: String(yearNumber) });
   const cardWidth = Math.min(width - 32, 480);
   const busiestMonth = year.busiestMonth;
 
@@ -74,7 +73,10 @@ export default function YearScreen() {
         }}
         className="px-4"
       >
-        <ScreenHeader title={title} />
+        {/* The card under it says “2026 in sound”; the title doesn't repeat it (M149). */}
+        <ScreenHeader
+          title={yearNumber === new Date().getFullYear() ? t('Your year') : String(yearNumber)}
+        />
 
         {year.ms === 0 && year.finished.length === 0 ? (
           <EmptyState
@@ -92,7 +94,7 @@ export default function YearScreen() {
               <YearCard ref={card} year={year} palette={palette} width={cardWidth} />
             </View>
             <Button text={t('Share as image')} onPress={share} busy={sharing} className="mt-4" />
-            <Text style={{ color: palette.secondary }} className="pt-2 text-xs">
+            <Text style={{ color: palette.secondary }} className="pt-2 text-caption">
               {failed
                 ? t('The image could not be shared. Try again.')
                 : t('The image is made on this device and only leaves it when you share it.')}
@@ -169,7 +171,7 @@ export default function YearScreen() {
                     <Text
                       accessibilityLabel={formatLongDate(dayDate(b.day))}
                       style={{ color: palette.secondary }}
-                      className="text-sm"
+                      className="text-detail"
                     >
                       {formatDayMonth(dayDate(b.day))}
                     </Text>
@@ -189,7 +191,7 @@ export default function YearScreen() {
                     <Text numberOfLines={1} style={{ color: palette.text }} className="flex-1">
                       {b.title || t('Untitled')}
                     </Text>
-                    <Text style={{ color: palette.secondary }} className="text-sm">
+                    <Text style={{ color: palette.secondary }} className="text-detail">
                       {listenedText(b.ms)}
                     </Text>
                   </View>

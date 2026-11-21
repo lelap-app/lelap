@@ -46,7 +46,7 @@ export function MiniPlayer({ inset = true }: { inset?: boolean }) {
             <Text numberOfLines={1} className="text-paper">
               {state.bookTitle}
             </Text>
-            <Text numberOfLines={1} className="text-sm text-muted">
+            <Text numberOfLines={1} className="text-detail text-muted">
               {state.live
                 ? [t('Live'), state.nowPlaying].filter(Boolean).join(' · ')
                 : state.partTitle}

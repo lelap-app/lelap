@@ -56,7 +56,7 @@ export default function BookmarksScreen() {
             <ScreenHeader
               title={t('Bookmarks')}
               subtitle={t(
-                'Tap a bookmark to play from there. Long press it to change its note, share it or delete it.',
+                'Tap a bookmark to play from there. Long-press it to change its note, share it or delete it.',
               )}
             />
           </View>

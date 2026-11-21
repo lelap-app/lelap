@@ -114,8 +114,8 @@ export function PreparingPanel({
       accessibilityLiveRegion="polite"
       aria-live="polite"
     >
-      <Text className="text-base font-semibold text-paper">{t('Preparing…')}</Text>
-      <Text className="text-sm leading-5 text-soft">
+      <Text className="text-body font-semibold text-paper">{t('Preparing…')}</Text>
+      <Text className="text-detail leading-5 text-soft">
         {t('The source is getting this book ready. Trying again in {time}.', {
           time: formatClock(secondsLeft * 1000),
         })}
@@ -140,8 +140,8 @@ export function PreparingLine({ until }: { until: number }) {
   }, []);
   return (
     <View className="items-center gap-1 pb-2" accessibilityLiveRegion="polite" aria-live="polite">
-      <Text className="text-center text-sm font-semibold text-paper">{t('Preparing…')}</Text>
-      <Text className="text-center text-sm text-soft">
+      <Text className="text-center text-detail font-semibold text-paper">{t('Preparing…')}</Text>
+      <Text className="text-center text-detail text-soft">
         {t('The source is getting this book ready. Trying again in {time}.', {
           time: formatClock(Math.max(0, Math.ceil((until - now) / 1000) * 1000)),
         })}

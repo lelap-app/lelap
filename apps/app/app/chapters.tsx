@@ -129,7 +129,7 @@ export default function EditChaptersScreen() {
             <Text numberOfLines={2} className="text-soft">
               {detail.book.title}
             </Text>
-            <Text className="text-sm text-muted">
+            <Text className="text-detail text-muted">
               {t(
                 'Rename a chapter, change where it starts, or add and remove chapters. They become your own chapters for this book, on your other devices too, and stay when the library is scanned again.',
               )}
@@ -154,8 +154,7 @@ export default function EditChaptersScreen() {
               accessibilityLabel={t('Start of chapter {n}', { n: index + 1 })}
               keyboardType="numbers-and-punctuation"
               className="w-24"
-              // TextField has no error look; a time Lelap can't read keeps its red border.
-              {...(startOf(item) === null ? { style: { borderColor: colors.danger } } : {})}
+              invalid={startOf(item) === null}
             />
             {here !== null && (
               <TextButton
@@ -178,7 +177,7 @@ export default function EditChaptersScreen() {
               text={here !== null ? t('Add a chapter here') : t('Add a chapter')}
               onPress={add}
             />
-            <Text className="text-xs text-muted">
+            <Text className="text-caption text-muted">
               {t('Chapters are put in order of their start when saved.')}
             </Text>
           </View>

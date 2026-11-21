@@ -22,6 +22,16 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      // The type scale (M149): every text size in the app is one of these;
+      // scripts/check-type-scale.mjs fails on any other.
+      fontSize: {
+        title: ['30px', { lineHeight: '36px' }],
+        heading: ['22px', { lineHeight: '28px' }],
+        section: ['18px', { lineHeight: '28px' }],
+        body: ['16px', { lineHeight: '24px' }],
+        detail: ['14px', { lineHeight: '20px' }],
+        caption: ['12px', { lineHeight: '16px' }],
+      },
       colors: Object.fromEntries(
         TOKENS.map((name) => [name, `rgb(var(--color-${name}) / <alpha-value>)`]),
       ),

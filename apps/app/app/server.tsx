@@ -64,7 +64,6 @@ import {
   NETFS,
 } from '../src/platform/netfs';
 import { READABLE } from '../src/layout';
-import { useColors } from '../src/theme';
 
 type BuiltIn = 'webdav' | 'smb' | 'sftp' | 's3' | 'jellyfin' | 'audiobookshelf';
 /** A built-in kind, or an add-on inside the app by its manifest URL (M57). */
@@ -116,7 +115,7 @@ function LibrarySwitch({
     <View className="flex-row items-center justify-between py-1">
       <View className="flex-1">
         <Text className="text-paper">{name}</Text>
-        {detail && <Text className="text-xs text-muted">{detail}</Text>}
+        {detail && <Text className="text-caption text-muted">{detail}</Text>}
       </View>
       <Toggle accessibilityLabel={name} value={on} onValueChange={onChange} />
     </View>
@@ -144,10 +143,9 @@ function Field({
   locked?: boolean;
   hint?: string;
 }) {
-  const colors = useColors();
   return (
     <View className="gap-1">
-      <Text className="text-sm text-soft">{label}</Text>
+      <Text className="text-detail text-soft">{label}</Text>
       <TextField
         value={value}
         onChangeText={onChange}
@@ -157,15 +155,13 @@ function Field({
         autoCapitalize="none"
         autoCorrect={false}
         secureTextEntry={secret}
-        editable={!locked}
+        locked={locked}
         multiline={multiline}
         mono={multiline}
         {...(multiline ? { numberOfLines: 4, textAlignVertical: 'top' as const } : {})}
-        // A locked field is shown, not edited: its text is muted.
-        {...(locked ? { style: { color: colors.muted } } : {})}
         className={multiline ? 'min-h-24' : ''}
       />
-      {hint && <Text className="text-xs text-muted">{hint}</Text>}
+      {hint && <Text className="text-caption text-muted">{hint}</Text>}
     </View>
   );
 }
@@ -587,6 +583,7 @@ export default function ServerScreen() {
         }}
       >
         <ScreenHeader
+          inGap
           title={t('Addresses')}
           subtitle={t(
             'A server you reach at home and from outside can have both addresses. Lelap uses whichever answers; the login, books and places stay.',
@@ -652,6 +649,7 @@ export default function ServerScreen() {
       }}
     >
       <ScreenHeader
+        inGap
         title={abs ? t('Change key') : locked ? t('Log in again') : t('Add a server')}
         subtitle={
           abs
@@ -684,7 +682,7 @@ export default function ServerScreen() {
         <EmptyState title={t('The add-on for this server is no longer on this device.')} />
       ) : chosenSource ? (
         <>
-          <Text className="text-sm text-soft">{chosenSource.manifest.description}</Text>
+          <Text className="text-detail text-soft">{chosenSource.manifest.description}</Text>
           {(chosenSource.manifest.settings ?? []).map((field) =>
             field.type === 'signin' ? (
               <AddonSignin
@@ -736,11 +734,11 @@ export default function ServerScreen() {
             ),
           )}
           {offersPlaces(chosenSource.manifest) && (
-            <Text className="text-xs text-muted">
+            <Text className="text-caption text-muted">
               {t('Places sync both ways with this server, for the profile adding it.')}
             </Text>
           )}
-          <Text className="text-xs text-muted">
+          <Text className="text-caption text-muted">
             {(chosenSource.manifest.sandbox?.hosts ?? []).length > 0
               ? t(
                   'Runs on this device, in a sandbox. It can reach only {hosts} and the addresses in this form, and the login stays on this device.',
@@ -751,7 +749,7 @@ export default function ServerScreen() {
                 )}
           </Text>
           {Platform.OS === 'web' && (
-            <Text className="text-sm text-muted">
+            <Text className="text-detail text-muted">
               {t(
                 "In the browser the server must allow this site (CORS), and some servers' books play in the Android app only: a browser can't send a login with audio.",
               )}
@@ -781,7 +779,7 @@ export default function ServerScreen() {
           />
           {signedIn && (
             <View className="gap-2">
-              <Text className="text-sm text-soft">{t('Libraries')}</Text>
+              <Text className="text-detail text-soft">{t('Libraries')}</Text>
               {signedIn.libraries.length === 0 ? (
                 <EmptyState
                   title={t('This account has no book or music libraries on the server.')}
@@ -797,7 +795,7 @@ export default function ServerScreen() {
                   />
                 ))
               )}
-              <Text className="text-xs text-muted">
+              <Text className="text-caption text-muted">
                 {t(
                   'Places sync both ways with this Jellyfin user, for the profile adding the server.',
                 )}
@@ -805,7 +803,7 @@ export default function ServerScreen() {
             </View>
           )}
           {Platform.OS === 'web' && (
-            <Text className="text-sm text-muted">
+            <Text className="text-detail text-muted">
               {t('In the browser the Jellyfin server must allow this site (CORS headers).')}
             </Text>
           )}
@@ -832,7 +830,7 @@ export default function ServerScreen() {
           />
           {absSignedIn && (
             <View className="gap-2">
-              <Text className="text-sm text-soft">{t('Libraries')}</Text>
+              <Text className="text-detail text-soft">{t('Libraries')}</Text>
               {absSignedIn.libraries.length === 0 ? (
                 <EmptyState title={t('This account has no book libraries on the server.')} />
               ) : (
@@ -845,7 +843,7 @@ export default function ServerScreen() {
                   />
                 ))
               )}
-              <Text className="text-xs text-muted">
+              <Text className="text-caption text-muted">
                 {t(
                   'Places sync both ways with this Audiobookshelf user, for the profile adding the server.',
                 )}
@@ -853,7 +851,7 @@ export default function ServerScreen() {
             </View>
           )}
           {Platform.OS === 'web' && (
-            <Text className="text-sm text-muted">
+            <Text className="text-detail text-muted">
               {t('In the browser the Audiobookshelf server must allow this site (CORS headers).')}
             </Text>
           )}
@@ -926,15 +924,15 @@ export default function ServerScreen() {
           )}
           {hostKey && (
             <View className="gap-1 rounded-lg border border-line p-3">
-              <Text className="text-sm text-soft">
+              <Text className="text-detail text-soft">
                 {locked ? t('Trusted host key') : t('The server’s host key')}
               </Text>
-              <Text selectable className="font-mono text-xs text-paper">
+              <Text selectable className="font-mono text-caption text-paper">
                 {hostKey.algorithm
                   ? `${hostKey.algorithm} ${hostKey.fingerprint}`
                   : hostKey.fingerprint}
               </Text>
-              <Text className="text-xs text-muted">
+              <Text className="text-caption text-muted">
                 {locked
                   ? t('Lelap refuses to connect if the server shows a different key.')
                   : t(
@@ -966,7 +964,7 @@ export default function ServerScreen() {
             hint={t('An app password is best: it can be revoked without changing your own.')}
           />
           {Platform.OS === 'web' && (
-            <Text className="text-sm text-muted">
+            <Text className="text-detail text-muted">
               {t(
                 "In the browser the server must allow this site (CORS), and WebDAV books play in the Android app only: a browser can't send the login with audio.",
               )}

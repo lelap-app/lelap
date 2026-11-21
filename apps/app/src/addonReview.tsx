@@ -89,7 +89,7 @@ export function AddonReviewHost() {
         )}
         <Text
           accessibilityRole="header"
-          className="pb-2 text-xs uppercase tracking-wider text-muted"
+          className="pb-2 text-caption uppercase tracking-wider text-muted"
         >
           {t('What it can do')}
         </Text>
@@ -97,14 +97,14 @@ export function AddonReviewHost() {
           {addonPermissions(manifest, url, t).map((p) => (
             <View key={p.kind} className="flex-row gap-3">
               <Icon name={ICONS[p.kind]} size={20} color={p.notable ? colors.amber : colors.soft} />
-              <Text className={`flex-1 text-sm ${p.notable ? 'text-amber' : 'text-paper'}`}>
+              <Text className={`flex-1 text-detail ${p.notable ? 'text-amber' : 'text-paper'}`}>
                 {p.text}
               </Text>
             </View>
           ))}
         </View>
-        {note !== undefined && <Text className="pb-2 text-xs text-muted">{note}</Text>}
-        <Text className="pb-4 text-xs text-muted">
+        {note !== undefined && <Text className="pb-2 text-caption text-muted">{note}</Text>}
+        <Text className="pb-4 text-caption text-muted">
           {isOwnAddon(url)
             ? t('This add-on is made by Lelap.')
             : t('Add-ons are made by their authors, not by Lelap. Only add ones you trust.')}

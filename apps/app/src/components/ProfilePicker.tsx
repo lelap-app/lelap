@@ -67,7 +67,7 @@ export function ProfilePicker({
       style={{ paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }}
       className="flex-1 items-center gap-8 bg-night px-6"
     >
-      <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
+      <Text accessibilityRole="header" className="text-title font-semibold text-paper">
         {asking ? asking.name : t('Who’s listening?')}
       </Text>
       {asking ? (
@@ -83,7 +83,8 @@ export function ProfilePicker({
             placeholder={t('PIN')}
             accessibilityLabel={t('PIN')}
             mono
-            className="w-40 text-center"
+            digits
+            className="w-40"
           />
           {wrong && (
             <Text accessibilityLiveRegion="assertive" className="text-danger">

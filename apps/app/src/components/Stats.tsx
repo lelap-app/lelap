@@ -72,14 +72,14 @@ export function Figure({
       style={{ backgroundColor: palette.surface }}
       className="flex-1 gap-1 rounded-xl p-3"
     >
-      <Text style={{ color: palette.secondary }} className="text-xs uppercase tracking-wider">
+      <Text style={{ color: palette.secondary }} className="text-caption uppercase tracking-wider">
         {label}
       </Text>
-      <Text style={{ color: palette.text }} className="text-lg font-semibold">
+      <Text style={{ color: palette.text }} className="text-section font-semibold">
         {value}
       </Text>
       {detail ? (
-        <Text style={{ color: palette.secondary }} className="text-xs">
+        <Text style={{ color: palette.secondary }} className="text-caption">
           {detail}
         </Text>
       ) : null}
@@ -101,12 +101,12 @@ export function SectionTitle({
       <Text
         accessibilityRole="header"
         style={{ color: palette.secondary }}
-        className="text-xs uppercase tracking-wider"
+        className="text-caption uppercase tracking-wider"
       >
         {title}
       </Text>
       {count ? (
-        <Text style={{ color: palette.text }} className="text-sm font-semibold">
+        <Text style={{ color: palette.text }} className="text-detail font-semibold">
           {count}
         </Text>
       ) : null}
@@ -133,11 +133,14 @@ export function Bars({
   bars,
   palette,
   height = 144,
+  lines = 1,
 }: {
   title: string;
   bars: Bar[];
   palette: StatsPalette;
   height?: number;
+  /** Two for labels with a second line, such as a week's month. */
+  lines?: 1 | 2;
 }) {
   const peak = Math.max(1, ...bars.map((b) => b.ms));
   const spoken = bars
@@ -164,9 +167,13 @@ export function Bars({
             />
           </View>
           <Text
-            numberOfLines={1}
-            style={{ color: b.current ? palette.accentText : palette.secondary }}
-            className={bars.length > 7 ? 'text-[10px]' : 'text-xs'}
+            numberOfLines={lines}
+            style={{
+              color: b.current ? palette.accentText : palette.secondary,
+              // Reserves the second line on every bar, so the bars all end at one height.
+              ...(lines === 2 ? { minHeight: 32 } : {}),
+            }}
+            className="text-center text-caption"
           >
             {b.label}
           </Text>

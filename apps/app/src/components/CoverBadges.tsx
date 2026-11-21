@@ -186,7 +186,7 @@ export function CoverBadgeRow({ badges, size }: { badges: CoverBadge[]; size: nu
             numberOfLines={1}
             // Covers keep their size at large font sizes; the full words are in the label.
             maxFontSizeMultiplier={large ? 1.5 : 1.2}
-            className={`font-semibold ${large ? 'text-xs' : 'text-[10px]'} ${
+            className={`font-semibold ${large ? 'text-caption' : 'text-caption'} ${
               badge.kind === 'finished'
                 ? 'text-ink'
                 : badge.kind === 'rating'
