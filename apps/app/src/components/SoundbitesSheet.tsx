@@ -24,8 +24,8 @@ export function SoundbitesSheet({
         data={soundbites}
         keyExtractor={(s, i) => `${s.startMs}-${i}`}
         ListHeaderComponent={
-          <Text className="pb-2 text-sm text-muted">
-            {t('Picked by the show. Each plays to its end, then pauses.')}
+          <Text className="pb-2 text-detail text-muted">
+            {t('Picked by the podcast. Each plays to its end, then pauses.')}
           </Text>
         }
         renderItem={({ item, index }) => {
@@ -42,7 +42,7 @@ export function SoundbitesSheet({
               <Text numberOfLines={2} className="flex-1 text-paper">
                 {title}
               </Text>
-              <Text className="text-sm text-muted">{range}</Text>
+              <Text className="text-detail text-muted">{range}</Text>
             </Pressable>
           );
         }}

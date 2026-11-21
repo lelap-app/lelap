@@ -1,7 +1,10 @@
+import { listDownloads } from '@lelap/core';
 import { useRouter } from 'expo-router';
-import { Platform } from 'react-native';
+import { useMemo } from 'react';
 
+import { db } from '../../src/db';
 import { showAlert } from '../../src/dialog';
+import { formatBytes } from '../../src/format';
 import { TextButton, Toggle } from '../../src/components/TextButton';
 import {
   chooseDownloadFolder,
@@ -12,13 +15,20 @@ import {
 import { t } from '../../src/i18n';
 import { CHOOSE_LOCATION } from '../../src/platform/downloads';
 import { LOCAL_FOLDERS } from '../../src/platform/library';
-import { Row, SettingsPage } from '../../src/settings/rows';
+import { useLibrary } from '../../src/player';
+import { LinkRow, Row, SettingsPage } from '../../src/settings/rows';
 import { useSettingsState } from '../../src/settings/state';
 
 /** Settings → Downloads and storage: Wi-Fi and charging rules, the folder, what is kept. */
 export default function DownloadSettings() {
   const router = useRouter();
   const { settings, update } = useSettingsState();
+  const { version } = useLibrary();
+  // `version` is the signal to re-read the database.
+  const kept = useMemo(() => {
+    const done = listDownloads(db).filter((d) => d.state === 'done');
+    return { count: done.length, bytes: done.reduce((sum, d) => sum + d.bytesTotal, 0) };
+  }, [version]);
   return (
     <SettingsPage title={t('Downloads and storage')}>
       {LOCAL_FOLDERS && (
@@ -44,16 +54,15 @@ export default function DownloadSettings() {
         </>
       )}
       <DownloadFolderRow />
-      <Row
-        label={t('Downloads and storage')}
+      <LinkRow
+        label={t('Downloads')}
         detail={
-          Platform.OS === 'web'
-            ? t('What is kept in this browser and how much space it takes.')
-            : t('What is on the phone and how much space it takes.')
+          kept.count === 0
+            ? t('None yet')
+            : `${kept.count === 1 ? t('1 download') : t('{n} downloads', { n: kept.count })} · ${formatBytes(kept.bytes)}`
         }
-      >
-        <TextButton text={t('Open')} onPress={() => router.push('/downloads')} />
-      </Row>
+        onPress={() => router.push('/downloads')}
+      />
     </SettingsPage>
   );
 }

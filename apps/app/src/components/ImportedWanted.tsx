@@ -57,7 +57,7 @@ export function ImportedWantedRow({ onOpen }: { onOpen: (meta: MetaPreview) => v
   return (
     <View className="gap-2">
       <View className="min-h-12 flex-row items-center justify-between gap-2 ps-4 pe-2">
-        <Text accessibilityRole="header" className="flex-1 text-lg font-semibold text-paper">
+        <Text accessibilityRole="header" className="flex-1 text-section font-semibold text-paper">
           {`${t('Want to read')} · Goodreads`}
         </Text>
         <TextButton

@@ -78,7 +78,7 @@ export function DialogHost() {
           className="absolute inset-0"
         />
         <View accessibilityRole="alert" className="w-full max-w-sm gap-3 rounded-2xl bg-raised p-5">
-          <Text accessibilityRole="header" className="text-lg font-semibold text-paper">
+          <Text accessibilityRole="header" className="text-section font-semibold text-paper">
             {dialog.title}
           </Text>
           {dialog.message !== undefined && dialog.message !== '' && (

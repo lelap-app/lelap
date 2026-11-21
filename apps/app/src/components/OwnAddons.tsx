@@ -175,7 +175,7 @@ export function OwnAddonOffer({ offer }: { offer: Offer }) {
   return (
     <View className="gap-1 border-b border-line py-4">
       <View className="flex-row items-center gap-3">
-        <Text className="flex-1 text-base text-paper">{offer.name}</Text>
+        <Text className="flex-1 text-body text-paper">{offer.name}</Text>
         {offer.setUp && (
           <Button
             kind="secondary"
@@ -186,8 +186,8 @@ export function OwnAddonOffer({ offer }: { offer: Offer }) {
           />
         )}
       </View>
-      <Text className="text-sm text-soft">{offer.description}</Text>
-      {offer.note && <Text className="text-xs text-muted">{offer.note}</Text>}
+      <Text className="text-detail text-soft">{offer.description}</Text>
+      {offer.note && <Text className="text-caption text-muted">{offer.note}</Text>}
     </View>
   );
 }

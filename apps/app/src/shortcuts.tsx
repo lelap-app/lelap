@@ -277,12 +277,12 @@ export function ShortcutsHost() {
               key={action}
               className="min-h-12 flex-row items-center justify-between gap-4 border-b border-line"
             >
-              <Text className="flex-1 text-base text-paper">{label(action, skipSeconds)}</Text>
+              <Text className="flex-1 text-body text-paper">{label(action, skipSeconds)}</Text>
               <View className="flex-row gap-2">
                 {keys.map((key) => (
                   <Text
                     key={key}
-                    className="min-w-8 rounded-md border border-line bg-night px-2 py-1 text-center font-mono text-sm text-soft"
+                    className="min-w-8 rounded-md border border-line bg-night px-2 py-1 text-center font-mono text-detail text-soft"
                   >
                     {key === 'Space' ? t('Space') : key}
                   </Text>

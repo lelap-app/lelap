@@ -63,7 +63,7 @@ export default function ProfileScreen() {
     showAlert(
       t('Delete {name}?', { name: profile.name }),
       t(
-        'Their places, bookmarks, Up Next, podcasts and settings go too, on every synced device. Downloads stay.',
+        'Their places, bookmarks, Up next, podcasts and settings go too, on every synced device. Downloads stay.',
       ),
       [
         { text: t('Keep'), style: 'cancel' },
@@ -108,7 +108,7 @@ export default function ProfileScreen() {
         />
       </View>
 
-      <Text accessibilityRole="header" className="text-xs uppercase tracking-wider text-muted">
+      <Text accessibilityRole="header" className="text-caption uppercase tracking-wider text-muted">
         {t('Avatar')}
       </Text>
       <View className="flex-row flex-wrap gap-3">
@@ -137,10 +137,13 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      <Text accessibilityRole="header" className="pt-2 text-xs uppercase tracking-wider text-muted">
+      <Text
+        accessibilityRole="header"
+        className="pt-2 text-caption uppercase tracking-wider text-muted"
+      >
         {t('PIN')}
       </Text>
-      <Text className="text-sm text-muted">
+      <Text className="text-detail text-muted">
         {t(
           'A four-digit PIN keeps others from opening this profile on this device. It doesn’t encrypt anything.',
         )}
@@ -180,7 +183,7 @@ export default function ProfileScreen() {
       <View className="flex-row items-center gap-3 pt-2">
         <View className="flex-1">
           <Text className="text-paper">{t('Kids profile')}</Text>
-          <Text className="text-sm text-muted">
+          <Text className="text-detail text-muted">
             {t(
               'Can’t change add-ons, servers or backups. Sees only the books on its shelf, and streamed books it starts itself.',
             )}
@@ -197,12 +200,12 @@ export default function ProfileScreen() {
         <>
           <Text
             accessibilityRole="header"
-            className="pt-2 text-xs uppercase tracking-wider text-muted"
+            className="pt-2 text-caption uppercase tracking-wider text-muted"
           >
             {t('Shelf')}
           </Text>
           {shelf.length === 0 ? (
-            <Text className="text-sm text-muted">
+            <Text className="text-detail text-muted">
               {t(
                 'Nothing yet. In your own Library, hold a book and choose “Put on a kid’s shelf…”.',
               )}
@@ -227,7 +230,10 @@ export default function ProfileScreen() {
         </>
       )}
 
-      <Text accessibilityRole="header" className="pt-2 text-xs uppercase tracking-wider text-muted">
+      <Text
+        accessibilityRole="header"
+        className="pt-2 text-caption uppercase tracking-wider text-muted"
+      >
         {t('Catalogs this profile sees')}
       </Text>
       {addons.map((a) => (

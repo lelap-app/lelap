@@ -100,7 +100,7 @@ export default function ConvertScreen() {
                 value={feedUrl}
                 onChangeText={setFeedUrl}
                 placeholder={t('Or paste its feed address')}
-                accessibilityLabel={t('Feed address (RSS)')}
+                accessibilityLabel={t('Podcast feed address')}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"

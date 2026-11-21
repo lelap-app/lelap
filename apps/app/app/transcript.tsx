@@ -131,13 +131,13 @@ export default function TranscriptScreen() {
                 {speakerChanged && (
                   <Text
                     accessibilityRole="header"
-                    className="pt-2 text-xs font-semibold uppercase tracking-wider text-muted"
+                    className="pt-2 text-caption font-semibold uppercase tracking-wider text-muted"
                   >
                     {item.speaker}
                   </Text>
                 )}
                 <Text
-                  className={`text-lg leading-7 ${lit ? 'text-amber' : index < current ? 'text-soft' : 'text-paper'}`}
+                  className={`text-section leading-7 ${lit ? 'text-amber' : index < current ? 'text-soft' : 'text-paper'}`}
                 >
                   {item.text}
                 </Text>

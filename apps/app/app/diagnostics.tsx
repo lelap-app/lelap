@@ -89,8 +89,8 @@ export default function DiagnosticsScreen() {
 
       <View className="flex-row items-center gap-4 border-b border-line py-4">
         <View className="flex-1 gap-1">
-          <Text className="text-base text-paper">{label}</Text>
-          <Text className="text-sm text-muted">
+          <Text className="text-body text-paper">{label}</Text>
+          <Text className="text-detail text-muted">
             {t(
               'Errors, player events, failed downloads and scans, add-on and sync trouble, and what the search for speakers and TVs found. The newest {n} events; turning it off deletes them.',
               { n: DIAGNOSTICS_LIMIT },
@@ -103,8 +103,8 @@ export default function DiagnosticsScreen() {
       </View>
 
       <View className="gap-2">
-        <Text className="text-base text-paper">{t('File for a bug report')}</Text>
-        <Text className="text-sm text-muted">
+        <Text className="text-body text-paper">{t('File for a bug report')}</Text>
+        <Text className="text-detail text-muted">
           {t(
             'No titles, file names, addresses, user names, keys or codes. Books, servers and add-ons are numbered instead, such as book#1. You see the whole file before you share it.',
           )}
@@ -120,7 +120,10 @@ export default function DiagnosticsScreen() {
 
       {report !== null && (
         <View className="gap-3">
-          <Text accessibilityRole="header" className="text-xs uppercase tracking-wider text-muted">
+          <Text
+            accessibilityRole="header"
+            className="text-caption uppercase tracking-wider text-muted"
+          >
             {t('What the file contains')}
           </Text>
           <ScrollView
@@ -129,7 +132,10 @@ export default function DiagnosticsScreen() {
             className="rounded-lg border border-line"
             contentContainerStyle={{ padding: 12 }}
           >
-            <Text selectable className={`font-mono text-soft ${wrap ? 'text-sm' : 'text-xs'}`}>
+            <Text
+              selectable
+              className={`font-mono text-soft ${wrap ? 'text-detail' : 'text-caption'}`}
+            >
               {report}
             </Text>
           </ScrollView>

@@ -196,7 +196,7 @@ export function Scrubber({
           {...hint(t('Shows the whole bar again'))}
           className="min-h-12 items-center justify-center"
         >
-          <Text className="text-center text-xs font-semibold text-amber">
+          <Text className="text-center text-caption font-semibold text-amber">
             {t('Zoomed in: {start} to {end}', {
               start: formatClock(zoom.startMs),
               end: formatClock(zoom.endMs),
@@ -205,7 +205,7 @@ export function Scrubber({
         </Pressable>
       )}
       {held?.dragging && held.rate < 1 && (
-        <Text className="text-center text-xs font-semibold text-amber">
+        <Text className="text-center text-caption font-semibold text-amber">
           {t('{rate} scrubbing', { rate: SCRUB_RATE_LABELS[held.rate] ?? '' })}
         </Text>
       )}
@@ -286,12 +286,12 @@ export function Scrubber({
           className="min-h-12 min-w-12 justify-center"
           {...hint(
             onPressElapsed
-              ? t('Jump to a time. Long press to zoom the bar in or out.')
-              : t('Long press to zoom the bar in or out.'),
+              ? t('Jump to a time. Long-press to zoom the bar in or out.')
+              : t('Long-press to zoom the bar in or out.'),
           )}
         >
           <Text
-            className={`text-sm ${held?.dragging ? 'font-semibold text-amber' : 'text-muted'} ${onPressElapsed ? 'underline' : ''}`}
+            className={`text-detail ${held?.dragging ? 'font-semibold text-amber' : 'text-muted'} ${onPressElapsed ? 'underline' : ''}`}
           >
             {formatClock(at)}
           </Text>
@@ -304,10 +304,10 @@ export function Scrubber({
             className="min-h-12 min-w-0 shrink items-center justify-center"
           >
             {/* Wraps between the two times when the text is large. */}
-            <Text className="text-center text-xs text-muted">{middle}</Text>
+            <Text className="text-center text-caption text-muted">{middle}</Text>
           </Pressable>
         )}
-        <Text className="text-sm text-muted">-{formatClock(lengthMs - at)}</Text>
+        <Text className="text-detail text-muted">-{formatClock(lengthMs - at)}</Text>
       </View>
     </View>
   );

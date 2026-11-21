@@ -56,7 +56,7 @@ export function DownloadButton({
         {busy ? (
           <ActivityIndicator color={colors.amber} />
         ) : (
-          <Text className="text-base text-paper">
+          <Text className="text-body text-paper">
             {sizeBytes > 0 ? `${t('Download')} · ${formatBytes(sizeBytes)}` : t('Download')}
           </Text>
         )}

@@ -200,7 +200,7 @@ export function DragHost() {
         style={{ position: 'absolute', start, top: current.y + 12, maxWidth: 240 }}
         className={`rounded-xl border px-3 py-2 ${current.over ? 'border-amber bg-night' : 'border-line bg-raised'}`}
       >
-        <Text numberOfLines={1} className="text-sm text-paper">
+        <Text numberOfLines={1} className="text-detail text-paper">
           {current.label}
         </Text>
       </View>

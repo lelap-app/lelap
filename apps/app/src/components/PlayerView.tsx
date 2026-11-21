@@ -136,7 +136,7 @@ function Tool({
       className="min-h-12 items-center gap-1 rounded-xl px-0.5 py-2 active:bg-raised"
     >
       <Icon name={icon} size={22} color={color} />
-      <Text numberOfLines={2} style={{ color }} className="text-center text-xs font-semibold">
+      <Text numberOfLines={2} style={{ color }} className="text-center text-caption font-semibold">
         {label}
       </Text>
     </Pressable>
@@ -208,13 +208,8 @@ function SleepOption({
       aria-selected={active}
       className={`flex-row items-center gap-3 rounded-xl px-3 py-3.5 active:bg-line ${active ? 'bg-line' : ''}`}
     >
-      <Icon
-        name={muted ? 'close' : 'moon'}
-        size={20}
-        color={active ? colors.amber : muted ? colors.muted : colors.soft}
-      />
       <Text
-        className={`flex-1 text-base ${active ? 'text-amber' : muted ? 'text-muted' : 'text-paper'}`}
+        className={`flex-1 text-body ${active ? 'text-amber' : muted ? 'text-muted' : 'text-paper'}`}
       >
         {label}
       </Text>
@@ -240,7 +235,9 @@ function LiveBadge() {
   return (
     <View className="flex-row items-center justify-center gap-2 py-3">
       <View className="h-2 w-2 rounded-full bg-danger" />
-      <Text className="text-sm font-semibold uppercase tracking-wide text-paper">{t('Live')}</Text>
+      <Text className="text-detail font-semibold uppercase tracking-wide text-paper">
+        {t('Live')}
+      </Text>
     </View>
   );
 }
@@ -465,7 +462,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
           />
         )}
         {chapters.length > 1 && (
-          <Text className="flex-1 text-center text-xs uppercase tracking-widest text-muted">
+          <Text className="flex-1 text-center text-caption uppercase tracking-widest text-muted">
             {t('Chapter {n} of {total}', { n: current + 1, total: chapters.length })}
           </Text>
         )}
@@ -513,7 +510,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
           <Text
             accessibilityRole="header"
             numberOfLines={2}
-            className="text-xl font-semibold text-paper"
+            className="text-heading font-semibold text-paper"
           >
             {detail.book.title}
           </Text>
@@ -543,7 +540,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
               {...hint(t('Opens the series'))}
               className="min-h-12 justify-center"
             >
-              <Text numberOfLines={1} className="text-sm text-amber">
+              <Text numberOfLines={1} className="text-detail text-amber">
                 {series.position
                   ? t('{series}, book {n}', { series: series.name, n: series.position })
                   : series.name}
@@ -552,7 +549,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
           )}
           {/* The narrator and the language a server gives (M135). */}
           {(detail.narrator !== null || detail.language !== null) && (
-            <Text numberOfLines={1} className="text-sm text-muted">
+            <Text numberOfLines={1} className="text-detail text-muted">
               {[
                 detail.narrator !== null ? t('Read by {names}', { names: detail.narrator }) : null,
                 detail.language !== null ? languageName(detail.language) : null,
@@ -570,7 +567,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
               {...hint(about ? t('Shows less') : t('Shows all of it'))}
               className="min-h-12 justify-center"
             >
-              <Text numberOfLines={about ? undefined : 2} className="text-sm text-soft">
+              <Text numberOfLines={about ? undefined : 2} className="text-detail text-soft">
                 {detail.description}
               </Text>
             </Pressable>
@@ -664,19 +661,22 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
       </View>
 
       {state.waitingForCall && (
-        <Text className="pb-2 text-center text-sm text-amber">
+        <Text className="pb-2 text-center text-detail text-amber">
           {t('Starts when the call ends')}
         </Text>
       )}
       {state.preparingUntil !== null && <PreparingLine until={state.preparingUntil} />}
       {state.error !== null && (
-        <Text accessibilityLiveRegion="assertive" className="pb-2 text-center text-sm text-danger">
+        <Text
+          accessibilityLiveRegion="assertive"
+          className="pb-2 text-center text-detail text-danger"
+        >
           {state.error}
         </Text>
       )}
       {localNetworkCause !== null && bookId !== null && (
         <View className="items-center gap-2 pb-2">
-          <Text className="text-center text-sm text-soft">{localNetworkCause}</Text>
+          <Text className="text-center text-detail text-soft">{localNetworkCause}</Text>
           <TextButton
             text={t('Allow')}
             onPress={() =>
@@ -711,7 +711,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
             {
               key: 'sleep',
               icon: 'moon',
-              label: timer === null ? t('Sleep') : `${timerPrefix}${formatClock(timer)}`,
+              label: timer === null ? t('Sleep timer') : `${timerPrefix}${formatClock(timer)}`,
               active: timer !== null,
               shown: true,
               onPress: () => setSheet('sleep'),
@@ -906,7 +906,12 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
             ))}
           </View>
         </Sheet>
-        <Sheet visible={sheet === 'sleep'} title={t('Sleep timer')} onClose={() => setSheet(null)}>
+        <Sheet
+          visible={sheet === 'sleep'}
+          title={t('Sleep timer')}
+          icon="moon"
+          onClose={() => setSheet(null)}
+        >
           {timer !== null && (
             <Text className="pb-3 text-amber">
               {state.sleepTimerMode === 'chapter'
@@ -951,7 +956,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
             )}
           </View>
           {Platform.OS === 'android' && shakeToExtend && (
-            <Text className="pb-2 text-sm text-muted">
+            <Text className="pb-2 text-detail text-muted">
               {t('In the last five minutes, shake the phone for ten more.')}
             </Text>
           )}
@@ -967,7 +972,7 @@ export function PlayerView({ pane = false, below }: { pane?: boolean; below?: nu
                 />
               ))}
             </View>
-            <Text className="text-sm text-muted">
+            <Text className="text-detail text-muted">
               {detail.book.source === 'feed'
                 ? t(
                     'Now at {time} in the episode. Type a time to go there, such as 2:14:30, 14:30 or 90 (minutes).',

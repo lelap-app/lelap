@@ -46,11 +46,11 @@ export function ScreenHeader({
         {action}
       </View>
       {title !== undefined && (
-        <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
+        <Text accessibilityRole="header" className="text-title font-semibold text-paper">
           {title}
         </Text>
       )}
-      {subtitle !== undefined && <Text className="text-sm text-muted">{subtitle}</Text>}
+      {subtitle !== undefined && <Text className="text-detail text-muted">{subtitle}</Text>}
       {children}
     </View>
   );

@@ -44,7 +44,7 @@ export function CastSheet({
           {cast.state === 'connecting' && <ActivityIndicator color={colors.amber} />}
         </View>
         {casting.error !== null && (
-          <Text accessibilityLiveRegion="assertive" className="text-sm text-danger">
+          <Text accessibilityLiveRegion="assertive" className="text-detail text-danger">
             {casting.error}
           </Text>
         )}

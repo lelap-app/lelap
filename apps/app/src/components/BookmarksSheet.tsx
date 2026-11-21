@@ -98,7 +98,7 @@ export function BookmarkRow({
       <Text className="w-20 text-amber">{formatClock(bookmark.bookPositionMs)}</Text>
       <View className="flex-1 gap-0.5">
         {above !== undefined && (
-          <Text numberOfLines={1} className="text-sm text-soft">
+          <Text numberOfLines={1} className="text-detail text-soft">
             {above}
           </Text>
         )}
@@ -166,7 +166,9 @@ export function BookmarksSheet({
         <>
           {canShare && (
             <View className="flex-row flex-wrap items-center gap-x-2 pb-2">
-              <Text className="flex-1 text-sm text-muted">{t('Share a link to this place:')}</Text>
+              <Text className="flex-1 text-detail text-muted">
+                {t('Share a link to this place:')}
+              </Text>
               <TextButton text={t('From here')} onPress={onShareHere} />
               <TextButton text={t('Last 30 seconds')} onPress={onShareClip} />
             </View>
@@ -191,8 +193,8 @@ export function BookmarksSheet({
                 />
               )}
               ListFooterComponent={
-                <Text className="py-2 text-xs text-muted">
-                  {t('Long press a bookmark to change its note, share it or delete it.')}
+                <Text className="py-2 text-caption text-muted">
+                  {t('Long-press a bookmark to change its note, share it or delete it.')}
                 </Text>
               }
             />

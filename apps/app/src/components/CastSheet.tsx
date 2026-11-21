@@ -248,18 +248,18 @@ export function CastSheet({
         </View>
       )}
       {casting.notice !== null && (
-        <Text accessibilityLiveRegion="polite" className="pb-3 text-sm text-muted">
+        <Text accessibilityLiveRegion="polite" className="pb-3 text-detail text-muted">
           {casting.notice}
         </Text>
       )}
       {casting.error !== null && (
         <View className="gap-3 pb-3">
-          <Text accessibilityLiveRegion="assertive" className="text-sm text-danger">
+          <Text accessibilityLiveRegion="assertive" className="text-detail text-danger">
             {casting.error}
           </Text>
           {casting.untrusted && (
             <>
-              <Text className="text-sm text-muted">
+              <Text className="text-detail text-muted">
                 {t(
                   'Someone on this Wi-Fi may be posing as the speaker. If it’s yours, connect anyway; Lelap asks again after a restart.',
                 )}
@@ -323,7 +323,7 @@ export function CastSheet({
                   )}
                   <Chip label={t('Cancel')} onPress={() => setGroup(null)} />
                   {chosen.length < 2 && (
-                    <Text className="flex-1 text-sm text-muted">
+                    <Text className="flex-1 text-detail text-muted">
                       {t('Tick two or more. They play the book together, kept in step.')}
                     </Text>
                   )}
@@ -347,7 +347,7 @@ export function CastSheet({
                     <Text numberOfLines={1} className="text-paper">
                       {name}
                     </Text>
-                    <Text numberOfLines={1} className="text-xs text-muted">
+                    <Text numberOfLines={1} className="text-caption text-muted">
                       {t('Played together before')}
                     </Text>
                   </View>
@@ -392,7 +392,7 @@ export function CastSheet({
                     <Text numberOfLines={1} className={highlighted ? 'text-amber' : 'text-paper'}>
                       {device.name}
                     </Text>
-                    <Text numberOfLines={1} className="text-xs text-muted">
+                    <Text numberOfLines={1} className="text-caption text-muted">
                       {[device.model, KIND[device.kind]].filter(Boolean).join(' · ')}
                     </Text>
                   </View>
@@ -437,7 +437,7 @@ export function CastSheet({
             <View className="gap-3 py-3">
               <Text className="text-paper">{t('No speakers or TVs found on this Wi-Fi.')}</Text>
               {unreachable > 0 && (
-                <Text className="text-sm text-muted">
+                <Text className="text-detail text-muted">
                   {unreachable === 1
                     ? t('Lelap found 1 Google Cast or FCast device but couldn’t reach it.')
                     : t('Lelap found {n} Google Cast or FCast devices but couldn’t reach them.', {
@@ -445,7 +445,7 @@ export function CastSheet({
                       })}
                 </Text>
               )}
-              <Text className="text-sm text-muted">
+              <Text className="text-detail text-muted">
                 {t(
                   'Check that the speaker or TV is on and on the same Wi-Fi as this phone. Guest networks, some mesh and office networks, and a VPN on the phone stop devices from seeing each other.',
                 )}
@@ -457,7 +457,7 @@ export function CastSheet({
           ) : (
             <View className="flex-row items-center gap-3 py-3">
               <ActivityIndicator color={colors.muted} />
-              <Text className="flex-1 text-sm text-muted">
+              <Text className="flex-1 text-detail text-muted">
                 {t(
                   'Looking for speakers and TVs on this Wi-Fi. Sonos, DLNA, Google Cast and FCast receivers play the book themselves; files on this phone are shared with them only while casting.',
                 )}

@@ -18,9 +18,11 @@ import { useLibrary } from '../../src/player';
 import { exportOpml, importOpml, refreshPodcasts, subscribeToFeed } from '../../src/podcasts';
 import { readPickedText, shareText } from '../../src/platform/files';
 import { activeProfile, profileId } from '../../src/profile';
+import { IconButton } from '../../src/components/Icon';
 import { TextButton } from '../../src/components/TextButton';
 import { LIST_COLUMN } from '../../src/layout';
 import { useColors } from '../../src/theme';
+import { TabHeader } from '../../src/components/TabHeader';
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -82,7 +84,7 @@ export default function PodcastsScreen() {
       className="flex-1 bg-night"
       data={subs}
       keyExtractor={(s) => s.podcastId}
-      contentContainerStyle={{ ...LIST_COLUMN, paddingTop: insets.top + 8, paddingBottom: 24 }}
+      contentContainerStyle={{ ...LIST_COLUMN, paddingTop: insets.top + 12, paddingBottom: 24 }}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -91,52 +93,56 @@ export default function PodcastsScreen() {
         />
       }
       ListHeaderComponent={
-        <View className="gap-4 px-4 pb-4">
-          <View className="flex-row items-center justify-between">
-            <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
-              {t('Podcasts')}
-            </Text>
-            <TextButton text={t('Up Next')} onPress={() => router.push('/up-next')} />
-          </View>
-          {/* Kids subscribe from the catalogs they are allowed; feed addresses and OPML stay with grown-ups. */}
-          {!kids && (
-            <>
-              <View className="flex-row items-center gap-2">
-                <TextField
-                  value={feedUrl}
-                  onChangeText={setFeedUrl}
-                  placeholder={t('Feed address (RSS)')}
-                  accessibilityLabel={t('Feed address (RSS)')}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="url"
-                  onSubmitEditing={() => void add()}
-                  className="flex-1"
-                />
-                <Button
-                  kind="secondary"
-                  size="sm"
-                  text={t('Add')}
-                  disabled={feedUrl.trim() === ''}
-                  busy={busy}
-                  onPress={() => void add()}
-                />
-              </View>
-              <View className="flex-row gap-4">
-                <TextButton
-                  text={t('Import OPML')}
-                  disabled={busy}
-                  onPress={() => void importFile()}
-                />
-                {subs.length > 0 && (
-                  <TextButton
-                    text={t('Export OPML')}
-                    onPress={() => void shareText('lelap-subscriptions.opml', exportOpml())}
+        <View className="gap-4 pb-4">
+          <TabHeader title={t('Podcasts')}>
+            <IconButton
+              name="queue"
+              label={t('Up next')}
+              color={colors.soft}
+              onPress={() => router.push('/up-next')}
+            />
+          </TabHeader>
+          <View className="gap-4 px-4">
+            {/* Kids subscribe from the catalogs they are allowed; feed addresses and OPML stay with grown-ups. */}
+            {!kids && (
+              <>
+                <View className="flex-row items-center gap-2">
+                  <TextField
+                    value={feedUrl}
+                    onChangeText={setFeedUrl}
+                    placeholder={t('Podcast feed address')}
+                    accessibilityLabel={t('Podcast feed address')}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="url"
+                    onSubmitEditing={() => void add()}
+                    className="flex-1"
                   />
-                )}
-              </View>
-            </>
-          )}
+                  <Button
+                    kind="secondary"
+                    size="sm"
+                    text={t('Add')}
+                    disabled={feedUrl.trim() === ''}
+                    busy={busy}
+                    onPress={() => void add()}
+                  />
+                </View>
+                <View className="flex-row gap-4">
+                  <TextButton
+                    text={t('Import subscriptions')}
+                    disabled={busy}
+                    onPress={() => void importFile()}
+                  />
+                  {subs.length > 0 && (
+                    <TextButton
+                      text={t('Export subscriptions')}
+                      onPress={() => void shareText('lelap-subscriptions.opml', exportOpml())}
+                    />
+                  )}
+                </View>
+              </>
+            )}
+          </View>
         </View>
       }
       ListEmptyComponent={
@@ -173,10 +179,10 @@ export default function PodcastsScreen() {
           >
             <BookCover uri={sub.coverUrl} title={sub.title} size={56} badges={badges} />
             <View className="flex-1 gap-1">
-              <Text numberOfLines={2} className="text-base text-paper">
+              <Text numberOfLines={2} className="text-body text-paper">
                 {sub.title}
               </Text>
-              <Text numberOfLines={1} className="text-sm text-muted">
+              <Text numberOfLines={1} className="text-detail text-muted">
                 {status}
               </Text>
             </View>

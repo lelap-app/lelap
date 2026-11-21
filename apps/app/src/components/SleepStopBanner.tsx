@@ -70,7 +70,7 @@ export function SleepStopBanner({
       accessibilityLiveRegion="polite"
       className={`gap-3 rounded-xl border border-line bg-raised px-4 py-3 ${className}`}
     >
-      <Text className="text-sm text-soft">
+      <Text className="text-detail text-soft">
         {t('The sleep timer stopped playback at {clock}.', { clock: clockOf(stop.stoppedAt) })}
       </Text>
       {lastUsed && (
@@ -80,7 +80,7 @@ export function SleepStopBanner({
           className="min-h-12 justify-center rounded-lg bg-amber px-4 py-2 active:opacity-80"
         >
           <Text className="font-semibold text-ink">{t('Back to when you last used it')}</Text>
-          <Text className="text-sm text-ink">
+          <Text className="text-detail text-ink">
             {t('{clock}, {n} min before it stopped', {
               clock: clockOf(lastUsed.at),
               n: Math.round(lastUsed.beforeStopMs / 60_000),

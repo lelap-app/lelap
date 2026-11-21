@@ -6,7 +6,7 @@ import { formatTimeOfDay } from '../format';
 import { t } from '../i18n';
 import { READABLE, useWide } from '../layout';
 import { useColors } from '../theme';
-import { Icon } from '../components/Icon';
+import { Icon, IconButton } from '../components/Icon';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { MiniPlayer } from '../components/MiniPlayer';
 import { Pill } from '../components/Pill';
@@ -38,12 +38,35 @@ export function SettingsPage({ title, children }: { title: string; children: Rea
   );
 }
 
-/** A small heading over a few rows of a settings page. */
-export function SectionHeader({ text }: { text: string }) {
-  return (
-    <Text accessibilityRole="header" className="pt-6 text-xs uppercase tracking-wider text-muted">
+/**
+ * A settings page's second heading level, in small capitals over a few rows. `about` puts an
+ * information button beside it.
+ */
+export function SectionHeader({
+  text,
+  about,
+}: {
+  text: string;
+  about?: { label: string; onPress: () => void };
+}) {
+  const colors = useColors();
+  const heading = (
+    <Text accessibilityRole="header" className="text-caption uppercase tracking-wider text-muted">
       {text}
     </Text>
+  );
+  if (!about) return <View className="pt-6">{heading}</View>;
+  return (
+    <View className="-mb-3 flex-row items-center pt-3">
+      {heading}
+      <IconButton
+        name="info"
+        size={18}
+        label={about.label}
+        color={colors.muted}
+        onPress={about.onPress}
+      />
+    </View>
   );
 }
 
@@ -65,16 +88,21 @@ export function Choice({
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       aria-selected={active}
-      className={`flex-row items-center gap-2 rounded-full border px-4 py-2 ${active ? 'border-amber bg-amber' : 'border-line'}`}
+      // A chosen accent keeps its dot: filled with the accent itself, the dot would vanish.
+      className={`flex-row items-center gap-2 rounded-full border px-4 py-2 ${
+        active
+          ? swatch === undefined
+            ? 'border-amber bg-amber'
+            : 'border-2 border-amber'
+          : 'border-line'
+      }`}
     >
       {swatch !== undefined && (
-        <View
-          aria-hidden
-          style={{ backgroundColor: swatch }}
-          className={`h-3 w-3 rounded-full ${active ? 'border border-ink' : ''}`}
-        />
+        <View aria-hidden style={{ backgroundColor: swatch }} className="h-3 w-3 rounded-full" />
       )}
-      <Text className={active ? 'text-ink' : 'text-soft'}>{label}</Text>
+      <Text className={active ? (swatch === undefined ? 'text-ink' : 'text-paper') : 'text-soft'}>
+        {label}
+      </Text>
     </Pill>
   );
 }
@@ -91,11 +119,43 @@ export function Row({
   return (
     <View className="flex-row items-center gap-4 border-b border-line py-4">
       <View className="flex-1 gap-1">
-        <Text className="text-base text-paper">{label}</Text>
-        {detail !== undefined && <Text className="text-sm text-muted">{detail}</Text>}
+        <Text className="text-body text-paper">{label}</Text>
+        {detail !== undefined && <Text className="text-detail text-muted">{detail}</Text>}
       </View>
       <RowLabel.Provider value={label}>{children}</RowLabel.Provider>
     </View>
+  );
+}
+
+/**
+ * A row that opens another screen: the whole row is the button, with what is there now as its
+ * detail and a chevron at the end. Amber words in a row only act, they never navigate (M149).
+ */
+export function LinkRow({
+  label,
+  detail,
+  onPress,
+}: {
+  label: string;
+  detail?: string | undefined;
+  onPress: () => void;
+}) {
+  const colors = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={detail ? `${label}, ${detail}` : label}
+      className="min-h-12 flex-row items-center gap-4 border-b border-line py-4 active:bg-raised"
+    >
+      <View className="flex-1 gap-1">
+        <Text className="text-body text-paper">{label}</Text>
+        {detail !== undefined && detail !== '' && (
+          <Text className="text-detail text-muted">{detail}</Text>
+        )}
+      </View>
+      <Icon name="forward" size={20} color={colors.muted} />
+    </Pressable>
   );
 }
 
@@ -125,8 +185,8 @@ export function GroupLine({
       className="min-h-12 flex-row items-center gap-4 border-b border-line py-4 active:bg-raised"
     >
       <View className="flex-1 gap-1">
-        <Text className="text-base text-paper">{title}</Text>
-        {summary !== '' && <Text className="text-sm text-muted">{summary}</Text>}
+        <Text className="text-body text-paper">{title}</Text>
+        {summary !== '' && <Text className="text-detail text-muted">{summary}</Text>}
       </View>
       <Icon name="forward" size={20} color={colors.muted} />
     </Pressable>
@@ -153,11 +213,14 @@ export function TimeStepper({
         accessibilityLabel={t('{time}, 30 minutes earlier', { time: label })}
         className="h-12 w-12 items-center justify-center rounded-full border border-line active:bg-raised"
       >
-        <Text maxFontSizeMultiplier={1.5} className="text-lg text-paper">
+        <Text maxFontSizeMultiplier={1.5} className="text-section text-paper">
           −
         </Text>
       </Pressable>
-      <Text accessibilityLiveRegion="polite" className="min-w-16 text-center text-lg text-paper">
+      <Text
+        accessibilityLiveRegion="polite"
+        className="min-w-16 text-center text-section text-paper"
+      >
         {formatTimeOfDay(minutes)}
       </Text>
       <Pressable
@@ -166,7 +229,7 @@ export function TimeStepper({
         accessibilityLabel={t('{time}, 30 minutes later', { time: label })}
         className="h-12 w-12 items-center justify-center rounded-full border border-line active:bg-raised"
       >
-        <Text maxFontSizeMultiplier={1.5} className="text-lg text-paper">
+        <Text maxFontSizeMultiplier={1.5} className="text-section text-paper">
           +
         </Text>
       </Pressable>

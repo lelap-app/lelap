@@ -11,6 +11,7 @@ import { Platform } from 'react-native';
 
 import { serversChanged } from '../../src/addresses';
 import { codeFingerprint } from '../../src/addonSources';
+import { useAddons } from '../../src/addons';
 import { TextButton, Toggle } from '../../src/components/TextButton';
 import { db } from '../../src/db';
 import { showAlert } from '../../src/dialog';
@@ -21,7 +22,7 @@ import { useLibrary } from '../../src/player';
 import { activeProfile } from '../../src/profile';
 import { closeSandbox } from '../../src/sandbox';
 import { chooseFolder, scanLibrary } from '../../src/scan';
-import { Row, SectionHeader, SettingsPage } from '../../src/settings/rows';
+import { LinkRow, Row, SectionHeader, SettingsPage } from '../../src/settings/rows';
 import { useSettingsState } from '../../src/settings/state';
 
 /** Settings → Library and sources: the audiobooks folder, servers, add-ons and Home's suggestions. */
@@ -35,6 +36,7 @@ export default function LibrarySettings() {
   const root = useMemo(() => localRoot(db), [version]);
   const servers = useMemo(() => listRoots(db).filter((r) => r.remote !== null), [version]);
   const needsLocalNetwork = useNeedsLocalNetwork();
+  const addons = useAddons();
 
   const rescan = async () => {
     setScanning(true);
@@ -193,9 +195,18 @@ export default function LibrarySettings() {
       )}
 
       <SectionHeader text={t('Catalogs')} />
-      <Row label={t('Add-ons')} detail={t('Where Home, Discover and Search look for books.')}>
-        <TextButton text={t('Manage')} onPress={() => router.push('/addons')} />
-      </Row>
+      {/* The add-on count lived on Home until M149. */}
+      <LinkRow
+        label={t('Add-ons')}
+        detail={
+          addons.length === 0
+            ? t('None yet')
+            : addons.length === 1
+              ? t('1 add-on')
+              : t('{n} add-ons', { n: addons.length })
+        }
+        onPress={() => router.push('/addons')}
+      />
       <Row
         label={t('Suggestions on Home')}
         detail={

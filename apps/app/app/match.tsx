@@ -124,7 +124,7 @@ export default function MatchScreen() {
               />
             </View>
             {query.length < 2 && (
-              <Text className="text-xs text-muted">
+              <Text className="text-caption text-muted">
                 {t('The search goes to your add-ons when you send it.')}
               </Text>
             )}

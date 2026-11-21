@@ -79,7 +79,7 @@ export default function SyncScreen() {
       <ScreenHeader title={t('Sync')} />
       <Text className="text-soft">
         {t(
-          'Your places, bookmarks, streamed books, podcasts and Up Next follow you between your devices. Everything is encrypted on this device with a key only your devices have; the server stores what it cannot read. No account.',
+          'Your places, bookmarks, streamed books, podcasts and Up next follow you between your devices. Everything is encrypted on this device with a key only your devices have; the server stores what it cannot read. No account.',
         )}
       </Text>
 
@@ -101,7 +101,7 @@ export default function SyncScreen() {
           <View className="gap-2">
             <Text
               accessibilityRole="header"
-              className="text-xs uppercase tracking-wider text-muted"
+              className="text-caption uppercase tracking-wider text-muted"
             >
               {t('This device')}
             </Text>
@@ -122,7 +122,7 @@ export default function SyncScreen() {
           <View className="gap-2">
             <Text
               accessibilityRole="header"
-              className="text-xs uppercase tracking-wider text-muted"
+              className="text-caption uppercase tracking-wider text-muted"
             >
               {t('Or join with a code from another device')}
             </Text>
@@ -171,10 +171,10 @@ export default function SyncScreen() {
             <Text className="text-paper">{t('Add a device')}</Text>
             {offered && left > 0 ? (
               <>
-                <Text selectable className="font-mono text-3xl tracking-widest text-amber">
+                <Text selectable className="font-mono text-title tracking-widest text-amber">
                   {offered.code}
                 </Text>
-                <Text className="text-sm text-muted">
+                <Text className="text-detail text-muted">
                   {t(
                     'Type this on the other device under Settings → People and devices → Sync → Join. Works once, for {time} more.',
                     { time: `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` },
@@ -199,7 +199,7 @@ export default function SyncScreen() {
 
           <View className="gap-2 rounded-xl border border-line p-3">
             <Text className="text-paper">{t('Remove a lost device')}</Text>
-            <Text className="text-sm text-muted">
+            <Text className="text-detail text-muted">
               {t(
                 "Starts a new sync group with a new key and deletes the old one from the server, so a lost or sold device can't read anything from now on. Your other devices stop syncing until you add them again with a pairing code.",
               )}

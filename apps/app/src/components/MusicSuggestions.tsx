@@ -67,7 +67,7 @@ export function MusicReview({
   };
   return (
     <Sheet visible title={t('Looks like music')} onClose={onClose}>
-      <Text className="px-2 pb-2 text-sm text-muted">
+      <Text className="px-2 pb-2 text-detail text-muted">
         {t('Nothing is deleted. Find hidden items under Hidden in the Library.')}
       </Text>
       <ScrollView>
@@ -87,7 +87,7 @@ export function MusicReview({
                 <Text numberOfLines={2} className="text-paper">
                   {book.title}
                 </Text>
-                <Text numberOfLines={1} className="text-xs text-muted">
+                <Text numberOfLines={1} className="text-caption text-muted">
                   {[book.author, book.durationMs > 0 ? formatDuration(book.durationMs) : null]
                     .filter(Boolean)
                     .join(' · ')}

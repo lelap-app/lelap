@@ -92,7 +92,7 @@ export default function YearScreen() {
               <YearCard ref={card} year={year} palette={palette} width={cardWidth} />
             </View>
             <Button text={t('Share as image')} onPress={share} busy={sharing} className="mt-4" />
-            <Text style={{ color: palette.secondary }} className="pt-2 text-xs">
+            <Text style={{ color: palette.secondary }} className="pt-2 text-caption">
               {failed
                 ? t('The image could not be shared. Try again.')
                 : t('The image is made on this device and only leaves it when you share it.')}
@@ -169,7 +169,7 @@ export default function YearScreen() {
                     <Text
                       accessibilityLabel={formatLongDate(dayDate(b.day))}
                       style={{ color: palette.secondary }}
-                      className="text-sm"
+                      className="text-detail"
                     >
                       {formatDayMonth(dayDate(b.day))}
                     </Text>
@@ -189,7 +189,7 @@ export default function YearScreen() {
                     <Text numberOfLines={1} style={{ color: palette.text }} className="flex-1">
                       {b.title || t('Untitled')}
                     </Text>
-                    <Text style={{ color: palette.secondary }} className="text-sm">
+                    <Text style={{ color: palette.secondary }} className="text-detail">
                       {listenedText(b.ms)}
                     </Text>
                   </View>

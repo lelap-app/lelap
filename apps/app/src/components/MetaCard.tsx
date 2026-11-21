@@ -43,7 +43,7 @@ export function SourceBadge({ availability }: { availability: Availability | und
         : 'text-muted';
   return (
     <View className={`self-start rounded-full border px-1.5 py-px ${style}`}>
-      <Text numberOfLines={1} className={`text-[10px] font-semibold ${text}`}>
+      <Text numberOfLines={1} className={`text-caption font-semibold ${text}`}>
         {badgeLabel(availability)}
       </Text>
     </View>
@@ -98,11 +98,11 @@ export const MetaTile = memo(function MetaTile({
             <SourceBadge availability={availability} />
           </View>
         </View>
-        <Text numberOfLines={2} className="text-sm text-paper">
+        <Text numberOfLines={2} className="text-detail text-paper">
           {meta.name}
         </Text>
         {meta.author !== undefined && (
-          <Text numberOfLines={1} className="text-xs text-muted">
+          <Text numberOfLines={1} className="text-caption text-muted">
             {meta.author}
           </Text>
         )}
@@ -141,10 +141,10 @@ export const MetaListRow = memo(function MetaListRow({
       >
         <BookCover uri={cover} title={meta.name} size={56} badges={badges} />
         <View className="flex-1 gap-1">
-          <Text numberOfLines={2} className="text-base text-paper">
+          <Text numberOfLines={2} className="text-body text-paper">
             {meta.name}
           </Text>
-          <Text numberOfLines={1} className="text-sm text-muted">
+          <Text numberOfLines={1} className="text-detail text-muted">
             {[meta.author, meta.durationMs ? formatDuration(meta.durationMs) : undefined]
               .filter(Boolean)
               .join(' · ')}

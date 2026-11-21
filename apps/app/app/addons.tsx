@@ -101,9 +101,9 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
   return (
     <View className="gap-1 border-b border-line py-4">
       <View className="flex-row items-center gap-3">
-        <Text className="flex-1 text-base text-paper">
+        <Text className="flex-1 text-body text-paper">
           {addon.manifest.name}
-          <Text className="text-sm text-muted"> {addon.manifest.version}</Text>
+          <Text className="text-detail text-muted"> {addon.manifest.version}</Text>
         </Text>
         {isConfigurable(addon.manifest) && (
           <Button
@@ -131,7 +131,7 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
         />
       </View>
       {addon.manifest.description !== '' && (
-        <Text className="text-sm text-soft">{addon.manifest.description}</Text>
+        <Text className="text-detail text-soft">{addon.manifest.description}</Text>
       )}
       {block ? (
         <UpgradeNotice name={addon.manifest.name} block={block} className="pt-1" />
@@ -142,31 +142,33 @@ function AddonRow({ addon, onMore }: { addon: InstalledAddon; onMore: () => void
               style={{ backgroundColor: stateColor(colors)[state] }}
               className="h-2 w-2 rounded-full"
             />
-            <Text className="text-xs text-soft">{stateLabel()[state]}</Text>
+            <Text className="text-caption text-soft">{stateLabel()[state]}</Text>
           </View>
           {healthLines(health, Date.now()).map((line) => (
-            <Text key={line} className="text-xs text-muted">
+            <Text key={line} className="text-caption text-muted">
               {line}
             </Text>
           ))}
         </>
       )}
       {needsConfiguration(addon.manifest) && (
-        <Text className="text-xs text-amber">{t('Needs settings before it can be used.')}</Text>
+        <Text className="text-caption text-amber">
+          {t('Needs settings before it can be used.')}
+        </Text>
       )}
       {settingsAgain && (
-        <Text className="text-xs text-amber">
+        <Text className="text-caption text-amber">
           {t(
             'Enter its settings again on this device. Until then, what you listen to waits here for up to 30 days.',
           )}
         </Text>
       )}
       {newer && (
-        <Text className="text-xs text-muted">
+        <Text className="text-caption text-muted">
           {t('Made for a newer Lelap; update the app to use all of it.')}
         </Text>
       )}
-      <Text numberOfLines={1} className="text-xs text-muted">
+      <Text numberOfLines={1} className="text-caption text-muted">
         {addon.url.replace(/\/(e1|e2|p1)\.[A-Za-z0-9_-]+\//, '/…/')}
       </Text>
     </View>
@@ -306,7 +308,10 @@ function AddonsManager() {
         )}
       />
 
-      <Text accessibilityRole="header" className="pt-2 text-xs uppercase tracking-wider text-muted">
+      <Text
+        accessibilityRole="header"
+        className="pt-2 text-caption uppercase tracking-wider text-muted"
+      >
         {t('Add an add-on')}
       </Text>
       <View className="flex-row items-center gap-3 pb-2 pt-2">
@@ -331,7 +336,10 @@ function AddonsManager() {
         />
       </View>
 
-      <Text accessibilityRole="header" className="pt-6 text-xs uppercase tracking-wider text-muted">
+      <Text
+        accessibilityRole="header"
+        className="pt-6 text-caption uppercase tracking-wider text-muted"
+      >
         {t('Installed')}
       </Text>
       {addons.map((addon) => (
@@ -342,7 +350,7 @@ function AddonsManager() {
       {offers.length > 0 && (
         <Text
           accessibilityRole="header"
-          className="pt-6 text-xs uppercase tracking-wider text-muted"
+          className="pt-6 text-caption uppercase tracking-wider text-muted"
         >
           {t('Comes with Lelap')}
         </Text>
@@ -351,7 +359,7 @@ function AddonsManager() {
         <OwnAddonOffer key={offer.key} offer={offer} />
       ))}
 
-      <Text className="pt-3 text-xs text-muted">
+      <Text className="pt-3 text-caption text-muted">
         {t('Health shows how each add-on answered since Lelap started. It stays on this device.')}
       </Text>
       <ActionSheet

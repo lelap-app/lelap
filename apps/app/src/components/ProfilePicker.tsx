@@ -67,7 +67,7 @@ export function ProfilePicker({
       style={{ paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }}
       className="flex-1 items-center gap-8 bg-night px-6"
     >
-      <Text accessibilityRole="header" className="text-3xl font-semibold text-paper">
+      <Text accessibilityRole="header" className="text-title font-semibold text-paper">
         {asking ? asking.name : t('Who’s listening?')}
       </Text>
       {asking ? (

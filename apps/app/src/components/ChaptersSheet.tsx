@@ -88,7 +88,7 @@ function FindChapters({ silences }: { silences: FoundChapters }) {
 function Footer({ silences, own }: { silences: FoundChapters; own: OwnChapters }) {
   return (
     <View className="flex-row flex-wrap items-center gap-x-3 pt-2">
-      <Text className="min-w-40 flex-1 text-sm text-muted">
+      <Text className="min-w-40 flex-1 text-detail text-muted">
         {own.own
           ? t('Your own chapters.')
           : silences.found
@@ -162,7 +162,7 @@ export function ChaptersSheet({
               >
                 {item.title}
               </Text>
-              <Text className="text-sm text-muted">{formatClock(item.startMs)}</Text>
+              <Text className="text-detail text-muted">{formatClock(item.startMs)}</Text>
             </Pressable>
           )}
         />

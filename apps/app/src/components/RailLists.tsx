@@ -43,7 +43,7 @@ function RailList({ list }: { list: Playlist }) {
             />
             <Text
               numberOfLines={2}
-              className={`text-center text-xs ${lit ? 'text-amber' : 'text-soft'}`}
+              className={`text-center text-caption ${lit ? 'text-amber' : 'text-soft'}`}
             >
               {added ? t('Added') : list.name}
             </Text>
@@ -67,7 +67,7 @@ export function RailLists() {
     <View className="flex-1 border-t border-line pt-2">
       <Text
         accessibilityRole="header"
-        className="px-1 pb-1 text-center text-xs uppercase tracking-wider text-muted"
+        className="px-1 pb-1 text-center text-caption uppercase tracking-wider text-muted"
       >
         {t('Lists')}
       </Text>

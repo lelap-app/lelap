@@ -36,7 +36,7 @@ export function TextField({
         setFocused(false);
         onBlur?.(e);
       }}
-      className={`min-h-12 min-w-0 rounded-lg border px-3 py-2 text-base text-paper ${focused ? 'border-amber' : 'border-line'} ${mono ? 'font-mono' : ''} ${className}`}
+      className={`min-h-12 min-w-0 rounded-lg border px-3 py-2 text-body text-paper ${focused ? 'border-amber' : 'border-line'} ${mono ? 'font-mono' : ''} ${className}`}
     />
   );
 }

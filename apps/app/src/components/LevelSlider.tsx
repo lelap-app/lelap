@@ -64,12 +64,12 @@ export function LevelSlider({
   return (
     <View className="gap-1">
       <View className="flex-row items-center justify-between gap-4">
-        <Text className="text-base text-paper">{label}</Text>
+        <Text className="text-body text-paper">{label}</Text>
         {/* The slider itself reads the value out, so this is for the eyes only. */}
         <Text
           importantForAccessibility="no-hide-descendants"
           aria-hidden
-          className={`text-base ${held === null ? 'text-soft' : 'font-semibold text-amber'}`}
+          className={`text-body ${held === null ? 'text-soft' : 'font-semibold text-amber'}`}
         >
           {text}
         </Text>

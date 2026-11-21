@@ -64,7 +64,7 @@ export function SuggestionRows({
   return rows.map((row) => (
     <View key={row.because.bookId} className="gap-2">
       <View className="min-h-12 flex-row items-center justify-between gap-2 ps-4 pe-2">
-        <Text accessibilityRole="header" className="flex-1 text-lg font-semibold text-paper">
+        <Text accessibilityRole="header" className="flex-1 text-section font-semibold text-paper">
           {t('Because you finished {title}', { title: row.because.title })}
         </Text>
         <TextButton

@@ -25,9 +25,9 @@ export function EmptyState({
       className={`items-center gap-2 px-6 ${lori ? 'pt-12' : 'pt-6'}`}
     >
       {lori && <Lori size={104} />}
-      <Text className="text-center text-base font-semibold text-paper">{title}</Text>
+      <Text className="text-center text-body font-semibold text-paper">{title}</Text>
       {body !== undefined && (
-        <Text className="max-w-xs text-center text-sm text-muted">{body}</Text>
+        <Text className="max-w-xs text-center text-detail text-muted">{body}</Text>
       )}
       {action && (
         <Button kind="secondary" text={action.label} onPress={action.onPress} className="mt-2" />

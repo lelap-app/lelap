@@ -85,11 +85,11 @@ export function ImportSheet({
                 accessibilityRole="button"
                 className="gap-1 border-b border-line py-3 active:opacity-60"
               >
-                <Text className="text-base text-paper">{source.label}</Text>
-                <Text className="text-sm text-muted">{source.detail}</Text>
+                <Text className="text-body text-paper">{source.label}</Text>
+                <Text className="text-detail text-muted">{source.detail}</Text>
               </Pressable>
             ))}
-          <Text className="py-3 text-xs text-muted">
+          <Text className="py-3 text-caption text-muted">
             {t(
               'Nothing leaves this device; only podcast feeds are fetched, as when you subscribe.',
             )}

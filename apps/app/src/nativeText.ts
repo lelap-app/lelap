@@ -29,7 +29,7 @@ const nativeLines = (): Record<string, string> => ({
   'Continue listening': t('Continue listening'),
   'On this phone': t('On this phone'),
   Podcasts: t('Podcasts'),
-  'Up Next': t('Up Next'),
+  'Up next': t('Up next'),
   Lists: t('Lists'),
   'Play list': t('Play list'),
   // A spoken request (M147) that nothing on the phone or in the add-ons matched.

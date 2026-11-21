@@ -64,7 +64,7 @@ export default function StatsScreen() {
         contentContainerStyle={{ ...READABLE, paddingTop: insets.top + 8, paddingBottom: 24 }}
         className="px-4"
       >
-        <ScreenHeader title={t('Listening')} />
+        <ScreenHeader title={t('Stats')} />
 
         <View className="flex-row gap-3">
           <Figure palette={palette} label={t('Today')} value={listenedText(stats.todayMs)} />
@@ -148,14 +148,14 @@ export default function StatsScreen() {
             <Text style={{ color: palette.text }} className="font-semibold">
               {t('Finished this year')}
             </Text>
-            <Text style={{ color: palette.accentText }} className="text-sm">
+            <Text style={{ color: palette.accentText }} className="text-detail">
               {goal > 0 ? t('Change goal') : t('Set a goal')}
             </Text>
           </View>
-          <Text style={{ color: palette.text }} className="text-2xl font-semibold">
+          <Text style={{ color: palette.text }} className="text-heading font-semibold">
             {formatNumber(finished)}
             {goal > 0 && (
-              <Text style={{ color: palette.secondary }} className="text-base">
+              <Text style={{ color: palette.secondary }} className="text-body">
                 {' '}
                 {t('of {n} books', { n: formatNumber(goal) })}
               </Text>
@@ -184,14 +184,14 @@ export default function StatsScreen() {
             <Text
               accessibilityLabel={formatLongDate(dayDate(b.day))}
               style={{ color: palette.secondary }}
-              className="text-sm"
+              className="text-detail"
             >
               {formatDayMonth(dayDate(b.day))}
             </Text>
           </View>
         ))}
         {finished > FINISHED_SHOWN && (
-          <Text style={{ color: palette.secondary }} className="py-1 text-sm">
+          <Text style={{ color: palette.secondary }} className="py-1 text-detail">
             {t('and {n} more', { n: formatNumber(finished - FINISHED_SHOWN) })}
           </Text>
         )}
@@ -207,7 +207,7 @@ export default function StatsScreen() {
                 <Text numberOfLines={1} style={{ color: palette.text }} className="flex-1">
                   {b.title || t('Untitled')}
                 </Text>
-                <Text style={{ color: palette.secondary }} className="text-sm">
+                <Text style={{ color: palette.secondary }} className="text-detail">
                   {listenedText(b.ms)}
                 </Text>
               </View>
@@ -236,7 +236,7 @@ export default function StatsScreen() {
           </>
         )}
 
-        <Text style={{ color: palette.secondary }} className="pt-8 text-xs">
+        <Text style={{ color: palette.secondary }} className="pt-8 text-caption">
           {t(
             'Worked out on this device from what you play here. Never synced or sent anywhere, unless you share a year as an image.',
           )}

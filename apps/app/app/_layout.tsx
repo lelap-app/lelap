@@ -39,7 +39,8 @@ import { offerUpdateOnStart } from '../src/updates';
 import { OtaRunner } from '../src/ota';
 import { registerBackgroundRefresh } from '../src/background';
 import { ThemeRoot, useTheme } from '../src/theme';
-import { useFold } from '../src/layout';
+import { useFold, useWide } from '../src/layout';
+import { Rail } from '../src/components/Rail';
 import { startupMark } from '../src/startup';
 import { SCREENS, singularId } from '../src/routes';
 
@@ -92,6 +93,7 @@ export default function RootLayout() {
   const look = language;
   const pathname = usePathname();
   const hinge = useFold();
+  const wide = useWide();
   // The full-screen player and car mode cover the whole window, across the hinge.
   const fold = pathname === '/player' || pathname === '/car' ? FLAT : hinge;
   // Before anything reads or saves: the profile this device used last.
@@ -147,26 +149,31 @@ export default function RootLayout() {
                       : { flex: 1 }
                 }
               >
-                <HingeSide fold={fold} side="first">
-                  <Stack
-                    key={look}
-                    screenOptions={{
-                      headerShown: false,
-                      contentStyle: { backgroundColor: theme.colors.night },
-                      ...(reduced ? { animation: 'none' } : {}),
-                    }}
-                  >
-                    <Stack.Screen name="(tabs)" />
-                    {SCREENS.map((name) => (
-                      <Stack.Screen
-                        key={name}
-                        name={name}
-                        dangerouslySingular={singularId}
-                        options={screenOptions(name, reduced)}
-                      />
-                    ))}
-                  </Stack>
-                </HingeSide>
+                <View className="flex-1 flex-row">
+                  {wide && <Rail key={look} />}
+                  <View className="flex-1">
+                    <HingeSide fold={fold} side="first">
+                      <Stack
+                        key={look}
+                        screenOptions={{
+                          headerShown: false,
+                          contentStyle: { backgroundColor: theme.colors.night },
+                          ...(reduced ? { animation: 'none' } : {}),
+                        }}
+                      >
+                        <Stack.Screen name="(tabs)" />
+                        {SCREENS.map((name) => (
+                          <Stack.Screen
+                            key={name}
+                            name={name}
+                            dangerouslySingular={singularId}
+                            options={screenOptions(name, reduced)}
+                          />
+                        ))}
+                      </Stack>
+                    </HingeSide>
+                  </View>
+                </View>
               </View>
               {fold.kind !== 'none' && (
                 <View

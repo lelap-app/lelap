@@ -13,10 +13,10 @@ const BEDTIME_VOLUMES = [100, 80, 60, 40];
 export default function SleepSettings() {
   const { settings, update } = useSettingsState();
   return (
-    <SettingsPage title={t('Sleep')}>
+    <SettingsPage title={t('Sleep timer')}>
       {/* Settings hides this page's line on the web; an address typed by hand still lands here. */}
       {Platform.OS !== 'android' && (
-        <Text className="text-sm text-muted">
+        <Text className="text-detail text-muted">
           {t('The sleep timer at bedtime and shaking for more time are in the Android app.')}
         </Text>
       )}
@@ -24,8 +24,8 @@ export default function SleepSettings() {
         <View className="gap-3 border-b border-line py-4">
           <View className="flex-row items-center gap-4">
             <View className="flex-1 gap-1">
-              <Text className="text-base text-paper">{t('Start a sleep timer at bedtime')}</Text>
-              <Text className="text-sm text-muted">
+              <Text className="text-body text-paper">{t('Start a sleep timer at bedtime')}</Text>
+              <Text className="text-detail text-muted">
                 {t(
                   'Once a night: when this window opens while you listen, or when you press Play in it. Works with the app closed.',
                 )}
@@ -67,7 +67,7 @@ export default function SleepSettings() {
                   onPress={() => update('bedtimeChapter', true)}
                 />
               </View>
-              <Text className="text-sm text-muted">{t('Volume until the timer ends')}</Text>
+              <Text className="text-detail text-muted">{t('Volume until the timer ends')}</Text>
               <View className="flex-row flex-wrap gap-2">
                 {BEDTIME_VOLUMES.map((v) => (
                   <Choice

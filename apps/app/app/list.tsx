@@ -291,7 +291,7 @@ export default function ListScreen() {
                   selectTextOnFocus
                   returnKeyType="done"
                   accessibilityLabel={t('List name')}
-                  className="border-b border-amber pb-1 text-3xl font-semibold text-paper"
+                  className="border-b border-amber pb-1 text-title font-semibold text-paper"
                 />
               ) : (
                 <Pressable
@@ -301,7 +301,7 @@ export default function ListScreen() {
                   {...hint(list ? t('Rename') : undefined)}
                   className="min-h-12 justify-center"
                 >
-                  <Text className="text-3xl font-semibold text-paper">
+                  <Text className="text-title font-semibold text-paper">
                     {list ? list.name : `# ${tag ?? ''}`}
                   </Text>
                 </Pressable>
@@ -337,7 +337,7 @@ export default function ListScreen() {
                   className="self-start"
                 />
               ) : (
-                <Text className="text-sm text-muted">
+                <Text className="text-detail text-muted">
                   {books.length === 1 ? t('1 book') : t('{n} books', { n: books.length })}
                   {manual ? t(' · hold a book for more') : ''}
                 </Text>
@@ -363,7 +363,7 @@ export default function ListScreen() {
             </View>
             {playingHere &&
               (item.id === playingHere.playing || item.id === playingHere.next?.id) && (
-                <Text className="pe-2 text-xs uppercase tracking-widest text-amber">
+                <Text className="pe-2 text-caption uppercase tracking-widest text-amber">
                   {item.id === playingHere.playing ? t('Playing') : t('Next')}
                 </Text>
               )}

@@ -73,7 +73,7 @@ export default function SettingsScreen() {
     // Both of its settings are Android's.
     android && {
       route: '/settings/sleep',
-      title: t('Sleep'),
+      title: t('Sleep timer'),
       summary: [
         settings.bedtimeTimer &&
           t('Bedtime {from}–{to}', {
@@ -155,7 +155,7 @@ export default function SettingsScreen() {
             />
           ),
       )}
-      <Text selectable className="pt-8 text-center text-xs text-muted">
+      <Text selectable className="pt-8 text-center text-caption text-muted">
         {t('Lelap {version}', { version: Constants.expoConfig?.version ?? '?' })}
       </Text>
     </SettingsPage>

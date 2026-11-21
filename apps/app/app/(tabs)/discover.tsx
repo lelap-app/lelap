@@ -30,6 +30,7 @@ import { openItem } from '../../src/navigation';
 import { Pill } from '../../src/components/Pill';
 import { useWide } from '../../src/layout';
 import { useColors } from '../../src/theme';
+import { TabHeader } from '../../src/components/TabHeader';
 
 const COLUMNS = 3;
 // On a wide screen, as many columns as fit tiles about this wide.
@@ -126,9 +127,9 @@ export default function DiscoverScreen() {
       style={{ paddingTop: insets.top + 12 }}
       onLayout={(e) => setSpace(e.nativeEvent.layout.width)}
     >
-      <Text accessibilityRole="header" className="px-4 pb-3 text-3xl font-semibold text-paper">
-        {t('Discover')}
-      </Text>
+      <View className="pb-3">
+        <TabHeader title={t('Discover')} />
+      </View>
       {wide && space === null ? null : catalogs.length === 0 ? (
         <EmptyState title={t('No catalogs to browse. Add-ons in Settings bring them.')} />
       ) : (
@@ -183,7 +184,7 @@ export default function DiscoverScreen() {
                   </Text>
                 </Pill>
                 {playableOnly && hiddenCount > 0 && (
-                  <Text className="text-xs text-muted">
+                  <Text className="text-caption text-muted">
                     {hiddenCount === 1
                       ? t('1 without audio hidden')
                       : t('{n} without audio hidden', { n: hiddenCount })}

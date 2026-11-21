@@ -77,7 +77,7 @@ export function Button({
             </View>
           )}
           <Text
-            className={`${size === 'sm' ? 'text-sm' : 'text-base'} ${disabled ? 'font-medium text-muted' : look.text}`}
+            className={`${size === 'sm' ? 'text-detail' : 'text-body'} ${disabled ? 'font-medium text-muted' : look.text}`}
           >
             {text}
           </Text>
