@@ -3,7 +3,7 @@
     "name": "Lelap",
     "slug": "lelap",
     "scheme": "lelap",
-    "version": "0.1.0-beta.16",
+    "version": "0.1.0-beta.17",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "backgroundColor": "#0d0e11",
@@ -14,7 +14,7 @@
         "backgroundColor": "#0d0e11",
         "foregroundImage": "./assets/adaptive-icon.png"
       },
-      "versionCode": 10016
+      "versionCode": 10017
     },
     "plugins": [
       ["expo-router", { "asyncRoutes": { "web": false } }],
