@@ -79,15 +79,7 @@ export function saveProgress(
     };
     // A book shown as a podcast marks the file it left (M157).
     if (stored && stored.fileLocation !== entry.fileLocation) {
-      noteFileChange(
-        tx,
-        profileId,
-        bookId,
-        stored,
-        entry.fileLocation,
-        origin === 'journal',
-        entry.savedAt,
-      );
+      noteFileChange(tx, profileId, bookId, stored, entry.fileLocation, origin, entry.savedAt);
     }
     tx.insert(progress)
       .values({ profileId, bookId, ...values })

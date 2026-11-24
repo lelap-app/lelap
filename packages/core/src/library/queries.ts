@@ -7,13 +7,14 @@ import {
   chapters,
   downloads,
   libraryEntries,
+  type PartStates,
   progress,
   type StoredChapter,
 } from '../schema';
 import { presentFiles } from './bookFiles';
 import { namedChapters } from './chapterNames';
 import { compareNatural } from './files';
-import { setAllEpisodesPlayed, tracksEpisodes } from './folderPodcast';
+import { episodeCounts, setAllEpisodesPlayed, tracksEpisodes } from './folderPodcast';
 import { kidFilter } from '../kids';
 import { isLiveBook } from '../live';
 import { linkedMetaByKey, linkedSeriesByKey } from './links';
@@ -39,6 +40,11 @@ export type LibraryBook = {
    * when the book has a total or no place.
    */
   partsDone?: number | null;
+  /**
+   * For a book shown as a podcast (M158): how many episodes it has and how many are not played,
+   * which say more than its one place; null otherwise.
+   */
+  episodes?: { total: number; left: number } | null;
   addedAt: number;
   finishedAt: number | null;
   lastPlayedAt: number | null;
@@ -82,6 +88,11 @@ function selectBooks(
       >`CASE WHEN ${books.durationMs} = 0 AND ${progress.fileLocation} IS NOT NULL THEN (SELECT CAST(f.idx AS REAL) / (SELECT COUNT(*) FROM ${bookFiles} c WHERE c.book_id = ${books.id} AND c.missing_since IS NULL) FROM ${bookFiles} f WHERE f.location = ${progress.fileLocation} AND f.book_id = ${books.id}) END`,
       finishedAt: libraryEntries.finishedAt,
       lastPlayedAt: libraryEntries.lastPlayedAt,
+      asPodcast: libraryEntries.asPodcast,
+      // Only for books shown as a podcast, so other rows parse no JSON.
+      parts: sql<
+        string | null
+      >`CASE WHEN ${libraryEntries.asPodcast} = 1 THEN ${libraryEntries.parts} END`,
       downloadState: downloads.state,
     })
     .from(books)
@@ -95,19 +106,32 @@ function selectBooks(
     .all();
   // A few books (one book's page, Continue listening) read only their own links.
   const linked = linkedMetaByKey(db, rows.length <= 50 ? rows.map((r) => r.location) : undefined);
-  return rows.map(({ missingSince, downloadState, bookPositionMs, location, ...book }) => {
-    // Matched with a catalog by hand: the work's title, author and cover replace the tags'.
-    const meta = linked.get(location);
-    return {
-      ...book,
-      ...(meta && { title: meta.title, author: meta.author ?? book.author }),
-      ...(meta?.cover && { coverPath: null, coverUrl: meta.cover }),
-      downloaded: downloadState === 'done',
-      bookPositionMs: bookPositionMs ?? 0,
-      partsDone: book.partsDone ?? null,
-      missing: missingSince !== null,
-    };
-  });
+  return rows.map(
+    ({ missingSince, downloadState, bookPositionMs, location, asPodcast, parts, ...book }) => {
+      // Matched with a catalog by hand: the work's title, author and cover replace the tags'.
+      const meta = linked.get(location);
+      return {
+        ...book,
+        ...(meta && { title: meta.title, author: meta.author ?? book.author }),
+        ...(meta?.cover && { coverPath: null, coverUrl: meta.cover }),
+        downloaded: downloadState === 'done',
+        bookPositionMs: bookPositionMs ?? 0,
+        partsDone: book.partsDone ?? null,
+        episodes: asPodcast ? episodeCounts(db, book.id, parseParts(parts)) : null,
+        missing: missingSince !== null,
+      };
+    },
+  );
+}
+
+function parseParts(json: string | null): PartStates | null {
+  if (!json) return null;
+  try {
+    const parts: unknown = JSON.parse(json);
+    return typeof parts === 'object' && parts !== null ? (parts as PartStates) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -115,8 +139,12 @@ function selectBooks(
  * book of unmeasured parts still shows progress.
  */
 export function bookFraction(
-  book: Pick<LibraryBook, 'durationMs' | 'bookPositionMs' | 'partsDone'>,
+  book: Pick<LibraryBook, 'durationMs' | 'bookPositionMs' | 'partsDone' | 'episodes'>,
 ): number {
+  // A book shown as a podcast: the share of its episodes played (M158).
+  if (book.episodes && book.episodes.total > 0) {
+    return (book.episodes.total - book.episodes.left) / book.episodes.total;
+  }
   if (book.durationMs > 0) return Math.min(1, book.bookPositionMs / book.durationMs);
   return Math.min(1, Math.max(0, book.partsDone ?? 0));
 }

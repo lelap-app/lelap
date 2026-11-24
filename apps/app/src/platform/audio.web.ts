@@ -4,6 +4,7 @@ import type {
   CarLibrary,
   FinishedItem,
   JournalEntry,
+  PlayedFile,
   PlayerDiagnostic,
   PlayerSettings,
   PlayerState,
@@ -488,7 +489,10 @@ function player(): HTMLAudioElement {
       placeChangedAt = Date.now();
       writeJournal();
       // As on Android: log the end, and an episode hands over to Up Next.
-      if (book) finished.push({ bookId: book.bookId, at: Date.now() });
+      if (book) {
+        const fileLocation = book.files[index]?.location ?? null;
+        finished.push({ bookId: book.bookId, at: Date.now(), fileLocation });
+      }
       // A timer for the end of the episode stops here, before Up Next.
       const next = book?.handsOver && !sleepsHere ? queue.shift() : undefined;
       if (sleepsHere) {
@@ -998,6 +1002,8 @@ export async function setSettings(next: PlayerSettings): Promise<void> {
 /** Gives the loaded book its new sound (M84) at its place; another book is left alone. */
 export async function updateBook(next: BookLoad): Promise<void> {
   if (!book || book.bookId !== next.bookId) return;
+  // One episode from Up Next and its whole book are different loads (M158).
+  if ((book.alone ?? false) !== (next.alone ?? false)) return;
   // Its own sound, and whether it hands over: a list that starts or stops playing (M112).
   // Its chapter pictures too, once read (M121).
   book = {
@@ -1082,6 +1088,11 @@ export async function takeListStarted(): Promise<null> {
 
 // The web player runs inside the app, which saves every place itself; there is no car here.
 export async function takeEarlierPlaces(): Promise<JournalEntry[]> {
+  return [];
+}
+
+// The app is open while the tab plays, so it marks the files it heard to their end itself.
+export async function takePlayedFiles(): Promise<PlayedFile[]> {
   return [];
 }
 

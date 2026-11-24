@@ -3,6 +3,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
 import { episodeCode } from '../library/episodeCode';
+import { listFolderEpisodes, showsAsPodcast } from '../library/folderPodcast';
 import { setFinished } from '../library/queries';
 import { saveProgress } from '../progress';
 import { bookFiles, episodes, progress } from '../schema';
@@ -63,7 +64,8 @@ export function matchFiles(files: LocalFile[], items: FeedItem[]): Map<string, s
 
 /**
  * Carries the place in a local podcast folder over to its feed: episodes of files before the one
- * being listened to are played, and that one keeps its position.
+ * being listened to are played, and that one keeps its position. A folder shown as a podcast
+ * carries each file's own mark and place instead (M158), since its one place says little.
  */
 export function carryFolderPlace(
   db: Db,
@@ -90,6 +92,9 @@ export function carryFolderPlace(
     .where(eq(episodes.podcastId, podcastId))
     .all();
   const matches = matchFiles(files, items);
+  const marks = showsAsPodcast(db, profileId, localBookId)
+    ? new Map(listFolderEpisodes(db, profileId, localBookId).map((e) => [e.location, e]))
+    : null;
   const place = db
     .select({ location: progress.fileLocation, positionMs: progress.filePositionMs })
     .from(progress)
@@ -97,28 +102,39 @@ export function carryFolderPlace(
     .get();
   const current = place ? files.findIndex((f) => f.location === place.location) : -1;
 
+  // Played, or where it was left (0: nothing to carry).
+  const stateOf = (index: number, location: string): 'played' | number => {
+    if (marks) {
+      const mark = marks.get(location);
+      return mark?.status === 'played' ? 'played' : (mark?.positionMs ?? 0);
+    }
+    if (index < current) return 'played';
+    return index === current ? (place?.positionMs ?? 0) : 0;
+  };
+
   let played = 0;
   for (const [index, file] of files.entries()) {
     const episodeId = matches.get(file.location);
-    if (!episodeId || index > current) continue;
+    const state = stateOf(index, file.location);
+    if (!episodeId || state === 0) continue;
     const bookId = episodeBook(db, episodeId, now, newId);
-    if (index < current) {
+    if (state === 'played') {
       setFinished(db, profileId, bookId, true, now);
       played++;
-    } else if (place && place.positionMs > 0) {
-      const location = db
-        .select({ location: bookFiles.location })
-        .from(bookFiles)
-        .where(eq(bookFiles.bookId, bookId))
-        .get()?.location;
-      if (location) {
-        saveProgress(
-          db,
-          profileId,
-          { bookId, fileLocation: location, filePositionMs: place.positionMs, savedAt: now },
-          'app',
-        );
-      }
+      continue;
+    }
+    const location = db
+      .select({ location: bookFiles.location })
+      .from(bookFiles)
+      .where(eq(bookFiles.bookId, bookId))
+      .get()?.location;
+    if (location) {
+      saveProgress(
+        db,
+        profileId,
+        { bookId, fileLocation: location, filePositionMs: state, savedAt: now },
+        'app',
+      );
     }
   }
   return { matched: matches.size, played };

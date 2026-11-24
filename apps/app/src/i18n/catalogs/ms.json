@@ -1313,5 +1313,10 @@
   "More for {title}": "Lagi untuk {title}",
   "This book is not in the library.": "Buku ini tiada dalam pustaka.",
   "No episode is played yet.": "Belum ada episod yang dimainkan.",
-  "Every episode is played.": "Semua episod sudah dimainkan."
+  "Every episode is played.": "Semua episod sudah dimainkan.",
+  "1 episode left": "1 episod lagi",
+  "{n} episodes left": "{n} episod lagi",
+  "{title} marked as played": "{title} ditanda sebagai sudah dimainkan",
+  "{title} marked as unplayed": "{title} ditanda sebagai belum dimainkan",
+  "Find “{title}” as a podcast. Played episodes are marked as played there, and the others keep where you left them. The folder stays in the Library.": "Cari “{title}” sebagai podcast. Episod yang sudah dimainkan ditanda begitu di sana, dan yang lain menyimpan tempat anda berhenti. Folder kekal dalam Pustaka."
 }
