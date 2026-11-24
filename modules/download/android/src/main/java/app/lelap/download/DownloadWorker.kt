@@ -45,7 +45,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     val place = Downloads.place(applicationContext, job.location)
     // Android 17 without local network access: every request to a LAN server fails, so retrying
     // would only fail 12 times. The app asks for access when the download starts.
-    if (noLocalNetwork(job)) {
+    if (noLocalNetwork(job) && !hasOtherAddress(job)) {
       Downloads.writeError(dir, noLocalNetworkText())
       return Result.failure()
     }
@@ -68,6 +68,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         var finished = 0L
         var lastReport = 0L
         var waited = false
+        // The last file came from the other address, so the rest of the book asks it first.
+        var onAlso = false
         for (file in job.files) {
           val existing = folder.length(file.name)
           if (existing != null) {
@@ -84,14 +86,18 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
           if (Netfs.handles(file.url)) {
             NetDownload.fetch(file.url, folder, file.name, file.size, job.headers, { Messages.describe(applicationContext, it) }, progress)
           } else {
-            Http.fetch(
-              file.url, folder, file.name, file.size, job.headers, NativeText.get(applicationContext), file.integrity,
-              onPreparing = {
-                waited = true
-                runCatching { setForeground(foregroundInfo(job, finished, total, preparing = true)) }
-              },
-              onBytes = progress,
-            )
+            // Home or away (M146): the address that answers now, as the run starts (M159).
+            val used = ServerAddresses.firstAnswering(ServerAddresses.order(file, onAlso)) { url ->
+              Http.fetch(
+                url, folder, file.name, file.size, job.headers, NativeText.get(applicationContext), file.integrity,
+                onPreparing = {
+                  waited = true
+                  runCatching { setForeground(foregroundInfo(job, finished, total, preparing = true)) }
+                },
+                onBytes = progress,
+              )
+            }
+            onAlso = file.also != null && used == file.also
           }
           finished += folder.length(file.name) ?: 0L
         }
@@ -140,7 +146,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         }
       } catch (e: IOException) {
         // Access was taken away while the download ran.
-        if (noLocalNetwork(job)) {
+        if (noLocalNetwork(job) && !hasOtherAddress(job)) {
           Downloads.writeError(dir, noLocalNetworkText())
           Result.failure()
         } else if (runAttemptCount + 1 >= MAX_ATTEMPTS) {
@@ -155,6 +161,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
   private fun noLocalNetwork(job: DownloadJob): Boolean =
     LocalNetwork.blocks(Build.VERSION.SDK_INT, job.localNetwork, LocalNetwork.granted(applicationContext))
+
+  // A server's outside address may still answer without local network access (M159).
+  private fun hasOtherAddress(job: DownloadJob): Boolean = job.files.any { it.also != null }
 
   // Android's own messages follow the phone's language, so only a known kind of failure is named.
   private fun keptFailing(e: Exception): String = reason(e)?.let {

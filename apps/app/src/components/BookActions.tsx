@@ -6,6 +6,7 @@ import {
   canShowAsPodcast,
   createPlaylist,
   downloadAllowed,
+  getDownload,
   isLiveBook,
   getTags,
   hideBooks,
@@ -121,6 +122,11 @@ export function BookActions({
   const hidden = useMemo(() => (book ? isHidden(db, profileId, book.id) : false), [book]);
   // A source that forbids downloads gets no Download row rather than one that only says no.
   const downloadable = useMemo(() => (book ? downloadAllowed(db, book.id) : false), [book]);
+  // A download waiting or under way is cancelled here, not offered again (M4).
+  const queued = useMemo(
+    () => (book ? getDownload(db, book.id)?.state === 'queued' : false),
+    [book],
+  );
   const live = useMemo(() => (book ? isLiveBook(db, book.id) : false), [book]);
   // Stop reading means something only to a tracker that hears about this book (M66).
   const tracked = useMemo(() => (book ? scrobblesFor(book.id, profileId) : false), [book]);
@@ -287,10 +293,10 @@ export function BookActions({
             />
           )}
           {book.source !== 'local' &&
-            (book.downloaded ? (
+            (book.downloaded || queued ? (
               <Row
                 icon="close"
-                label={t('Remove download')}
+                label={queued ? t('Cancel download') : t('Remove download')}
                 onPress={() => {
                   void deleteDownload(book.id).finally(onChanged);
                   onClose();

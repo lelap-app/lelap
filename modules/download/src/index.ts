@@ -4,8 +4,11 @@ import { NativeModule, requireNativeModule } from 'expo';
 export type DownloadJob = {
   bookId: string;
   title: string;
-  /** `integrity`: the feed's SRI hash (`sha256-…`), checked once the file is in (M103). */
-  files: { url: string; name: string; size: number; integrity?: string }[];
+  /**
+   * `integrity`: the feed's SRI hash (`sha256-…`), checked once the file is in (M103). `also`:
+   * the same file at its server's other address (M146), tried when `url` is silent (M159).
+   */
+  files: { url: string; name: string; size: number; integrity?: string; also?: string }[];
   cover: { url: string; name: string } | null;
   /** Sent to the files' own host only: the login of a WebDAV server. */
   headers?: Record<string, string>;

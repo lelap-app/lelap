@@ -9,6 +9,7 @@ export {
   readImage,
   readRemoteTags,
   readTags,
+  releaseOtherFolders,
   removeSilences,
   saveRemote,
   silenceStatuses,

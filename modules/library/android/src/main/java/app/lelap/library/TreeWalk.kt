@@ -19,16 +19,21 @@ data class ListedEntry(
 )
 
 object TreeWalk {
-  /** Every file below [rootId], breadth first, with its path relative to the root. */
+  /**
+   * Every file below [rootId], breadth first, with its path relative to the root. Each folder is
+   * read once: a provider that lists a folder inside itself (a link, a cloud alias) would otherwise
+   * keep the walk going for ever.
+   */
   fun walk(rootId: String, children: (String) -> List<TreeEntry>): List<ListedEntry> {
     val files = mutableListOf<ListedEntry>()
     val pending = ArrayDeque(listOf(rootId to ""))
+    val visited = hashSetOf(rootId)
     while (pending.isNotEmpty()) {
       val (folderId, prefix) = pending.removeFirst()
       for (entry in children(folderId)) {
         val relPath = if (prefix.isEmpty()) entry.name else "$prefix/${entry.name}"
         if (entry.isDirectory) {
-          pending.addLast(entry.documentId to relPath)
+          if (visited.add(entry.documentId)) pending.addLast(entry.documentId to relPath)
         } else {
           files += ListedEntry(entry.documentId, relPath, entry.name, entry.size, entry.modifiedAt)
         }

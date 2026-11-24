@@ -460,6 +460,26 @@ jobs:
             pnpm exec wrangler r2 object put "lelap-downloads/${file#"$root/"}" --remote --file "$file" \
               --content-type application/json --cache-control no-cache
           done
+      # Old updates go (M159): the newest few per channel and every one a channel record points
+      # at stay (`services/updates/src/history.ts`). A failure here never fails the update, whose
+      # result decides whether the APK is offered.
+      - name: Remove old updates
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          DOWNLOADS: ${{ vars.DOWNLOADS_BASE }}
+        working-directory: services/updates
+        run: |
+          node ../../scripts/ota-prune.mts ../../out-ota "$DOWNLOADS" ../../out-prune
+          if [ ! -f ../../out-prune/ota/history.json ]; then exit 0; fi
+          # The list first: a removal that fails then leaves a file nobody lists, never a list
+          # naming a file that is gone.
+          pnpm exec wrangler r2 object put lelap-downloads/ota/history.json --remote \
+            --file ../../out-prune/ota/history.json --content-type application/json --cache-control no-cache
+          while read -r key; do
+            if [ -n "$key" ]; then pnpm exec wrangler r2 object delete "lelap-downloads/$key" --remote < /dev/null; fi
+          done < ../../out-prune/remove.txt
 
   images:
     name: Docker image (${{ matrix.service }})

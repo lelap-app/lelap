@@ -31,6 +31,7 @@ const unsupported = () => Promise.reject(new Error('Local folders are only on An
 
 export const pickFolder = (): Promise<PickedFolder | null> => Promise.resolve(null);
 export const hasPermission = (): Promise<boolean> => Promise.resolve(false);
+export const releaseOtherFolders = (): Promise<number> => Promise.resolve(0);
 export const listTree = (): Promise<ListedFile[]> => unsupported();
 export const readTags = (): Promise<FileTags> => unsupported();
 export const saveRemote = (): Promise<void> => unsupported();

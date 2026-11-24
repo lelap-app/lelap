@@ -6,6 +6,8 @@ import {
   AddonUpgradeError,
   APP_PROTOCOL_VERSION,
   addStreamedBook,
+  AnswerCache,
+  cachingFetcher,
   deviceValue,
   parseRefusals,
   setDeviceValue,
@@ -27,7 +29,6 @@ import {
   getProfile,
   getSourceChoice,
   type FoundStream,
-  HealthTracker,
   type InstalledAddon,
   listAddons,
   mergeSources,
@@ -48,10 +49,10 @@ import { QueryClient, useQuery } from '@tanstack/react-query';
 import { useMemo, useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 
+import { addonHealth } from './addonHealth';
 import { defaultAddons } from './config';
 import { t } from './i18n';
 import { db, newId } from './db';
-import { logAddonFailure } from './diagnostics';
 import { profileId } from './profile';
 import { playBook, useLibrary } from './player';
 import * as audio from './platform/audio';
@@ -64,8 +65,7 @@ export const queryClient = new QueryClient({
   },
 });
 
-/** What each add-on's requests did during this run, for Settings → Library and sources → Add-ons. Kept in memory only. */
-export const addonHealth = new HealthTracker(logAddonFailure);
+export { addonHealth };
 
 // Add-ons that run inside the app answer through their sandbox; all others over the network. One
 // set up with settings (revision 9) gets them on every call.
@@ -110,7 +110,11 @@ export function useAddonBlock(addon: InstalledAddon): AddonBlock | null {
   return addonBlock(addon);
 }
 
-export const fetcher: Fetcher = trackedFetcher(route, addonHealth);
+/** Answers kept for their `cacheMaxAge` (M159), in memory for this run. */
+export const addonAnswers = new AnswerCache();
+
+// The cache wraps the tracking: an answer from memory says nothing about the add-on's health.
+export const fetcher: Fetcher = cachingFetcher(trackedFetcher(route, addonHealth), addonAnswers);
 
 /** One add-on's health, re-rendered when any request finishes. */
 export function useAddonHealth(url: string): AddonHealth {

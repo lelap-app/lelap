@@ -48,6 +48,19 @@ export function atAddressInUse(
   return atAddress(uri, remote, book.current(rootId, addresses));
 }
 
+/** `uri`, one of the server's own, at the address not in use now; null with one address. */
+export function otherAddressUri(
+  rootId: string,
+  remote: RemoteSource | null | undefined,
+  uri: string,
+): string | null {
+  const addresses = serverAddresses(remote);
+  if (addresses.length < 2) return null;
+  const inUse = book.current(rootId, addresses);
+  const other = addresses.find((a) => a !== inUse);
+  return other === undefined ? null : atAddress(uri, remote, other);
+}
+
 /** A cover from a server with two addresses, at the address in use; anything else as it is. */
 export function coverAtAddressInUse<T extends string | null | undefined>(url: T): T {
   if (!url) return url;

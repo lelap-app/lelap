@@ -347,3 +347,11 @@ export function linkedCoverUrls(db: Db): string[] {
 export function catalogCoverName(url: string): string {
   return bytesToHex(sha256(utf8ToBytes(url))).slice(0, 32);
 }
+
+/**
+ * The file name a transcript kept with a download goes under (M159): its address's SHA-256, as a
+ * matched cover's, so the name says nothing of the episode.
+ */
+export function savedTranscriptName(url: string): string {
+  return `${catalogCoverName(url)}.txt`;
+}

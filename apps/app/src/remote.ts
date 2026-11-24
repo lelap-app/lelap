@@ -15,7 +15,7 @@ import {
 } from '@lelap/core';
 import { Platform } from 'react-native';
 
-import { atAddressInUse } from './addresses';
+import { atAddressInUse, otherAddressUri } from './addresses';
 import { locatedUri } from './addonLocate';
 import { codeFingerprint, declaredHosts, sourceManifest } from './addonSources';
 import { db } from './db';
@@ -64,18 +64,40 @@ export function fileAccess(
   // A server with two addresses plays from the one that answered last (M146); the stored
   // address is always its own.
   const uri = file.rootId ? atAddressInUse(file.rootId, remote, file.uri) : file.uri;
-  if (remote?.type === 'webdav') return { uri, headers: webdavHeaders(remote) };
+  const addressed = serverAccess(remote, uri);
+  if (addressed) return addressed;
   // SMB and SFTP: the login travels as a header to native code; these addresses are never HTTP.
   if (remote?.type === 'smb' || remote?.type === 'sftp') {
     return { uri: file.uri, headers: netfsHeaders(remote) };
-  }
-  if (remote?.type === 'jellyfin') return jellyfinStream(remote, uri, Platform.OS !== 'web');
-  if (remote?.type === 'audiobookshelf') {
-    return audiobookshelfStream(remote.token, uri, Platform.OS !== 'web');
   }
   if (remote?.type === 's3') {
     const object = parseS3Uri(file.uri);
     if (object) return { uri: presignGet(remote, object.key, now), headers: {} };
   }
   return { uri: file.uri, headers: {} };
+}
+
+/** A file of a server that takes two addresses (M146), at `uri`: with its login. */
+function serverAccess(remote: RemoteSource | null, uri: string): FileAccess | null {
+  if (remote?.type === 'webdav') return { uri, headers: webdavHeaders(remote) };
+  if (remote?.type === 'jellyfin') return jellyfinStream(remote, uri, Platform.OS !== 'web');
+  if (remote?.type === 'audiobookshelf') {
+    return audiobookshelfStream(remote.token, uri, Platform.OS !== 'web');
+  }
+  return null;
+}
+
+/**
+ * The same file at its server's other address, the one not in use now, or null for a server with
+ * one address. A download held for Wi-Fi or a charger tries it when the first is silent as it
+ * starts, so it takes the address that answers then, not the one used when it was queued.
+ */
+export function fileAccessElsewhere(file: {
+  uri: string;
+  rootId: string | null;
+}): FileAccess | null {
+  if (!file.rootId) return null;
+  const remote = remoteOf(file.rootId);
+  const other = otherAddressUri(file.rootId, remote, file.uri);
+  return other === null ? null : serverAccess(remote, other);
 }

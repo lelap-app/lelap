@@ -1,9 +1,10 @@
-import { HealthResponse, type HealthStatus } from '@lelap/sdk';
+import { HEALTH_STATUSES, HealthResponse, type HealthStatus } from '@lelap/sdk';
 
 import { addonBase, type Fetcher, type InstalledAddon, normalizeManifestUrl } from './client';
 import { addonBlock, protocolHeaders } from './revision';
+import type { Poster } from '../scrobble';
 
-/** What the app saw of one add-on during this run. Nothing is stored or sent anywhere. */
+/** What the app saw of one add-on, kept on this device across starts (M159). Never sent anywhere. */
 export type AddonHealth = {
   /** When the add-on last answered, and how long that took. */
   lastOkAt: number | null;
@@ -21,7 +22,7 @@ export const SLOW_MS = 3_000;
 const EMPTY: AddonHealth = { lastOkAt: null, lastLatencyMs: null, lastError: null, reported: null };
 
 const RESOURCE =
-  /^(.*\/)(?:manifest\.json|health|scrobble|(?:catalog|meta|stream)\/(?:audiobook|podcast|episode)\/[^/]+(?:\/[^/]*)?\.json)(?:\?.*)?$/;
+  /^(.*\/)(?:manifest\.json|health|scrobble|(?:catalog|meta|stream|artwork|series)\/(?:audiobook|podcast|episode)\/[^/]+(?:\/[^/]*)?\.json)(?:\?.*)?$/;
 
 /** The add-on base a request went to, or `null` for a URL that is not an add-on resource. */
 export function requestAddonBase(url: string): string | null {
@@ -31,11 +32,76 @@ export function requestAddonBase(url: string): string | null {
 /** Statuses that mean the add-on answered as it should; a 404 for an unknown ID is normal. */
 const answered = (status: number) => status < 500 && ![401, 403, 429].includes(status);
 
+/** Where kept health is read from and written to, such as a device value. */
+export type HealthStorage = {
+  read(): Record<string, AddonHealth>;
+  write(all: Record<string, AddonHealth>): void;
+};
+
+/** Add-ons whose health is kept at once; a long life meets many, and old ones can go. */
+export const MAX_HEALTH_ENTRIES = 200;
+
+const isNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+const isText = (value: unknown): value is string => typeof value === 'string';
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+function readHealth(value: unknown): AddonHealth | null {
+  const h = asRecord(value);
+  if (!h) return null;
+  const error = asRecord(h.lastError);
+  const reported = asRecord(h.reported);
+  return {
+    lastOkAt: isNumber(h.lastOkAt) ? h.lastOkAt : null,
+    lastLatencyMs: isNumber(h.lastLatencyMs) ? h.lastLatencyMs : null,
+    lastError:
+      error && isText(error.message) && isNumber(error.at)
+        ? {
+            message: error.message,
+            status: isNumber(error.status) ? error.status : null,
+            at: error.at,
+          }
+        : null,
+    reported:
+      reported &&
+      (HEALTH_STATUSES as readonly unknown[]).includes(reported.status) &&
+      isNumber(reported.at)
+        ? {
+            status: reported.status as HealthStatus,
+            message: isText(reported.message) ? reported.message : null,
+            at: reported.at,
+          }
+        : null,
+  };
+}
+
+/** Reads kept health from JSON, by add-on base, dropping anything that isn't one. */
+export function parseHealth(text: string | null): Record<string, AddonHealth> {
+  if (!text) return {};
+  try {
+    const all = asRecord(JSON.parse(text));
+    if (!all) return {};
+    return Object.fromEntries(
+      Object.entries(all).flatMap(([base, value]) => {
+        const health = readHealth(value);
+        return health ? [[base, health]] : [];
+      }),
+    );
+  } catch {
+    return {};
+  }
+}
+
 /** Keeps the last outcome per add-on base, for Settings → Add-ons. */
 export class HealthTracker {
   private readonly entries = new Map<string, AddonHealth>();
   private readonly listeners = new Set<() => void>();
   private version = 0;
+  private storage: HealthStorage | null = null;
+  private loaded = false;
 
   /** `onFailure` hears each failed request, for the diagnostics log. */
   constructor(
@@ -46,12 +112,54 @@ export class HealthTracker {
     ) => void,
   ) {}
 
-  private update(base: string, change: (h: AddonHealth) => AddonHealth): void {
-    this.entries.set(base, change(this.entries.get(base) ?? EMPTY));
-    // A long session asks many add-ons; old ones can go.
-    if (this.entries.size > 200) {
+  /**
+   * Keeps health in `storage` from now on, so the next start shows what this one saw. Read on
+   * first use, not here: the app attaches while its database may still be opening.
+   */
+  attach(storage: HealthStorage): void {
+    this.storage = storage;
+    this.loaded = false;
+  }
+
+  private load(): void {
+    if (this.loaded || !this.storage) return;
+    let kept: Record<string, AddonHealth>;
+    try {
+      kept = this.storage.read();
+    } catch {
+      return;
+    }
+    this.loaded = true;
+    // What this run saw before the store could be read is newer, so it stays on top.
+    const seen = new Map(this.entries);
+    this.entries.clear();
+    for (const [base, health] of Object.entries(kept)) {
+      if (!seen.has(base)) this.entries.set(base, health);
+    }
+    for (const [base, health] of seen) this.entries.set(base, health);
+    this.trim();
+  }
+
+  private trim(): void {
+    while (this.entries.size > MAX_HEALTH_ENTRIES) {
       const oldest = this.entries.keys().next().value;
-      if (oldest !== undefined) this.entries.delete(oldest);
+      if (oldest === undefined) break;
+      this.entries.delete(oldest);
+    }
+  }
+
+  private update(base: string, change: (h: AddonHealth) => AddonHealth): void {
+    this.load();
+    const next = change(this.entries.get(base) ?? EMPTY);
+    // The newest last, so the add-ons not heard from longest go first.
+    this.entries.delete(base);
+    this.entries.set(base, next);
+    this.trim();
+    try {
+      // Not before the kept health is read: this run's few entries would replace it all.
+      if (this.loaded) this.storage?.write(Object.fromEntries(this.entries));
+    } catch {
+      // Kept in memory for this run.
     }
     this.version += 1;
     for (const listener of this.listeners) listener();
@@ -82,6 +190,7 @@ export class HealthTracker {
   }
 
   get(addonUrl: string): AddonHealth {
+    this.load();
     return this.entries.get(addonBase(addonUrl)) ?? EMPTY;
   }
 
@@ -94,16 +203,16 @@ export class HealthTracker {
   getVersion = (): number => this.version;
 }
 
-/** A fetcher that tells `tracker` how each add-on request went. */
-export function trackedFetcher(
-  fetcher: Fetcher,
+/** Wraps a request so `tracker` hears how it went. */
+function tracked<I extends { signal: AbortSignal }, R extends { status: number }>(
+  request: (url: string, init: I) => Promise<R>,
   tracker: HealthTracker,
-  now: () => number = Date.now,
-): Fetcher {
+  now: () => number,
+): (url: string, init: I) => Promise<R> {
   return async (url, init) => {
     const started = now();
     try {
-      const response = await fetcher(url, init);
+      const response = await request(url, init);
       const at = now();
       tracker.record(
         url,
@@ -125,6 +234,24 @@ export function trackedFetcher(
       throw error;
     }
   };
+}
+
+/** A fetcher that tells `tracker` how each add-on request went. */
+export function trackedFetcher(
+  fetcher: Fetcher,
+  tracker: HealthTracker,
+  now: () => number = Date.now,
+): Fetcher {
+  return tracked(fetcher, tracker, now);
+}
+
+/** A scrobble poster that tells `tracker` how each post went (M159). */
+export function trackedPoster(
+  post: Poster,
+  tracker: HealthTracker,
+  now: () => number = Date.now,
+): Poster {
+  return tracked(post, tracker, now);
 }
 
 /** Asks an add-on's `/health`; `null` when it gives no usable answer. */

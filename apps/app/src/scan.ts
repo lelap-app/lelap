@@ -57,6 +57,7 @@ import {
   readImage,
   readRemoteTags,
   readTags,
+  releaseOtherFolders,
   saveRemote,
 } from './platform/library';
 import { currentLocalNetworkAccess, isLocalServer, markNeedsLocalNetwork } from './localNetwork';
@@ -504,6 +505,8 @@ export async function chooseFolder(): Promise<boolean> {
   const folder = await pickFolder();
   if (!folder) return false;
   upsertRoot(db, folder, Date.now(), newId);
+  // The folder it replaces keeps no access: Android allows an app only so many (M2 review).
+  void releaseOtherFolders([folder.uri]).catch(() => {});
   return true;
 }
 

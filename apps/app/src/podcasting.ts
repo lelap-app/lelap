@@ -3,6 +3,7 @@ import {
   chapterImageAt,
   episodeDetail,
   getBook,
+  getDownload,
   parseChapterImages,
   parseChaptersFile,
   parseTranscript,
@@ -21,6 +22,12 @@ import { Platform } from 'react-native';
 import { proxyBase } from './config';
 import { db, newId } from './db';
 import { profileId } from './profile';
+import {
+  hasSavedTranscript,
+  KEEPS_TRANSCRIPTS,
+  savedTranscript,
+  saveTranscript,
+} from './savedTranscripts';
 
 const FETCH_TIMEOUT_MS = 20_000;
 
@@ -150,6 +157,43 @@ export function transcriptOf(bookId: string, fileLocation: string | null) {
   return fileLocation ? pickTranscript(partTranscripts(db, bookId, fileLocation)) : null;
 }
 
-export async function loadTranscript(transcript: FeedTranscript): Promise<TranscriptCue[]> {
-  return parseTranscript(await fetchText(transcript.url), transcript.type);
+/** A transcript's lines: the copy kept with a downloaded book when there is one (M159). */
+export async function loadTranscript(
+  transcript: FeedTranscript,
+  bookId: string | null = null,
+): Promise<TranscriptCue[]> {
+  const kept = bookId ? await savedTranscript(bookId, transcript.url) : null;
+  return parseTranscript(kept ?? (await fetchText(transcript.url)), transcript.type);
+}
+
+/** The transcripts the transcript screen would show for a book: its episode's, or each part's. */
+function transcriptsToKeep(bookId: string): FeedTranscript[] {
+  const extras = episodeDetail(db, bookId)?.extras;
+  if (extras) {
+    const picked = pickTranscript(extras.transcripts);
+    return picked ? [picked] : [];
+  }
+  return (getBook(db, profileId, bookId)?.files ?? []).flatMap((file) => {
+    const picked = pickTranscript(partTranscripts(db, bookId, file.location));
+    return picked ? [picked] : [];
+  });
+}
+
+/**
+ * Keeps a downloaded book's transcripts with it, so they show offline (M159). Those kept already
+ * are not fetched again; one that fails is tried at the next call. Never throws.
+ */
+export async function keepTranscripts(bookId: string): Promise<void> {
+  if (!KEEPS_TRANSCRIPTS) return;
+  for (const transcript of transcriptsToKeep(bookId)) {
+    if (hasSavedTranscript(bookId, transcript.url)) continue;
+    try {
+      const text = await fetchText(transcript.url);
+      // Cancelled while it was fetched: nothing is kept for a book without a download.
+      if (!getDownload(db, bookId)) return;
+      saveTranscript(bookId, transcript.url, text);
+    } catch {
+      // Offline or refused: the screen fetches it while online, as before.
+    }
+  }
 }

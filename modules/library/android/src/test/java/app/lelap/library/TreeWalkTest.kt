@@ -35,4 +35,27 @@ class TreeWalkTest {
   fun listsAnEmptyFolderAsNothing() {
     assertEquals(emptyList<ListedEntry>(), TreeWalk.walk("primary:Empty") { emptyList() })
   }
+
+  @Test
+  fun readsAFolderThatListsItselfOnlyOnce() {
+    val loop = mapOf(
+      "root" to listOf(
+        TreeEntry("root/a", "a", isDirectory = true, size = 0, modifiedAt = 0),
+        TreeEntry("root/1.mp3", "1.mp3", isDirectory = false, size = 1, modifiedAt = 0),
+      ),
+      // `a` lists the root and itself again, as a link back up would.
+      "root/a" to listOf(
+        TreeEntry("root", "up", isDirectory = true, size = 0, modifiedAt = 0),
+        TreeEntry("root/a", "again", isDirectory = true, size = 0, modifiedAt = 0),
+        TreeEntry("root/a/2.mp3", "2.mp3", isDirectory = false, size = 1, modifiedAt = 0),
+      ),
+    )
+    var reads = 0
+    val files = TreeWalk.walk("root") {
+      reads++
+      loop[it].orEmpty()
+    }
+    assertEquals(listOf("1.mp3", "a/2.mp3"), files.map { it.relPath }.sorted())
+    assertEquals(2, reads)
+  }
 }

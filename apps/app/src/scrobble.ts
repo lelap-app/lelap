@@ -13,10 +13,12 @@ import {
   sendScrobbles,
   type TimelineFile,
   toBookPosition,
+  trackedPoster,
   type TrackedEvent,
 } from '@lelap/core';
 import { wantsScrobble } from '@lelap/sdk';
 
+import { addonHealth } from './addonHealth';
 import { db, newId } from './db';
 import * as audio from './platform/audio';
 import { postLocalScrobble } from './scrobblers';
@@ -25,9 +27,12 @@ import { postLocalScrobble } from './scrobblers';
 // database, so what was played offline goes out later with its own timestamps.
 
 const tracker = new ScrobbleTracker();
-// Scrobblers inside the app (M61) get their events in their sandbox, not over HTTP.
-const post: Poster = (url, init) =>
-  isLocalAddonUrl(url) ? postLocalScrobble(url, init.body) : fetch(url, init);
+// Scrobblers inside the app (M61) get their events in their sandbox, not over HTTP. Each post
+// counts in the add-on's health (M159).
+const post: Poster = trackedPoster(
+  (url, init) => (isLocalAddonUrl(url) ? postLocalScrobble(url, init.body) : fetch(url, init)),
+  addonHealth,
+);
 
 /** The add-ons a profile sees: a grown-up can hide a scrobbler from a child's profile. */
 function addonsFor(profile: string): InstalledAddon[] {

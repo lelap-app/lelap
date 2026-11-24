@@ -21,6 +21,7 @@ export type NativeTags = Omit<FileTags, 'ids'> & { idTags?: Record<string, strin
 type LelapLibraryModule = {
   pickFolder(): Promise<PickedFolder | null>;
   hasPermission(uri: string): Promise<boolean>;
+  releaseOtherFolders(keep: string[]): Promise<number>;
   listTree(uri: string): Promise<ListedFile[]>;
   readTags(uri: string, name: string, coverDir: string): Promise<NativeTags>;
   readImage(uri: string, coverDir: string, fileName: string | null): Promise<string | null>;
@@ -60,6 +61,14 @@ export function pickFolder(): Promise<PickedFolder | null> {
 
 export function hasPermission(uri: string): Promise<boolean> {
   return native.hasPermission(uri);
+}
+
+/**
+ * Gives back the read access kept to folders other than [keep], such as the library folder
+ * chosen before this one; the download folder's access stays. Resolves to how many went.
+ */
+export function releaseOtherFolders(keep: string[]): Promise<number> {
+  return native.releaseOtherFolders(keep);
 }
 
 /** Every file below the folder. Rejects with FOLDER_UNAVAILABLE when the folder cannot be read. */
