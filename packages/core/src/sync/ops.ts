@@ -36,6 +36,12 @@ import {
 } from '../schema';
 import { bookIdForKey, bookKey, parseEpisodeKey, recordDeletion, type TombstoneKind } from './keys';
 import { type SoundOverrides, syncedOverrides } from '../sound';
+import {
+  mergeSyncedParts,
+  partsForSync,
+  reconcileFinished,
+  type SyncedPart,
+} from '../library/folderPodcast';
 import { cleanChapters } from '../library/ownChapters';
 import { cleanOrder, SERIES_ORDER_PREFIX } from '../library/series';
 import { cleanRating, RATING_PREFIX } from '../ratings';
@@ -143,6 +149,10 @@ export type Op =
         speed: number;
         lastPlayedAt: number | null;
         finishedAt: number | null;
+        /** Since M157; absent from older devices, which keep what is here. */
+        asPodcast?: boolean;
+        /** Per file, merged file by file whatever the entry's own time (M157). */
+        parts?: SyncedPart[];
       } & Partial<SoundOverrides>;
     }
   | {
@@ -444,6 +454,9 @@ export function collectOps(db: Db, since: number): Op[] {
         voiceEq: e.voiceEq,
         skipSilence: e.skipSilence,
         evenLoudness: e.evenLoudness,
+        ...(e.asPodcast || e.parts
+          ? { asPodcast: e.asPodcast, parts: partsForSync(db, e.bookId, e.parts) }
+          : {}),
       },
     });
   }
@@ -954,16 +967,29 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
             eq(libraryEntries.bookId, bookId),
           );
           const local = tx
-            .select({ updatedAt: libraryEntries.updatedAt })
+            .select({ updatedAt: libraryEntries.updatedAt, parts: libraryEntries.parts })
             .from(libraryEntries)
             .where(where)
             .get();
-          if (local && local.updatedAt >= op.at) break;
+          const parts =
+            op.data.parts === undefined
+              ? undefined
+              : mergeSyncedParts(tx, bookId, local?.parts ?? null, op.data.parts);
+          if (local && local.updatedAt >= op.at) {
+            // An older entry may still bring a newer mark for one file.
+            if (parts) {
+              tx.update(libraryEntries).set({ parts }).where(where).run();
+              reconcileFinished(tx, op.profile, bookId, op.at);
+            }
+            break;
+          }
           const row = {
             speed: op.data.speed,
             lastPlayedAt: op.data.lastPlayedAt,
             finishedAt: op.data.finishedAt,
             ...syncedOverrides(op.data),
+            ...(typeof op.data.asPodcast === 'boolean' ? { asPodcast: op.data.asPodcast } : {}),
+            ...(parts ? { parts } : {}),
             updatedAt: op.at,
           };
           tx.insert(libraryEntries)
@@ -973,6 +999,7 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
               set: row,
             })
             .run();
+          if (parts) reconcileFinished(tx, op.profile, bookId, op.at);
           break;
         }
         case 'bookmark': {

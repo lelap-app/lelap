@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { presentFiles } from './library/bookFiles';
+import { noteFileChange } from './library/folderPodcast';
 import { isLiveBook } from './live';
 import { type FilePosition, toBookPosition, toFilePosition } from './library/timeline';
 import { bookFiles, books, libraryEntries, progress } from './schema';
@@ -76,6 +77,18 @@ export function saveProgress(
       bookPositionMs,
       updatedAt: entry.savedAt,
     };
+    // A book shown as a podcast marks the file it left (M157).
+    if (stored && stored.fileLocation !== entry.fileLocation) {
+      noteFileChange(
+        tx,
+        profileId,
+        bookId,
+        stored,
+        entry.fileLocation,
+        origin === 'journal',
+        entry.savedAt,
+      );
+    }
     tx.insert(progress)
       .values({ profileId, bookId, ...values })
       .onConflictDoUpdate({ target: [progress.profileId, progress.bookId], set: values })

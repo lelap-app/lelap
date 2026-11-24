@@ -13,6 +13,7 @@ import {
 import { presentFiles } from './bookFiles';
 import { namedChapters } from './chapterNames';
 import { compareNatural } from './files';
+import { setAllEpisodesPlayed, tracksEpisodes } from './folderPodcast';
 import { kidFilter } from '../kids';
 import { isLiveBook } from '../live';
 import { linkedMetaByKey, linkedSeriesByKey } from './links';
@@ -359,5 +360,10 @@ export function setFinished(
 ): void {
   // A live stream has no end to reach (M154).
   if (finished && isLiveBook(db, bookId)) return;
+  // A book with per-file marks (M157) is finished by them, so they stay true in book view too.
+  if (tracksEpisodes(db, profileId, bookId)) {
+    setAllEpisodesPlayed(db, profileId, bookId, finished, at);
+    return;
+  }
   upsertEntry(db, profileId, bookId, { finishedAt: finished ? at : null }, now);
 }

@@ -192,6 +192,14 @@ export const libraryRoots = sqliteTable('library_roots', {
 });
 
 /** Where a streamed book came from, so the app can find it again from an add-on item. */
+/**
+ * One file's own state when its book shows as a podcast (M157): `played` is when it was played,
+ * null when unmarked; `positionMs` is where it was left; `at` is when this changed, so marks from
+ * two devices merge file by file.
+ */
+export type PartState = { played: number | null; positionMs: number; at: number };
+export type PartStates = Record<string, PartState>;
+
 export type AddonItemRef = {
   addonUrl: string;
   type: string;
@@ -344,6 +352,13 @@ export const libraryEntries = sqliteTable(
     evenLoudness: integer('even_loudness', { mode: 'boolean' }),
     lastPlayedAt: integer('last_played_at'),
     finishedAt: integer('finished_at'),
+    /** Shows a book of episode files as a podcast (M157): each file is an episode of its own. */
+    asPodcast: integer('as_podcast', { mode: 'boolean' }).notNull().default(false),
+    /**
+     * Per file, by location: when it was played and where it was left (M157). Kept through a
+     * switch to book view, so switching back loses nothing. Null until first shown as a podcast.
+     */
+    parts: text('parts', { mode: 'json' }).$type<PartStates>(),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [

@@ -12,6 +12,7 @@ export const SCREENS = [
   'dev/spike',
   'diagnostics',
   'downloads',
+  'folder',
   'item',
   'list',
   'match',

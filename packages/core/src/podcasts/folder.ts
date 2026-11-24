@@ -2,23 +2,16 @@ import { and, asc, eq } from 'drizzle-orm';
 
 import type { Db } from '../db';
 import type { IdGenerator } from '../ids';
+import { episodeCode } from '../library/episodeCode';
 import { setFinished } from '../library/queries';
 import { saveProgress } from '../progress';
 import { bookFiles, episodes, progress } from '../schema';
 import { episodeBook } from './repository';
 
+export { episodeCode };
+
 type LocalFile = { location: string; name: string; title: string | null };
 type FeedItem = { id: string; title: string; season: number | null; number: number | null };
-
-const CODE = /\bS(\d{1,3})\s*E(\d{1,4})\b|\bE(?:p(?:isode)?)?\.?\s*(\d{1,4})\b/i;
-
-/** `S04E01` → season 4, episode 1; `E12` or `Episode 12` → episode 12. */
-export function episodeCode(name: string): { season: number | null; number: number } | null {
-  const m = CODE.exec(name);
-  if (!m) return null;
-  if (m[1] && m[2]) return { season: Number(m[1]), number: Number(m[2]) };
-  return m[3] ? { season: null, number: Number(m[3]) } : null;
-}
 
 const normalize = (text: string) =>
   text
