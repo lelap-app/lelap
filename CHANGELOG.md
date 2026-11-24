@@ -2,6 +2,24 @@
 
 What changed in each Lelap release, newest first.
 
+## 0.1.0-beta.18 (2026-11-24)
+
+No native changes, so beta 17 gets this over the air. The app's database gains two columns on
+first start; no new permissions.
+
+### New
+
+- A folder of podcast episodes can show as a podcast instead of a book: long press it in the
+  Library and choose Show as podcast. Each episode has its own mark, so episodes heard out of
+  order show as played, and a tap on the circle marks or unmarks one. The page shows how many are
+  played, filters for unplayed and played, seasons from names like S01E01, and where to continue.
+  Switching back to a book keeps every mark and place. (#294)
+
+### Fixed
+
+- Lepak's Cerita, Sembang and Sejarah rows fill up with shows found by their word when few feeds
+  carry the category. (#290)
+
 ## 0.1.0-beta.17 (2026-11-21)
 
 This beta changes one line of native code (Android Auto's “Up next”), so Android needs the new

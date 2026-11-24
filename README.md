@@ -32,6 +32,7 @@ and on the web from one codebase, and every server piece can be self-hosted with
 - Lists a whole series in reading order where Wikidata knows it, with the books you don't have yet
   by their titles, and names the next book at the end of one.
 - Rates books in half stars, and marks new podcast episodes.
+- Shows a folder of podcast episodes as a podcast, with each episode marked played on its own.
 - Plays a podcast's smallest file on mobile data when its feed offers several, and checks a download
   against the hash the feed gives.
 - Syncs progress between devices with a pairing code. No account, end-to-end encrypted.

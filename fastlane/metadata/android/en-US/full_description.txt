@@ -19,7 +19,7 @@ Lelap is an open-source player for audiobooks and podcasts. It plays, downloads,
 <li>The library opens in three groups: in progress, not started and finished.</li>
 <li>Tags, hand-made lists and smart lists that play from start to end; Up next for books and episodes.</li>
 <li>Whole series in reading order where Wikidata knows them, with the books you don't have yet by their titles, and the next book when one ends.</li>
-<li>Rate books in half stars; new podcast episodes are marked.</li>
+<li>Rate books in half stars; new podcast episodes are marked, and a folder of episodes can show as a podcast.</li>
 <li>Hide what you don't want in the library; files that look like music are pointed out.</li>
 <li>Stats: time listened, streaks, finished books, and your year in sound to share as an image.</li>
 <li>Downloads over Wi-Fi with the screen off, to an SD card if you like; airplane mode is a normal day.</li>
