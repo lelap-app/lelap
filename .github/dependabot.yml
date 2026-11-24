@@ -35,3 +35,7 @@ updates:
     groups:
       images:
         patterns: ['*']
+    ignore:
+      # Images follow .nvmrc (Node 24); Node 25 and later ship without corepack.
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
