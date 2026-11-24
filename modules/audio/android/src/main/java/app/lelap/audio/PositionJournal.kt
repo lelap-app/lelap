@@ -67,6 +67,11 @@ data class BookPlaylist(
   val skipsPlayed: Boolean = false,
   /** The book keeps a mark per file (M157): each file played to its end is logged for the app. */
   val marksFiles: Boolean = false,
+  /**
+   * One episode of a book shown as a podcast, from Up Next (M158): the files up to it, ending and
+   * handing over with it. The whole book is another load, never an update of this one.
+   */
+  val alone: Boolean = false,
 )
 
 /**
@@ -129,7 +134,8 @@ object PositionJournal {
 
   /** Whether [load] is the book the player already holds, which must keep its live position. */
   fun isSameBook(current: BookPlaylist?, mediaItemCount: Int, load: BookLoad): Boolean =
-    current != null && mediaItemCount > 0 && current.bookId == load.playlist.bookId
+    current != null && mediaItemCount > 0 && current.bookId == load.playlist.bookId &&
+      current.alone == load.playlist.alone
 
   /**
    * Whether the same book comes with other files (a download finished, was removed or moved), so
@@ -257,6 +263,7 @@ object PositionJournal {
     .put("live", p.live)
     .put("skipsPlayed", p.skipsPlayed)
     .put("marksFiles", p.marksFiles)
+    .put("alone", p.alone)
 
   private fun decodePlaylist(o: JSONObject): BookPlaylist {
     val files = o.getJSONArray("files")
@@ -302,6 +309,7 @@ object PositionJournal {
       live = o.optBoolean("live", false),
       skipsPlayed = o.optBoolean("skipsPlayed", false),
       marksFiles = o.optBoolean("marksFiles", false),
+      alone = o.optBoolean("alone", false),
     )
   }
 

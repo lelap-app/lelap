@@ -201,12 +201,21 @@ describe('folders as podcasts', () => {
     expect(finishedAt(db)).toBeNull();
   });
 
-  it('never finishes a book because one of its files played alone', () => {
+  it('never finishes a book with marks because one of its files played alone', () => {
+    showAsPodcast(db, ME, bookId, 5);
+    showAsBook(db, ME, bookId, 6);
     place(db, bookId, 'e2', 39 * MIN, 20);
     finishFromPlayer(db, ME, bookId, 30, 'e2');
     expect(finishedAt(db)).toBeNull();
+    expect(statuses(db, bookId)[1]).toBe('played');
     finishFromPlayer(db, ME, bookId, 40, 'e5');
     expect(finishedAt(db)).toBe(40);
+  });
+
+  it('finishes a plain book that ended before a file added since', () => {
+    place(db, bookId, 'e4', 39 * MIN, 20);
+    finishFromPlayer(db, ME, bookId, 30, 'e4');
+    expect(finishedAt(db)).toBe(30);
   });
 
   it('tells the player which episodes are played and where the others were left', () => {

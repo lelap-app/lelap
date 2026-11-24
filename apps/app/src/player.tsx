@@ -621,6 +621,7 @@ function episodeLoad(bookId: string, start: FilePosition): audio.BookLoad | null
     startPositionMs: start.positionMs,
     handsOver: true,
     skipsPlayed: false,
+    alone: true,
   };
 }
 
@@ -944,6 +945,8 @@ export function playFolderEpisode(bookId: string, location: string): Promise<voi
     // Saved above; saving the old place again on load would undo the move.
     if (current.bookId) playedThisSession.delete(current.bookId);
     await load(bookId, true, true);
+    // The same book as one episode from Up Next keeps its live place on Android: go there.
+    if (current.bookId === bookId) await audio.seekTo(target.index, target.positionMs);
   });
 }
 
@@ -958,6 +961,9 @@ export function playQueuedEpisode(bookId: string, location: string): Promise<voi
     if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
     if (current.bookId === bookId) playedThisSession.delete(bookId);
     await load(bookId, true, true, false, location);
+    // Android keeps the live place of a book already loaded as one episode: go to this one.
+    const start = current.bookId === bookId ? episodeStart(db, profileId, bookId, location) : null;
+    if (start) await audio.seekTo(start.index, start.positionMs);
   });
 }
 

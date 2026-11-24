@@ -282,7 +282,8 @@ class AudioModule : Module() {
       val list = FolderEpisodes.decodePlayed(prefs.getString(Commands.PREF_PLAYED_FILES, null))
       prefs.edit().remove(Commands.PREF_PLAYED_FILES).apply()
       list.map { mapOf("bookId" to it.bookId, "fileLocation" to it.fileLocation, "at" to it.at.toDouble()) }
-    }
+      // On the main thread, where the service appends, so no file lands between read and clear.
+    }.runOnQueue(Queues.MAIN)
 
     // Same process: the service logs only while this is on. Off drops what it kept. On the main
     // thread, where the service appends, so an append can't bring a dropped log back.

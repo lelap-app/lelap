@@ -583,7 +583,8 @@ export function endOfPodcastBook(
   // One episode of the book played alone: never the whole book's end.
   const alone = endedIndex >= 0 && endedIndex < files.length - 1;
   if (!alone && !showsAsPodcast(db, profileId, bookId)) return false;
-  if (alone && !tracksEpisodes(db, profileId, bookId)) return true;
+  // Only a book with marks plays one alone; a plain book whose folder changed ends as before.
+  if (alone && !tracksEpisodes(db, profileId, bookId)) return false;
   db.transaction((tx) => {
     const entry = readEntry(tx, profileId, bookId);
     const index = alone ? endedIndex : files.length - 1;

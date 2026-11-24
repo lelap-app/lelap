@@ -1002,6 +1002,8 @@ export async function setSettings(next: PlayerSettings): Promise<void> {
 /** Gives the loaded book its new sound (M84) at its place; another book is left alone. */
 export async function updateBook(next: BookLoad): Promise<void> {
   if (!book || book.bookId !== next.bookId) return;
+  // One episode from Up Next and its whole book are different loads (M158).
+  if ((book.alone ?? false) !== (next.alone ?? false)) return;
   // Its own sound, and whether it hands over: a list that starts or stops playing (M112).
   // Its chapter pictures too, once read (M121).
   book = {

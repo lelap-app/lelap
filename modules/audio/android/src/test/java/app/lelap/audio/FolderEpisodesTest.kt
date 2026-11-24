@@ -44,8 +44,16 @@ class FolderEpisodesTest {
     assertTrue(FolderEpisodes.decodePlayed(null).isEmpty())
   }
 
+  @Test fun `one episode from Up Next and its whole book are different loads`() {
+    val whole = book(file(1), file(2), file(3))
+    val alone = whole.copy(files = whole.files.take(2), alone = true)
+    assertTrue(PositionJournal.isSameBook(whole, 3, BookLoad(whole, 0, 0L)))
+    assertEquals(false, PositionJournal.isSameBook(alone, 2, BookLoad(whole, 0, 0L)))
+    assertEquals(false, PositionJournal.isSameBook(whole, 3, BookLoad(alone, 1, 0L)))
+  }
+
   @Test fun `the marks travel with the book through the journal and the queue`() {
-    val load = BookLoad(book(file(1), file(2, played = true), file(3, leftAtMs = 7_000)), 0, 0L)
+    val load = BookLoad(book(file(1), file(2, played = true), file(3, leftAtMs = 7_000)).copy(alone = true), 0, 0L)
     val back = PositionJournal.decodeLoad(PositionJournal.encodeLoad(load))
     assertEquals(load.playlist, back?.playlist)
     // Older journals have none.

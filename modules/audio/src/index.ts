@@ -82,6 +82,11 @@ export type BookLoad = {
    */
   marksFiles?: boolean;
   /**
+   * One episode of a book shown as a podcast, from Up Next (M158): the files up to it, ending and
+   * handing over with it. The whole book is another load, never an update of this one.
+   */
+  alone?: boolean;
+  /**
    * A live stream (M154): no seeking, speed, smart rewind, place or end; Play after a pause goes
    * back to what is on air now.
    */
@@ -389,7 +394,6 @@ export function takeFinished(): Promise<FinishedItem[]> {
   return native.takeFinished();
 }
 
-/** Places of books the service replaced by itself (Up Next, Android Auto), oldest first. */
 /**
  * Files of books with per-file marks that played to their end since the last call, perhaps with
  * the app closed (M158), for the app to mark played.
@@ -397,6 +401,8 @@ export function takeFinished(): Promise<FinishedItem[]> {
 export function takePlayedFiles(): Promise<PlayedFile[]> {
   return native.takePlayedFiles();
 }
+
+/** Places of books the service replaced by itself (Up Next, Android Auto), oldest first. */
 
 export function takeEarlierPlaces(): Promise<JournalEntry[]> {
   return native.takeEarlierPlaces();

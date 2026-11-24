@@ -637,7 +637,8 @@ class PlaybackService : MediaLibraryService() {
     }
     val (index, position) = FolderEpisodes.skipTarget(playlist, old.mediaItemIndex, new.mediaItemIndex) ?: return
     notePendingSeek(index, position)
-    player.seekTo(index, position)
+    // The receiver while casting: it plays on from there.
+    active.seekTo(index, position)
   }
 
   /** The book played to its end: log it, then hand over to Up Next if it is an episode. */
