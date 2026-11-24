@@ -164,7 +164,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M156 Add-on protocol 6](milestones/m156.md)         | Done        |           7 | Revision 15 — the app tells add-ons its revision, a minimum app revision, 426 Upgrade Required                                                                       |
 | [M157 Folders as podcasts](milestones/m157.md)       | Done        |           9 | A folder of episode files shown as a podcast, each episode marked played on its own, switched back and forth without losing progress                                 |
 | [M158 Folders as podcasts 2](milestones/m158.md)     | Planned     |             | Skip played episodes with the app closed, single episodes in Up Next, swipe to mark, honest Library progress                                                         |
-| [M159 Upkeep 3](milestones/m159.md)                  | In progress |          11 | M40's open small fixes: add-on answers kept for their cacheMaxAge, health kept across starts, old updates removed, offline transcripts, car mode's Previous chapter  |
+| [M159 Upkeep 3](milestones/m159.md)                  | Done        |          11 | M40's open small fixes: add-on answers kept for their cacheMaxAge, health kept across starts, old updates removed, offline transcripts, car mode's Previous chapter  |
 
 <!-- milestones:end -->
 
