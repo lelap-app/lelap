@@ -15,6 +15,7 @@ export { chapterTitleAt, learnFileDuration, regroupedBook } from './library/book
 export * from './bookmarks';
 export * from './library/queries';
 export * from './library/bookChanges';
+export * from './library/folderPodcast';
 export * from './library/chapterNames';
 export * from './library/ownChapters';
 export * from './library/series';

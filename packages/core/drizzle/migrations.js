@@ -35,6 +35,7 @@ import m0030 from './0030_funny_salo.sql';
 import m0031 from './0031_material_rachel_grey.sql';
 import m0032 from './0032_easy_loners.sql';
 import m0033 from './0033_modern_blue_marvel.sql';
+import m0034 from './0034_lying_adam_warlock.sql';
 
 export default {
   journal,
@@ -73,5 +74,6 @@ export default {
     m0031,
     m0032,
     m0033,
+    m0034,
   },
 };

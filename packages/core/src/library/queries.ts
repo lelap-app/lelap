@@ -13,6 +13,7 @@ import {
 import { presentFiles } from './bookFiles';
 import { namedChapters } from './chapterNames';
 import { compareNatural } from './files';
+import { setAllEpisodesPlayed, showsAsPodcast } from './folderPodcast';
 import { kidFilter } from '../kids';
 import { isLiveBook } from '../live';
 import { linkedMetaByKey, linkedSeriesByKey } from './links';
@@ -359,5 +360,10 @@ export function setFinished(
 ): void {
   // A live stream has no end to reach (M154).
   if (finished && isLiveBook(db, bookId)) return;
+  // A book shown as a podcast is finished by its episodes' marks (M157).
+  if (showsAsPodcast(db, profileId, bookId)) {
+    setAllEpisodesPlayed(db, profileId, bookId, finished, now);
+    return;
+  }
   upsertEntry(db, profileId, bookId, { finishedAt: finished ? at : null }, now);
 }
