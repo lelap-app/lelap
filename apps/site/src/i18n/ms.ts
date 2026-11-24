@@ -92,8 +92,8 @@ export const ms: Record<string, string> = {
   'How it works': 'Cara ia berfungsi',
   'How to reach you, and that you are authorised to act for the rights holder':
     'Cara menghubungi anda, dan pengesahan bahawa anda diberi kuasa untuk bertindak bagi pihak pemegang hak',
-  'Import m4b, mp3, opus and flac, or point it at a folder. Chapters come from the tags, covers from the tags or an image beside the audio, and a book you own plays from its catalog page. OPML in and out for podcasts.':
-    'Import m4b, mp3, opus dan flac, atau tunjukkan folder. Bab diambil daripada tag, kulit buku daripada tag atau imej di sebelah audio, dan buku milik anda dimainkan dari halaman katalognya. Import dan eksport OPML untuk podcast.',
+  'Import m4b, mp3, opus and flac, or point it at a folder. Chapters come from the tags, covers from the tags or an image beside the audio, and a book you own plays from its catalog page. A folder of episodes can show as a podcast. OPML in and out for podcasts.':
+    'Import m4b, mp3, opus dan flac, atau tunjukkan folder. Bab diambil daripada tag, kulit buku daripada tag atau imej di sebelah audio, dan buku milik anda dimainkan dari halaman katalognya. Folder episod boleh dipaparkan sebagai podcast. Import dan eksport OPML untuk podcast.',
   'In development · Open source · Android and web':
     'Dalam pembangunan · Sumber terbuka · Android dan web',
   'Is it free?': 'Adakah ia percuma?',
