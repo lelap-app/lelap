@@ -14,6 +14,8 @@ data class Finished(
   val at: Long,
   val startLocation: String? = null,
   val startPositionMs: Long? = null,
+  /** The file it ended in (M158): the last one loaded, which for one episode isn't the book's. */
+  val fileLocation: String? = null,
 )
 
 /**
@@ -61,6 +63,7 @@ object UpNext {
         if (it.startLocation != null && it.startPositionMs != null) {
           o.put("startLocation", it.startLocation).put("startPositionMs", it.startPositionMs)
         }
+        it.fileLocation?.let { location -> o.put("fileLocation", location) }
         o
       },
     ).toString()
@@ -76,6 +79,7 @@ object UpNext {
         o.getLong("at"),
         if (started) o.getString("startLocation") else null,
         if (started) o.getLong("startPositionMs") else null,
+        if (o.isNull("fileLocation")) null else o.getString("fileLocation"),
       )
     }
   } catch (e: JSONException) {

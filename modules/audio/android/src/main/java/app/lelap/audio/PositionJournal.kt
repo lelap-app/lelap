@@ -17,6 +17,10 @@ data class BookFile(
   val auto: AutoFile? = null,
   /** The stream's MIME type, for an HLS playlist without `.m3u8` (M154). */
   val mime: String? = null,
+  /** An episode of a book shown as a podcast that is played (M158): playing on skips it. */
+  val played: Boolean = false,
+  /** Where that episode was left, for when playing on skips to it (M158). */
+  val leftAtMs: Long = 0L,
 )
 
 /** The feed's own file and the smallest one, for mobile data (M121). */
@@ -59,6 +63,10 @@ data class BookPlaylist(
   val locate: Boolean = false,
   /** A live stream (M154): no seeking, speed, smart rewind or end; Play rejoins what is on air. */
   val live: Boolean = false,
+  /** A book shown as a podcast (M158): playing on into a played file goes on to one not played. */
+  val skipsPlayed: Boolean = false,
+  /** The book keeps a mark per file (M157): each file played to its end is logged for the app. */
+  val marksFiles: Boolean = false,
 )
 
 /**
@@ -232,6 +240,8 @@ object PositionJournal {
             .apply { it.name?.let { name -> put("name", name) } }
             .apply { it.auto?.let { a -> put("auto", JSONObject().put("unmetered", a.unmetered).put("metered", a.metered)) } }
             .apply { it.mime?.let { mime -> put("mime", mime) } }
+            .apply { if (it.played) put("played", true) }
+            .apply { if (it.leftAtMs > 0) put("leftAtMs", it.leftAtMs) }
         },
       ),
     )
@@ -245,6 +255,8 @@ object PositionJournal {
     .put("serverPlaces", p.serverPlaces)
     .put("locate", p.locate)
     .put("live", p.live)
+    .put("skipsPlayed", p.skipsPlayed)
+    .put("marksFiles", p.marksFiles)
 
   private fun decodePlaylist(o: JSONObject): BookPlaylist {
     val files = o.getJSONArray("files")
@@ -264,6 +276,8 @@ object PositionJournal {
           f.optStringOrNull("name"),
           f.optJSONObject("auto")?.let { a -> AutoFile(a.getString("unmetered"), a.getString("metered")) },
           f.optStringOrNull("mime"),
+          f.optBoolean("played", false),
+          f.optLong("leftAtMs", 0L).coerceAtLeast(0L),
         )
       },
       chapters = List(chapters.length()) {
@@ -286,6 +300,8 @@ object PositionJournal {
       serverPlaces = o.optBoolean("serverPlaces", false),
       locate = o.optBoolean("locate", false),
       live = o.optBoolean("live", false),
+      skipsPlayed = o.optBoolean("skipsPlayed", false),
+      marksFiles = o.optBoolean("marksFiles", false),
     )
   }
 

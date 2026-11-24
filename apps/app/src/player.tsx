@@ -19,6 +19,9 @@ import {
   streamMime,
   saveProgress,
   isFinished,
+  episodeMarks,
+  episodeStart,
+  markFilesPlayed,
   showsAsPodcast,
   skipPlayedEpisode,
   startEpisode,
@@ -48,6 +51,7 @@ import {
   getProfile,
   listAddons,
   voiceCatalogs,
+  type FilePosition,
   type LibraryBook,
   type ListFollow,
 } from '@lelap/core';
@@ -186,12 +190,15 @@ export const playerProfile = () => playerProfileOf(db, profileId);
  * then the player's own reports follow. `send` false leaves sending them to the caller.
  */
 export async function foldJournal(send = true): Promise<void> {
+  const profile = playerProfile();
+  // Files the service played to their end first (M158), so the places after them mark nothing.
+  const played = await audio.takePlayedFiles().catch(() => []);
+  if (played.length > 0) markFilesPlayed(db, profile, played, Date.now());
   // Books the service replaced by itself (Up Next, Android Auto) first: they are older.
   const earlier = await audio.takeEarlierPlaces().catch(() => []);
   const entry = await audio.takeJournal();
   const places = entry ? [...earlier, entry] : earlier;
   if (places.length === 0) return;
-  const profile = playerProfile();
   const saved = places.filter((place) => saveProgress(db, profile, place, 'journal'));
   if (saved.length === 0) return;
   // Asking the player starts its service, so only when there is a place to send.
@@ -206,9 +213,24 @@ export async function foldJournal(send = true): Promise<void> {
   if (send) void flushServerPlaces();
 }
 
+// An episode just chosen in a book already loaded (M158): until the player reports it, a report
+// of the old place must not put the book's place back there.
+let movingTo: { bookId: string; location: string; positionMs: number; until: number } | null = null;
+const MOVE_WAIT_MS = 5_000;
+// How far the player may have played on from the new place, at up to 3×, before it reports it.
+const MOVE_SLACK_MS = 3 * MOVE_WAIT_MS;
+
 /** Saves the place playing right now, before anything replaces it. */
 function savePlace(state: audio.PlayerState): boolean {
   if (!state.bookId || !state.fileLocation) return false;
+  if (movingTo) {
+    const arrived =
+      state.bookId !== movingTo.bookId ||
+      (state.fileLocation === movingTo.location &&
+        Math.abs(state.positionMs - movingTo.positionMs) <= MOVE_SLACK_MS);
+    if (arrived || Date.now() > movingTo.until) movingTo = null;
+    else return false;
+  }
   return saveProgress(
     db,
     playerProfile(),
@@ -458,6 +480,7 @@ async function load(
   autoplay: boolean,
   force = false,
   fromStart = false,
+  episode?: string,
 ): Promise<void> {
   const current = await audio.getState();
   if (playerProfile() !== profileId) {
@@ -477,7 +500,7 @@ async function load(
   await locateAddonBook(bookId, profileId);
   // An episode streams the file its show's choice and the connection call for (M103).
   pickEpisodeFile(bookId);
-  const book = bookLoad(bookId, { fromStart });
+  const book = bookLoad(bookId, { fromStart, episode: episode ?? null });
   if (!book) throw new Error('The files of this book are not available.');
   // What the service heard so far belongs to the profile it played for, which may change here:
   // after the service has counted up to the pause, so none of it lands in the next profile.
@@ -497,12 +520,19 @@ async function load(
  */
 export function bookLoad(
   bookId: string,
-  options: { fromStart?: boolean; following?: boolean } = {},
+  options: { fromStart?: boolean; following?: boolean; episode?: string | null } = {},
 ): audio.BookLoad | null {
   const detail = getBook(db, profileId, bookId);
   if (!detail || detail.files.length === 0) return null;
   const saved = resumePoint(db, profileId, bookId);
   if (!saved) return null;
+  // One episode of a book shown as a podcast, from Up Next (M158): the files up to it, so it ends
+  // and hands over with that episode, at the same indexes as the whole book.
+  const alone =
+    options.episode && showsAsPodcast(db, profileId, bookId)
+      ? episodeStart(db, profileId, bookId, options.episode)
+      : null;
+  if (alone) return episodeLoad(bookId, alone);
   // A finished item of a list that keeps them plays again from the top.
   const start = options.fromStart ? { index: 0, positionMs: 0 } : saved;
   const following = options.following ?? followedList(db, profileId) !== null;
@@ -517,6 +547,8 @@ export function bookLoad(
     Platform.OS === 'android' && detail.book.source === 'feed' && detail.files.length === 1
       ? automaticEpisodeFiles(db, profileId, bookId)
       : null;
+  // Played episodes playing on skips, and the files the service logs at their end (M158).
+  const marks = episodeMarks(db, profileId, bookId);
   return {
     bookId,
     title: detail.book.title,
@@ -540,6 +572,7 @@ export function bookLoad(
       ...(auto && !f.downloadPath && (f.uri === auto.unmetered || f.uri === auto.metered)
         ? { auto }
         : {}),
+      ...(marks?.skipsPlayed ? fileMarks(marks.files.get(f.location)) : {}),
     })),
     chapters: detail.chapters,
     startIndex: start.index,
@@ -558,7 +591,36 @@ export function bookLoad(
     sound: setOverrides(bookSound(db, profileId, bookId).overrides),
     ...(detail.book.source === 'feed' ? artworksOf(bookId) : {}),
     ...serverTasksOf(detail.files),
+    ...(marks ? { marksFiles: true, ...(marks.skipsPlayed ? { skipsPlayed: true } : {}) } : {}),
     ...(live ? { live: true, speed: 1, startIndex: 0, startPositionMs: 0, pausedAt: null } : {}),
+  };
+}
+
+function fileMarks(mark: { played: boolean; leftAtMs: number } | undefined) {
+  if (!mark) return {};
+  return {
+    ...(mark.played ? { played: true } : {}),
+    ...(mark.leftAtMs > 0 ? { leftAtMs: mark.leftAtMs } : {}),
+  };
+}
+
+/**
+ * One episode of a book shown as a podcast, as Up Next plays it (M158): the book's files up to
+ * that one, starting there, handing over at its end. Its chapters stop there too.
+ */
+function episodeLoad(bookId: string, start: FilePosition): audio.BookLoad | null {
+  const whole = bookLoad(bookId, { following: true });
+  if (!whole) return null;
+  const files = whole.files.slice(0, start.index + 1);
+  const endMs = files.reduce((sum, f) => sum + Math.max(0, f.durationMs), 0);
+  return {
+    ...whole,
+    files,
+    chapters: whole.chapters.filter((c) => c.startMs < endMs),
+    startIndex: start.index,
+    startPositionMs: start.positionMs,
+    handsOver: true,
+    skipsPlayed: false,
   };
 }
 
@@ -639,7 +701,8 @@ function syncQueue(): Promise<void> {
 async function sendQueue(): Promise<void> {
   if (playerProfile() !== profileId) return;
   const loaded = (await audio.getState()).bookId;
-  const upNext = listUpNext(db, profileId).map((i) => i.bookId);
+  const queued = listUpNext(db, profileId);
+  const upNext = queued.map((i) => i.bookId);
   const now = Date.now();
   // A list picked in Android Auto (M119): the service plays along it; the app follows it too.
   // The service may have moved along the list since, so any of its items may be playing now.
@@ -681,16 +744,16 @@ async function sendQueue(): Promise<void> {
   }
   if (!following) lastHandedOver = null;
   const queue: audio.BookLoad[] = [];
-  const queued = new Set<string>(loaded ? [loaded] : []);
-  const add = (bookId: string, fromStart = false): boolean => {
-    if (queued.has(bookId) || queue.length >= QUEUE_LIMIT) return true;
-    const book = bookLoad(bookId, { fromStart, following: following !== null });
+  const added = new Set<string>(loaded ? [loaded] : []);
+  const add = (bookId: string, fromStart = false, episode: string | null = null): boolean => {
+    if (added.has(bookId) || queue.length >= QUEUE_LIMIT) return true;
+    const book = bookLoad(bookId, { fromStart, following: following !== null, episode });
     if (!book) return true;
-    queued.add(bookId);
+    added.add(bookId);
     queue.push(book);
     return book.handsOver ?? false;
   };
-  for (const bookId of upNext) if (!add(bookId)) break;
+  for (const item of queued) if (!add(item.bookId, false, item.episode?.location)) break;
   let listNext: number | null = null;
   let list: audio.QueueList | null = null;
   if (following) {
@@ -768,7 +831,7 @@ async function syncCar(): Promise<void> {
 async function foldFinished(): Promise<boolean> {
   const done = await audio.takeFinished().catch(() => []);
   for (const item of done) {
-    finishFromPlayer(db, playerProfile(), item.bookId, item.at);
+    finishFromPlayer(db, playerProfile(), item.bookId, item.at, item.fileLocation);
     // A podcast book with episodes left goes on to the first of them, not finished (M157).
     if (showsAsPodcast(db, playerProfile(), item.bookId)) {
       void reloadBook(item.bookId, false).catch(logCaught);
@@ -856,7 +919,19 @@ export function playFolderEpisode(bookId: string, location: string): Promise<voi
     if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
     const target = startEpisode(db, profileId, bookId, location, Date.now());
     if (!target) throw new Error('The files of this book are not available.');
-    if (current.bookId === bookId && current.partIndex >= 0 && playerProfile() === profileId) {
+    const whole = current.partCount === getBook(db, profileId, bookId)?.files.length;
+    if (
+      current.bookId === bookId &&
+      current.partIndex >= 0 &&
+      whole &&
+      playerProfile() === profileId
+    ) {
+      // The player reports the old place until the seek lands; those reports are not saved.
+      movingTo = { ...target, bookId, until: Date.now() + MOVE_WAIT_MS };
+      // The marks changed (a played episode starts again unmarked): the service playing on must
+      // know. On the web the app skips by itself.
+      const book = Platform.OS === 'android' ? bookLoad(bookId) : null;
+      if (book) await audio.updateBook(book);
       await logged(
         'chapter',
         () => audio.seekTo(target.index, target.positionMs),
@@ -869,6 +944,38 @@ export function playFolderEpisode(bookId: string, location: string): Promise<voi
     // Saved above; saving the old place again on load would undo the move.
     if (current.bookId) playedThisSession.delete(current.bookId);
     await load(bookId, true, true);
+  });
+}
+
+/**
+ * Plays one episode of a book shown as a podcast from Up Next (M158): alone, so at its end the
+ * next item in Up Next plays, as after any episode.
+ */
+export function playQueuedEpisode(bookId: string, location: string): Promise<void> {
+  userLoaded = true;
+  return enqueue(async () => {
+    const current = await audio.getState();
+    if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
+    if (current.bookId === bookId) playedThisSession.delete(bookId);
+    await load(bookId, true, true, false, location);
+  });
+}
+
+/**
+ * Hands the loaded book its episodes' marks after they changed on the show page (M158), so
+ * playing on with the app closed skips the right ones. At its live place.
+ */
+export function updateEpisodeMarks(bookId: string): Promise<void> {
+  // The web player has no marks of its own: the app skips played episodes there.
+  if (Platform.OS !== 'android') return Promise.resolve();
+  return enqueue(async () => {
+    if (playerProfile() !== profileId) return;
+    const current = await audio.getState();
+    if (current.bookId !== bookId || current.partIndex < 0) return;
+    // One episode from Up Next keeps its files; it has nothing to skip.
+    if (current.partCount !== getBook(db, profileId, bookId)?.files.length) return;
+    const book = bookLoad(bookId);
+    if (book) await audio.updateBook(book);
   });
 }
 
@@ -1021,9 +1128,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [state, refresh, flushListening]);
 
   // A book shown as a podcast skips an episode already played when the player goes on into it
-  // (M157). With the app closed the service plays on in order.
+  // (M157). On Android the playback service does it itself, also with the app closed (M158).
   const lastFile = useRef<{ bookId: string; location: string } | null>(null);
   useEffect(() => {
+    if (Platform.OS === 'android') return;
     const before = lastFile.current;
     const { bookId, fileLocation } = state;
     lastFile.current = bookId && fileLocation ? { bookId, location: fileLocation } : null;

@@ -49,6 +49,8 @@ object Commands {
   /** In [AUDIO_PREFS]: the queue, and the books that ended while the app may have been closed. */
   const val PREF_QUEUE = "upNextQueue"
   const val PREF_FINISHED = "finished"
+  /** In [AUDIO_PREFS]: files of books with per-file marks that played to their end (M158). */
+  const val PREF_PLAYED_FILES = "playedFiles"
   /** In [AUDIO_PREFS]: the app's [CarSnapshot], the books Android Auto can browse. */
   const val PREF_CAR_LIBRARY = "carLibrary"
   /** In [AUDIO_PREFS]: the [Bedtime] window the app set (absent when off), and the last night it started a timer. */

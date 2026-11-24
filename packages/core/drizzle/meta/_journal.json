@@ -246,6 +246,13 @@
       "when": 1795509376375,
       "tag": "0034_lying_adam_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1795528053236,
+      "tag": "0035_light_maddog",
+      "breakpoints": true
     }
   ]
 }

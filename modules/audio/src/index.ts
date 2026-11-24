@@ -22,6 +22,10 @@ export type BookLoad = {
     auto?: { unmetered: string; metered: string };
     /** The stream's MIME type, when its address can't tell an HLS playlist (M154). */
     mime?: string;
+    /** An episode of a book shown as a podcast that is played (M158): playing on skips it. */
+    played?: boolean;
+    /** Where that episode was left, for when playing on skips to it (M158). */
+    leftAtMs?: number;
   }[];
   /** On the whole-book timeline. */
   chapters: { title: string; startMs: number }[];
@@ -68,6 +72,16 @@ export type BookLoad = {
   /** Only an update of the book already loaded: the service ignores it for any other book. */
   onlyIfLoaded?: boolean;
   /**
+   * A book shown as a podcast (M158): playing on from one file into a played one goes on to the
+   * next one not played, also with the app closed.
+   */
+  skipsPlayed?: boolean;
+  /**
+   * The book keeps a mark per file (M157): the service logs each file it plays to its end, for
+   * `takePlayedFiles`.
+   */
+  marksFiles?: boolean;
+  /**
    * A live stream (M154): no seeking, speed, smart rewind, place or end; Play after a pause goes
    * back to what is on air now.
    */
@@ -81,7 +95,12 @@ export type FinishedItem = {
   /** Where the listening session that reached the end began (M102), when the service saw one. */
   startLocation?: string | null;
   startPositionMs?: number | null;
+  /** The file it ended in (M158): the last one loaded, which for one episode isn't the book's. */
+  fileLocation?: string | null;
 };
+
+/** A file of a book with per-file marks that played to its end (M158). */
+export type PlayedFile = { bookId: string; fileLocation: string; at: number };
 
 /** Player settings that must also work with the app closed. */
 export type PlayerSettings = {
@@ -215,6 +234,7 @@ declare class LelapAudioModule extends NativeModule<LelapAudioEvents> {
   setQueue(queueJson: string, listNext: number, listJson: string): Promise<void>;
   takeListStarted(): Promise<string | null>;
   takeFinished(): Promise<FinishedItem[]>;
+  takePlayedFiles(): Promise<PlayedFile[]>;
   takeEarlierPlaces(): Promise<JournalEntry[]>;
   takeAccounting(): Promise<ServiceAccounting>;
   ackAccounting(epoch: string, through: number): Promise<void>;
@@ -370,6 +390,14 @@ export function takeFinished(): Promise<FinishedItem[]> {
 }
 
 /** Places of books the service replaced by itself (Up Next, Android Auto), oldest first. */
+/**
+ * Files of books with per-file marks that played to their end since the last call, perhaps with
+ * the app closed (M158), for the app to mark played.
+ */
+export function takePlayedFiles(): Promise<PlayedFile[]> {
+  return native.takePlayedFiles();
+}
+
 export function takeEarlierPlaces(): Promise<JournalEntry[]> {
   return native.takeEarlierPlaces();
 }

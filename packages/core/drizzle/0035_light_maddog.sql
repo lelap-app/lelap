@@ -1,0 +1,1 @@
+ALTER TABLE `up_next` ADD `file_location` text;

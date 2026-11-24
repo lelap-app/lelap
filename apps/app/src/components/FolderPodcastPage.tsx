@@ -1,7 +1,22 @@
-import { type FolderEpisode, getBook, listFolderEpisodes, setEpisodesPlayed } from '@lelap/core';
+import {
+  addToUpNext,
+  episodesBefore,
+  type FolderEpisode,
+  getBook,
+  listFolderEpisodes,
+  setEpisodesPlayed,
+  undoEpisodes,
+} from '@lelap/core';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  type AccessibilityActionEvent,
+  Animated,
+  FlatList,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 
@@ -12,7 +27,7 @@ import { switchToBook } from '../folderView';
 import { formatDuration, formatLeft } from '../format';
 import { READABLE, useWide } from '../layout';
 import { openPlayer } from '../navigation';
-import { playFolderEpisode, reloadBook, useLibrary } from '../player';
+import { playFolderEpisode, reloadBook, updateEpisodeMarks, useLibrary } from '../player';
 import { profileId } from '../profile';
 import { useColors } from '../theme';
 import { type Action, ActionSheet } from './ActionSheet';
@@ -21,7 +36,9 @@ import { Icon } from './Icon';
 import { LoadState } from './LoadState';
 import { Pill } from './Pill';
 import { ScreenHeader } from './ScreenHeader';
+import { SwipeBackdrop, useRowSwipe } from './RowSwipe';
 import { ROW_BUTTON } from './TextButton';
+import { UndoBar, type UndoNotice } from './UndoBar';
 
 type Filter = 'all' | 'unplayed' | 'played';
 
@@ -146,6 +163,86 @@ function Strip({ groups, height }: { groups: Group[]; height: number }) {
 }
 
 /**
+ * One episode: a tap plays it, its circle marks it, and a swipe to the left marks it played or
+ * not (M158), which TalkBack offers as an action.
+ */
+function EpisodeRow({
+  episode: e,
+  onPlay,
+  onMenu,
+  onMark,
+  onSwipe,
+}: {
+  episode: FolderEpisode;
+  onPlay: () => void;
+  onMenu: () => void;
+  onMark: () => void;
+  onSwipe: () => void;
+}) {
+  const colors = useColors();
+  const code = codeOf(e);
+  const played = e.status === 'played';
+  const swipeLabel = played ? t('Mark as unplayed') : t('Mark as played');
+  const { x, width, handlers, justSwiped } = useRowSwipe(onSwipe);
+  const onAction = (event: AccessibilityActionEvent) => {
+    if (event.nativeEvent.actionName === 'swipe') onSwipe();
+  };
+  return (
+    <View onLayout={(event) => (width.current = event.nativeEvent.layout.width)}>
+      <SwipeBackdrop x={x} icon="check" label={swipeLabel} />
+      <Animated.View style={{ transform: [{ translateX: x }] }} {...handlers}>
+        <Pressable
+          onPress={() => {
+            if (!justSwiped()) onPlay();
+          }}
+          onLongPress={onMenu}
+          {...ROW_BUTTON}
+          accessibilityLabel={[code, e.title, statusText(e)].filter(Boolean).join(', ')}
+          accessibilityActions={[{ name: 'swipe', label: swipeLabel }]}
+          onAccessibilityAction={onAction}
+          className="flex-row items-center gap-1 border-b border-line bg-night py-2 pe-2 ps-1 active:bg-raised"
+        >
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityLabel={
+              played
+                ? t('Mark {title} as unplayed', { title: e.title })
+                : t('Mark {title} as played', { title: e.title })
+            }
+            accessibilityState={{ checked: played }}
+            aria-checked={played}
+            onPress={onMark}
+            className="h-12 w-12 items-center justify-center rounded-full active:bg-line"
+          >
+            <Mark episode={e} />
+          </Pressable>
+          <View className="flex-1 gap-0.5">
+            {/* Played episodes are dimmed by colour, not opacity, so they stay readable. */}
+            <Text numberOfLines={2} className={`text-body ${played ? 'text-muted' : 'text-paper'}`}>
+              {e.title}
+            </Text>
+            <Text
+              numberOfLines={1}
+              className={`text-detail ${e.status === 'started' ? 'text-amber' : 'text-muted'}`}
+            >
+              {[code, statusText(e)].filter(Boolean).join(' · ')}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('More for {title}', { title: e.title })}
+            onPress={onMenu}
+            className="h-12 w-12 items-center justify-center rounded-full active:bg-line"
+          >
+            <Icon name="more" size={20} color={colors.muted} />
+          </Pressable>
+        </Pressable>
+      </Animated.View>
+    </View>
+  );
+}
+
+/**
  * A book of episode files shown as a podcast (M157): what is played at a glance, filters, seasons
  * from the file names, and a mark per episode that a tap sets or clears.
  */
@@ -159,6 +256,8 @@ export function FolderPodcastPage({ id, onBack }: { id: string; onBack: () => vo
   const [newestFirst, setNewestFirst] = useState(false);
   const [opened, setOpened] = useState<Record<string, boolean>>({});
   const [menu, setMenu] = useState<FolderEpisode | 'show' | null>(null);
+  const [notice, setNotice] = useState<UndoNotice | null>(null);
+  const clearNotice = useCallback(() => setNotice(null), []);
 
   // `version` is the signal to read the database again.
   const detail = useMemo(() => getBook(db, profileId, id), [id, version]);
@@ -204,10 +303,34 @@ export function FolderPodcastPage({ id, onBack }: { id: string; onBack: () => vo
         showAlert(t('Cannot play'), error instanceof Error ? error.message : String(error)),
       )
       .finally(refresh);
+  // The player takes the new marks: a paused one the place they moved, a playing one which
+  // episodes playing on skips.
+  const marksChanged = () => {
+    void reloadBook(id, false).catch(() => {});
+    void updateEpisodeMarks(id).catch(() => {});
+    refresh();
+  };
   const mark = (locations: string[], value: boolean) => {
     setEpisodesPlayed(db, profileId, id, locations, value, Date.now());
-    // Marking the episode being heard moves the place on; a paused player takes it.
-    void reloadBook(id, false).catch(() => {});
+    marksChanged();
+  };
+  // A swipe marks at once, with Undo, since a swipe is easily made by mistake.
+  const swipeMark = (e: FolderEpisode) => {
+    const before = episodesBefore(db, profileId, id, [e.location]);
+    const played = e.status !== 'played';
+    mark([e.location], played);
+    setNotice({
+      text: played
+        ? t('{title} marked as played', { title: e.title })
+        : t('{title} marked as unplayed', { title: e.title }),
+      undo: () => {
+        undoEpisodes(db, profileId, before, Date.now());
+        marksChanged();
+      },
+    });
+  };
+  const queue = (e: FolderEpisode, where: 'next' | 'last') => {
+    addToUpNext(db, profileId, id, where, Date.now(), e.location);
     refresh();
   };
 
@@ -218,6 +341,8 @@ export function FolderPodcastPage({ id, onBack }: { id: string; onBack: () => vo
     const seasonLeft = group?.episodes.filter((x) => x.status !== 'played') ?? [];
     return [
       { icon: 'play', label: t('Play'), onPress: () => play(e) },
+      { icon: 'queue', label: t('Play next'), onPress: () => queue(e, 'next') },
+      { icon: 'chapters', label: t('Add to Up next'), onPress: () => queue(e, 'last') },
       {
         icon: 'check',
         label: e.status === 'played' ? t('Mark as unplayed') : t('Mark as played'),
@@ -430,54 +555,14 @@ export function FolderPodcastPage({ id, onBack }: { id: string; onBack: () => vo
             );
           }
           const e = row.episode;
-          const code = codeOf(e);
-          const played = e.status === 'played';
           return (
-            <Pressable
-              onPress={() => play(e)}
-              onLongPress={() => setMenu(e)}
-              {...ROW_BUTTON}
-              accessibilityLabel={[code, e.title, statusText(e)].filter(Boolean).join(', ')}
-              className="flex-row items-center gap-1 border-b border-line py-2 pe-2 ps-1 active:bg-raised"
-            >
-              <Pressable
-                accessibilityRole="checkbox"
-                accessibilityLabel={
-                  played
-                    ? t('Mark {title} as unplayed', { title: e.title })
-                    : t('Mark {title} as played', { title: e.title })
-                }
-                accessibilityState={{ checked: played }}
-                aria-checked={played}
-                onPress={() => mark([e.location], !played)}
-                className="h-12 w-12 items-center justify-center rounded-full active:bg-line"
-              >
-                <Mark episode={e} />
-              </Pressable>
-              <View className="flex-1 gap-0.5">
-                {/* Played episodes are dimmed by colour, not opacity, so they stay readable. */}
-                <Text
-                  numberOfLines={2}
-                  className={`text-body ${played ? 'text-muted' : 'text-paper'}`}
-                >
-                  {e.title}
-                </Text>
-                <Text
-                  numberOfLines={1}
-                  className={`text-detail ${e.status === 'started' ? 'text-amber' : 'text-muted'}`}
-                >
-                  {[code, statusText(e)].filter(Boolean).join(' · ')}
-                </Text>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('More for {title}', { title: e.title })}
-                onPress={() => setMenu(e)}
-                className="h-12 w-12 items-center justify-center rounded-full active:bg-line"
-              >
-                <Icon name="more" size={20} color={colors.muted} />
-              </Pressable>
-            </Pressable>
+            <EpisodeRow
+              episode={e}
+              onPlay={() => play(e)}
+              onMenu={() => setMenu(e)}
+              onMark={() => mark([e.location], e.status !== 'played')}
+              onSwipe={() => swipeMark(e)}
+            />
           );
         }}
       />
@@ -486,6 +571,7 @@ export function FolderPodcastPage({ id, onBack }: { id: string; onBack: () => vo
         actions={menu === null ? [] : menu === 'show' ? showActions : episodeActions(menu)}
         onClose={() => setMenu(null)}
       />
+      <UndoBar notice={notice} onDone={clearNotice} bottom={insets.bottom} />
     </>
   );
 }

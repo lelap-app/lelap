@@ -3,12 +3,14 @@ import { bookSwitch, listFolderEpisodes, showAsBook, showAsPodcast } from '@lela
 import { t } from './i18n';
 import { db } from './db';
 import { showAlert } from './dialog';
-import { reloadBook } from './player';
+import { reloadBook, updateEpisodeMarks } from './player';
 import { profileId } from './profile';
 
 /** Shows a book of episode files as a podcast (M157); nothing about its place changes. */
 export function switchToPodcast(bookId: string): void {
   showAsPodcast(db, profileId, bookId, Date.now());
+  // A book playing now skips played episodes from here on, also with the app closed (M158).
+  void updateEpisodeMarks(bookId).catch(() => {});
 }
 
 /**
@@ -21,6 +23,7 @@ export function switchToBook(bookId: string, done: () => void): void {
     showAsBook(db, profileId, bookId, Date.now());
     // A paused book in the player takes the new place.
     void reloadBook(bookId, false).catch(() => {});
+    void updateEpisodeMarks(bookId).catch(() => {});
     done();
   };
   if (!target || target.laterPlayed === 0) {

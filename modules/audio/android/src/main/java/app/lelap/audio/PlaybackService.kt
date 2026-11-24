@@ -619,6 +619,27 @@ class PlaybackService : MediaLibraryService() {
     silencePrefs.edit().putString(Commands.SILENCE_KEY, savings.encode()).apply()
   }
 
+  /**
+   * A file played to its end and the next one started (M158): a book with per-file marks logs the
+   * file for the app, and a book shown as a podcast goes on past episodes already played, also
+   * with the app closed.
+   */
+  private fun onFileEnded(old: Player.PositionInfo, new: Player.PositionInfo) {
+    val playlist = current ?: return
+    val ended = playlist.files.getOrNull(old.mediaItemIndex)?.takeIf { it.location == old.mediaItem?.mediaId } ?: return
+    if (playlist.marksFiles) {
+      current = FolderEpisodes.withPlayed(playlist, old.mediaItemIndex)
+      val log = FolderEpisodes.appendPlayed(
+        prefs.getString(Commands.PREF_PLAYED_FILES, null),
+        PlayedFile(playlist.bookId, ended.location, System.currentTimeMillis()),
+      )
+      prefs.edit().putString(Commands.PREF_PLAYED_FILES, log).apply()
+    }
+    val (index, position) = FolderEpisodes.skipTarget(playlist, old.mediaItemIndex, new.mediaItemIndex) ?: return
+    notePendingSeek(index, position)
+    player.seekTo(index, position)
+  }
+
   /** The book played to its end: log it, then hand over to Up Next if it is an episode. */
   private fun onBookEnded() {
     val ended = current ?: return
@@ -632,7 +653,13 @@ class PlaybackService : MediaLibraryService() {
       null
     }
     val log = UpNext.decodeFinished(prefs.getString(Commands.PREF_FINISHED, null)) +
-      Finished(ended.bookId, System.currentTimeMillis(), start?.first, start?.second)
+      Finished(
+        ended.bookId,
+        System.currentTimeMillis(),
+        start?.first,
+        start?.second,
+        ended.files.getOrNull(active.currentMediaItemIndex)?.location ?: ended.files.lastOrNull()?.location,
+      )
     prefs.edit().putString(Commands.PREF_FINISHED, UpNext.encodeFinished(log.takeLast(100))).apply()
     // A timer for the end of the episode (or of the last chapter) stops here, before Up Next.
     if (sleepBoundaryMs != null) {
@@ -748,7 +775,11 @@ class PlaybackService : MediaLibraryService() {
       // A changed intro or outro for the show, or chapters found from silences, apply to the
       // book that is loaded, at its live place.
       // The book's or show's own sound changed: it applies at once, at the live place.
-      if (loaded.sound != playlist.sound) current = loaded.copy(sound = playlist.sound)
+      if (loaded.sound != playlist.sound) current = (current ?: loaded).copy(sound = playlist.sound)
+      // New marks from the app (M158): which episodes playing on skips, which files it logs.
+      if (loaded.skipsPlayed != playlist.skipsPlayed || loaded.marksFiles != playlist.marksFiles) {
+        current = (current ?: loaded).copy(skipsPlayed = playlist.skipsPlayed, marksFiles = playlist.marksFiles)
+      }
       if (loaded.introMs != playlist.introMs || loaded.outroMs != playlist.outroMs || loaded.chapters != playlist.chapters ||
         loaded.artworks != playlist.artworks || loaded.coverUri != playlist.coverUri
       ) {
@@ -1628,6 +1659,7 @@ class PlaybackService : MediaLibraryService() {
     }
     // A seek or the next file: the next chapter mark is somewhere else now.
     retime()
+    if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION) onFileEnded(oldPosition, newPosition)
     if (reason != Player.DISCONTINUITY_REASON_SEEK) return
     placeChangedAt = System.currentTimeMillis()
     writeJournal(PositionJournal.Event.SEEK)
