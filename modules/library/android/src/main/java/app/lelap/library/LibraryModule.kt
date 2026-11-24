@@ -55,6 +55,19 @@ class LibraryModule : Module() {
 
     AsyncFunction("hasPermission") { uri: String -> hasPermission(Uri.parse(uri)) }
 
+    // Android keeps a limited number of folder grants per app; a folder chosen before gives its back.
+    AsyncFunction("releaseOtherFolders") { keep: List<String> ->
+      val resolver = context.contentResolver
+      val grants = resolver.persistedUriPermissions.map {
+        FolderGrant(it.uri.toString(), it.isReadPermission, it.isWritePermission)
+      }
+      val released = FolderGrants.toRelease(grants, keep.toSet())
+      for (uri in released) {
+        runCatching { resolver.releasePersistableUriPermission(Uri.parse(uri), Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+      }
+      released.size
+    }
+
     AsyncFunction("listTree") Coroutine { uri: String ->
       withContext(Dispatchers.IO) { listTree(Uri.parse(uri)) }
     }

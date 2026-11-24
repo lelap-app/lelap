@@ -1,3 +1,4 @@
+import { addonBase } from '@lelap/core';
 import { readSettings, type Settings } from '@lelap/sdk';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,6 +15,7 @@ import { TextField } from '../src/components/TextField';
 import { hint } from '../src/a11y';
 import { t } from '../src/i18n';
 import { activeProfile } from '../src/profile';
+import { addonAnswers } from '../src/addons';
 import { scrobblerForm, scrobblersWork, settingOptions, setUpScrobbler } from '../src/scrobblers';
 import { READABLE } from '../src/layout';
 
@@ -54,6 +56,8 @@ export default function ScrobblerScreen() {
     setError(null);
     try {
       await setUpScrobbler(url, read.settings);
+      // Answers given with the old settings go too, however long the add-on said to keep them.
+      addonAnswers.forget(addonBase(url));
       void queryClient.invalidateQueries();
       router.back();
     } catch (e) {

@@ -1,6 +1,7 @@
 import {
   type CarPalette as Palette,
   chapterAt,
+  chapterJump,
   getBook,
   getSettings,
   toBookPosition,
@@ -31,9 +32,9 @@ import {
 import { profileId } from '../src/profile';
 import { useCarPalette } from '../src/theme';
 
-// Car mode (M33, its look M74): the player's cover, title and chapter, big and calm, over five
+// Car mode (M33, its look M74): the player's cover, title and chapter, big and calm, over six
 // large targets; the screen stays on. Within Android's driving guidelines: no text under 18 points
-// and five choices. Dark at night in the listener's theme, light by day when the phone is in light
+// and few choices: Previous chapter (M159) sits beside Next chapter, so the two read as one pair. Dark at night in the listener's theme, light by day when the phone is in light
 // mode (M108). The sleep button steps like the notification's: 15 min → 30 min → end of chapter
 // → off.
 
@@ -342,8 +343,10 @@ export default function CarMode() {
   // Never under 48, even in a small split-screen window.
   const skipSize = Math.max(48, Math.round(SKIP_SIZE[shape] * fit));
 
+  // Two rows of wide buttons under the round ones; sideways they stay short enough to fit.
+  const wideHeight = landscape ? 64 : 80;
   const controls = (
-    <View style={{ gap: landscape ? 16 : 24 }}>
+    <View style={{ gap: landscape ? 12 : 20 }}>
       <View className="flex-row items-center justify-center gap-6">
         <RoundButton
           icon="skipBack"
@@ -375,19 +378,34 @@ export default function CarMode() {
       </View>
       <View className="flex-row gap-4">
         <WideButton
+          icon="previous"
+          label={t('Previous chapter')}
+          caption={t('Previous chapter')}
+          palette={palette}
+          height={wideHeight}
+          disabled={!bookId || chapters.length === 0}
+          onPress={() => {
+            // As the player's button: the chapter's start, or the one before near its start.
+            const to = chapterJump(chapters, position, false) ?? 0;
+            if (bookId) void seekToBookPosition(bookId, to, 'chapter');
+          }}
+        />
+        <WideButton
           icon="next"
           label={
             toListNext ? t('Next in list: {title}', { title: listNext.title }) : t('Next chapter')
           }
           caption={toListNext ? t('Next in list') : t('Next chapter')}
           palette={palette}
-          height={landscape ? 80 : 88}
+          height={wideHeight}
           disabled={!bookId || (!next && !toListNext)}
           onPress={() => {
             if (bookId && next) void seekToBookPosition(bookId, next.startMs, 'chapter');
             else if (toListNext) void stepList(true);
           }}
         />
+      </View>
+      <View className="flex-row gap-4">
         <WideButton
           icon="moon"
           label={
@@ -397,7 +415,7 @@ export default function CarMode() {
           }
           caption={timer === null ? t('Sleep timer') : formatClock(timer)}
           palette={palette}
-          height={landscape ? 80 : 88}
+          height={wideHeight}
           active={timer !== null}
           disabled={!bookId}
           onPress={cycleSleep}

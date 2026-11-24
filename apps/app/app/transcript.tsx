@@ -42,10 +42,13 @@ export default function TranscriptScreen() {
     () => (bookId ? transcriptOf(bookId, fileLocation) : null),
     [bookId, fileLocation, version],
   );
-  // Fetched when opened and kept for the session; the web app's proxy caches it for a day.
+  // Fetched when opened and kept for the session, or read from the copy kept with a download
+  // (M159); the web app's proxy caches it for a day.
   const transcript = useQuery({
     queryKey: ['transcript', source?.url],
-    queryFn: () => (source ? loadTranscript(source) : Promise.resolve([])),
+    queryFn: () => (source ? loadTranscript(source, bookId) : Promise.resolve([])),
+    // Asked once offline too: a kept copy needs no network.
+    networkMode: 'offlineFirst',
     enabled: !!source,
     staleTime: Infinity,
     gcTime: 24 * 60 * 60_000,

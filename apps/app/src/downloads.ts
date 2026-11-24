@@ -29,9 +29,11 @@ import { formatBytes } from './format';
 import * as audio from './platform/audio';
 import * as native from './platform/downloads';
 import { reloadBook, resendQueue, useLibrary } from './player';
+import { keepTranscripts } from './podcasting';
 import { profileId } from './profile';
+import { dropTranscripts } from './savedTranscripts';
 import { askLocalNetwork } from './localNetwork';
-import { fileAccess } from './remote';
+import { fileAccess, fileAccessElsewhere } from './remote';
 
 export type { DownloadLocation, DownloadStatus } from './platform/downloads';
 
@@ -107,10 +109,19 @@ export async function startDownload(
   await locateAddonBook(bookId, profileId);
   // Files on a server: S3 links signed now, WebDAV with its login (sent to that host only).
   const access = plan.files.map((f) => fileAccess({ uri: f.url, rootId: f.rootId, bookId }));
+  // A server's other address (M146): a download held for Wi-Fi or a charger may start where
+  // the address in use now is silent, and the worker then takes this one.
+  const elsewhere = plan.files.map((f) => fileAccessElsewhere({ uri: f.url, rootId: f.rootId }));
   // Android 17: a server at home needs local network access, asked for now; without it the
   // download would only fail. The worker checks again, in case access is taken away later.
   const localNetwork = access.some((a) => isLocalAddress(a.uri));
-  if (localNetwork && ask && !(await askLocalNetwork(true))) return;
+  // A home address held as the other one is asked for too, as the worker may need it; turned
+  // down, the download still goes ahead from the address in use.
+  const homeElsewhere = elsewhere.some((a) => a !== null && isLocalAddress(a.uri));
+  if ((localNetwork || homeElsewhere) && ask) {
+    const allowed = await askLocalNetwork(true);
+    if (!allowed && localNetwork) return;
+  }
   requestDownload(db, plan, meta, Date.now());
   await native.enqueue(
     {
@@ -120,6 +131,7 @@ export async function startDownload(
         name: f.name,
         size: f.size,
         ...(f.integrity ? { integrity: f.integrity } : {}),
+        ...(elsewhere[i] ? { also: elsewhere[i].uri } : {}),
       })),
       headers: sharedHeaders(access),
       ...(localNetwork ? { localNetwork: true } : {}),
@@ -127,12 +139,16 @@ export async function startDownload(
     currentRules(),
   );
   void queryClient.invalidateQueries({ queryKey: DOWNLOADS_KEY });
+  // The transcripts go with the files, so they show offline too (M159); on mobile data with
+  // Wi-Fi only on, they wait for the download to finish.
+  if (!(onMobileData() && currentRules().wifiOnly)) void keepTranscripts(bookId);
   if (first) await askForBackgroundWork();
 }
 
 /** Cancels or deletes a download; the book stays in the library and streams again. */
 export async function deleteDownload(bookId: string): Promise<void> {
   removeDownload(db, bookId, Date.now());
+  dropTranscripts(bookId);
   // Switch the player to the stream before the files go. The book itself may be gone already.
   await reloadBook(bookId, true).catch(() => {});
   // Up Next and the car stream it from now on too.
@@ -150,12 +166,19 @@ export function applyRules(settings: Settings): Promise<void> {
 async function syncDownloads(onChange: () => void): Promise<Map<string, native.DownloadStatus>> {
   const statuses = await native.statuses();
   const fold = applyDownloadStatuses(db, native.directory(), statuses, Date.now());
-  for (const orphan of fold.orphans) await native.remove(orphan);
+  for (const orphan of fold.orphans) {
+    await native.remove(orphan);
+    dropTranscripts(orphan);
+  }
   for (const bookId of fold.changed) {
     const row = getDownload(db, bookId);
     if (row?.state === 'failed') logDiagnostic(downloadFailureEvent(bookId, row.error));
-    // A paused book picks up its new files now; a playing one at its next load.
-    if (row?.state === 'done') await reloadBook(bookId, false).catch(() => {});
+    if (row?.state === 'done') {
+      // A paused book picks up its new files now; a playing one at its next load.
+      await reloadBook(bookId, false).catch(() => {});
+      // Transcripts that couldn't be fetched when it was queued (M159).
+      void keepTranscripts(bookId);
+    }
   }
   if (fold.changed.length > 0) {
     onChange();

@@ -124,7 +124,8 @@ export function getSettings(db: Db, profileId: string): Settings {
   const result: Settings = { ...DEFAULTS };
   const rows = db.select().from(settings).where(eq(settings.profileId, profileId)).all();
   for (const { key, value } of rows) {
-    if (!(key in SettingsSchema.shape)) continue;
+    // Own keys only: `in` also finds `toString` and `__proto__` on the shape's prototype.
+    if (!Object.hasOwn(SettingsSchema.shape, key)) continue;
     const field = SettingsSchema.shape[key as keyof Settings];
     try {
       const parsed = field.safeParse(JSON.parse(value));

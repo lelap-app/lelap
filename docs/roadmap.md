@@ -164,6 +164,7 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M156 Add-on protocol 6](milestones/m156.md)         | Done        |           7 | Revision 15 — the app tells add-ons its revision, a minimum app revision, 426 Upgrade Required                                                                       |
 | [M157 Folders as podcasts](milestones/m157.md)       | Done        |           9 | A folder of episode files shown as a podcast, each episode marked played on its own, switched back and forth without losing progress                                 |
 | [M158 Folders as podcasts 2](milestones/m158.md)     | Done        |          10 | Skip played episodes with the app closed, single episodes in Up Next, swipe to mark, honest Library progress                                                         |
+| [M159 Upkeep 3](milestones/m159.md)                  | Done        |          11 | M40's open small fixes: add-on answers kept for their cacheMaxAge, health kept across starts, old updates removed, offline transcripts, car mode's Previous chapter  |
 | [M160 Folders as podcasts 3](milestones/m160.md)     | Planned     |             | Several episodes of one folder in Up Next, skipping while casting, the player's timeline for one episode                                                             |
 
 <!-- milestones:end -->
@@ -191,11 +192,6 @@ when it is planned.
   field and forbid lasting copies (so no Google fields in downloads or sync), it has no narrators or
   lengths, and its coverage of Danish editions is unknown until a key exists. Apple's iTunes Search
   API is out unless a store link is shown beside its data. M137 is left unused.
-- **Part transcripts, finer points (after M136):** a synced book that another device already has
-  keeps that device's add-on reference, so transcripts an add-on adds later reach it only when it
-  opens the book's item itself (`applyBook` in `packages/core/src/sync/ops.ts`); and the transcript
-  screen reads the database only when the part changes, so transcripts written while it is open
-  show after the next part.
 - **Kotlin tests for the fold and headless modules in CI:** `:lelap-fold:testDebugUnitTest` (M113)
   and `:lelap-headless:testDebugUnitTest` (M123) pass locally but aren't in the `android-unit-tests`
   job's Gradle line in `ci.yml`. Adding them doesn't change when the job runs; waiting on the
@@ -237,12 +233,17 @@ when it is planned.
 - **Home and away addresses for SMB and SFTP (after M146):** WebDAV, Jellyfin and Audiobookshelf
   servers take a second address; SMB and SFTP don't, as their listing and streams run in native
   code (`modules/netfs`) and would need their own probe and their own way to move a stream.
-- **Home and away addresses, the rest (after M146):** a download takes the address in use when it
-  is queued, so one held for Wi-Fi or charging may start on a network where that address is
-  silent (`apps/app/src/downloads.ts`; the URL would be chosen when WorkManager starts it); the
-  web player's `updateBook` keeps its files, so a book in the browser doesn't follow the address,
-  and the web only notices coming online, not a new network; and a switch from one Wi-Fi to
-  another without a drop between is noticed only when a stream fails.
+- **Home and away addresses, the rest (after M146):** the web player's `updateBook` keeps its
+  files, so a book in the browser doesn't follow the address, and the web only notices coming
+  online, not a new network; a switch from one Wi-Fi to another without a drop between is noticed
+  only when a stream fails; and a download's cover is fetched only from the address in use when it
+  was queued (M159 moved the files themselves).
+- **Add-on answers kept for less than five minutes (after M159):** the app keeps an answer as long
+  as its `cacheMaxAge` says, but the screens' own cache still keeps any answer five minutes, so a
+  shorter age only counts from there.
+- **Over-the-air updates from before M159:** the release workflow removes only updates it listed
+  in `ota/history.json`, which began with M159; older ones stay in the downloads bucket until
+  someone removes them by hand from Cloudflare's dashboard.
 
 Weighed on 2026-11-20 and left out, so they don't come back without a new reason: community skins
 and players (theme files of colours already cover looks, and skins would be a plugin surface to

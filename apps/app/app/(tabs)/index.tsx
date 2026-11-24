@@ -29,7 +29,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../../src/i18n';
 import { showAlert } from '../../src/dialog';
 import { Icon, IconButton } from '../../src/components/Icon';
-import { SHOWN_TYPES, syncAddonsNow, useAddons } from '../../src/addons';
+import { addonAnswers, SHOWN_TYPES, syncAddonsNow, useAddons } from '../../src/addons';
 import { Avatar } from '../../src/components/Avatar';
 import { CatalogRow } from '../../src/components/CatalogRow';
 import { ImportedWantedRow } from '../../src/components/ImportedWanted';
@@ -128,6 +128,8 @@ export default function HomeScreen() {
     try {
       await syncAddonsNow();
       refresh();
+      // Asked for by hand: the rows ask again, however long the add-ons said to keep them.
+      addonAnswers.forget();
       await queryClient.invalidateQueries({ queryKey: ['catalog'] });
     } finally {
       setRefreshing(false);

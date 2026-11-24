@@ -105,4 +105,14 @@ describe('settings', () => {
       .run();
     expect(getSettings(db, ME).smartRewind).toBe(true);
   });
+
+  it('ignores stored keys that only the prototype knows (M2 review)', () => {
+    const db = createTestDb();
+    for (const key of ['toString', '__proto__', 'constructor', 'hasOwnProperty'])
+      db.insert(settings).values({ profileId: ME, key, value: '{"a":1}', updatedAt: 1 }).run();
+    const read = getSettings(db, ME);
+    expect(read).toEqual(getSettings(createTestDb(), ME));
+    expect(Object.getPrototypeOf(read)).toBe(Object.prototype);
+    expect(Object.hasOwn(read, 'toString')).toBe(false);
+  });
 });
