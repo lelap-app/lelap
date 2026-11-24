@@ -122,6 +122,33 @@ export function canShowAsPodcast(db: Db, bookId: string): boolean {
   return presentFiles(db, bookId).length >= 2;
 }
 
+/** Whether a book keeps per-file marks: shown as a podcast now or at some time before. */
+export function tracksEpisodes(db: Db, profileId: string, bookId: string): boolean {
+  const row = db
+    .select({ parts: libraryEntries.parts })
+    .from(libraryEntries)
+    .where(entryKey(profileId, bookId))
+    .get();
+  return !!row?.parts;
+}
+
+/**
+ * Sets a podcast book's finished time from its marks, after sync merged marks in: finished once
+ * every episode is played. Leaves `updatedAt` alone, so it starts no push.
+ */
+export function reconcileFinished(db: Db, profileId: string, bookId: string, now: number): void {
+  const entry = readEntry(db, profileId, bookId);
+  if (!entry.asPodcast) return;
+  const finishedAt = finishedOf(presentFiles(db, bookId), entry.parts, entry.finishedAt, now);
+  if (finishedAt === entry.finishedAt) return;
+  db.update(libraryEntries).set({ finishedAt }).where(entryKey(profileId, bookId)).run();
+}
+
+/** Whether a book is finished for a profile; a podcast book only once every episode is played. */
+export function isFinished(db: Db, profileId: string, bookId: string): boolean {
+  return readEntry(db, profileId, bookId).finishedAt !== null;
+}
+
 export function showsAsPodcast(db: Db, profileId: string, bookId: string): boolean {
   return readEntry(db, profileId, bookId).asPodcast;
 }
@@ -390,7 +417,14 @@ export function noteFileChange(
   const toIndex = files.findIndex((f) => f.location === toLocation);
   const left = files[fromIndex];
   if (!left || toIndex < 0) return;
-  const nearEnd = left.durationMs > 0 && from.filePositionMs >= left.durationMs - NEAR_END_MS;
+  // Saves come every 10 s of real time, which is more of the file at a higher speed.
+  const speed = db
+    .select({ speed: libraryEntries.speed })
+    .from(libraryEntries)
+    .where(entryKey(profileId, bookId))
+    .get()?.speed;
+  const margin = NEAR_END_MS * Math.max(1, speed ?? 1);
+  const nearEnd = left.durationMs > 0 && from.filePositionMs >= left.durationMs - margin;
   const markPlayed = (passed: typeof files) => {
     for (const file of passed) {
       if (!isPlayed(entry.parts, file.location)) {

@@ -36,7 +36,12 @@ import {
 } from '../schema';
 import { bookIdForKey, bookKey, parseEpisodeKey, recordDeletion, type TombstoneKind } from './keys';
 import { type SoundOverrides, syncedOverrides } from '../sound';
-import { mergeSyncedParts, partsForSync, type SyncedPart } from '../library/folderPodcast';
+import {
+  mergeSyncedParts,
+  partsForSync,
+  reconcileFinished,
+  type SyncedPart,
+} from '../library/folderPodcast';
 import { cleanChapters } from '../library/ownChapters';
 import { cleanOrder, SERIES_ORDER_PREFIX } from '../library/series';
 import { cleanRating, RATING_PREFIX } from '../ratings';
@@ -972,7 +977,10 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
               : mergeSyncedParts(tx, bookId, local?.parts ?? null, op.data.parts);
           if (local && local.updatedAt >= op.at) {
             // An older entry may still bring a newer mark for one file.
-            if (parts) tx.update(libraryEntries).set({ parts }).where(where).run();
+            if (parts) {
+              tx.update(libraryEntries).set({ parts }).where(where).run();
+              reconcileFinished(tx, op.profile, bookId, op.at);
+            }
             break;
           }
           const row = {
@@ -991,6 +999,7 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
               set: row,
             })
             .run();
+          if (parts) reconcileFinished(tx, op.profile, bookId, op.at);
           break;
         }
         case 'bookmark': {

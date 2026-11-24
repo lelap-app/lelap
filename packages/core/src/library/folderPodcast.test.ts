@@ -80,6 +80,14 @@ describe('folders as podcasts', () => {
     expect(statuses(db, bookId).slice(0, 2)).toEqual(['played', 'started']);
   });
 
+  it('allows for the speed when telling the end of a file', () => {
+    showAsPodcast(db, ME, bookId, 5);
+    db.update(libraryEntries).set({ speed: 3 }).run();
+    place(db, bookId, 'e1', 39 * MIN, 10);
+    place(db, bookId, 'e2', 2_000, 20);
+    expect(statuses(db, bookId)[0]).toBe('played');
+  });
+
   it('does not mark a file played when the listener jumped away from its middle', () => {
     showAsPodcast(db, ME, bookId, 5);
     place(db, bookId, 'e1', 10 * MIN, 10);
@@ -211,6 +219,16 @@ describe('folders as podcasts', () => {
     });
   });
 
+  it('keeps the marks true in book view when it is marked finished or not', () => {
+    showAsPodcast(db, ME, bookId, 5);
+    showAsBook(db, ME, bookId, 10);
+    setFinished(db, ME, bookId, true, 20);
+    setFinished(db, ME, bookId, false, 30);
+    showAsPodcast(db, ME, bookId, 40);
+    expect(statuses(db, bookId)).toEqual(Array(5).fill('none'));
+    expect(finishedAt(db)).toBeNull();
+  });
+
   describe('sync', () => {
     it('merges marks from two devices file by file', () => {
       showAsPodcast(db, ME, bookId, 5);
@@ -224,6 +242,18 @@ describe('folders as podcasts', () => {
       setEpisodesPlayed(other, ME, otherBook, ['e4'], true, 50);
       applyOps(other, ops, 100, () => 'x');
       expect(statuses(other, otherBook)).toEqual(['none', 'played', 'none', 'played', 'none']);
+    });
+
+    it('finishes the book when synced marks complete it', () => {
+      showAsPodcast(db, ME, bookId, 5);
+      setEpisodesPlayed(db, ME, bookId, ['e1', 'e2'], true, 10);
+      const ops = collectOps(db, 0);
+      const other = createTestDb();
+      const otherBook = seedBook(other, 'Bandeland', FILES);
+      showAsPodcast(other, ME, otherBook, 6);
+      setEpisodesPlayed(other, ME, otherBook, ['e3', 'e4', 'e5'], true, 50);
+      applyOps(other, ops, 100, () => 'x');
+      expect(other.select().from(libraryEntries).get()?.finishedAt).not.toBeNull();
     });
 
     it('brings the podcast view to a device that had the book as a book', () => {

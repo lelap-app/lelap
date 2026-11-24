@@ -162,7 +162,8 @@ Decisions and architecture live in [`brief.md`](brief.md).
 | [M154 Live streams](milestones/m154.md)              | Done        |          10 | A live flag on streams — no place, progress or downloads, now-playing from ICY and ID3, HLS playback                                                                 |
 | [M155 Preparing in the player](milestones/m155.md)   | Done        |           7 | What M152 and M153 left to the player — preparing audio while playing, seeking past unmeasured parts, chapters once measured, the next copy on failure               |
 | [M156 Add-on protocol 6](milestones/m156.md)         | Done        |           7 | Revision 15 — the app tells add-ons its revision, a minimum app revision, 426 Upgrade Required                                                                       |
-| [M157 Folders as podcasts](milestones/m157.md)       | Planned     |             | A folder of episode files shown as a podcast, each episode marked played on its own, switched back and forth without losing progress                                 |
+| [M157 Folders as podcasts](milestones/m157.md)       | In progress |           9 | A folder of episode files shown as a podcast, each episode marked played on its own, switched back and forth without losing progress                                 |
+| [M158 Folders as podcasts 2](milestones/m158.md)     | Planned     |             | Skip played episodes with the app closed, single episodes in Up Next, swipe to mark, honest Library progress                                                         |
 
 <!-- milestones:end -->
 

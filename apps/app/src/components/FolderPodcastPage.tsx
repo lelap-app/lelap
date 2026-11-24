@@ -12,7 +12,7 @@ import { switchToBook } from '../folderView';
 import { formatDuration, formatLeft } from '../format';
 import { READABLE, useWide } from '../layout';
 import { openPlayer } from '../navigation';
-import { playFolderEpisode, useLibrary } from '../player';
+import { playFolderEpisode, reloadBook, useLibrary } from '../player';
 import { profileId } from '../profile';
 import { useColors } from '../theme';
 import { type Action, ActionSheet } from './ActionSheet';
@@ -206,11 +206,14 @@ export function FolderPodcastPage({ id, onBack }: { id: string; onBack: () => vo
       .finally(refresh);
   const mark = (locations: string[], value: boolean) => {
     setEpisodesPlayed(db, profileId, id, locations, value, Date.now());
+    // Marking the episode being heard moves the place on; a paused player takes it.
+    void reloadBook(id, false).catch(() => {});
     refresh();
   };
 
   const episodeActions = (e: FolderEpisode): Action[] => {
-    const group = groups.find((g) => g.episodes.includes(e));
+    // By location: a refresh while the sheet is open makes new episode objects.
+    const group = groups.find((g) => g.episodes.some((x) => x.location === e.location));
     const before = episodes.filter((x) => x.index < e.index && x.status !== 'played');
     const seasonLeft = group?.episodes.filter((x) => x.status !== 'played') ?? [];
     return [

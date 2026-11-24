@@ -18,6 +18,8 @@ import {
   resumePoint,
   streamMime,
   saveProgress,
+  isFinished,
+  showsAsPodcast,
   skipPlayedEpisode,
   startEpisode,
   stripExtension,
@@ -767,6 +769,11 @@ async function foldFinished(): Promise<boolean> {
   const done = await audio.takeFinished().catch(() => []);
   for (const item of done) {
     finishFromPlayer(db, playerProfile(), item.bookId, item.at);
+    // A podcast book with episodes left goes on to the first of them, not finished (M157).
+    if (showsAsPodcast(db, playerProfile(), item.bookId)) {
+      void reloadBook(item.bookId, false).catch(logCaught);
+      if (!isFinished(db, playerProfile(), item.bookId)) continue;
+    }
     trackFinished(
       item.bookId,
       item.at,
