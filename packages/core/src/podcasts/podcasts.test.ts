@@ -5,6 +5,7 @@ import { createTestDb } from '../../test/db';
 import { seedBook } from '../../test/seed';
 import type { Db } from '../db';
 import { applyDownloadStatuses, planDownload, requestDownload } from '../downloads';
+import { setEpisodesPlayed, showAsPodcast, startEpisode } from '../library/folderPodcast';
 import { getBook, listBooks, setFinished } from '../library/queries';
 import { DEFAULT_PROFILE_ID as ME } from '../profiles';
 import { saveProgress } from '../progress';
@@ -437,5 +438,33 @@ describe('a podcast folder becoming a subscription', () => {
     expect(byNumber.get(1)?.finished).toBe(true);
     expect(byNumber.get(2)).toMatchObject({ finished: false, positionMs: 42_000 });
     expect(byNumber.get(3)).toMatchObject({ finished: false, positionMs: 0, bookId: null });
+  });
+
+  it('carries each mark of a folder shown as a podcast', async () => {
+    const db = createTestDb();
+    const { podcastId } = await save(db, 3);
+    const folder = seedBook(db, 'primary:Podcasts/Garden', [
+      { location: 'primary:Podcasts/Garden/S01E01.mp3', durationMs: 60_000 },
+      { location: 'primary:Podcasts/Garden/S01E02.mp3', durationMs: 120_000 },
+      { location: 'primary:Podcasts/Garden/S01E03.mp3', durationMs: 180_000 },
+    ]);
+    showAsPodcast(db, ME, folder, 5);
+    // Out of order: the third is played, the second was left halfway, the first never started.
+    setEpisodesPlayed(db, ME, folder, ['primary:Podcasts/Garden/S01E03.mp3'], true, 6);
+    startEpisode(db, ME, folder, 'primary:Podcasts/Garden/S01E02.mp3', 7);
+    saveProgress(db, ME, {
+      bookId: folder,
+      fileLocation: 'primary:Podcasts/Garden/S01E02.mp3',
+      filePositionMs: 60_000,
+      savedAt: 8,
+    });
+    expect(carryFolderPlace(db, ME, folder, podcastId, 20, newId)).toEqual({
+      matched: 3,
+      played: 1,
+    });
+    const byNumber = new Map(listEpisodes(db, ME, podcastId).map((e) => [e.number, e]));
+    expect(byNumber.get(1)).toMatchObject({ finished: false, positionMs: 0, bookId: null });
+    expect(byNumber.get(2)).toMatchObject({ finished: false, positionMs: 60_000 });
+    expect(byNumber.get(3)?.finished).toBe(true);
   });
 });

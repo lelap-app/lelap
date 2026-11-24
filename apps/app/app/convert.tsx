@@ -1,4 +1,4 @@
-import { APP_PROTOCOL_VERSION, fetchMeta, getBook, searchAll } from '@lelap/core';
+import { APP_PROTOCOL_VERSION, fetchMeta, getBook, searchAll, showsAsPodcast } from '@lelap/core';
 import type { MetaPreview } from '@lelap/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -33,6 +33,7 @@ export default function ConvertScreen() {
   const addons = useAddons();
   const { bookId = '' } = useLocalSearchParams<{ bookId?: string }>();
   const book = useMemo(() => getBook(db, profileId, bookId)?.book, [bookId]);
+  const asPodcast = useMemo(() => showsAsPodcast(db, profileId, bookId), [bookId]);
   const [query, setQuery] = useState(book?.title ?? '');
   const [feedUrl, setFeedUrl] = useState('');
   const [busy, setBusy] = useState(false);
@@ -89,10 +90,18 @@ export default function ConvertScreen() {
         <View className="px-4 pb-3">
           <ScreenHeader
             title={t('Subscribe to this podcast')}
-            subtitle={t(
-              'Find “{title}” as a podcast. Episodes before the file you are on are marked as played, and that episode keeps your place. The folder stays in the Library.',
-              { title: book?.title ?? t('this folder') },
-            )}
+            subtitle={
+              // Shown as a podcast, each episode carries its own mark (M158).
+              asPodcast
+                ? t(
+                    'Find “{title}” as a podcast. Played episodes are marked as played there, and the others keep where you left them. The folder stays in the Library.',
+                    { title: book?.title ?? t('this folder') },
+                  )
+                : t(
+                    'Find “{title}” as a podcast. Episodes before the file you are on are marked as played, and that episode keeps your place. The folder stays in the Library.',
+                    { title: book?.title ?? t('this folder') },
+                  )
+            }
           />
           <View className="gap-3">
             <View className="flex-row items-center gap-2">

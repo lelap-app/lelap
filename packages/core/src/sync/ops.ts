@@ -37,9 +37,13 @@ import {
 import { bookIdForKey, bookKey, parseEpisodeKey, recordDeletion, type TombstoneKind } from './keys';
 import { type SoundOverrides, syncedOverrides } from '../sound';
 import {
+  fileForSync,
+  fileFromSync,
   mergeSyncedParts,
+  noteFileChange,
   partsForSync,
   reconcileFinished,
+  type SyncedFile,
   type SyncedPart,
 } from '../library/folderPodcast';
 import { cleanChapters } from '../library/ownChapters';
@@ -185,7 +189,15 @@ export type Op =
       profile: string;
       key: string;
       at: number;
-      data: { position: number; addedAt: number };
+      data: {
+        position: number;
+        addedAt: number;
+        /**
+         * One episode of a book shown as a podcast (M158), null for the whole book; absent from
+         * older devices, which keep what is here.
+         */
+        file?: SyncedFile | null;
+      };
     }
   | { type: 'setting'; profile: string; key: string; at: number; data: { value: string } }
   | { type: 'tags'; profile: string; key: string; at: number; data: { tags: string[] } }
@@ -514,7 +526,11 @@ export function collectOps(db: Db, since: number): Op[] {
       profile: u.profileId,
       key: k,
       at: u.updatedAt,
-      data: { position: u.position, addedAt: u.addedAt },
+      data: {
+        position: u.position,
+        addedAt: u.addedAt,
+        file: u.fileLocation ? fileForSync(db, u.bookId, u.fileLocation) : null,
+      },
     });
   }
   const synced = db
@@ -936,11 +952,19 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
           if (!bookId || !fileLocation || !ensureProfile(tx, op.profile, now)) break;
           const where = and(eq(progress.profileId, op.profile), eq(progress.bookId, bookId));
           const local = tx
-            .select({ updatedAt: progress.updatedAt })
+            .select({
+              updatedAt: progress.updatedAt,
+              fileLocation: progress.fileLocation,
+              filePositionMs: progress.filePositionMs,
+            })
             .from(progress)
             .where(where)
             .get();
           if (local && local.updatedAt >= op.at) break;
+          // Files the place passed on the other device in book view are played here too (M158).
+          if (local && local.fileLocation !== fileLocation) {
+            noteFileChange(tx, op.profile, bookId, local, fileLocation, 'sync', op.at);
+          }
           const row = {
             fileLocation,
             filePositionMs: op.data.filePositionMs,
@@ -1075,7 +1099,13 @@ export function applyOps(db: Db, ops: Op[], now: number, newId: IdGenerator): Ha
           const where = and(eq(upNext.profileId, op.profile), eq(upNext.bookId, bookId));
           const local = tx.select({ updatedAt: upNext.updatedAt }).from(upNext).where(where).get();
           if (local && local.updatedAt >= op.at) break;
-          const row = { position: op.data.position, updatedAt: op.at };
+          const row = {
+            position: op.data.position,
+            ...(op.data.file === undefined
+              ? {}
+              : { fileLocation: op.data.file ? fileFromSync(tx, bookId, op.data.file) : null }),
+            updatedAt: op.at,
+          };
           tx.insert(upNext)
             .values({ profileId: op.profile, bookId, addedAt: op.data.addedAt, ...row })
             .onConflictDoUpdate({ target: [upNext.profileId, upNext.bookId], set: row })

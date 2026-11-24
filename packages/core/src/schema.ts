@@ -613,6 +613,11 @@ export const upNext = sqliteTable(
       .notNull()
       .references(() => books.id, { onDelete: 'cascade' }),
     position: real('position').notNull(),
+    /**
+     * One episode of a book shown as a podcast (M158), by file location: it plays alone and
+     * hands over at its end. Null for the whole book or episode.
+     */
+    fileLocation: text('file_location'),
     addedAt: integer('added_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },

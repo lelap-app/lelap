@@ -14,7 +14,7 @@ import { BookCover, coverUri } from '../src/components/BookCover';
 import { MiniPlayer } from '../src/components/MiniPlayer';
 import { db } from '../src/db';
 import { formatDuration } from '../src/format';
-import { playBook, useLibrary } from '../src/player';
+import { playBook, playQueuedEpisode, useLibrary } from '../src/player';
 import { profileId } from '../src/profile';
 import { ROW_BUTTON } from '../src/components/TextButton';
 import { LIST_COLUMN } from '../src/layout';
@@ -60,7 +60,11 @@ export default function UpNextScreen() {
         renderItem={({ item, index }) => (
           <Pressable
             onPress={() =>
-              void playBook(item.bookId)
+              void (
+                item.episode
+                  ? playQueuedEpisode(item.bookId, item.episode.location)
+                  : playBook(item.bookId)
+              )
                 .then(() => openPlayer(router))
                 .catch((error: unknown) =>
                   showAlert(
@@ -75,10 +79,14 @@ export default function UpNextScreen() {
             <BookCover uri={coverUri(item)} title={item.title} size={48} />
             <View className="flex-1 gap-1">
               <Text numberOfLines={2} className="text-body text-paper">
-                {item.title}
+                {item.episode?.title ?? item.title}
               </Text>
               <Text numberOfLines={1} className="text-detail text-muted">
-                {[item.author, item.durationMs > 0 ? formatDuration(item.durationMs) : null]
+                {[
+                  // One episode of a book shown as a podcast (M158) names its show.
+                  item.episode ? item.title : item.author,
+                  item.durationMs > 0 ? formatDuration(item.durationMs) : null,
+                ]
                   .filter(Boolean)
                   .join(' · ')}
               </Text>

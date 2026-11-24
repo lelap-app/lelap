@@ -35,6 +35,7 @@ import { db, newId } from '../db';
 import { showAlert } from '../dialog';
 import { deleteDownload, startDownload } from '../downloads';
 import { switchToBook, switchToPodcast } from '../folderView';
+import { updateEpisodeMarks } from '../player';
 import { profileId } from '../profile';
 import { scrobblesFor, trackAbandoned, trackMarkedFinished } from '../scrobble';
 import { Icon, type IconName } from './Icon';
@@ -172,6 +173,8 @@ export function BookActions({
               onPress={() => {
                 const finishing = book.finishedAt === null;
                 setFinished(db, profileId, book.id, finishing, now());
+                // A podcast book's marks changed: playing on skips by the new ones (M158).
+                void updateEpisodeMarks(book.id).catch(() => {});
                 if (finishing) trackMarkedFinished(book.id, profileId);
                 done();
               }}
