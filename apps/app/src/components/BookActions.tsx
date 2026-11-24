@@ -3,6 +3,7 @@ import {
   addToShelf,
   addToUpNext,
   bookLinks,
+  canShowAsPodcast,
   createPlaylist,
   downloadAllowed,
   isLiveBook,
@@ -21,6 +22,7 @@ import {
   setTags,
   shelfBookIds,
   showInLibrary,
+  showsAsPodcast,
   unlinkBook,
 } from '@lelap/core';
 import { useRouter } from 'expo-router';
@@ -31,6 +33,7 @@ import { t } from '../i18n';
 import { db, newId } from '../db';
 import { showAlert } from '../dialog';
 import { deleteDownload, startDownload } from '../downloads';
+import { switchToBook, switchToPodcast } from '../folderView';
 import { profileId } from '../profile';
 import { scrobblesFor, trackAbandoned, trackMarkedFinished } from '../scrobble';
 import { Icon, type IconName } from './Icon';
@@ -251,6 +254,28 @@ export function BookActions({
               }}
             />
           )}
+          {canShowAsPodcast(db, book.id) &&
+            (showsAsPodcast(db, profileId, book.id) ? (
+              <Row
+                icon="library"
+                label={t('Show as book')}
+                onPress={() => {
+                  onClose();
+                  switchToBook(book.id, onChanged);
+                }}
+              />
+            ) : (
+              <Row
+                icon="podcast"
+                label={t('Show as podcast')}
+                onPress={() => {
+                  switchToPodcast(book.id);
+                  onClose();
+                  onChanged();
+                  router.push({ pathname: '/folder', params: { id: book.id } });
+                }}
+              />
+            ))}
           {book.source === 'local' && (
             <Row
               icon="podcast"

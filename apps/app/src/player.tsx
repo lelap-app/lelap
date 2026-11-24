@@ -18,7 +18,10 @@ import {
   resumePoint,
   streamMime,
   saveProgress,
+  skipPlayedEpisode,
+  startEpisode,
   stripExtension,
+  toBookPosition,
   toFilePosition,
   dayKey,
   listenedBetween,
@@ -835,6 +838,33 @@ export async function playAt(bookId: string, bookPositionMs: number): Promise<vo
   await logged('play', audio.play, undefined, bookId);
 }
 
+/**
+ * Plays one episode of a book shown as a podcast (M157): where the one playing was left is kept,
+ * and the chosen one starts where it was left.
+ */
+export function playFolderEpisode(bookId: string, location: string): Promise<void> {
+  userLoaded = true;
+  return enqueue(async () => {
+    const current = await audio.getState();
+    if (current.bookId && playedThisSession.has(current.bookId)) savePlace(current);
+    const target = startEpisode(db, profileId, bookId, location, Date.now());
+    if (!target) throw new Error('The files of this book are not available.');
+    if (current.bookId === bookId && current.partIndex >= 0 && playerProfile() === profileId) {
+      await logged(
+        'chapter',
+        () => audio.seekTo(target.index, target.positionMs),
+        (before) => toBookPosition(before.files, target.location, target.positionMs),
+        bookId,
+      );
+      await logged('play', audio.play, undefined, bookId);
+      return;
+    }
+    // Saved above; saving the old place again on load would undo the move.
+    if (current.bookId) playedThisSession.delete(current.bookId);
+    await load(bookId, true, true);
+  });
+}
+
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState(IDLE);
   const [version, setVersion] = useState(0);
@@ -982,6 +1012,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (started) refreshedFor.current = state.bookId;
     if (saved && (paused || started)) refresh();
   }, [state, refresh, flushListening]);
+
+  // A book shown as a podcast skips an episode already played when the player goes on into it
+  // (M157). With the app closed the service plays on in order.
+  const lastFile = useRef<{ bookId: string; location: string } | null>(null);
+  useEffect(() => {
+    const before = lastFile.current;
+    const { bookId, fileLocation } = state;
+    lastFile.current = bookId && fileLocation ? { bookId, location: fileLocation } : null;
+    if (!before || !bookId || !fileLocation || before.bookId !== bookId) return;
+    if (before.location === fileLocation || !state.playing || state.positionMs > 5_000) return;
+    const skip = skipPlayedEpisode(db, playerProfile(), bookId, before.location, fileLocation);
+    if (skip) void audio.seekTo(skip.index, skip.positionMs).catch(logCaught);
+  }, [state]);
 
   // A file stored without a length, such as a stream its add-on gave none for, takes the one the
   // player measured, so the bar and the book's timeline have one (M140).

@@ -20,6 +20,7 @@ import {
   type Series,
   setSetting,
   showInLibrary,
+  showsAsPodcast,
   SMART_PRESETS,
   type SmartRule,
   unhideBooks,
@@ -320,6 +321,11 @@ export default function LibraryScreen() {
           t('Files not found'),
           t('Lelap keeps your place until the files are back in the folder.'),
         );
+        return;
+      }
+      // A book shown as a podcast opens its episodes instead (M157).
+      if (showsAsPodcast(db, profileId, book.id)) {
+        router.push({ pathname: '/folder', params: { id: book.id } });
         return;
       }
       try {
